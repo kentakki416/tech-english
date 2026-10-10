@@ -1,7 +1,9 @@
 # ==============================================================================
 # Stage 1: base - pnpm をインストールしたベースイメージ
 # ==============================================================================
-FROM node:20-slim AS base
+# Node 22: CommonJS でビルドした dist から ESM 専用の unified / remark / rehype を
+# require(esm) で読む（22.12 以上で既定で有効）。runner も同じバージョンにそろえる。
+FROM node:22-slim AS base
 
 RUN corepack enable && corepack prepare pnpm@9.0.0 --activate
 
@@ -26,6 +28,9 @@ FROM base AS installer-builder
 WORKDIR /app
 
 COPY --from=pruner /app/out/json/ ./
+# .pnpmfile.cjs は turbo prune の出力に含まれないので別途コピー
+# (pnpm install --frozen-lockfile が pnpmfileChecksum を検証するため必須)
+COPY .pnpmfile.cjs ./
 RUN pnpm install --frozen-lockfile
 
 COPY --from=pruner /app/out/full/ ./
@@ -40,7 +45,7 @@ RUN pnpm deploy --filter cron --prod /app/deploy
 # ==============================================================================
 # Stage 4: runner - 本番実行用の軽量イメージ
 # ==============================================================================
-FROM node:20-slim AS runner
+FROM node:22-slim AS runner
 
 # tini: ECS Fargate では docker --init が使えないため軽量 init として必須
 RUN apt-get update && apt-get install -y --no-install-recommends tini \

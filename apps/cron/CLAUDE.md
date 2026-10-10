@@ -28,6 +28,29 @@ pnpm test              # Vitest（DB client を mock するので DB 不要）
 
 Repository の interface は api / worker と意図的に分離する（api は CRUD、cron は batch 系と操作セットが違うため）。一方ドメイン型は `@repo/domain` で共有する。
 
+### lib/document（文書パーサー）
+
+Markdown / MDX / HTML から本文を抽出し、200〜600 語の本文候補に切り分ける純関数（[content-collection](../../docs/spec/content-collection/README.md#本文の抽出と解析)）。外から呼ぶのは `extractDocument` だけ（`src/lib/document/index.ts`）。
+
+| ファイル | 役割 |
+| --- | --- |
+| `parse-markdown.ts` | unified + remark-parse / frontmatter / gfm（`.mdx` は remark-mdx）で mdast に。タイトルは frontmatter の `title` → 最初の h1 |
+| `parse-html.ts` | jsdom（スクリプトは実行しない）で DOM に → 本文の CSS セレクタ or Readability で本文を取り出す → rehype-remark で mdast に |
+| `convert-mdast-to-blocks.ts` | mdast → `PassageBlock[]`（見出しの深さつき） |
+| `split-into-chunks.ts` / `passage-rules.ts` | 見出し単位の切り分けと結合、本文候補の条件（英単語数・コードの割合・英語・文章） |
+| `content-hash.ts` | 正規化テキストの SHA-256（`passages.content_hash` / `source_documents.content_hash`） |
+
+壊れた MDX と不正な CSS セレクタは throw する。呼び出し側（task / service）が文書単位の失敗として扱う。
+
+## ESM 専用の依存（require(esm)）
+
+cron は CommonJS でビルドするが、unified / remark / rehype は ESM 専用で配布されている。そのため:
+
+- `tsconfig.json` は `"module": "nodenext"` / `"moduleResolution": "nodenext"`（TypeScript 5.8 以降は CommonJS から ESM の import を許す）
+- 実行時は Node の `require(esm)` で読む。**Node 20.19 以上 / 22.12 以上が必要**（Dockerfile は `node:22-slim`）
+- `jsdom` は v29 に固定している。v30 は Node `^22.22.2 || ^24.15.0 || >=26` を要求し、CI（Node 20）で動かないため
+- ビルド後に読めるかの確認: `pnpm build && node -e "require('./dist/lib/document')"`
+
 ## 中断は失敗として扱う
 
 run-once モデルなので、**処理の途中でシグナルを受けて終了した場合はタスクが未完了**を意味する。ここで exit 0 を返すとスケジューラが成功と誤認し、削除が途中で止まっても次回まで気付けない。
@@ -50,6 +73,7 @@ run-once モデルなので、**処理の途中でシグナルを受けて終了
 
 ## テスト戦略
 
-- **Repository / Service の unit test のみ**。DB client は `vi.fn()` で mock するので DB 不要
+- **Repository / Service / lib の unit test のみ**。DB client は `vi.fn()` で mock するので DB 不要
+- `lib/document` のテストは `test/fixtures/document/` の fixture を使う。**fixture の英文は自作する**（実在のドキュメントをコピーしない。ライセンスのため）
 - 統合テストは無い（task はエントリポイントから直接 service を呼ぶフラットな構造のため）
 - テストケースは `describe` を「正常系」「異常系」で分類する（`apps/api` と同じ）

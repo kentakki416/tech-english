@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Caching Responses at the Edge</title>
+</head>
+<body>
+  <div class="site-header">
+    <nav>
+      <a href="/">Home</a>
+      <a href="/docs/">Docs</a>
+      <a href="/pricing/">Pricing</a>
+    </nav>
+  </div>
+  <div class="layout">
+    <div class="sidebar">
+      <ul>
+        <li><a href="/docs/start/">Getting started</a></li>
+        <li><a href="/docs/cache/">Caching</a></li>
+        <li><a href="/docs/limits/">Limits</a></li>
+      </ul>
+    </div>
+    <div class="content">
+      <article>
+        <h2>How the cache decides</h2>
+        <p>When a request arrives, the edge server first looks for a stored copy of the response. If a fresh copy exists, the server returns it immediately, and the origin never sees the request. This keeps response times low, reduces the load on your servers, and makes traffic spikes much easier to handle.</p>
+        <p>A stored copy stays fresh for the number of seconds given in the <code>max-age</code> directive. After that, the edge server asks the origin whether the copy is still valid, usually by sending the previous validator in a conditional request. If nothing has changed, the origin answers with a short status code, and the copy becomes fresh again without transferring the body.</p>
+        <h2>Choosing what to cache</h2>
+        <p>Static files, such as images, fonts, and compiled scripts, are the easiest place to start, because their content rarely changes and their names often include a version. Pages that depend on the signed-in user, on the other hand, should not be stored in a shared cache, since one visitor could otherwise see the data of another.</p>
+        <p>For everything in between, measure first. Look at which responses are requested most often, decide how stale each one may become, and set the directives to match. Small, careful steps usually work better than a single large change to every route.</p>
+      </article>
+    </div>
+  </div>
+  <div class="site-footer">
+    <p>Copyright Example Docs. All rights reserved.</p>
+    <a href="/terms/">Terms</a>
+  </div>
+</body>
+</html>
