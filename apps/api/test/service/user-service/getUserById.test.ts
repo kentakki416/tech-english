@@ -3,11 +3,11 @@ import { User } from "@repo/domain"
 import { UserRepository } from "../../../src/repository"
 import { getUserById } from "../../../src/service/user-service"
 
-// モック
 const mockFindById = vi.fn<(_0: number) => Promise<User | null>>()
 
 const mockUserRepository: UserRepository = {
   create: vi.fn(),
+  deleteById: vi.fn(),
   findByEmail: vi.fn(),
   findById: mockFindById,
   updateProfile: vi.fn(),
@@ -19,59 +19,49 @@ describe("getUserById", () => {
     vi.clearAllMocks()
   })
 
-  it("ユーザーが存在する場合、ok: true とユーザー情報を返す", async () => {
-    // Arrange
-    const mockUser: User = {
-      avatarUrl: "https://example.com/avatar.jpg",
-      createdAt: new Date(),
-      email: "test@example.com",
-      id: 1,
-      name: "Test User",
-      timezone: "Asia/Tokyo",
-      updatedAt: new Date(),
-    }
+  describe("正常系", () => {
+    it("ユーザーが存在する場合、ok: true とユーザー情報を返す", async () => {
+      const mockUser: User = {
+        id: 1,
+        avatarUrl: "https://example.com/avatar.jpg",
+        email: "test@example.com",
+        name: "Test User",
+        timezone: "Asia/Tokyo",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }
+      mockFindById.mockResolvedValue(mockUser)
 
-    mockFindById.mockResolvedValue(mockUser)
+      const result = await getUserById(1, { userRepository: mockUserRepository })
 
-    // Act
-    const result = await getUserById(1, { userRepository: mockUserRepository })
-
-    // Assert
-    expect(result.ok).toBe(true)
-    if (result.ok) {
-      expect(result.value).toEqual(mockUser)
-    }
-    expect(mockFindById).toHaveBeenCalledWith(1)
-    expect(mockFindById).toHaveBeenCalledTimes(1)
+      expect(result.ok).toBe(true)
+      if (result.ok) {
+        expect(result.value).toEqual(mockUser)
+      }
+      expect(mockFindById).toHaveBeenCalledWith(1)
+      expect(mockFindById).toHaveBeenCalledTimes(1)
+    })
   })
 
-  it("ユーザーが存在しない場合、ok: false と NOT_FOUND エラーを返す", async () => {
-    // Arrange
-    mockFindById.mockResolvedValue(null)
+  describe("異常系", () => {
+    it("ユーザーが存在しない場合（削除済みユーザーの access token）、401 UNAUTHORIZED を返す", async () => {
+      mockFindById.mockResolvedValue(null)
 
-    // Act
-    const result = await getUserById(999, { userRepository: mockUserRepository })
+      const result = await getUserById(999, { userRepository: mockUserRepository })
 
-    // Assert
-    expect(result.ok).toBe(false)
-    if (!result.ok) {
-      expect(result.error.type).toBe("NOT_FOUND")
-      expect(result.error.statusCode).toBe(404)
-      expect(result.error.message).toBe("User not found")
-    }
-    expect(mockFindById).toHaveBeenCalledWith(999)
-    expect(mockFindById).toHaveBeenCalledTimes(1)
-  })
+      expect(result.ok).toBe(false)
+      if (!result.ok) {
+        expect(result.error.statusCode).toBe(401)
+        expect(result.error.type).toBe("UNAUTHORIZED")
+      }
+      expect(mockFindById).toHaveBeenCalledWith(999)
+    })
 
-  it("データベースエラー時にエラーをスローする", async () => {
-    // Arrange
-    const mockError = new Error("Database connection failed")
-    mockFindById.mockRejectedValue(mockError)
+    it("データベースエラー時に例外が伝播する", async () => {
+      mockFindById.mockRejectedValue(new Error("Database connection failed"))
 
-    // Act & Assert
-    await expect(getUserById(1, { userRepository: mockUserRepository })).rejects.toThrow(
-      "Database connection failed"
-    )
-    expect(mockFindById).toHaveBeenCalledWith(1)
+      await expect(getUserById(1, { userRepository: mockUserRepository })).rejects.toThrow()
+      expect(mockFindById).toHaveBeenCalledWith(1)
+    })
   })
 })

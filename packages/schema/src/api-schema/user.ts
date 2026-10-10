@@ -66,3 +66,25 @@ export const updateUserResponseSchema = z.object({
 })
 
 export type UpdateUserResponse = z.infer<typeof updateUserResponseSchema>
+
+// ========================================================
+// DELETE /api/user - アカウントの削除
+// ========================================================
+
+/**
+ * 削除の確認で入力させる文言。web / mobile の入力欄もこの値と比べる
+ */
+export const DELETE_ACCOUNT_CONFIRMATION_TEXT = "delete my account"
+
+/**
+ * アカウント削除のリクエストスキーマ。成功は 204（ボディなし）なのでレスポンススキーマは持たない
+ */
+export const deleteUserRequestSchema = z.object({
+  confirmation: z.literal(DELETE_ACCOUNT_CONFIRMATION_TEXT),
+  /**
+   * 削除を実行した端末の refresh token。渡されたらその場で失効させる
+   */
+  refresh_token: z.string().min(1).optional(),
+})
+
+export type DeleteUserRequest = z.infer<typeof deleteUserRequestSchema>

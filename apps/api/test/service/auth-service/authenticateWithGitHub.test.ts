@@ -34,6 +34,7 @@ const mockFindByEmail = vi.fn<(_0: string) => Promise<User | null>>()
 const mockUpdateProfile = vi.fn<(_0: number, _1: UpdateUserProfileInput) => Promise<User>>()
 const mockUserRepository: UserRepository = {
   create: mockUserCreate,
+  deleteById: vi.fn(),
   findByEmail: mockFindByEmail,
   findById: vi.fn(),
   updateProfile: mockUpdateProfile,

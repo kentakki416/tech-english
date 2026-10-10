@@ -61,6 +61,13 @@ export class PrismaUserRepository implements UserRepository {
   }
 
   /**
+   * 関連テーブル（auth_accounts など）は DB の ON DELETE CASCADE で消える
+   */
+  public async deleteById(id: number): Promise<void> {
+    await this._prisma.user.deleteMany({ where: { id } })
+  }
+
+  /**
    * Prismaの型 → ドメインの型に変換
    */
   private _toDomainUser(prismaUser: PrismaTypes.UserGetPayload<{}>): User {

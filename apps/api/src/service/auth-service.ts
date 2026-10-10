@@ -264,11 +264,11 @@ type RefreshVerifier = (token: string) => { jti: string; userId: number } | null
  * 受け取った Refresh Token を検証し、Redis 上の jti と一致する場合は旧 jti を破棄して
  * 新しい Access Token + Refresh Token を発行する（1 回使用で無効化）。
  *
- * 検証失敗・既に無効化済み・userId 不一致はすべて 401 で返す。
+ * 検証失敗・既に無効化済み・userId 不一致・ユーザーが削除済みはすべて 401 で返す。
  */
 export const refreshTokens = async (
   input: { refreshToken: string },
-  repo: { refreshTokenRepository: RefreshTokenRepository },
+  repo: { refreshTokenRepository: RefreshTokenRepository; userRepository: UserRepository },
   verifier: RefreshVerifier,
   generators: TokenGenerators
 ): Promise<Result<RefreshTokensSuccess>> => {
@@ -282,6 +282,16 @@ export const refreshTokens = async (
   const userId = await repo.refreshTokenRepository.findUserId(payload.jti)
   if (userId === null || userId !== payload.userId) {
     return err(unauthorizedError("Refresh token has been revoked"))
+  }
+
+  /**
+   * 削除済みユーザーの端末に残った refresh token。jti を消してから 401 にする
+   * （jti はユーザー単位で一括削除できないため、使われたときに消す）
+   */
+  const user = await repo.userRepository.findById(userId)
+  if (!user) {
+    await repo.refreshTokenRepository.delete(payload.jti)
+    return err(unauthorizedError("User not found"))
   }
 
   /** ローテーション: 旧 jti を破棄して新しい jti を発行 */

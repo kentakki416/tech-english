@@ -1,9 +1,11 @@
 import { Router } from "express"
 
+import { UserDeleteController } from "../controller/user/delete"
 import { UserGetController } from "../controller/user/get"
 import { UserUpdateController } from "../controller/user/update"
 
 type UserRouterControllers = {
+  delete?: UserDeleteController
   get?: UserGetController
   update?: UserUpdateController
 }
@@ -25,6 +27,14 @@ export const userRouter = (controllers: UserRouterControllers): Router => {
   if (controllers.update) {
     const controller = controllers.update
     router.patch("/", async (req, res) => controller.execute(req, res))
+  }
+
+  /**
+   * DELETE /api/user（アカウントの削除）
+   */
+  if (controllers.delete) {
+    const controller = controllers.delete
+    router.delete("/", async (req, res) => controller.execute(req, res))
   }
 
   return router

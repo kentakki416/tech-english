@@ -23,6 +23,7 @@ import { MemoDeleteController } from "./controller/memo/delete"
 import { MemoDetailController } from "./controller/memo/detail"
 import { MemoListController } from "./controller/memo/list"
 import { MemoUpdateController } from "./controller/memo/update"
+import { UserDeleteController } from "./controller/user/delete"
 import { UserGetController } from "./controller/user/get"
 import { UserUpdateController } from "./controller/user/update"
 import { env } from "./env"
@@ -104,12 +105,13 @@ const authGoogleController = new AuthGoogleController(
   transactionRunner,
   googleOAuthClient,
 )
-const authRefreshController = new AuthRefreshController(refreshTokenRepository)
+const authRefreshController = new AuthRefreshController(refreshTokenRepository, userRepository)
 const authLogoutController = new AuthLogoutController(refreshTokenRepository)
 
 /**
- * User Controller のインスタンス化（認証中ユーザー自身の取得・更新）
+ * User Controller のインスタンス化（認証中ユーザー自身の取得・更新・削除）
  */
+const userDeleteController = new UserDeleteController(userRepository, refreshTokenRepository)
 const userGetController = new UserGetController(userRepository)
 const userUpdateController = new UserUpdateController(userRepository)
 
@@ -216,6 +218,7 @@ app.use(
 app.use(
   "/api/user",
   userRouter({
+    delete: userDeleteController,
     get: userGetController,
     update: userUpdateController,
   })

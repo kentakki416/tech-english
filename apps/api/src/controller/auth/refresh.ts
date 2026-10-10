@@ -10,14 +10,17 @@ import {
 } from "../../lib/jwt"
 import { parseRequest, parseResponse } from "../../lib/parse-schema"
 import { sendError } from "../../lib/send-error"
-import { RefreshTokenRepository } from "../../repository"
+import { RefreshTokenRepository, UserRepository } from "../../repository"
 import * as service from "../../service"
 
 /**
  * Refresh Token をローテーションして新しい Access/Refresh Token を発行する API
  */
 export class AuthRefreshController {
-  constructor(private _refreshTokenRepository: RefreshTokenRepository) {}
+  constructor(
+    private _refreshTokenRepository: RefreshTokenRepository,
+    private _userRepository: UserRepository,
+  ) {}
 
   public async execute(req: Request, res: Response) {
     logger.info("AuthRefreshController: Rotating refresh token")
@@ -26,7 +29,7 @@ export class AuthRefreshController {
 
     const result = await service.auth.refreshTokens(
       { refreshToken },
-      { refreshTokenRepository: this._refreshTokenRepository },
+      { refreshTokenRepository: this._refreshTokenRepository, userRepository: this._userRepository },
       (token) => {
         const payload = verifyRefreshToken(token)
         return payload ? { jti: payload.jti, userId: payload.userId } : null

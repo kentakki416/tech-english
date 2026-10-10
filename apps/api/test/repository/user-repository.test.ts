@@ -1,3 +1,5 @@
+import { authAccounts, eq } from "@repo/db"
+
 import { DrizzleUserRepository } from "../../src/repository/drizzle/user-repository"
 import { PrismaUserRepository } from "../../src/repository/prisma/user-repository"
 import type { UserRepository } from "../../src/repository/user-repository"
@@ -99,6 +101,23 @@ describe.each(implementations)("%s UserRepository", (_name, userRepository) => {
       })
       expect(await userRepository.findById(created.id)).toEqual(updated)
     })
+
+    it("deleteById で削除され、findById が null を返し、紐づく auth_accounts も cascade で消える", async () => {
+      const created = await userRepository.create({ email: "delete@example.com" })
+      const other = await userRepository.create({ email: "other@example.com" })
+      await testDb.insert(authAccounts).values([
+        { provider: "github", providerAccountId: "github-1", userId: created.id },
+        { provider: "github", providerAccountId: "github-2", userId: other.id },
+      ])
+
+      await userRepository.deleteById(created.id)
+
+      expect(await userRepository.findById(created.id)).toBeNull()
+      expect(await testDb.select().from(authAccounts).where(eq(authAccounts.userId, created.id))).toEqual([])
+      /** 別のユーザーと、その auth_accounts は残る */
+      expect(await userRepository.findById(other.id)).toEqual(other)
+      expect(await testDb.select().from(authAccounts).where(eq(authAccounts.userId, other.id))).toHaveLength(1)
+    })
   })
 
   describe("異常系", () => {
@@ -116,6 +135,10 @@ describe.each(implementations)("%s UserRepository", (_name, userRepository) => {
     it("存在しない id の updateProfile / updateTimezone は throw する", async () => {
       await expect(userRepository.updateProfile(999999, { avatarUrl: null, name: "Name" })).rejects.toThrow()
       await expect(userRepository.updateTimezone(999999, "UTC")).rejects.toThrow()
+    })
+
+    it("存在しない id の deleteById は何もしない", async () => {
+      await expect(userRepository.deleteById(999999)).resolves.toBeUndefined()
     })
   })
 })

@@ -31,6 +31,7 @@ const mockUserCreate = vi.fn<(
 ) => Promise<User>>()
 const mockUserRepository: UserRepository = {
   create: mockUserCreate,
+  deleteById: vi.fn(),
   findByEmail: vi.fn(),
   findById: vi.fn(),
   updateProfile: vi.fn(),

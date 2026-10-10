@@ -8,6 +8,7 @@ const mockUpdateTimezone = vi.fn<(_0: number, _1: string) => Promise<User>>()
 
 const mockUserRepository: UserRepository = {
   create: vi.fn(),
+  deleteById: vi.fn(),
   findByEmail: vi.fn(),
   findById: mockFindById,
   updateProfile: vi.fn(),
