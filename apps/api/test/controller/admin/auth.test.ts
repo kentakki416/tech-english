@@ -16,9 +16,9 @@ const userRepository = new DrizzleUserRepository(testDb)
 const app = createTestApp()
 
 /**
- * admin のルートはまだ無いので、認証を通れば Express の 404 になる
+ * コントローラーを渡さないのでルートは無く、認証を通れば Express の 404 になる
  */
-app.use("/api/admin", adminRouter())
+app.use("/api/admin", adminRouter({}))
 app.use("/api/user", userRouter({ get: new UserGetController(userRepository) }))
 attachUnhandledExceptionHandler(app)
 

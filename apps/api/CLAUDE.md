@@ -92,6 +92,8 @@ pnpm exec dotenvx set KEY "value" -f .env.local
 
 `ADMIN_API_TOKEN`（必須・32 文字以上）は `/api/admin/*` の `X-Admin-Token` と比べる共有シークレットで、`apps/admin` の `ADMIN_API_TOKEN` と同じ値にする。`openssl rand -hex 32` などで作る。
 
+`GITHUB_LICENSE_TOKEN`（任意）は admin のソース登録で GitHub のライセンスを検出するときに使う。未設定でも動くが、GitHub の rate limit（60 回 / 時）が低くなる。
+
 ## 新エンドポイント追加の手順
 
 1. `@repo/api-schema` にスキーマを定義（命名規則は `packages/schema/CLAUDE.md`）
