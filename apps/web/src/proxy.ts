@@ -18,6 +18,8 @@ const PUBLIC_PATHS = [
   /** リダイレクトすると sendBeacon がサインインページの HTML を受け取ってしまう */
   "/api/events",
   "/sign-in",
+  /** `/api/auth/callback/github/mobile`（mobile のログイン）もセグメント境界の前方一致で含まれる */
+  "/api/auth/callback/github",
   "/api/auth/callback/google",
   ...DEV_ONLY_PUBLIC_PATHS,
 ]

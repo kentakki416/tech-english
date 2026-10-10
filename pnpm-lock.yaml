@@ -464,6 +464,9 @@ importers:
       zod:
         specifier: ^3.25.76
         version: 3.25.76
+      zustand:
+        specifier: ^5.0.12
+        version: 5.0.15(@types/react@19.3.0)(react@19.2.0)(use-sync-external-store@1.7.0(react@19.2.0))
     devDependencies:
       '@repo/eslint-config':
         specifier: workspace:*
@@ -17466,6 +17469,11 @@ snapshots:
     dependencies:
       react: 19.1.0
 
+  use-sync-external-store@1.7.0(react@19.2.0):
+    dependencies:
+      react: 19.2.0
+    optional: true
+
   util-deprecate@1.0.2: {}
 
   util@0.12.5:
@@ -17737,3 +17745,9 @@ snapshots:
       '@types/react': 19.1.17
       react: 19.1.0
       use-sync-external-store: 1.7.0(react@19.1.0)
+
+  zustand@5.0.15(@types/react@19.3.0)(react@19.2.0)(use-sync-external-store@1.7.0(react@19.2.0)):
+    optionalDependencies:
+      '@types/react': 19.3.0
+      react: 19.2.0
+      use-sync-external-store: 1.7.0(react@19.2.0)

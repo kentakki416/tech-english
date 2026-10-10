@@ -17,6 +17,11 @@ const webEnvSchema = z.object({
    */
   API_URL: z.string().url().default("http://localhost:8080"),
 
+  /**
+   * GitHub OAuth App の Client ID（認可 URL の構築に使用）。Client Secret は api だけが持つ
+   */
+  GITHUB_OAUTH_CLIENT_ID: z.string().default("dummy"),
+
   GOOGLE_CLIENT_ID: z.string().default("dummy"),
 
   /**
