@@ -13,6 +13,9 @@
 | コマンド | 用途 |
 | --- | --- |
 | `pnpm cleanup:old-memos` | 古い memo を一括削除する DB cleanup の例 |
+| `pnpm collect:passages` | 有効なソース（GitHub リポジトリ）から英文を取得して本文候補を作る。`--source-id=N` で 1 ソースに絞る。`--source-id=N --dry-run` は最大 5 件を取得して抽出結果を表示する（DB に書かない） |
+
+環境変数は [CLAUDE.md の環境変数](./CLAUDE.md#環境変数) を参照（collect:passages は `GITHUB_CONTENT_TOKEN`・`COLLECT_MAX_DOCUMENTS_PER_SOURCE`・`COLLECT_MAX_PASSAGES_PER_RUN`）。
 
 ## セットアップ
 

@@ -6,6 +6,7 @@
   "scripts": {
     "build": "tsc --project tsconfig.build.json",
     "cleanup:old-memos": "dotenvx run -f .env.local -- tsx src/task/cleanup-old-memos.ts",
+    "collect:passages": "dotenvx run -f .env.local -- tsx src/task/collect-passages.ts",
     "dev": "dotenvx run -f .env.local -- tsx watch src/index.ts",
     "lint": "eslint 'src/**/*.ts' 'test/**/*.ts'",
     "lint:fix": "eslint 'src/**/*.ts' 'test/**/*.ts' --fix",
@@ -21,6 +22,7 @@
     "@repo/errors": "workspace:^",
     "@repo/logger": "workspace:^",
     "jsdom": "^29.1.1",
+    "picomatch": "^4.0.7",
     "rehype-parse": "^9.0.1",
     "rehype-remark": "^10.0.1",
     "remark-frontmatter": "^5.0.0",
@@ -37,6 +39,7 @@
     "@types/jsdom": "^28.0.3",
     "@types/mdast": "^4.0.4",
     "@types/node": "^24.10.1",
+    "@types/picomatch": "^4.0.3",
     "@typescript-eslint/eslint-plugin": "^8.46.4",
     "@typescript-eslint/parser": "^8.46.4",
     "eslint": "^9.39.1",

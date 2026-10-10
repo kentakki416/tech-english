@@ -27,6 +27,19 @@ const cronEnvSchema = z
      * デフォルトは 90 日。
      */
     CLEANUP_MEMO_OLDER_THAN_DAYS: z.coerce.number().int().positive().default(90),
+    /**
+     * collect-passages が GitHub API に使う token（公開リポジトリの読み取りだけを許可した fine-grained token）。
+     * 他のタスクでは不要なので任意。未設定なら認証なし（60 req/h）で動き、task の起動時に warn を出す
+     */
+    GITHUB_CONTENT_TOKEN: z.string().optional(),
+    /**
+     * collect-passages が 1 回の実行で 1 ソースから取得する文書数の上限。超えた分は次回に回す
+     */
+    COLLECT_MAX_DOCUMENTS_PER_SOURCE: z.coerce.number().int().positive().default(100),
+    /**
+     * collect-passages が 1 回の実行で作る本文候補の上限（生成側の処理量を超えて溜め込まないため）
+     */
+    COLLECT_MAX_PASSAGES_PER_RUN: z.coerce.number().int().positive().default(200),
   })
   .superRefine((env, ctx) => {
     if (env.NODE_ENV !== "test" && !env.DATABASE_URL) {
