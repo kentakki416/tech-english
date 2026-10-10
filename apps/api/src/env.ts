@@ -53,6 +53,14 @@ const apiEnvSchema = z.object({
   FRONTEND_URL: z.string().url().default("http://localhost:3000"),
 
   /**
+   * GitHub OAuth App の Client ID / Client Secret（POST /api/auth/github で code を token に交換する）
+   * dev 環境では "dummy" でも起動できる（GitHub ログインだけが失敗する）ため optional 扱い
+   */
+  GITHUB_OAUTH_CLIENT_ID: z.string().default("dummy"),
+
+  GITHUB_OAUTH_CLIENT_SECRET: z.string().default("dummy"),
+
+  /**
    * Google OAuth クライアント ID
    * dev 環境では "dummy" でも動くため optional 扱い
    */

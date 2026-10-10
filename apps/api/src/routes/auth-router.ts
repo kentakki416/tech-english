@@ -1,12 +1,14 @@
 import { Router } from "express"
 
 import { AuthDevLoginController } from "../controller/auth/dev-login"
+import { AuthGitHubController } from "../controller/auth/github"
 import { AuthGoogleController } from "../controller/auth/google"
 import { AuthLogoutController } from "../controller/auth/logout"
 import { AuthRefreshController } from "../controller/auth/refresh"
 
 type AuthRouterControllers = {
   devLogin?: AuthDevLoginController
+  github?: AuthGitHubController
   google?: AuthGoogleController
   logout?: AuthLogoutController
   refresh?: AuthRefreshController
@@ -18,6 +20,12 @@ type AuthRouterControllers = {
  */
 export const authRouter = (controllers: AuthRouterControllers): Router => {
   const router = Router()
+
+  /** POST /api/auth/github */
+  if (controllers.github) {
+    const controller = controllers.github
+    router.post("/github", async (req, res) => controller.execute(req, res))
+  }
 
   /** POST /api/auth/google */
   if (controllers.google) {

@@ -33,6 +33,8 @@ const mockUserRepository: UserRepository = {
   create: mockUserCreate,
   findByEmail: vi.fn(),
   findById: vi.fn(),
+  updateProfile: vi.fn(),
+  updateTimezone: vi.fn(),
 }
 
 const mockRefreshTokenSave = vi.fn<(_0: string, _1: number, _2: number) => Promise<void>>()
@@ -84,6 +86,7 @@ describe("authenticateWithGoogle", () => {
       email: "test@example.com",
       id: 1,
       name: "Test User",
+      timezone: "Asia/Tokyo",
       updatedAt: new Date(),
     }
 
@@ -138,6 +141,7 @@ describe("authenticateWithGoogle", () => {
       email: "newuser@example.com",
       id: 2,
       name: "New User",
+      timezone: "Asia/Tokyo",
       updatedAt: new Date(),
     }
 

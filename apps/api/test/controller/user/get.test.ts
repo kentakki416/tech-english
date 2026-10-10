@@ -52,6 +52,7 @@ describe("GET /api/user", () => {
       email: "test@example.com",
       id: user.id,
       name: "Test User",
+      timezone: "Asia/Tokyo",
     })
   })
 

@@ -55,6 +55,7 @@ export const createTestUser = async (overrides?: {
     email: row.email,
     id: row.id,
     name: row.name,
+    timezone: row.timezone,
     updatedAt: row.updatedAt,
   }
 

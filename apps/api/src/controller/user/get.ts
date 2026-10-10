@@ -34,6 +34,7 @@ export class UserGetController {
       email: result.value.email,
       id: result.value.id,
       name: result.value.name,
+      timezone: result.value.timezone,
     })
 
     return res.status(200).json(response)

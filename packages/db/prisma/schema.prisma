@@ -47,6 +47,8 @@ model User {
     email     String?  @unique
     name      String?
     avatarUrl String?  @map("avatar_url")
+    /// IANA タイムゾーン名（例: Asia/Tokyo）。値の検証は API の入力時に行う
+    timezone  String   @default("Asia/Tokyo")
     createdAt DateTime @default(now()) @map("created_at")
     updatedAt DateTime @updatedAt @map("updated_at")
 

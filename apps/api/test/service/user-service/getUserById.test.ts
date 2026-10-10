@@ -10,6 +10,8 @@ const mockUserRepository: UserRepository = {
   create: vi.fn(),
   findByEmail: vi.fn(),
   findById: mockFindById,
+  updateProfile: vi.fn(),
+  updateTimezone: vi.fn(),
 }
 
 describe("getUserById", () => {
@@ -25,6 +27,7 @@ describe("getUserById", () => {
       email: "test@example.com",
       id: 1,
       name: "Test User",
+      timezone: "Asia/Tokyo",
       updatedAt: new Date(),
     }
 

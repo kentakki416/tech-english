@@ -2,7 +2,7 @@ import { Prisma as PrismaTypes, PrismaClient } from "@repo/db"
 import { User } from "@repo/domain"
 
 import type { TransactionContext } from "../transaction"
-import type { CreateUserInput, UserRepository } from "../user-repository"
+import type { CreateUserInput, UpdateUserProfileInput, UserRepository } from "../user-repository"
 
 import { resolvePrismaClient } from "./transaction-runner"
 
@@ -35,7 +35,27 @@ export class PrismaUserRepository implements UserRepository {
         avatarUrl: data.avatarUrl,
         email: data.email,
         name: data.name,
+        timezone: data.timezone,
       },
+    })
+    return this._toDomainUser(prismaUser)
+  }
+
+  public async updateProfile(id: number, data: UpdateUserProfileInput): Promise<User> {
+    const prismaUser = await this._prisma.user.update({
+      data: {
+        avatarUrl: data.avatarUrl,
+        name: data.name,
+      },
+      where: { id },
+    })
+    return this._toDomainUser(prismaUser)
+  }
+
+  public async updateTimezone(id: number, timezone: string): Promise<User> {
+    const prismaUser = await this._prisma.user.update({
+      data: { timezone },
+      where: { id },
     })
     return this._toDomainUser(prismaUser)
   }
@@ -50,6 +70,7 @@ export class PrismaUserRepository implements UserRepository {
       email: prismaUser.email,
       id: prismaUser.id,
       name: prismaUser.name,
+      timezone: prismaUser.timezone,
       updatedAt: prismaUser.updatedAt,
     }
   }

@@ -67,6 +67,7 @@ export class PrismaAuthAccountRepository implements AuthAccountRepository {
       email: prismaUser.email,
       id: prismaUser.id,
       name: prismaUser.name,
+      timezone: prismaUser.timezone,
       updatedAt: prismaUser.updatedAt,
     }
   }

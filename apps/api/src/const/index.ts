@@ -14,6 +14,7 @@ const DEV_ONLY_PUBLIC_PATHS = process.env.NODE_ENV !== "production"
  * これらのパスではauthMiddlewareが認証チェックをスキップします
  */
 export const PUBLIC_PATHS: readonly string[] = [
+  "/api/auth/github",
   "/api/auth/google",
   "/api/auth/refresh",
   "/api/health",

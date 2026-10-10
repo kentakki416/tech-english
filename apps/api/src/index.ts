@@ -8,8 +8,10 @@ import { logger } from "@repo/logger"
 import { BullMQJobQueue, TRACK_EVENT_QUEUE_NAME } from "@repo/queue"
 import { createRedisClient } from "@repo/redis"
 
+import { GitHubOAuthClient } from "./client/github-oauth"
 import { GoogleOAuthClient } from "./client/google-oauth"
 import { AuthDevLoginController } from "./controller/auth/dev-login"
+import { AuthGitHubController } from "./controller/auth/github"
 import { AuthGoogleController } from "./controller/auth/google"
 import { AuthLogoutController } from "./controller/auth/logout"
 import { AuthRefreshController } from "./controller/auth/refresh"
@@ -22,6 +24,7 @@ import { MemoDetailController } from "./controller/memo/detail"
 import { MemoListController } from "./controller/memo/list"
 import { MemoUpdateController } from "./controller/memo/update"
 import { UserGetController } from "./controller/user/get"
+import { UserUpdateController } from "./controller/user/update"
 import { env } from "./env"
 import { authMiddleware } from "./middleware/auth"
 import { flushEventsBeforeResponse } from "./middleware/flush-events"
@@ -75,6 +78,7 @@ const refreshTokenRepository = new IoRedisRefreshTokenRepository(redis)
 /**
  * 外部 SaaS client の DI assembly
  */
+const gitHubOAuthClient = new GitHubOAuthClient(env.GITHUB_OAUTH_CLIENT_ID, env.GITHUB_OAUTH_CLIENT_SECRET)
 const googleOAuthClient = new GoogleOAuthClient(env.GOOGLE_CLIENT_ID, env.GOOGLE_CLIENT_SECRET)
 
 /**
@@ -86,6 +90,13 @@ const healthReadinessController = new HealthReadinessController(databaseHealthRe
 /**
  * Auth Controller のインスタンス化
  */
+const authGitHubController = new AuthGitHubController(
+  authAccountRepository,
+  userRepository,
+  refreshTokenRepository,
+  transactionRunner,
+  gitHubOAuthClient,
+)
 const authGoogleController = new AuthGoogleController(
   authAccountRepository,
   userRepository,
@@ -97,9 +108,10 @@ const authRefreshController = new AuthRefreshController(refreshTokenRepository)
 const authLogoutController = new AuthLogoutController(refreshTokenRepository)
 
 /**
- * User Controller のインスタンス化（認証中ユーザー自身の取得）
+ * User Controller のインスタンス化（認証中ユーザー自身の取得・更新）
  */
 const userGetController = new UserGetController(userRepository)
+const userUpdateController = new UserUpdateController(userRepository)
 
 /**
  * dev-login Controller は production 以外でのみ生成する
@@ -195,6 +207,7 @@ app.use(
   "/api/auth",
   authRouter({
     devLogin: authDevLoginController,
+    github: authGitHubController,
     google: authGoogleController,
     logout: authLogoutController,
     refresh: authRefreshController,
@@ -204,6 +217,7 @@ app.use(
   "/api/user",
   userRouter({
     get: userGetController,
+    update: userUpdateController,
   })
 )
 app.use(

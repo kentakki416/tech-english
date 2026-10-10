@@ -1,9 +1,11 @@
 import { Router } from "express"
 
 import { UserGetController } from "../controller/user/get"
+import { UserUpdateController } from "../controller/user/update"
 
 type UserRouterControllers = {
   get?: UserGetController
+  update?: UserUpdateController
 }
 
 /**
@@ -17,6 +19,12 @@ export const userRouter = (controllers: UserRouterControllers): Router => {
   if (controllers.get) {
     const controller = controllers.get
     router.get("/", async (req, res) => controller.execute(req, res))
+  }
+
+  /** PATCH /api/user（タイムゾーンの変更） */
+  if (controllers.update) {
+    const controller = controllers.update
+    router.patch("/", async (req, res) => controller.execute(req, res))
   }
 
   return router
