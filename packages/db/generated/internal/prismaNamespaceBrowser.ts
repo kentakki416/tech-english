@@ -52,7 +52,10 @@ export const AnyNull = runtime.AnyNull
 
 export const ModelName = {
   AuthAccount: 'AuthAccount',
+  ContentSource: 'ContentSource',
   Memo: 'Memo',
+  Passage: 'Passage',
+  SourceDocument: 'SourceDocument',
   User: 'User'
 } as const
 
@@ -84,6 +87,35 @@ export const AuthAccountScalarFieldEnum = {
 export type AuthAccountScalarFieldEnum = (typeof AuthAccountScalarFieldEnum)[keyof typeof AuthAccountScalarFieldEnum]
 
 
+export const ContentSourceScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  kind: 'kind',
+  fetchType: 'fetchType',
+  includeGlobs: 'includeGlobs',
+  excludeGlobs: 'excludeGlobs',
+  licenseSpdx: 'licenseSpdx',
+  licenseUrl: 'licenseUrl',
+  tags: 'tags',
+  isEnabled: 'isEnabled',
+  lastCollectedAt: 'lastCollectedAt',
+  repository: 'repository',
+  branch: 'branch',
+  publicUrlTemplate: 'publicUrlTemplate',
+  publicUrlStripPrefix: 'publicUrlStripPrefix',
+  lastCollectedCommitSha: 'lastCollectedCommitSha',
+  siteUrl: 'siteUrl',
+  sitemapUrl: 'sitemapUrl',
+  startUrl: 'startUrl',
+  contentSelector: 'contentSelector',
+  excludeSelectors: 'excludeSelectors',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type ContentSourceScalarFieldEnum = (typeof ContentSourceScalarFieldEnum)[keyof typeof ContentSourceScalarFieldEnum]
+
+
 export const MemoScalarFieldEnum = {
   id: 'id',
   title: 'title',
@@ -93,6 +125,57 @@ export const MemoScalarFieldEnum = {
 } as const
 
 export type MemoScalarFieldEnum = (typeof MemoScalarFieldEnum)[keyof typeof MemoScalarFieldEnum]
+
+
+export const PassageScalarFieldEnum = {
+  id: 'id',
+  sourceDocumentId: 'sourceDocumentId',
+  sourcePath: 'sourcePath',
+  sourceCommitSha: 'sourceCommitSha',
+  sourceRetrievedAt: 'sourceRetrievedAt',
+  status: 'status',
+  title: 'title',
+  blocks: 'blocks',
+  wordCount: 'wordCount',
+  contentHash: 'contentHash',
+  difficulty: 'difficulty',
+  timeLimitSeconds: 'timeLimitSeconds',
+  generationAttemptCount: 'generationAttemptCount',
+  generationStartedAt: 'generationStartedAt',
+  generationError: 'generationError',
+  generationModel: 'generationModel',
+  generationPromptVersion: 'generationPromptVersion',
+  generatedAt: 'generatedAt',
+  needsAttention: 'needsAttention',
+  attentionReasons: 'attentionReasons',
+  rejectReason: 'rejectReason',
+  reviewedAt: 'reviewedAt',
+  publishedAt: 'publishedAt',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type PassageScalarFieldEnum = (typeof PassageScalarFieldEnum)[keyof typeof PassageScalarFieldEnum]
+
+
+export const SourceDocumentScalarFieldEnum = {
+  id: 'id',
+  sourceId: 'sourceId',
+  path: 'path',
+  title: 'title',
+  fetchedAt: 'fetchedAt',
+  contentHash: 'contentHash',
+  blobSha: 'blobSha',
+  commitSha: 'commitSha',
+  etag: 'etag',
+  lastModified: 'lastModified',
+  sitemapLastmod: 'sitemapLastmod',
+  httpStatus: 'httpStatus',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type SourceDocumentScalarFieldEnum = (typeof SourceDocumentScalarFieldEnum)[keyof typeof SourceDocumentScalarFieldEnum]
 
 
 export const UserScalarFieldEnum = {
@@ -116,12 +199,28 @@ export const SortOrder = {
 export type SortOrder = (typeof SortOrder)[keyof typeof SortOrder]
 
 
+export const JsonNullValueInput = {
+  JsonNull: JsonNull
+} as const
+
+export type JsonNullValueInput = (typeof JsonNullValueInput)[keyof typeof JsonNullValueInput]
+
+
 export const QueryMode = {
   default: 'default',
   insensitive: 'insensitive'
 } as const
 
 export type QueryMode = (typeof QueryMode)[keyof typeof QueryMode]
+
+
+export const JsonNullValueFilter = {
+  DbNull: DbNull,
+  JsonNull: JsonNull,
+  AnyNull: AnyNull
+} as const
+
+export type JsonNullValueFilter = (typeof JsonNullValueFilter)[keyof typeof JsonNullValueFilter]
 
 
 export const NullsOrder = {

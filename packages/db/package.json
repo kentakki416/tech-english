@@ -21,6 +21,7 @@
     "@prisma/adapter-pg": "^7.7.0",
     "@prisma/client": "^7.2.0",
     "@prisma/extension-read-replicas": "^0.5.0",
+    "@repo/domain": "workspace:^",
     "drizzle-orm": "1.0.0-rc.4",
     "pg": "^8.23.1"
   },

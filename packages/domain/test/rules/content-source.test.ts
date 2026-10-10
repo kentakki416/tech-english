@@ -1,0 +1,48 @@
+import { ALLOWED_LICENSES, SOURCE_FETCH_TYPES, SOURCE_KINDS } from "../../src/const/content-source"
+import { isAllowedLicense, isSourceFetchType, isSourceKind } from "../../src/rules/content-source"
+
+describe("isSourceKind", () => {
+  describe("正常系", () => {
+    it.each(SOURCE_KINDS)("%s は種別の値である", (value) => {
+      expect(isSourceKind(value)).toBe(true)
+    })
+  })
+
+  describe("異常系", () => {
+    it.each(["", "blog", "Docs", " docs"])("%j は種別の値ではない", (value) => {
+      expect(isSourceKind(value)).toBe(false)
+    })
+  })
+})
+
+describe("isSourceFetchType", () => {
+  describe("正常系", () => {
+    it.each(SOURCE_FETCH_TYPES)("%s は取得方法の値である", (value) => {
+      expect(isSourceFetchType(value)).toBe(true)
+    })
+  })
+
+  describe("異常系", () => {
+    it.each(["", "github", "rss", "Website"])("%j は取得方法の値ではない", (value) => {
+      expect(isSourceFetchType(value)).toBe(false)
+    })
+  })
+})
+
+describe("isAllowedLicense", () => {
+  describe("正常系", () => {
+    it.each(ALLOWED_LICENSES)("%s は許可リストにある", (value) => {
+      expect(isAllowedLicense(value)).toBe(true)
+    })
+  })
+
+  describe("異常系", () => {
+    /**
+     * ShareAlike・コピーレフト・NonCommercial は許可しない（content-collection README の許可リスト）。
+     * SPDX 識別子は大文字小文字まで一致させる
+     */
+    it.each(["", "CC-BY-SA-4.0", "GPL-3.0", "CC-BY-NC-4.0", "mit", "Apache 2.0"])("%j は許可リストに無い", (value) => {
+      expect(isAllowedLicense(value)).toBe(false)
+    })
+  })
+})

@@ -30,6 +30,55 @@ model AuthAccount {
     @@map("auth_accounts")
 }
 
+// 英文の取得元（ソース）。取得方法（fetch_type）ごとの列は nullable で、必須は Drizzle 側の CHECK 制約で保証する
+// kind / fetch_type / license_spdx は @repo/domain の定数から作る CHECK 制約があるが、Prisma では表現できないので String にしている
+// （Prisma 実装の Repository は isSourceKind / isSourceFetchType / isAllowedLicense で検証してから domain 型にする）
+model ContentSource {
+    id                     Int       @id @default(autoincrement())
+    name                   String
+    /// SOURCE_KINDS
+    kind                   String
+    /// SOURCE_FETCH_TYPES
+    fetchType              String    @map("fetch_type")
+    /// string[]
+    includeGlobs           Json      @map("include_globs")
+    /// string[]
+    excludeGlobs           Json      @default("[]") @map("exclude_globs")
+    /// ALLOWED_LICENSES
+    licenseSpdx            String    @map("license_spdx")
+    licenseUrl             String    @map("license_url")
+    /// string[]
+    tags                   Json      @default("[]")
+    isEnabled              Boolean   @default(false) @map("is_enabled")
+    lastCollectedAt        DateTime? @map("last_collected_at")
+    /// GitHub のみ。owner/name
+    repository             String?   @unique
+    /// GitHub のみ
+    branch                 String?
+    /// GitHub のみ
+    publicUrlTemplate      String?   @map("public_url_template")
+    /// GitHub のみ
+    publicUrlStripPrefix   String?   @map("public_url_strip_prefix")
+    /// GitHub のみ
+    lastCollectedCommitSha String?   @map("last_collected_commit_sha")
+    /// サイトのみ。オリジン
+    siteUrl                String?   @unique @map("site_url")
+    /// サイトのみ
+    sitemapUrl             String?   @map("sitemap_url")
+    /// サイトのみ
+    startUrl               String?   @map("start_url")
+    /// サイトのみ
+    contentSelector        String?   @map("content_selector")
+    /// サイトのみ。string[]
+    excludeSelectors       Json      @default("[]") @map("exclude_selectors")
+    createdAt              DateTime  @default(now()) @map("created_at")
+    updatedAt              DateTime  @updatedAt @map("updated_at")
+
+    documents SourceDocument[]
+
+    @@map("content_sources")
+}
+
 // メモ
 model Memo {
     id        Int      @id @default(autoincrement())
@@ -39,6 +88,82 @@ model Memo {
     updatedAt DateTime @updatedAt @map("updated_at")
 
     @@map("memos")
+}
+
+// 本文候補 / 問題。状態（status）で収集から公開までを表す。物理削除しない
+// status / difficulty は @repo/domain の定数から作る CHECK 制約があるが、Prisma では表現できないので String / Int にしている
+// （Prisma 実装の Repository は isPassageStatus / isPassageDifficulty で検証してから domain 型にする）
+model Passage {
+    id                      Int       @id @default(autoincrement())
+    sourceDocumentId        Int       @map("source_document_id")
+    /// 取得時のファイルパス or URL のパス
+    sourcePath              String    @map("source_path")
+    /// 取得時のコミット。GitHub のみ
+    sourceCommitSha         String?   @map("source_commit_sha")
+    sourceRetrievedAt       DateTime  @map("source_retrieved_at")
+    /// PASSAGE_STATUSES
+    status                  String    @default("collected")
+    title                   String
+    /// PassageBlock[]
+    blocks                  Json
+    wordCount               Int       @map("word_count")
+    contentHash             String    @unique @map("content_hash")
+    /// PASSAGE_DIFFICULTIES
+    difficulty              Int?      @db.SmallInt
+    timeLimitSeconds        Int?      @map("time_limit_seconds")
+    generationAttemptCount  Int       @default(0) @map("generation_attempt_count")
+    generationStartedAt     DateTime? @map("generation_started_at")
+    generationError         String?   @map("generation_error")
+    generationModel         String?   @map("generation_model")
+    generationPromptVersion String?   @map("generation_prompt_version")
+    generatedAt             DateTime? @map("generated_at")
+    needsAttention          Boolean   @default(false) @map("needs_attention")
+    /// string[]
+    attentionReasons        Json      @default("[]") @map("attention_reasons")
+    rejectReason            String?   @map("reject_reason")
+    reviewedAt              DateTime? @map("reviewed_at")
+    publishedAt             DateTime? @map("published_at")
+    createdAt               DateTime  @default(now()) @map("created_at")
+    updatedAt               DateTime  @updatedAt @map("updated_at")
+
+    sourceDocument SourceDocument @relation(fields: [sourceDocumentId], references: [id], onDelete: Restrict)
+
+    @@index([status, createdAt])
+    @@index([sourceDocumentId])
+    @@map("passages")
+}
+
+// 取得した文書（GitHub のファイル / サイトのページ）。取得方法ごとの列は nullable
+model SourceDocument {
+    id             Int       @id @default(autoincrement())
+    sourceId       Int       @map("source_id")
+    /// GitHub はリポジトリ内のファイルパス、サイトは URL のパス
+    path           String
+    title          String?
+    /// NULL は未取得
+    fetchedAt      DateTime? @map("fetched_at")
+    contentHash    String?   @map("content_hash")
+    /// GitHub のみ
+    blobSha        String?   @map("blob_sha")
+    /// GitHub のみ
+    commitSha      String?   @map("commit_sha")
+    /// サイトのみ
+    etag           String?
+    /// サイトのみ。Last-Modified ヘッダの値
+    lastModified   String?   @map("last_modified")
+    /// サイトのみ
+    sitemapLastmod DateTime? @map("sitemap_lastmod")
+    /// サイトのみ
+    httpStatus     Int?      @map("http_status") @db.SmallInt
+    createdAt      DateTime  @default(now()) @map("created_at")
+    updatedAt      DateTime  @updatedAt @map("updated_at")
+
+    source   ContentSource @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+    passages Passage[]
+
+    @@unique([sourceId, path])
+    @@index([sourceId, fetchedAt])
+    @@map("source_documents")
 }
 
 // ユーザー（認証プロバイダー非依存）
