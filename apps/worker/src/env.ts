@@ -11,7 +11,7 @@ const workerEnvSchema = z
     /** DB の接続文字列。NODE_ENV !== "test" のときは必須 */
     DATABASE_URL: z.string().url().optional(),
     /** データウェアハウスの DB 名 */
-    DATA_WAREHOUSE_DATABASE: z.string().default("project_template"),
+    DATA_WAREHOUSE_DATABASE: z.string().default("tech_english"),
     DATA_WAREHOUSE_PASSWORD: z.string().default("password"),
     /**
      * どのデータウェアハウスに書くか。`none` は何も書かない実装を使う。

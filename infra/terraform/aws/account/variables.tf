@@ -7,7 +7,7 @@
 variable "project_name" {
   description = "プロジェクト名"
   type        = string
-  default     = "project-template"
+  default     = "tech-english"
 }
 
 variable "aws_region" {
@@ -19,5 +19,5 @@ variable "aws_region" {
 variable "github_repository" {
   description = "GitHub リポジトリ（例: owner/repo-name）"
   type        = string
-  default     = "kentakki416/project-template"
+  default     = "kentakki416/tech-english"
 }

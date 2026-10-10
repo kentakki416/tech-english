@@ -261,7 +261,7 @@ worker（バックグラウンドジョブ）を最初から使うプロダク�
 
 ECS は Secrets Manager のキーを `valueFrom` で直接環境変数にできるが、**Lambda にはこの仕組みが無い。** worker / cron / migration は ECS なので prd と同じく `valueFrom` を使い、以下は api（Lambda）だけの話。 アプリに Secrets Manager を読むコードを足さずに済ませるため、**deploy workflow が Secrets Manager の値を Lambda の環境変数に書き込む。**
 
-- 正本は prd と同じく Secrets Manager の `/project-template-min/app`（JSON）。値の投入は `scripts/deploy/seed-secrets.sh min` で行う
+- 正本は prd と同じく Secrets Manager の `/tech-english-min/app`（JSON）。値の投入は `scripts/deploy/seed-secrets.sh min` で行う
 - deploy workflow が secret の JSON と、環境ごとに固定の値（`EVENT_TRACKER_TYPE` / `AWS_LWA_*` 等。workflow に直書き）を合成し、`aws lambda update-function-configuration --environment` で丸ごと設定する
 - Terraform は Lambda の `environment` を `ignore_changes` にし、env の正本を deploy workflow に一本化する（Terraform と workflow が互いに上書きしないため）
 - **トレードオフ**: Lambda の環境変数は KMS で暗号化して保存されるが、`lambda:GetFunctionConfiguration` 権限を持つ IAM プリンシパルからは平文で見える。minimal ではこれを許容し、閲覧できる権限を絞って運用する
@@ -288,7 +288,7 @@ ECS は Secrets Manager のキーを `valueFrom` で直接環境変数にでき�
 | `modules/`（既存に変数を追加） | `acm`（`fqdn`）/ `ecs-cluster`（`capacity_providers`）/ `ecs-workload`（`capacity_provider`）。既定値は現在の挙動で、prd / dev の plan に差分は出ない |
 
 - PlanetScale と Upstash はコンソールで作り、Terraform では管理しない（AWS の外のサービスのため。手順は step3）
-- 命名は `project-template-min-*`。prd（`project-template-prd-*`）と衝突しないので、移行期間に両方が同時に存在できる
+- 命名は `tech-english-min-*`。prd（`tech-english-prd-*`）と衝突しないので、移行期間に両方が同時に存在できる
 - `api.<domain>` の Route53 レコードは `env/min` に直接書く。`modules/route53` は ALB 向け（`evaluate_target_health = true` 固定）なので使わない
 - Lambda の `image_uri` / `environment` / alias の `function_version` は deploy workflow が更新するため `ignore_changes` にする
 

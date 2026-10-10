@@ -3,7 +3,7 @@
 # =============================================================================
 
 variable "name" {
-  description = "schedule / IAM role 名のベース (例: project-template-dev-cron)"
+  description = "schedule / IAM role 名のベース (例: tech-english-dev-cron)"
   type        = string
 }
 

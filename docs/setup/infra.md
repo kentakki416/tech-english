@@ -51,11 +51,11 @@ aws sts get-caller-identity
 
 | ファイル | 変数 | 既定値 | 変更例 |
 |---|---|---|---|
-| `aws/bootstrap/variables.tf` | `project_name` | `project-template` | `my-app` |
-| `aws/bootstrap/variables.tf` | `s3_bucket_name` | `project-template-terraform-state-20250101` | `my-app-tfstate-20260614` (世界一意) |
-| `aws/account/variables.tf` | `project_name` / `github_repository` | `project-template` / `owner/repo` | プロジェクト名 / `owner/my-app` |
-| `aws/env/{dev,prd}/variables.tf` | `project_name` | `project-template` | プロジェクト名 |
-| `aws/env/{dev,prd}/variables.tf` | `domain_name` | `project-template.com` | Route 53 で買った実ドメイン（dev と prd で同じ値） |
+| `aws/bootstrap/variables.tf` | `project_name` | `tech-english` | `my-app` |
+| `aws/bootstrap/variables.tf` | `s3_bucket_name` | `tech-english-terraform-state-20250101` | `my-app-tfstate-20260614` (世界一意) |
+| `aws/account/variables.tf` | `project_name` / `github_repository` | `tech-english` / `owner/repo` | プロジェクト名 / `owner/my-app` |
+| `aws/env/{dev,prd}/variables.tf` | `project_name` | `tech-english` | プロジェクト名 |
+| `aws/env/{dev,prd}/variables.tf` | `domain_name` | `tech-english.com` | Route 53 で買った実ドメイン（dev と prd で同じ値） |
 | `aws/env/{dev,prd}/backend.tf` | `bucket` | テンプレ既定値 | bootstrap 出力に揃える (手順 4) |
 
 

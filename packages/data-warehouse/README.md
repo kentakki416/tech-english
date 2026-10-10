@@ -116,12 +116,12 @@ DB に痕跡が残らない操作（閲覧・削除・離脱）を取るのが�
 
 同期対象は `users` / `memos`。publication と replication slot は取り込み側が自動作成する。
 
-**初回の `docker compose up` では view（後述）が作られない。** Postgres のテーブルは `db:migrate` で作るため、ClickHouse の初期化時点ではまだ無いから。テーブルは migrate の後に自動でアタッチされるので、migrate の後に `docker exec project-template-clickhouse bash /docker-entrypoint-initdb.d/03-postgres-cdc-views.sh` で view を作る（ルートの README のセットアップ手順に含めている）。
+**初回の `docker compose up` では view（後述）が作られない。** Postgres のテーブルは `db:migrate` で作るため、ClickHouse の初期化時点ではまだ無いから。テーブルは migrate の後に自動でアタッチされるので、migrate の後に `docker exec tech-english-clickhouse bash /docker-entrypoint-initdb.d/03-postgres-cdc-views.sh` で view を作る（ルートの README のセットアップ手順に含めている）。
 
 ### view を経由する規約
 
 CDC テーブルは更新を「新しい版の追記」、削除を「タンブストーン行」で表現する。
-**分析クエリはこれらを直接参照せず、`project_template.v_*` の view を見る。**
+**分析クエリはこれらを直接参照せず、`tech_english.v_*` の view を見る。**
 
 ```sql
 -- ✓ OK

@@ -1,10 +1,10 @@
 import { defineConfig } from "prisma/config"
 
-const DEFAULT_URL = "postgresql://postgres:password@localhost:5433/project-template_dev"
+const DEFAULT_URL = "postgresql://postgres:password@localhost:5433/tech-english_dev"
 
 /**
  * DB_NAME 環境変数が設定されている場合、DATABASE_URL のDB名部分を置き換える
- * テスト実行時に DB_NAME=project-template_test を指定することで、
+ * テスト実行時に DB_NAME=tech-english_test を指定することで、
  * テスト用DBにマイグレーションを適用できる
  *
  * DATABASE_URL が未設定の場合はローカルのデフォルトを使う（prisma generate 時など）

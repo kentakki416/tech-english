@@ -19,7 +19,7 @@
 -- publication と replication slot は ClickHouse 側が自動作成する。
 -- 同期対象を増やすときは materialized_postgresql_tables_list に足す。
 CREATE DATABASE IF NOT EXISTS pg_cdc
-ENGINE = MaterializedPostgreSQL('postgres:5432', 'project-template_dev', 'postgres', 'password')
+ENGINE = MaterializedPostgreSQL('postgres:5432', 'tech-english_dev', 'postgres', 'password')
 SETTINGS materialized_postgresql_tables_list = 'users,memos';
 
 -- 分析クエリが見る view は 03-postgres-cdc-views.sh で作る。

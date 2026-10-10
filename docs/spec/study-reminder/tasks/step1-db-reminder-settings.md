@@ -156,7 +156,7 @@ pnpm lint:fix
 psql で制約を確認する（dev DB。確認後に消す）。
 
 ```bash
-docker exec -it project-template-postgres psql -U postgres -d project-template_dev
+docker exec -it tech-english-postgres psql -U postgres -d tech-english_dev
 ```
 
 ```sql

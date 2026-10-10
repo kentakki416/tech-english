@@ -89,7 +89,7 @@ curl -s http://localhost:8080/api/health
 dev DB のユーザー一覧を Drizzle Studio（`pnpm --filter api db:studio`）または DB 直結で確認する:
 
 ```bash
-docker exec -i project-template-postgres psql -U postgres -d "project-template_dev" -At -c \
+docker exec -i tech-english-postgres psql -U postgres -d "tech-english_dev" -At -c \
   "SELECT id, name, is_onboarded FROM users ORDER BY id LIMIT 10"
 ```
 

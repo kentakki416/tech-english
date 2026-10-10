@@ -16,7 +16,7 @@ Turborepo + pnpm のモノレポ。`apps/`（実行可能なアプリ）と `pac
 ## トップレベル構成
 
 ```
-project-template/
+tech-english/
 ├── apps/
 │   ├── web/       # Next.js 16 web (:3000)
 │   ├── admin/     # Next.js 16 admin dashboard (:3030)

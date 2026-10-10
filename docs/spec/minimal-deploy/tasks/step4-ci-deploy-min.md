@@ -33,23 +33,23 @@ flowchart LR
 ```yaml
 env:
   AWS_REGION: ap-northeast-1
-  PROJECT_NAME: project-template
+  PROJECT_NAME: tech-english
   ENVIRONMENT: min
 
-  ECR_API_REPO: project-template-api-server
-  ECR_WORKER_REPO: project-template-worker
-  ECR_MIGRATION_REPO: project-template-migration
-  ECR_CRON_REPO: project-template-cron
+  ECR_API_REPO: tech-english-api-server
+  ECR_WORKER_REPO: tech-english-worker
+  ECR_MIGRATION_REPO: tech-english-migration
+  ECR_CRON_REPO: tech-english-cron
 
-  LAMBDA_API_FUNCTION: project-template-min-api
-  ECS_CLUSTER: project-template-min-cluster
-  ECS_WORKER_SERVICE: project-template-min-worker
-  ECS_MIGRATION_TASK_DEF: project-template-min-migration
-  ECS_CRON_TASK_DEF: project-template-min-cron
-  ECS_SECURITY_GROUP_NAME: project-template-min-ecs
-  PUBLIC_SUBNET_NAME_PREFIX: project-template-min-public
+  LAMBDA_API_FUNCTION: tech-english-min-api
+  ECS_CLUSTER: tech-english-min-cluster
+  ECS_WORKER_SERVICE: tech-english-min-worker
+  ECS_MIGRATION_TASK_DEF: tech-english-min-migration
+  ECS_CRON_TASK_DEF: tech-english-min-cron
+  ECS_SECURITY_GROUP_NAME: tech-english-min-ecs
+  PUBLIC_SUBNET_NAME_PREFIX: tech-english-min-public
 
-  APP_SECRET_NAME: /project-template-min/app
+  APP_SECRET_NAME: /tech-english-min/app
 ```
 
 ### detect

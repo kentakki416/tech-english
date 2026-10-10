@@ -46,28 +46,28 @@ env:
   # 環境ごとに変える値 — dev とは別ファイルで管理しているため、prd 固有の値のみ列挙
   # =============================================================================
   # AWS リソースタグ (Terraform default_tags の Project / Environment と一致させる)
-  PROJECT_NAME: project-template
+  PROJECT_NAME: tech-english
   ENVIRONMENT: prd
 
   # ECR (environment 非依存だが project_name は含む)
-  ECR_API_REPO: project-template-api-server
-  ECR_WORKER_REPO: project-template-worker
-  ECR_MIGRATION_REPO: project-template-migration
-  ECR_CRON_REPO: project-template-cron
+  ECR_API_REPO: tech-english-api-server
+  ECR_WORKER_REPO: tech-english-worker
+  ECR_MIGRATION_REPO: tech-english-migration
+  ECR_CRON_REPO: tech-english-cron
 
   # ECS リソース (project_name-environment- プレフィックスを持つ)
-  ECS_CLUSTER: project-template-prd-cluster
-  ECS_API_SERVICE: project-template-prd-api
-  ECS_WORKER_SERVICE: project-template-prd-worker
-  ECS_MIGRATION_TASK_DEF: project-template-prd-migration
-  ECS_CRON_TASK_DEF: project-template-prd-cron
+  ECS_CLUSTER: tech-english-prd-cluster
+  ECS_API_SERVICE: tech-english-prd-api
+  ECS_WORKER_SERVICE: tech-english-prd-worker
+  ECS_MIGRATION_TASK_DEF: tech-english-prd-migration
+  ECS_CRON_TASK_DEF: tech-english-prd-cron
 
   # Blue/Green 承認用 SSM パラメータ (ecs-workload module が作成)
-  DEPLOY_APPROVAL_SSM_NAME: /project-template-prd-api/deploy/approval
+  DEPLOY_APPROVAL_SSM_NAME: /tech-english-prd-api/deploy/approval
 
   # VPC リソース解決用 (Terraform 側 modules/vpc の Name タグと一致)
-  ECS_SECURITY_GROUP_NAME: project-template-prd-ecs
-  PRIVATE_SUBNET_NAME_PREFIX: project-template-prd-private # `${prefix}*` で wildcard 検索する
+  ECS_SECURITY_GROUP_NAME: tech-english-prd-ecs
+  PRIVATE_SUBNET_NAME_PREFIX: tech-english-prd-private # `${prefix}*` で wildcard 検索する
 
 jobs:
   build:
@@ -153,7 +153,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       # 現行 migration task definition の image を build job の SHA タグに書き換えて新リビジョンを register する。
-      # migration は専用イメージ (project-template-migration) を参照 — drizzle-kit を本番 API に混入させないため。
+      # migration は専用イメージ (tech-english-migration) を参照 — drizzle-kit を本番 API に混入させないため。
       - name: Register migration task definition with new image
         id: register
         env:

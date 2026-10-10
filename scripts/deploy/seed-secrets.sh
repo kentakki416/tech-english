@@ -2,7 +2,7 @@
 # =============================================================================
 # scripts/deploy/seed-secrets.sh
 # =============================================================================
-# Application secret (/project-template-<env>/app) に以下を投入する:
+# Application secret (/tech-english-<env>/app) に以下を投入する:
 #   1. RDS / ElastiCache の接続情報 (terraform output から自動構築)
 #   2. 外部サービスの secret (環境変数から)
 #
@@ -37,7 +37,7 @@ if [ -z "$ENV" ]; then
   exit 1
 fi
 
-SECRET_NAME="/project-template-${ENV}/app"
+SECRET_NAME="/tech-english-${ENV}/app"
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 TF_DIR="${REPO_ROOT}/infra/terraform/aws/env/${ENV}"
 

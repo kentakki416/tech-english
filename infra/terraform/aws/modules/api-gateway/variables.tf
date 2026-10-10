@@ -1,10 +1,10 @@
 variable "name" {
-  description = "HTTP API 名 (例: project-template-min-api)"
+  description = "HTTP API 名 (例: tech-english-min-api)"
   type        = string
 }
 
 variable "domain_name" {
-  description = "独自ドメインの FQDN (例: api.project-template.com)"
+  description = "独自ドメインの FQDN (例: api.tech-english.com)"
   type        = string
 }
 

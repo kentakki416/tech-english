@@ -217,21 +217,21 @@ plan（3 環境とも）：
 AWS 上（min の例。apply と deploy の後）：
 
 ```bash
-aws scheduler get-schedule --name project-template-min-collect-passages \
+aws scheduler get-schedule --name tech-english-min-collect-passages \
   --query '{expr:ScheduleExpression,tz:ScheduleExpressionTimezone,state:State,input:Target.Input}'
-aws ecs describe-task-definition --task-definition project-template-min-cron \
+aws ecs describe-task-definition --task-definition tech-english-min-cron \
   --query 'taskDefinition.containerDefinitions[0].{image:image,secrets:secrets[].name,environment:environment}'
 
 # Scheduler と同じ overrides で手動起動する（ネットワークは terraform output の public_subnet_ids / ecs_security_group_id）
-TASK_ARN=$(aws ecs run-task --cluster project-template-min-cluster --task-definition project-template-min-cron \
+TASK_ARN=$(aws ecs run-task --cluster tech-english-min-cluster --task-definition tech-english-min-cron \
   --launch-type FARGATE \
   --network-configuration "awsvpcConfiguration={subnets=[<subnet>],securityGroups=[<sg>],assignPublicIp=ENABLED}" \
-  --overrides '{"containerOverrides":[{"name":"project-template-min-cron","command":["node","dist/task/collect-passages.js","--source-id=<id>","--dry-run"]}]}' \
+  --overrides '{"containerOverrides":[{"name":"tech-english-min-cron","command":["node","dist/task/collect-passages.js","--source-id=<id>","--dry-run"]}]}' \
   --query 'tasks[0].taskArn' --output text)
-aws ecs wait tasks-stopped --cluster project-template-min-cluster --tasks "$TASK_ARN"
-aws ecs describe-tasks --cluster project-template-min-cluster --tasks "$TASK_ARN" \
+aws ecs wait tasks-stopped --cluster tech-english-min-cluster --tasks "$TASK_ARN"
+aws ecs describe-tasks --cluster tech-english-min-cluster --tasks "$TASK_ARN" \
   --query 'tasks[0].{stoppedReason:stoppedReason,exitCode:containers[0].exitCode}'
-aws logs tail /ecs/project-template-min-cron --since 30m
+aws logs tail /ecs/tech-english-min-cron --since 30m
 ```
 
 - [ ] `get-schedule` の `input` に正しいコンテナ名と command が入っている。3 本のスケジュールの時刻と state が想定どおり
@@ -240,4 +240,4 @@ aws logs tail /ecs/project-template-min-cron --since 30m
 - [ ] generate を `["node", "dist/task/generate-questions.js", "--passage-id=<collected の id>"]` で起動し、exit 0 で行が `draft` になる（Claude API に届いている）
 - [ ] cleanup を overrides なしで起動して exit 0（追加した secret と env で壊れていない）
 - [ ] `stoppedReason` が `OutOfMemoryError` なら `module "ecs_cron"` の `memory` を 1024 に上げる（jsdom と LLM の応答で 512MB を超える場合）
-- [ ] 翌日、CloudWatch Logs の `/ecs/project-template-min-cron` に 03:00（collect）と 04:00（generate・cleanup）のログストリームがあり、最後のログが失敗で終わっていない（ECS は停止したタスクを約 1 時間で消すので、exit code は手動起動で確かめる）
+- [ ] 翌日、CloudWatch Logs の `/ecs/tech-english-min-cron` に 03:00（collect）と 04:00（generate・cleanup）のログストリームがあり、最後のログが失敗で終わっていない（ECS は停止したタスクを約 1 時間で消すので、exit code は手動起動で確かめる）

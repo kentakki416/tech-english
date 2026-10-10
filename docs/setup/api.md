@@ -59,9 +59,9 @@ docker compose ps           # postgres / redis が healthy か確認
 
 | サービス | 接続情報 |
 |---|---|
-| Postgres | `postgresql://postgres:password@localhost:5433/project-template_dev` |
+| Postgres | `postgresql://postgres:password@localhost:5433/tech-english_dev` |
 | Redis | `redis://localhost:6380` |
-| ClickHouse | `http://localhost:8124`（DB: `project_template` / user: `default` / password: `password`） |
+| ClickHouse | `http://localhost:8124`（DB: `tech_english` / user: `default` / password: `password`） |
 
 接続情報は `apps/api/.env.local` の `DATABASE_URL` / `REDIS_HOST` と一致している前提。
 
@@ -98,13 +98,13 @@ curl http://localhost:8080/api/health
 
 ```bash
 cd apps/api
-pnpm test                   # 全テスト (DB_NAME=project-template_test に対して db:migrate 後に実行)
+pnpm test                   # 全テスト (DB_NAME=tech-english_test に対して db:migrate 後に実行)
 pnpm test test/service      # Service ユニットテストのみ (DB 不要)
 pnpm test test/controller   # Controller インテグレーションテストのみ (DB 必要)
 pnpm test:watch             # watch モード
 pnpm test:coverage          # カバレッジ計測 (coverage/ に出力)
 ```
 
-> インテグレーションテストはテスト用 DB (`project-template_test`) を使う。DB は Postgres コンテナの初回起動時に `infra/postgres/init/` が作り、`pnpm test` が毎回 `db:migrate` を流す。
+> インテグレーションテストはテスト用 DB (`tech-english_test`) を使う。DB は Postgres コンテナの初回起動時に `infra/postgres/init/` が作り、`pnpm test` が毎回 `db:migrate` を流す。
 
 テストの設計方針（mock の使い分け、describe の分類ルール、最終状態アサーション等）は [`apps/api/README.md`](../../apps/api/README.md) の「テスト戦略」を参照。

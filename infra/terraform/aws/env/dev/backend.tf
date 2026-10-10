@@ -13,7 +13,7 @@
 
 terraform {
   backend "s3" {
-    bucket       = "project-template-terraform-state-20250101" # TODO: bucket 名を bootstrap の出力に合わせて変更してください
+    bucket       = "tech-english-terraform-state-20250101" # TODO: bucket 名を bootstrap の出力に合わせて変更してください
     key          = "dev/terraform.tfstate"
     region       = "ap-northeast-1"
     use_lockfile = true

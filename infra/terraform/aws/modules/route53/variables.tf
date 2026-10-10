@@ -4,7 +4,7 @@ variable "zone_id" {
 }
 
 variable "fqdn" {
-  description = "作成する A レコードの FQDN (例: api.dev.project-template.com)"
+  description = "作成する A レコードの FQDN (例: api.dev.tech-english.com)"
   type        = string
 }
 

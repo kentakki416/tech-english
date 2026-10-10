@@ -1,5 +1,5 @@
 variable "name" {
-  description = "Lambda 関数名 (例: project-template-min-api)"
+  description = "Lambda 関数名 (例: tech-english-min-api)"
   type        = string
 }
 

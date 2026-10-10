@@ -12,7 +12,7 @@ ClickHouse をローカル環境に追加し、`events` テーブルとデータ
   clickhouse:
     image: clickhouse/clickhouse-server:24-alpine
     environment:
-      CLICKHOUSE_DB: project_template
+      CLICKHOUSE_DB: tech_english
       CLICKHOUSE_USER: default
       CLICKHOUSE_PASSWORD: password
       # 開発用。本番は IAM / ネットワーク側で絞る
@@ -46,7 +46,7 @@ ClickHouse をローカル環境に追加し、`events` テーブルとデータ
 `infra/clickhouse/init/01-events.sql` を作成する。`/docker-entrypoint-initdb.d` に置くと初回起動時に実行される。
 
 ```sql
-CREATE TABLE IF NOT EXISTS project_template.events
+CREATE TABLE IF NOT EXISTS tech_english.events
 (
     event_id       UUID,
     event_name     LowCardinality(String),
@@ -179,15 +179,15 @@ docker compose up -d clickhouse
 curl -s http://localhost:8124/ping   # → Ok.
 
 # テーブルが作られているか
-docker exec project-template-clickhouse \
-  clickhouse-client -q "SHOW CREATE TABLE project_template.events"
+docker exec tech-english-clickhouse \
+  clickhouse-client -q "SHOW CREATE TABLE tech_english.events"
 
 # factory から接続できるか
 pnpm --filter @repo/data-warehouse build
 node -e '
 const { createDataWarehouse } = require("./packages/data-warehouse/dist/index.js")
 const dwh = createDataWarehouse({
-  database: "project_template", password: "password", type: "clickhouse",
+  database: "tech_english", password: "password", type: "clickhouse",
   url: "http://localhost:8124", username: "default",
 })
 dwh.insertAll("events", []).then(() => console.log("ok")).then(() => dwh.close())

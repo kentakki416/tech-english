@@ -3,7 +3,7 @@
 このテンプレートから派生したプロジェクトを AWS (バックエンド) + Vercel (フロント) に
 **ゼロから本番デプロイ**するための手順書。**順番と落とし穴**を中心にまとめる。
 
-> 📌 **表記**: 本書の `<project>` はプロジェクト名（テンプレ既定は `project-template`、`var.project_name`）、
+> 📌 **表記**: 本書の `<project>` はプロジェクト名（既定は `tech-english`、`var.project_name`）、
 > `<your-domain>` は購入する本番ドメイン（例 `example.com`）に読み替える。`<owner>` は GitHub org/user。
 
 > ⚠️ **最重要の教訓**: ALB は **最初から HTTPS の最終形にしてから app を deploy する**こと。
@@ -107,7 +107,7 @@ gh secret set AWS_ROLE_ARN --env prd-api-approval --repo <owner>/<project> --bod
 ```
 
 - ⚠️ **repo レベルの `AWS_ROLE_ARN` は作らない／消す**（dev/prd で別ロールが必要なため、必ず Environment secret）。
-- ⚠️ **テンプレ由来の取り違えに注意**（[落とし穴 1](#落とし穴-1-github-environment-の-aws_role_arn-が別プロジェクトのロールを指す)）。派生直後は `project-template` のロール ARN が残っていることがある。
+- ⚠️ **テンプレ由来の取り違えに注意**（[落とし穴 1](#落とし穴-1-github-environment-の-aws_role_arn-が別プロジェクトのロールを指す)）。派生直後はテンプレ元のプロジェクトのロール ARN が残っていることがある。
 - **承認ゲート**:
   - `prd-api-approval` に **Required reviewers** を設定（api 本番切替の承認用）。
   - `prd` 環境は **Required reviewers を付けない**（付けると build/migrate/Plan 全部が毎回承認待ちになる。承認は api 切替だけにする設計）。
@@ -304,7 +304,7 @@ aws route53 change-resource-record-sets --hosted-zone-id "$ZID" --change-batch '
 > 派生プロジェクト（このテンプレート由来）で実際に踏んだもの。新規プロジェクト立ち上げ時のチェックリストとして使う。
 
 ### 落とし穴 1: GitHub Environment の `AWS_ROLE_ARN` が別プロジェクトのロールを指す
-派生直後は GitHub の Environment secret がテンプレ元（`project-template-github-actions-dev` 等）の ARN を引き継いでいることがある。そのロールはこのアカウントに存在せず、CI が `Not authorized to perform sts:AssumeRoleWithWebIdentity` で落ちる。
+派生直後は GitHub の Environment secret がテンプレ元のプロジェクト（`<テンプレ元の project>-github-actions-dev` 等）の ARN を引き継いでいることがある。そのロールはこのアカウントに存在せず、CI が `Not authorized to perform sts:AssumeRoleWithWebIdentity` で落ちる。
 → **各環境の `AWS_ROLE_ARN` を `<project>-github-actions-{dev,prd}` に設定し直す**。CloudTrail の `AssumeRoleWithWebIdentity`（`errorCode=AccessDenied`）で、どのロールを assume しようとしたか分かる。
 
 ### 落とし穴 2: prd ロールに tfstate / リソース権限が無い (S3 403)

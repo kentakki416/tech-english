@@ -285,7 +285,7 @@ module "app_secrets" {
     DATA_WAREHOUSE_URL      = "https://dummy.clickhouse.cloud:8443"
     DATA_WAREHOUSE_USER     = "default"
     DATA_WAREHOUSE_PASSWORD = "dummy"
-    DATA_WAREHOUSE_DATABASE = "project_template"
+    DATA_WAREHOUSE_DATABASE = "tech_english"
 
     NODE_ENV = "production"
     PORT     = "8080"
@@ -300,7 +300,7 @@ module "app_secrets" {
 # - isolated subnet に配置、SG は ECS のみから 5432 許可 (上で定義済み)
 # - master password は app secret の DB_PASSWORD を唯一の情報源とし、ephemeral 経由で
 #   password_wo (write-only) に渡す。tfstate / plan に平文は残らない
-# - DATABASE_URL は apply 後に scripts/deploy/seed-secrets.sh で /project-template-prd/app に追加する
+# - DATABASE_URL は apply 後に scripts/deploy/seed-secrets.sh で /tech-english-prd/app に追加する
 #   (modules/secrets の ignore_changes により Terraform からは触れないため)
 
 # app secret から DB マスターパスワードを読む。ephemeral resource なので
@@ -322,8 +322,8 @@ module "rds" {
   instance_class    = "db.t4g.micro"
   allocated_storage = 20
   storage_type      = "gp3"
-  db_name           = "project_template"
-  master_username   = "projecttemplate"
+  db_name           = "tech_english"
+  master_username   = "techenglish"
 
   master_password = jsondecode(ephemeral.aws_secretsmanager_secret_version.app.secret_string)["DB_PASSWORD"]
   # app secret の DB_PASSWORD を変更したら +1 して apply する
@@ -419,7 +419,7 @@ data "aws_route53_zone" "primary" {
 }
 
 # =============================================================================
-# ACM 証明書 (*.project-template.com)
+# ACM 証明書 (*.tech-english.com)
 # =============================================================================
 # - prd は apex 直下に配置するので subdomain は空文字を渡す
 # - 検証用 CNAME は primary zone に書き込まれる
@@ -456,7 +456,7 @@ module "alb" {
   listener_port            = "80"
 
   # === HTTPS 化 ===
-  # ACM ワイルドカード (*.project-template.com) を HTTPS listener (443) にアタッチ
+  # ACM ワイルドカード (*.tech-english.com) を HTTPS listener (443) にアタッチ
   enable_https    = true
   certificate_arn = module.acm.certificate_arn
 
@@ -475,7 +475,7 @@ module "alb" {
 }
 
 # =============================================================================
-# Route53 A レコード (api.project-template.com → ALB)
+# Route53 A レコード (api.tech-english.com → ALB)
 # =============================================================================
 
 module "route53_api" {
@@ -620,7 +620,7 @@ module "ecs_worker" {
 # =============================================================================
 # - GHA から `aws ecs run-task --task-definition <family>` で起動する想定
 # - 本番 API イメージに devDependencies が混入するのを避けるため、専用 ECR
-#   (project-template-migration) + 専用 Dockerfile (packages/db/Dockerfile.migration) を使う
+#   (tech-english-migration) + 専用 Dockerfile (packages/db/Dockerfile.migration) を使う
 # - Dockerfile の CMD = `pnpm --filter @repo/db db:migrate` (drizzle-kit migrate) を
 #   そのまま使うので command override は不要
 

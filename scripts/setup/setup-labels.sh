@@ -37,7 +37,7 @@ fi
 echo "==> Setting up labels on ${REPO}"
 
 # ラベル名|色|説明
-# 色は project-template の app/packages 区分が一目で分かるよう割り当て
+# 色は tech-english の app/packages 区分が一目で分かるよう割り当て
 LABELS=(
   "web|1d76db|apps/web の変更"
   "admin|5319e7|apps/admin の変更"

@@ -177,9 +177,9 @@ pnpm --filter api test
 ### Docker イメージ
 
 ```bash
-docker build -f apps/api/Dockerfile -t project-template-api:lwa .
-docker run --rm --entrypoint ls project-template-api:lwa -l /opt/extensions/lambda-adapter
-docker run --rm -p 8080:8080 --env-file <ローカル用の env> project-template-api:lwa
+docker build -f apps/api/Dockerfile -t tech-english-api:lwa .
+docker run --rm --entrypoint ls tech-english-api:lwa -l /opt/extensions/lambda-adapter
+docker run --rm -p 8080:8080 --env-file <ローカル用の env> tech-english-api:lwa
 curl -s localhost:8080/api/health
 ```
 

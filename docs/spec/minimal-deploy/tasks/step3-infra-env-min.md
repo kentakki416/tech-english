@@ -440,7 +440,7 @@ module "app_secrets" {
     JWT_REFRESH_SECRET     = random_password.jwt_refresh_secret.result
 
     /** ClickHouse Cloud の接続情報。prd と同じく dummy の placeholder（理由は env/prd/main.tf） */
-    DATA_WAREHOUSE_DATABASE = "project_template"
+    DATA_WAREHOUSE_DATABASE = "tech_english"
     DATA_WAREHOUSE_PASSWORD = "dummy"
     DATA_WAREHOUSE_URL      = "https://dummy.clickhouse.cloud:8443"
     DATA_WAREHOUSE_USER     = "default"

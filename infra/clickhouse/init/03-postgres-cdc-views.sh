@@ -7,7 +7,7 @@
 # db:migrate（drizzle-kit migrate）で作るので、ClickHouse の初期化時点ではまだ無く、
 # アタッチ待ちがタイムアウトする。テーブルは migrate 後に自動でアタッチされるので、
 # migrate の後にこのスクリプトを再実行して view を作る（何度実行してもよい）:
-#   docker exec project-template-clickhouse bash /docker-entrypoint-initdb.d/03-postgres-cdc-views.sh
+#   docker exec tech-english-clickhouse bash /docker-entrypoint-initdb.d/03-postgres-cdc-views.sh
 #
 # **なぜ .sql ではなく .sh なのか**
 # 02-postgres-cdc.sql の MaterializedPostgreSQL は CREATE DATABASE が即座に返り、
@@ -59,9 +59,9 @@ for table in $CDC_TABLES; do
 done
 
 for table in $CDC_TABLES; do
-  clickhouse_query "CREATE VIEW IF NOT EXISTS project_template.v_${table} AS
+  clickhouse_query "CREATE VIEW IF NOT EXISTS tech_english.v_${table} AS
     SELECT * REPLACE (toUInt64(id) AS id)
     FROM pg_cdc.${table} FINAL
     WHERE _sign = 1"
-  echo "created view project_template.v_${table}"
+  echo "created view tech_english.v_${table}"
 done

@@ -1,5 +1,4 @@
-<!-- TODO: プロジェクト名に変更してください -->
-# project-template
+# tech-english
 
 Turborepo + pnpm モノレポのフルスタックアプリケーションテンプレート。
 
@@ -48,10 +47,10 @@ git 管理のファイルのうちコミット済みの内容（HEAD）だけを
 
 ### 2. プロジェクト名を置き換える
 
-`project-template` という名前がコード内に残っています。`TODO: プロジェクト名に変更` のコメントが目印です。
+コピー元のプロジェクト名（`tech-english`）がコード内に残っています。
 
 ```bash
-git grep -n "project-template"
+git grep -n "tech-english"
 ```
 
 主な箇所は `README.md` / `docker-compose.yaml`（コンテナ名・DB 名）/ `infra/terraform/`（bootstrap の state バケット名など）/ `.github/workflows/` です。
@@ -109,7 +108,7 @@ pnpm --filter @repo/db prisma:generate
 pnpm --filter api db:migrate
 
 # 5. ClickHouse に CDC の view を作る（テーブルが migrate で作られた後にしか作れないため）
-docker exec project-template-clickhouse bash /docker-entrypoint-initdb.d/03-postgres-cdc-views.sh
+docker exec tech-english-clickhouse bash /docker-entrypoint-initdb.d/03-postgres-cdc-views.sh
 
 # 6. 全アプリを起動する
 pnpm dev

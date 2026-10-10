@@ -5,7 +5,7 @@
 variable "project_name" {
   description = "プロジェクト名"
   type        = string
-  default     = "project-template" # TODO: bootstrapと同じプロジェクト名に変更してください
+  default     = "tech-english"
 }
 
 variable "environment" {
@@ -30,11 +30,11 @@ variable "aws_region" {
 variable "domain_name" {
   description = "Route53 hosted zone のベースドメイン (prd で作成済みの zone)。dev は data source で参照する"
   type        = string
-  default     = "project-template.com" # TODO: prd と揃えて実ドメインに変更してください
+  default     = "tech-english.com" # TODO: prd と揃えて実ドメインに変更してください
 }
 
 variable "subdomain" {
-  description = "dev 用サブドメイン。<api_subdomain>.<subdomain>.<domain_name> が API の FQDN になる (例: api.dev.project-template.com)"
+  description = "dev 用サブドメイン。<api_subdomain>.<subdomain>.<domain_name> が API の FQDN になる (例: api.dev.tech-english.com)"
   type        = string
   default     = "dev"
 }

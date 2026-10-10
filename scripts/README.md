@@ -35,7 +35,7 @@
 
 ## seed-secrets.sh
 
-`terraform apply` で作成された Secrets Manager の箱 (`/project-template-<env>/app`) に、以下の値を一括投入する:
+`terraform apply` で作成された Secrets Manager の箱 (`/tech-english-<env>/app`) に、以下の値を一括投入する:
 
 | Key | 出所 | 自動 / 手動 |
 |---|---|---|
@@ -133,7 +133,7 @@ npx dotenvx run -f apps/api/.env.local -- ./scripts/deploy/seed-secrets.sh dev
 - AWS dev 用に上書きしたい値があれば事前に `export` しておけば優先される:
 
   ```bash
-  FRONTEND_URL="https://project-template-xxx.vercel.app" \
+  FRONTEND_URL="https://tech-english-xxx.vercel.app" \
     npx dotenvx run -f apps/api/.env.local -- ./scripts/deploy/seed-secrets.sh dev
   ```
 
@@ -161,7 +161,7 @@ npx dotenvx run -f apps/api/.env.local -- ./scripts/deploy/seed-secrets.sh dev
 実行イメージ:
 
 ```
-==> Seeding secrets for /project-template-dev/app
+==> Seeding secrets for /tech-english-dev/app
 ==> External secrets (from environment variables)
   ✓ GOOGLE_CLIENT_ID (from env)
   ✓ GOOGLE_CLIENT_SECRET (from env)
@@ -173,7 +173,7 @@ npx dotenvx run -f apps/api/.env.local -- ./scripts/deploy/seed-secrets.sh dev
 ==> Infrastructure-derived secrets (from terraform output)
   ✓ DATABASE_URL (constructed from RDS outputs)
   - REDIS_HOST (skipped, ElastiCache not deployed yet)
-==> Updated 8 keys in /project-template-dev/app
+==> Updated 8 keys in /tech-english-dev/app
 ```
 
 ### destroy / apply サイクルでの典型的な使い方
@@ -188,7 +188,7 @@ terraform destroy
 terraform apply
 
 # secret 投入 (10 秒、dotenvx で apps/api/.env.local の値を流す)
-cd /Users/.../project-template
+cd /Users/.../tech-english
 npx dotenvx run -f apps/api/.env.local -- ./scripts/deploy/seed-secrets.sh dev
 ```
 
@@ -209,7 +209,7 @@ npx dotenvx run -f apps/api/.env.local -- ./scripts/deploy/seed-secrets.sh dev
 
 ```bash
 aws secretsmanager get-secret-value \
-  --secret-id /project-template-dev/app \
+  --secret-id /tech-english-dev/app \
   --query SecretString --output text | jq .
 ```
 
@@ -255,7 +255,7 @@ PR の変更パスに応じて以下のラベルが自動付与される:
 実行イメージ:
 
 ```
-==> Setting up labels on kentakki416/project-template
+==> Setting up labels on kentakki416/tech-english
   ✓ web (#1d76db)
   ✓ admin (#5319e7)
   ✓ api (#0e8a16)
@@ -264,5 +264,5 @@ PR の変更パスに応じて以下のラベルが自動付与される:
   ✓ worker (#fbca04)
   ✓ packages (#0052cc)
   ✓ chore (#cfd3d7)
-==> Done. 8 labels are in sync on kentakki416/project-template
+==> Done. 8 labels are in sync on kentakki416/tech-english
 ```

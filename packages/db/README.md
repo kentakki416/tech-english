@@ -66,7 +66,7 @@ packages/db/
 | `db:studio` | `drizzle-kit studio` | Drizzle Studio を起動する。画面は `https://local.drizzle.studio` から読み込まれるが、DB への接続はローカルのまま |
 | `prisma:generate` | `prisma generate` | Prisma Client を `generated/` に生成する。turbo の `build` がこれに依存する |
 
-`DB_NAME=project-template_test` を付けると、接続先の DB 名だけをテスト用に差し替えられる（client / drizzle-kit とも同じ規則）。
+`DB_NAME=tech-english_test` を付けると、接続先の DB 名だけをテスト用に差し替えられる（client / drizzle-kit とも同じ規則）。
 
 ## マイグレーション
 
@@ -92,25 +92,25 @@ dev DB には ClickHouse の CDC（replication slot）が繋がっていて、�
 
 ```bash
 # 1. ClickHouse の CDC を外す（Postgres 側の replication slot / publication も一緒に消える）
-docker exec project-template-clickhouse clickhouse-client --query "DROP DATABASE IF EXISTS pg_cdc"
+docker exec tech-english-clickhouse clickhouse-client --query "DROP DATABASE IF EXISTS pg_cdc"
 
 # 2. dev / test DB を作り直す（WITH (FORCE) は起動中の api などの接続を切ってから消す）
-docker exec project-template-postgres psql -U postgres \
-  -c 'DROP DATABASE IF EXISTS "project-template_dev" WITH (FORCE)' -c 'CREATE DATABASE "project-template_dev"' \
-  -c 'DROP DATABASE IF EXISTS "project-template_test" WITH (FORCE)' -c 'CREATE DATABASE "project-template_test"'
+docker exec tech-english-postgres psql -U postgres \
+  -c 'DROP DATABASE IF EXISTS "tech-english_dev" WITH (FORCE)' -c 'CREATE DATABASE "tech-english_dev"' \
+  -c 'DROP DATABASE IF EXISTS "tech-english_test" WITH (FORCE)' -c 'CREATE DATABASE "tech-english_test"'
 
 # 3. マイグレーションと seed を流す
 pnpm --filter api db:migrate
 pnpm --filter api db:seed
 
 # 4. CDC を張り直す
-docker exec -i project-template-clickhouse clickhouse-client --multiquery < infra/clickhouse/init/02-postgres-cdc.sql
-docker exec project-template-clickhouse bash /docker-entrypoint-initdb.d/03-postgres-cdc-views.sh
+docker exec -i tech-english-clickhouse clickhouse-client --multiquery < infra/clickhouse/init/02-postgres-cdc.sql
+docker exec tech-english-clickhouse bash /docker-entrypoint-initdb.d/03-postgres-cdc-views.sh
 ```
 
 test DB は `pnpm --filter api test` が実行のたびにマイグレーションを流すので、作り直した後は空のままでよい。
 
-> `drizzle-kit migrate` は DB が無いときに作らない（Prisma の `migrate deploy` は作っていた）。test DB（`project-template_test`）は `infra/postgres/init/` の初期化スクリプトが Postgres の初回起動時に作る。
+> `drizzle-kit migrate` は DB が無いときに作らない（Prisma の `migrate deploy` は作っていた）。test DB（`tech-english_test`）は `infra/postgres/init/` の初期化スクリプトが Postgres の初回起動時に作る。
 
 ## client の生成と DI
 

@@ -5,7 +5,7 @@ resource "aws_db_subnet_group" "this" {
 }
 
 # RDS インスタンス本体。
-# - master password は app secret (例: /project-template-prd/app) の DB_PASSWORD を唯一の情報源とし、
+# - master password は app secret (例: /tech-english-prd/app) の DB_PASSWORD を唯一の情報源とし、
 #   env 層が ephemeral resource で読んで var.master_password (ephemeral) として渡す。
 #   password_wo (write-only 引数) で AWS に送るだけなので tfstate に平文は残らない。
 # - 以前は manage_master_user_password=true で AWS 管理 (rds!... secret) にしていたが、

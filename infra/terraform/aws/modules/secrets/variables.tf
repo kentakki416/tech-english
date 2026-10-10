@@ -1,5 +1,5 @@
 variable "name" {
-  description = "Secret 名 (例: /project-template-dev/app)"
+  description = "Secret 名 (例: /tech-english-dev/app)"
   type        = string
 }
 

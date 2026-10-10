@@ -130,7 +130,7 @@ pnpm lint:fix
 ```
 
 - [ ] `migration.sql` が `ALTER TABLE "users" ADD COLUMN "timezone" ...` の 1 文だけ
-- [ ] dev DB に migrate した後、既存ユーザーに `Asia/Tokyo` が入っている（`docker exec project-template-postgres psql -U postgres -d project-template_dev -c 'SELECT id, timezone FROM users'`）
+- [ ] dev DB に migrate した後、既存ユーザーに `Asia/Tokyo` が入っている（`docker exec tech-english-postgres psql -U postgres -d tech-english_dev -c 'SELECT id, timezone FROM users'`）
 - [ ] Drizzle / Prisma の両実装で「timezone を省略して作ると Asia/Tokyo になる」が通る
 - [ ] 既存のテスト（auth / user / memo / repository）がすべて通る
 - [ ] `pnpm build` が通る（api 以外に `User` を組み立てている箇所が無いことの確認）

@@ -4,7 +4,7 @@
 
 # ECR
 output "ecr_api_repository_url" {
-  description = "API (project-template-api-server) の ECR リポジトリ URL"
+  description = "API (tech-english-api-server) の ECR リポジトリ URL"
   value       = aws_ecr_repository.api.repository_url
 }
 

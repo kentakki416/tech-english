@@ -50,7 +50,7 @@ BullMQ の stalled 検出 / リトライ / ECS deploy 時の SIGKILL で **同�
 | `DATABASE_URL` | `NODE_ENV !== "test"` で必須 | - | DB の接続文字列 |
 | `DATA_WAREHOUSE_TYPE` | no | `clickhouse` | `clickhouse` / `none`。`none` は何も書き込まない実装になる |
 | `DATA_WAREHOUSE_URL` | `DATA_WAREHOUSE_TYPE === "clickhouse"` かつ `NODE_ENV !== "test"` で必須 | - | データウェアハウスの接続 URL。**技術名を入れていない**のはバックエンドを差し替えても env を変えずに済ませるため |
-| `DATA_WAREHOUSE_DATABASE` | no | `project_template` | DB 名 |
+| `DATA_WAREHOUSE_DATABASE` | no | `tech_english` | DB 名 |
 | `DATA_WAREHOUSE_USER` | no | `default` | ユーザー名 |
 | `DATA_WAREHOUSE_PASSWORD` | no | `password` | パスワード |
 | `REDIS_URL` | `NODE_ENV !== "test"` で必須 | - | BullMQ 用 Redis |

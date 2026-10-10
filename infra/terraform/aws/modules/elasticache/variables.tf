@@ -1,5 +1,5 @@
 variable "name" {
-  description = "ElastiCache replication group 識別子 (例: project-template-dev-redis)"
+  description = "ElastiCache replication group 識別子 (例: tech-english-dev-redis)"
   type        = string
 }
 

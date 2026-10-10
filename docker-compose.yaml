@@ -1,16 +1,15 @@
-## TODO: container_name と DB_NAME の "project-template" 部分をプロジェクト名に変更してください
 services:
   # PostgreSQL Database
   postgres:
     image: postgres:16-alpine
-    container_name: project-template-postgres # TODO: プロジェクト名に変更
+    container_name: tech-english-postgres
     restart: unless-stopped
     # ClickHouse への CDC（論理レプリケーション）に wal_level=logical が必要。
     # 既定は replica で、そのままだと replication slot を作れない。
     # prd の ClickPipes も同じ前提なので、ローカルで同じ設定を再現している。
     command: postgres -c wal_level=logical
     environment:
-      POSTGRES_DB: project-template_dev # TODO: プロジェクト名に変更（DB名はアンダースコア推奨）
+      POSTGRES_DB: tech-english_dev
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
       TZ: Asia/Tokyo
@@ -19,7 +18,7 @@ services:
       - '${POSTGRES_PORT:-5433}:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      # テスト用 DB（project-template_test）を作る。volume が空のときだけ実行される
+      # テスト用 DB（tech-english_test）を作る。volume が空のときだけ実行される
       - ./infra/postgres/init:/docker-entrypoint-initdb.d
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U postgres']
@@ -32,7 +31,7 @@ services:
   # Redis Cache
   redis:
     image: redis:7-alpine
-    container_name: project-template-redis # TODO: プロジェクト名に変更
+    container_name: tech-english-redis
     restart: unless-stopped
     command: redis-server --appendonly yes
     ports:
@@ -50,10 +49,10 @@ services:
 
   clickhouse:
     image: clickhouse/clickhouse-server:24-alpine
-    container_name: project-template-clickhouse # TODO: プロジェクト名に変更
+    container_name: tech-english-clickhouse
     restart: unless-stopped
     environment:
-      CLICKHOUSE_DB: project_template
+      CLICKHOUSE_DB: tech_english
       CLICKHOUSE_USER: default
       CLICKHOUSE_PASSWORD: password
       # 開発用。本番は IAM / ネットワーク側で絞る

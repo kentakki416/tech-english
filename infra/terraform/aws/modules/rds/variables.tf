@@ -1,5 +1,5 @@
 variable "name" {
-  description = "RDS インスタンス識別子 (例: project-template-dev-db)"
+  description = "RDS インスタンス識別子 (例: tech-english-dev-db)"
   type        = string
 }
 

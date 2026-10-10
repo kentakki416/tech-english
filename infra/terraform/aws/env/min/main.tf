@@ -116,7 +116,7 @@ module "app_secrets" {
     DATA_WAREHOUSE_URL      = "https://dummy.clickhouse.cloud:8443"
     DATA_WAREHOUSE_USER     = "default"
     DATA_WAREHOUSE_PASSWORD = "dummy"
-    DATA_WAREHOUSE_DATABASE = "project_template"
+    DATA_WAREHOUSE_DATABASE = "tech_english"
 
     NODE_ENV = "production"
     PORT     = "8080"
