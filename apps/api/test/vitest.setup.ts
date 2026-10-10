@@ -22,6 +22,12 @@ process.env.JWT_ACCESS_EXPIRATION = process.env.JWT_ACCESS_EXPIRATION || "15m"
 process.env.JWT_REFRESH_EXPIRATION = process.env.JWT_REFRESH_EXPIRATION || "7d"
 
 /**
+ * ADMIN_API_TOKEN も apiEnvSchema で min(32) 制約があるため 32 文字以上にする
+ */
+process.env.ADMIN_API_TOKEN =
+  process.env.ADMIN_API_TOKEN || "test-admin-api-token-at-least-32-chars"
+
+/**
  * test:ci では dotenvx を通さないため DATABASE_URL が未設定。
  * packages/db 側は DEFAULT_URL にフォールバックするが、apiEnvSchema の
  * z.string().url() を満たすためにここでも明示的に補完しておく。

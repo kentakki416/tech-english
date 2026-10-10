@@ -23,6 +23,9 @@ pnpm start        # 本番サーバー起動
 
 | 変数 | 必須 | デフォルト | 説明 |
 | --- | --- | --- | --- |
+| `ADMIN_API_TOKEN` | yes | - | api の `/api/admin/*` に `X-Admin-Token` として付ける共有シークレット（32 文字以上）。api の `ADMIN_API_TOKEN` と同じ値。`src/libs/api-client.ts` の外に出さない |
+| `ADMIN_BASIC_AUTH_PASSWORD` | yes | - | 画面全体の Basic 認証のパスワード（12 文字以上） |
+| `ADMIN_BASIC_AUTH_USER` | yes | - | 画面全体の Basic 認証のユーザー名 |
 | `API_URL` | no | `http://localhost:8080` | Express API の origin |
 | `NODE_ENV` | no | `development` | `development` / `test` / `production` |
 
@@ -35,14 +38,22 @@ pnpm start        # 本番サーバー起動
 cd apps/admin && pnpm exec dotenvx set API_URL "http://localhost:8080" -f .env.local
 ```
 
+## アクセス制御
+
+MVP の管理者は 1〜2 人なので、共有シークレットで保護する（設計は [question-generation の 管理画面のアクセス制御](../../docs/spec/question-generation/README.md#管理画面のアクセス制御)）。
+
+- **画面**: `src/proxy.ts` が Basic 認証をかける（`_next/static`・`_next/image`・`favicon.ico` 以外のすべて。モックの `/mock` も対象）。`ADMIN_BASIC_AUTH_USER` / `ADMIN_BASIC_AUTH_PASSWORD` が未設定なら誰も通さない（fail closed）。`src/env.ts` は `server-only` なので proxy からは使わず `process.env` を直接読む。比較は `src/libs/basic-auth.ts`（`node:crypto` を使わない定数時間比較）
+- **api**: `src/libs/api-client.ts` がすべてのリクエストに `X-Admin-Token: ADMIN_API_TOKEN` を付ける。トークンはブラウザに渡らない（Client Component の props やエラーに含めない）
+- ローカルの資格情報は `.env.local`（dotenvx で暗号化済み）に入っている。値は `pnpm exec dotenvx get ADMIN_BASIC_AUTH_PASSWORD -f .env.local` で確認する
+
 ## API 接続の下地
 
 admin は DB を直接触らず、必ず Express API を経由する。現状は TailAdmin テンプレートの画面がそのまま入っており **API には未接続**だが、繋ぐための足場は用意してある。
 
 | ファイル | 状態 | 役割 |
 | --- | --- | --- |
-| `src/env.ts` | 配線済み（ただし未 import） | `API_URL` を Zod で検証。`server-only` |
-| `src/libs/api-client.ts` | **未使用** | `env.API_URL` を叩く `get` / `post` / `put` / `delete`。`server-only` |
+| `src/env.ts` | 配線済み（ただし未 import） | `API_URL` / `ADMIN_API_TOKEN` / Basic 認証の資格情報を Zod で検証。`server-only` |
+| `src/libs/api-client.ts` | **未使用** | `env.API_URL` を叩く `get` / `post` / `put` / `delete`。`X-Admin-Token` を付け、`!res.ok` なら `ApiClientError`（`status` / `body`）を投げる。`server-only` |
 | `@repo/api-schema` | **未使用**（依存宣言のみ） | API のリクエスト / レスポンス Zod スキーマ |
 
 画面を API に繋ぐときは:

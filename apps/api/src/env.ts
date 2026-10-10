@@ -11,6 +11,12 @@ import { z } from "zod"
  */
 const apiEnvSchema = z.object({
   /**
+   * admin のサーバー側だけが持つ共有シークレット。/api/admin/* の X-Admin-Token ヘッダと比較する
+   * （JWT の secret と同じく 32 文字以上。apps/admin の ADMIN_API_TOKEN と同じ値にする）
+   */
+  ADMIN_API_TOKEN: z.string().min(32),
+
+  /**
    * Admin API のダミーモード（DB 不要で固定データを返す）
    */
   ADMIN_USE_DUMMY: z

@@ -40,6 +40,7 @@ import {
   DrizzleUserRepository,
 } from "./repository/drizzle"
 import { IoRedisHealthRepository, IoRedisRefreshTokenRepository } from "./repository/redis"
+import { adminRouter } from "./routes/admin-router"
 import { authRouter } from "./routes/auth-router"
 import { eventRouter } from "./routes/event-router"
 import { healthRouter } from "./routes/health-router"
@@ -205,6 +206,11 @@ app.use(
  * ウェアより前に登録して対象外にしている（制限に巻き込むと target が unhealthy 判定される恐れ）。
  */
 app.use(apiRateLimiter)
+/**
+ * admin 向け API。/api/admin は PUBLIC_PATHS に入っているので、admin-router 側の
+ * adminAuthMiddleware（X-Admin-Token）で保護する
+ */
+app.use("/api/admin", adminRouter())
 app.use(
   "/api/auth",
   authRouter({
