@@ -65,7 +65,7 @@ export class LoggerFactory {
 export const logger: ILogger = new Proxy({} as ILogger, {
   get(target, property, receiver) {
     const instance = LoggerFactory.getLogger()
-    const value = Reflect.get(instance as object, property, receiver)
+    const value = Reflect.get(instance, property, receiver)
     return typeof value === "function" ? value.bind(instance) : value
   },
 })
