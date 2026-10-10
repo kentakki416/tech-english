@@ -28,10 +28,23 @@ const mobileEnvSchema = z.object({
    * （例: `http://192.168.3.13:8080`）。デフォルト値は持たせず必須にしている。
    */
   EXPO_PUBLIC_API_URL: z.string().url(),
+  /**
+   * GitHub OAuth App の Client ID（公開値。Client Secret は api だけが持つ）
+   * web と同じ OAuth App を使う。
+   */
+  EXPO_PUBLIC_GITHUB_OAUTH_CLIENT_ID: z.string().min(1),
+  /**
+   * web（Next.js）の origin
+   * GitHub ログインの redirect_uri（`{web}/api/auth/callback/github/mobile`）に使う。
+   * GitHub OAuth App に登録した callback URL と host を揃える（local は `http://localhost:3000`）。
+   */
+  EXPO_PUBLIC_WEB_URL: z.string().url(),
 })
 
 const result = mobileEnvSchema.safeParse({
   EXPO_PUBLIC_API_URL: process.env.EXPO_PUBLIC_API_URL,
+  EXPO_PUBLIC_GITHUB_OAUTH_CLIENT_ID: process.env.EXPO_PUBLIC_GITHUB_OAUTH_CLIENT_ID,
+  EXPO_PUBLIC_WEB_URL: process.env.EXPO_PUBLIC_WEB_URL,
 })
 
 if (!result.success) {

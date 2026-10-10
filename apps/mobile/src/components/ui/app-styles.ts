@@ -1,0 +1,32 @@
+import { StyleSheet } from "react-native"
+
+import { THEME_COLORS } from "@/const/design-theme"
+
+/**
+ * 画面をまたいで使うスタイル（画面の地・カード・注記・区切り線・区画の見出し）
+ */
+export const appStyles = StyleSheet.create({
+  card: {
+    backgroundColor: THEME_COLORS.surface,
+    borderColor: THEME_COLORS.line,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  caption: {
+    color: THEME_COLORS.fgMuted,
+    fontSize: 12,
+  },
+  divider: {
+    backgroundColor: THEME_COLORS.line,
+    height: StyleSheet.hairlineWidth,
+  },
+  screen: {
+    backgroundColor: THEME_COLORS.canvas,
+    flex: 1,
+  },
+  sectionTitle: {
+    color: THEME_COLORS.fg,
+    fontSize: 16,
+    fontWeight: "600",
+  },
+})
