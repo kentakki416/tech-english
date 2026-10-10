@@ -47,6 +47,11 @@ const httpsOriginSchema = z
   .refine((value) => tryParseUrl(value)?.protocol === "https:", { message: "Must be an https URL" })
   .transform((value) => new URL(value).origin)
 
+/**
+ * 許可リストのライセンス（SPDX 識別子）。admin の登録フォームの選択肢にも使う
+ */
+export const allowedLicenseSchema = z.enum(ALLOWED_LICENSES)
+
 const globListSchema = z.array(z.string().trim().min(1).max(200)).max(50)
 
 const nullableTextSchema = z.string().trim().min(1).max(500).nullable()
@@ -61,7 +66,7 @@ const sourceInputBaseSchema = z.object({
   /**
    * 許可リスト外のライセンスはここで 400 になる
    */
-  license_spdx: z.enum(ALLOWED_LICENSES),
+  license_spdx: allowedLicenseSchema,
   license_url: webUrlSchema,
   name: z.string().trim().min(1).max(100),
   tags: z.array(z.string().trim().min(1).max(30)).max(10),
@@ -149,7 +154,7 @@ const contentSourceBaseSchema = z.object({
   is_enabled: z.boolean(),
   kind: z.enum(SOURCE_KINDS),
   last_collected_at: z.string().nullable(),
-  license_spdx: z.enum(ALLOWED_LICENSES),
+  license_spdx: allowedLicenseSchema,
   license_url: z.string(),
   name: z.string(),
   tags: z.array(z.string()),
@@ -211,7 +216,7 @@ export const getContentSourceListResponseSchema = z.object({
       is_enabled: z.boolean(),
       kind: z.enum(SOURCE_KINDS),
       last_collected_at: z.string().nullable(),
-      license_spdx: z.enum(ALLOWED_LICENSES),
+      license_spdx: allowedLicenseSchema,
       name: z.string(),
       passage_counts: passageCountsSchema,
       repository: z.string().nullable(),

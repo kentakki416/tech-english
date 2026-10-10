@@ -29,9 +29,11 @@ export const proxy = (req: NextRequest) => {
 
 export const config = {
   /**
-   * _next/static・_next/image・favicon.ico 以外のすべて
+   * _next/static・_next/image・favicon.ico・public の images 以外のすべて。
+   * images はテンプレートの静的画像で秘密を含まず、next/image の最適化がサーバー内部で
+   * 認証なしに取得するため除外する
    */
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico).*)",
+    "/((?!_next/static|_next/image|favicon.ico|images/).*)",
   ],
 }
