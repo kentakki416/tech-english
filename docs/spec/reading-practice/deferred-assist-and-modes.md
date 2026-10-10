@@ -49,18 +49,7 @@
 
 ## 読み上げ
 
-### 着手トリガー
-
-- リスニングや発音の要望が出た
-
-### 設計案
-
-| 案 | 内容 | 費用 |
-| --- | --- | --- |
-| 端末の音声合成 | web は Web Speech API、mobile は `expo-speech` | なし。ただし声の品質は端末次第 |
-| 事前生成の音声 | 公開時に TTS で音声を作って S3（`@repo/storage`）に置く | 生成とストレージの費用 |
-
-まず端末の音声合成で需要を確かめ、品質の要望が強ければ事前生成に移る。
+MVP に入れた。仕様と設計は [read-aloud](../read-aloud/README.md)、その先の拡張（声の選択・単語の発音・音読の評価）は [read-aloud の deferred](../read-aloud/deferred-voices-and-pronunciation.md)。
 
 ## 厳格モード
 

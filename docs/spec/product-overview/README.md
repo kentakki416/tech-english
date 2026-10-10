@@ -17,6 +17,7 @@
 - [`../reading-practice/README.md`](../reading-practice/README.md) — 問題を解く・採点・解説・アシスト。`reading_attempts` 系テーブルの正本
 - [`../learning-record/README.md`](../learning-record/README.md) — 学習記録（カレンダー）と目標。`user_goals` の正本
 - [`../study-reminder/README.md`](../study-reminder/README.md) — mobile のリマインダー通知。`reminder_settings` の正本
+- [`../read-aloud/README.md`](../read-aloud/README.md) — 本文の読み上げ（Amazon Polly で事前生成）。`passage_audios` の正本
 - [`../minimal-deploy/README.md`](../minimal-deploy/README.md) — 初期リリースのインフラ構成。本サービスは worker なし（`enable_worker = false`）で動くように設計する
 - [`./deferred-grammar-vocabulary.md`](./deferred-grammar-vocabulary.md) — MVP 対象外。文法問題・単語問題
 
@@ -95,6 +96,7 @@
 | 問題作成 | 4 択問題の生成（LLM）と管理者承認 | ✅ | [question-generation](../question-generation/README.md) |
 | 学習 | 長文読解（制限時間・採点・解説・時間の記録） | ✅ | [reading-practice](../reading-practice/README.md) |
 | 学習 | アシスト（段落の和訳・単語の意味） | ✅ | [reading-practice](../reading-practice/README.md) |
+| 学習 | 読み上げ（全文・段落、単語のハイライト、再生速度） | ✅ | [read-aloud](../read-aloud/README.md) |
 | 学習 | 文法問題 | ❌ 将来 | [deferred-grammar-vocabulary](./deferred-grammar-vocabulary.md) |
 | 学習 | 単語問題 | ❌ 将来 | [deferred-grammar-vocabulary](./deferred-grammar-vocabulary.md) |
 
@@ -141,6 +143,7 @@ flowchart LR
     practice["reading-practice<br/>reading_attempts / attempt_answers /<br/>attempt_word_lookups / dictionary_entries"]
     record["learning-record<br/>user_goals"]
     remind["study-reminder<br/>reminder_settings"]
+    aloud["read-aloud<br/>passage_audios"]
 
     collect -->|"passages を<br/>collected で作る"| gen
     gen -->|"published の問題"| practice
@@ -148,6 +151,8 @@ flowchart LR
     practice -->|"提出済みの挑戦を集計"| record
     auth --> record
     auth --> remind
+    gen -->|"published の本文を読み上げ"| aloud
+    aloud -->|"音声と単語の時刻"| practice
 ```
 
 `passages` は収集（content-collection）が作り、生成（question-generation）が中身を埋めて公開する。行を作るのは収集側だが、**列とステータスの定義は question-generation を正本にする**（問題データの意味を決めているのは生成と承認の側のため）。
@@ -197,16 +202,17 @@ flowchart LR
 
 ### インフラ上の配置
 
-[minimal-deploy](../minimal-deploy/README.md) の構成に載せる。新しいインフラは足さない。
+[minimal-deploy](../minimal-deploy/README.md) の構成に載せる。足すのは読み上げの音声を置く S3 の bucket と CloudFront だけ（[read-aloud](../read-aloud/README.md#音声の保存と配信)）。
 
 | 処理 | 配置 | 起動 |
 | --- | --- | --- |
 | api | Lambda（minimal）/ ECS（prd） | HTTP リクエスト |
 | `collect:passages` | ECS RunTask | EventBridge Scheduler で 1 日 1 回 |
 | `generate:questions` | ECS RunTask | EventBridge Scheduler で 1 日 1 回（`collect:passages` の後） |
+| `generate:audio` | ECS RunTask | EventBridge Scheduler で 1 時間ごと（公開された問題の読み上げの音声を作る） |
 | リマインダー | **サーバー処理なし**（mobile 端末内のローカル通知） | ― |
 
-外部サービスとして **GitHub API**（収集、ログイン）と **Claude API**（生成）を新たに使い、cron から **公式ドキュメントのサイト** にも HTTP でアクセスする。いずれも外向きの通信なので、minimal（public subnet + public IP）でも prd（NAT Gateway）でも追加のネットワーク設定は要らない。
+外部サービスとして **GitHub API**（収集、ログイン）・**Claude API**（生成）・**Amazon Polly**（読み上げの音声）を新たに使い、cron から **公式ドキュメントのサイト** にも HTTP でアクセスする。いずれも外向きの通信なので、minimal（public subnet + public IP）でも prd（NAT Gateway）でも追加のネットワーク設定は要らない。
 
 ### ドメイン定数の置き場所
 
@@ -218,6 +224,7 @@ flowchart LR
 | `PASSAGE_STATUSES` / `PASSAGE_DIFFICULTIES` / `PASSAGE_BLOCK_TYPES` / `QUESTION_TYPES` | question-generation |
 | `ATTEMPT_STATUSES` / `WORD_LOOKUP_SOURCES` | reading-practice |
 | `GOAL_METRICS` | learning-record |
+| `AUDIO_STATUSES` | read-aloud |
 
 ### 実装の順番
 

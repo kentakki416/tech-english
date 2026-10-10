@@ -20,6 +20,7 @@
 | question-generation | 設計中 | Claude API で 4 択の設問・解説・段落の和訳・用語集を生成し、管理者が admin で確認・修正してから公開する。問題データの正本 | [./question-generation/README.md](./question-generation/README.md) |
 | reading-practice | 設計中 | 問題を解く・採点・解説。制限時間（超過しても続行可）、段落の和訳と単語タップのアシスト、ダークテーマの解答画面 | [./reading-practice/README.md](./reading-practice/README.md) |
 | learning-record | 設計中 | マイページ。GitHub の草のような学習カレンダー、連続学習日数、週の目標と進捗、学習履歴 | [./learning-record/README.md](./learning-record/README.md) |
+| read-aloud | 設計中 | 問題の本文を Amazon Polly（Neural）で読み上げ、単語をハイライトする。音声は公開後に cron で 1 度だけ作って S3 に置く。解答中は 3 つめのアシストとして数える | [./read-aloud/README.md](./read-aloud/README.md) |
 | study-reminder | 設計中 | mobile のみのリマインダー。設定はアカウントに保存し、端末のローカル通知で毎週の曜日・時刻に通知する | [./study-reminder/README.md](./study-reminder/README.md) |
 | user-behavior-events | 設計中 | ユーザー行動を時系列イベントとして ClickHouse に蓄積する。DB に痕跡が残らない操作（削除・閲覧・離脱）を優先して記録し、運用ログとは別系統にする | [./user-behavior-events/README.md](./user-behavior-events/README.md) |
 | minimal-deploy | 実装中 | アイドル時の固定費をほぼゼロにした本番構成（Lambda + API Gateway + PlanetScale + Upstash、月 ~$7。worker は必要なときだけ Fargate Spot で作る）。実装は env で切り替え、同じアプリ・同じイメージを minimal と prd（ECS）の両方にデプロイできるようにする | [./minimal-deploy/README.md](./minimal-deploy/README.md) |
