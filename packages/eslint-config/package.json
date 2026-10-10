@@ -1,0 +1,30 @@
+{
+  "name": "@repo/eslint-config",
+  "version": "1.0.0",
+  "private": true,
+  "main": "./index.js",
+  "exports": {
+    ".": "./index.js",
+    "./common-rules": "./common-rules.js",
+    "./db-boundary": "./db-boundary.js",
+    "./frontend-boundary": "./frontend-boundary.js",
+    "./test-only-exports": "./test-only-exports.js"
+  },
+  "files": [
+    "common-rules.js",
+    "db-boundary.js",
+    "frontend-boundary.js",
+    "index.js",
+    "test-only-exports.js"
+  ],
+  "dependencies": {
+    "@stylistic/eslint-plugin": "^5.10.0",
+    "@typescript-eslint/eslint-plugin": "^8.46.4",
+    "@typescript-eslint/parser": "^8.46.4",
+    "eslint-import-resolver-typescript": "^4.4.4",
+    "eslint-plugin-import": "^2.32.0"
+  },
+  "peerDependencies": {
+    "eslint": "^9.39.1"
+  }
+}

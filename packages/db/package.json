@@ -1,0 +1,38 @@
+{
+  "name": "@repo/db",
+  "version": "1.0.0",
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist generated",
+    "dev": "tsc --watch",
+    "db:generate": "drizzle-kit generate --config=drizzle/drizzle.config.ts",
+    "db:migrate": "drizzle-kit migrate --config=drizzle/drizzle.config.ts",
+    "db:push": "drizzle-kit push --config=drizzle/drizzle.config.ts",
+    "db:seed": "tsx drizzle/seed.ts",
+    "db:studio": "drizzle-kit studio --config=drizzle/drizzle.config.ts",
+    "prisma:generate": "prisma generate --config=prisma/prisma.config.ts",
+    "lint": "eslint 'src/**/*.ts'",
+    "lint:fix": "eslint 'src/**/*.ts' --fix"
+  },
+  "dependencies": {
+    "@prisma/adapter-pg": "^7.7.0",
+    "@prisma/client": "^7.2.0",
+    "@prisma/extension-read-replicas": "^0.5.0",
+    "drizzle-orm": "1.0.0-rc.4",
+    "pg": "^8.23.1"
+  },
+  "devDependencies": {
+    "@repo/eslint-config": "workspace:^",
+    "@repo/typescript-config": "workspace:^",
+    "@types/node": "^24.10.1",
+    "@types/pg": "^8.23.1",
+    "drizzle-kit": "1.0.0-rc.4",
+    "eslint": "^9.39.1",
+    "prisma": "^7.2.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}

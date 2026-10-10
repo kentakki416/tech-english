@@ -1,0 +1,80 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --font-reading: var(--font-literata), Georgia, serif;
+  --font-ui: var(--font-plex-sans-jp), system-ui, sans-serif;
+  --font-code: var(--font-plex-mono), ui-monospace, monospace;
+}
+
+/**
+ * tech-english のデザイントークン（ダークテーマ）
+ *
+ * 背景は真っ黒にせず青みのある暗いグレーにし、長文でのハレーションを抑える。
+ * 差し色は琥珀（amber）1 色に絞り、正誤だけ別の色を使う。
+ */
+@theme {
+  --color-canvas: #12161f;
+  --color-surface: #181d28;
+  --color-raised: #202736;
+  --color-line: #29303f;
+  --color-line-strong: #3a4356;
+  --color-fg: #dde2ea;
+  --color-fg-muted: #949db1;
+  --color-fg-faint: #647086;
+  --color-amber: #f3b24c;
+  --color-amber-bright: #ffca72;
+  --color-amber-ink: #2a1c05;
+  --color-amber-wash: rgb(243 178 76 / 0.12);
+  --color-correct: #6fcaa3;
+  --color-correct-wash: rgb(111 202 163 / 0.12);
+  --color-wrong: #f08c8c;
+  --color-wrong-wash: rgb(240 140 140 / 0.12);
+  --color-heat-0: #1d2331;
+  --color-heat-1: #3b3122;
+  --color-heat-2: #67502a;
+  --color-heat-3: #a57a32;
+  --color-heat-4: #f3b24c;
+  --color-code-keyword: #d3a8f2;
+  --color-code-string: #a9d5a1;
+  --color-code-fn: #90c6f0;
+  --color-code-comment: #6d778d;
+
+  --animate-lamp-on: lamp-on 420ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+
+  @keyframes lamp-on {
+    0% {
+      opacity: 0;
+      transform: scale(0.6);
+    }
+    60% {
+      opacity: 1;
+      transform: scale(1.08);
+    }
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}

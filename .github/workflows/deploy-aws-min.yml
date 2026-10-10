@@ -1,0 +1,498 @@
+name: Deploy to AWS min
+
+# =============================================================================
+# Job 構成
+# =============================================================================
+# detect → build → migrate → ┬→ deploy-api    (Lambda: env 注入 → version 発行 → alias live 切り替え → smoke test)
+#                            ├→ deploy-worker (worker の ECS Service があるときだけ。rolling 完走)
+#                            └→ deploy-cron   (task definition revision を register するのみ)
+#
+# minimal 構成 (env/min) のデプロイ。prd と違い Blue/Green と承認ゲートは持たず、api は
+# alias の切り替え直後に readiness を叩き、失敗したら前の version に自動で戻す。
+#
+# push_only=true: イメージを SHA と `initial` タグで push するだけで終わる。初回 (Lambda /
+# worker の ECS Service を terraform apply で作る前) に一度だけ使う。
+#
+# worker を作るかどうかの正本は Terraform の enable_worker (env/min/variables.tf) だけ。
+# detect が Service の有無を見て、api の EVENT_TRACKER_TYPE (queue / none) と worker の build / deploy を切り替える。
+#
+# 設計: docs/spec/minimal-deploy/README.md / docs/spec/minimal-deploy/tasks/step4-ci-deploy-min.md
+# =============================================================================
+
+on:
+  workflow_dispatch:
+    inputs:
+      push_only:
+        description: "イメージの push だけ行う (初回の terraform apply 前に使う)"
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: deploy-aws-min
+  cancel-in-progress: false
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: ap-northeast-1
+
+  # =============================================================================
+  # 環境ごとに変える値 — min 固有の値のみ列挙
+  # =============================================================================
+  # AWS リソースタグ (Terraform default_tags の Project / Environment と一致させる)
+  PROJECT_NAME: project-template
+  ENVIRONMENT: min
+
+  # ECR (environment 非依存だが project_name は含む)
+  ECR_API_REPO: project-template-api-server
+  ECR_WORKER_REPO: project-template-worker
+  ECR_MIGRATION_REPO: project-template-migration
+  ECR_CRON_REPO: project-template-cron
+
+  # Lambda / ECS リソース (project_name-environment- プレフィックスを持つ)
+  LAMBDA_API_FUNCTION: project-template-min-api
+  ECS_CLUSTER: project-template-min-cluster
+  ECS_WORKER_SERVICE: project-template-min-worker
+  ECS_MIGRATION_TASK_DEF: project-template-min-migration
+  ECS_CRON_TASK_DEF: project-template-min-cron
+
+  # VPC リソース解決用 (Terraform 側 modules/vpc の Name タグと一致)
+  ECS_SECURITY_GROUP_NAME: project-template-min-ecs
+  PUBLIC_SUBNET_NAME_PREFIX: project-template-min-public # `${prefix}*` で wildcard 検索する
+
+  APP_SECRET_NAME: /project-template-min/app
+  # API の URL は GitHub Environment `min` の variable `API_URL` から受け取る (deploy-api で検証する)
+
+jobs:
+  # =========================================================================
+  # worker の ECS Service の有無 (= Terraform の enable_worker) を調べる
+  # =========================================================================
+  # push_only=true の初回は cluster が無く describe-services が失敗するので調べない
+  # (build がこの job を待つため、job 自体は skip せず step を飛ばす)
+  detect:
+    name: Detect worker
+    runs-on: ubuntu-latest
+    environment: min
+    outputs:
+      worker_enabled: ${{ steps.worker.outputs.worker_enabled }}
+    steps:
+      - name: Configure AWS credentials with OIDC
+        if: ${{ !inputs.push_only }}
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Check worker ECS service
+        id: worker
+        if: ${{ !inputs.push_only }}
+        run: |
+          set -euo pipefail
+          STATUS=$(aws ecs describe-services \
+            --cluster "${ECS_CLUSTER}" --services "${ECS_WORKER_SERVICE}" \
+            --query 'services[0].status' --output text)
+          # Service が無いと services が空になり "None" が返る。削除中は "DRAINING" / "INACTIVE"
+          if [ "${STATUS}" = "ACTIVE" ]; then
+            echo "worker_enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "worker_enabled=false" >> "$GITHUB_OUTPUT"
+          fi
+          echo "worker service status: ${STATUS}"
+
+  build:
+    name: Build & Push Docker Images
+    needs: detect
+    runs-on: ubuntu-latest
+    # GitHub Environments で AWS_ROLE_ARN を env-scope から取得 (min role は account/github_oidc.tf 側で作成)
+    environment: min
+    outputs:
+      image_tag: ${{ steps.meta.outputs.image_tag }}
+      registry: ${{ steps.ecr.outputs.registry }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compute image tag
+        id: meta
+        run: echo "image_tag=${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
+
+      - name: Configure AWS credentials with OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # --provenance=false: buildx 既定の provenance は OCI image index になり、Lambda はこれを受け付けない。
+      # api 以外も揃えて付ける。
+      # push_only=true のときは api / worker に `initial` タグも付ける
+      # (env/min の bootstrap_image_tag。Lambda / worker の ECS Service の作成時だけ使う)
+      - name: Build & push API image
+        run: |
+          IMAGE="${{ steps.ecr.outputs.registry }}/${{ env.ECR_API_REPO }}"
+          TAGS=(-t "${IMAGE}:${{ steps.meta.outputs.image_tag }}")
+          if [ "${{ inputs.push_only }}" = "true" ]; then
+            TAGS+=(-t "${IMAGE}:initial")
+          fi
+          docker buildx build \
+            --platform linux/amd64 \
+            --provenance=false \
+            -f apps/api/Dockerfile \
+            "${TAGS[@]}" \
+            --push \
+            .
+
+      # worker が無効な間は作らない。push_only=true では後から worker を作るときの initial タグを用意する
+      - name: Build & push worker image
+        if: ${{ inputs.push_only || needs.detect.outputs.worker_enabled == 'true' }}
+        run: |
+          IMAGE="${{ steps.ecr.outputs.registry }}/${{ env.ECR_WORKER_REPO }}"
+          TAGS=(-t "${IMAGE}:${{ steps.meta.outputs.image_tag }}")
+          if [ "${{ inputs.push_only }}" = "true" ]; then
+            TAGS+=(-t "${IMAGE}:initial")
+          fi
+          docker buildx build \
+            --platform linux/amd64 \
+            --provenance=false \
+            -f apps/worker/Dockerfile \
+            "${TAGS[@]}" \
+            --push \
+            .
+
+      # migration image は本番 API イメージから分離 (drizzle-kit / devDeps を本番に混入させない)
+      - name: Build & push migration image
+        run: |
+          IMAGE="${{ steps.ecr.outputs.registry }}/${{ env.ECR_MIGRATION_REPO }}"
+          docker buildx build \
+            --platform linux/amd64 \
+            --provenance=false \
+            -f packages/db/Dockerfile.migration \
+            -t "${IMAGE}:${{ steps.meta.outputs.image_tag }}" \
+            --push \
+            .
+
+      - name: Build & push cron image
+        run: |
+          IMAGE="${{ steps.ecr.outputs.registry }}/${{ env.ECR_CRON_REPO }}"
+          docker buildx build \
+            --platform linux/amd64 \
+            --provenance=false \
+            -f apps/cron/Dockerfile \
+            -t "${IMAGE}:${{ steps.meta.outputs.image_tag }}" \
+            --push \
+            .
+
+  migrate:
+    name: Run DB Migration
+    needs: build
+    if: ${{ !inputs.push_only }}
+    runs-on: ubuntu-latest
+    environment: min
+    steps:
+      - name: Configure AWS credentials with OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # 現行 migration task definition の image を build job の SHA タグに書き換えて新リビジョンを register する
+      - name: Register migration task definition with new image
+        id: register
+        env:
+          IMAGE: ${{ needs.build.outputs.registry }}/${{ env.ECR_MIGRATION_REPO }}:${{ needs.build.outputs.image_tag }}
+        run: |
+          TASK_DEF_FILE=$(mktemp)
+          aws ecs describe-task-definition \
+            --task-definition "${ECS_MIGRATION_TASK_DEF}" \
+            --query taskDefinition \
+            | jq --arg IMAGE "${IMAGE}" '
+                .containerDefinitions[0].image = $IMAGE
+                | del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)
+              ' > "${TASK_DEF_FILE}"
+
+          REVISION_ARN=$(aws ecs register-task-definition \
+            --cli-input-json "file://${TASK_DEF_FILE}" \
+            --query 'taskDefinition.taskDefinitionArn' --output text)
+
+          echo "Registered migration task definition: ${REVISION_ARN}"
+          echo "revision_arn=${REVISION_ARN}" >> "$GITHUB_OUTPUT"
+
+      # prd と同じく AWS リソースのタグから動的に解決する。min の VPC には public subnet しか無い
+      - name: Resolve network configuration from tags
+        id: network
+        run: |
+          set -euo pipefail
+
+          VPC_ID=$(aws ec2 describe-vpcs \
+            --filters "Name=tag:Project,Values=${PROJECT_NAME}" "Name=tag:Environment,Values=${ENVIRONMENT}" \
+            --query 'Vpcs[0].VpcId' --output text)
+
+          if [ -z "${VPC_ID}" ] || [ "${VPC_ID}" = "None" ]; then
+            echo "::error::VPC not found (tag:Project=${PROJECT_NAME} tag:Environment=${ENVIRONMENT})"
+            exit 1
+          fi
+
+          PUBLIC_SUBNETS=$(aws ec2 describe-subnets \
+            --filters "Name=vpc-id,Values=${VPC_ID}" "Name=tag:Name,Values=${PUBLIC_SUBNET_NAME_PREFIX}*" \
+            --query 'Subnets[*].SubnetId' --output text | tr '\t' ',')
+
+          ECS_SG=$(aws ec2 describe-security-groups \
+            --filters "Name=vpc-id,Values=${VPC_ID}" "Name=tag:Name,Values=${ECS_SECURITY_GROUP_NAME}" \
+            --query 'SecurityGroups[0].GroupId' --output text)
+
+          if [ -z "${PUBLIC_SUBNETS}" ] || [ -z "${ECS_SG}" ] || [ "${ECS_SG}" = "None" ]; then
+            echo "::error::Failed to resolve subnets or security group (VPC=${VPC_ID} subnets='${PUBLIC_SUBNETS}' sg='${ECS_SG}')"
+            exit 1
+          fi
+
+          echo "Resolved: VPC=${VPC_ID} subnets=${PUBLIC_SUBNETS} ecs_sg=${ECS_SG}"
+          echo "public_subnets=${PUBLIC_SUBNETS}" >> "$GITHUB_OUTPUT"
+          echo "ecs_security_group=${ECS_SG}" >> "$GITHUB_OUTPUT"
+
+      # NAT が無いので assignPublicIp=ENABLED で ECR / Secrets Manager / PlanetScale に出る
+      - name: Run DB migration
+        env:
+          PUBLIC_SUBNETS: ${{ steps.network.outputs.public_subnets }}
+          ECS_SECURITY_GROUP: ${{ steps.network.outputs.ecs_security_group }}
+          REVISION_ARN: ${{ steps.register.outputs.revision_arn }}
+        run: |
+          TASK_ARN=$(aws ecs run-task \
+            --cluster "${ECS_CLUSTER}" \
+            --task-definition "${REVISION_ARN}" \
+            --launch-type FARGATE \
+            --network-configuration "awsvpcConfiguration={subnets=[${PUBLIC_SUBNETS}],securityGroups=[${ECS_SECURITY_GROUP}],assignPublicIp=ENABLED}" \
+            --query 'tasks[0].taskArn' \
+            --output text)
+
+          echo "Migration task ARN: ${TASK_ARN}"
+
+          aws ecs wait tasks-stopped \
+            --cluster "${ECS_CLUSTER}" \
+            --tasks "${TASK_ARN}"
+
+          echo "=== Task details ==="
+          aws ecs describe-tasks \
+            --cluster "${ECS_CLUSTER}" \
+            --tasks "${TASK_ARN}" \
+            --query 'tasks[0].{stopCode:stopCode,stoppedReason:stoppedReason,containers:containers[*].{name:name,exitCode:exitCode,reason:reason,lastStatus:lastStatus}}' \
+            --output yaml
+
+          EXIT_CODE=$(aws ecs describe-tasks \
+            --cluster "${ECS_CLUSTER}" \
+            --tasks "${TASK_ARN}" \
+            --query 'tasks[0].containers[0].exitCode' \
+            --output text)
+
+          if [ "${EXIT_CODE}" != "0" ]; then
+            echo "Migration failed with exit code ${EXIT_CODE}"
+            aws logs filter-log-events \
+              --log-group-name "/ecs/${ECS_MIGRATION_TASK_DEF}" \
+              --limit 200 \
+              --query 'events[*].message' \
+              --output text || true
+            exit 1
+          fi
+
+  # =========================================================================
+  # API (Lambda): env 注入 → version 発行 → alias live 切り替え → smoke test
+  # =========================================================================
+  deploy-api:
+    name: Deploy API (Lambda)
+    needs: [build, migrate, detect]
+    if: ${{ !inputs.push_only }}
+    runs-on: ubuntu-latest
+    # Lambda の wait や smoke test が想定外に長引いても、job が無期限に残らないようにする
+    timeout-minutes: 20
+    environment: min
+    env:
+      API_URL: ${{ vars.API_URL }}
+    steps:
+      # Lambda を更新する前に止める。誤った URL のまま smoke test すると、正常なデプロイでも切り戻してしまう
+      - name: Validate API_URL
+        run: |
+          if [[ ! "${API_URL}" =~ ^https://[^/]+$ ]]; then
+            echo "::error::GitHub Environment 'min' の variable API_URL を https://<host> の形で設定してください (現在値: '${API_URL}')"
+            exit 1
+          fi
+
+      - name: Configure AWS credentials with OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Deploy Lambda function
+        id: deploy
+        env:
+          FUNCTION: ${{ env.LAMBDA_API_FUNCTION }}
+          IMAGE: ${{ needs.build.outputs.registry }}/${{ env.ECR_API_REPO }}:${{ needs.build.outputs.image_tag }}
+          # secret から渡すキー。ECS の secret_keys (env/prd/main.tf の api) と同じものに絞る
+          SECRET_KEYS_JSON: >-
+            ["DATABASE_URL","FRONTEND_URL","GOOGLE_CLIENT_ID","GOOGLE_CLIENT_SECRET",
+            "JWT_ACCESS_EXPIRATION","JWT_ACCESS_SECRET","JWT_REFRESH_EXPIRATION","JWT_REFRESH_SECRET",
+            "NODE_ENV","PORT","REDIS_URL"]
+          WORKER_ENABLED: ${{ needs.detect.outputs.worker_enabled }}
+        run: |
+          set -euo pipefail
+
+          # worker が無ければイベントを捨てる (処理されないジョブを Upstash に溜めないため)
+          if [ "${WORKER_ENABLED}" = "true" ]; then
+            EVENT_TRACKER_TYPE=queue
+          else
+            EVENT_TRACKER_TYPE=none
+          fi
+          echo "EVENT_TRACKER_TYPE=${EVENT_TRACKER_TYPE}"
+
+          # minimal で実装を切り替える固定値
+          FIXED_ENV_JSON=$(jq -n --arg tracker "${EVENT_TRACKER_TYPE}" '{
+            AWS_LWA_PORT: "8080",
+            AWS_LWA_READINESS_CHECK_PATH: "/api/health",
+            EVENT_TRACKER_TYPE: $tracker,
+            FLUSH_EVENTS_BEFORE_RESPONSE: "true"
+          }')
+
+          # 1. secret のうち、この関数が使うキーだけを取り出し、固定値と合成する
+          #    (ENV_JSON には secret の値が入るので echo やログに出さない)
+          SECRET_JSON=$(aws secretsmanager get-secret-value \
+            --secret-id "${APP_SECRET_NAME}" --query SecretString --output text)
+
+          # secret に無いキーがあれば止める (ECS の valueFrom と同じく、欠けたまま起動させない)
+          MISSING=$(jq -rn --argjson secret "${SECRET_JSON}" --argjson keys "${SECRET_KEYS_JSON}" \
+            '$keys - ($secret | keys) | join(",")')
+          if [ -n "${MISSING}" ]; then
+            echo "::error::missing keys in ${APP_SECRET_NAME}: ${MISSING}"
+            exit 1
+          fi
+
+          ENV_JSON=$(jq -n \
+            --argjson secret "${SECRET_JSON}" \
+            --argjson keys "${SECRET_KEYS_JSON}" \
+            --argjson fixed "${FIXED_ENV_JSON}" \
+            '{ Variables: (($secret | with_entries(select(.key as $k | $keys | index($k)))) + $fixed) }')
+
+          # 2. 環境変数を設定する ($LATEST に対する変更。次の publish で version に固定される)
+          aws lambda update-function-configuration \
+            --function-name "${FUNCTION}" --environment "${ENV_JSON}" > /dev/null
+          aws lambda wait function-updated-v2 --function-name "${FUNCTION}"
+
+          # 3. 新しいイメージで version を発行する
+          VERSION=$(aws lambda update-function-code \
+            --function-name "${FUNCTION}" --image-uri "${IMAGE}" --publish \
+            --query Version --output text)
+          aws lambda wait published-version-active --function-name "${FUNCTION}" --qualifier "${VERSION}"
+
+          # 4. alias live を切り替える。切り戻し用に前の version を残す
+          PREVIOUS=$(aws lambda get-alias \
+            --function-name "${FUNCTION}" --name live --query FunctionVersion --output text)
+          aws lambda update-alias \
+            --function-name "${FUNCTION}" --name live --function-version "${VERSION}" > /dev/null
+
+          echo "previous_version=${PREVIOUS}" >> "$GITHUB_OUTPUT"
+          {
+            echo "### ${FUNCTION}: version ${PREVIOUS} → ${VERSION}"
+            echo ""
+            echo "- EVENT_TRACKER_TYPE: \`${EVENT_TRACKER_TYPE}\`"
+            echo "- 切り戻し: \`aws lambda update-alias --function-name ${FUNCTION} --name live --function-version ${PREVIOUS}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # prd の Blue/Green + 承認ゲートの代わりに、最低限「壊れたまま公開し続けない」ことを保証する
+      - name: Smoke test
+        run: |
+          # DNS / TLS / API Gateway が応答しないときに待ち続けて切り戻しが走らない、ということが無いよう
+          # 接続 (5 秒)・1 回のリクエスト (10 秒)・リトライ全体 (60 秒) のすべてに上限を付ける
+          curl -fsS --connect-timeout 5 --max-time 10 \
+            --retry 3 --retry-delay 5 --retry-max-time 60 --retry-all-errors \
+            "${API_URL}/api/health/ready"
+
+      # 初回デプロイの previous は Terraform が作った version (initial イメージ、env 無し) なので切り戻し先にならない
+      - name: Roll back to previous version
+        if: ${{ (failure() || cancelled()) && steps.deploy.outputs.previous_version != '' }}
+        env:
+          FUNCTION: ${{ env.LAMBDA_API_FUNCTION }}
+          PREVIOUS: ${{ steps.deploy.outputs.previous_version }}
+        run: |
+          echo "::error::rolling back to version ${PREVIOUS}"
+          aws lambda update-alias \
+            --function-name "${FUNCTION}" --name live --function-version "${PREVIOUS}" > /dev/null
+
+  # =========================================================================
+  # worker service (rolling)。worker の ECS Service があるときだけ
+  # =========================================================================
+  deploy-worker:
+    name: Deploy worker service
+    needs: [build, migrate, detect]
+    if: ${{ !inputs.push_only && needs.detect.outputs.worker_enabled == 'true' }}
+    runs-on: ubuntu-latest
+    environment: min
+    steps:
+      - name: Configure AWS credentials with OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Download worker task definition
+        run: |
+          aws ecs describe-task-definition \
+            --task-definition "${ECS_WORKER_SERVICE}" \
+            --query taskDefinition \
+            > task-def-worker.json
+
+      - name: Render worker task definition with new image
+        id: render-worker
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: task-def-worker.json
+          container-name: ${{ env.ECS_WORKER_SERVICE }}
+          image: ${{ needs.build.outputs.registry }}/${{ env.ECR_WORKER_REPO }}:${{ needs.build.outputs.image_tag }}
+
+      - name: Deploy worker service
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: ${{ steps.render-worker.outputs.task-definition }}
+          service: ${{ env.ECS_WORKER_SERVICE }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true
+
+  # =========================================================================
+  # cron task definition (EventBridge Scheduler が最新 revision を起動)
+  # =========================================================================
+  deploy-cron:
+    name: Register cron task definition
+    needs: [build, migrate]
+    if: ${{ !inputs.push_only }}
+    runs-on: ubuntu-latest
+    environment: min
+    steps:
+      - name: Configure AWS credentials with OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Register cron task definition with new image
+        env:
+          IMAGE: ${{ needs.build.outputs.registry }}/${{ env.ECR_CRON_REPO }}:${{ needs.build.outputs.image_tag }}
+        run: |
+          TASK_DEF_FILE=$(mktemp)
+          aws ecs describe-task-definition \
+            --task-definition "${ECS_CRON_TASK_DEF}" \
+            --query taskDefinition \
+            | jq --arg IMAGE "${IMAGE}" '
+                .containerDefinitions[0].image = $IMAGE
+                | del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)
+              ' > "${TASK_DEF_FILE}"
+
+          REVISION_ARN=$(aws ecs register-task-definition \
+            --cli-input-json "file://${TASK_DEF_FILE}" \
+            --query 'taskDefinition.taskDefinitionArn' --output text)
+
+          echo "Registered cron task definition: ${REVISION_ARN}"

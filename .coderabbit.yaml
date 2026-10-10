@@ -1,0 +1,36 @@
+# yaml-language-server: $schema=https://storage.googleapis.com/coderabbit_public_assets/schema.v2.json
+
+#
+# CodeRabbit のレビュー設定。デフォルト値と異なる項目のみ記述する。
+#
+# レビュー基準（アーキテクチャ / 命名 / 規約）は各 CLAUDE.md を正典とする。
+# CodeRabbit は knowledge_base.code_guidelines のデフォルト filePatterns に
+# `**/CLAUDE.md` を含むため、設定なしで既存の CLAUDE.md を読む。
+# ここに規約を再記述すると CLAUDE.md と二重管理になるので書かない。
+#
+# filePatterns を明示すると `**/AGENTS.md` などデフォルト側のパターンを
+# 上書きして無効化してしまうため、あえて宣言しない。
+#
+
+language: ja-JP
+
+reviews:
+  in_progress_fortune: false
+
+  path_filters:
+    # Prisma が生成するクライアント（コミット対象だがレビュー不要）
+    - "!packages/db/generated/**"
+    # PR 本文に貼るスクリーンショット
+    - "!docs/screenshots/**"
+    # ロックファイル
+    - "!pnpm-lock.yaml"
+    - "!**/.terraform.lock.hcl"
+
+  # 既定の false では COMMENT 形式でしか返さず、レビュー結果がマージの
+  # ゲートにならない。true にすると指摘ありで Request changes、解消後に
+  # Approve を出すため、GitHub の review state として機能する。
+  request_changes_workflow: true
+
+tone_instructions: |
+  日本語でレビューする。指摘には根拠と具体的な修正案を添える。
+  好みの問題は指摘せず、規約違反・バグ・設計の逸脱に絞る。

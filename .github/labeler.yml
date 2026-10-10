@@ -1,0 +1,34 @@
+"web":
+  - changed-files:
+      - any-glob-to-any-file: 'apps/web/**'
+
+"admin":
+  - changed-files:
+      - any-glob-to-any-file: 'apps/admin/**'
+
+"api":
+  - changed-files:
+      - any-glob-to-any-file: 'apps/api/**'
+
+"mobile":
+  - changed-files:
+      - any-glob-to-any-file: 'apps/mobile/**'
+
+"cron":
+  - changed-files:
+      - any-glob-to-any-file: 'apps/cron/**'
+
+"worker":
+  - changed-files:
+      - any-glob-to-any-file: 'apps/worker/**'
+
+"packages":
+  - changed-files:
+      - any-glob-to-any-file: 'packages/**'
+
+# apps/ にも packages/ にも該当しない変更のみ chore
+"chore":
+  - changed-files:
+      - all-globs-to-all-files:
+          - '!apps/**'
+          - '!packages/**'

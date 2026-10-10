@@ -1,0 +1,3 @@
+# minimal 環境で許容するルール（現時点で該当なし）
+# 指摘を許容するときは、理由をコメントに書いてからルール ID を足すこと
+# 設計: docs/spec/minimal-deploy/README.md

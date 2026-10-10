@@ -1,0 +1,77 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "concurrency": "15",
+  "globalDependencies": [
+    "**/.env.*local"
+  ],
+  "tasks": {
+    "@repo/db#prisma:generate": {
+      "cache": false,
+      "inputs": [
+        "prisma/schema.prisma"
+      ],
+      "outputs": [
+        "generated/**"
+      ]
+    },
+    "build": {
+      "dependsOn": [
+        "^build",
+        "@repo/db#prisma:generate"
+      ],
+      "outputs": [
+        ".next/**",
+        "!.next/cache/**",
+        "dist/**",
+        "build/**",
+        "generated/**"
+      ]
+    },
+    "start": {
+      "dependsOn": [
+        "build"
+      ],
+      "cache": false,
+      "persistent": true
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "lint": {
+      "dependsOn": [
+        "^build"
+      ]
+    },
+    "lint:fix": {
+      "dependsOn": [
+        "^build"
+      ]
+    },
+    "test": {
+      "dependsOn": [
+        "^build"
+      ]
+    },
+    "test:ci": {
+      "cache": false,
+      "dependsOn": [
+        "^build"
+      ],
+      "env": [
+        "DATABASE_URL",
+        "DB_NAME",
+        "JWT_ACCESS_EXPIRATION",
+        "JWT_ACCESS_SECRET",
+        "JWT_REFRESH_EXPIRATION",
+        "JWT_REFRESH_SECRET",
+        "LOGGER_TYPE",
+        "NODE_ENV",
+        "REDIS_URL"
+      ]
+    },
+    "clean": {
+      "cache": false
+    }
+  }
+}

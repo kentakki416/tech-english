@@ -1,0 +1,57 @@
+# ==============================================================================
+# DB migration 専用イメージ (Drizzle)
+# ==============================================================================
+# 本番 API イメージに drizzle-kit / devDependencies を混ぜないため、migration は
+# 独立した最小イメージにする。ECS で `aws ecs run-task` により one-shot 起動され、
+# `drizzle-kit migrate` を実行して終了する (Service ではない)。
+#
+# Drizzle の schema / migrations / config は packages/db (@repo/db) にあるため、
+# turbo prune で @repo/db に必要な workspace だけを抽出する。
+# drizzle-kit は @repo/db の devDependency なので --prod にせず全 install する。
+# packages/db/prisma/migrations は履歴として残しているだけで、このイメージでは適用しない。
+
+# ==============================================================================
+# Stage 1: base - pnpm をインストールしたベースイメージ
+# ==============================================================================
+FROM node:20-slim AS base
+
+RUN corepack enable && corepack prepare pnpm@9.0.0 --activate
+
+# ==============================================================================
+# Stage 2: pruner - @repo/db (Drizzle schema/migrations) に必要な workspace を抽出
+# ==============================================================================
+FROM base AS pruner
+
+WORKDIR /app
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
+COPY apps ./apps
+COPY packages ./packages
+
+RUN npx -y turbo@2.6.1 prune @repo/db --docker
+
+# ==============================================================================
+# Stage 3: runner - drizzle-kit + schema/migrations を持ち migrate を実行
+# ==============================================================================
+FROM base AS runner
+
+# tini: ECS Fargate では docker --init が使えないため軽量 init として必須。
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends tini ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# package.json + lock を先に入れて install (drizzle-kit は devDep なので --prod にしない)
+COPY --from=pruner /app/out/json/ ./
+COPY .pnpmfile.cjs ./
+RUN pnpm install --frozen-lockfile
+
+# drizzle.config.ts / migrations / schema (src/drizzle) を含むソースをコピー
+COPY --from=pruner /app/out/full/ ./
+
+ENTRYPOINT ["/usr/bin/tini", "--"]
+
+# DATABASE_URL は ECS task definition の secrets で注入される。
+# db:migrate = `drizzle-kit migrate --config=drizzle/drizzle.config.ts` (packages/db で実行)
+CMD ["pnpm", "--filter", "@repo/db", "db:migrate"]

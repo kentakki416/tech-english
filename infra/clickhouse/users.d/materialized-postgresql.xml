@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<!--
+  MaterializedPostgreSQL (Postgres からの CDC) を有効にする。
+
+  ローカル専用の設定。prd は ClickHouse Cloud の ClickPipes を使うため、
+  この experimental 機能には依存しない（詳細は packages/data-warehouse/README.md）。
+
+  session の `SET allow_experimental_database_materialized_postgresql = 1` では
+  CREATE DATABASE のときだけしか効かず、ClickHouse を再起動したときに
+  database を再アタッチできずに Detached 状態になる。そのため profile に置く。
+-->
+<clickhouse>
+  <profiles>
+    <default>
+      <allow_experimental_database_materialized_postgresql>1</allow_experimental_database_materialized_postgresql>
+    </default>
+  </profiles>
+</clickhouse>
