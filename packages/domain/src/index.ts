@@ -21,7 +21,7 @@ export { isAllowedLicense, isSourceFetchType, isSourceKind } from "./rules/conte
 export { isMembershipTier } from "./rules/membership-tier"
 export { canShareMemo } from "./rules/memo"
 export { calculateQuestionCount, calculateTimeLimitSeconds, isPassageDifficulty, isPassageStatus } from "./rules/passage"
-export { findSurfaceRange, hasQuote, isSurfaceAt, numberParagraphs } from "./rules/passage-text"
+export { findSurfaceRange, hasQuote, isSurfaceAt, numberHeadings, numberParagraphs } from "./rules/passage-text"
 export { isQuestionType } from "./rules/question"
 export type {
   AttemptAnswer,

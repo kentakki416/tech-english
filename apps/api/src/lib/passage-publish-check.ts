@@ -53,6 +53,13 @@ export const listPublishViolations = (detail: AdminPassageDetail): ApiErrorDetai
   const glossaryIds = new Set(glossary.map((entry) => entry.id))
   questions.forEach((question, index) => {
     const questionLabel = `Q${index + 1}`
+    if (isBlank(question.prompt)) {
+      violations.push({
+        code: "prompt_empty",
+        message: `${questionLabel}：設問文が空です`,
+        path: ["questions", index, "prompt"],
+      })
+    }
     if (!hasValidChoices(question.choices)) {
       violations.push({
         code: "choice_invalid",
@@ -106,12 +113,23 @@ export const listPublishViolations = (detail: AdminPassageDetail): ApiErrorDetai
 
   glossary.forEach((entry, index) => {
     const block: PassageBlock | undefined = blocks[entry.blockIndex]
-    if (block && isSurfaceAt(block.text, entry)) return
-    violations.push({
-      code: "glossary_position_mismatch",
-      message: `用語集「${entry.surface}」が${joinBlockLabel(formatBlockLabel(blocks, entry.blockIndex), "の本文の位置に見つかりません")}`,
-      path: ["glossary", index, "surface"],
-    })
+    if (!block || !isSurfaceAt(block.text, entry)) {
+      violations.push({
+        code: "glossary_position_mismatch",
+        message: `用語集「${entry.surface}」が${joinBlockLabel(formatBlockLabel(blocks, entry.blockIndex), "の本文の位置に見つかりません")}`,
+        path: ["glossary", index, "surface"],
+      })
+    }
+    /**
+     * cron は語義設問の対象が用語集に無いとき、意味が空の項目を足す（要確認にして管理者に入力させる）
+     */
+    if (isBlank(entry.meaningJa)) {
+      violations.push({
+        code: "glossary_meaning_empty",
+        message: `用語集「${entry.surface}」：文脈での意味が空です`,
+        path: ["glossary", index, "meaning_ja"],
+      })
+    }
   })
 
   if (passage.difficulty === null) {

@@ -41,7 +41,7 @@ enum は domain の定数から作る。`index.ts` に re-export を足す（フ
 | `POST .../reject` | `{ reason: string }`（trim して 1〜1000 文字） | `{ id, status }` |
 
 - 一覧の行：`id`、`attempt_count`、`attention_reasons`、`difficulty`、`generation_error`、`needs_attention`、`question_count`、`reject_reason`、`source: { id, name }`、`status`、`title`、`updated_at`、`word_count`
-- 詳細：一覧の項目に加え `blocks[]`（`lang` / `text` / `translation_ja` / `type`）、`questions[]`（`id` / `choices` / `correct_choice_index` / `evidence: { block_index, quote }` / `explanation_ja` / `order_index` / `prompt` / `target_glossary_entry_id` / `type` / `verification_choice_index`）、`glossary[]`（`id` / `block_index` / `end_offset` / `lemma` / `meaning_ja` / `note_ja` / `part_of_speech` / `start_offset` / `surface`）、`source: { commit_sha, id, name, path, retrieved_at }`、生成の記録（`generated_at` / `generation_model` / `generation_prompt_version`）、`published_at`、`reviewed_at`、`time_limit_seconds`、**`time_limit_formula`**（`rounding_seconds` / `seconds_per_question` / `wpm_by_difficulty: [{ difficulty, wpm }]`。admin は domain を import できないので、「計算式で再計算」の定数を API から渡す）
+- 詳細：一覧の項目に加え `blocks[]`（`lang` / `text` / `translation_ja` / `type`）、`questions[]`（`id` / `choices` / `correct_choice_index` / `evidence: { block_index, quote }` / `explanation_ja` / `order_index` / `prompt` / `target_glossary_entry_id` / `type` / `verification_choice_index`）、`glossary[]`（`id` / `block_index` / `end_offset` / `lemma` / `meaning_ja` / `note_ja` / `part_of_speech` / `start_offset` / `surface`）、`source: { commit_sha, id, name, path, retrieved_at }`、生成の記録（`generated_at` / `generation_model` / `generation_prompt_version`）、`published_at`、`reviewed_at`、`time_limit_seconds`、**`time_limit_formula`**（`rounding_seconds` / `seconds_per_question` / `wpm_by_difficulty: [{ difficulty, wpm }]`。admin は domain を import できないので、「計算式で再計算」の定数を API から渡す）、**`recommended_question_count`**（`word_count` から domain の `calculateQuestionCount` で求めた目安の設問数。300 / 450 語の境界を admin に直書きしないため。保存は `word_count` を変えないので保存の前後で同じ値）
 - 保存のリクエスト：`title`（1〜255）、`difficulty`、`time_limit_seconds`（正の整数）、`blocks[]`（`text` と `translation_ja` だけ。数と種類は変えられない）、`glossary[]`（`id: number | null` で既存 / 新規、`block_index`・`surface`・`lemma`・`meaning_ja`・`note_ja`・`part_of_speech`。**位置は受け取らない**）、`questions[]`（`id: number | null`、`choices` 4 つ、`correct_choice_index`、`evidence`、`explanation_ja`、`prompt`、`type`、`target_glossary_index: number | null`＝同じリクエストの `glossary` の index。新規の語句を対象にできるように id ではなく index で指す）。1〜5 問
 - 保存は途中の状態（空の選択肢・解説など）も許す。正しさは公開の検査で見る
 
@@ -101,18 +101,20 @@ export const listPublishViolations = (detail: AdminPassageDetail): ApiErrorDetai
 
 `buildDraftEditContent`：ブロックの `type` / `lang` は既存のまま、code の和訳は null。用語集は **新しい本文に対して `findSurfaceRange` で位置を求め直す**（見つからなければ `glossary_surface_not_found`、path `["glossary", i, "surface"]`）。`block_index` / `target_glossary_index` が範囲外なら `*_out_of_range`。vocabulary 以外の設問の `target_glossary_index` は null にする。`orderIndex` は配列の順。根拠は位置を持たない列なので、引用をそのまま保存する（公開時に検査）。
 
-`listPublishViolations`（README の公開の条件。`message` は「Q2：根拠の引用が段落 2 の本文に見つかりません」の形で `numberParagraphs` を使う）：
+`listPublishViolations`（README の公開の条件。`message` は「Q2：根拠の引用が段落 2 の本文に見つかりません」「見出し 1 の和訳が空です」の形で、段落は `numberParagraphs`、見出しは `numberHeadings` の番号を使う。cron の要確認の理由と同じ表記）：
 
 | code | path | 条件 |
 | --- | --- | --- |
 | `question_count_out_of_range` | `["questions"]` | 3〜5 問でない |
+| `prompt_empty` | `["questions", i, "prompt"]` | 設問文が空（空白だけも空。admin の「設問を追加」は空の設問文で作る） |
 | `choice_invalid` | `["questions", i, "choices"]` | 4 つでない・空がある・重複がある（前後の空白を除き小文字で比較） |
 | `correct_choice_missing` | `["questions", i, "correct_choice_index"]` | 0〜3 でない |
-| `explanation_empty` | `["questions", i, "explanation_ja"]` | 解説が空 |
+| `explanation_empty` | `["questions", i, "explanation_ja"]` | 解説が空（空白だけも空） |
 | `evidence_not_found` | `["questions", i, "evidence"]` | ブロックが範囲外か `hasQuote` が false |
 | `vocabulary_target_missing` | `["questions", i, "target_glossary_entry_id"]` | vocabulary で、用語集の項目と紐づいていない |
 | `translation_missing` | `["blocks", i, "translation_ja"]` | code 以外で和訳が空 |
 | `glossary_position_mismatch` | `["glossary", i, "surface"]` | `isSurfaceAt` が false |
+| `glossary_meaning_empty` | `["glossary", i, "meaning_ja"]` | 文脈での意味が空（空白だけも空。cron は語義設問の対象が用語集に無いとき `meaningJa: ""` の項目を足す） |
 | `difficulty_missing` / `time_limit_missing` | `["difficulty"]` / `["time_limit_seconds"]` | null |
 
 ### 5. Service（`src/service/admin-passage-service.ts`、`service/index.ts` に `adminPassage` として足す）
@@ -134,7 +136,7 @@ export const listPublishViolations = (detail: AdminPassageDetail): ApiErrorDetai
 ### 6. Controller と Router
 
 - `src/controller/admin/passage/{list,detail,update,publish,reject,unpublish,regenerate}.ts`（`AdminPassageListController` など。コンストラクタで `PassageRepository` を受ける。try-catch を書かず `sendError`）
-- 詳細と保存は同じ変換を使うので `src/controller/admin/passage/convert-detail-to-response.ts` に `convertAdminPassageDetailToResponse(detail)` を置く（`time_limit_formula` は domain の定数から作る）
+- 詳細と保存は同じ変換を使うので `src/controller/admin/passage/convert-detail-to-response.ts` に `convertAdminPassageDetailToResponse(detail)` を置く（`time_limit_formula` は domain の定数から、`recommended_question_count` は `calculateQuestionCount(passage.wordCount)` で作る）
 - `admin-router.ts` に `controllers.passage`（`list` / `detail` / `update` / `publish` / `reject` / `unpublish` / `regenerate`）を足す。`controllers` 引数がまだ無ければ step4 の取り決めどおり足し、step4 のテストの呼び出しを `adminRouter({})` に直す
 - `src/index.ts`：`DrizzlePassageRepository`（reading-practice と共有。既にあれば使い回す）からコントローラーを作り `adminRouter({ passage: {...} })` に渡す
 
@@ -146,7 +148,9 @@ pnpm --filter @repo/api-schema build && pnpm --filter api test && pnpm --filter 
 
 lib のユニットテスト：
 
-- [ ] `listPublishViolations`：README の条件ごとに 1 つずつ壊した詳細で該当の `code` と `path` が返る / 正しい詳細で空
+- [ ] `listPublishViolations`：README の条件ごとに 1 つずつ壊した詳細で該当の `code` と `path` が返る（空白だけの設問文・用語集の意味を含む） / 正しい詳細で空
+- [ ] `formatBlockLabel`：見出しは「見出し N」（見出しだけを数える）、段落は「段落 N」、code は「コード」、範囲外は「ブロック n」
+- [ ] `convertAdminPassageDetailToResponse`：`recommended_question_count` が 300 / 301 / 450 / 451 語で 3 / 4 / 4 / 5
 - [ ] `buildDraftEditContent`：英文を直すと用語集の位置が再計算される / 語句が本文から消えると `glossary_surface_not_found` / vocabulary 以外の対象が null になる
 - [ ] cursor の encode → decode が往復する、壊れた文字列は null
 

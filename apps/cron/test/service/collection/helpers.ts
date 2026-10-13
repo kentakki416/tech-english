@@ -2,7 +2,12 @@ import type { ContentSource, GitHubRepositorySource, SourceDocument, WebsiteSour
 
 import type { GitHubTreeEntry, IGitHubContentClient } from "../../../src/client/github"
 import type { FetchPageResult, IWebPageClient, SitemapUrl } from "../../../src/client/web"
-import type { CreatePassageInput, DiscoveredDocumentInput, MarkFetchedInput } from "../../../src/repository"
+import type {
+  CreatePassageInput,
+  DiscoveredDocumentInput,
+  MarkCollectedInput,
+  MarkFetchedInput,
+} from "../../../src/repository"
 
 export const NOW = new Date("2026-10-10T03:00:00.000Z")
 
@@ -198,7 +203,8 @@ export const createFakeGitHubClient = (options: FakeGitHubOptions = {}) => {
 }
 
 /**
- * Repository の偽物。upsertByPath は 100 から順に id を振った行を返し、insertIgnoringDuplicates は渡した件数を返す
+ * Repository の偽物。upsertByPath は 100 から順に id を振った行を返し、insertIgnoringDuplicates は渡した件数を返す。
+ * markCollected は既定で true（行を更新できた）を返す
  */
 export const createFakeRepo = (options: {
   documents?: SourceDocument[]
@@ -214,7 +220,7 @@ export const createFakeRepo = (options: {
     contentSourceRepository: {
       findById: vi.fn(async (_id: number) => options.source ?? null),
       findEnabled: vi.fn(async () => options.enabledSources ?? []),
-      markCollected: vi.fn(async (_id: number, _input: { lastCollectedAt: Date; lastCollectedCommitSha?: string }) => undefined),
+      markCollected: vi.fn(async (_id: number, _input: MarkCollectedInput) => true),
     },
     passageRepository: {
       insertIgnoringDuplicates: vi.fn(async (inputs: CreatePassageInput[]) => inputs.length),

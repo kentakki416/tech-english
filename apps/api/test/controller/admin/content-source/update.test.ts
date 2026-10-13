@@ -1,6 +1,6 @@
 import request from "supertest"
 
-import { contentSources, eq } from "@repo/db"
+import { contentSources, eq, sourceDocuments } from "@repo/db"
 
 import { AdminContentSourceUpdateController } from "../../../../src/controller/admin/content-source/update"
 import { env } from "../../../../src/env"
@@ -10,7 +10,7 @@ import { adminRouter } from "../../../../src/routes/admin-router"
 import { attachUnhandledExceptionHandler, createTestApp } from "../../helper"
 import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb } from "../../setup"
 
-import { GITHUB_REQUEST, insertGitHubSource, insertWebsiteSource, WEBSITE_REQUEST } from "./fixtures"
+import { GITHUB_REQUEST, insertGitHubSource, insertSourceDocument, insertWebsiteSource, WEBSITE_REQUEST } from "./fixtures"
 
 const contentSourceRepository = new DrizzleContentSourceRepository(testDb)
 
@@ -23,6 +23,27 @@ attachUnhandledExceptionHandler(app)
 
 const selectSource = async (id: number) => {
   const [row] = await testDb.select().from(contentSources).where(eq(contentSources.id, id))
+  return row
+}
+
+/**
+ * 取得済みのページ（ETag / Last-Modified / 本文のハッシュつき）を入れる
+ */
+const insertFetchedDocument = async (sourceId: number, path: string) => {
+  const [row] = await testDb.insert(sourceDocuments).values({
+    contentHash: "content-hash",
+    etag: "\"v1\"",
+    fetchedAt: new Date("2026-10-10T03:00:00.000Z"),
+    httpStatus: 200,
+    lastModified: "Sat, 10 Oct 2026 00:00:00 GMT",
+    path,
+    sourceId,
+  }).returning()
+  return row
+}
+
+const selectSourceDocument = async (id: number) => {
+  const [row] = await testDb.select().from(sourceDocuments).where(eq(sourceDocuments.id, id))
   return row
 }
 
@@ -107,6 +128,54 @@ describe("PUT /api/admin/content-source/:id", () => {
         name: "React Docs",
       })
     })
+
+    it("website の content_selector を変えると、そのソースの source_documents の etag / last_modified / content_hash が null になる", async () => {
+      const website = await insertWebsiteSource()
+      const document = await insertFetchedDocument(website.id, "/doc/a")
+
+      const res = await request(app)
+        .put(`/api/admin/content-source/${website.id}`)
+        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .send({ ...WEBSITE_REQUEST, content_selector: "main", is_enabled: true })
+
+      expect(res.status).toBe(200)
+      expect(await selectSourceDocument(document.id)).toMatchObject({
+        contentHash: null,
+        etag: null,
+        fetchedAt: new Date("2026-10-10T03:00:00.000Z"),
+        lastModified: null,
+      })
+    })
+
+    it("website の name だけを変えると source_documents は変わらない", async () => {
+      const website = await insertWebsiteSource()
+      const document = await insertFetchedDocument(website.id, "/doc/a")
+
+      const res = await request(app)
+        .put(`/api/admin/content-source/${website.id}`)
+        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .send({ ...WEBSITE_REQUEST, is_enabled: true, name: "Go Docs" })
+
+      expect(res.status).toBe(200)
+      expect(await selectSourceDocument(document.id)).toMatchObject({
+        contentHash: "content-hash",
+        etag: "\"v1\"",
+        lastModified: "Sat, 10 Oct 2026 00:00:00 GMT",
+      })
+    })
+
+    it("取得した文書があるソースでも license は変えられる", async () => {
+      const github = await insertGitHubSource()
+      await insertSourceDocument(github.id, "src/content/learn/a.md")
+
+      const res = await request(app)
+        .put(`/api/admin/content-source/${github.id}`)
+        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .send({ ...GITHUB_REQUEST, license_spdx: "MIT", license_url: "https://github.com/reactjs/react.dev/blob/main/LICENSE" })
+
+      expect(res.status).toBe(200)
+      expect(await selectSource(github.id)).toMatchObject({ licenseSpdx: "MIT", repository: "reactjs/react.dev" })
+    })
   })
 
   describe("異常系", () => {
@@ -165,6 +234,34 @@ describe("PUT /api/admin/content-source/:id", () => {
       expect(res.status).toBe(409)
       expect(res.body).toEqual({ error: expect.any(String), status_code: 409 })
       expect(await selectSource(github.id)).toMatchObject({ repository: "reactjs/react.dev" })
+    })
+
+    it.each([
+      ["github の repository", async () => {
+        const github = await insertGitHubSource()
+        await insertSourceDocument(github.id, "src/content/learn/a.md")
+        return { body: { ...GITHUB_REQUEST, repository: "reactjs/react.dev-fork" }, id: github.id }
+      }],
+      ["website の site_url", async () => {
+        const website = await insertWebsiteSource()
+        await insertSourceDocument(website.id, "/doc/a")
+        return {
+          body: { ...WEBSITE_REQUEST, is_enabled: true, site_url: "https://go.example.dev", sitemap_url: "https://go.example.dev/sitemap.xml" },
+          id: website.id,
+        }
+      }],
+    ])("取得した文書があるソースの %s を変えると 400 を返し、DB は変わらない", async (_label, arrange) => {
+      const { body, id } = await arrange()
+      const before = await selectSource(id)
+
+      const res = await request(app)
+        .put(`/api/admin/content-source/${id}`)
+        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .send(body)
+
+      expect(res.status).toBe(400)
+      expect(res.body).toEqual({ error: expect.any(String), status_code: 400 })
+      expect(await selectSource(id)).toEqual(before)
     })
 
     it("X-Admin-Token が無ければ 401 を返し、DB は変わらない", async () => {

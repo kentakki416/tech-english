@@ -22,6 +22,7 @@ import {
   convertFormToRequest,
   formatSeconds,
   listFormProblems,
+  locateGlossaryEntry,
   type PassageErrorMarks,
   type PassageForm,
 } from "@/features/passage/passage.form"
@@ -40,7 +41,7 @@ import {
 import { BasicsTab } from "./BasicsTab"
 import { BodyTab } from "./BodyTab"
 import { GlossaryTab } from "./GlossaryTab"
-import { PassagePreview, type PreviewBlock } from "./PassagePreview"
+import { PassagePreview, type PreviewBlock, type PreviewGlossaryEntry } from "./PassagePreview"
 import { QuestionsTab } from "./QuestionsTab"
 import { TranslationsTab } from "./TranslationsTab"
 
@@ -261,6 +262,13 @@ export function PassageReview({ detail }: { detail: GetAdminPassageResponse }) {
     translationJa: form.blocks[index]?.translationJa ?? null,
     type: block.type,
   }))
+  /**
+   * 語句の下線の位置。本文が保存済みのままなら API の位置、直したブロック・追加した語句は保存時に API が求める位置
+   */
+  const previewGlossary: PreviewGlossaryEntry[] = form.glossary.map((entry) => ({
+    ...entry,
+    range: locateGlossaryEntry(entry, form.blocks[entry.block_index]?.text ?? "", detail.blocks[entry.block_index]?.text ?? null),
+  }))
   const vocabularyTargetKeys = form.questions.flatMap((question) =>
     (question.type === "vocabulary" && question.targetGlossaryKey ? [question.targetGlossaryKey] : []))
 
@@ -393,7 +401,7 @@ export function PassageReview({ detail }: { detail: GetAdminPassageResponse }) {
           <div className="max-h-[calc(100vh-12rem)] overflow-y-auto border-t border-gray-100 p-3 dark:border-gray-800">
             <PassagePreview
               blocks={previewBlocks}
-              glossary={form.glossary}
+              glossary={previewGlossary}
               highlight={highlight}
               showAllTranslations={showAllTranslations}
               showGlossary={showGlossary}
@@ -436,6 +444,7 @@ export function PassageReview({ detail }: { detail: GetAdminPassageResponse }) {
                 isEditable={isDraft}
                 marks={marks}
                 openQuestionKey={openQuestionKey}
+                recommendedQuestionCount={detail.recommended_question_count}
                 showVerificationMismatch={!isPublished}
                 wordCount={detail.word_count}
                 onChange={setForm}

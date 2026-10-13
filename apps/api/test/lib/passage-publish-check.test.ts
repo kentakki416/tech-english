@@ -63,6 +63,17 @@ describe("listPublishViolations", () => {
     })
 
     it.each([
+      ["空", ""],
+      ["空白だけ", "  "],
+    ])("設問文が%sなら prompt_empty を返す", (_label, prompt) => {
+      const detail = replaceQuestion(buildAdminPassageDetail(), 1, { prompt })
+
+      expect(listPublishViolations(detail)).toEqual([
+        { code: "prompt_empty", message: "Q2：設問文が空です", path: ["questions", 1, "prompt"] },
+      ])
+    })
+
+    it.each([
       ["選択肢が 3 つ", ["A", "B", "C"]],
       ["空の選択肢がある", ["A", "B", " ", "D"]],
       ["前後の空白と大文字小文字を除くと重複する", ["Event handler", "B", " event HANDLER ", "D"]],
@@ -139,6 +150,30 @@ describe("listPublishViolations", () => {
       expect(listPublishViolations({ ...detail, glossary })).toEqual([
         { code: "glossary_position_mismatch", message: expect.any(String), path: ["glossary", 1, "surface"] },
       ])
+    })
+
+    it.each([
+      ["空", ""],
+      ["空白だけ", " \n "],
+    ])("用語集の意味が%sなら glossary_meaning_empty を返す", (_label, meaningJa) => {
+      const detail = buildAdminPassageDetail()
+      const glossary = detail.glossary.map((entry, index) => (index === 1 ? { ...entry, meaningJa } : entry))
+
+      expect(listPublishViolations({ ...detail, glossary })).toEqual([
+        {
+          code: "glossary_meaning_empty",
+          message: `用語集「${detail.glossary[1]?.surface}」：文脈での意味が空です`,
+          path: ["glossary", 1, "meaning_ja"],
+        },
+      ])
+    })
+
+    it("用語集の語句の位置がずれていて意味も空なら、両方を返す", () => {
+      const detail = buildAdminPassageDetail()
+      const glossary = detail.glossary.map((entry, index) => (index === 0 ? { ...entry, blockIndex: 9, meaningJa: "" } : entry))
+
+      expect(listPublishViolations({ ...detail, glossary }).map((violation) => violation.code))
+        .toEqual(["glossary_position_mismatch", "glossary_meaning_empty"])
     })
 
     it("難易度が null なら difficulty_missing を返す", () => {

@@ -14,7 +14,7 @@ admin 向けのソースの一覧・詳細・登録・更新と、GitHub が検�
 | GET | `/api/admin/content-source` | 200 | ― |
 | GET | `/api/admin/content-source/:id` | 200 | 404 |
 | POST | `/api/admin/content-source` | 201 | 400（スキーマ）/ 409（`repository` / `site_url` の重複） |
-| PUT | `/api/admin/content-source/:id` | 200 | 400（スキーマ・取得方法の変更）/ 404 / 409 |
+| PUT | `/api/admin/content-source/:id` | 200 | 400（スキーマ・取得方法の変更・文書を取得したソースの `repository` / `site_url` の変更）/ 404 / 409 |
 | GET | `/api/admin/content-source/license?repository=owner/name` | 200 | 400（形式） |
 
 ### 1. api-schema（`packages/schema/src/api-schema/admin/content-source.ts`）
@@ -22,7 +22,10 @@ admin 向けのソースの一覧・詳細・登録・更新と、GitHub が検�
 `packages/schema/package.json` に `@repo/domain` が無ければ足す。`api-schema/index.ts` に `export * from "./admin/content-source"` を足す（ファイル名順で先頭）。
 
 ```ts
-const githubRepositorySchema = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9-]{0,38}\/(?!\.{1,2}$)[A-Za-z0-9._-]{1,100}$/)
+/** GitHub はリポジトリ名の大文字・小文字を区別しないので、小文字にそろえて保存・検索する */
+const githubRepositorySchema = z.string()
+  .regex(/^[A-Za-z0-9][A-Za-z0-9-]{0,38}\/(?!\.{1,2}$)[A-Za-z0-9._-]{1,100}$/)
+  .transform((value) => value.toLowerCase())
 const httpsOriginSchema = z.string().url()
   .refine((value) => new URL(value).protocol === "https:")
   .transform((value) => new URL(value).origin)
@@ -72,7 +75,8 @@ export const updateContentSourceRequestSchema = z
 - 登録の website は `is_enabled` を受け取らない（Zod が捨てる）。必ず無効で作る
 - 許可リスト外のライセンスは `z.enum(ALLOWED_LICENSES)` で 400 になる
 - レスポンス：`contentSourceSchema` を `fetch_type` の discriminated union で定義する（共通：`id` / `exclude_globs` / `include_globs` / `is_enabled` / `kind` / `last_collected_at`（nullable）/ `license_spdx` / `license_url` / `name` / `tags` / `created_at` / `updated_at`。github：`branch` / `last_collected_commit_sha` / `public_url_strip_prefix` / `public_url_template` / `repository`。website：`content_selector` / `exclude_selectors` / `sitemap_url` / `site_url` / `start_url`）
-- `passageCountsSchema = z.object({ collected, draft, failed, generating, published, rejected })`（すべて `z.number().int()`）
+- `passageCountsSchema`：`PASSAGE_STATUSES` の各状態をキーにした `z.number().int()` の object（`Object.fromEntries(PASSAGE_STATUSES.map(...))`。状態の値を書き写さない）
+- `repository` は小文字にしてから扱う（`reactjs/react.dev` と `ReactJS/react.dev` を別のソースとして登録させない。検出ライセンス取得のクエリも同じ）
 
 | スキーマ | 形 |
 | --- | --- |
@@ -94,12 +98,20 @@ export type ContentSourceInput =
 
 export type FailedPage = { httpStatus: number; path: string }
 export type PassageCountRow = { count: number; sourceId: number; status: PassageStatus }
+/** repository / site_url の unique 制約に違反したら duplicate（事前の重複検査と書き込みの間の競合） */
+export type ContentSourceSaveResult = { kind: "duplicate" } | { kind: "saved"; source: ContentSource }
+export type ContentSourceUpdateOptions = {
+  /** last_collected_commit_sha を null に戻す */
+  shouldResetCollectedCommit: boolean
+  /** そのソースの source_documents の etag / last_modified / content_hash を null に戻す */
+  shouldResetDocumentCache: boolean
+}
 
 export interface ContentSourceRepository {
   countFailedPagesBySource(): Promise<{ count: number; sourceId: number }[]>
   /** sourceId を省略すると全ソース分 */
   countPassagesBySource(sourceId?: number): Promise<PassageCountRow[]>
-  create(input: ContentSourceInput): Promise<ContentSource>
+  create(input: ContentSourceInput): Promise<ContentSourceSaveResult>
   /** id の昇順 */
   findAll(): Promise<ContentSource[]>
   findById(id: number): Promise<ContentSource | null>
@@ -107,7 +119,9 @@ export interface ContentSourceRepository {
   findBySiteUrl(siteUrl: string): Promise<ContentSource | null>
   /** path の昇順 */
   findFailedPages(sourceId: number): Promise<FailedPage[]>
-  update(id: number, input: ContentSourceInput, options: { shouldResetCollectedCommit: boolean }): Promise<ContentSource>
+  /** source_documents を 1 件でも持つか */
+  hasSourceDocuments(sourceId: number): Promise<boolean>
+  update(id: number, input: ContentSourceInput, options: ContentSourceUpdateOptions): Promise<ContentSourceSaveResult>
 }
 ```
 
@@ -115,7 +129,8 @@ export interface ContentSourceRepository {
 - Drizzle の件数：`select({ count: count(), sourceId: sourceDocuments.sourceId, status: passages.status }).from(passages).innerJoin(sourceDocuments, eq(passages.sourceDocumentId, sourceDocuments.id)).groupBy(sourceDocuments.sourceId, passages.status)`
 - Prisma の件数：`groupBy` は関連先の列でまとめられないので `$queryRaw` で同じ SQL を書く（`count` は `bigint` で返るので `Number()`、`status` は `isPassageStatus` で検証）
 - `_toDomain(row)`：`fetchType` で分岐し、取得方法ごとの必須列（`repository` / `branch` / `siteUrl`）が null なら throw（CHECK があるので通常は起きない）。Prisma 実装は `isSourceKind` / `isAllowedLicense` / `isSourceFetchType` でも検証し、jsonb は `z.array(z.string()).parse()` で配列に戻す
-- `update` は `input.fetchType` の列だけを書き、`shouldResetCollectedCommit` なら `lastCollectedCommitSha: null` も書く。対象が無ければ throw（memo と同じ）
+- `update` は `input.fetchType` の列だけを書き、`shouldResetCollectedCommit` なら `lastCollectedCommitSha: null` も書く。`shouldResetDocumentCache` なら同じトランザクションで `source_documents`（`source_id = id`）の `etag` / `last_modified` / `content_hash` を null にする。対象が無ければ throw（memo と同じ）
+- `create` / `update` は unique 制約の違反を捕まえて `{ kind: "duplicate" }` を返す（Drizzle は `DrizzleQueryError` の `cause.code === "23505"`、Prisma は `code === "P2002"`。`@repo/db` は Prisma の値を出さないので形で判定する）。content_sources の unique 制約は主キーと `repository` / `site_url` だけなので、重複の登録とみなせる
 - `src/repository/index.ts`・`drizzle/index.ts`・`prisma/index.ts` に足す
 
 ### 3. ライセンス検出の client（`src/client/github-license.ts`）
@@ -171,19 +186,29 @@ export const getContentSourceById = async (id: number, repo: ContentSourceRepo):
 export const createContentSource = async (input: ContentSourceInput, repo: ContentSourceRepo): Promise<Result<ContentSource>> => {
   if (await findDuplicateSource(input, repo)) return err(conflictError("Content source already registered"))
   /** サイトは試し実行で本文を確かめてから有効にするため、無効で作る */
-  const source = await repo.contentSourceRepository.create(input.fetchType === "website" ? { ...input, isEnabled: false } : input)
-  return ok(source)
+  const result = await repo.contentSourceRepository.create(input.fetchType === "website" ? { ...input, isEnabled: false } : input)
+  /** 事前の検査の後に同じ取得元が登録された（同時のリクエスト）。unique 制約で弾かれたので 409 */
+  if (result.kind === "duplicate") return err(conflictError("Content source already registered"))
+  return ok(result.source)
 }
 
 export const updateContentSource = async (id: number, input: ContentSourceInput, repo: ContentSourceRepo): Promise<Result<ContentSource>> => {
   const existing = await repo.contentSourceRepository.findById(id)
   if (!existing) return err(notFoundError("Content source not found"))
   if (existing.fetchType !== input.fetchType) return err(badRequestError("fetch_type cannot be changed"))
+  /** 過去の問題の出典は、ソースの今の取得元と passages の source_path / source_commit_sha で組み立てるため */
+  if (hasOriginChanged(existing, input) && await repo.contentSourceRepository.hasSourceDocuments(id)) {
+    return err(badRequestError("repository / site_url cannot be changed after documents are collected"))
+  }
   const duplicate = await findDuplicateSource(input, repo)
   if (duplicate && duplicate.id !== id) return err(conflictError("Content source already registered"))
   const shouldResetCollectedCommit = existing.fetchType === "github_repository"
     && input.fetchType === "github_repository" && hasCollectionScopeChanged(existing, input)
-  return ok(await repo.contentSourceRepository.update(id, input, { shouldResetCollectedCommit }))
+  const shouldResetDocumentCache = existing.fetchType === "website"
+    && input.fetchType === "website" && hasExtractionChanged(existing, input)
+  const result = await repo.contentSourceRepository.update(id, input, { shouldResetCollectedCommit, shouldResetDocumentCache })
+  if (result.kind === "duplicate") return err(conflictError("Content source already registered"))
+  return ok(result.source)
 }
 
 export const detectRepositoryLicense = async (
@@ -194,6 +219,8 @@ export const detectRepositoryLicense = async (
 
 - `findDuplicateSource`：github は `findByRepository`、website は `findBySiteUrl`
 - `hasCollectionScopeChanged`：`repository` / `branch` / `includeGlobs` / `excludeGlobs` のどれかが変わったら true。**取得範囲が変わったら `last_collected_commit_sha` を null に戻す**（戻さないと、最新コミットが前回と同じ間は新しい対象パスが収集されない。[GitHub API での取得と差分検出](../README.md#github-api-での取得と差分検出) の手順 1）
+- `hasOriginChanged`：github は `repository`（大文字・小文字の違いは変更とみなさない。GitHub のリンクは 404 にならないため）、website は `site_url` が変わったら true。**文書を取得したソースでは取得元の変更を 400 にする**（過去の問題の出典が別のリポジトリ・サイトを指して 404 になるため。変えたいときは別のソースとして登録する）。ライセンス（`license_spdx` / `license_url`）の変更は許す（誤登録の訂正は過去の問題の出典にも反映されるのが正しい）
+- `hasExtractionChanged`：`contentSelector` / `excludeSelectors` のどれかが変わったら true。**本文の抽出の設定が変わったら取得済みの文書の `etag` / `last_modified` / `content_hash` を消す**（消さないと、ページが変わらない間は 304 か同じハッシュで止まり、新しいセレクタで抽出し直されない）
 - `isAllowed` は `isAllowedLicense(licenseSpdx)`
 
 ### 5. Controller / Router / DI
@@ -228,18 +255,23 @@ Service のユニットテスト（`test/service/content-source-service/*.test.t
 - 正常系
   - [ ] `getContentSources`：ソースごとに件数が集計され、行の無い状態は 0、取得失敗の件数が付く。ソース 0 件で空配列
   - [ ] `createContentSource`：website は `is_enabled: true` を渡しても `isEnabled: false` で `create` が呼ばれる。github は渡した値のまま
-  - [ ] `updateContentSource`：`includeGlobs` / `branch` を変えると `shouldResetCollectedCommit: true`、`name` だけなら false、website は常に false
+  - [ ] `updateContentSource`：`includeGlobs` / `branch` を変えると `shouldResetCollectedCommit: true`、`name` だけなら false、website は常に false。website の `contentSelector` / `excludeSelectors` を変えると `shouldResetDocumentCache: true`
+  - [ ] 文書を取得したソースでもライセンスは変えられる。`repository` の大文字・小文字の違いだけなら取得元の変更とみなさない。文書が無ければ `repository` / `site_url` を変えられる
   - [ ] 同じ id のソースが `findByRepository` で返っても 409 にならない
   - [ ] `detectRepositoryLicense`：`MIT` は `isAllowed: true`、`GPL-3.0` は false、`null` はそのまま
 - 異常系
   - [ ] `getContentSourceById` / `updateContentSource` が存在しない id で 404
   - [ ] `updateContentSource` で取得方法を変えると 400（`update` は呼ばれない）
   - [ ] `repository` / `site_url` の重複で 409（`create` / `update` は呼ばれない）
+  - [ ] `create` / `update` が `duplicate` を返したら 409（事前の検査と書き込みの間の競合）
+  - [ ] 文書を取得したソースの `repository` / `site_url` を変えると 400（`update` は呼ばれない）
 
 Repository の契約テスト（`test/repository/content-source-repository.test.ts`。`describe.each` で Drizzle / Prisma）：
 
 - [ ] github / website それぞれ `create` → `findById` / `findByRepository` / `findBySiteUrl` で同じ値が返る（`toEqual`）
-- [ ] `update` が渡した列を書き、`shouldResetCollectedCommit` のときだけ `lastCollectedCommitSha` が null になる。存在しない id で throw
+- [ ] `update` が渡した列を書き、`shouldResetCollectedCommit` のときだけ `lastCollectedCommitSha` が null になる。`shouldResetDocumentCache` のときだけ、そのソースの `source_documents` の `etag` / `last_modified` / `content_hash` が null になる（他のソースの行は変わらない）。存在しない id で throw
+- [ ] `create` / `update` が登録済みの `repository` / `site_url` で throw せず `{ kind: "duplicate" }` を返し、行は変わらない（`update` は `shouldResetDocumentCache` でも `source_documents` を変えない）
+- [ ] `hasSourceDocuments` が `source_documents` の有無を返す
 - [ ] `countPassagesBySource`（全件 / 1 ソース）と `countFailedPagesBySource`・`findFailedPages` が `testDb` で入れた `source_documents` / `passages` と一致する（`http_status` が 304 / 200 の行は数えない）
 
 Controller のインテグレーションテスト（`test/controller/admin/content-source/*.test.ts`。実 DB、`IGitHubLicenseClient` だけ fake。`X-Admin-Token` は question-generation step4 のテストと同じ付け方）：
@@ -248,10 +280,12 @@ Controller のインテグレーションテスト（`test/controller/admin/cont
   - [ ] GET 一覧：200。`testDb` で入れた passages の状態別件数と取得失敗の件数が返る（`toEqual` + `expect.any`）
   - [ ] GET 詳細：github / website それぞれの形で 200、website は `failed_pages` が path 順
   - [ ] POST：github は 201 で DB に保存される。website は `is_enabled: true` を送っても DB は false
-  - [ ] PUT：内容と `is_enabled` が更新される。`include_globs` を変えると DB の `last_collected_commit_sha` が null になる
+  - [ ] PUT：内容と `is_enabled` が更新される。`include_globs` を変えると DB の `last_collected_commit_sha` が null になる。website の `content_selector` を変えると `source_documents` の `etag` / `last_modified` / `content_hash` が null になる。文書を取得したソースでも `license_spdx` は変えられる
+  - [ ] POST：`repository` を小文字にそろえて保存する
   - [ ] GET license：fake が `MIT` を返すと `{ is_allowed: true, license_spdx: "MIT" }`、null なら `license_spdx: null`
 - 異常系
   - [ ] POST が 400：github で `repository` 無し、website で `sitemap_url` と `start_url` が両方 null、`license_spdx: "CC-BY-SA-4.0"`、`site_url` が http、`sitemap_url` が別オリジン、website の glob が "/" で始まらない
-  - [ ] POST が 409：登録済みの `repository`
+  - [ ] POST が 409：登録済みの `repository`（大文字・小文字だけが違うものも）
+  - [ ] PUT が 400：文書を取得したソースの `repository` / `site_url` を変える（DB は変わらない）
   - [ ] PUT が 400（`fetch_type` を変える）/ 404、GET 詳細が 404、`:id` が数値でないと 400
   - [ ] GET license が 400：`repository=../etc`、`repository=owner`
