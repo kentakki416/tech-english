@@ -1,63 +1,106 @@
-import AsyncStorage from "@react-native-async-storage/async-storage"
+import { Ionicons } from "@expo/vector-icons"
 import { useFocusEffect } from "@react-navigation/native"
-import { useCallback, useEffect, useState } from "react"
-import {
-  ActivityIndicator,
-  StyleSheet,
-  Switch,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native"
+import { type Href, useRouter } from "expo-router"
+import { useCallback, useRef, useState } from "react"
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 
-import type { GetUserResponse } from "@repo/api-schema"
+import type { GetUserGoalResponse } from "@repo/api-schema"
 
-import { COLORS } from "@/const/color"
+import { GoalForm } from "@/components/features/learning-record/GoalForm"
+import { TimezonePickerModal } from "@/components/features/learning-record/TimezonePickerModal"
+import { appStyles } from "@/components/ui/app-styles"
+import { SecondaryButton } from "@/components/ui/SecondaryButton"
+import { THEME_COLORS } from "@/const/design-theme"
 import { signOut } from "@/features/auth/auth.session"
+import { learningRecordApi } from "@/features/learning-record/learning-record.api"
 import { userApi } from "@/features/user/user.api"
-import { useNotification } from "@/hooks/use-notification"
 
-const STORAGE_KEY = "notificatoin_settings"
-
-type NotificationSettings = {
-  enabled: boolean
-  hour: number
-  minute: number
+type SettingsData = {
+  goal: GetUserGoalResponse["goal"]
+  timezone: string
 }
 
+/**
+ * アカウント削除の確認（github-auth step7 が `src/app/settings/delete-account.tsx` を作る）。
+ * まだルートが無いので typed routes の型に含まれず、Href として渡す
+ */
+const DELETE_ACCOUNT_HREF = "/settings/delete-account" as Href
+
+function SectionTitle({ children }: { children: string }) {
+  return <Text accessibilityRole="header" style={styles.sectionTitle}>{children}</Text>
+}
+
+/**
+ * 設定（タブ）。区画の順は「目標 → リマインダー → タイムゾーン → アカウント → 危険な操作」。
+ * 目標とタイムゾーンはフォーカスのたびに取り直す（取り直した値で目標のフォームを作り直す）
+ */
 export default function SettingsScreen() {
-  const { requestPermission, schedule, cancelAll } = useNotification()
-
-  const [settings, setSettings] = useState<NotificationSettings>({
-    enabled: false,
-    hour: 9,
-    minute: 0,
-  })
-
-  const [isLoading, setIsLoading] = useState(false)
-  const [user, setUser] = useState<GetUserResponse | null>(null)
+  const router = useRouter()
+  const [data, setData] = useState<SettingsData | null>(null)
+  const [hasError, setHasError] = useState(false)
+  /**
+   * 取得のたびに進める。目標のフォームの key にして、取得した値を初期値に作り直す
+   */
+  const [loadCount, setLoadCount] = useState(0)
+  const [isTimezonePickerVisible, setIsTimezonePickerVisible] = useState(false)
+  const [isSavingTimezone, setIsSavingTimezone] = useState(false)
   const [isSigningOut, setIsSigningOut] = useState(false)
+  const requestSeqRef = useRef(0)
 
-  useEffect(() => {
-    loadSettings()
+  const load = useCallback(async () => {
+    const seq = ++requestSeqRef.current
+    try {
+      const [{ goal }, user] = await Promise.all([learningRecordApi.getGoal(), userApi.get()])
+      if (seq !== requestSeqRef.current) return
+      setData({ goal, timezone: user.timezone })
+      setLoadCount(count => count + 1)
+      setHasError(false)
+    } catch (error) {
+      if (seq !== requestSeqRef.current) return
+      /**
+       * 表示中のデータがあれば残す（エラーの表示は初回の取得に失敗したときだけ）
+       */
+      console.warn("Failed to fetch settings:", error)
+      setHasError(true)
+    }
   }, [])
 
-  /**
-   * タブを開くたびにログイン中のユーザーを取り直す（access token の期限切れなら api client が refresh して再試行する）
-   */
   useFocusEffect(
     useCallback(() => {
-      const fetchUser = async () => {
-        try {
-          setUser(await userApi.get())
-        } catch (err) {
-          console.error("Failed to fetch user:", err)
-        }
-      }
-      fetchUser()
-    }, [])
+      void load()
+    }, [load]),
   )
+
+  const reload = () => {
+    setHasError(false)
+    void load()
+  }
+
+  /**
+   * 選んだタイムゾーンをその場で保存する。成功したらモーダルを閉じ、失敗したら知らせて元の値に戻す
+   */
+  const changeTimezone = async (next: string) => {
+    if (data === null) return
+    const previous = data.timezone
+    if (next === previous) {
+      setIsTimezonePickerVisible(false)
+      return
+    }
+    setData({ ...data, timezone: next })
+    setIsSavingTimezone(true)
+    try {
+      const user = await userApi.updateTimezone(next)
+      setData(current => (current ? { ...current, timezone: user.timezone } : current))
+      setIsTimezonePickerVisible(false)
+    } catch (error) {
+      console.warn("Failed to update timezone:", error)
+      setData(current => (current ? { ...current, timezone: previous } : current))
+      Alert.alert("タイムゾーンを保存できませんでした", "時間をおいて再度お試しください。")
+    } finally {
+      setIsSavingTimezone(false)
+    }
+  }
 
   /**
    * ログアウトするとログイン状態が変わり、ルートレイアウトの Stack.Protected がログイン画面へ移す
@@ -71,211 +114,182 @@ export default function SettingsScreen() {
     }
   }
 
-  const loadSettings = async () => {
-    setIsLoading(true)
-    const raw = await AsyncStorage.getItem(STORAGE_KEY)
-    if (raw) {
-      setSettings(JSON.parse(raw))
-    }
-    setIsLoading(false)
-  }
-
-  const toggleNotification = async (value: boolean) => {
-    if (value) {
-      const granted = await requestPermission()
-      if (!granted) return
-      const newSettings = { ...settings, enabled: true }
-      setSettings(newSettings)
-      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(newSettings))
-      await schedule(newSettings.hour, newSettings.minute)
-    } else {
-      const newSettings = { ...settings, enabled: false }
-      setSettings(newSettings)
-      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(newSettings))
-      await cancelAll()
-    }
-  }
-
-  const changeHour = async (delta: number) => {
-    if (!settings.enabled) return
-    const newSettings = {
-      ...settings,
-      hour: (settings.hour + delta + 24) % 24,
-    }
-    setSettings(newSettings)
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(settings))
-    await schedule(newSettings.hour, newSettings.minute)
-  }
-
-  const changeMinute = async (delta: number) => {
-    if (!settings.enabled) return
-    const newSettings = {
-      ...settings,
-      minute: (settings.minute + delta + 60) % 60,
-    }
-    setSettings(newSettings)
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(settings))
-    await schedule(newSettings.hour, newSettings.minute)
-  }
-
   return (
-    <SafeAreaView style={styles.container}>
-      {/* ローディング表示 */}
-      {isLoading ? (
-        <View style={styles.loaderContainer}>
-          <ActivityIndicator size="large" color={COLORS.accent} />
-        </View>
-      ) : (
-        <View style={styles.section}>
-          <View style={styles.row}>
-            <Text style={styles.label}>毎日の通知</Text>
-            <Switch
-              value={settings.enabled}
-              onValueChange={toggleNotification}
-              trackColor={{ false: COLORS.separator, true: COLORS.accent }}
-              thumbColor="#FFFFFF"
-            />
-          </View>
-          <View style={styles.separator} />
-          {/* 通知時刻行 */}
-          <View style={[styles.row, !settings.enabled && styles.disabled]}>
-            <Text style={[styles.label, !settings.enabled && styles.disabledText]}>
-              通知時刻
-            </Text>
-            <View style={styles.timePicker}>
-              <View style={styles.timeUnit}>
-                <TouchableOpacity onPress={() => { changeHour(1) }} disabled={!settings.enabled}>
-                  <Text style={[styles.arrow, !settings.enabled && styles.disabledText]}>
-                    ▲
-                  </Text>
-                </TouchableOpacity>
-                <Text style={[styles.timeValue, !settings.enabled && styles.disabledText]}>
-                  {String(settings.hour).padStart(2, "0")}
-                </Text>
-                <TouchableOpacity onPress={() => { changeHour(-1) }} disabled={!settings.enabled}>
-                  <Text style={[styles.arrow, !settings.enabled && styles.disabledText]}>
-                    ▼
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              <Text style={[styles.colon, !settings.enabled && styles.disabledText]}>:</Text>
-
-              <View style={styles.timeUnit}>
-                <TouchableOpacity onPress={() => { changeMinute(1) }} disabled={!settings.enabled}>
-                  <Text style={[styles.arrow, !settings.enabled && styles.disabledText]}>
-                    ▲
-                  </Text>
-                </TouchableOpacity>
-                <Text style={[styles.timeValue, !settings.enabled && styles.disabledText]}>
-                  {String(settings.minute).padStart(2, "0")}
-                </Text>
-                <TouchableOpacity onPress={() => { changeMinute(-1) }} disabled={!settings.enabled}>
-                  <Text style={[styles.arrow, !settings.enabled && styles.disabledText]}>
-                    ▼
-                  </Text>
-                </TouchableOpacity>
+    <SafeAreaView edges={["top"]} style={appStyles.screen}>
+      <View style={styles.header}>
+        <Text accessibilityRole="header" style={styles.title}>設定</Text>
+      </View>
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        {data === null ? (
+          hasError ? (
+            <View style={styles.status}>
+              <Text style={styles.message}>読み込めませんでした。</Text>
+              <View style={styles.reload}>
+                <SecondaryButton label="再読み込み" onPress={reload} />
               </View>
             </View>
+          ) : (
+            <View style={styles.status}>
+              <ActivityIndicator color={THEME_COLORS.amber} />
+            </View>
+          )
+        ) : (
+          <>
+            <SectionTitle>目標</SectionTitle>
+            <GoalForm key={loadCount} goal={data.goal} />
+
+            {/**
+              * リマインダーの区画は study-reminder step3 がここに入れる
+              */}
+
+            <SectionTitle>タイムゾーン</SectionTitle>
+            <Pressable
+              accessibilityHint="タイムゾーンを選び直す"
+              accessibilityRole="button"
+              style={({ pressed }) => [appStyles.card, styles.cardBody, styles.rowBetween, pressed && styles.cardPressed]}
+              onPress={() => setIsTimezonePickerVisible(true)}
+            >
+              <View style={styles.flex}>
+                <Text style={styles.rowTitle}>{data.timezone}</Text>
+                <Text style={styles.hint}>学習した日付はこのタイムゾーンで決まります。</Text>
+              </View>
+              <Ionicons color={THEME_COLORS.fgFaint} name="chevron-forward" size={18} />
+            </Pressable>
+            <TimezonePickerModal
+              currentTimezone={data.timezone}
+              isSaving={isSavingTimezone}
+              isVisible={isTimezonePickerVisible}
+              onClose={() => setIsTimezonePickerVisible(false)}
+              onSelect={next => void changeTimezone(next)}
+            />
+          </>
+        )}
+
+        <SectionTitle>アカウント</SectionTitle>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ disabled: isSigningOut }}
+          disabled={isSigningOut}
+          style={({ pressed }) => [appStyles.card, styles.cardBody, pressed && styles.cardPressed, isSigningOut && styles.disabled]}
+          onPress={() => void pressSignOut()}
+        >
+          <Text style={styles.rowTitle}>{isSigningOut ? "ログアウトしています…" : "ログアウト"}</Text>
+        </Pressable>
+
+        <View style={styles.danger}>
+          <Text accessibilityRole="header" style={styles.dangerTitle}>危険な操作</Text>
+          <View style={styles.dangerBody}>
+            <Text style={styles.rowTitle}>アカウントを削除する</Text>
+            <Text style={styles.hint}>学習の記録・目標・リマインダーの設定がすべて削除され、元に戻せません。</Text>
+            <Pressable
+              accessibilityRole="button"
+              style={({ pressed }) => [styles.dangerButton, pressed && styles.dangerButtonPressed]}
+              onPress={() => router.push(DELETE_ACCOUNT_HREF)}
+            >
+              <Text style={styles.dangerButtonText}>アカウントを削除</Text>
+            </Pressable>
           </View>
         </View>
-      )}
-
-      {/**
-        * アカウント（仮置き。learning-record step5 で設定画面ごと置き換わる）
-        */}
-      <View style={styles.section}>
-        <View style={styles.row}>
-          <Text style={styles.label}>ログイン中</Text>
-          <Text numberOfLines={1} style={styles.value}>{user?.name ?? user?.email ?? "-"}</Text>
-        </View>
-        <View style={styles.separator} />
-        <TouchableOpacity disabled={isSigningOut} onPress={pressSignOut} style={[styles.row, isSigningOut && styles.disabled]}>
-          <Text style={styles.signOutText}>ログアウト</Text>
-        </TouchableOpacity>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   )
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
+  cardBody: {
+    padding: 16,
   },
-  loaderContainer: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
+  cardPressed: {
+    backgroundColor: THEME_COLORS.raised,
   },
-  section: {
-    backgroundColor: COLORS.surface,
-    borderRadius: 14,
-    marginHorizontal: 16,
+  content: {
+    padding: 16,
+    paddingBottom: 40,
+  },
+  danger: {
+    borderColor: "rgba(240, 140, 140, 0.4)",
+    borderRadius: 12,
+    borderWidth: 1,
     marginTop: 28,
-    overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.4,
-    shadowRadius: 6,
-    elevation: 4,
   },
-  row: {
-    flexDirection: "row",
+  dangerBody: {
+    padding: 16,
+  },
+  dangerButton: {
     alignItems: "center",
-    justifyContent: "space-between",
+    alignSelf: "flex-start",
+    borderColor: "rgba(240, 140, 140, 0.6)",
+    borderRadius: 8,
+    borderWidth: 1,
+    marginTop: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  dangerButtonPressed: {
+    backgroundColor: THEME_COLORS.wrongWash,
+  },
+  dangerButtonText: {
+    color: THEME_COLORS.wrong,
+    fontSize: 14,
+  },
+  dangerTitle: {
+    borderBottomWidth: 1,
+    borderColor: "rgba(240, 140, 140, 0.3)",
+    color: THEME_COLORS.wrong,
+    fontSize: 15,
+    fontWeight: "600",
     paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  label: {
-    fontSize: 16,
-    color: COLORS.text,
-  },
-  value: {
-    color: COLORS.subText,
-    flexShrink: 1,
-    fontSize: 16,
-    marginLeft: 16,
-  },
-  signOutText: {
-    color: COLORS.danger,
-    fontSize: 16,
-  },
-  separator: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: COLORS.separator,
-    marginLeft: 16,
+    paddingVertical: 10,
   },
   disabled: {
-    opacity: 0.4,
+    opacity: 0.6,
   },
-  disabledText: {
-    color: COLORS.subText,
+  flex: {
+    flex: 1,
   },
-  timePicker: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
+  header: {
+    height: 56,
+    justifyContent: "center",
+    paddingHorizontal: 16,
   },
-  timeUnit: {
-    alignItems: "center",
-    gap: 4,
+  hint: {
+    color: THEME_COLORS.fgMuted,
+    fontSize: 12,
+    lineHeight: 18,
+    marginTop: 3,
   },
-  arrow: {
-    fontSize: 14,
-    color: COLORS.accent,
-    paddingHorizontal: 10,
-  },
-  timeValue: {
-    fontSize: 28,
-    fontWeight: "700",
-    color: COLORS.text,
-    minWidth: 44,
+  message: {
+    color: THEME_COLORS.fg,
+    fontSize: 15,
     textAlign: "center",
   },
-  colon: {
-    fontSize: 28,
-    fontWeight: "700",
-    color: COLORS.text,
+  reload: {
+    marginTop: 16,
+    minWidth: 160,
+  },
+  rowBetween: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 12,
+    justifyContent: "space-between",
+  },
+  rowTitle: {
+    color: THEME_COLORS.fg,
+    fontSize: 15,
+  },
+  sectionTitle: {
+    color: THEME_COLORS.fgMuted,
+    fontSize: 13,
+    marginBottom: 8,
+    marginTop: 24,
+  },
+  status: {
+    alignItems: "center",
+    paddingVertical: 40,
+  },
+  title: {
+    color: THEME_COLORS.fg,
+    fontSize: 20,
+    fontWeight: "600",
   },
 })

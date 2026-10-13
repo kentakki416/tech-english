@@ -48,4 +48,4 @@ pnpm ios          # iOS で起動
   2. api の CORS を Expo の origin に合わせて起動する: `cd apps/api && FRONTEND_URL=http://localhost:8085 pnpm dev`
   3. `EXPO_PUBLIC_API_URL` を `http://localhost:8080` にして起動する。dev のバンドルは `.env*` ファイルの値がシェルの環境変数より優先されるため、一時的な `apps/mobile/.env.development.local`（`EXPO_PUBLIC_API_URL=http://localhost:8080`）で上書きし、終わったら消す（git 管理外にしていないのでコミットしない）
   4. `npx expo start --web --port 8085` → ログイン画面の「Dev Login: alice」
-- web 表示で確かめられないこと: 振動（`expo-haptics`）、`Alert.alert`（react-native-web では何も出ない）、Android の戻るボタン、描画性能。本文の長押し（`Pressable` の `onLongPress`）はマウスを押し続けると和訳が重なるが、離すと単語のカードも出る（react-native-web の `Text` の `onPress` は click で、長押しで取り消されないため。iOS / Android の Responder は長押しが成立すると `onPress` を呼ばない）
+- web 表示で確かめられないこと: 振動（`expo-haptics`）、`Alert.alert`（react-native-web では何も出ない）、Android の戻るボタン、描画性能、引っ張って更新（`RefreshControl`）、日付の選択（`@react-native-community/datetimepicker` は web の実装が無い。設定画面の目標日は web 表示だけ `YYYY-MM-DD` の入力欄で代用する。`TargetDateField.tsx`）、Modal の `pageSheet`（web では全面に出る）。本文の長押し（`Pressable` の `onLongPress`）はマウスを押し続けると和訳が重なるが、離すと単語のカードも出る（react-native-web の `Text` の `onPress` は click で、長押しで取り消されないため。iOS / Android の Responder は長押しが成立すると `onPress` を呼ばない）
