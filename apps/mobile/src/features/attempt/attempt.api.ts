@@ -1,4 +1,6 @@
 import {
+  type GetAttemptAudioResponse,
+  getAttemptAudioResponseSchema,
   type GetAttemptResponse,
   getAttemptResponseSchema,
   type StartAttemptResponse,
@@ -14,6 +16,14 @@ import { apiClient } from "@/libs/api-client"
  * 挑戦の API 通信層
  */
 export const attemptApi = {
+  /**
+   * GET /api/attempt/:id/audio。挑戦の問題の読み上げの音声。準備中・失敗は status だけ。他人の挑戦・存在しない ID は API が 404
+   */
+  getAudio: async (id: number): Promise<GetAttemptAudioResponse> => {
+    const result = await apiClient.get(`/api/attempt/${id}/audio`)
+    return getAttemptAudioResponseSchema.parse(result.data)
+  },
+
   /**
    * GET /api/attempt/:id。status で形が変わる（in_progress は開始時と同じ形、submitted は結果の形、expired は概要だけ）。
    * 他人の挑戦・存在しない ID は API が 404

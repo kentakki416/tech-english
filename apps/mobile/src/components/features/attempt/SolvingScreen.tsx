@@ -2,13 +2,19 @@ import { isAxiosError } from "axios"
 import * as Haptics from "expo-haptics"
 import { useRouter } from "expo-router"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { Alert, AppState, BackHandler, Platform, StyleSheet, Text, View } from "react-native"
+import { Alert, AppState, BackHandler, type FlatList, Platform, StyleSheet, Text, View } from "react-native"
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 
-import type { InProgressAttempt, SubmitAttemptRequest } from "@repo/api-schema"
+import type { AttemptBlock, InProgressAttempt, SubmitAttemptRequest } from "@repo/api-schema"
 
-import { PassageReader } from "@/components/features/passage/PassageReader"
+import { PassageReader, type ReaderReadAloud } from "@/components/features/passage/PassageReader"
 import { useWordCard, WordCard } from "@/components/features/passage/WordCard"
+import {
+  READ_ALOUD_BAR_GAP,
+  READ_ALOUD_BAR_SPACE,
+  ReadAloudBar,
+  ReturnToReadingButton,
+} from "@/components/features/read-aloud/ReadAloudBar"
 import { THEME_COLORS } from "@/const/design-theme"
 import {
   type AttemptProgress,
@@ -20,6 +26,8 @@ import { attemptApi } from "@/features/attempt/attempt.api"
 import { useAttemptStore } from "@/features/attempt/attempt.store"
 import { useActiveSeconds } from "@/features/attempt/use-active-seconds"
 import { useDictionaryLookup } from "@/features/dictionary/use-dictionary-lookup"
+import { useReadAloud } from "@/features/read-aloud/use-read-aloud"
+import { useReadingAutoScroll } from "@/features/read-aloud/use-reading-auto-scroll"
 
 import { AttributionNote } from "./AttributionNote"
 import { ExpiredNotice } from "./ExpiredNotice"
@@ -51,14 +59,9 @@ const MAX_WORD_LOOKUPS = 300
 const MAX_WORD_LENGTH = 100
 
 /**
- * 本文の下端の余白（閉じた設問シートの上に、最後の段落と出典を出し切るため）
+ * 本文の下端の余白（閉じた設問シートと読み上げのミニプレーヤーの上に、最後の段落と出典を出し切るため）
  */
 const CONTENT_BOTTOM_SPACE = 60
-
-/**
- * 単語のカードと閉じた設問シートの間
- */
-const WORD_CARD_GAP = 16
 
 const isValidWordText = (text: unknown): boolean => typeof text === "string" && text.trim().length > 0 && text.trim().length <= MAX_WORD_LENGTH
 
@@ -74,9 +77,12 @@ const isValidWordLookup = (lookup: WordLookupRecord): boolean =>
 
 /**
  * 端末に保存した途中経過を読み、いまの挑戦に無い設問・選択肢・ブロックと提出の検証を通らない記録を除く
- * （古い保存や壊れた値のせいで提出できなくならないように。web と同じ）
+ * （古い保存や壊れた値のせいで提出できなくならないように。web と同じ）。聞いた段落は読み上げより前の保存には無い
  */
-const restoreProgress = async (attempt: InProgressAttempt, translatableBlockIndexes: Set<number>): Promise<RestoredProgress | null> => {
+const restoreProgress = async (
+  attempt: InProgressAttempt,
+  blockIndexes: { readable: Set<number>, translatable: Set<number> },
+): Promise<RestoredProgress | null> => {
   const saved = await readAttemptProgress(attempt.id)
   if (saved === null) return null
 
@@ -90,7 +96,8 @@ const restoreProgress = async (attempt: InProgressAttempt, translatableBlockInde
   return {
     answers,
     elapsedSeconds: Number.isFinite(saved.elapsedSeconds) ? Math.max(0, Math.floor(saved.elapsedSeconds)) : 0,
-    translatedBlockIndexes: [...new Set(saved.translatedBlockIndexes)].filter(index => translatableBlockIndexes.has(index)),
+    listenedBlockIndexes: [...new Set(saved.listenedBlockIndexes)].filter(index => blockIndexes.readable.has(index)),
+    translatedBlockIndexes: [...new Set(saved.translatedBlockIndexes)].filter(index => blockIndexes.translatable.has(index)),
     wordLookups: saved.wordLookups.filter(isValidWordLookup).slice(0, MAX_WORD_LOOKUPS),
   }
 }
@@ -99,9 +106,11 @@ const restoreProgress = async (attempt: InProgressAttempt, translatableBlockInde
  * 問題を解く画面の本体（挑戦中の挑戦を受け取ってから描画する）。上部バー・本文・設問シート・一時停止・提出の確認を並べる。
  *
  * - タイマーはアプリが前面にあり、端末の途中経過を戻し終え、一時停止・期限切れ・提出中でない間だけ進む
- * - 途中経過（回答・経過秒数・和訳を見た段落・調べた単語）は AsyncStorage に保存する。
+ * - 途中経過（回答・経過秒数・和訳を見た段落・調べた単語・読み上げを聞いた段落）は AsyncStorage に保存する。
  *   回答・アシストが変わったとき、経過秒数が 5 秒進むごと、アプリが前面でなくなったとき、画面を離れるときに書く。
  *   消すのは結果画面（提出に失敗しても回答が残るように）
+ * - 読み上げのミニプレーヤーは閉じた設問シートの上に浮かべる（設問シートを開いている間は出さない）。
+ *   上部バーの一時停止・期限切れ・提出で読み上げも止める（再開しても読み上げは自動で再開しない）
  */
 export function SolvingScreen({ attempt }: { attempt: InProgressAttempt }) {
   const router = useRouter()
@@ -116,6 +125,14 @@ export function SolvingScreen({ attempt }: { attempt: InProgressAttempt }) {
    */
   const translatableBlockIndexes = useMemo(
     () => new Set(attempt.blocks.flatMap((block, index) => (block.type !== "code" && block.translation_ja !== null ? [index] : []))),
+    [attempt.blocks],
+  )
+
+  /**
+   * 読み上げるブロック（code 以外）。聞いた段落として戻してよい対象
+   */
+  const readableBlockIndexes = useMemo(
+    () => new Set(attempt.blocks.flatMap((block, index) => (block.type !== "code" ? [index] : []))),
     [attempt.blocks],
   )
 
@@ -148,6 +165,20 @@ export function SolvingScreen({ attempt }: { attempt: InProgressAttempt }) {
    */
   const [peekBlock, setPeekBlock] = useState<number | null>(null)
   const [wordLookups, setWordLookups] = useState<WordLookupRecord[]>([])
+  /**
+   * 読み上げを 1 秒以上聞いた段落（提出の listened_block_count）
+   */
+  const [listenedBlocks, setListenedBlocks] = useState<Set<number>>(() => new Set())
+  const readerRef = useRef<FlatList<AttemptBlock>>(null)
+
+  const recordListenedBlock = useCallback((blockIndex: number) => {
+    setListenedBlocks(current => (current.has(blockIndex) ? current : new Set(current).add(blockIndex)))
+  }, [])
+
+  const readAloud = useReadAloud({ attemptId: attempt.id, blocks: attempt.blocks, onBlockListened: recordListenedBlock })
+  const { pause: pauseReadAloud, playBlock: playReadAloudBlock, stop: stopReadAloud } = readAloud
+  const autoScroll = useReadingAutoScroll(readerRef, readAloud.playback?.blockIndex ?? null)
+  const { resumeFollowing } = autoScroll
 
   const isRunning = isHydrated && !isPaused && !isExpired && !isSubmitting
   const elapsedSeconds = useActiveSeconds({ initialSeconds: savedSeconds, isRunning })
@@ -170,11 +201,12 @@ export function SolvingScreen({ attempt }: { attempt: InProgressAttempt }) {
   useEffect(() => {
     let isActive = true
     const hydrate = async () => {
-      const saved = await restoreProgress(attempt, translatableBlockIndexes)
+      const saved = await restoreProgress(attempt, { readable: readableBlockIndexes, translatable: translatableBlockIndexes })
       if (!isActive) return
       if (saved) {
         setAnswers(saved.answers)
         setSavedSeconds(saved.elapsedSeconds)
+        setListenedBlocks(new Set(saved.listenedBlockIndexes))
         setViewedTranslationBlocks(new Set(saved.translatedBlockIndexes))
         setWordLookups(saved.wordLookups)
         /**
@@ -188,11 +220,11 @@ export function SolvingScreen({ attempt }: { attempt: InProgressAttempt }) {
     return () => {
       isActive = false
     }
-  }, [attempt, translatableBlockIndexes])
+  }, [attempt, readableBlockIndexes, translatableBlockIndexes])
 
   useEffect(() => {
     progressRef.current = isHydrated
-      ? { answers, elapsedSeconds, translatedBlockIndexes: [...viewedTranslationBlocks], wordLookups }
+      ? { answers, elapsedSeconds, listenedBlockIndexes: [...listenedBlocks], translatedBlockIndexes: [...viewedTranslationBlocks], wordLookups }
       : null
   })
 
@@ -202,11 +234,11 @@ export function SolvingScreen({ attempt }: { attempt: InProgressAttempt }) {
   }, [attempt.id])
 
   /**
-   * 回答・和訳を見た段落・調べた単語が変わったとき
+   * 回答・和訳を見た段落・調べた単語・聞いた段落が変わったとき
    */
   useEffect(() => {
     if (isHydrated) saveProgress()
-  }, [answers, isHydrated, saveProgress, viewedTranslationBlocks, wordLookups])
+  }, [answers, isHydrated, listenedBlocks, saveProgress, viewedTranslationBlocks, wordLookups])
 
   /**
    * 経過秒数が 5 秒進むごと（アプリがタスクキルされても 5 秒以内のずれで戻せるように）
@@ -239,6 +271,7 @@ export function SolvingScreen({ attempt }: { attempt: InProgressAttempt }) {
       if (Date.now() + serverOffsetMs < expiresAtMs) return
       setIsExpired(true)
       setIsConfirmOpen(false)
+      stopReadAloud()
     }
     checkExpiry()
     const timer = setInterval(checkExpiry, EXPIRY_CHECK_INTERVAL_MS)
@@ -249,7 +282,7 @@ export function SolvingScreen({ attempt }: { attempt: InProgressAttempt }) {
       clearInterval(timer)
       subscription.remove()
     }
-  }, [attempt.expires_at, attempt.server_now])
+  }, [attempt.expires_at, attempt.server_now, stopReadAloud])
 
   /**
    * 中断。問題一覧へ戻る（挑戦は残り、24 時間以内なら再開できる。途中経過は unmount で保存する）。
@@ -323,11 +356,36 @@ export function SolvingScreen({ attempt }: { attempt: InProgressAttempt }) {
     setWordLookups(current => (current.length >= MAX_WORD_LOOKUPS ? current : [...current, lookup]))
   }, [])
 
+  /**
+   * 待機中に再生を始めるときは、読み上げ中の段落を追うスクロールを再開する
+   */
+  const toggleReadAloud = () => {
+    if (readAloud.playback === null) resumeFollowing()
+    readAloud.togglePlay()
+  }
+
+  /**
+   * 本文の行は memo されているので、参照を変えないよう useCallback にする
+   */
+  const playBlock = useCallback((blockIndex: number) => {
+    resumeFollowing()
+    playReadAloudBlock(blockIndex)
+  }, [playReadAloudBlock, resumeFollowing])
+
+  /**
+   * 一時停止で読み上げも止める。再開しても読み上げは自動で再開しない（再生ボタンで再開する）
+   */
+  const togglePause = () => {
+    if (!isPaused) pauseReadAloud()
+    setIsPaused(value => !value)
+  }
+
   const openSubmitConfirm = useCallback(() => setIsConfirmOpen(true), [])
 
   const buildSubmitInput = (): SubmitAttemptRequest => ({
     active_seconds: elapsedSeconds,
     answers: questions.map(question => ({ question_id: question.id, selected_choice_index: answers[question.id] ?? null })),
+    listened_block_count: listenedBlocks.size,
     translated_block_count: viewedTranslationBlocks.size,
     word_lookups: wordLookups.map(lookup => ({
       glossary_entry_id: lookup.glossaryEntryId,
@@ -344,6 +402,7 @@ export function SolvingScreen({ attempt }: { attempt: InProgressAttempt }) {
   const submit = async () => {
     if (isSubmitting) return
     setIsSubmitting(true)
+    stopReadAloud()
     try {
       const result = await attemptApi.submit(attempt.id, buildSubmitInput())
       isSubmittedRef.current = true
@@ -373,9 +432,17 @@ export function SolvingScreen({ attempt }: { attempt: InProgressAttempt }) {
   ), [attempt.attribution])
 
   const contentContainerStyle = useMemo(
-    () => [styles.content, { paddingBottom: closedSheetHeight + CONTENT_BOTTOM_SPACE }],
+    () => [styles.content, { paddingBottom: closedSheetHeight + READ_ALOUD_BAR_SPACE + CONTENT_BOTTOM_SPACE }],
     [closedSheetHeight],
   )
+
+  const readerReadAloud: ReaderReadAloud = {
+    activeBlockIndex: readAloud.playback?.blockIndex ?? null,
+    isAvailable: readAloud.availability === "ready",
+    playingBlockIndex: readAloud.playback?.mode === "block" && readAloud.playback.isPlaying ? readAloud.playback.blockIndex : null,
+    reading: readAloud.reading,
+    onPlayBlock: playBlock,
+  }
 
   if (isExpired) {
     return (
@@ -395,28 +462,51 @@ export function SolvingScreen({ attempt }: { attempt: InProgressAttempt }) {
         timeLimitSeconds={timeLimitSeconds}
         onInterrupt={interrupt}
         onToggleAllTranslations={toggleAllTranslations}
-        onTogglePause={() => setIsPaused(value => !value)}
+        onTogglePause={togglePause}
       />
 
       <View style={styles.body}>
         <PassageReader
+          ref={readerRef}
           ListFooterComponent={footer}
           blocks={attempt.blocks}
           contentContainerStyle={contentContainerStyle}
           glossary={attempt.glossary}
           peekBlock={peekBlock}
+          readAloud={readerReadAloud}
           showAllTranslations={showAllTranslations}
           translatedBlocks={translatedBlocks}
           onLookupDictionary={lookupDictionary}
           onLookupWord={recordWordLookup}
           onPeekEnd={endPeek}
           onPeekStart={startPeek}
+          onScrollBeginDrag={autoScroll.onScrollBeginDrag}
           onToggleTranslation={toggleTranslation}
           onWordCard={showWordCard}
         />
 
+        {/**
+          * 読み上げのミニプレーヤー。閉じた設問シートの上に浮かべ、設問シートを開いている間は出さない。
+          * 単語のカード（zIndex 35）と一時停止の表示（40）より下に重ねる（一時停止中は押せない）
+          */}
+        {!isSheetOpen && (
+          <View style={[styles.readAloudWrapper, { bottom: closedSheetHeight + READ_ALOUD_BAR_GAP }]}>
+            {readAloud.playback !== null && !autoScroll.isFollowing && <ReturnToReadingButton onPress={resumeFollowing} />}
+            <ReadAloudBar
+              availability={readAloud.availability}
+              blocks={attempt.blocks}
+              playback={readAloud.playback}
+              progress={readAloud.progress}
+              rate={readAloud.rate}
+              onRateCycle={readAloud.cycleRate}
+              onStop={stopReadAloud}
+              onToggle={toggleReadAloud}
+            />
+          </View>
+        )}
+
         {wordCard && (
-          <View style={[styles.wordCardWrapper, { bottom: closedSheetHeight + WORD_CARD_GAP }]}>
+          <View style={[styles.wordCardWrapper, { bottom: closedSheetHeight + READ_ALOUD_BAR_SPACE }]}>
             <WordCard content={wordCard} onClose={closeWordCard} />
           </View>
         )}
@@ -466,6 +556,13 @@ const styles = StyleSheet.create({
   hint: {
     color: THEME_COLORS.fgFaint,
     fontSize: 11,
+  },
+  readAloudWrapper: {
+    left: 12,
+    pointerEvents: "box-none",
+    position: "absolute",
+    right: 12,
+    zIndex: 30,
   },
   screen: {
     backgroundColor: THEME_COLORS.canvas,
