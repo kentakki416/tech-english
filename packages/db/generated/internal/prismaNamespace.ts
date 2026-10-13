@@ -407,6 +407,7 @@ export const ModelName = {
   PassageGlossaryEntry: 'PassageGlossaryEntry',
   Question: 'Question',
   ReadingAttempt: 'ReadingAttempt',
+  ReminderSetting: 'ReminderSetting',
   SourceDocument: 'SourceDocument',
   User: 'User',
   UserGoal: 'UserGoal'
@@ -425,7 +426,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "attemptAnswer" | "attemptWordLookup" | "authAccount" | "contentSource" | "dictionaryEntry" | "memo" | "passage" | "passageGlossaryEntry" | "question" | "readingAttempt" | "sourceDocument" | "user" | "userGoal"
+    modelProps: "attemptAnswer" | "attemptWordLookup" | "authAccount" | "contentSource" | "dictionaryEntry" | "memo" | "passage" | "passageGlossaryEntry" | "question" | "readingAttempt" | "reminderSetting" | "sourceDocument" | "user" | "userGoal"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -1169,6 +1170,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    ReminderSetting: {
+      payload: Prisma.$ReminderSettingPayload<ExtArgs>
+      fields: Prisma.ReminderSettingFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.ReminderSettingFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ReminderSettingPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.ReminderSettingFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ReminderSettingPayload>
+        }
+        findFirst: {
+          args: Prisma.ReminderSettingFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ReminderSettingPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.ReminderSettingFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ReminderSettingPayload>
+        }
+        findMany: {
+          args: Prisma.ReminderSettingFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ReminderSettingPayload>[]
+        }
+        create: {
+          args: Prisma.ReminderSettingCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ReminderSettingPayload>
+        }
+        createMany: {
+          args: Prisma.ReminderSettingCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.ReminderSettingCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ReminderSettingPayload>[]
+        }
+        delete: {
+          args: Prisma.ReminderSettingDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ReminderSettingPayload>
+        }
+        update: {
+          args: Prisma.ReminderSettingUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ReminderSettingPayload>
+        }
+        deleteMany: {
+          args: Prisma.ReminderSettingDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.ReminderSettingUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.ReminderSettingUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ReminderSettingPayload>[]
+        }
+        upsert: {
+          args: Prisma.ReminderSettingUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ReminderSettingPayload>
+        }
+        aggregate: {
+          args: Prisma.ReminderSettingAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateReminderSetting>
+        }
+        groupBy: {
+          args: Prisma.ReminderSettingGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ReminderSettingGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.ReminderSettingCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ReminderSettingCountAggregateOutputType> | number
+        }
+      }
+    }
     SourceDocument: {
       payload: Prisma.$SourceDocumentPayload<ExtArgs>
       fields: Prisma.SourceDocumentFieldRefs
@@ -1613,6 +1688,19 @@ export const ReadingAttemptScalarFieldEnum = {
 export type ReadingAttemptScalarFieldEnum = (typeof ReadingAttemptScalarFieldEnum)[keyof typeof ReadingAttemptScalarFieldEnum]
 
 
+export const ReminderSettingScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  isEnabled: 'isEnabled',
+  weekdays: 'weekdays',
+  time: 'time',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type ReminderSettingScalarFieldEnum = (typeof ReminderSettingScalarFieldEnum)[keyof typeof ReminderSettingScalarFieldEnum]
+
+
 export const SourceDocumentScalarFieldEnum = {
   id: 'id',
   sourceId: 'sourceId',
@@ -1943,6 +2031,7 @@ export type GlobalOmitConfig = {
   passageGlossaryEntry?: Prisma.PassageGlossaryEntryOmit
   question?: Prisma.QuestionOmit
   readingAttempt?: Prisma.ReadingAttemptOmit
+  reminderSetting?: Prisma.ReminderSettingOmit
   sourceDocument?: Prisma.SourceDocumentOmit
   user?: Prisma.UserOmit
   userGoal?: Prisma.UserGoalOmit

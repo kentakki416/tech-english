@@ -5,7 +5,9 @@ import { UserCalendarController } from "../controller/user/calendar"
 import { UserDeleteController } from "../controller/user/delete"
 import { UserGetController } from "../controller/user/get"
 import { UserGetGoalController } from "../controller/user/get-goal"
+import { UserGetReminderController } from "../controller/user/get-reminder"
 import { UserPutGoalController } from "../controller/user/put-goal"
+import { UserPutReminderController } from "../controller/user/put-reminder"
 import { UserStatsController } from "../controller/user/stats"
 import { UserUpdateController } from "../controller/user/update"
 
@@ -15,7 +17,9 @@ type UserRouterControllers = {
   delete?: UserDeleteController
   get?: UserGetController
   getGoal?: UserGetGoalController
+  getReminder?: UserGetReminderController
   putGoal?: UserPutGoalController
+  putReminder?: UserPutReminderController
   stats?: UserStatsController
   update?: UserUpdateController
 }
@@ -85,6 +89,22 @@ export const userRouter = (controllers: UserRouterControllers): Router => {
   if (controllers.putGoal) {
     const controller = controllers.putGoal
     router.put("/goal", async (req, res) => controller.execute(req, res))
+  }
+
+  /**
+   * GET /api/user/reminder（リマインダーの設定の取得）
+   */
+  if (controllers.getReminder) {
+    const controller = controllers.getReminder
+    router.get("/reminder", async (req, res) => controller.execute(req, res))
+  }
+
+  /**
+   * PUT /api/user/reminder（リマインダーの設定の保存）
+   */
+  if (controllers.putReminder) {
+    const controller = controllers.putReminder
+    router.put("/reminder", async (req, res) => controller.execute(req, res))
   }
 
   return router
