@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 
 import {
   formatSeconds,
@@ -17,6 +17,12 @@ import {
 
 import { ScoreSquares, SourceMeta } from "../../../_components/parts"
 import { PassageReader } from "../../../_components/PassageReader"
+import { ReadAloudBar, ReturnToReadingButton, useReadAloudMock } from "../../../_components/ReadAloud"
+
+/**
+ * 解答中に読み上げを聞いた段落の数（モック用の値）
+ */
+const MOCK_LISTENED_BLOCK_COUNT = 2
 
 const CHOICE_LETTERS = ["A", "B", "C", "D"]
 
@@ -67,6 +73,19 @@ export function ResultScreen({ elapsedSeconds }: { elapsedSeconds: number }) {
     new Set(MOCK_QUESTIONS.filter(question => MOCK_SUBMITTED_ANSWERS[question.id] !== question.correctChoiceIndex).map(question => question.id)),
   )
   const [translatedBlocks, setTranslatedBlocks] = useState<Set<number>>(new Set())
+  const [isFollowing, setIsFollowing] = useState(true)
+  const readAloud = useReadAloudMock({ blocks: MOCK_BLOCKS, glossary: MOCK_GLOSSARY })
+  const readingBlockIndex = readAloud.state.blockIndex
+  const isReading = readingBlockIndex !== null
+
+  useEffect(() => {
+    if (readingBlockIndex === null || !isFollowing) return
+    document.getElementById(`block-${readingBlockIndex}`)?.scrollIntoView({ behavior: "smooth", block: "center" })
+  }, [isFollowing, readingBlockIndex])
+
+  const stopFollowing = () => {
+    if (isReading && isFollowing) setIsFollowing(false)
+  }
 
   const highlight = MOCK_QUESTIONS.find(question => question.id === highlightQuestionId)?.evidence ?? null
   const isOvertime = elapsedSeconds > MOCK_PASSAGE.timeLimitSeconds
@@ -125,19 +144,47 @@ export function ResultScreen({ elapsedSeconds }: { elapsedSeconds: number }) {
       </header>
 
       <div className="flex flex-1 flex-col-reverse lg:grid lg:min-h-0 lg:grid-cols-[minmax(0,1fr)_480px]">
-        <main className="border-t border-line pt-8 pr-5 pb-16 pl-1 sm:px-6 lg:overflow-y-auto lg:border-t-0 lg:px-10">
+        <main
+          className="border-t border-line pt-8 pr-5 pb-5 pl-1 sm:px-6 lg:overflow-y-auto lg:border-t-0 lg:px-10"
+          onTouchMove={stopFollowing}
+          onWheel={stopFollowing}
+        >
           <div className="mx-auto max-w-3xl">
             <p className="mb-6 pl-11 text-xs text-fg-muted sm:pl-14">
-              本文（根拠の箇所をハイライトしています。単語のタップと和訳はここでも使えます）
+              本文（根拠の箇所をハイライトしています。単語のタップ・和訳・読み上げはここでも使えます）
             </p>
             <PassageReader
               blocks={MOCK_BLOCKS}
               dictionary={MOCK_DICTIONARY}
               glossary={MOCK_GLOSSARY}
               highlight={highlight}
+              readAloud={readAloud.state}
               translatedBlocks={translatedBlocks}
+              onPlayBlock={(blockIndex) => {
+                setIsFollowing(true)
+                readAloud.playBlock(blockIndex)
+              }}
               onToggleTranslation={toggleTranslation}
             />
+          </div>
+          <div className="pointer-events-none sticky bottom-3 z-10 mx-auto mt-8 max-w-3xl pl-11 sm:pl-14 lg:bottom-0">
+            <div className="pointer-events-auto">
+              {isReading && !isFollowing && <ReturnToReadingButton onClick={() => setIsFollowing(true)} />}
+              <ReadAloudBar
+                blocks={MOCK_BLOCKS}
+                isAvailable
+                isShortcutVisible={false}
+                progress={readAloud.progress}
+                rate={readAloud.rate}
+                state={readAloud.state}
+                onRateChange={readAloud.setRate}
+                onStop={readAloud.stop}
+                onToggle={() => {
+                  if (!isReading) setIsFollowing(true)
+                  readAloud.togglePlay()
+                }}
+              />
+            </div>
           </div>
         </main>
 
@@ -183,6 +230,7 @@ export function ResultScreen({ elapsedSeconds }: { elapsedSeconds: number }) {
                 <dd className="mt-1 text-fg tabular-nums">
                   和訳 {MOCK_RESULT.translatedBlockCount} 段落
                   <p className="text-fg">単語 {MOCK_RESULT.wordLookups.length} 回</p>
+                  <p className="text-fg">読み上げ {MOCK_LISTENED_BLOCK_COUNT} 段落</p>
                 </dd>
               </div>
             </dl>

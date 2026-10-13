@@ -8,6 +8,8 @@ const STATES: { key: SolvingMockState, label: string }[] = [
   { key: "overtime", label: "時間超過" },
   { key: "paused", label: "一時停止" },
   { key: "confirm", label: "提出確認" },
+  { key: "reading", label: "読み上げ中" },
+  { key: "audio_pending", label: "音声の準備中" },
 ]
 
 /**

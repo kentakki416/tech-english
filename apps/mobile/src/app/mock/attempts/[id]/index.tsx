@@ -1,12 +1,13 @@
 import { Ionicons } from "@expo/vector-icons"
 import * as Haptics from "expo-haptics"
 import { type Href, useLocalSearchParams, useRouter } from "expo-router"
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { AppState, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 
 import { MockStatePanel } from "@/components/mock/MockStatePanel"
 import { PassageReader, WordCard, type WordCardContent } from "@/components/mock/PassageReader"
+import { ReadAloudBar, ReturnToReadingButton, useReadAloudMock } from "@/components/mock/ReadAloud"
 import { MOCK_COLORS, MOCK_FONTS } from "@/const/mock-theme"
 import {
   formatSeconds,
@@ -18,7 +19,7 @@ import {
   MOCK_QUESTIONS,
 } from "@/libs/mock-data"
 
-type SolvingState = "confirm" | "normal" | "overtime" | "paused" | "peek" | "sheet" | "warning"
+type SolvingState = "audio_pending" | "confirm" | "normal" | "overtime" | "paused" | "peek" | "reading" | "sheet" | "warning"
 
 const STATES: { href: Href, key: SolvingState, label: string }[] = [
   { href: "/mock/attempts/42", key: "normal", label: "通常" },
@@ -28,19 +29,25 @@ const STATES: { href: Href, key: SolvingState, label: string }[] = [
   { href: "/mock/attempts/42?state=overtime", key: "overtime", label: "時間超過" },
   { href: "/mock/attempts/42?state=paused", key: "paused", label: "一時停止" },
   { href: "/mock/attempts/42?state=confirm", key: "confirm", label: "提出確認" },
+  { href: "/mock/attempts/42?state=reading", key: "reading", label: "読み上げ中" },
+  { href: "/mock/attempts/42?state=audio_pending", key: "audio_pending", label: "音声の準備中" },
 ]
 
 const INITIAL_REMAINING: Record<SolvingState, number> = {
+  audio_pending: 252,
   confirm: 96,
   normal: 252,
   overtime: -83,
   paused: 252,
   peek: 230,
+  reading: 231,
   sheet: 240,
   warning: 48,
 }
 
 const CHOICE_LETTERS = ["A", "B", "C", "D"]
+
+const VISIBLE_GLOSSARY = MOCK_GLOSSARY.filter(entry => !MOCK_HIDDEN_GLOSSARY_IDS.includes(entry.id))
 
 /**
  * 問題を解く画面（モック）
@@ -60,6 +67,17 @@ export default function MockAttemptScreen() {
   const [translatedBlocks, setTranslatedBlocks] = useState<Set<number>>(new Set())
   const [peekBlock, setPeekBlock] = useState<number | null>(initialState === "peek" ? 2 : null)
   const [wordCard, setWordCard] = useState<WordCardContent | null>(null)
+  const [isFollowing, setIsFollowing] = useState(true)
+  const scrollRef = useRef<ScrollView>(null)
+  const blockOffsets = useRef<Record<number, number>>({})
+  const isAudioAvailable = initialState !== "audio_pending"
+  const readAloud = useReadAloudMock({
+    blocks: MOCK_BLOCKS,
+    glossary: VISIBLE_GLOSSARY,
+    initialState: initialState === "reading" ? { blockIndex: 1, isPlaying: true, mode: "all", wordIndex: 6 } : undefined,
+  })
+  const readingBlockIndex = readAloud.state.blockIndex
+  const isReading = readingBlockIndex !== null
 
   const answeredCount = Object.keys(answers).length
   const unansweredCount = MOCK_QUESTIONS.length - answeredCount
@@ -77,6 +95,30 @@ export default function MockAttemptScreen() {
     }, 1000)
     return () => clearInterval(timer)
   }, [isPaused])
+
+  /**
+   * 読み上げ中の段落が変わったら、その段落が見える位置までスクロールする（自動スクロールを止めていない間だけ）
+   */
+  useEffect(() => {
+    if (readingBlockIndex === null || !isFollowing) return
+    const y = blockOffsets.current[readingBlockIndex]
+    if (y !== undefined) scrollRef.current?.scrollTo({ animated: true, y: Math.max(0, y - 120) })
+  }, [isFollowing, readingBlockIndex])
+
+  const togglePause = () => {
+    if (!isPaused) readAloud.pause()
+    setIsPaused(value => !value)
+  }
+
+  const toggleReadAloud = () => {
+    if (!isReading) setIsFollowing(true)
+    readAloud.togglePlay()
+  }
+
+  const playBlock = (blockIndex: number) => {
+    setIsFollowing(true)
+    readAloud.playBlock(blockIndex)
+  }
 
   const startPeek = (blockIndex: number) => {
     setPeekBlock(blockIndex)
@@ -111,7 +153,7 @@ export default function MockAttemptScreen() {
         >
           <Text style={[styles.toolText, showAllTranslations && { color: MOCK_COLORS.amber }]}>全文訳</Text>
         </Pressable>
-        <Pressable accessibilityLabel={isPaused ? "再開する" : "一時停止"} onPress={() => setIsPaused(value => !value)} style={styles.iconButton}>
+        <Pressable accessibilityLabel={isPaused ? "再開する" : "一時停止"} onPress={togglePause} style={styles.iconButton}>
           <Ionicons color={MOCK_COLORS.fgMuted} name={isPaused ? "play" : "pause"} size={14} />
         </Pressable>
       </View>
@@ -126,23 +168,51 @@ export default function MockAttemptScreen() {
         />
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        onScrollBeginDrag={() => {
+          if (isReading) setIsFollowing(false)
+        }}
+        ref={scrollRef}
+      >
         <PassageReader
           blocks={MOCK_BLOCKS}
           dictionary={MOCK_DICTIONARY}
           glossary={MOCK_GLOSSARY}
           hiddenGlossaryIds={MOCK_HIDDEN_GLOSSARY_IDS}
+          isReadAloudAvailable={isAudioAvailable}
           peekBlock={peekBlock}
+          readAloud={readAloud.state}
           showAllTranslations={showAllTranslations}
           translatedBlocks={translatedBlocks}
+          onBlockLayout={(blockIndex, y) => {
+            blockOffsets.current[blockIndex] = y
+          }}
           onPeekEnd={() => setPeekBlock(null)}
           onPeekStart={startPeek}
+          onPlayBlock={playBlock}
           onToggleTranslation={toggleTranslation}
           onWordPress={setWordCard}
         />
         <Text style={styles.attribution}>出典：{MOCK_PASSAGE.sourceName}（{MOCK_PASSAGE.license}）。一部を抜粋・改変しています。</Text>
         <Text style={styles.hint}>段落を長押しすると、押している間だけ和訳を表示します。</Text>
       </ScrollView>
+
+      {!isSheetOpen && (
+        <View pointerEvents="box-none" style={styles.readAloudWrapper}>
+          {isReading && !isFollowing && <ReturnToReadingButton onPress={() => setIsFollowing(true)} />}
+          <ReadAloudBar
+            blocks={MOCK_BLOCKS}
+            isAvailable={isAudioAvailable}
+            progress={readAloud.progress}
+            rate={readAloud.rate}
+            state={readAloud.state}
+            onRatePress={readAloud.cycleRate}
+            onStop={readAloud.stop}
+            onToggle={toggleReadAloud}
+          />
+        </View>
+      )}
 
       {wordCard && (
         <View style={styles.wordCardWrapper}>
@@ -240,7 +310,7 @@ export default function MockAttemptScreen() {
         </View>
       </Modal>
 
-      <MockStatePanel bottom={isSheetOpen ? 690 : 84} current={initialState} states={STATES} />
+      <MockStatePanel bottom={isSheetOpen ? 690 : 148} current={initialState} states={STATES} />
     </SafeAreaView>
   )
 }
@@ -314,7 +384,7 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   content: {
-    paddingBottom: 120,
+    paddingBottom: 190,
     paddingLeft: 4,
     paddingRight: 20,
     paddingTop: 24,
@@ -455,6 +525,13 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
     paddingHorizontal: 16,
   },
+  readAloudWrapper: {
+    bottom: 76,
+    left: 12,
+    position: "absolute",
+    right: 12,
+    zIndex: 30,
+  },
   screen: {
     backgroundColor: MOCK_COLORS.canvas,
     flex: 1,
@@ -566,7 +643,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
   },
   wordCardWrapper: {
-    bottom: 76,
+    bottom: 140,
     left: 12,
     position: "absolute",
     right: 12,

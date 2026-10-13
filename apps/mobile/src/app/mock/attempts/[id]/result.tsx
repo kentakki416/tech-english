@@ -1,12 +1,13 @@
 import { Ionicons } from "@expo/vector-icons"
 import { type Href, useLocalSearchParams, useRouter } from "expo-router"
-import { useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 
 import { MockStatePanel } from "@/components/mock/MockStatePanel"
 import { mockStyles, PrimaryButton, ScoreSquares, SecondaryButton, SourceMeta } from "@/components/mock/parts"
 import { PassageReader, WordCard, type WordCardContent } from "@/components/mock/PassageReader"
+import { ReadAloudBar, ReturnToReadingButton, useReadAloudMock } from "@/components/mock/ReadAloud"
 import { MOCK_COLORS, MOCK_FONTS } from "@/const/mock-theme"
 import {
   formatSeconds,
@@ -46,6 +47,18 @@ export default function MockResultScreen() {
   const [highlightId, setHighlightId] = useState<number | null>(firstWrong?.id ?? null)
   const [translatedBlocks, setTranslatedBlocks] = useState<Set<number>>(new Set())
   const [wordCard, setWordCard] = useState<WordCardContent | null>(null)
+  const [isFollowing, setIsFollowing] = useState(true)
+  const readAloud = useReadAloudMock({ blocks: MOCK_BLOCKS, glossary: MOCK_GLOSSARY })
+  const readingBlockIndex = readAloud.state.blockIndex
+  const isReading = readingBlockIndex !== null
+
+  /**
+   * 読み上げ中の段落が変わったら、その段落が見える位置までスクロールする（自動スクロールを止めていない間だけ）
+   */
+  useEffect(() => {
+    if (readingBlockIndex === null || !isFollowing) return
+    scrollRef.current?.scrollTo({ animated: true, y: passageY.current + (blockY.current[readingBlockIndex] ?? 0) - 120 })
+  }, [isFollowing, readingBlockIndex])
 
   const highlight = MOCK_QUESTIONS.find(question => question.id === highlightId)?.evidence ?? null
   const isOvertime = elapsedSeconds > MOCK_PASSAGE.timeLimitSeconds
@@ -69,7 +82,13 @@ export default function MockResultScreen() {
         </Pressable>
       </View>
 
-      <ScrollView contentContainerStyle={{ paddingBottom: 120 }} ref={scrollRef}>
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: 190 }}
+        onScrollBeginDrag={() => {
+          if (isReading) setIsFollowing(false)
+        }}
+        ref={scrollRef}
+      >
         <View style={styles.summary}>
           <Text numberOfLines={1} style={styles.passageTitle}>{MOCK_PASSAGE.title}</Text>
           <View style={{ marginTop: 16 }}>
@@ -101,6 +120,7 @@ export default function MockResultScreen() {
               <Text style={mockStyles.caption}>アシストの使用</Text>
               <Text style={styles.metricSmall}>和訳 {MOCK_RESULT.translatedBlockCount} 段落</Text>
               <Text style={styles.metricSmall}>単語 {MOCK_RESULT.wordLookups.length} 回</Text>
+              <Text style={styles.metricSmall}>読み上げ 2 段落</Text>
             </View>
           </View>
         </View>
@@ -196,9 +216,14 @@ export default function MockResultScreen() {
             dictionary={MOCK_DICTIONARY}
             glossary={MOCK_GLOSSARY}
             highlight={highlight}
+            readAloud={readAloud.state}
             translatedBlocks={translatedBlocks}
             onBlockLayout={(blockIndex, y) => {
               blockY.current[blockIndex] = y
+            }}
+            onPlayBlock={(blockIndex) => {
+              setIsFollowing(true)
+              readAloud.playBlock(blockIndex)
             }}
             onToggleTranslation={blockIndex => setTranslatedBlocks((value) => {
               const next = new Set(value)
@@ -211,6 +236,23 @@ export default function MockResultScreen() {
         </View>
       </ScrollView>
 
+      <View pointerEvents="box-none" style={styles.readAloudWrapper}>
+        {isReading && !isFollowing && <ReturnToReadingButton onPress={() => setIsFollowing(true)} />}
+        <ReadAloudBar
+          blocks={MOCK_BLOCKS}
+          isAvailable
+          progress={readAloud.progress}
+          rate={readAloud.rate}
+          state={readAloud.state}
+          onRatePress={readAloud.cycleRate}
+          onStop={readAloud.stop}
+          onToggle={() => {
+            setIsFollowing(true)
+            readAloud.togglePlay()
+          }}
+        />
+      </View>
+
       {wordCard && (
         <View style={styles.wordCardWrapper}>
           <WordCard content={wordCard} onClose={() => setWordCard(null)} />
@@ -222,7 +264,7 @@ export default function MockResultScreen() {
         <View style={{ flex: 1 }}><PrimaryButton label="次の問題を解く" onPress={() => router.push("/mock/passages/57")} /></View>
       </SafeAreaView>
 
-      <MockStatePanel bottom={92} current={isOvertimeState ? "overtime" : "normal"} states={STATES} />
+      <MockStatePanel bottom={156} current={isOvertimeState ? "overtime" : "normal"} states={STATES} />
     </SafeAreaView>
   )
 }
@@ -404,6 +446,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
   },
+  readAloudWrapper: {
+    bottom: 92,
+    left: 12,
+    position: "absolute",
+    right: 12,
+    zIndex: 30,
+  },
   score: {
     color: MOCK_COLORS.fg,
     fontSize: 34,
@@ -478,7 +527,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 5,
   },
   wordCardWrapper: {
-    bottom: 96,
+    bottom: 156,
     left: 12,
     position: "absolute",
     right: 12,

@@ -1,3 +1,4 @@
+import { Ionicons } from "@expo/vector-icons"
 import { Fragment, useMemo } from "react"
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native"
 
@@ -5,6 +6,7 @@ import { MOCK_COLORS, MOCK_FONTS } from "@/const/mock-theme"
 import type { MockGlossaryEntry, MockPassageBlock } from "@/libs/mock-data"
 
 import { lookUpDictionary, type Segment, segmentText } from "./passage-text"
+import type { ReadAloudState } from "./ReadAloud"
 
 export type WordCardContent = {
   lemma?: string
@@ -40,6 +42,16 @@ const numberParagraphs = (blocks: MockPassageBlock[]): (number | null)[] => {
 }
 
 /**
+ * 単語だけに通し番号を振る（読み上げ中の単語の位置と対応させる）
+ */
+const numberWords = (segments: Segment[], offset: number): (number | null)[] => {
+  let next = offset
+  return segments.map(segment => (segment.kind === "word" ? next++ : null))
+}
+
+const countWords = (segments: Segment[]) => segments.filter(segment => segment.kind === "word").length
+
+/**
  * 本文を表示する。段落番号の列・段落ごとの「訳」・長押しで和訳の一時表示・単語のタップ・根拠のハイライトを持つ
  *
  * 単語は入れ子の <Text onPress> にする（RN の Text は選択範囲を取得できないため、単語単位で押させる）。
@@ -51,12 +63,15 @@ export function PassageReader({
   glossary,
   hiddenGlossaryIds = [],
   highlight = null,
+  isReadAloudAvailable = true,
   peekBlock = null,
+  readAloud = null,
   showAllTranslations = false,
   translatedBlocks,
   onBlockLayout,
   onPeekEnd,
   onPeekStart,
+  onPlayBlock,
   onToggleTranslation,
   onWordPress,
 }: {
@@ -66,12 +81,15 @@ export function PassageReader({
   glossary: MockGlossaryEntry[]
   hiddenGlossaryIds?: number[]
   highlight?: { blockIndex: number, quote: string } | null
+  isReadAloudAvailable?: boolean
   peekBlock?: number | null
+  readAloud?: ReadAloudState | null
   showAllTranslations?: boolean
   translatedBlocks: Set<number>
   onBlockLayout?: (blockIndex: number, y: number) => void
   onPeekEnd?: () => void
   onPeekStart?: (blockIndex: number) => void
+  onPlayBlock?: (blockIndex: number) => void
   onToggleTranslation?: (blockIndex: number) => void
   onWordPress?: (content: WordCardContent) => void
 }) {
@@ -89,9 +107,12 @@ export function PassageReader({
     onWordPress?.(result ? { lemma: result.lemma, meaningJa: result.meaningJa, source: "dictionary", surface: segment.text } : { source: "not_found", surface: segment.text })
   }
 
-  const renderSegments = (segments: Segment[], blockIndex: number, isHighlighted = false) =>
-    segments.map((segment, index) => {
+  const renderSegments = (segments: Segment[], blockIndex: number, isHighlighted = false, wordOffset = 0) => {
+    const ordinals = numberWords(segments, wordOffset)
+    const readingWordIndex = readAloud?.blockIndex === blockIndex ? readAloud.wordIndex : null
+    return segments.map((segment, index) => {
       const highlightStyle = isHighlighted ? styles.highlight : undefined
+      const readingStyle = ordinals[index] !== null && ordinals[index] === readingWordIndex ? styles.readingWord : undefined
       if (segment.kind === "code") {
         return <Text key={index} style={[styles.inlineCode, { fontSize: fontSize * 0.82 }]}>{segment.text}</Text>
       }
@@ -104,19 +125,25 @@ export function PassageReader({
           onLongPress={() => onPeekStart?.(blockIndex)}
           onPress={() => pressWord(segment)}
           onPressOut={onPeekEnd}
-          style={highlightStyle}
+          style={[highlightStyle, readingStyle]}
         >
           {segment.text}
         </Text>
       )
     })
+  }
 
   return (
     <View>
       {blocks.map((block, blockIndex) => {
         const isCode = block.type === "code"
         const isHeading = block.type === "heading"
-        const isTranslated = !isCode && (showAllTranslations || translatedBlocks.has(blockIndex))
+        const isReadingBlock = readAloud?.blockIndex === blockIndex
+        const isPlayingBlock = isReadingBlock && readAloud?.mode === "block" && readAloud.isPlaying
+        /**
+         * 読み上げ中の段落は、和訳を表示していても英文で出す（音声とハイライトを英文に合わせる）
+         */
+        const isTranslated = !isCode && !isReadingBlock && (showAllTranslations || translatedBlocks.has(blockIndex))
         const isPeeking = peekBlock === blockIndex && !isTranslated
         const quote = highlight?.blockIndex === blockIndex && block.text.includes(highlight.quote) ? highlight.quote : null
 
@@ -133,6 +160,17 @@ export function PassageReader({
                   style={[styles.translateButton, isTranslated && styles.translateButtonActive]}
                 >
                   <Text style={[styles.translateButtonText, isTranslated && { color: MOCK_COLORS.amber }]}>訳</Text>
+                </Pressable>
+              )}
+              {!isCode && onPlayBlock && (
+                <Pressable
+                  accessibilityLabel={isPlayingBlock ? "この段落の読み上げを一時停止" : "この段落を読み上げ"}
+                  disabled={!isReadAloudAvailable}
+                  hitSlop={8}
+                  onPress={() => onPlayBlock(blockIndex)}
+                  style={[styles.playBlockButton, isReadingBlock && styles.translateButtonActive, !isReadAloudAvailable && { opacity: 0.3 }]}
+                >
+                  <Ionicons color={isReadingBlock ? MOCK_COLORS.amber : MOCK_COLORS.fgMuted} name={isPlayingBlock ? "pause" : "play"} size={10} />
                 </Pressable>
               )}
             </View>
@@ -160,11 +198,13 @@ export function PassageReader({
                     ]}
                   >
                     {quote ? (
-                      <>
-                        {renderSegments(segmentText(block.text.slice(0, block.text.indexOf(quote)), visibleGlossary), blockIndex)}
-                        {renderSegments(segmentText(quote, visibleGlossary), blockIndex, true)}
-                        {renderSegments(segmentText(block.text.slice(block.text.indexOf(quote) + quote.length), visibleGlossary), blockIndex)}
-                      </>
+                      <QuotedSegments
+                        blockIndex={blockIndex}
+                        glossary={visibleGlossary}
+                        quote={quote}
+                        renderSegments={renderSegments}
+                        text={block.text}
+                      />
                     ) : (
                       renderSegments(segmentText(block.text, visibleGlossary), blockIndex)
                     )}
@@ -181,6 +221,35 @@ export function PassageReader({
         )
       })}
     </View>
+  )
+}
+
+/**
+ * 根拠のハイライトを含む段落。前・根拠・後の 3 つに分けても、読み上げ中の単語の位置が通しで合うようにする
+ */
+function QuotedSegments({
+  blockIndex,
+  glossary,
+  quote,
+  renderSegments,
+  text,
+}: {
+  blockIndex: number
+  glossary: MockGlossaryEntry[]
+  quote: string
+  renderSegments: (segments: Segment[], blockIndex: number, isHighlighted?: boolean, wordOffset?: number) => React.ReactNode
+  text: string
+}) {
+  const start = text.indexOf(quote)
+  const before = segmentText(text.slice(0, start), glossary)
+  const middle = segmentText(quote, glossary)
+  const after = segmentText(text.slice(start + quote.length), glossary)
+  return (
+    <>
+      {renderSegments(before, blockIndex)}
+      {renderSegments(middle, blockIndex, true, countWords(before))}
+      {renderSegments(after, blockIndex, false, countWords(before) + countWords(middle))}
+    </>
   )
 }
 
@@ -324,6 +393,16 @@ const styles = StyleSheet.create({
     color: MOCK_COLORS.fg,
     fontFamily: MOCK_FONTS.reading,
   },
+  playBlockButton: {
+    alignItems: "center",
+    borderColor: MOCK_COLORS.lineStrong,
+    borderRadius: 4,
+    borderWidth: 1,
+    height: 20,
+    justifyContent: "center",
+    opacity: 0.7,
+    width: 20,
+  },
   peek: {
     backgroundColor: MOCK_COLORS.canvas,
     left: 0,
@@ -332,6 +411,11 @@ const styles = StyleSheet.create({
     right: 0,
     top: 0,
     zIndex: 2,
+  },
+  readingWord: {
+    backgroundColor: "rgba(243, 178, 76, 0.15)",
+    textDecorationColor: MOCK_COLORS.amber,
+    textDecorationLine: "underline",
   },
   translateButton: {
     borderColor: MOCK_COLORS.lineStrong,
