@@ -20,7 +20,7 @@ pnpm --filter cron add @aws-sdk/client-polly
 
 | ファイル | 中身 |
 | --- | --- |
-| `src/const/audio.ts` | `POLLY_MAX_BILLED_CHARACTERS = 3000`、`AUDIO_TEXT_VERSION = 1`（読み上げ用テキストの作り方を変えたら上げる。ハッシュが変わり作り直しになる） |
+| `src/const/audio.ts` | `POLLY_MAX_BILLED_CHARACTERS = 3000`、`AUDIO_TEXT_VERSION = 1`（読み上げ用テキストの作り方を変えたら上げる。ハッシュは変わるが、`ready` の行は自動では作り直さない。作り直すときはデプロイの後に `UPDATE passage_audios SET status = 'pending' WHERE status = 'ready'` を流す。[step3 §1](./step3-cron-generate-audio.md#1-対象と流れ)） |
 | `src/client/polly/tts-client.ts` | `TtsClient` interface と入出力の型 |
 | `src/client/polly/polly-tts-client.ts` | `PollyTtsClient` |
 | `src/client/polly/parse-speech-marks.ts` | Speech Marks（1 行 1 JSON）の parse |

@@ -159,7 +159,7 @@ export function useReadAloudRate(): [ReadAloudRate, (rate: ReadAloudRate) => voi
 "use client"
 
 /**
- * 音声の情報の状態。loading は画面を開いてから取得が終わるまで、error は取得か再生の失敗（再生ボタンで取り直す）
+ * 音声の情報の状態。loading は画面を開いてから取得が終わるまで、error は取得か再生の失敗（どちらも時刻表を捨ててあり、再生ボタンで取り直す）
  */
 export type ReadAloudAvailability = "error" | "failed" | "loading" | "pending" | "ready"
 
@@ -214,7 +214,9 @@ export function useReadAloud({ attemptId, blocks, onBlockListened }: UseReadAlou
 - 次のパート（同じブロックの次のパート、全文なら次のブロックの最初のパート）の `Audio` を `preload = "auto"` で先に作っておく（ブラウザのキャッシュに載せるため。再生はしない）
 - `isPlaying` は自分の操作ではなく、`audio` の `play` / `pause` イベントで決める（イヤホンが外れたなど、ブラウザが止めたときも表示を合わせる）
 - `ended`：同じブロックに次のパートがあればそれを、全文なら次のブロックを再生する。段落の再生・最後のブロックなら `stop()`
-- `error`：再生を止めて `availability = "error"`（時刻表は残す）
+- 外から止めた（`pause()`、`togglePlay` の一時停止。上部バーの一時停止・`visibilitychange` を含む）ら「止めた」印を立て、再開（`togglePlay` の再開）と自分の操作で始めたとき（待機からの再生・`playBlock` で別の段落）に下ろす。印が立っている間に `ended` が届いたら、次のパートがあれば `src` を差し替えるだけで `play()` せず、一時停止の表示にする（再開すると次のパートの最初から鳴る）。次が無ければ `stop()`。止める直前にパートが終わっていると、止めた後に `ended` が届いて次のパートが勝手に鳴るため
+- パートの終わり（`audio.ended` が true で `ended` の前）に `togglePlay` が呼ばれたら、`paused` でも再生中として扱って一時停止にする（`paused` だけで見ると、終わったパートを最初から鳴らし直す）
+- `error`：再生を止めて `availability = "error"`。時刻表も捨てる（公開し直しで音声が作り直されて古い mp3 が消えていると、同じ時刻表の URL では失敗し続けるため。次の再生ボタンでマニフェストを取り直す）
 
 **単語の追跡**
 
@@ -226,9 +228,9 @@ export function useReadAloud({ attemptId, blocks, onBlockListened }: UseReadAlou
 
 | 関数 | 動き |
 | --- | --- |
-| `togglePlay` | `availability` が `error` なら、時刻表があれば `ready` に戻して全文を最初から、無ければ取り直す（再生はしない）。待機中なら全文を最初のブロックから。再生中なら一時停止、一時停止中なら続きから |
+| `togglePlay` | `availability` が `error`（取得・再生の失敗。どちらも時刻表を捨ててある）なら取り直す（再生はしない。取り直したら待機に戻り、もう一度押すと再生する）。待機中なら全文を最初のブロックから。再生中なら一時停止、一時停止中なら続きから |
 | `playBlock(i)` | `i` を段落だけで再生中・一時停止中なら `togglePlay` と同じ。それ以外は今の再生を止めて `i` を段落だけで最初から。時刻表に無いブロックは何もしない |
-| `pause` | 一時停止（待機中は何もしない） |
+| `pause` | 一時停止（待機中は何もしない）。「止めた」印を立てる（直後に届いたパートの終わりで次のパートを鳴らさない） |
 | `stop` | 一時停止して `src` を外し、`playback = null` |
 | `setRate` | 保存して、再生中の `audio.playbackRate` も変える（再生は止めない） |
 
@@ -389,6 +391,8 @@ pnpm --filter web build
 - [ ] 提出すると結果画面に「読み上げ n 段落」が出て、`reading_attempts.listened_block_count` が n（psql）
 - [ ] `passage_audios` の行を消すと「読み上げの音声を準備中です」になり、再生ボタン・段落の再生ボタン・`R` が効かない。`status = 'failed'` で「この問題の読み上げは利用できません」
 - [ ] api を止めて開くと「読み上げを読み込めませんでした」。api を戻して再生ボタンを押すと取り直して「全文を読み上げ」に戻る
+- [ ] mp3 の読み込みを失敗させる（Playwright の `page.route("**/media/**", route => route.abort())`）と「読み上げを読み込めませんでした」。戻して再生ボタンを押すと `/api/attempts/:id/audio` を取り直して「全文を読み上げ」に戻り（再生はしない）、もう一度押すと再生する
+- [ ] パートの終わり（`pause` イベントで `audio.ended` が true の間）に一時停止を押すと、次のパートは鳴らずに一時停止の表示（「段落 n / N」が次の段落）になり、再開すると次のパートの最初から鳴る。段落の再生で一時停止した後に `ended` が届くと待機に戻る（`new Audio()` を包んで要素を取り、`pause` のリスナーからボタンを押す・`ended` を dispatch する）
 - [ ] mp3 を 1 つ消して再生すると、そのパートで止まって「読み上げを読み込めませんでした」
 - [ ] `browser_emulate_media` で `reducedMotion: "reduce"` にすると、自動スクロールがアニメーションしない
 - [ ] 幅 390px：ミニプレーヤーが閉じた設問シートのすぐ上にあり、`R` のキーキャップが無い。設問シートを開くとその下に隠れる
