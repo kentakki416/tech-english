@@ -8,8 +8,16 @@ import { DEMO_BLOCKS, DEMO_DICTIONARY, DEMO_GLOSSARY } from "@/components/featur
 import { PassageReader, WordCard, type WordCardContent } from "@/components/features/passage/PassageReader"
 import { appStyles } from "@/components/ui/app-styles"
 import { Wordmark } from "@/components/ui/Wordmark"
-import { THEME_COLORS } from "@/const/design-theme"
-import { signInWithGitHub } from "@/features/auth/auth.session"
+import { THEME_COLORS, THEME_FONTS } from "@/const/design-theme"
+import { signInAsDevUser, signInWithGitHub } from "@/features/auth/auth.session"
+
+/**
+ * 開発用のログインで使う seed 済みのユーザー（apps/web の `/api/dev/login` と同じ）
+ */
+const DEV_LOGIN_USERS = [
+  { email: "alice@dev.local", name: "alice" },
+  { email: "bob@dev.local", name: "bob" },
+] as const
 
 /**
  * ログイン。最初の画面で、単語の意味が出る体験をそのまま試せるようにする
@@ -30,6 +38,18 @@ export default function SignInScreen() {
     /** 成功したときはこの画面が外れるので、状態を戻すのは失敗・取り消しのときだけ */
     if (result === "signedIn") return
     setIsFailed(result === "failed")
+    setIsSigningIn(false)
+  }
+
+  /**
+   * 開発用のログイン（`__DEV__` のときだけ出す）。成功したときの扱いは GitHub と同じ
+   */
+  const pressDevSignIn = async (email: string) => {
+    setIsSigningIn(true)
+    setIsFailed(false)
+    const result = await signInAsDevUser(email)
+    if (result === "signedIn") return
+    setIsFailed(true)
     setIsSigningIn(false)
   }
 
@@ -85,6 +105,24 @@ export default function SignInScreen() {
           <Text accessibilityRole="alert" style={styles.error}>ログインに失敗しました。もう一度お試しください。</Text>
         )}
         <Text style={styles.footnote}>初回はアカウントが自動で作られます。GitHub のリポジトリにはアクセスしません。</Text>
+        {__DEV__ && (
+          <Text style={styles.devLogin}>
+            Dev Login:{" "}
+            {DEV_LOGIN_USERS.map((user, index) => (
+              <Text key={user.email}>
+                {index > 0 && " / "}
+                <Text
+                  accessibilityRole="link"
+                  disabled={isSigningIn}
+                  onPress={async () => pressDevSignIn(user.email)}
+                  style={styles.devLoginLink}
+                >
+                  {user.name}
+                </Text>
+              </Text>
+            ))}
+          </Text>
+        )}
       </View>
     </SafeAreaView>
   )
@@ -115,6 +153,17 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 18,
     padding: 12,
+  },
+  devLogin: {
+    color: THEME_COLORS.fgFaint,
+    fontFamily: THEME_FONTS.code,
+    fontSize: 11,
+    marginTop: 8,
+    textAlign: "center",
+  },
+  devLoginLink: {
+    color: THEME_COLORS.fgMuted,
+    textDecorationLine: "underline",
   },
   docsBadge: {
     borderColor: "rgba(243, 178, 76, 0.4)",

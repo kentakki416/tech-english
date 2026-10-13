@@ -3,6 +3,7 @@ import * as Linking from "expo-linking"
 import * as WebBrowser from "expo-web-browser"
 
 import { env } from "@/env"
+import { buildQueryString } from "@/libs/query-string"
 
 const GITHUB_AUTHORIZE_URL = "https://github.com/login/oauth/authorize"
 
@@ -67,11 +68,3 @@ const convertBytesToBase64 = (bytes: Uint8Array): string => btoa(String.fromChar
 
 const convertBase64ToBase64Url = (base64: string): string =>
   base64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")
-
-/**
- * クエリ文字列を encodeURIComponent で組み立てる（RN の URLSearchParams の実装差に依存しない）
- */
-const buildQueryString = (params: Record<string, string>): string =>
-  Object.entries(params)
-    .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
-    .join("&")

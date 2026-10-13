@@ -46,6 +46,24 @@ export const signInWithGitHub = async (): Promise<SignInResult> => {
 }
 
 /**
+ * 開発用のログイン（ログイン画面の「Dev Login」）。api の dev-login で seed 済みの dev ユーザーのトークンを受け取り、
+ * GitHub でログインしたときと同じく保存してログイン中にする。`__DEV__` でなければ何もしない
+ */
+export const signInAsDevUser = async (email: string): Promise<SignInResult> => {
+  if (!__DEV__) return "failed"
+  try {
+    const response = await authApi.devLogin({ email })
+    await saveTokens({ accessToken: response.access_token, refreshToken: response.refresh_token })
+  } catch (error) {
+    console.warn("Failed to sign in as dev user:", error)
+    return "failed"
+  }
+
+  useAuthStore.getState().setStatus("signedIn")
+  return "signedIn"
+}
+
+/**
  * ユーザーが押したログアウト。この端末のログイン状態だけを消す（他の端末はログインしたまま）
  *
  * refresh の失敗による強制ログアウト（`src/libs/api-client.ts` の `expireSession`）はここを通らない。

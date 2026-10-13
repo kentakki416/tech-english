@@ -37,3 +37,13 @@ pnpm ios          # iOS で起動
 - **`process.exit(1)` ではなく throw する**: RN ランタイムに `process.exit` は無い。module scope の throw は dev では LogBox の redbox、release では起動時クラッシュになる
 
 なお `process.env.EXPO_OS` は Expo が platform 名へ置換するビルド時定数（開発者が設定する env ではない）なので `src/env.ts` の管理対象外。
+
+## 開発用のログインとブラウザでの確認
+
+- **Dev Login**: `__DEV__` のときだけ、ログイン画面の下に「Dev Login: alice / bob」を出す。api の `POST /api/auth/dev-login`（[dev-login](../../docs/spec/dev-login/README.md)。api 側は production で無効）でトークンを受け取り、GitHub ログインと同じく保存してログイン中にする（`features/auth/auth.session.ts` の `signInAsDevUser`）
+- **web 表示のトークン**: secure-store は web で動かないため、`__DEV__` かつ `Platform.OS === "web"` のときだけ `localStorage` に保存する（`features/auth/auth.storage.ts`）。本番の web ビルドと iOS / Android は secure-store のまま
+- ログイン後の画面をブラウザで確かめる手順（シミュレーターが無いとき）:
+  1. `app.json` の `web.output` を一時的に `single` にする（`static` は 500 になる。終わったら必ず `static` に戻す）
+  2. api の CORS を Expo の origin に合わせて起動する: `cd apps/api && FRONTEND_URL=http://localhost:8085 pnpm dev`
+  3. `EXPO_PUBLIC_API_URL` を `http://localhost:8080` にして起動する。dev のバンドルは `.env*` ファイルの値がシェルの環境変数より優先されるため、一時的な `apps/mobile/.env.development.local`（`EXPO_PUBLIC_API_URL=http://localhost:8080`）で上書きし、終わったら消す（git 管理外にしていないのでコミットしない）
+  4. `npx expo start --web --port 8085` → ログイン画面の「Dev Login: alice」
