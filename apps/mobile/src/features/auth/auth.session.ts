@@ -1,5 +1,7 @@
 import * as Localization from "expo-localization"
 
+import { clearStudyReminders } from "@/features/study-reminder/study-reminder.sync"
+
 import { authApi } from "./auth.api"
 import { clearStoredTokens, getStoredTokens, saveTokens } from "./auth.storage"
 import { useAuthStore } from "./auth.store"
@@ -64,15 +66,28 @@ export const signInAsDevUser = async (email: string): Promise<SignInResult> => {
 }
 
 /**
- * ユーザーが押したログアウト。この端末のログイン状態だけを消す（他の端末はログインしたまま）
+ * ユーザーが押したログアウト。この端末のログイン状態とリマインダーの予約を消す（他の端末はログインしたまま）
  *
  * refresh の失敗による強制ログアウト（`src/libs/api-client.ts` の `expireSession`）はここを通らない。
- * 通知の予約の取り消しは study-reminder step3 がここに足す（強制ログアウトでは取り消さない）
+ * 強制ログアウトでは予約を取り消さない（ログインが切れても通知は届き、タップでログイン画面に進む仕様。study-reminder）
  */
 export const signOut = async (): Promise<void> => {
   await revokeRefreshToken()
+  await cancelStudyReminders()
   await clearStoredTokens()
   useAuthStore.getState().setStatus("signedOut")
+}
+
+/**
+ * この端末のリマインダーの予約を取り消し、設定の store を空にする。失敗してもログアウトは続ける
+ * （次にログインしたときの同期で、そのユーザーの設定に作り直される）
+ */
+const cancelStudyReminders = async (): Promise<void> => {
+  try {
+    await clearStudyReminders()
+  } catch (error) {
+    console.warn("Failed to cancel study reminders:", error)
+  }
 }
 
 /**
