@@ -21,6 +21,10 @@ const PUBLIC_PATHS = [
   /** `/api/auth/callback/github/mobile`（mobile のログイン）もセグメント境界の前方一致で含まれる */
   "/api/auth/callback/github",
   "/api/auth/callback/google",
+  /**
+   * アカウント削除の完了。削除の Server Action が cookie を消してから redirect する
+   */
+  "/settings/delete-account/done",
   ...DEV_ONLY_PUBLIC_PATHS,
 ]
 

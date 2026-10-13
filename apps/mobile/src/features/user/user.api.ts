@@ -1,4 +1,5 @@
 import {
+  type DeleteUserRequest,
   type GetUserResponse,
   getUserResponseSchema,
   type UpdateUserRequest,
@@ -9,6 +10,13 @@ import {
 import { apiClient } from "@/libs/api-client"
 
 export const userApi = {
+  /**
+   * DELETE /api/user。アカウントの削除。成功は 204（ボディなし）。確認の文言が違えば API が 400
+   */
+  delete: async (body: DeleteUserRequest): Promise<void> => {
+    await apiClient.delete("/api/user", { data: body })
+  },
+
   /**
    * GET /api/user。ログイン中のユーザー
    */

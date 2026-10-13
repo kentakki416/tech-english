@@ -88,6 +88,10 @@ export default function RootLayout() {
               * 学習履歴（マイページの「すべて見る」）。上部バーを画面が持つ
               */}
             <Stack.Screen name="history" options={{ headerShown: false }} />
+            {/**
+              * アカウント削除の確認（設定タブの「危険な操作」）。上部バーを画面が持つ
+              */}
+            <Stack.Screen name="settings/delete-account" options={{ headerShown: false }} />
           </Stack.Protected>
           <Stack.Protected guard={status === "signedOut"}>
             <Stack.Screen name="sign-in" options={{ headerShown: false }} />
