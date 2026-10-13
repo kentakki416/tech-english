@@ -1,9 +1,11 @@
 import { Router } from "express"
 
 import { AttemptDetailController } from "../controller/attempt/detail"
+import { AttemptSubmitController } from "../controller/attempt/submit"
 
 type AttemptRouterControllers = {
   detail?: AttemptDetailController
+  submit?: AttemptSubmitController
 }
 
 /**
@@ -19,6 +21,14 @@ export const attemptRouter = (controllers: AttemptRouterControllers): Router => 
   if (controllers.detail) {
     const controller = controllers.detail
     router.get("/:id", async (req, res) => controller.execute(req, res))
+  }
+
+  /**
+   * POST /api/attempt/:id/submit
+   */
+  if (controllers.submit) {
+    const controller = controllers.submit
+    router.post("/:id/submit", async (req, res) => controller.execute(req, res))
   }
 
   return router

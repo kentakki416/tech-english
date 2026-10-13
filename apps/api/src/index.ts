@@ -25,11 +25,13 @@ import { AdminPassageUnpublishController } from "./controller/admin/passage/unpu
 import { AdminPassageUpdateController } from "./controller/admin/passage/update"
 import { AttemptDetailController } from "./controller/attempt/detail"
 import { AttemptStartController } from "./controller/attempt/start"
+import { AttemptSubmitController } from "./controller/attempt/submit"
 import { AuthDevLoginController } from "./controller/auth/dev-login"
 import { AuthGitHubController } from "./controller/auth/github"
 import { AuthGoogleController } from "./controller/auth/google"
 import { AuthLogoutController } from "./controller/auth/logout"
 import { AuthRefreshController } from "./controller/auth/refresh"
+import { DictionaryLookupController } from "./controller/dictionary/lookup"
 import { EventCreateController } from "./controller/event/create"
 import { HealthLivenessController } from "./controller/health/liveness"
 import { HealthReadinessController } from "./controller/health/readiness"
@@ -54,6 +56,7 @@ import {
   DrizzleAuthAccountRepository,
   DrizzleContentSourceRepository,
   DrizzleDatabaseHealthRepository,
+  DrizzleDictionaryRepository,
   DrizzleMemoRepository,
   DrizzlePassageRepository,
   DrizzleReadingAttemptRepository,
@@ -64,6 +67,7 @@ import { IoRedisHealthRepository, IoRedisRefreshTokenRepository } from "./reposi
 import { adminRouter } from "./routes/admin-router"
 import { attemptRouter } from "./routes/attempt-router"
 import { authRouter } from "./routes/auth-router"
+import { dictionaryRouter } from "./routes/dictionary-router"
 import { eventRouter } from "./routes/event-router"
 import { healthRouter } from "./routes/health-router"
 import { memoRouter } from "./routes/memo-router"
@@ -102,6 +106,7 @@ const contentSourceRepository = new DrizzleContentSourceRepository(db)
  */
 const passageRepository = new DrizzlePassageRepository(db)
 const readingAttemptRepository = new DrizzleReadingAttemptRepository(db)
+const dictionaryRepository = new DrizzleDictionaryRepository(db)
 const databaseHealthRepository = new DrizzleDatabaseHealthRepository(db)
 const redisHealthRepository = new IoRedisHealthRepository(redis)
 const refreshTokenRepository = new IoRedisRefreshTokenRepository(redis)
@@ -201,10 +206,21 @@ const passageListController = new PassageListController(passageRepository, readi
 const passageRandomController = new PassageRandomController(passageRepository, readingAttemptRepository)
 
 /**
- * ユーザー向けの挑戦（開始・取得）Controller のインスタンス化
+ * ユーザー向けの挑戦（開始・取得・提出）Controller のインスタンス化
  */
 const attemptDetailController = new AttemptDetailController(passageRepository, readingAttemptRepository)
 const attemptStartController = new AttemptStartController(passageRepository, readingAttemptRepository, userRepository)
+const attemptSubmitController = new AttemptSubmitController(
+  passageRepository,
+  readingAttemptRepository,
+  transactionRunner,
+  userRepository,
+)
+
+/**
+ * 英和辞書（解答中の単語の意味）Controller のインスタンス化
+ */
+const dictionaryLookupController = new DictionaryLookupController(dictionaryRepository)
 
 const app = express()
 
@@ -341,6 +357,13 @@ app.use(
   "/api/attempt",
   attemptRouter({
     detail: attemptDetailController,
+    submit: attemptSubmitController,
+  })
+)
+app.use(
+  "/api/dictionary",
+  dictionaryRouter({
+    lookup: dictionaryLookupController,
   })
 )
 

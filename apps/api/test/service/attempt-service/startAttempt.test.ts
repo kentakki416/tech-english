@@ -1,5 +1,4 @@
 import { type InProgressAttemptView, startAttempt } from "../../../src/service/attempt-service"
-import { PASSAGE_BLOCKS, QUESTION_ITEMS } from "../../fixture/passage-content"
 import { createMockPassageRepository, createMockReadingAttemptRepository } from "../../fixture/passage-repository-mock"
 
 import {
@@ -8,6 +7,8 @@ import {
   buildAttemptContent,
   createMockUserRepository,
   EXPECTED_ATTRIBUTION,
+  EXPECTED_BLOCKS_WITHOUT_SEGMENTS,
+  EXPECTED_QUESTIONS,
   FIXED_NOW,
   USER,
 } from "./fixtures"
@@ -18,28 +19,6 @@ const userRepository = createMockUserRepository()
 const repo = { passageRepository, readingAttemptRepository, userRepository }
 
 const INPUT = { now: FIXED_NOW, passageId: 1, userId: 7 }
-
-/**
- * 解答中の形のブロック（segments を除く）
- */
-const EXPECTED_BLOCKS_WITHOUT_SEGMENTS = [
-  { lang: null, paragraphNumber: null, text: PASSAGE_BLOCKS[0]?.text, translationJa: "エフェクトによる同期", type: "heading" },
-  { lang: null, paragraphNumber: 1, text: PASSAGE_BLOCKS[1]?.text, translationJa: PASSAGE_BLOCKS[1]?.translationJa, type: "paragraph" },
-  { lang: null, paragraphNumber: 2, text: PASSAGE_BLOCKS[2]?.text, translationJa: PASSAGE_BLOCKS[2]?.translationJa, type: "paragraph" },
-  { lang: "jsx", paragraphNumber: null, text: PASSAGE_BLOCKS[3]?.text, translationJa: null, type: "code" },
-  { lang: null, paragraphNumber: 3, text: PASSAGE_BLOCKS[4]?.text, translationJa: PASSAGE_BLOCKS[4]?.translationJa, type: "paragraph" },
-]
-
-/**
- * 解答中の形の設問（正解・解説・根拠を持たない）
- */
-const EXPECTED_QUESTIONS = QUESTION_ITEMS.map((item, index) => ({
-  id: 201 + index,
-  choices: item.choices,
-  orderIndex: index,
-  prompt: item.prompt,
-  type: item.type,
-}))
 
 const extractView = (result: Awaited<ReturnType<typeof startAttempt>>): InProgressAttemptView => {
   if (!result.ok) throw new Error("Expected ok result")
@@ -207,6 +186,31 @@ describe("startAttempt", () => {
       expect(result.ok && result.value.isCreated).toBe(false)
       expect(result.ok && result.value.view.id).toBe(305)
       expect(readingAttemptRepository.findAliveInProgress).toHaveBeenCalledTimes(2)
+    })
+
+    it("同時に開始されたときの読み直しは read replica の遅れで見失わないよう primary から読む（最初の確認は replica のまま）", async () => {
+      passageRepository.findAttemptContentById.mockResolvedValue(buildAttemptContent())
+      readingAttemptRepository.findAliveInProgress
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(buildAttempt({ id: 305 }))
+      readingAttemptRepository.createInProgress.mockResolvedValue(null)
+
+      await startAttempt(INPUT, repo)
+
+      expect(readingAttemptRepository.findAliveInProgress.mock.calls).toEqual([
+        [7, 1, ALIVE_SINCE],
+        [7, 1, ALIVE_SINCE, { fromPrimary: true }],
+      ])
+    })
+
+    it("新しく作れたときは読み直さない", async () => {
+      passageRepository.findAttemptContentById.mockResolvedValue(buildAttemptContent())
+      readingAttemptRepository.findAliveInProgress.mockResolvedValue(null)
+      readingAttemptRepository.createInProgress.mockResolvedValue(buildAttempt({ id: 302, startedAt: FIXED_NOW }))
+
+      await startAttempt(INPUT, repo)
+
+      expect(readingAttemptRepository.findAliveInProgress.mock.calls).toEqual([[7, 1, ALIVE_SINCE]])
     })
   })
 

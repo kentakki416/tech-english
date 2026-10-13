@@ -4,18 +4,21 @@ import { eq, readingAttempts } from "@repo/db"
 
 import { AttemptDetailController } from "../../../src/controller/attempt/detail"
 import { AttemptStartController } from "../../../src/controller/attempt/start"
+import { AttemptSubmitController } from "../../../src/controller/attempt/submit"
 import { DrizzlePassageRepository } from "../../../src/repository/drizzle/passage-repository"
 import { DrizzleReadingAttemptRepository } from "../../../src/repository/drizzle/reading-attempt-repository"
+import { DrizzleTransactionRunner } from "../../../src/repository/drizzle/transaction-runner"
 import { DrizzleUserRepository } from "../../../src/repository/drizzle/user-repository"
 import { attemptRouter } from "../../../src/routes/attempt-router"
 import { passageRouter } from "../../../src/routes/passage-router"
-import { insertGeneratedPassage, insertReadingAttempt, insertSubmittedAttempt } from "../../fixture/passage"
+import { insertGeneratedPassage, insertReadingAttempt } from "../../fixture/passage"
 import { attachUnhandledExceptionHandler, createTestApp, createTestUser } from "../helper"
 import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb } from "../setup"
 
 const passageRepository = new DrizzlePassageRepository(testDb)
 const readingAttemptRepository = new DrizzleReadingAttemptRepository(testDb)
 const userRepository = new DrizzleUserRepository(testDb)
+const transactionRunner = new DrizzleTransactionRunner(testDb)
 
 const app = createTestApp()
 
@@ -23,7 +26,13 @@ app.use(
   "/api/passage",
   passageRouter({ start: new AttemptStartController(passageRepository, readingAttemptRepository, userRepository) }),
 )
-app.use("/api/attempt", attemptRouter({ detail: new AttemptDetailController(passageRepository, readingAttemptRepository) }))
+app.use(
+  "/api/attempt",
+  attemptRouter({
+    detail: new AttemptDetailController(passageRepository, readingAttemptRepository),
+    submit: new AttemptSubmitController(passageRepository, readingAttemptRepository, transactionRunner, userRepository),
+  }),
+)
 attachUnhandledExceptionHandler(app)
 
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -90,6 +99,30 @@ describe("GET /api/attempt/:id", () => {
       expect(await selectAttempt(attempt.id)).toMatchObject({ status: "in_progress" })
     })
 
+    it("提出済みの挑戦は提出のレスポンスと同じ結果の形を返し、用語集に語義設問の対象語句（escape hatch）も含む", async () => {
+      const { glossary, passage, questions } = await insertPublishedGeneratedPassage()
+      const { token } = await createTestUser()
+      const started = await request(app).post(`/api/passage/${passage.id}/attempt`).set("Authorization", `Bearer ${token}`)
+      const submitted = await request(app)
+        .post(`/api/attempt/${started.body.id}/submit`)
+        .set("Authorization", `Bearer ${token}`)
+        .send({
+          active_seconds: 0,
+          answers: [{ question_id: questions[2].id, selected_choice_index: 1 }],
+          translated_block_count: 1,
+          word_lookups: [{ glossary_entry_id: glossary[0].id, lemma: "stay in sync with", source: "glossary", surface: "stay in sync with" }],
+        })
+
+      const res = await request(app).get(`/api/attempt/${started.body.id}`).set("Authorization", `Bearer ${token}`)
+
+      expect(submitted.status).toBe(200)
+      expect(res.status).toBe(200)
+      expect(res.body).toEqual(submitted.body)
+      expect(res.body).toMatchObject({ correct_count: 1, status: "submitted", words_per_minute: null })
+      expect(res.body.glossary.map((entry: { id: number }) => entry.id)).toEqual(glossary.map((entry) => entry.id))
+      expect(started.body.glossary.map((entry: { id: number }) => entry.id)).not.toContain(glossary[1]?.id)
+    })
+
     it("期限切れの挑戦は期限切れの形を返す", async () => {
       const { passage } = await insertPublishedGeneratedPassage()
       const { token, user } = await createTestUser()
@@ -136,16 +169,6 @@ describe("GET /api/attempt/:id", () => {
       const res = await request(app).get("/api/attempt/999999").set("Authorization", `Bearer ${token}`)
 
       expect(res.status).toBe(404)
-    })
-
-    it("提出済みの挑戦は（結果の形ができるまで）409 を返す", async () => {
-      const { passage } = await insertPublishedGeneratedPassage()
-      const { token, user } = await createTestUser()
-      const attempt = await insertSubmittedAttempt(passage.id, user.id, 2)
-
-      const res = await request(app).get(`/api/attempt/${attempt.id}`).set("Authorization", `Bearer ${token}`)
-
-      expect(res.status).toBe(409)
     })
 
     it.each([

@@ -8,11 +8,11 @@ import { AuthRequest } from "../../middleware/auth"
 import { PassageRepository, ReadingAttemptRepository } from "../../repository"
 import * as service from "../../service"
 
-import { convertExpiredAttemptToResponse, convertInProgressAttemptToResponse } from "./mapper"
+import { convertExpiredAttemptToResponse, convertInProgressAttemptToResponse, convertSubmittedAttemptToResponse } from "./mapper"
 
 /**
- * 自分の挑戦の取得API（GET /api/attempt/:id）。in_progress は開始時と同じ形、expired は概要だけを返す。
- * 他人の挑戦・存在しない ID は 404
+ * 自分の挑戦の取得API（GET /api/attempt/:id）。in_progress は開始時と同じ形、submitted は提出 API と同じ結果の形、
+ * expired は概要だけを返す。他人の挑戦・存在しない ID は 404
  */
 export class AttemptDetailController {
   constructor(
@@ -35,7 +35,11 @@ export class AttemptDetailController {
     const view = result.value
     const response = parseResponse(
       getAttemptResponseSchema,
-      view.status === "in_progress" ? convertInProgressAttemptToResponse(view) : convertExpiredAttemptToResponse(view),
+      view.status === "in_progress"
+        ? convertInProgressAttemptToResponse(view)
+        : view.status === "submitted"
+          ? convertSubmittedAttemptToResponse(view)
+          : convertExpiredAttemptToResponse(view),
     )
     return res.status(200).json(response)
   }

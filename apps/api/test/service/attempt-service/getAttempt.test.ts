@@ -1,7 +1,17 @@
 import { getAttempt } from "../../../src/service/attempt-service"
 import { createMockPassageRepository, createMockReadingAttemptRepository } from "../../fixture/passage-repository-mock"
 
-import { ALIVE_SINCE, buildAttempt, buildAttemptContent, EXPECTED_ATTRIBUTION, FIXED_NOW } from "./fixtures"
+import {
+  ALIVE_SINCE,
+  buildAttempt,
+  buildAttemptContent,
+  buildExpectedSubmittedView,
+  buildStoredAnswers,
+  buildStoredWordLookups,
+  buildSubmittedAttempt,
+  EXPECTED_ATTRIBUTION,
+  FIXED_NOW,
+} from "./fixtures"
 
 const passageRepository = createMockPassageRepository()
 const readingAttemptRepository = createMockReadingAttemptRepository()
@@ -68,6 +78,18 @@ describe("getAttempt", () => {
       })
     })
 
+    it("提出済みの挑戦は保存済みの回答と調べた単語から結果の形を返す（read replica から読む）", async () => {
+      readingAttemptRepository.findByIdForUser.mockResolvedValue(buildSubmittedAttempt())
+      readingAttemptRepository.findAnswersByAttemptId.mockResolvedValue(buildStoredAnswers())
+      readingAttemptRepository.findWordLookupsWithMeaning.mockResolvedValue(buildStoredWordLookups())
+
+      const result = await getAttempt(INPUT, repo)
+
+      expect(result).toEqual({ ok: true, value: buildExpectedSubmittedView() })
+      expect(readingAttemptRepository.findAnswersByAttemptId).toHaveBeenCalledWith(301, undefined)
+      expect(readingAttemptRepository.findWordLookupsWithMeaning).toHaveBeenCalledWith(301, undefined)
+    })
+
     it.each([
       ["開始から 23:59:59.999（境界値）", "2026-10-12T00:00:00.001Z", "in_progress"],
       ["開始からちょうど 24 時間（境界値）", "2026-10-12T00:00:00.000Z", "expired"],
@@ -90,12 +112,12 @@ describe("getAttempt", () => {
       expect(passageRepository.findAttemptContentById).not.toHaveBeenCalled()
     })
 
-    it("提出済みの挑戦は（結果の形ができるまで）409 を返す", async () => {
-      readingAttemptRepository.findByIdForUser.mockResolvedValue(buildAttempt({ status: "submitted" }))
+    it("提出済みなのに回答が無い設問があれば throw する", async () => {
+      readingAttemptRepository.findByIdForUser.mockResolvedValue(buildSubmittedAttempt())
+      readingAttemptRepository.findAnswersByAttemptId.mockResolvedValue(buildStoredAnswers().slice(0, 2))
+      readingAttemptRepository.findWordLookupsWithMeaning.mockResolvedValue([])
 
-      const result = await getAttempt(INPUT, repo)
-
-      expect(result).toEqual({ error: expect.objectContaining({ statusCode: 409, type: "CONFLICT" }), ok: false })
+      await expect(getAttempt(INPUT, repo)).rejects.toThrow()
     })
 
     it("挑戦の問題が見つからなければ throw する", async () => {

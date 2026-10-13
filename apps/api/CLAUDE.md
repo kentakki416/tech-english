@@ -32,6 +32,7 @@ pnpm db:seed:sample-passages # 開発用のサンプル問題（公開 1・下�
 - **Service の Repository 引数は単一でも `repo: { xxxRepository }` のオブジェクトにまとめる**。将来 Repository が増えてもシグネチャを変えずに済むため
 - **DI は `src/index.ts`** で Repository → Controller → Router の順に組み立てる。実装クラスを import してよいのはここと Controller インテグレーションテストだけ
 - **トランザクション**: 抽象は `src/repository/transaction.ts`、実装は `src/repository/drizzle/transaction-runner.ts`（Prisma 版は `src/repository/prisma/`）。`TransactionContext` は不透明トークンなので、service から `tx` で直接クエリを書くことはできない（型エラーになる）
+- **read replica**: `DATABASE_REPLICA_URL` があると、tx の外の読み取りは read replica に流れる。書き込みの直後・同時操作で書き込めなかった後の読み直しなど、replica の遅れが許されない読み取りは `ReadOptions`（`{ fromPrimary: true }`）を受ける Repository メソッドで primary から読む（Drizzle は `this._db.$primary`、Prisma は `$transaction` の中。例: `ReadingAttemptRepository`）
 
 ## 行動イベントの送出
 

@@ -1,12 +1,41 @@
-import { and, asc, DrizzleClient, eq, gt, inArray, lte, or, readingAttempts, sql } from "@repo/db"
-import type { ReadingAttempt } from "@repo/domain"
+import {
+  and,
+  asc,
+  attemptAnswers,
+  attemptWordLookups,
+  dictionaryEntries,
+  DrizzleClient,
+  eq,
+  gt,
+  inArray,
+  lte,
+  or,
+  passageGlossaryEntries,
+  readingAttempts,
+  sql,
+} from "@repo/db"
+import type { AttemptAnswer, AttemptWordLookup, ReadingAttempt } from "@repo/domain"
 
-import type { CreateReadingAttemptInput, PassageAttemptSummary, ReadingAttemptRepository } from "../reading-attempt-repository"
+import type {
+  CreateReadingAttemptInput,
+  InsertAttemptAnswerInput,
+  InsertAttemptWordLookupInput,
+  PassageAttemptSummary,
+  ReadingAttemptRepository,
+  ReadOptions,
+  SubmitReadingAttemptInput,
+  WordLookupWithMeaning,
+} from "../reading-attempt-repository"
+import type { TransactionContext } from "../transaction"
+
+import { resolveDrizzleClient } from "./transaction-runner"
 
 /**
  * Drizzleの型
  */
 type ReadingAttemptRow = typeof readingAttempts.$inferSelect
+type AttemptAnswerRow = typeof attemptAnswers.$inferSelect
+type AttemptWordLookupRow = typeof attemptWordLookups.$inferSelect
 
 /**
  * Drizzleの型 → ドメインの型
@@ -26,6 +55,29 @@ const convertReadingAttemptRowToDomain = (row: ReadingAttemptRow): ReadingAttemp
   translatedBlockCount: row.translatedBlockCount,
   userId: row.userId,
   wordLookupCount: row.wordLookupCount,
+  createdAt: row.createdAt,
+  updatedAt: row.updatedAt,
+})
+
+const convertAttemptAnswerRowToDomain = (row: AttemptAnswerRow): AttemptAnswer => ({
+  id: row.id,
+  attemptId: row.attemptId,
+  isCorrect: row.isCorrect,
+  questionId: row.questionId,
+  selectedChoiceIndex: row.selectedChoiceIndex,
+  createdAt: row.createdAt,
+  updatedAt: row.updatedAt,
+})
+
+const convertAttemptWordLookupRowToDomain = (row: AttemptWordLookupRow): AttemptWordLookup => ({
+  id: row.id,
+  attemptId: row.attemptId,
+  glossaryEntryId: row.glossaryEntryId,
+  lemma: row.lemma,
+  passageId: row.passageId,
+  source: row.source,
+  surface: row.surface,
+  userId: row.userId,
   createdAt: row.createdAt,
   updatedAt: row.updatedAt,
 })
@@ -79,8 +131,13 @@ export class DrizzleReadingAttemptRepository implements ReadingAttemptRepository
     return rows.length
   }
 
-  public async findAliveInProgress(userId: number, passageId: number, aliveSince: Date): Promise<ReadingAttempt | null> {
-    const [row] = await this._db
+  public async findAliveInProgress(
+    userId: number,
+    passageId: number,
+    aliveSince: Date,
+    options?: ReadOptions,
+  ): Promise<ReadingAttempt | null> {
+    const [row] = await this._resolveReader(options)
       .select()
       .from(readingAttempts)
       .where(
@@ -93,11 +150,96 @@ export class DrizzleReadingAttemptRepository implements ReadingAttemptRepository
     return row ? convertReadingAttemptRowToDomain(row) : null
   }
 
-  public async findByIdForUser(id: number, userId: number): Promise<ReadingAttempt | null> {
-    const [row] = await this._db
+  public async findAnswersByAttemptId(attemptId: number, options?: ReadOptions): Promise<AttemptAnswer[]> {
+    const rows = await this._resolveReader(options)
+      .select()
+      .from(attemptAnswers)
+      .where(eq(attemptAnswers.attemptId, attemptId))
+      .orderBy(asc(attemptAnswers.id))
+    return rows.map(convertAttemptAnswerRowToDomain)
+  }
+
+  public async findByIdForUser(id: number, userId: number, options?: ReadOptions): Promise<ReadingAttempt | null> {
+    const [row] = await this._resolveReader(options)
       .select()
       .from(readingAttempts)
       .where(and(eq(readingAttempts.id, id), eq(readingAttempts.userId, userId)))
+    return row ? convertReadingAttemptRowToDomain(row) : null
+  }
+
+  /**
+   * 意味の出どころは source で決まるので、用語集・辞書の join にそれぞれ source の条件を付ける
+   */
+  public async findWordLookupsWithMeaning(attemptId: number, options?: ReadOptions): Promise<WordLookupWithMeaning[]> {
+    const rows = await this._resolveReader(options)
+      .select({
+        dictionaryMeaningJa: dictionaryEntries.meaningJa,
+        glossaryMeaningJa: passageGlossaryEntries.meaningJa,
+        lookup: attemptWordLookups,
+      })
+      .from(attemptWordLookups)
+      .leftJoin(
+        passageGlossaryEntries,
+        and(eq(attemptWordLookups.source, "glossary"), eq(passageGlossaryEntries.id, attemptWordLookups.glossaryEntryId)),
+      )
+      .leftJoin(
+        dictionaryEntries,
+        and(eq(attemptWordLookups.source, "dictionary"), eq(dictionaryEntries.headword, attemptWordLookups.lemma)),
+      )
+      .where(eq(attemptWordLookups.attemptId, attemptId))
+      .orderBy(asc(attemptWordLookups.id))
+    return rows.map((row) => ({
+      ...convertAttemptWordLookupRowToDomain(row.lookup),
+      meaningJa: row.lookup.source === "glossary" ? row.glossaryMeaningJa : row.dictionaryMeaningJa,
+    }))
+  }
+
+  public async insertAnswers(answers: InsertAttemptAnswerInput[], tx?: TransactionContext): Promise<void> {
+    if (answers.length === 0) return
+    const client = resolveDrizzleClient(this._db, tx)
+    await client.insert(attemptAnswers).values(
+      answers.map((answer) => ({
+        attemptId: answer.attemptId,
+        isCorrect: answer.isCorrect,
+        questionId: answer.questionId,
+        selectedChoiceIndex: answer.selectedChoiceIndex,
+      })),
+    )
+  }
+
+  public async insertWordLookups(lookups: InsertAttemptWordLookupInput[], tx?: TransactionContext): Promise<void> {
+    if (lookups.length === 0) return
+    const client = resolveDrizzleClient(this._db, tx)
+    await client.insert(attemptWordLookups).values(
+      lookups.map((lookup) => ({
+        attemptId: lookup.attemptId,
+        glossaryEntryId: lookup.glossaryEntryId,
+        lemma: lookup.lemma,
+        passageId: lookup.passageId,
+        source: lookup.source,
+        surface: lookup.surface,
+        userId: lookup.userId,
+      })),
+    )
+  }
+
+  public async markSubmitted(input: SubmitReadingAttemptInput, tx?: TransactionContext): Promise<ReadingAttempt | null> {
+    const client = resolveDrizzleClient(this._db, tx)
+    const [row] = await client
+      .update(readingAttempts)
+      .set({
+        correctCount: input.correctCount,
+        elapsedSeconds: input.elapsedSeconds,
+        isOvertime: input.isOvertime,
+        questionCount: input.questionCount,
+        status: "submitted",
+        studyDate: input.studyDate,
+        submittedAt: input.submittedAt,
+        translatedBlockCount: input.translatedBlockCount,
+        wordLookupCount: input.wordLookupCount,
+      })
+      .where(and(eq(readingAttempts.id, input.attemptId), eq(readingAttempts.status, "in_progress")))
+      .returning()
     return row ? convertReadingAttemptRowToDomain(row) : null
   }
 
@@ -126,5 +268,12 @@ export class DrizzleReadingAttemptRepository implements ReadingAttemptRepository
       .groupBy(readingAttempts.passageId)
       .orderBy(asc(readingAttempts.passageId))
     return rows
+  }
+
+  /**
+   * 読み取りに使う接続。fromPrimary なら read replica を通さずに primary から読む
+   */
+  private _resolveReader(options?: ReadOptions): DrizzleClient["$primary"] {
+    return options?.fromPrimary ? this._db.$primary : this._db
   }
 }

@@ -1,6 +1,7 @@
 export * from "./auth-account-repository"
 export * from "./content-source-repository"
 export * from "./database-health-repository"
+export * from "./dictionary-repository"
 export * from "./memo-repository"
 export * from "./passage-repository"
 export * from "./reading-attempt-repository"

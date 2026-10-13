@@ -23,6 +23,11 @@ export const createMockReadingAttemptRepository = () => ({
   createInProgress: vi.fn<ReadingAttemptRepository["createInProgress"]>(),
   expireStale: vi.fn<ReadingAttemptRepository["expireStale"]>(),
   findAliveInProgress: vi.fn<ReadingAttemptRepository["findAliveInProgress"]>(),
+  findAnswersByAttemptId: vi.fn<ReadingAttemptRepository["findAnswersByAttemptId"]>(),
   findByIdForUser: vi.fn<ReadingAttemptRepository["findByIdForUser"]>(),
+  findWordLookupsWithMeaning: vi.fn<ReadingAttemptRepository["findWordLookupsWithMeaning"]>(),
+  insertAnswers: vi.fn<ReadingAttemptRepository["insertAnswers"]>(),
+  insertWordLookups: vi.fn<ReadingAttemptRepository["insertWordLookups"]>(),
+  markSubmitted: vi.fn<ReadingAttemptRepository["markSubmitted"]>(),
   summarizeByPassageIds: vi.fn<ReadingAttemptRepository["summarizeByPassageIds"]>(),
 })

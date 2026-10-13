@@ -1,6 +1,12 @@
 import { z } from "zod"
 
-import { PASSAGE_BLOCK_TYPES, PASSAGE_SEGMENT_KINDS, QUESTION_TYPES } from "@repo/domain"
+import {
+  PASSAGE_BLOCK_TYPES,
+  PASSAGE_SEGMENT_KINDS,
+  QUESTION_CHOICE_COUNT,
+  QUESTION_TYPES,
+  WORD_LOOKUP_SOURCES,
+} from "@repo/domain"
 
 import { passageAttributionSchema, passageDifficultySchema } from "./passage"
 
@@ -104,6 +110,87 @@ export const expiredAttemptSchema = z.object({
   status: z.literal("expired"),
 })
 
+/**
+ * 結果の設問。解答中の設問に、正解・解説・根拠と自分の回答・正誤を足したもの。
+ * 正解・解説・選択肢はいまの設問、selected_choice_index と is_correct は提出時に保存した値
+ */
+export const resultQuestionSchema = attemptQuestionSchema.extend({
+  correct_choice_index: z.number().int(),
+  /**
+   * 根拠のブロック（block_index）のセグメントの範囲（segment_end は含まない）。引用が本文に見つからなければ null
+   */
+  evidence: z
+    .object({
+      block_index: z.number().int(),
+      quote: z.string(),
+      segment_end: z.number().int(),
+      segment_start: z.number().int(),
+    })
+    .nullable(),
+  explanation_ja: z.string(),
+  /**
+   * 提出時点の正誤（保存値。後から正解が直されても変わらない）
+   */
+  is_correct: z.boolean(),
+  /**
+   * null は未回答
+   */
+  selected_choice_index: z.number().int().nullable(),
+})
+
+/**
+ * 結果の「調べた単語」の 1 件。meaning_ja は用語集の文脈での意味か辞書の意味（用語集が消された・辞書に無いものは null）
+ */
+export const resultWordLookupSchema = z.object({
+  lemma: z.string(),
+  meaning_ja: z.string().nullable(),
+  source: z.enum(WORD_LOOKUP_SOURCES),
+  surface: z.string(),
+})
+
+/**
+ * 提出済みの挑戦（結果の形）。本文・用語集は語義設問の対象語句も含む（結果画面では用語集の意味も見せる）
+ */
+export const submittedAttemptSchema = z.object({
+  id: z.number().int(),
+  attribution: passageAttributionSchema,
+  /**
+   * 語義設問の対象語句も含む用語集で分割する
+   */
+  blocks: z.array(attemptBlockSchema),
+  correct_count: z.number().int(),
+  /**
+   * 画面を見ていた秒数を、提出時刻 − 開始時刻で切り詰めた値
+   */
+  elapsed_seconds: z.number().int(),
+  glossary: z.array(attemptGlossaryEntrySchema),
+  is_overtime: z.boolean(),
+  passage: attemptPassageSchema,
+  question_count: z.number().int(),
+  questions: z.array(resultQuestionSchema),
+  started_at: z.string(),
+  status: z.literal("submitted"),
+  /**
+   * 提出時のユーザーのタイムゾーンでの日付（YYYY-MM-DD）
+   */
+  study_date: z.string(),
+  submitted_at: z.string(),
+  /**
+   * 開始時点の制限時間
+   */
+  time_limit_seconds: z.number().int(),
+  translated_block_count: z.number().int(),
+  word_lookup_count: z.number().int(),
+  /**
+   * 結果画面の「調べた単語」。(source, 用語集の ID か見出し語) で重複を除き、最初に調べた順
+   */
+  word_lookups: z.array(resultWordLookupSchema),
+  /**
+   * 英単語数 ÷ かかった分（四捨五入）。elapsed_seconds が 0 なら null（web / mobile で同じ値にするため api で計算する）
+   */
+  words_per_minute: z.number().int().nullable(),
+})
+
 export type PassageSegmentResponse = z.infer<typeof passageSegmentSchema>
 export type AttemptBlock = z.infer<typeof attemptBlockSchema>
 export type AttemptGlossaryEntry = z.infer<typeof attemptGlossaryEntrySchema>
@@ -111,6 +198,9 @@ export type AttemptQuestion = z.infer<typeof attemptQuestionSchema>
 export type AttemptPassage = z.infer<typeof attemptPassageSchema>
 export type InProgressAttempt = z.infer<typeof inProgressAttemptSchema>
 export type ExpiredAttempt = z.infer<typeof expiredAttemptSchema>
+export type ResultQuestion = z.infer<typeof resultQuestionSchema>
+export type ResultWordLookup = z.infer<typeof resultWordLookupSchema>
+export type SubmittedAttempt = z.infer<typeof submittedAttemptSchema>
 
 // ========================================================
 // POST /api/passage/:id/attempt - 挑戦の開始
@@ -143,10 +233,77 @@ export const getAttemptPathParamSchema = z.object({
 })
 
 /**
- * 挑戦の取得のレスポンススキーマ。status で形が変わる（in_progress は開始時と同じ形、expired は概要だけ。
- * submitted の結果の形は提出 API と合わせて足す）
+ * 挑戦の取得のレスポンススキーマ。status で形が変わる（in_progress は開始時と同じ形、submitted は提出 API と同じ結果の形、
+ * expired は概要だけ）
  */
-export const getAttemptResponseSchema = z.discriminatedUnion("status", [inProgressAttemptSchema, expiredAttemptSchema])
+export const getAttemptResponseSchema = z.discriminatedUnion("status", [
+  inProgressAttemptSchema,
+  submittedAttemptSchema,
+  expiredAttemptSchema,
+])
 
 export type GetAttemptPathParam = z.infer<typeof getAttemptPathParamSchema>
 export type GetAttemptResponse = z.infer<typeof getAttemptResponseSchema>
+
+// ========================================================
+// POST /api/attempt/:id/submit - 提出
+// ========================================================
+
+/**
+ * 提出のパスパラメータスキーマ（挑戦の ID）
+ */
+export const submitAttemptPathParamSchema = z.object({
+  id: z.coerce.number().int().positive(),
+})
+
+/**
+ * 提出のリクエストスキーマ。answers に無い設問は未回答として採点する
+ */
+export const submitAttemptRequestSchema = z.object({
+  /**
+   * 画面を見ていた秒数（クライアントの計測値）。サーバーが提出時刻 − 開始時刻で切り詰める
+   */
+  active_seconds: z.number().int().nonnegative(),
+  answers: z
+    .array(
+      z.object({
+        question_id: z.number().int().positive(),
+        /**
+         * null は未回答
+         */
+        selected_choice_index: z.number().int().min(0).max(QUESTION_CHOICE_COUNT - 1).nullable(),
+      }),
+    )
+    .max(10),
+  /**
+   * 和訳を一度でも見た段落の数。サーバーが code 以外のブロック数で上限をかける
+   */
+  translated_block_count: z.number().int().nonnegative(),
+  /**
+   * 調べた 1 回ごとに 1 要素（同じ単語を 2 回調べたら 2 要素）。glossary_entry_id は source が glossary のときだけ持つ
+   */
+  word_lookups: z
+    .array(
+      z
+        .object({
+          glossary_entry_id: z.number().int().positive().nullable(),
+          lemma: z.string().trim().min(1).max(100),
+          source: z.enum(WORD_LOOKUP_SOURCES),
+          surface: z.string().trim().min(1).max(100),
+        })
+        .refine((lookup) => (lookup.source === "glossary") === (lookup.glossary_entry_id !== null), {
+          message: "glossary_entry_id is required only when source is glossary",
+          path: ["glossary_entry_id"],
+        }),
+    )
+    .max(300),
+})
+
+/**
+ * 提出のレスポンススキーマ。すでに提出済みなら保存済みの結果を同じ形で返す（冪等）
+ */
+export const submitAttemptResponseSchema = submittedAttemptSchema
+
+export type SubmitAttemptPathParam = z.infer<typeof submitAttemptPathParamSchema>
+export type SubmitAttemptRequest = z.infer<typeof submitAttemptRequestSchema>
+export type SubmitAttemptResponse = z.infer<typeof submitAttemptResponseSchema>
