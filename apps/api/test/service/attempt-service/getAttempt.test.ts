@@ -1,0 +1,108 @@
+import { getAttempt } from "../../../src/service/attempt-service"
+import { createMockPassageRepository, createMockReadingAttemptRepository } from "../../fixture/passage-repository-mock"
+
+import { ALIVE_SINCE, buildAttempt, buildAttemptContent, EXPECTED_ATTRIBUTION, FIXED_NOW } from "./fixtures"
+
+const passageRepository = createMockPassageRepository()
+const readingAttemptRepository = createMockReadingAttemptRepository()
+const repo = { passageRepository, readingAttemptRepository }
+
+const INPUT = { attemptId: 301, now: FIXED_NOW, userId: 7 }
+
+const EXPECTED_PASSAGE = { id: 1, difficulty: 2, title: "Synchronizing with Effects", wordCount: 60 }
+
+describe("getAttempt", () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    readingAttemptRepository.expireStale.mockResolvedValue(0)
+    passageRepository.findAttemptContentById.mockResolvedValue(buildAttemptContent())
+  })
+
+  describe("正常系", () => {
+    it("期限内の挑戦中は解答中の形を返す。期限切れの更新を自分の挑戦を読むより先に呼ぶ", async () => {
+      readingAttemptRepository.findByIdForUser.mockResolvedValue(buildAttempt({ passageId: 1 }))
+
+      const result = await getAttempt(INPUT, repo)
+
+      expect(result).toEqual({
+        ok: true,
+        value: expect.objectContaining({
+          id: 301,
+          attribution: EXPECTED_ATTRIBUTION,
+          expiresAt: new Date("2026-10-13T10:00:00.000Z"),
+          passage: EXPECTED_PASSAGE,
+          serverNow: FIXED_NOW,
+          startedAt: new Date("2026-10-12T10:00:00.000Z"),
+          status: "in_progress",
+          timeLimitSeconds: 180,
+        }),
+      })
+      expect(result.ok && result.value.status === "in_progress" && result.value.glossary.map((entry) => entry.id)).toEqual([101, 103])
+      expect(readingAttemptRepository.expireStale).toHaveBeenCalledWith(7, ALIVE_SINCE)
+      expect(readingAttemptRepository.findByIdForUser).toHaveBeenCalledWith(301, 7)
+      expect(passageRepository.findAttemptContentById).toHaveBeenCalledWith(1)
+      const [expireOrder] = readingAttemptRepository.expireStale.mock.invocationCallOrder
+      const [findOrder] = readingAttemptRepository.findByIdForUser.mock.invocationCallOrder
+      expect(expireOrder).toBeLessThan(findOrder ?? 0)
+    })
+
+    it("非公開に戻された問題の挑戦中も解答中の形を返す", async () => {
+      passageRepository.findAttemptContentById.mockResolvedValue(buildAttemptContent({ status: "draft" }))
+      readingAttemptRepository.findByIdForUser.mockResolvedValue(buildAttempt())
+
+      const result = await getAttempt(INPUT, repo)
+
+      expect(result.ok && result.value.status).toBe("in_progress")
+    })
+
+    it("期限切れの挑戦は id・問題・開始日時だけの期限切れの形を返す", async () => {
+      readingAttemptRepository.findByIdForUser.mockResolvedValue(
+        buildAttempt({ startedAt: new Date("2026-10-01T00:00:00.000Z"), status: "expired" }),
+      )
+
+      const result = await getAttempt(INPUT, repo)
+
+      expect(result).toEqual({
+        ok: true,
+        value: { id: 301, passage: EXPECTED_PASSAGE, startedAt: new Date("2026-10-01T00:00:00.000Z"), status: "expired" },
+      })
+    })
+
+    it.each([
+      ["開始から 23:59:59.999（境界値）", "2026-10-12T00:00:00.001Z", "in_progress"],
+      ["開始からちょうど 24 時間（境界値）", "2026-10-12T00:00:00.000Z", "expired"],
+    ])("read replica の遅れで in_progress のまま読めても、%sなら %s の形を返す", async (_label, startedAt, status) => {
+      readingAttemptRepository.findByIdForUser.mockResolvedValue(buildAttempt({ startedAt: new Date(startedAt) }))
+
+      const result = await getAttempt(INPUT, repo)
+
+      expect(result.ok && result.value.status).toBe(status)
+    })
+  })
+
+  describe("異常系", () => {
+    it("自分の挑戦が見つからなければ（他人の挑戦・存在しない ID）404 を返し、問題を読まない", async () => {
+      readingAttemptRepository.findByIdForUser.mockResolvedValue(null)
+
+      const result = await getAttempt(INPUT, repo)
+
+      expect(result).toEqual({ error: expect.objectContaining({ statusCode: 404, type: "NOT_FOUND" }), ok: false })
+      expect(passageRepository.findAttemptContentById).not.toHaveBeenCalled()
+    })
+
+    it("提出済みの挑戦は（結果の形ができるまで）409 を返す", async () => {
+      readingAttemptRepository.findByIdForUser.mockResolvedValue(buildAttempt({ status: "submitted" }))
+
+      const result = await getAttempt(INPUT, repo)
+
+      expect(result).toEqual({ error: expect.objectContaining({ statusCode: 409, type: "CONFLICT" }), ok: false })
+    })
+
+    it("挑戦の問題が見つからなければ throw する", async () => {
+      readingAttemptRepository.findByIdForUser.mockResolvedValue(buildAttempt())
+      passageRepository.findAttemptContentById.mockResolvedValue(null)
+
+      await expect(getAttempt(INPUT, repo)).rejects.toThrow()
+    })
+  })
+})

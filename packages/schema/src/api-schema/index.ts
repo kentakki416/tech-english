@@ -1,5 +1,6 @@
 export * from "./admin/content-source"
 export * from "./admin/passage"
+export * from "./attempt"
 export * from "./auth"
 export * from "./common"
 export * from "./event"

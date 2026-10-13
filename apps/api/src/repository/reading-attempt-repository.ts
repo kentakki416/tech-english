@@ -20,14 +20,39 @@ export type PassageAttemptSummary = {
 }
 
 /**
+ * 挑戦中の挑戦を作るときの入力
+ */
+export type CreateReadingAttemptInput = {
+  passageId: number
+  startedAt: Date
+  /**
+   * 開始時点の問題の制限時間
+   */
+  timeLimitSeconds: number
+  userId: number
+}
+
+/**
  * 挑戦（reading_attempts）のリポジトリ。期限切れ（開始から 24 時間）の判定は aliveSince で受け取り、
- * 「started_at > aliveSince の in_progress」だけを期限内として扱う（expired への更新は書き込み API で行い、ここは読むだけ）
+ * 「started_at > aliveSince の in_progress」だけを期限内として扱う（expired への更新は書き込み API の前に expireStale で行う）
  */
 export interface ReadingAttemptRepository {
+  /**
+   * 挑戦中の挑戦を作る。同じユーザー・同じ問題の in_progress が既にある（部分 unique index に当たる）ときは作らずに null
+   */
+  createInProgress(input: CreateReadingAttemptInput): Promise<ReadingAttempt | null>
+  /**
+   * そのユーザーの started_at <= aliveSince の in_progress を expired にし、更新した件数を返す
+   */
+  expireStale(userId: number, aliveSince: Date): Promise<number>
   /**
    * そのユーザーのその問題の期限内の挑戦中。無ければ null
    */
   findAliveInProgress(userId: number, passageId: number, aliveSince: Date): Promise<ReadingAttempt | null>
+  /**
+   * そのユーザーの挑戦（状態を問わない）。他人の挑戦・存在しない ID は null（存在を明かさない）
+   */
+  findByIdForUser(id: number, userId: number): Promise<ReadingAttempt | null>
   /**
    * 問題ごとの挑戦の集計を passageId の昇順で返す。提出済みも期限内の挑戦中も無い問題は返さない
    */

@@ -683,6 +683,63 @@ describe.each(implementations)("%s PassageRepository", (_name, passageRepository
     })
   })
 
+  describe("findAttemptContentById", () => {
+    describe("正常系", () => {
+      it("状態を問わず（下書きでも）問題・出典に使うソースの列・用語集（block_index, start_offset の順）・設問（order_index の順）を返す", async () => {
+        const { glossary, passage, questions: questionRows, source } = await insertGeneratedPassage()
+        /**
+         * id は大きいが位置は前にある用語集と、order_index を最後にした設問で、並びが id の順でないことを確かめる
+         */
+        const [earlierEntry] = await testDb
+          .insert(passageGlossaryEntries)
+          .values({
+            blockIndex: 1,
+            endOffset: 15,
+            lemma: "component",
+            meaningJa: "部品",
+            partOfSpeech: "名詞",
+            passageId: passage.id,
+            startOffset: 5,
+            surface: "components",
+          })
+          .returning()
+        await testDb.update(questions).set({ orderIndex: 10 }).where(eq(questions.id, questionRows[0]?.id ?? 0))
+
+        const content = await passageRepository.findAttemptContentById(passage.id)
+
+        expect(content).toEqual({
+          glossary: await selectGlossary(passage.id),
+          passage: { ...passage, attentionReasons: [], blocks: PASSAGE_BLOCKS },
+          questions: await selectQuestions(passage.id),
+          source: {
+            branch: "main",
+            fetchType: "github_repository",
+            kind: "docs",
+            licenseSpdx: "CC-BY-4.0",
+            licenseUrl: "https://github.com/reactjs/react.dev/blob/main/LICENSE-DOCS.md",
+            name: "React 公式ドキュメント",
+            publicUrlStripPrefix: "src/content/",
+            publicUrlTemplate: "https://react.dev/{path}",
+            repository: source.repository,
+            tags: ["react"],
+          },
+        })
+        expect(content?.glossary.map((entry) => entry.id)).toEqual([earlierEntry?.id, ...glossary.map((entry) => entry.id)])
+        expect(content?.questions.map((question) => question.id)).toEqual([
+          questionRows[1]?.id,
+          questionRows[2]?.id,
+          questionRows[0]?.id,
+        ])
+      })
+    })
+
+    describe("異常系", () => {
+      it("存在しなければ null を返す", async () => {
+        expect(await passageRepository.findAttemptContentById(999999)).toBeNull()
+      })
+    })
+  })
+
   describe("findPublishedTags", () => {
     describe("正常系", () => {
       it("公開中の問題があるソースのタグを重複なしで昇順に返す（下書きだけのソースのタグは含めない）", async () => {

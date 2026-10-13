@@ -26,6 +26,7 @@ import type {
   AdminPassageDetail,
   AdminPassageListItem,
   AdminPassageListQuery,
+  AttemptContent,
   DraftEditContent,
   PassageCursor,
   PassageOverview,
@@ -63,6 +64,23 @@ const ATTEMPT_COUNT_SQL = sql<number>`(SELECT count(*) FROM ${readingAttempts} W
 const QUESTION_COUNT_SQL = sql<number>`(SELECT count(*) FROM ${questions} WHERE ${questions.passageId} = ${passages.id})`.mapWith(Number)
 
 /**
+ * 出典と一覧の表示に使うソースの列。passages → source_documents → content_sources を結合したクエリで使う
+ */
+const PASSAGE_SOURCE_COLUMNS = {
+  branch: contentSources.branch,
+  fetchType: contentSources.fetchType,
+  kind: contentSources.kind,
+  licenseSpdx: contentSources.licenseSpdx,
+  licenseUrl: contentSources.licenseUrl,
+  name: contentSources.name,
+  publicUrlStripPrefix: contentSources.publicUrlStripPrefix,
+  publicUrlTemplate: contentSources.publicUrlTemplate,
+  repository: contentSources.repository,
+  siteUrl: contentSources.siteUrl,
+  tags: contentSources.tags,
+}
+
+/**
  * ユーザー向けの一覧・概要で読む列（blocks は読まない）。passages → source_documents → content_sources を結合したクエリで使う
  */
 const PUBLISHED_SUMMARY_COLUMNS = {
@@ -78,19 +96,7 @@ const PUBLISHED_SUMMARY_COLUMNS = {
     wordCount: passages.wordCount,
   },
   questionCount: QUESTION_COUNT_SQL,
-  source: {
-    branch: contentSources.branch,
-    fetchType: contentSources.fetchType,
-    kind: contentSources.kind,
-    licenseSpdx: contentSources.licenseSpdx,
-    licenseUrl: contentSources.licenseUrl,
-    name: contentSources.name,
-    publicUrlStripPrefix: contentSources.publicUrlStripPrefix,
-    publicUrlTemplate: contentSources.publicUrlTemplate,
-    repository: contentSources.repository,
-    siteUrl: contentSources.siteUrl,
-    tags: contentSources.tags,
-  },
+  source: PASSAGE_SOURCE_COLUMNS,
 }
 
 /**
@@ -313,6 +319,31 @@ export class DrizzlePassageRepository implements PassageRepository {
       questionCount: row.questionCount,
       source: { id: row.sourceId, name: row.sourceName },
     }))
+  }
+
+  public async findAttemptContentById(passageId: number): Promise<AttemptContent | null> {
+    const [row] = await this._db
+      .select({ passage: passages, source: PASSAGE_SOURCE_COLUMNS })
+      .from(passages)
+      .innerJoin(sourceDocuments, eq(passages.sourceDocumentId, sourceDocuments.id))
+      .innerJoin(contentSources, eq(sourceDocuments.sourceId, contentSources.id))
+      .where(eq(passages.id, passageId))
+    if (!row) return null
+
+    const [glossaryRows, questionRows] = await Promise.all([
+      this._db
+        .select()
+        .from(passageGlossaryEntries)
+        .where(eq(passageGlossaryEntries.passageId, passageId))
+        .orderBy(asc(passageGlossaryEntries.blockIndex), asc(passageGlossaryEntries.startOffset), asc(passageGlossaryEntries.id)),
+      this._db.select().from(questions).where(eq(questions.passageId, passageId)).orderBy(asc(questions.orderIndex)),
+    ])
+    return {
+      glossary: glossaryRows.map(convertGlossaryEntryRowToDomain),
+      passage: convertPassageRowToDomain(row.passage),
+      questions: questionRows.map(convertQuestionRowToDomain),
+      source: convertPassageSourceRowToDomain(row.source),
+    }
   }
 
   public async findPublishedById(id: number): Promise<PublishedPassageSummary | null> {

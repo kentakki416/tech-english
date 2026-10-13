@@ -1,7 +1,7 @@
 import { Prisma as PrismaTypes, PrismaClient } from "@repo/db"
 import { isAttemptStatus, type ReadingAttempt } from "@repo/domain"
 
-import type { PassageAttemptSummary, ReadingAttemptRepository } from "../reading-attempt-repository"
+import type { CreateReadingAttemptInput, PassageAttemptSummary, ReadingAttemptRepository } from "../reading-attempt-repository"
 
 /**
  * Prismaの型
@@ -34,6 +34,12 @@ const convertReadingAttemptRowToDomain = (row: ReadingAttemptRow): ReadingAttemp
 }
 
 /**
+ * 一意制約違反（Prisma のエラーコード P2002）か。`Prisma` は型だけの export なので instanceof は使わずに code を見る
+ */
+const isUniqueConstraintError = (error: unknown): boolean =>
+  typeof error === "object" && error !== null && "code" in error && error.code === "P2002"
+
+/**
  * Prisma 実装の ReadingAttemptRepository
  */
 export class PrismaReadingAttemptRepository implements ReadingAttemptRepository {
@@ -43,10 +49,44 @@ export class PrismaReadingAttemptRepository implements ReadingAttemptRepository 
     this._prisma = prisma
   }
 
+  /**
+   * Prisma は部分 unique index を ON CONFLICT の対象にできないので、insert の一意制約違反を null に変換する
+   */
+  public async createInProgress(input: CreateReadingAttemptInput): Promise<ReadingAttempt | null> {
+    try {
+      const row = await this._prisma.readingAttempt.create({
+        data: {
+          passageId: input.passageId,
+          startedAt: input.startedAt,
+          status: "in_progress",
+          timeLimitSeconds: input.timeLimitSeconds,
+          userId: input.userId,
+        },
+      })
+      return convertReadingAttemptRowToDomain(row)
+    } catch (error) {
+      if (isUniqueConstraintError(error)) return null
+      throw error
+    }
+  }
+
+  public async expireStale(userId: number, aliveSince: Date): Promise<number> {
+    const result = await this._prisma.readingAttempt.updateMany({
+      data: { status: "expired" },
+      where: { startedAt: { lte: aliveSince }, status: "in_progress", userId },
+    })
+    return result.count
+  }
+
   public async findAliveInProgress(userId: number, passageId: number, aliveSince: Date): Promise<ReadingAttempt | null> {
     const row = await this._prisma.readingAttempt.findFirst({
       where: { passageId, startedAt: { gt: aliveSince }, status: "in_progress", userId },
     })
+    return row ? convertReadingAttemptRowToDomain(row) : null
+  }
+
+  public async findByIdForUser(id: number, userId: number): Promise<ReadingAttempt | null> {
+    const row = await this._prisma.readingAttempt.findFirst({ where: { id, userId } })
     return row ? convertReadingAttemptRowToDomain(row) : null
   }
 

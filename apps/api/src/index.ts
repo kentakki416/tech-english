@@ -23,6 +23,8 @@ import { AdminPassageRegenerateController } from "./controller/admin/passage/reg
 import { AdminPassageRejectController } from "./controller/admin/passage/reject"
 import { AdminPassageUnpublishController } from "./controller/admin/passage/unpublish"
 import { AdminPassageUpdateController } from "./controller/admin/passage/update"
+import { AttemptDetailController } from "./controller/attempt/detail"
+import { AttemptStartController } from "./controller/attempt/start"
 import { AuthDevLoginController } from "./controller/auth/dev-login"
 import { AuthGitHubController } from "./controller/auth/github"
 import { AuthGoogleController } from "./controller/auth/google"
@@ -60,6 +62,7 @@ import {
 } from "./repository/drizzle"
 import { IoRedisHealthRepository, IoRedisRefreshTokenRepository } from "./repository/redis"
 import { adminRouter } from "./routes/admin-router"
+import { attemptRouter } from "./routes/attempt-router"
 import { authRouter } from "./routes/auth-router"
 import { eventRouter } from "./routes/event-router"
 import { healthRouter } from "./routes/health-router"
@@ -197,6 +200,12 @@ const passageDetailController = new PassageDetailController(passageRepository, r
 const passageListController = new PassageListController(passageRepository, readingAttemptRepository)
 const passageRandomController = new PassageRandomController(passageRepository, readingAttemptRepository)
 
+/**
+ * ユーザー向けの挑戦（開始・取得）Controller のインスタンス化
+ */
+const attemptDetailController = new AttemptDetailController(passageRepository, readingAttemptRepository)
+const attemptStartController = new AttemptStartController(passageRepository, readingAttemptRepository, userRepository)
+
 const app = express()
 
 /**
@@ -325,6 +334,13 @@ app.use(
     detail: passageDetailController,
     list: passageListController,
     random: passageRandomController,
+    start: attemptStartController,
+  })
+)
+app.use(
+  "/api/attempt",
+  attemptRouter({
+    detail: attemptDetailController,
   })
 )
 

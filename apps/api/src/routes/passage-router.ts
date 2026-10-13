@@ -1,5 +1,6 @@
 import { Router } from "express"
 
+import { AttemptStartController } from "../controller/attempt/start"
 import { PassageDetailController } from "../controller/passage/detail"
 import { PassageListController } from "../controller/passage/list"
 import { PassageRandomController } from "../controller/passage/random"
@@ -8,6 +9,7 @@ type PassageRouterControllers = {
   detail?: PassageDetailController
   list?: PassageListController
   random?: PassageRandomController
+  start?: AttemptStartController
 }
 
 /**
@@ -39,6 +41,14 @@ export const passageRouter = (controllers: PassageRouterControllers): Router => 
   if (controllers.detail) {
     const controller = controllers.detail
     router.get("/:id", async (req, res) => controller.execute(req, res))
+  }
+
+  /**
+   * POST /api/passage/:id/attempt（挑戦の開始）
+   */
+  if (controllers.start) {
+    const controller = controllers.start
+    router.post("/:id/attempt", async (req, res) => controller.execute(req, res))
   }
 
   return router

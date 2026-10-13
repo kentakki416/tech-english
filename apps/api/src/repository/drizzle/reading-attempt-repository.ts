@@ -1,7 +1,7 @@
-import { and, asc, DrizzleClient, eq, gt, inArray, or, readingAttempts, sql } from "@repo/db"
+import { and, asc, DrizzleClient, eq, gt, inArray, lte, or, readingAttempts, sql } from "@repo/db"
 import type { ReadingAttempt } from "@repo/domain"
 
-import type { PassageAttemptSummary, ReadingAttemptRepository } from "../reading-attempt-repository"
+import type { CreateReadingAttemptInput, PassageAttemptSummary, ReadingAttemptRepository } from "../reading-attempt-repository"
 
 /**
  * Drizzleの型
@@ -46,6 +46,39 @@ export class DrizzleReadingAttemptRepository implements ReadingAttemptRepository
     this._db = db
   }
 
+  /**
+   * 部分 unique index（(user_id, passage_id) WHERE status = 'in_progress'）を ON CONFLICT の対象にするため、index と同じ条件を付ける
+   */
+  public async createInProgress(input: CreateReadingAttemptInput): Promise<ReadingAttempt | null> {
+    const [row] = await this._db
+      .insert(readingAttempts)
+      .values({
+        passageId: input.passageId,
+        startedAt: input.startedAt,
+        status: "in_progress",
+        timeLimitSeconds: input.timeLimitSeconds,
+        userId: input.userId,
+      })
+      .onConflictDoNothing({ target: [readingAttempts.userId, readingAttempts.passageId], where: sql`status = 'in_progress'` })
+      .returning()
+    return row ? convertReadingAttemptRowToDomain(row) : null
+  }
+
+  public async expireStale(userId: number, aliveSince: Date): Promise<number> {
+    const rows = await this._db
+      .update(readingAttempts)
+      .set({ status: "expired" })
+      .where(
+        and(
+          eq(readingAttempts.userId, userId),
+          eq(readingAttempts.status, "in_progress"),
+          lte(readingAttempts.startedAt, aliveSince),
+        ),
+      )
+      .returning({ id: readingAttempts.id })
+    return rows.length
+  }
+
   public async findAliveInProgress(userId: number, passageId: number, aliveSince: Date): Promise<ReadingAttempt | null> {
     const [row] = await this._db
       .select()
@@ -57,6 +90,14 @@ export class DrizzleReadingAttemptRepository implements ReadingAttemptRepository
           buildAliveInProgressCondition(aliveSince),
         ),
       )
+    return row ? convertReadingAttemptRowToDomain(row) : null
+  }
+
+  public async findByIdForUser(id: number, userId: number): Promise<ReadingAttempt | null> {
+    const [row] = await this._db
+      .select()
+      .from(readingAttempts)
+      .where(and(eq(readingAttempts.id, id), eq(readingAttempts.userId, userId)))
     return row ? convertReadingAttemptRowToDomain(row) : null
   }
 

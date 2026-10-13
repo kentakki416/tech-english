@@ -21,6 +21,7 @@ import type {
   AdminPassageDetail,
   AdminPassageListItem,
   AdminPassageListQuery,
+  AttemptContent,
   DraftEditContent,
   PassageCursor,
   PassageRepository,
@@ -63,6 +64,23 @@ const LIST_INCLUDE = {
 } satisfies PrismaTypes.PassageInclude
 
 /**
+ * 出典と一覧の表示に使うソースの列
+ */
+const PASSAGE_SOURCE_SELECT = {
+  branch: true,
+  fetchType: true,
+  kind: true,
+  licenseSpdx: true,
+  licenseUrl: true,
+  name: true,
+  publicUrlStripPrefix: true,
+  publicUrlTemplate: true,
+  repository: true,
+  siteUrl: true,
+  tags: true,
+} satisfies PrismaTypes.ContentSourceSelect
+
+/**
  * ユーザー向けの一覧・概要で読む列（blocks は読まない）
  */
 const PUBLISHED_SUMMARY_SELECT = {
@@ -71,25 +89,7 @@ const PUBLISHED_SUMMARY_SELECT = {
   difficulty: true,
   publishedAt: true,
   sourceCommitSha: true,
-  sourceDocument: {
-    select: {
-      source: {
-        select: {
-          branch: true,
-          fetchType: true,
-          kind: true,
-          licenseSpdx: true,
-          licenseUrl: true,
-          name: true,
-          publicUrlStripPrefix: true,
-          publicUrlTemplate: true,
-          repository: true,
-          siteUrl: true,
-          tags: true,
-        },
-      },
-    },
-  },
+  sourceDocument: { select: { source: { select: PASSAGE_SOURCE_SELECT } } },
   sourcePath: true,
   sourceRetrievedAt: true,
   timeLimitSeconds: true,
@@ -356,6 +356,25 @@ export class PrismaPassageRepository implements PassageRepository {
       questionCount: relationCounts.questions,
       source: sourceDocument.source,
     }))
+  }
+
+  public async findAttemptContentById(passageId: number): Promise<AttemptContent | null> {
+    const row = await this._prisma.passage.findUnique({
+      include: {
+        glossaryEntries: { orderBy: [{ blockIndex: "asc" }, { startOffset: "asc" }, { id: "asc" }] },
+        questions: { orderBy: { orderIndex: "asc" } },
+        sourceDocument: { select: { source: { select: PASSAGE_SOURCE_SELECT } } },
+      },
+      where: { id: passageId },
+    })
+    if (!row) return null
+    const { glossaryEntries, questions, sourceDocument, ...passage } = row
+    return {
+      glossary: glossaryEntries.map(convertGlossaryEntryRowToDomain),
+      passage: convertPassageRowToDomain(passage),
+      questions: questions.map(convertQuestionRowToDomain),
+      source: convertPassageSourceRowToDomain(sourceDocument.source),
+    }
   }
 
   public async findPublishedById(id: number): Promise<PublishedPassageSummary | null> {

@@ -143,6 +143,11 @@ export type PassageOverview = Pick<Passage, "id" | "sourceCommitSha" | "sourcePa
 export type PublishedPassageSummary = { passage: PassageOverview; questionCount: number; source: PassageSource }
 
 /**
+ * 挑戦の画面（解答中・結果）に出す問題の内容。用語集は blockIndex → startOffset → id の順、設問は orderIndex の順
+ */
+export type AttemptContent = { glossary: GlossaryEntry[]; passage: Passage; questions: Question[]; source: PassageSource }
+
+/**
  * 問題（passages と、その設問・用語集）のリポジトリ。admin の API（findAdmin* など）と reading-practice のユーザー向け API（*Published*）で共有する
  */
 export interface PassageRepository {
@@ -159,6 +164,10 @@ export interface PassageRepository {
    * limit + 1 件まで返す（has_more の判定は service）
    */
   findAdminList(query: AdminPassageListQuery): Promise<AdminPassageListItem[]>
+  /**
+   * 挑戦の画面に出す問題の内容。状態を問わない（非公開に戻された問題の挑戦中・提出済みも表示するため）。存在しなければ null
+   */
+  findAttemptContentById(passageId: number): Promise<AttemptContent | null>
   /**
    * 公開中の問題の概要。公開中でなければ null
    */
