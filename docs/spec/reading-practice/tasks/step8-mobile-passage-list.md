@@ -6,8 +6,7 @@ mobile の問題一覧（問題タブ `(tabs)/passages`）と開始確認（`pas
 
 - [step2-api-passage-list](./step2-api-passage-list.md)、[step3-api-attempt-start](./step3-api-attempt-start.md)
 - [github-auth step4-mobile-github-login](../../github-auth/tasks/step4-mobile-github-login.md)：ログイン済みで画面を開ける。Bearer を付けて 401 なら refresh して再試行する axios クライアント（`src/libs/api-client.ts` の `apiClient`）、テーマ（`src/const/design-theme.ts` の `THEME_COLORS` / `THEME_FONTS`）、root layout でのフォント（Literata / IBM Plex Mono）の読み込み、本文リーダー（`src/components/features/passage/`）
-- [learning-record step5-mobile-mypage](../../learning-record/tasks/step5-mobile-mypage.md)：タブのレイアウト（マイページ / 問題 / 設定）、共通部品（`src/components/ui/` の `PrimaryButton` / `SecondaryButton` / `Segment` / `Chip` / `ScoreSquares`）、`src/libs/format.ts`、`src/components/features/passage/labels.ts`
-- モックの `components/mock/parts.tsx` の残り（`SourceMeta` / `DifficultyMeter`）は **この step で** `src/components/features/passage/` に移す
+- タブのレイアウト（マイページ / 問題 / 設定。マイページと設定は learning-record step5 まで既存の画面か仮の画面）、共通部品（`src/components/ui/` の `PrimaryButton` / `SecondaryButton` / `Segment` / `Chip` / `ScoreSquares`）、`src/libs/format.ts`、`src/components/features/passage/labels.ts`、モックの `components/mock/parts.tsx` の `SourceMeta` / `DifficultyMeter`（`src/components/features/passage/`）は **この step で** 本番に移す（後の learning-record step5 が使う。[実装の順番](../../product-overview/README.md#実装の順番)）
 
 ## 対応内容
 
@@ -70,7 +69,7 @@ export const removeAttemptProgress = async (attemptId: number): Promise<void> =>
 
 ### 3. タブとルート
 
-- タブのレイアウトは learning-record step5 が作ってある。仮の `(tabs)/passages.tsx` をこの step の問題一覧で置き換える
+- タブのレイアウトをモックの `mock/(tabs)/_layout.tsx` から `(tabs)/_layout.tsx` に移す（`index` = マイページ・`passages` = 問題・`settings` = 設定）。マイページと設定の中身は learning-record step5 が作るので、それまでは既存の画面（`index`）と仮の画面（`settings`）を置く
 - root の `_layout.tsx` の `Stack` に足す：`passages/[id]`・`passages/random`（どちらも `presentation: "modal"`）、`attempts/[id]/index`・`attempts/[id]/result`（どちらも `headerShown: false`）
 
 ### 4. 問題一覧（`src/app/(tabs)/passages.tsx`）

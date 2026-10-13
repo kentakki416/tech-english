@@ -6,8 +6,7 @@ web の問題一覧（`/passages`）と開始確認（`/passages/[id]`）を、�
 
 - [step2-api-passage-list](./step2-api-passage-list.md)、[step3-api-attempt-start](./step3-api-attempt-start.md)
 - [github-auth step3-web-github-login](../../github-auth/tasks/step3-web-github-login.md)：ログイン済みで画面を開ける。フォント（Literata / IBM Plex Sans JP / IBM Plex Mono）とダークテーマ（`bg-canvas`）が root layout に入っている。`Wordmark`（`src/components/ui/`）と本文リーダー（`src/components/features/passage/PassageReader.tsx`・`passage-text.ts`・`types.ts`）が移植済み
-- [learning-record step4-web-mypage](../../learning-record/tasks/step4-web-mypage.md)：共通ヘッダー `AppHeader`・`ScoreSquares`（`src/components/ui/`）、`formatSeconds`（`src/libs/format.ts`）、`QUESTION_TYPE_LABELS`（`src/components/features/passage/labels.ts`）が移植済み
-- モックの `_components/parts.tsx` の残り（`SourceMeta` / `DifficultyMeter`）は **この step で** `src/components/features/passage/` に移す。種別・難易度のラベルは `labels.ts` に足す。`Keycap`（キー操作の表示）は step6 で `src/components/ui/Keycap.tsx` に移す
+- 共通ヘッダー `AppHeader`・`ScoreSquares`（`src/components/ui/`）、`formatSeconds` などの書式（`src/libs/format.ts`）、ラベル（`src/components/features/passage/labels.ts`。設問の種類・種別・難易度）、モックの `_components/parts.tsx` の `SourceMeta` / `DifficultyMeter`（`src/components/features/passage/`）は **この step で** 本番に移す（後の learning-record step4 が使う。[実装の順番](../../product-overview/README.md#実装の順番)）。`Keycap`（キー操作の表示）は step6 で `src/components/ui/Keycap.tsx` に移す
 
 ## 対応内容
 

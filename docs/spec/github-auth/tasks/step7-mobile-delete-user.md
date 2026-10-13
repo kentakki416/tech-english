@@ -95,7 +95,7 @@ const handleDelete = async () => {
 - `isFailed` のとき、入力欄の下に「削除できませんでした。通信状況を確認して、もう一度お試しください。」を `THEME_COLORS.wrong`・13px で出す（トークンもデータも消していないので、そのまま再試行できる）
 - 完了の表示（上部バーを消す）はモックのまま。「ログイン画面へ」の `onPress` を `finishAccountDeletion()` に替える（`router.replace` は書かない。`Stack.Protected` が移す）
 - 「‹ 設定」と「キャンセル」は `router.back()` のまま。完了の表示中は Android の戻るボタンでも戻らせない（`useFocusEffect` + `BackHandler` で `true` を返す）
-- 「ログイン画面へ」は learning-record step5 が `src/components/ui/` に移した `SecondaryButton` を使う
+- 「ログイン画面へ」は reading-practice step8 が `src/components/ui/` に移した `SecondaryButton` を使う
 
 ### 4. ルートに登録する（`apps/mobile/src/app/_layout.tsx`）
 

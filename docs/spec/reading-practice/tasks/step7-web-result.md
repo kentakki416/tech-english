@@ -39,7 +39,7 @@ Server Component。`getAttemptPathParamSchema` で検証し、失敗・404 は `
 | 調べた単語 | `word_lookups`：語句（Literata）・意味（`meaning_ja`。null なら「―」）・出どころ（`glossary` は「文脈」、`dictionary` は「辞書」）。0 件なら「この挑戦では単語を調べていません。」 |
 | 出典 | 種別バッジとソース名、「ページ」（`page_url`）、「取得時点」（GitHub は `permalink_url` へのリンクで「コミット {commit_sha の先頭 7 文字}」、サイトは「{retrieved_at の日付} 時点の内容」）、「ライセンス」（`license_spdx` を `license_url` へのリンクに）、「一部を抜粋・改変しています。」 |
 
-- `QUESTION_TYPE_LABELS`（`要旨` / `詳細` / `語義` / `推論` / `意図`）は learning-record step4 が作った `src/components/features/passage/labels.ts` のものを使う
+- `QUESTION_TYPE_LABELS`（`要旨` / `詳細` / `語義` / `推論` / `意図`）は step5 が作った `src/components/features/passage/labels.ts` のものを使う
 - 日付はサーバー描画とずれないよう、`retrieved_at.slice(0, 10)` をそのまま出す
 
 **設問の開閉**：不正解の設問は最初から開き、正解の設問は閉じる（`useState` の初期値）。行を押すと開閉。
