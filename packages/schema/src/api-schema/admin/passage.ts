@@ -27,7 +27,12 @@ const difficultySchema = z
     message: "Invalid difficulty",
   })
 
-const passageStatusSchema = z.enum(PASSAGE_STATUSES)
+/**
+ * 問題の状態（collected / generating / draft / published / rejected / failed）
+ */
+export const adminPassageStatusSchema = z.enum(PASSAGE_STATUSES)
+
+export type AdminPassageStatus = z.infer<typeof adminPassageStatusSchema>
 
 /**
  * 一覧と詳細に共通する問題の項目
@@ -47,7 +52,7 @@ const adminPassageSummaryBaseSchema = z.object({
   needs_attention: z.boolean(),
   question_count: z.number().int(),
   reject_reason: z.string().nullable(),
-  status: passageStatusSchema,
+  status: adminPassageStatusSchema,
   title: z.string(),
   word_count: z.number().int(),
   updated_at: z.string(),
@@ -154,7 +159,7 @@ export const adminPassageDetailSchema = adminPassageSummaryBaseSchema.extend({
  */
 const adminPassageStatusResponseSchema = z.object({
   id: z.number().int(),
-  status: passageStatusSchema,
+  status: adminPassageStatusSchema,
 })
 
 export type AdminPassageListItemResponse = z.infer<typeof adminPassageListItemSchema>
@@ -178,7 +183,7 @@ export const getAdminPassageListQueryStringSchema = z.object({
     .optional()
     .transform((value) => (value === undefined ? undefined : value === "true")),
   source_id: z.coerce.number().int().positive().optional(),
-  status: passageStatusSchema.default("draft"),
+  status: adminPassageStatusSchema.default("draft"),
 })
 
 /**

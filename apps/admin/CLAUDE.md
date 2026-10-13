@@ -64,6 +64,14 @@ admin は DB を直接触らず、必ず Express API を経由する。tech-engl
 | --- | --- | --- |
 | `/content-sources` | ソース一覧 | `app/(dashboard)/content-sources/page.tsx` + `components/features/content-source/SourceTable.tsx` |
 | `/content-sources/new`・`/content-sources/[id]` | ソースの登録・編集 | `SourceForm.tsx` + `app/(dashboard)/content-sources/actions.ts`（Server Action）+ `app/api/content-sources/license/route.ts`（ライセンス検出の中継） |
+| `/passages` | 問題一覧（`?status=` で状態を切り替え） | `app/(dashboard)/passages/page.tsx` + `components/features/passage/PassageTable.tsx` |
+| `/passages/[id]` | 問題の確認・修正 | `PassageReview.tsx`（タブは `QuestionsTab` / `TranslationsTab` / `GlossaryTab` / `BodyTab` / `BasicsTab`、プレビューは `PassagePreview`）+ `app/(dashboard)/passages/[id]/actions.ts`（Server Action）。フォームの状態と変換は `features/passage/passage.form.ts`、ラベルは `passage.labels.ts` |
+
+問題の画面のメモ：
+
+- プレビューの書体（Literata）は `app/(dashboard)/passages/layout.tsx` で読み込む
+- 確認・修正のフォームは詳細から作る 1 つの state（`PassageForm`）。保存・公開・却下などは `useActionState` の 1 つの action に操作（command）として渡し、`startTransition` から呼ぶ。保存・状態の変更で詳細が取り直されたら（`status` と `updated_at` が変わったら）フォームを作り直す
+- 「公開する」は未保存の修正があれば先に保存する。保存・公開の 400 の `details` は、リクエストを作ったときのフォームで設問・語句の `clientKey` に直してから該当の項目に印を付ける（エラーの後に設問を消しても印が別の設問に移らないように）
 
 画面を API に繋ぐときは:
 
