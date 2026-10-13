@@ -4,7 +4,7 @@ import { useState } from "react"
 
 import { PassageReader } from "@/components/features/passage/PassageReader"
 
-import { DEMO_BLOCKS, DEMO_DICTIONARY, DEMO_GLOSSARY } from "./sign-in-demo-data"
+import { DEMO_BLOCKS, DEMO_GLOSSARY, lookUpDemoDictionary } from "./sign-in-demo-data"
 
 /**
  * ログイン画面の体験デモ。実際の解答画面と同じ部品で、単語の意味と和訳を試せる
@@ -22,10 +22,10 @@ export function SignInDemo() {
       <div className="px-1 pt-6 pb-2 sm:px-3">
         <PassageReader
           blocks={DEMO_BLOCKS}
-          dictionary={DEMO_DICTIONARY}
           fontSize="sm"
           glossary={DEMO_GLOSSARY}
           translatedBlocks={translatedBlocks}
+          onLookupDictionary={lookUpDemoDictionary}
           onToggleTranslation={(blockIndex) => {
             setTranslatedBlocks((value) => {
               const next = new Set(value)

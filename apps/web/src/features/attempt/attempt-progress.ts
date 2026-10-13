@@ -72,9 +72,13 @@ export const readAttemptProgress = (attemptId: number): AttemptProgress | null =
   }
 }
 
-export const writeAttemptProgress = (attemptId: number, progress: AttemptProgress): void => {
+/**
+ * 版は書き込むときに付ける（呼び出し側は今の版を知らなくてよい）
+ */
+export const writeAttemptProgress = (attemptId: number, progress: Omit<AttemptProgress, "version">): void => {
+  const value: AttemptProgress = { ...progress, version: ATTEMPT_PROGRESS_VERSION }
   try {
-    window.localStorage.setItem(buildKey(attemptId), JSON.stringify(progress))
+    window.localStorage.setItem(buildKey(attemptId), JSON.stringify(value))
   } catch {
     /**
      * 保存できなくても解答は続けられる（別の端末で再開したときと同じく 0 からになるだけ）

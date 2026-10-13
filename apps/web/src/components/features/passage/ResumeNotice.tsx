@@ -1,9 +1,8 @@
 "use client"
 
-import { useSyncExternalStore } from "react"
-
 import { readAttemptProgress } from "@/features/attempt/attempt-progress"
 import { formatSeconds } from "@/libs/format"
+import { useIsClient } from "@/libs/use-is-client"
 
 const HOUR_MS = 60 * 60 * 1000
 
@@ -20,16 +19,6 @@ const buildExpiryText = (remainingMs: number): string =>
  */
 const buildRemainingText = (remainingSeconds: number): string =>
   remainingSeconds < 0 ? `超過 +${formatSeconds(-remainingSeconds)}` : `残り ${formatSeconds(remainingSeconds)}`
-
-/**
- * 購読する変化は無い（hydration の前後を見分けるためだけに useSyncExternalStore を使う）
- */
-const subscribeNothing = () => () => undefined
-
-/**
- * hydration 中（とサーバー）は false、その後は true。localStorage を読んでよいかの判定に使う
- */
-const useIsClient = (): boolean => useSyncExternalStore(subscribeNothing, () => true, () => false)
 
 /**
  * 開始確認の「前回の続きから再開できます。」。残り時間と回答数は端末に保存した途中経過から出す
