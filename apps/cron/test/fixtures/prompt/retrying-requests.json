@@ -1,0 +1,35 @@
+{
+  "blocks": [
+    {
+      "text": "Retries & Idempotency",
+      "type": "heading"
+    },
+    {
+      "text": "Network calls fail for many reasons that have nothing to do with your code. A server may be restarting, a load balancer may drop a connection, or the client may hit a rate limit. Instead of showing every failure to the user, the client can opt in to automatic retries with `retry: true`.",
+      "type": "paragraph"
+    },
+    {
+      "text": "Retries are only safe when a request is idempotent, which means that sending it twice has the same effect as sending it once. A `GET` request is idempotent by definition, but a `POST` that charges a credit card is not. Under the hood, the client attaches an idempotency key so that the server can discard duplicates.",
+      "type": "paragraph"
+    },
+    {
+      "text": "Wait a little longer after each attempt (exponential backoff).",
+      "type": "list_item"
+    },
+    {
+      "text": "Add random jitter so that thousands of clients do not retry at the same moment.",
+      "type": "list_item"
+    },
+    {
+      "lang": "ts",
+      "text": "const response = await client.get(\"/items?limit=10&page=2\", {\n  retry: { attempts: 3, delayMs: 500 },\n})\nif (response.status < 500) return response",
+      "type": "code"
+    },
+    {
+      "text": "One caveat: a retry cannot fix a request that is wrong, so 4xx errors are returned right away.",
+      "type": "quote"
+    }
+  ],
+  "title": "Retries & Idempotency",
+  "wordCount": 149
+}

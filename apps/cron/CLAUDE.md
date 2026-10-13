@@ -78,6 +78,26 @@ Markdown / MDX / HTML から本文を抽出し、200〜600 語の本文候補に
 - **取得先の制限（SSRF 対策）**：① リクエストの前（リダイレクト先も）に https かつ `site_url` と同じオリジンかを確かめる（IP アドレスのホストはここで範囲も確かめる。net.connect は IP アドレスに lookup を呼ばないため）② undici の `Agent` の `connect.lookup` に `createSafeLookup` を渡し、接続のときに名前解決した全アドレスがプライベート・ループバック・リンクローカルでないかを確かめる（DNS rebinding 対策）③ リダイレクトは `redirect: "manual"` で自分でたどり、同じオリジンの中で最大 3 回。違反は `BlockedUrlError` でソースの失敗にする
 - fetch はグローバルではなく undici のもの（npm の undici の `Agent` をグローバルの fetch に渡すと版の違いで動かないことがあるため）。undici は Node 20 で動く v7 に固定している（v8 は Node 22.19 以上が必要）
 
+### 問題の生成（LLM のクライアントとプロンプト）
+
+`generate:questions`（[question-generation](../../docs/spec/question-generation/README.md#llm-の呼び出し)）が使う Claude API のクライアントとプロンプト。タスク・検証と後処理は question-generation の step3 で作る。
+
+| ファイル | 役割 |
+| --- | --- |
+| `client/anthropic/anthropic-client.ts` | `AnthropicClient`（`@anthropic-ai/sdk` を包む。SDK の `messages` をコンストラクタで受ける）と `ILlmClient`。`createStructuredMessage` 1 つで、生成（`GENERATION_MODEL`）と解答キーを見ない検証（`VERIFICATION_MODEL`）の両方を呼ぶ。`createAnthropicClient({ apiKey })` が SDK を `maxRetries: 2`・タイムアウト 10 分で生成して包む（task が 1 回だけ呼ぶ） |
+| `client/anthropic/errors.ts` | `LlmRefusalError`（`stop_reason: "refusal"`。`stop_details.category` を持つ）/ `LlmOutputTruncatedError`（`max_tokens` などで途中で切れた）/ `LlmInvalidJsonError`、`isFatalLlmError`（401 / 403 / 404 / `billing_error` だけ true。タスク全体を止める判定） |
+| `client/anthropic/structured-output-schema.ts` | `convertZodToStructuredOutputSchema`：Zod（`zod/v4`）→ structured output に渡す JSON Schema。API が受け付けない制約（文字数・数値の範囲・`minItems` の 0 / 1 以外・`$schema`）を落とし、全オブジェクトに `additionalProperties: false`。`allOf` / `$ref` などは throw |
+| `prompt/generate-questions.ts` | `PROMPT_VERSION`、`GENERATE_QUESTIONS_SYSTEM_PROMPT`（README の設問・和訳・用語集のルール。英語）、`buildGenerateQuestionsUserContent`（番号つきブロック + 設問数の指示 + 再生成のときは前回の不合格の理由） |
+| `prompt/generate-questions-schema.ts` | 出力の Zod スキーマ `generateQuestionsOutputSchema`（vocabulary の設問だけが `vocabularyTarget` を持つ superRefine つき）と、API に渡す `GENERATE_QUESTIONS_OUTPUT_JSON_SCHEMA`（refine の前のオブジェクトから読み込み時に 1 回だけ作る定数） |
+| `prompt/passage.ts` | `buildPassagePrompt`：本文を `<passage>` / `<block index paragraph type lang translate>` の XML にする（生成と検証で共有）。段落番号は `numberParagraphs`、code には `translate="no"`。本文はエスケープせず属性値だけエスケープ、和訳は渡さない |
+
+- **SDK の呼び方**：非ストリーミングの `messages.create` に `output_config: { format: { type: "json_schema", schema } }` と、`cache_control: { type: "ephemeral" }` を付けた system の text ブロックを渡す。temperature などのサンプリングの引数・thinking・effort は渡さない（モデルの既定。新しいモデルは既定以外を受け付けないものがある）。拒否時のサーバー側フォールバック（beta）は使わない
+- **リトライは SDK に任せる**：429 / 408 / 409 / 5xx / タイムアウト / 接続エラーを retry-after か指数バックオフで最大 2 回。自前でリトライを書かない
+- **出力の正しさは Zod で確かめる**：structured output は JSON の形（型・enum・必須のキー）までしか強制しない。文字数・配列の長さ・数値の範囲は JSON Schema から落としているので、`createStructuredMessage` は JSON.parse しただけの値を返し、呼び出し側が `generateQuestionsOutputSchema` で検証する（エラーを再生成の指示に使う）
+- **`zod/v4`**：cron の zod は 3.25 で、`z.toJSONSchema` は v4 にしか無いため、structured output のスキーマ（`prompt/*-schema.ts`・`structured-output-schema.ts`）だけ `import { z } from "zod/v4"` で書く。SDK の `zodOutputFormat` は `enum` を description に移して制約から外すので使わない
+- **プロンプトキャッシュ**：system prompt に日時・件数・本文などの可変値を入れない（可変値は user message）。`usage.cacheReadInputTokens` が 2 回目以降も 0 なら、最小キャッシュ長未満か可変値が混ざっている
+- **`PROMPT_VERSION`**：system prompt・user message の形・出力のスキーマを変えたら必ず上げる（`passages.generation_prompt_version` に入る）。`test/prompt/__snapshots__/generate-questions.prompt.txt` に fixture で組み立てた送信内容（system / user / 再生成の user / JSON Schema）を書き出しているので、変えたら `pnpm test -u` で更新して差分をレビューする
+
 ## ESM 専用の依存（require(esm)）
 
 cron は CommonJS でビルドするが、unified / remark / rehype は ESM 専用で配布されている。そのため:
@@ -109,14 +129,18 @@ run-once モデルなので、**処理の途中でシグナルを受けて終了
 | `COLLECT_WEB_REQUEST_INTERVAL_MS` | no | `1000` | collect:passages がサイトをクロールするときの、同じオリジンへのリクエストの間隔（ミリ秒。1000 未満は不可）。robots.txt の `Crawl-delay` の方が長ければそちらに従う（30 秒を超える `Crawl-delay` のサイトは打ち切る） |
 | `COLLECT_WEB_REFETCH_DAYS` | no | `7` | collect:passages がサイトのページを取り直す間隔（日） |
 | `COLLECT_WEB_CONTACT_URL` | no | - | 収集のリクエストの User-Agent に入れるサービスのトップの URL（`TechEnglishBot/1.0 (+{url})`）。サイトの管理者がどのサービスのボットか分かるようにする。未設定なら `TechEnglishBot/1.0` だけを送る（他のタスクのため必須にしない） |
+| `ANTHROPIC_API_KEY` | `generate:questions` で必須 | - | Claude API のキー。他のタスクでは不要なのでスキーマでは任意にし、`generate:questions` の起動時に検査する（空文字は未設定と同じ） |
+| `GENERATION_MODEL` | no | `claude-sonnet-5-5` | generate:questions の生成モデル |
+| `VERIFICATION_MODEL` | no | `claude-haiku-4-5-20251001` | generate:questions の解答キーを見ない検証のモデル |
 | `NODE_ENV` | no | `development` | `development` / `test` / `production` |
 | `LOGGER_TYPE` | no | `pino` | `pino` / `winston` / `console` / `silent` |
 | `LOG_LEVEL` | no | `info` | `debug` / `info` / `warn` / `error` |
 
 ## テスト戦略
 
-- **Repository / Service / lib / client の unit test のみ**。DB client は `vi.fn()` で mock するので DB 不要。GitHub API とサイトは `fetch`（client のテスト。`WebPageClient` は `sleep` / `now` も）か client の偽物（service のテスト。`test/service/collection/helpers.ts`）に差し替える。**実在のサイトにリクエストを送るテストは書かない**（`localhost` を名前解決で弾くテストだけは実物の undici を使う。外部には接続しない）
+- **Repository / Service / lib / client / prompt の unit test のみ**。DB client は `vi.fn()` で mock するので DB 不要。GitHub API とサイトは `fetch`（client のテスト。`WebPageClient` は `sleep` / `now` も）か client の偽物（service のテスト。`test/service/collection/helpers.ts`）に差し替える。**実在のサイトにリクエストを送るテストは書かない**（`localhost` を名前解決で弾くテストだけは実物の undici を使う。外部には接続しない）
 - 待ち行列の SQL（`findFetchQueue` / `upsertDiscovered`）は unit test では生成される SQL の文字列までしか確かめないので、変えたらローカル DB で並び順・404 の扱い・戻しを確かめる
-- `lib/document` のテストは `test/fixtures/document/` の fixture を使う。**fixture の英文は自作する**（実在のドキュメントをコピーしない。ライセンスのため）
+- **Claude API は呼ばない**（キーも費用も要るため）。`AnthropicClient` のテストは `messages.create` を `vi.fn()` にした SDK の偽物を渡し、リトライの設定は実物の SDK に `fetch` の偽物を渡して確かめる（`createAnthropicClient({ apiKey, fetch })`。レスポンスの `retry-after-ms: 1` で待ち時間を縮める）。プロンプトのテストは `test/fixtures/prompt/` の本文で組み立てた文字列を確かめる
+- `lib/document` のテストは `test/fixtures/document/`、プロンプトのテストは `test/fixtures/prompt/` の fixture を使う。**fixture の英文は自作する**（実在のドキュメントをコピーしない。ライセンスのため）
 - 統合テストは無い（task はエントリポイントから直接 service を呼ぶフラットな構造のため）
 - テストケースは `describe` を「正常系」「異常系」で分類する（`apps/api` と同じ）

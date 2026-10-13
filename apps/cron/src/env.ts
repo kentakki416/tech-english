@@ -53,6 +53,22 @@ const cronEnvSchema = z
      * 他のタスクでは不要なので任意。未設定なら `TechEnglishBot/1.0` だけを送る
      */
     COLLECT_WEB_CONTACT_URL: z.string().url().optional(),
+    /**
+     * generate-questions が Claude API に使うキー。他のタスクでは不要なので任意にし、必須かどうかは task の起動時に検査する。
+     * 空文字は未設定と同じ扱いにする（`.env.local` に `ANTHROPIC_API_KEY=` だけ書かれていても他のタスクを止めない）
+     */
+    ANTHROPIC_API_KEY: z
+      .string()
+      .optional()
+      .transform((value) => (value === "" ? undefined : value)),
+    /**
+     * generate-questions の生成モデル
+     */
+    GENERATION_MODEL: z.string().min(1).default("claude-sonnet-5-5"),
+    /**
+     * generate-questions の解答キーを見ない検証のモデル（生成とは別のモデルに解かせる）
+     */
+    VERIFICATION_MODEL: z.string().min(1).default("claude-haiku-4-5-20251001"),
   })
   .superRefine((env, ctx) => {
     if (env.NODE_ENV !== "test" && !env.DATABASE_URL) {

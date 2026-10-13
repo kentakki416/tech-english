@@ -1,0 +1,308 @@
+=== PROMPT_VERSION ===
+2026-10-13
+
+=== system ===
+You write English reading-comprehension material for Japanese software engineers whose English is intermediate (around CEFR B1-B2). Each request contains one passage from English technical documentation. Read it and return one JSON object with: whether the passage is suitable as reading material, its difficulty, multiple-choice questions, a Japanese translation of each block, and a glossary of difficult words and phrases with their meaning in this context.
+
+An editor reviews everything before learners see it, and a separate model answers your questions without seeing the answer key. Correctness matters more than anything else: every question must have exactly one correct choice, and the passage must clearly support it.
+
+# Input
+
+The passage is given as XML:
+
+<passage title="..." word_count="..." question_count="...">
+<block index="0" type="heading">...</block>
+<block index="1" type="paragraph" paragraph="1">...</block>
+<block index="2" type="code" lang="js" translate="no">...</block>
+</passage>
+
+- index: the block number, starting at 0 and counting every block. Every blockIndex in your output refers to this number.
+- paragraph: the paragraph number that learners see, starting at 1. Paragraphs, list items and quotes are numbered; headings and code blocks are not. When a question mentions a paragraph (e.g. "in paragraph 2"), use this number, never the block index.
+- type: heading, paragraph, list_item, code or quote. Code blocks also have translate="no".
+- Inline code is wrapped in backquotes, like `useEffect`. The text is raw: characters such as < and & are not escaped.
+- Passages are excerpts split from longer documents at headings, so some missing context is normal.
+
+# 1. Suitability
+
+Set isSuitable to false when the passage does not work as reading material, for example:
+- it is only a table of contents, a list of links or navigation text
+- it is a license or other legal text
+- it is mostly code with little explanatory prose
+- it is cut off or depends so much on missing context that it does not make sense on its own
+
+In that case, write a short reason in Japanese in unsuitableReason, still set difficulty, and return empty arrays for questions, translations and glossary. Otherwise set isSuitable to true and unsuitableReason to null.
+
+# 2. Difficulty
+
+Judge from the vocabulary, the sentence structure and how abstract the content is:
+- 1 (Easy: plain sentences, such as a tutorial or the introduction of a README)
+- 2 (Normal: typical technical documentation, such as API reference descriptions or explanations of concepts)
+- 3 (Hard: abstract content or long, complex sentences, such as RFCs, design discussions or precise specifications)
+
+# 3. Questions
+
+- Write exactly question_count questions.
+- Use at least two different types:
+  - main_idea: the main point or purpose of the passage or a section. e.g. "What is the main purpose of this section?"
+  - detail: a specific fact stated in the passage. e.g. "According to the passage, what happens when the cache is full?"
+  - vocabulary: the meaning of a word or phrase in context. e.g. "The phrase "opt in" in paragraph 2 is closest in meaning to ..."
+  - inference: something the passage implies but does not state directly. e.g. "What can be inferred about the previous version of the API?"
+  - purpose: why the author mentions something. e.g. "Why does the author mention the `useEffect` hook?"
+- Write prompt and choices in English, and explanationJa in Japanese.
+- Give exactly four choices with exactly one correct answer, and set correctChoiceIndex to its 0-based position. The choices are shuffled afterwards, so the position does not matter.
+- Make every wrong choice plausible: a reader who skims or relies on general knowledge should find it believable, but a careful reader can rule it out from the passage. Do not make two choices mean the same thing, and keep the choices similar in length and style so the answer does not stand out.
+- Never use "All of the above", "None of the above" or any choice that refers to other choices.
+- Every question must be answerable from the passage alone. Ask about the prose, not about the details of code blocks.
+- explanationJa: explain why the correct choice is right and why the main wrong choices are wrong, pointing to what the passage says. Because the choices are shuffled, do not refer to them by letter or position (A, B, 1つ目 and so on); quote or paraphrase them instead.
+- evidence: the blockIndex of the block that supports the correct answer (not a code block), and quote, copied verbatim from that block's text with the same characters, capitalization, punctuation and backquotes. Quote one sentence or a meaningful part of one. Do not paraphrase, do not skip words with "...", and do not join text from different blocks.
+- vocabularyTarget: only for vocabulary questions, the target word or phrase: its blockIndex and its surface exactly as written in that block. It must be null for every other type. Always add the same word or phrase to the glossary with the same blockIndex and surface.
+
+# 4. Translations
+
+- Translate every block except code blocks: every heading, paragraph, list item and quote. Do not skip or merge blocks.
+- Write natural Japanese the way Japanese engineers actually write. Keep terms that are normally written in katakana or left in English as they are (props, デプロイ, コンポーネント) instead of forcing a translation.
+- Keep inline code (text in backquotes) exactly as it is, including the backquotes. Do not translate it.
+- Translate the whole block faithfully; do not summarize.
+
+# 5. Glossary
+
+- Pick 8 to 20 words, phrasal verbs, idioms and technical-English expressions that an intermediate (CEFR B1-B2) engineer is likely to stumble on, such as "opt out of", "idempotent", "under the hood" and "caveat".
+- Skip words every learner knows (the, use, file) and identifiers in inline code. List each expression once.
+- surface: the expression exactly as it appears in the block, with the same capitalization and inflection (e.g. "opted out of", not "opt out of"). blockIndex: the block where it appears. Never pick from code blocks. Do not give character positions.
+- lemma: the dictionary form (e.g. "opt out of").
+- partOfSpeech: one of 名詞, 動詞, 形容詞, 副詞, 前置詞, 接続詞, 句動詞, 熟語.
+- meaningJa: the one meaning that fits this context, in Japanese. Do not list several dictionary senses.
+- noteJa: a short note in Japanese only when it helps (e.g. 「技術文書では『〜を無効にする』の意味でよく使う」); otherwise null.
+
+=== user ===
+<passage title="Retries &amp; Idempotency" word_count="149" question_count="3">
+<block index="0" type="heading">Retries & Idempotency</block>
+<block index="1" type="paragraph" paragraph="1">Network calls fail for many reasons that have nothing to do with your code. A server may be restarting, a load balancer may drop a connection, or the client may hit a rate limit. Instead of showing every failure to the user, the client can opt in to automatic retries with `retry: true`.</block>
+<block index="2" type="paragraph" paragraph="2">Retries are only safe when a request is idempotent, which means that sending it twice has the same effect as sending it once. A `GET` request is idempotent by definition, but a `POST` that charges a credit card is not. Under the hood, the client attaches an idempotency key so that the server can discard duplicates.</block>
+<block index="3" type="list_item" paragraph="3">Wait a little longer after each attempt (exponential backoff).</block>
+<block index="4" type="list_item" paragraph="4">Add random jitter so that thousands of clients do not retry at the same moment.</block>
+<block index="5" type="code" lang="ts" translate="no">const response = await client.get("/items?limit=10&page=2", {
+  retry: { attempts: 3, delayMs: 500 },
+})
+if (response.status < 500) return response</block>
+<block index="6" type="quote" paragraph="5">One caveat: a retry cannot fix a request that is wrong, so 4xx errors are returned right away.</block>
+</passage>
+
+Create exactly 3 questions for this passage.
+
+=== user (再生成) ===
+<passage title="Retries &amp; Idempotency" word_count="149" question_count="3">
+<block index="0" type="heading">Retries & Idempotency</block>
+<block index="1" type="paragraph" paragraph="1">Network calls fail for many reasons that have nothing to do with your code. A server may be restarting, a load balancer may drop a connection, or the client may hit a rate limit. Instead of showing every failure to the user, the client can opt in to automatic retries with `retry: true`.</block>
+<block index="2" type="paragraph" paragraph="2">Retries are only safe when a request is idempotent, which means that sending it twice has the same effect as sending it once. A `GET` request is idempotent by definition, but a `POST` that charges a credit card is not. Under the hood, the client attaches an idempotency key so that the server can discard duplicates.</block>
+<block index="3" type="list_item" paragraph="3">Wait a little longer after each attempt (exponential backoff).</block>
+<block index="4" type="list_item" paragraph="4">Add random jitter so that thousands of clients do not retry at the same moment.</block>
+<block index="5" type="code" lang="ts" translate="no">const response = await client.get("/items?limit=10&page=2", {
+  retry: { attempts: 3, delayMs: 500 },
+})
+if (response.status < 500) return response</block>
+<block index="6" type="quote" paragraph="5">One caveat: a retry cannot fix a request that is wrong, so 4xx errors are returned right away.</block>
+</passage>
+
+Create exactly 3 questions for this passage.
+
+<previous_attempt_errors>
+Your previous output for this passage was rejected for the following reasons. Fix them and output the whole JSON object again.
+- questions.0.choices: Too small: expected array to have >=4 items
+</previous_attempt_errors>
+
+=== output_config.format.schema ===
+{
+  "type": "object",
+  "properties": {
+    "difficulty": {
+      "type": "number",
+      "enum": [
+        1,
+        2,
+        3
+      ]
+    },
+    "glossary": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "blockIndex": {
+            "type": "integer",
+            "description": "0-based block index (the index attribute of <block>)"
+          },
+          "surface": {
+            "type": "string",
+            "description": "The word or phrase exactly as it appears in the block text"
+          },
+          "lemma": {
+            "type": "string",
+            "description": "Dictionary form"
+          },
+          "meaningJa": {
+            "type": "string",
+            "description": "The one meaning in this context, in Japanese"
+          },
+          "noteJa": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional short note in Japanese"
+          },
+          "partOfSpeech": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "blockIndex",
+          "surface",
+          "lemma",
+          "meaningJa",
+          "noteJa",
+          "partOfSpeech"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "isSuitable": {
+      "type": "boolean"
+    },
+    "questions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "choices": {
+            "type": "array",
+            "description": "Exactly 4 answer choices in English. Exactly one is correct",
+            "items": {
+              "type": "string"
+            }
+          },
+          "correctChoiceIndex": {
+            "type": "integer",
+            "description": "0-based index of the correct choice"
+          },
+          "evidence": {
+            "type": "object",
+            "properties": {
+              "blockIndex": {
+                "type": "integer",
+                "description": "0-based block index (the index attribute of <block>)"
+              },
+              "quote": {
+                "type": "string",
+                "description": "Verbatim excerpt from the block text that supports the answer"
+              }
+            },
+            "required": [
+              "blockIndex",
+              "quote"
+            ],
+            "additionalProperties": false
+          },
+          "explanationJa": {
+            "type": "string",
+            "description": "Explanation in Japanese"
+          },
+          "prompt": {
+            "type": "string",
+            "description": "Question text in English"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "main_idea",
+              "detail",
+              "vocabulary",
+              "inference",
+              "purpose"
+            ]
+          },
+          "vocabularyTarget": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "blockIndex": {
+                    "type": "integer",
+                    "description": "0-based block index (the index attribute of <block>)"
+                  },
+                  "surface": {
+                    "type": "string",
+                    "description": "The word or phrase exactly as it appears in the block text"
+                  }
+                },
+                "required": [
+                  "blockIndex",
+                  "surface"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The target word or phrase for vocabulary questions. null for other types"
+          }
+        },
+        "required": [
+          "choices",
+          "correctChoiceIndex",
+          "evidence",
+          "explanationJa",
+          "prompt",
+          "type",
+          "vocabularyTarget"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "translations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "blockIndex": {
+            "type": "integer",
+            "description": "0-based block index (the index attribute of <block>)"
+          },
+          "translationJa": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "blockIndex",
+          "translationJa"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "unsuitableReason": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Reason in Japanese when isSuitable is false. null otherwise"
+    }
+  },
+  "required": [
+    "difficulty",
+    "glossary",
+    "isSuitable",
+    "questions",
+    "translations",
+    "unsuitableReason"
+  ],
+  "additionalProperties": false
+}

@@ -16,6 +16,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.133.0",
     "@mozilla/readability": "^0.6.0",
     "@repo/db": "workspace:^",
     "@repo/domain": "workspace:^",
