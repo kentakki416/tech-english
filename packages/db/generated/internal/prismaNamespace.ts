@@ -404,6 +404,7 @@ export const ModelName = {
   DictionaryEntry: 'DictionaryEntry',
   Memo: 'Memo',
   Passage: 'Passage',
+  PassageAudio: 'PassageAudio',
   PassageGlossaryEntry: 'PassageGlossaryEntry',
   Question: 'Question',
   ReadingAttempt: 'ReadingAttempt',
@@ -426,7 +427,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "attemptAnswer" | "attemptWordLookup" | "authAccount" | "contentSource" | "dictionaryEntry" | "memo" | "passage" | "passageGlossaryEntry" | "question" | "readingAttempt" | "reminderSetting" | "sourceDocument" | "user" | "userGoal"
+    modelProps: "attemptAnswer" | "attemptWordLookup" | "authAccount" | "contentSource" | "dictionaryEntry" | "memo" | "passage" | "passageAudio" | "passageGlossaryEntry" | "question" | "readingAttempt" | "reminderSetting" | "sourceDocument" | "user" | "userGoal"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -945,6 +946,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.PassageCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.PassageCountAggregateOutputType> | number
+        }
+      }
+    }
+    PassageAudio: {
+      payload: Prisma.$PassageAudioPayload<ExtArgs>
+      fields: Prisma.PassageAudioFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.PassageAudioFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PassageAudioPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.PassageAudioFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PassageAudioPayload>
+        }
+        findFirst: {
+          args: Prisma.PassageAudioFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PassageAudioPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.PassageAudioFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PassageAudioPayload>
+        }
+        findMany: {
+          args: Prisma.PassageAudioFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PassageAudioPayload>[]
+        }
+        create: {
+          args: Prisma.PassageAudioCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PassageAudioPayload>
+        }
+        createMany: {
+          args: Prisma.PassageAudioCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.PassageAudioCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PassageAudioPayload>[]
+        }
+        delete: {
+          args: Prisma.PassageAudioDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PassageAudioPayload>
+        }
+        update: {
+          args: Prisma.PassageAudioUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PassageAudioPayload>
+        }
+        deleteMany: {
+          args: Prisma.PassageAudioDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.PassageAudioUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.PassageAudioUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PassageAudioPayload>[]
+        }
+        upsert: {
+          args: Prisma.PassageAudioUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PassageAudioPayload>
+        }
+        aggregate: {
+          args: Prisma.PassageAudioAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregatePassageAudio>
+        }
+        groupBy: {
+          args: Prisma.PassageAudioGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.PassageAudioGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.PassageAudioCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.PassageAudioCountAggregateOutputType> | number
         }
       }
     }
@@ -1628,6 +1703,25 @@ export const PassageScalarFieldEnum = {
 export type PassageScalarFieldEnum = (typeof PassageScalarFieldEnum)[keyof typeof PassageScalarFieldEnum]
 
 
+export const PassageAudioScalarFieldEnum = {
+  id: 'id',
+  passageId: 'passageId',
+  status: 'status',
+  voiceId: 'voiceId',
+  textHash: 'textHash',
+  manifest: 'manifest',
+  billedCharacters: 'billedCharacters',
+  attemptCount: 'attemptCount',
+  lastError: 'lastError',
+  generationStartedAt: 'generationStartedAt',
+  generatedAt: 'generatedAt',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type PassageAudioScalarFieldEnum = (typeof PassageAudioScalarFieldEnum)[keyof typeof PassageAudioScalarFieldEnum]
+
+
 export const PassageGlossaryEntryScalarFieldEnum = {
   id: 'id',
   passageId: 'passageId',
@@ -1679,6 +1773,7 @@ export const ReadingAttemptScalarFieldEnum = {
   questionCount: 'questionCount',
   correctCount: 'correctCount',
   translatedBlockCount: 'translatedBlockCount',
+  listenedBlockCount: 'listenedBlockCount',
   wordLookupCount: 'wordLookupCount',
   studyDate: 'studyDate',
   createdAt: 'createdAt',
@@ -1761,6 +1856,14 @@ export const JsonNullValueInput = {
 } as const
 
 export type JsonNullValueInput = (typeof JsonNullValueInput)[keyof typeof JsonNullValueInput]
+
+
+export const NullableJsonNullValueInput = {
+  DbNull: DbNull,
+  JsonNull: JsonNull
+} as const
+
+export type NullableJsonNullValueInput = (typeof NullableJsonNullValueInput)[keyof typeof NullableJsonNullValueInput]
 
 
 export const NullsOrder = {
@@ -2028,6 +2131,7 @@ export type GlobalOmitConfig = {
   dictionaryEntry?: Prisma.DictionaryEntryOmit
   memo?: Prisma.MemoOmit
   passage?: Prisma.PassageOmit
+  passageAudio?: Prisma.PassageAudioOmit
   passageGlossaryEntry?: Prisma.PassageGlossaryEntryOmit
   question?: Prisma.QuestionOmit
   readingAttempt?: Prisma.ReadingAttemptOmit

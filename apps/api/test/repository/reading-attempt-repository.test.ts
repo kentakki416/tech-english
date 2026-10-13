@@ -148,6 +148,7 @@ describe.each(implementations)("%s ReadingAttemptRepository", (_name, readingAtt
           correctCount: null,
           elapsedSeconds: null,
           isOvertime: null,
+          listenedBlockCount: 0,
           passageId: passage.id,
           questionCount: null,
           startedAt: at("2026-10-12T10:00:00.123Z"),
@@ -300,6 +301,7 @@ describe.each(implementations)("%s ReadingAttemptRepository", (_name, readingAtt
           correctCount: null,
           elapsedSeconds: null,
           isOvertime: null,
+          listenedBlockCount: 0,
           passageId: passage.id,
           questionCount: null,
           startedAt: at("2026-10-12T00:00:00.001Z"),
@@ -384,6 +386,7 @@ describe.each(implementations)("%s ReadingAttemptRepository", (_name, readingAtt
         expect(submitted).toEqual({
           id: attempt.id,
           ...SUBMIT_VALUES,
+          listenedBlockCount: 0,
           passageId: passage.id,
           startedAt: at("2026-10-12T15:27:00.000Z"),
           status: "submitted",

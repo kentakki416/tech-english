@@ -129,7 +129,7 @@ export const generateAudio = async (
 
 | 変数 | 既定 | 説明 |
 | --- | --- | --- |
-| `TTS_PROVIDER` | `polly` | `polly` / `fake` |
+| `TTS_PROVIDER` | `production` は `polly`、それ以外は `fake`（手元の AWS の資格情報で意図せず課金しないため） | `polly` / `fake` |
 | `TTS_VOICE_ID` | `Joanna` | Polly の voice（Neural に対応したもの） |
 | `AWS_REGION` | `ap-northeast-1` | Polly と S3 のリージョン |
 | `AUDIO_MAX_PASSAGES_PER_RUN` | `20` | 1 回の実行で確保する問題の上限 |

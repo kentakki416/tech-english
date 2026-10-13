@@ -56,3 +56,5 @@ const storage =
 const url = await storage.save("badges/123.png", pngBuffer)
 ```
 
+S3 の `Cache-Control` は既定で `public, max-age=86400`。キーに内容のハッシュを含めて「内容が変わればキーも変わる」保存先は、`cacheControl` で長期にできる（例: cron の読み上げの音声 `audioStorage` は `public, max-age=31536000, immutable`）。`Content-Type` はキーの拡張子から決める（png / jpg / svg / webp / mp3）。
+

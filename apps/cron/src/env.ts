@@ -77,6 +77,38 @@ const cronEnvSchema = z
      * 確認待ちの下書き（status = draft）がこの件数以上なら generate-questions は生成しない（確認が追いつかないのに費用を使わないため）
      */
     GENERATE_MAX_PENDING_DRAFTS: z.coerce.number().int().positive().default(50),
+    /**
+     * generate-audio の音声合成。polly は Amazon Polly（AWS の資格情報が要る）、fake は無音の mp3 と等間隔の単語の時刻（ローカルの確認用）。
+     * 未設定なら production は polly、それ以外は fake（手元に AWS の資格情報があっても、明示しない限り Polly を呼んで課金しないため）
+     */
+    TTS_PROVIDER: z.enum(["polly", "fake"]).optional(),
+    /**
+     * generate-audio の Polly の voice（Neural に対応したもの）。変えると text_hash が変わり、全問の音声が作り直しになる
+     */
+    TTS_VOICE_ID: z.string().min(1).default("Joanna"),
+    /**
+     * generate-audio が使う Polly と S3 のリージョン
+     */
+    AWS_REGION: z.string().min(1).default("ap-northeast-1"),
+    /**
+     * generate-audio が 1 回の実行で確保する問題の上限（Polly の費用の上限）
+     */
+    AUDIO_MAX_PASSAGES_PER_RUN: z.coerce.number().int().positive().default(20),
+    /**
+     * generate-audio の mp3 の保存先。local は AUDIO_STORAGE_LOCAL_DIR、s3 は AUDIO_STORAGE_S3_BUCKET
+     */
+    AUDIO_STORAGE_TYPE: z.enum(["local", "s3"]).default("local"),
+    /**
+     * local の保存先（apps/cron からの相対。pnpm のスクリプトは apps/cron で動くので、リポジトリ直下の .storage/audio/ になり、api の /media 配信と共有する）
+     */
+    AUDIO_STORAGE_LOCAL_DIR: z.string().min(1).default("../../.storage/audio"),
+    /**
+     * s3 の保存先の bucket。AUDIO_STORAGE_TYPE=s3 のとき必須（空文字は未設定と同じ）
+     */
+    AUDIO_STORAGE_S3_BUCKET: z
+      .string()
+      .optional()
+      .transform((value) => (value === "" ? undefined : value)),
   })
   .superRefine((env, ctx) => {
     if (env.NODE_ENV !== "test" && !env.DATABASE_URL) {
@@ -86,7 +118,18 @@ const cronEnvSchema = z
         path: ["DATABASE_URL"],
       })
     }
+    if (env.AUDIO_STORAGE_TYPE === "s3" && !env.AUDIO_STORAGE_S3_BUCKET) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "AUDIO_STORAGE_S3_BUCKET is required when AUDIO_STORAGE_TYPE is 's3'",
+        path: ["AUDIO_STORAGE_S3_BUCKET"],
+      })
+    }
   })
+  .transform((env) => ({
+    ...env,
+    TTS_PROVIDER: env.TTS_PROVIDER ?? (env.NODE_ENV === "production" ? "polly" : "fake"),
+  }))
 
 const result = cronEnvSchema.safeParse(process.env)
 if (!result.success) {

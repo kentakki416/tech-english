@@ -35,6 +35,7 @@ export type ReadingAttemptAvgAggregateOutputType = {
   questionCount: number | null
   correctCount: number | null
   translatedBlockCount: number | null
+  listenedBlockCount: number | null
   wordLookupCount: number | null
 }
 
@@ -47,6 +48,7 @@ export type ReadingAttemptSumAggregateOutputType = {
   questionCount: number | null
   correctCount: number | null
   translatedBlockCount: number | null
+  listenedBlockCount: number | null
   wordLookupCount: number | null
 }
 
@@ -63,6 +65,7 @@ export type ReadingAttemptMinAggregateOutputType = {
   questionCount: number | null
   correctCount: number | null
   translatedBlockCount: number | null
+  listenedBlockCount: number | null
   wordLookupCount: number | null
   studyDate: Date | null
   createdAt: Date | null
@@ -82,6 +85,7 @@ export type ReadingAttemptMaxAggregateOutputType = {
   questionCount: number | null
   correctCount: number | null
   translatedBlockCount: number | null
+  listenedBlockCount: number | null
   wordLookupCount: number | null
   studyDate: Date | null
   createdAt: Date | null
@@ -101,6 +105,7 @@ export type ReadingAttemptCountAggregateOutputType = {
   questionCount: number
   correctCount: number
   translatedBlockCount: number
+  listenedBlockCount: number
   wordLookupCount: number
   studyDate: number
   createdAt: number
@@ -118,6 +123,7 @@ export type ReadingAttemptAvgAggregateInputType = {
   questionCount?: true
   correctCount?: true
   translatedBlockCount?: true
+  listenedBlockCount?: true
   wordLookupCount?: true
 }
 
@@ -130,6 +136,7 @@ export type ReadingAttemptSumAggregateInputType = {
   questionCount?: true
   correctCount?: true
   translatedBlockCount?: true
+  listenedBlockCount?: true
   wordLookupCount?: true
 }
 
@@ -146,6 +153,7 @@ export type ReadingAttemptMinAggregateInputType = {
   questionCount?: true
   correctCount?: true
   translatedBlockCount?: true
+  listenedBlockCount?: true
   wordLookupCount?: true
   studyDate?: true
   createdAt?: true
@@ -165,6 +173,7 @@ export type ReadingAttemptMaxAggregateInputType = {
   questionCount?: true
   correctCount?: true
   translatedBlockCount?: true
+  listenedBlockCount?: true
   wordLookupCount?: true
   studyDate?: true
   createdAt?: true
@@ -184,6 +193,7 @@ export type ReadingAttemptCountAggregateInputType = {
   questionCount?: true
   correctCount?: true
   translatedBlockCount?: true
+  listenedBlockCount?: true
   wordLookupCount?: true
   studyDate?: true
   createdAt?: true
@@ -290,6 +300,7 @@ export type ReadingAttemptGroupByOutputType = {
   questionCount: number | null
   correctCount: number | null
   translatedBlockCount: number
+  listenedBlockCount: number
   wordLookupCount: number
   studyDate: Date | null
   createdAt: Date
@@ -332,6 +343,7 @@ export type ReadingAttemptWhereInput = {
   questionCount?: Prisma.IntNullableFilter<"ReadingAttempt"> | number | null
   correctCount?: Prisma.IntNullableFilter<"ReadingAttempt"> | number | null
   translatedBlockCount?: Prisma.IntFilter<"ReadingAttempt"> | number
+  listenedBlockCount?: Prisma.IntFilter<"ReadingAttempt"> | number
   wordLookupCount?: Prisma.IntFilter<"ReadingAttempt"> | number
   studyDate?: Prisma.DateTimeNullableFilter<"ReadingAttempt"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"ReadingAttempt"> | Date | string
@@ -355,6 +367,7 @@ export type ReadingAttemptOrderByWithRelationInput = {
   questionCount?: Prisma.SortOrderInput | Prisma.SortOrder
   correctCount?: Prisma.SortOrderInput | Prisma.SortOrder
   translatedBlockCount?: Prisma.SortOrder
+  listenedBlockCount?: Prisma.SortOrder
   wordLookupCount?: Prisma.SortOrder
   studyDate?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -381,6 +394,7 @@ export type ReadingAttemptWhereUniqueInput = Prisma.AtLeast<{
   questionCount?: Prisma.IntNullableFilter<"ReadingAttempt"> | number | null
   correctCount?: Prisma.IntNullableFilter<"ReadingAttempt"> | number | null
   translatedBlockCount?: Prisma.IntFilter<"ReadingAttempt"> | number
+  listenedBlockCount?: Prisma.IntFilter<"ReadingAttempt"> | number
   wordLookupCount?: Prisma.IntFilter<"ReadingAttempt"> | number
   studyDate?: Prisma.DateTimeNullableFilter<"ReadingAttempt"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"ReadingAttempt"> | Date | string
@@ -404,6 +418,7 @@ export type ReadingAttemptOrderByWithAggregationInput = {
   questionCount?: Prisma.SortOrderInput | Prisma.SortOrder
   correctCount?: Prisma.SortOrderInput | Prisma.SortOrder
   translatedBlockCount?: Prisma.SortOrder
+  listenedBlockCount?: Prisma.SortOrder
   wordLookupCount?: Prisma.SortOrder
   studyDate?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -431,6 +446,7 @@ export type ReadingAttemptScalarWhereWithAggregatesInput = {
   questionCount?: Prisma.IntNullableWithAggregatesFilter<"ReadingAttempt"> | number | null
   correctCount?: Prisma.IntNullableWithAggregatesFilter<"ReadingAttempt"> | number | null
   translatedBlockCount?: Prisma.IntWithAggregatesFilter<"ReadingAttempt"> | number
+  listenedBlockCount?: Prisma.IntWithAggregatesFilter<"ReadingAttempt"> | number
   wordLookupCount?: Prisma.IntWithAggregatesFilter<"ReadingAttempt"> | number
   studyDate?: Prisma.DateTimeNullableWithAggregatesFilter<"ReadingAttempt"> | Date | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"ReadingAttempt"> | Date | string
@@ -447,6 +463,7 @@ export type ReadingAttemptCreateInput = {
   questionCount?: number | null
   correctCount?: number | null
   translatedBlockCount?: number
+  listenedBlockCount?: number
   wordLookupCount?: number
   studyDate?: Date | string | null
   createdAt?: Date | string
@@ -470,6 +487,7 @@ export type ReadingAttemptUncheckedCreateInput = {
   questionCount?: number | null
   correctCount?: number | null
   translatedBlockCount?: number
+  listenedBlockCount?: number
   wordLookupCount?: number
   studyDate?: Date | string | null
   createdAt?: Date | string
@@ -488,6 +506,7 @@ export type ReadingAttemptUpdateInput = {
   questionCount?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   correctCount?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   translatedBlockCount?: Prisma.IntFieldUpdateOperationsInput | number
+  listenedBlockCount?: Prisma.IntFieldUpdateOperationsInput | number
   wordLookupCount?: Prisma.IntFieldUpdateOperationsInput | number
   studyDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -511,6 +530,7 @@ export type ReadingAttemptUncheckedUpdateInput = {
   questionCount?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   correctCount?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   translatedBlockCount?: Prisma.IntFieldUpdateOperationsInput | number
+  listenedBlockCount?: Prisma.IntFieldUpdateOperationsInput | number
   wordLookupCount?: Prisma.IntFieldUpdateOperationsInput | number
   studyDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -532,6 +552,7 @@ export type ReadingAttemptCreateManyInput = {
   questionCount?: number | null
   correctCount?: number | null
   translatedBlockCount?: number
+  listenedBlockCount?: number
   wordLookupCount?: number
   studyDate?: Date | string | null
   createdAt?: Date | string
@@ -548,6 +569,7 @@ export type ReadingAttemptUpdateManyMutationInput = {
   questionCount?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   correctCount?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   translatedBlockCount?: Prisma.IntFieldUpdateOperationsInput | number
+  listenedBlockCount?: Prisma.IntFieldUpdateOperationsInput | number
   wordLookupCount?: Prisma.IntFieldUpdateOperationsInput | number
   studyDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -567,6 +589,7 @@ export type ReadingAttemptUncheckedUpdateManyInput = {
   questionCount?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   correctCount?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   translatedBlockCount?: Prisma.IntFieldUpdateOperationsInput | number
+  listenedBlockCount?: Prisma.IntFieldUpdateOperationsInput | number
   wordLookupCount?: Prisma.IntFieldUpdateOperationsInput | number
   studyDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -601,6 +624,7 @@ export type ReadingAttemptCountOrderByAggregateInput = {
   questionCount?: Prisma.SortOrder
   correctCount?: Prisma.SortOrder
   translatedBlockCount?: Prisma.SortOrder
+  listenedBlockCount?: Prisma.SortOrder
   wordLookupCount?: Prisma.SortOrder
   studyDate?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -616,6 +640,7 @@ export type ReadingAttemptAvgOrderByAggregateInput = {
   questionCount?: Prisma.SortOrder
   correctCount?: Prisma.SortOrder
   translatedBlockCount?: Prisma.SortOrder
+  listenedBlockCount?: Prisma.SortOrder
   wordLookupCount?: Prisma.SortOrder
 }
 
@@ -632,6 +657,7 @@ export type ReadingAttemptMaxOrderByAggregateInput = {
   questionCount?: Prisma.SortOrder
   correctCount?: Prisma.SortOrder
   translatedBlockCount?: Prisma.SortOrder
+  listenedBlockCount?: Prisma.SortOrder
   wordLookupCount?: Prisma.SortOrder
   studyDate?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -651,6 +677,7 @@ export type ReadingAttemptMinOrderByAggregateInput = {
   questionCount?: Prisma.SortOrder
   correctCount?: Prisma.SortOrder
   translatedBlockCount?: Prisma.SortOrder
+  listenedBlockCount?: Prisma.SortOrder
   wordLookupCount?: Prisma.SortOrder
   studyDate?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -666,6 +693,7 @@ export type ReadingAttemptSumOrderByAggregateInput = {
   questionCount?: Prisma.SortOrder
   correctCount?: Prisma.SortOrder
   translatedBlockCount?: Prisma.SortOrder
+  listenedBlockCount?: Prisma.SortOrder
   wordLookupCount?: Prisma.SortOrder
 }
 
@@ -795,6 +823,7 @@ export type ReadingAttemptCreateWithoutAnswersInput = {
   questionCount?: number | null
   correctCount?: number | null
   translatedBlockCount?: number
+  listenedBlockCount?: number
   wordLookupCount?: number
   studyDate?: Date | string | null
   createdAt?: Date | string
@@ -817,6 +846,7 @@ export type ReadingAttemptUncheckedCreateWithoutAnswersInput = {
   questionCount?: number | null
   correctCount?: number | null
   translatedBlockCount?: number
+  listenedBlockCount?: number
   wordLookupCount?: number
   studyDate?: Date | string | null
   createdAt?: Date | string
@@ -850,6 +880,7 @@ export type ReadingAttemptUpdateWithoutAnswersInput = {
   questionCount?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   correctCount?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   translatedBlockCount?: Prisma.IntFieldUpdateOperationsInput | number
+  listenedBlockCount?: Prisma.IntFieldUpdateOperationsInput | number
   wordLookupCount?: Prisma.IntFieldUpdateOperationsInput | number
   studyDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -872,6 +903,7 @@ export type ReadingAttemptUncheckedUpdateWithoutAnswersInput = {
   questionCount?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   correctCount?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   translatedBlockCount?: Prisma.IntFieldUpdateOperationsInput | number
+  listenedBlockCount?: Prisma.IntFieldUpdateOperationsInput | number
   wordLookupCount?: Prisma.IntFieldUpdateOperationsInput | number
   studyDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -889,6 +921,7 @@ export type ReadingAttemptCreateWithoutWordLookupsInput = {
   questionCount?: number | null
   correctCount?: number | null
   translatedBlockCount?: number
+  listenedBlockCount?: number
   wordLookupCount?: number
   studyDate?: Date | string | null
   createdAt?: Date | string
@@ -911,6 +944,7 @@ export type ReadingAttemptUncheckedCreateWithoutWordLookupsInput = {
   questionCount?: number | null
   correctCount?: number | null
   translatedBlockCount?: number
+  listenedBlockCount?: number
   wordLookupCount?: number
   studyDate?: Date | string | null
   createdAt?: Date | string
@@ -944,6 +978,7 @@ export type ReadingAttemptUpdateWithoutWordLookupsInput = {
   questionCount?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   correctCount?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   translatedBlockCount?: Prisma.IntFieldUpdateOperationsInput | number
+  listenedBlockCount?: Prisma.IntFieldUpdateOperationsInput | number
   wordLookupCount?: Prisma.IntFieldUpdateOperationsInput | number
   studyDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -966,6 +1001,7 @@ export type ReadingAttemptUncheckedUpdateWithoutWordLookupsInput = {
   questionCount?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   correctCount?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   translatedBlockCount?: Prisma.IntFieldUpdateOperationsInput | number
+  listenedBlockCount?: Prisma.IntFieldUpdateOperationsInput | number
   wordLookupCount?: Prisma.IntFieldUpdateOperationsInput | number
   studyDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -983,6 +1019,7 @@ export type ReadingAttemptCreateWithoutPassageInput = {
   questionCount?: number | null
   correctCount?: number | null
   translatedBlockCount?: number
+  listenedBlockCount?: number
   wordLookupCount?: number
   studyDate?: Date | string | null
   createdAt?: Date | string
@@ -1004,6 +1041,7 @@ export type ReadingAttemptUncheckedCreateWithoutPassageInput = {
   questionCount?: number | null
   correctCount?: number | null
   translatedBlockCount?: number
+  listenedBlockCount?: number
   wordLookupCount?: number
   studyDate?: Date | string | null
   createdAt?: Date | string
@@ -1054,6 +1092,7 @@ export type ReadingAttemptScalarWhereInput = {
   questionCount?: Prisma.IntNullableFilter<"ReadingAttempt"> | number | null
   correctCount?: Prisma.IntNullableFilter<"ReadingAttempt"> | number | null
   translatedBlockCount?: Prisma.IntFilter<"ReadingAttempt"> | number
+  listenedBlockCount?: Prisma.IntFilter<"ReadingAttempt"> | number
   wordLookupCount?: Prisma.IntFilter<"ReadingAttempt"> | number
   studyDate?: Prisma.DateTimeNullableFilter<"ReadingAttempt"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"ReadingAttempt"> | Date | string
@@ -1070,6 +1109,7 @@ export type ReadingAttemptCreateWithoutUserInput = {
   questionCount?: number | null
   correctCount?: number | null
   translatedBlockCount?: number
+  listenedBlockCount?: number
   wordLookupCount?: number
   studyDate?: Date | string | null
   createdAt?: Date | string
@@ -1091,6 +1131,7 @@ export type ReadingAttemptUncheckedCreateWithoutUserInput = {
   questionCount?: number | null
   correctCount?: number | null
   translatedBlockCount?: number
+  listenedBlockCount?: number
   wordLookupCount?: number
   studyDate?: Date | string | null
   createdAt?: Date | string
@@ -1137,6 +1178,7 @@ export type ReadingAttemptCreateManyPassageInput = {
   questionCount?: number | null
   correctCount?: number | null
   translatedBlockCount?: number
+  listenedBlockCount?: number
   wordLookupCount?: number
   studyDate?: Date | string | null
   createdAt?: Date | string
@@ -1153,6 +1195,7 @@ export type ReadingAttemptUpdateWithoutPassageInput = {
   questionCount?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   correctCount?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   translatedBlockCount?: Prisma.IntFieldUpdateOperationsInput | number
+  listenedBlockCount?: Prisma.IntFieldUpdateOperationsInput | number
   wordLookupCount?: Prisma.IntFieldUpdateOperationsInput | number
   studyDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1174,6 +1217,7 @@ export type ReadingAttemptUncheckedUpdateWithoutPassageInput = {
   questionCount?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   correctCount?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   translatedBlockCount?: Prisma.IntFieldUpdateOperationsInput | number
+  listenedBlockCount?: Prisma.IntFieldUpdateOperationsInput | number
   wordLookupCount?: Prisma.IntFieldUpdateOperationsInput | number
   studyDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1194,6 +1238,7 @@ export type ReadingAttemptUncheckedUpdateManyWithoutPassageInput = {
   questionCount?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   correctCount?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   translatedBlockCount?: Prisma.IntFieldUpdateOperationsInput | number
+  listenedBlockCount?: Prisma.IntFieldUpdateOperationsInput | number
   wordLookupCount?: Prisma.IntFieldUpdateOperationsInput | number
   studyDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1212,6 +1257,7 @@ export type ReadingAttemptCreateManyUserInput = {
   questionCount?: number | null
   correctCount?: number | null
   translatedBlockCount?: number
+  listenedBlockCount?: number
   wordLookupCount?: number
   studyDate?: Date | string | null
   createdAt?: Date | string
@@ -1228,6 +1274,7 @@ export type ReadingAttemptUpdateWithoutUserInput = {
   questionCount?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   correctCount?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   translatedBlockCount?: Prisma.IntFieldUpdateOperationsInput | number
+  listenedBlockCount?: Prisma.IntFieldUpdateOperationsInput | number
   wordLookupCount?: Prisma.IntFieldUpdateOperationsInput | number
   studyDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1249,6 +1296,7 @@ export type ReadingAttemptUncheckedUpdateWithoutUserInput = {
   questionCount?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   correctCount?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   translatedBlockCount?: Prisma.IntFieldUpdateOperationsInput | number
+  listenedBlockCount?: Prisma.IntFieldUpdateOperationsInput | number
   wordLookupCount?: Prisma.IntFieldUpdateOperationsInput | number
   studyDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1269,6 +1317,7 @@ export type ReadingAttemptUncheckedUpdateManyWithoutUserInput = {
   questionCount?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   correctCount?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   translatedBlockCount?: Prisma.IntFieldUpdateOperationsInput | number
+  listenedBlockCount?: Prisma.IntFieldUpdateOperationsInput | number
   wordLookupCount?: Prisma.IntFieldUpdateOperationsInput | number
   studyDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1328,6 +1377,7 @@ export type ReadingAttemptSelect<ExtArgs extends runtime.Types.Extensions.Intern
   questionCount?: boolean
   correctCount?: boolean
   translatedBlockCount?: boolean
+  listenedBlockCount?: boolean
   wordLookupCount?: boolean
   studyDate?: boolean
   createdAt?: boolean
@@ -1352,6 +1402,7 @@ export type ReadingAttemptSelectCreateManyAndReturn<ExtArgs extends runtime.Type
   questionCount?: boolean
   correctCount?: boolean
   translatedBlockCount?: boolean
+  listenedBlockCount?: boolean
   wordLookupCount?: boolean
   studyDate?: boolean
   createdAt?: boolean
@@ -1373,6 +1424,7 @@ export type ReadingAttemptSelectUpdateManyAndReturn<ExtArgs extends runtime.Type
   questionCount?: boolean
   correctCount?: boolean
   translatedBlockCount?: boolean
+  listenedBlockCount?: boolean
   wordLookupCount?: boolean
   studyDate?: boolean
   createdAt?: boolean
@@ -1394,13 +1446,14 @@ export type ReadingAttemptSelectScalar = {
   questionCount?: boolean
   correctCount?: boolean
   translatedBlockCount?: boolean
+  listenedBlockCount?: boolean
   wordLookupCount?: boolean
   studyDate?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type ReadingAttemptOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "passageId" | "status" | "startedAt" | "submittedAt" | "timeLimitSeconds" | "elapsedSeconds" | "isOvertime" | "questionCount" | "correctCount" | "translatedBlockCount" | "wordLookupCount" | "studyDate" | "createdAt" | "updatedAt", ExtArgs["result"]["readingAttempt"]>
+export type ReadingAttemptOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "passageId" | "status" | "startedAt" | "submittedAt" | "timeLimitSeconds" | "elapsedSeconds" | "isOvertime" | "questionCount" | "correctCount" | "translatedBlockCount" | "listenedBlockCount" | "wordLookupCount" | "studyDate" | "createdAt" | "updatedAt", ExtArgs["result"]["readingAttempt"]>
 export type ReadingAttemptInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   passage?: boolean | Prisma.PassageDefaultArgs<ExtArgs>
@@ -1444,6 +1497,10 @@ export type $ReadingAttemptPayload<ExtArgs extends runtime.Types.Extensions.Inte
     questionCount: number | null
     correctCount: number | null
     translatedBlockCount: number
+    /**
+     * 解答中に読み上げを聞いた段落の数
+     */
+    listenedBlockCount: number
     wordLookupCount: number
     /**
      * 提出時のユーザーの TZ での日付。Prisma では UTC の 0 時の Date で返るので、Repository で toISOString().slice(0, 10) にする
@@ -1890,6 +1947,7 @@ export interface ReadingAttemptFieldRefs {
   readonly questionCount: Prisma.FieldRef<"ReadingAttempt", 'Int'>
   readonly correctCount: Prisma.FieldRef<"ReadingAttempt", 'Int'>
   readonly translatedBlockCount: Prisma.FieldRef<"ReadingAttempt", 'Int'>
+  readonly listenedBlockCount: Prisma.FieldRef<"ReadingAttempt", 'Int'>
   readonly wordLookupCount: Prisma.FieldRef<"ReadingAttempt", 'Int'>
   readonly studyDate: Prisma.FieldRef<"ReadingAttempt", 'DateTime'>
   readonly createdAt: Prisma.FieldRef<"ReadingAttempt", 'DateTime'>

@@ -189,10 +189,40 @@ model Passage {
     glossaryEntries PassageGlossaryEntry[]
     readingAttempts ReadingAttempt[]
     wordLookups     AttemptWordLookup[]
+    audio           PassageAudio?
 
     @@index([status, createdAt])
     @@index([sourceDocumentId])
     @@map("passages")
+}
+
+// 問題ごとの読み上げの音声（read-aloud）。1 問 1 行。CHECK 制約は Drizzle のマイグレーションが正本
+// status は @repo/domain の AUDIO_STATUSES から作る CHECK 制約があるが、Prisma では表現できないので String にしている
+// （Prisma 実装の Repository は isAudioStatus で検証してから domain 型にする）
+model PassageAudio {
+    id                  Int       @id @default(autoincrement())
+    passageId           Int       @unique @map("passage_id")
+    /// AUDIO_STATUSES
+    status              String    @default("pending")
+    voiceId             String    @map("voice_id")
+    /// 読み上げ対象の本文と voice のハッシュ
+    textHash            String    @map("text_hash")
+    /// PassageAudioManifest
+    manifest            Json?
+    /// Polly の課金文字数（音声 + 単語の時刻）
+    billedCharacters    Int       @default(0) @map("billed_characters")
+    attemptCount        Int       @default(0) @map("attempt_count") @db.SmallInt
+    lastError           String?   @map("last_error")
+    /// generating にした時刻（確保のトークン）
+    generationStartedAt DateTime? @map("generation_started_at")
+    generatedAt         DateTime? @map("generated_at")
+    createdAt           DateTime  @default(now()) @map("created_at")
+    updatedAt           DateTime  @updatedAt @map("updated_at")
+
+    passage Passage @relation(fields: [passageId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+    @@index([status])
+    @@map("passage_audios")
 }
 
 // 用語集（本文中の難しい単語・熟語と、この文脈での意味）
@@ -273,6 +303,8 @@ model ReadingAttempt {
     questionCount        Int?      @map("question_count") @db.SmallInt
     correctCount         Int?      @map("correct_count") @db.SmallInt
     translatedBlockCount Int       @default(0) @map("translated_block_count") @db.SmallInt
+    /// 解答中に読み上げを聞いた段落の数
+    listenedBlockCount   Int       @default(0) @map("listened_block_count") @db.SmallInt
     wordLookupCount      Int       @default(0) @map("word_lookup_count") @db.SmallInt
     /// 提出時のユーザーの TZ での日付。Prisma では UTC の 0 時の Date で返るので、Repository で toISOString().slice(0, 10) にする
     studyDate            DateTime? @map("study_date") @db.Date

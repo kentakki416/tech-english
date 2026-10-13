@@ -50,6 +50,7 @@ export type {
   DictionaryEntry,
   Memo,
   Passage,
+  PassageAudio,
   PassageGlossaryEntry,
   Prisma,
   PrismaClient,

@@ -393,6 +393,7 @@ export type PassageWhereInput = {
   glossaryEntries?: Prisma.PassageGlossaryEntryListRelationFilter
   readingAttempts?: Prisma.ReadingAttemptListRelationFilter
   wordLookups?: Prisma.AttemptWordLookupListRelationFilter
+  audio?: Prisma.XOR<Prisma.PassageAudioNullableScalarRelationFilter, Prisma.PassageAudioWhereInput> | null
 }
 
 export type PassageOrderByWithRelationInput = {
@@ -426,6 +427,7 @@ export type PassageOrderByWithRelationInput = {
   glossaryEntries?: Prisma.PassageGlossaryEntryOrderByRelationAggregateInput
   readingAttempts?: Prisma.ReadingAttemptOrderByRelationAggregateInput
   wordLookups?: Prisma.AttemptWordLookupOrderByRelationAggregateInput
+  audio?: Prisma.PassageAudioOrderByWithRelationInput
 }
 
 export type PassageWhereUniqueInput = Prisma.AtLeast<{
@@ -462,6 +464,7 @@ export type PassageWhereUniqueInput = Prisma.AtLeast<{
   glossaryEntries?: Prisma.PassageGlossaryEntryListRelationFilter
   readingAttempts?: Prisma.ReadingAttemptListRelationFilter
   wordLookups?: Prisma.AttemptWordLookupListRelationFilter
+  audio?: Prisma.XOR<Prisma.PassageAudioNullableScalarRelationFilter, Prisma.PassageAudioWhereInput> | null
 }, "id" | "contentHash">
 
 export type PassageOrderByWithAggregationInput = {
@@ -557,6 +560,7 @@ export type PassageCreateInput = {
   glossaryEntries?: Prisma.PassageGlossaryEntryCreateNestedManyWithoutPassageInput
   readingAttempts?: Prisma.ReadingAttemptCreateNestedManyWithoutPassageInput
   wordLookups?: Prisma.AttemptWordLookupCreateNestedManyWithoutPassageInput
+  audio?: Prisma.PassageAudioCreateNestedOneWithoutPassageInput
 }
 
 export type PassageUncheckedCreateInput = {
@@ -589,6 +593,7 @@ export type PassageUncheckedCreateInput = {
   glossaryEntries?: Prisma.PassageGlossaryEntryUncheckedCreateNestedManyWithoutPassageInput
   readingAttempts?: Prisma.ReadingAttemptUncheckedCreateNestedManyWithoutPassageInput
   wordLookups?: Prisma.AttemptWordLookupUncheckedCreateNestedManyWithoutPassageInput
+  audio?: Prisma.PassageAudioUncheckedCreateNestedOneWithoutPassageInput
 }
 
 export type PassageUpdateInput = {
@@ -620,6 +625,7 @@ export type PassageUpdateInput = {
   glossaryEntries?: Prisma.PassageGlossaryEntryUpdateManyWithoutPassageNestedInput
   readingAttempts?: Prisma.ReadingAttemptUpdateManyWithoutPassageNestedInput
   wordLookups?: Prisma.AttemptWordLookupUpdateManyWithoutPassageNestedInput
+  audio?: Prisma.PassageAudioUpdateOneWithoutPassageNestedInput
 }
 
 export type PassageUncheckedUpdateInput = {
@@ -652,6 +658,7 @@ export type PassageUncheckedUpdateInput = {
   glossaryEntries?: Prisma.PassageGlossaryEntryUncheckedUpdateManyWithoutPassageNestedInput
   readingAttempts?: Prisma.ReadingAttemptUncheckedUpdateManyWithoutPassageNestedInput
   wordLookups?: Prisma.AttemptWordLookupUncheckedUpdateManyWithoutPassageNestedInput
+  audio?: Prisma.PassageAudioUncheckedUpdateOneWithoutPassageNestedInput
 }
 
 export type PassageCreateManyInput = {
@@ -863,6 +870,20 @@ export type PassageUpdateOneRequiredWithoutWordLookupsNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.PassageUpdateToOneWithWhereWithoutWordLookupsInput, Prisma.PassageUpdateWithoutWordLookupsInput>, Prisma.PassageUncheckedUpdateWithoutWordLookupsInput>
 }
 
+export type PassageCreateNestedOneWithoutAudioInput = {
+  create?: Prisma.XOR<Prisma.PassageCreateWithoutAudioInput, Prisma.PassageUncheckedCreateWithoutAudioInput>
+  connectOrCreate?: Prisma.PassageCreateOrConnectWithoutAudioInput
+  connect?: Prisma.PassageWhereUniqueInput
+}
+
+export type PassageUpdateOneRequiredWithoutAudioNestedInput = {
+  create?: Prisma.XOR<Prisma.PassageCreateWithoutAudioInput, Prisma.PassageUncheckedCreateWithoutAudioInput>
+  connectOrCreate?: Prisma.PassageCreateOrConnectWithoutAudioInput
+  upsert?: Prisma.PassageUpsertWithoutAudioInput
+  connect?: Prisma.PassageWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.PassageUpdateToOneWithWhereWithoutAudioInput, Prisma.PassageUpdateWithoutAudioInput>, Prisma.PassageUncheckedUpdateWithoutAudioInput>
+}
+
 export type PassageCreateNestedOneWithoutGlossaryEntriesInput = {
   create?: Prisma.XOR<Prisma.PassageCreateWithoutGlossaryEntriesInput, Prisma.PassageUncheckedCreateWithoutGlossaryEntriesInput>
   connectOrCreate?: Prisma.PassageCreateOrConnectWithoutGlossaryEntriesInput
@@ -975,6 +996,7 @@ export type PassageCreateWithoutWordLookupsInput = {
   questions?: Prisma.QuestionCreateNestedManyWithoutPassageInput
   glossaryEntries?: Prisma.PassageGlossaryEntryCreateNestedManyWithoutPassageInput
   readingAttempts?: Prisma.ReadingAttemptCreateNestedManyWithoutPassageInput
+  audio?: Prisma.PassageAudioCreateNestedOneWithoutPassageInput
 }
 
 export type PassageUncheckedCreateWithoutWordLookupsInput = {
@@ -1006,6 +1028,7 @@ export type PassageUncheckedCreateWithoutWordLookupsInput = {
   questions?: Prisma.QuestionUncheckedCreateNestedManyWithoutPassageInput
   glossaryEntries?: Prisma.PassageGlossaryEntryUncheckedCreateNestedManyWithoutPassageInput
   readingAttempts?: Prisma.ReadingAttemptUncheckedCreateNestedManyWithoutPassageInput
+  audio?: Prisma.PassageAudioUncheckedCreateNestedOneWithoutPassageInput
 }
 
 export type PassageCreateOrConnectWithoutWordLookupsInput = {
@@ -1052,6 +1075,7 @@ export type PassageUpdateWithoutWordLookupsInput = {
   questions?: Prisma.QuestionUpdateManyWithoutPassageNestedInput
   glossaryEntries?: Prisma.PassageGlossaryEntryUpdateManyWithoutPassageNestedInput
   readingAttempts?: Prisma.ReadingAttemptUpdateManyWithoutPassageNestedInput
+  audio?: Prisma.PassageAudioUpdateOneWithoutPassageNestedInput
 }
 
 export type PassageUncheckedUpdateWithoutWordLookupsInput = {
@@ -1083,6 +1107,149 @@ export type PassageUncheckedUpdateWithoutWordLookupsInput = {
   questions?: Prisma.QuestionUncheckedUpdateManyWithoutPassageNestedInput
   glossaryEntries?: Prisma.PassageGlossaryEntryUncheckedUpdateManyWithoutPassageNestedInput
   readingAttempts?: Prisma.ReadingAttemptUncheckedUpdateManyWithoutPassageNestedInput
+  audio?: Prisma.PassageAudioUncheckedUpdateOneWithoutPassageNestedInput
+}
+
+export type PassageCreateWithoutAudioInput = {
+  sourcePath: string
+  sourceCommitSha?: string | null
+  sourceRetrievedAt: Date | string
+  status?: string
+  title: string
+  blocks: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  wordCount: number
+  contentHash: string
+  difficulty?: number | null
+  timeLimitSeconds?: number | null
+  generationAttemptCount?: number
+  generationStartedAt?: Date | string | null
+  generationError?: string | null
+  generationModel?: string | null
+  generationPromptVersion?: string | null
+  generatedAt?: Date | string | null
+  needsAttention?: boolean
+  attentionReasons?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  rejectReason?: string | null
+  reviewedAt?: Date | string | null
+  publishedAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  sourceDocument: Prisma.SourceDocumentCreateNestedOneWithoutPassagesInput
+  questions?: Prisma.QuestionCreateNestedManyWithoutPassageInput
+  glossaryEntries?: Prisma.PassageGlossaryEntryCreateNestedManyWithoutPassageInput
+  readingAttempts?: Prisma.ReadingAttemptCreateNestedManyWithoutPassageInput
+  wordLookups?: Prisma.AttemptWordLookupCreateNestedManyWithoutPassageInput
+}
+
+export type PassageUncheckedCreateWithoutAudioInput = {
+  id?: number
+  sourceDocumentId: number
+  sourcePath: string
+  sourceCommitSha?: string | null
+  sourceRetrievedAt: Date | string
+  status?: string
+  title: string
+  blocks: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  wordCount: number
+  contentHash: string
+  difficulty?: number | null
+  timeLimitSeconds?: number | null
+  generationAttemptCount?: number
+  generationStartedAt?: Date | string | null
+  generationError?: string | null
+  generationModel?: string | null
+  generationPromptVersion?: string | null
+  generatedAt?: Date | string | null
+  needsAttention?: boolean
+  attentionReasons?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  rejectReason?: string | null
+  reviewedAt?: Date | string | null
+  publishedAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  questions?: Prisma.QuestionUncheckedCreateNestedManyWithoutPassageInput
+  glossaryEntries?: Prisma.PassageGlossaryEntryUncheckedCreateNestedManyWithoutPassageInput
+  readingAttempts?: Prisma.ReadingAttemptUncheckedCreateNestedManyWithoutPassageInput
+  wordLookups?: Prisma.AttemptWordLookupUncheckedCreateNestedManyWithoutPassageInput
+}
+
+export type PassageCreateOrConnectWithoutAudioInput = {
+  where: Prisma.PassageWhereUniqueInput
+  create: Prisma.XOR<Prisma.PassageCreateWithoutAudioInput, Prisma.PassageUncheckedCreateWithoutAudioInput>
+}
+
+export type PassageUpsertWithoutAudioInput = {
+  update: Prisma.XOR<Prisma.PassageUpdateWithoutAudioInput, Prisma.PassageUncheckedUpdateWithoutAudioInput>
+  create: Prisma.XOR<Prisma.PassageCreateWithoutAudioInput, Prisma.PassageUncheckedCreateWithoutAudioInput>
+  where?: Prisma.PassageWhereInput
+}
+
+export type PassageUpdateToOneWithWhereWithoutAudioInput = {
+  where?: Prisma.PassageWhereInput
+  data: Prisma.XOR<Prisma.PassageUpdateWithoutAudioInput, Prisma.PassageUncheckedUpdateWithoutAudioInput>
+}
+
+export type PassageUpdateWithoutAudioInput = {
+  sourcePath?: Prisma.StringFieldUpdateOperationsInput | string
+  sourceCommitSha?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sourceRetrievedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  status?: Prisma.StringFieldUpdateOperationsInput | string
+  title?: Prisma.StringFieldUpdateOperationsInput | string
+  blocks?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  wordCount?: Prisma.IntFieldUpdateOperationsInput | number
+  contentHash?: Prisma.StringFieldUpdateOperationsInput | string
+  difficulty?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  timeLimitSeconds?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  generationAttemptCount?: Prisma.IntFieldUpdateOperationsInput | number
+  generationStartedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  generationError?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  generationModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  generationPromptVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  generatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  needsAttention?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  attentionReasons?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  rejectReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reviewedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  publishedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  sourceDocument?: Prisma.SourceDocumentUpdateOneRequiredWithoutPassagesNestedInput
+  questions?: Prisma.QuestionUpdateManyWithoutPassageNestedInput
+  glossaryEntries?: Prisma.PassageGlossaryEntryUpdateManyWithoutPassageNestedInput
+  readingAttempts?: Prisma.ReadingAttemptUpdateManyWithoutPassageNestedInput
+  wordLookups?: Prisma.AttemptWordLookupUpdateManyWithoutPassageNestedInput
+}
+
+export type PassageUncheckedUpdateWithoutAudioInput = {
+  id?: Prisma.IntFieldUpdateOperationsInput | number
+  sourceDocumentId?: Prisma.IntFieldUpdateOperationsInput | number
+  sourcePath?: Prisma.StringFieldUpdateOperationsInput | string
+  sourceCommitSha?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sourceRetrievedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  status?: Prisma.StringFieldUpdateOperationsInput | string
+  title?: Prisma.StringFieldUpdateOperationsInput | string
+  blocks?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  wordCount?: Prisma.IntFieldUpdateOperationsInput | number
+  contentHash?: Prisma.StringFieldUpdateOperationsInput | string
+  difficulty?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  timeLimitSeconds?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  generationAttemptCount?: Prisma.IntFieldUpdateOperationsInput | number
+  generationStartedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  generationError?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  generationModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  generationPromptVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  generatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  needsAttention?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  attentionReasons?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  rejectReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reviewedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  publishedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  questions?: Prisma.QuestionUncheckedUpdateManyWithoutPassageNestedInput
+  glossaryEntries?: Prisma.PassageGlossaryEntryUncheckedUpdateManyWithoutPassageNestedInput
+  readingAttempts?: Prisma.ReadingAttemptUncheckedUpdateManyWithoutPassageNestedInput
+  wordLookups?: Prisma.AttemptWordLookupUncheckedUpdateManyWithoutPassageNestedInput
 }
 
 export type PassageCreateWithoutGlossaryEntriesInput = {
@@ -1113,6 +1280,7 @@ export type PassageCreateWithoutGlossaryEntriesInput = {
   questions?: Prisma.QuestionCreateNestedManyWithoutPassageInput
   readingAttempts?: Prisma.ReadingAttemptCreateNestedManyWithoutPassageInput
   wordLookups?: Prisma.AttemptWordLookupCreateNestedManyWithoutPassageInput
+  audio?: Prisma.PassageAudioCreateNestedOneWithoutPassageInput
 }
 
 export type PassageUncheckedCreateWithoutGlossaryEntriesInput = {
@@ -1144,6 +1312,7 @@ export type PassageUncheckedCreateWithoutGlossaryEntriesInput = {
   questions?: Prisma.QuestionUncheckedCreateNestedManyWithoutPassageInput
   readingAttempts?: Prisma.ReadingAttemptUncheckedCreateNestedManyWithoutPassageInput
   wordLookups?: Prisma.AttemptWordLookupUncheckedCreateNestedManyWithoutPassageInput
+  audio?: Prisma.PassageAudioUncheckedCreateNestedOneWithoutPassageInput
 }
 
 export type PassageCreateOrConnectWithoutGlossaryEntriesInput = {
@@ -1190,6 +1359,7 @@ export type PassageUpdateWithoutGlossaryEntriesInput = {
   questions?: Prisma.QuestionUpdateManyWithoutPassageNestedInput
   readingAttempts?: Prisma.ReadingAttemptUpdateManyWithoutPassageNestedInput
   wordLookups?: Prisma.AttemptWordLookupUpdateManyWithoutPassageNestedInput
+  audio?: Prisma.PassageAudioUpdateOneWithoutPassageNestedInput
 }
 
 export type PassageUncheckedUpdateWithoutGlossaryEntriesInput = {
@@ -1221,6 +1391,7 @@ export type PassageUncheckedUpdateWithoutGlossaryEntriesInput = {
   questions?: Prisma.QuestionUncheckedUpdateManyWithoutPassageNestedInput
   readingAttempts?: Prisma.ReadingAttemptUncheckedUpdateManyWithoutPassageNestedInput
   wordLookups?: Prisma.AttemptWordLookupUncheckedUpdateManyWithoutPassageNestedInput
+  audio?: Prisma.PassageAudioUncheckedUpdateOneWithoutPassageNestedInput
 }
 
 export type PassageCreateWithoutQuestionsInput = {
@@ -1251,6 +1422,7 @@ export type PassageCreateWithoutQuestionsInput = {
   glossaryEntries?: Prisma.PassageGlossaryEntryCreateNestedManyWithoutPassageInput
   readingAttempts?: Prisma.ReadingAttemptCreateNestedManyWithoutPassageInput
   wordLookups?: Prisma.AttemptWordLookupCreateNestedManyWithoutPassageInput
+  audio?: Prisma.PassageAudioCreateNestedOneWithoutPassageInput
 }
 
 export type PassageUncheckedCreateWithoutQuestionsInput = {
@@ -1282,6 +1454,7 @@ export type PassageUncheckedCreateWithoutQuestionsInput = {
   glossaryEntries?: Prisma.PassageGlossaryEntryUncheckedCreateNestedManyWithoutPassageInput
   readingAttempts?: Prisma.ReadingAttemptUncheckedCreateNestedManyWithoutPassageInput
   wordLookups?: Prisma.AttemptWordLookupUncheckedCreateNestedManyWithoutPassageInput
+  audio?: Prisma.PassageAudioUncheckedCreateNestedOneWithoutPassageInput
 }
 
 export type PassageCreateOrConnectWithoutQuestionsInput = {
@@ -1328,6 +1501,7 @@ export type PassageUpdateWithoutQuestionsInput = {
   glossaryEntries?: Prisma.PassageGlossaryEntryUpdateManyWithoutPassageNestedInput
   readingAttempts?: Prisma.ReadingAttemptUpdateManyWithoutPassageNestedInput
   wordLookups?: Prisma.AttemptWordLookupUpdateManyWithoutPassageNestedInput
+  audio?: Prisma.PassageAudioUpdateOneWithoutPassageNestedInput
 }
 
 export type PassageUncheckedUpdateWithoutQuestionsInput = {
@@ -1359,6 +1533,7 @@ export type PassageUncheckedUpdateWithoutQuestionsInput = {
   glossaryEntries?: Prisma.PassageGlossaryEntryUncheckedUpdateManyWithoutPassageNestedInput
   readingAttempts?: Prisma.ReadingAttemptUncheckedUpdateManyWithoutPassageNestedInput
   wordLookups?: Prisma.AttemptWordLookupUncheckedUpdateManyWithoutPassageNestedInput
+  audio?: Prisma.PassageAudioUncheckedUpdateOneWithoutPassageNestedInput
 }
 
 export type PassageCreateWithoutReadingAttemptsInput = {
@@ -1389,6 +1564,7 @@ export type PassageCreateWithoutReadingAttemptsInput = {
   questions?: Prisma.QuestionCreateNestedManyWithoutPassageInput
   glossaryEntries?: Prisma.PassageGlossaryEntryCreateNestedManyWithoutPassageInput
   wordLookups?: Prisma.AttemptWordLookupCreateNestedManyWithoutPassageInput
+  audio?: Prisma.PassageAudioCreateNestedOneWithoutPassageInput
 }
 
 export type PassageUncheckedCreateWithoutReadingAttemptsInput = {
@@ -1420,6 +1596,7 @@ export type PassageUncheckedCreateWithoutReadingAttemptsInput = {
   questions?: Prisma.QuestionUncheckedCreateNestedManyWithoutPassageInput
   glossaryEntries?: Prisma.PassageGlossaryEntryUncheckedCreateNestedManyWithoutPassageInput
   wordLookups?: Prisma.AttemptWordLookupUncheckedCreateNestedManyWithoutPassageInput
+  audio?: Prisma.PassageAudioUncheckedCreateNestedOneWithoutPassageInput
 }
 
 export type PassageCreateOrConnectWithoutReadingAttemptsInput = {
@@ -1466,6 +1643,7 @@ export type PassageUpdateWithoutReadingAttemptsInput = {
   questions?: Prisma.QuestionUpdateManyWithoutPassageNestedInput
   glossaryEntries?: Prisma.PassageGlossaryEntryUpdateManyWithoutPassageNestedInput
   wordLookups?: Prisma.AttemptWordLookupUpdateManyWithoutPassageNestedInput
+  audio?: Prisma.PassageAudioUpdateOneWithoutPassageNestedInput
 }
 
 export type PassageUncheckedUpdateWithoutReadingAttemptsInput = {
@@ -1497,6 +1675,7 @@ export type PassageUncheckedUpdateWithoutReadingAttemptsInput = {
   questions?: Prisma.QuestionUncheckedUpdateManyWithoutPassageNestedInput
   glossaryEntries?: Prisma.PassageGlossaryEntryUncheckedUpdateManyWithoutPassageNestedInput
   wordLookups?: Prisma.AttemptWordLookupUncheckedUpdateManyWithoutPassageNestedInput
+  audio?: Prisma.PassageAudioUncheckedUpdateOneWithoutPassageNestedInput
 }
 
 export type PassageCreateWithoutSourceDocumentInput = {
@@ -1527,6 +1706,7 @@ export type PassageCreateWithoutSourceDocumentInput = {
   glossaryEntries?: Prisma.PassageGlossaryEntryCreateNestedManyWithoutPassageInput
   readingAttempts?: Prisma.ReadingAttemptCreateNestedManyWithoutPassageInput
   wordLookups?: Prisma.AttemptWordLookupCreateNestedManyWithoutPassageInput
+  audio?: Prisma.PassageAudioCreateNestedOneWithoutPassageInput
 }
 
 export type PassageUncheckedCreateWithoutSourceDocumentInput = {
@@ -1558,6 +1738,7 @@ export type PassageUncheckedCreateWithoutSourceDocumentInput = {
   glossaryEntries?: Prisma.PassageGlossaryEntryUncheckedCreateNestedManyWithoutPassageInput
   readingAttempts?: Prisma.ReadingAttemptUncheckedCreateNestedManyWithoutPassageInput
   wordLookups?: Prisma.AttemptWordLookupUncheckedCreateNestedManyWithoutPassageInput
+  audio?: Prisma.PassageAudioUncheckedCreateNestedOneWithoutPassageInput
 }
 
 export type PassageCreateOrConnectWithoutSourceDocumentInput = {
@@ -1672,6 +1853,7 @@ export type PassageUpdateWithoutSourceDocumentInput = {
   glossaryEntries?: Prisma.PassageGlossaryEntryUpdateManyWithoutPassageNestedInput
   readingAttempts?: Prisma.ReadingAttemptUpdateManyWithoutPassageNestedInput
   wordLookups?: Prisma.AttemptWordLookupUpdateManyWithoutPassageNestedInput
+  audio?: Prisma.PassageAudioUpdateOneWithoutPassageNestedInput
 }
 
 export type PassageUncheckedUpdateWithoutSourceDocumentInput = {
@@ -1703,6 +1885,7 @@ export type PassageUncheckedUpdateWithoutSourceDocumentInput = {
   glossaryEntries?: Prisma.PassageGlossaryEntryUncheckedUpdateManyWithoutPassageNestedInput
   readingAttempts?: Prisma.ReadingAttemptUncheckedUpdateManyWithoutPassageNestedInput
   wordLookups?: Prisma.AttemptWordLookupUncheckedUpdateManyWithoutPassageNestedInput
+  audio?: Prisma.PassageAudioUncheckedUpdateOneWithoutPassageNestedInput
 }
 
 export type PassageUncheckedUpdateManyWithoutSourceDocumentInput = {
@@ -1821,6 +2004,7 @@ export type PassageSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs 
   glossaryEntries?: boolean | Prisma.Passage$glossaryEntriesArgs<ExtArgs>
   readingAttempts?: boolean | Prisma.Passage$readingAttemptsArgs<ExtArgs>
   wordLookups?: boolean | Prisma.Passage$wordLookupsArgs<ExtArgs>
+  audio?: boolean | Prisma.Passage$audioArgs<ExtArgs>
   _count?: boolean | Prisma.PassageCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["passage"]>
 
@@ -1917,6 +2101,7 @@ export type PassageInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs
   glossaryEntries?: boolean | Prisma.Passage$glossaryEntriesArgs<ExtArgs>
   readingAttempts?: boolean | Prisma.Passage$readingAttemptsArgs<ExtArgs>
   wordLookups?: boolean | Prisma.Passage$wordLookupsArgs<ExtArgs>
+  audio?: boolean | Prisma.Passage$audioArgs<ExtArgs>
   _count?: boolean | Prisma.PassageCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type PassageIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -1934,6 +2119,7 @@ export type $PassagePayload<ExtArgs extends runtime.Types.Extensions.InternalArg
     glossaryEntries: Prisma.$PassageGlossaryEntryPayload<ExtArgs>[]
     readingAttempts: Prisma.$ReadingAttemptPayload<ExtArgs>[]
     wordLookups: Prisma.$AttemptWordLookupPayload<ExtArgs>[]
+    audio: Prisma.$PassageAudioPayload<ExtArgs> | null
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: number
@@ -2378,6 +2564,7 @@ export interface Prisma__PassageClient<T, Null = never, ExtArgs extends runtime.
   glossaryEntries<T extends Prisma.Passage$glossaryEntriesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Passage$glossaryEntriesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$PassageGlossaryEntryPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   readingAttempts<T extends Prisma.Passage$readingAttemptsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Passage$readingAttemptsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ReadingAttemptPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   wordLookups<T extends Prisma.Passage$wordLookupsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Passage$wordLookupsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AttemptWordLookupPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  audio<T extends Prisma.Passage$audioArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Passage$audioArgs<ExtArgs>>): Prisma.Prisma__PassageAudioClient<runtime.Types.Result.GetResult<Prisma.$PassageAudioPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -2926,6 +3113,25 @@ export type Passage$wordLookupsArgs<ExtArgs extends runtime.Types.Extensions.Int
   take?: number
   skip?: number
   distinct?: Prisma.AttemptWordLookupScalarFieldEnum | Prisma.AttemptWordLookupScalarFieldEnum[]
+}
+
+/**
+ * Passage.audio
+ */
+export type Passage$audioArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the PassageAudio
+   */
+  select?: Prisma.PassageAudioSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the PassageAudio
+   */
+  omit?: Prisma.PassageAudioOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.PassageAudioInclude<ExtArgs> | null
+  where?: Prisma.PassageAudioWhereInput
 }
 
 /**

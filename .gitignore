@@ -29,6 +29,9 @@ expo-env.d.ts
 # Testing
 coverage/
 
+# ローカルの保存先（@repo/storage の LocalStorage。読み上げの音声 .storage/audio/ など）
+.storage/
+
 # Next.js
 .next/
 out/

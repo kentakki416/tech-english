@@ -45,6 +45,7 @@ const convertReadingAttemptRowToDomain = (row: ReadingAttemptRow): ReadingAttemp
   correctCount: row.correctCount,
   elapsedSeconds: row.elapsedSeconds,
   isOvertime: row.isOvertime,
+  listenedBlockCount: row.listenedBlockCount,
   passageId: row.passageId,
   questionCount: row.questionCount,
   startedAt: row.startedAt,

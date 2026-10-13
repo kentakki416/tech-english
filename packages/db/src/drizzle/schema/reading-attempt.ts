@@ -37,6 +37,10 @@ export const readingAttempts = pgTable(
      */
     elapsedSeconds: integer("elapsed_seconds"),
     isOvertime: boolean("is_overtime"),
+    /**
+     * 解答中に読み上げを聞いた段落の数（docs/spec/read-aloud/README.md）
+     */
+    listenedBlockCount: smallint("listened_block_count").notNull().default(0),
     passageId: integer("passage_id").notNull(),
     questionCount: smallint("question_count"),
     startedAt: timestamp("started_at", { mode: "date", precision: 3 }).notNull(),

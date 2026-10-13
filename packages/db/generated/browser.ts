@@ -53,6 +53,11 @@ export type Memo = Prisma.MemoModel
  */
 export type Passage = Prisma.PassageModel
 /**
+ * Model PassageAudio
+ * 
+ */
+export type PassageAudio = Prisma.PassageAudioModel
+/**
  * Model PassageGlossaryEntry
  * 
  */
