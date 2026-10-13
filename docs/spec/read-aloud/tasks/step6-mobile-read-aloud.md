@@ -82,7 +82,9 @@ useEventListener(player, "playbackStatusUpdate", (status) => {
 - **音声の設定**：初めて再生するときに 1 回だけ `setAudioModeAsync({ interruptionMode: "doNotMix", playsInSilentMode: true, shouldPlayInBackground: false })`（消音モードでも鳴らす。ほかのアプリの音楽は止める）。失敗しても再生は続ける（`console.warn`）
 - **パートの開始**：`player.replace({ uri: part.url })` → `player.shouldCorrectPitch = true` → `player.setPlaybackRate(rate)` → `player.play()`。`replace` の後は速度が戻ることがあるので、毎回設定し直す
 - **単語の追跡**：`playbackStatusUpdate` の `currentTime`（秒）× 1000 で `findWordIndexAt`。単語が変わったときだけ state を変える
-- **パートの終わり**：`status.didJustFinish` で、web の `ended` と同じく次のパート・次のブロック・待機に進む。外から止めた（`pause()`：一時停止の操作・上部バーの一時停止・`AppState`・上に画面を積んだとき）後に届いたら、web と同じく次のパートがあれば `replace` だけして `play()` せず一時停止の表示にする（再開すると次のパートの最初から鳴る）。次が無ければ `stop()`。「止めた」印は `togglePlay` の再開と自分の操作で始めたとき（`start`）に下ろす
+- **パートの終わり**：`status.didJustFinish` で、web の `ended` と同じく次のパート・次のブロック・待機に進む。外から止めた（`pause()`：一時停止の操作・上部バーの一時停止・`AppState`・上に画面を積んだとき）後に届いたら、web と同じく次のパートがあれば `replace` だけして `play()` せず一時停止の表示にする（再開すると次のパートの最初から鳴る）。次が無ければ `stop()`。「止めた」印は `togglePlay` の再開と自分の操作で始めたとき（`start`）に下ろす。expo-audio のネイティブは、電話・Siri などの割り込みの終わり（iOS の `shouldResume`、Android の音声フォーカスの回復）やアプリが前面に戻ったときに、止める前に鳴っていた player を `play` し直すので、`togglePlay` を通らずに再生が戻ったら（止めてから・パートを `replace` してから 2 秒以上たって、止めた位置〈`replace` の後は 0〉より 200ms 以上進んだ `playing: true` の更新が来たら）印を下ろす（下ろさないと段落の境目で止まる。止めた直後に届く古い `playing: true` の更新とは時刻と位置で見分ける）
+- **パートの終わりの確かめ**：`didJustFinish` は、上の長さの判定（±250ms）に加えて、`player.currentTime` が今のパートの終わり（`player.duration` とマニフェストの `durationMs` の短いほう）から 250ms 以内のときだけ受ける。iOS の expo-audio は終わりの更新の `currentTime` を player の長さに書き換えて送るので、位置は `status` ではなく `player` から読む（他の player の終わりの通知を受けても、一時停止中のパートを次のパートに差し替えないため）
+- **画面を離れている間**：上に画面を積んでいる間（`useIsFocused()` が false）の `playbackStatusUpdate` は捨てる（その間は一時停止している）。捨てたためにパートの終わりを受けそこねたまま戻ってきたら、`togglePlay` の再開で `player.currentTime` が終わりにあれば次のパートから鳴らす（そのまま `play()` すると終わった位置から動かず、再生中の表示のまま止まる）
 - **前のパートの更新を捨てる**：ネイティブからの `playbackStatusUpdate` は非同期に届くので、`replace` の前に送られた前のパートの更新が何件も後から届くことがある。`replace` の後は、`status.duration`（秒）が新しいパートの `durationMs` と ±250ms で合う更新が来るまで捨てる（`duration` がまだ 0・NaN の更新も捨てる）。前のパートと長さが 250ms 以内で区別できないときは、合わせて再生位置が 1 秒未満の更新だけを新しいパートのものとする（新しいパートは最初から鳴らすので、最初の更新の位置は 0 に近い。1 秒未満の短いパートどうしを切り替えた直後に限り、前のパートの終わりの更新を取り違えて次のパートへ早く進むことがある）。`replace` から 2 秒たっても合う更新が来なければ、長さを問わず新しいパートのものとする（長さの報告がマニフェストとずれる端末でも、単語の追跡とパートの終わりの処理を止めないため）
 - **isPlaying**：`status.playing` に合わせる（電話・ほかのアプリの音声で OS が止めたときも表示を合わせる）
 - **読み込みの失敗**：`AudioStatus` にはエラーが無いので、`replace` してから 10 秒たっても `status.isLoaded` にならなければ止めて `availability = "error"` にする。web と同じく時刻表も捨て、次の再生ボタンでマニフェストを取り直す（取り直したら待機に戻り、もう一度押すと再生する）
@@ -184,4 +186,7 @@ Expo web（port 8085、`apps/mobile/CLAUDE.md` の手順で Dev Login）で、we
 - [ ] 消音モード（iOS のサイレントスイッチ）でも音が出る。ほかのアプリの音楽が止まる
 - [ ] ホームに戻る・画面をロックすると止まり、戻っても止まったまま
 - [ ] 電話・ほかのアプリの音声で止まったとき、ミニプレーヤーが一時停止の表示になる
+- [ ] 電話・Siri の割り込みの後や、ホームから戻ったときに OS（expo-audio のネイティブ）が再生を戻した場合、段落の境目で止まらずに次の段落へ進む（戻したときに再生しないのが本来の動きなので、戻ること自体が起きるかも記録する）
+- [ ] 結果画面で読み上げ → 一時停止せずに「もう一度解く」（push で一時停止）→ 上の解答画面で読み上げて段落をまたいでも、戻った結果画面の読み上げは同じ段落のまま一時停止している（次の段落に進んでいない）。再開すると止めた位置から鳴る
+- [ ] 段落の終わりの直前に「もう一度解く」を押して戻り、再開すると、次の段落から鳴る（再生中の表示のまま止まらない）
 - [ ] 段落の間の切り替えの間（先読みしないため）が気にならない長さ
