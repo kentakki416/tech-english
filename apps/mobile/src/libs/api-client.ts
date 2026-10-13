@@ -7,6 +7,12 @@ import { clearStoredTokens, getStoredTokens, saveTokens } from "@/features/auth/
 import { useAuthStore } from "@/features/auth/auth.store"
 
 /**
+ * refresh の応答を待つ上限（web の `token-refresh.ts` と同じ）。応答の無い通信があると refreshPromise が
+ * 決着せず、それ以降に 401 になったリクエストがすべて待ち続けるため
+ */
+const REFRESH_TIMEOUT_MS = 5_000
+
+/**
  * 401 で refresh したあと 1 回だけ再送したかの印
  */
 type RetryableRequestConfig = InternalAxiosRequestConfig & { isRetry?: boolean }
@@ -59,12 +65,12 @@ const tryRefresh = async (): Promise<boolean> => {
   try {
     /** interceptor を通さないよう素の axios で呼ぶ */
     const body: AuthRefreshRequest = { refresh_token: tokens.refreshToken }
-    const res = await axios.post(`${env.EXPO_PUBLIC_API_URL}/api/auth/refresh`, body)
+    const res = await axios.post(`${env.EXPO_PUBLIC_API_URL}/api/auth/refresh`, body, { timeout: REFRESH_TIMEOUT_MS })
     const data = authRefreshResponseSchema.parse(res.data)
     await saveTokens({ accessToken: data.access_token, refreshToken: data.refresh_token })
     return true
   } catch (error) {
-    /** 401 のときだけログアウトする（通信エラーではログイン状態を消さない） */
+    /** 401 のときだけログアウトする（通信エラー・timeout ではログイン状態を消さない） */
     if (isAxiosError(error) && error.response?.status === 401) {
       await expireSession()
     }
