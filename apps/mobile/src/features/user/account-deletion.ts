@@ -37,7 +37,7 @@ export const deleteAccount = async (): Promise<void> => {
 const clearDeviceData = async (): Promise<void> => {
   const results = await Promise.allSettled([
     /**
-     * リマインダーの予約（study-reminder-{曜日}）の取り消しと、リマインダーの設定の store を空にする
+     * リマインダーの予約（study-reminder-{曜日}）の取り消し、通知センターに届き済みのリマインダーの削除、リマインダーの設定の store を空にする
      */
     clearStudyReminders(),
     clearStoredTokens(),

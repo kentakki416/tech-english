@@ -33,10 +33,12 @@ flowchart LR
     A["ログイン直後 / 起動時（ログイン済み）"] --> R["refreshStudyReminders<br/>GET → 予約の作り直し"]
     B["前面に戻った（background → active）"] --> R
     C["設定画面の変更"] --> S["saveStudyReminder<br/>PUT → 予約の作り直し"]
-    D["ログアウト / アカウント削除"] --> X["clearStudyReminders<br/>study-reminder-* をすべて取り消し"]
+    D["ログアウト / アカウント削除"] --> X["clearStudyReminders<br/>study-reminder-* の予約と届き済みの通知を消す"]
+    E["ログインの成功（同期の前）"] --> Y["cancelStudyRemindersOnSignIn<br/>study-reminder-* の予約を取り消し"]
     R --> Q["直列キュー（1 つずつ実行）"]
     S --> Q
     X --> Q
+    Y --> Q
 ```
 
 ### 2. 純関数（`study-reminder.schedule.ts`）
@@ -129,10 +131,11 @@ export const rescheduleStudyReminders = async (setting: GetUserReminderResponse,
 
 - `fetchNotificationPermission()` は `getPermissionsAsync()`、`requestNotificationPermission()` は `requestPermissionsAsync()` の結果から `{ canAskAgain, status }` を返す。iOS の provisional などの細かい状態の扱いは公式ドキュメントで確認する
 - 許可が無いときに予約しないのは、許可された後の前面復帰の同期で予約されるため（README「通知の権限」）
+- `dismissPresentedStudyReminders()`: `getPresentedNotificationsAsync()` のうち識別子が `study-reminder-` で始まるものを `dismissNotificationAsync` で消す（通知センターに届き済みのリマインダー。他の通知には触れない）。届いた通知の識別子は予約したときの識別子のまま（iOS は `UNNotificationRequest`、Android は通知の tag）。ログアウト・アカウント削除で使う
 
 ### 4. API・store・直列キュー
 
-`study-reminder.api.ts` は github-auth step4 の認証つきクライアント（名前は step4 に合わせる）で呼び、レスポンスを `getUserReminderResponseSchema.parse` / `updateUserReminderResponseSchema.parse` で検証して返す。型は `@repo/api-schema` から（ローカルで定義しない）。
+`study-reminder.api.ts` は github-auth step4 の認証つきクライアント（名前は step4 に合わせる）で呼び、レスポンスを `getUserReminderResponseSchema.parse` / `updateUserReminderResponseSchema.parse` で検証して返す。型は `@repo/api-schema` から（ローカルで定義しない）。取得・保存には `timeout: 15_000` を付ける（axios の既定は無制限で、応答の無い通信があると直列キューの後ろの処理が始まらないため）。
 
 `study-reminder.store.ts`（既存の `memo.store.ts` と同じく zustand）:
 
@@ -158,12 +161,19 @@ const runSerially = (task: () => Promise<void>): Promise<void> => {
 }
 
 /**
- * ログイン直後・前面復帰。取得に失敗したら予約に触れない（オフラインでも前の予約で通知を出す）
+ * ログイン直後・前面復帰。権限は取得より先に読んで反映する（オフラインで取得に失敗しても、OS の設定で許可したら案内を消す）。
+ * 取得に失敗したら、通知が許可されていれば最後に API と一致した値（savedSetting）で予約を作り直してからエラーを投げる。
+ * savedSetting が無い（このログインでまだ取得も保存もできていない）なら予約に触れない
  */
 export const refreshStudyReminders = (): Promise<void> =>
   runSerially(async () => {
-    const setting = await studyReminderApi.get()
     const permission = await fetchNotificationPermission()
+    useStudyReminderStore.getState().setPermission(permission)
+    const setting = await studyReminderApi.get().catch(async (error: unknown) => {
+      const { savedSetting } = useStudyReminderStore.getState()
+      if (savedSetting && isNotificationPermissionGranted(permission)) await rescheduleStudyReminders(savedSetting, permission)
+      throw error
+    })
     useStudyReminderStore.getState().applyFetchedSetting(setting, permission)
     await rescheduleStudyReminders(setting, permission)
   })
@@ -190,14 +200,27 @@ export const saveStudyReminder = (setting: UpdateUserReminderRequest): Promise<v
 }
 
 /**
- * ログアウト・アカウント削除。この端末の予約をすべて取り消して store を空にする
+ * ログアウト・アカウント削除。この端末の予約と通知センターに届き済みのリマインダーを消して store を空にする。
+ * キューの前の処理は待たずに消し（応答の無い通信の後ろで待つとログアウトが終わらない）、キューの最後でももう一度取り消す
  */
-export const clearStudyReminders = (): Promise<void> =>
-  runSerially(async () => {
-    await cancelScheduledStudyReminders()
-    useStudyReminderStore.getState().reset()
-  })
+export const clearStudyReminders = async (): Promise<void> => {
+  generation += 1
+  pendingSave = null
+  useStudyReminderStore.getState().reset()
+  runSerially(cancelScheduledStudyReminders).catch((error: unknown) => console.warn("Failed to cancel study reminders:", error))
+  await Promise.all([cancelScheduledStudyReminders(), dismissPresentedStudyReminders()])
+}
+
+/**
+ * ログインの成功時（ログイン中にして同期が始まる前）。この端末の予約をすべて取り消す（README「ログアウト・強制ログアウト・ログイン」）
+ */
+export const cancelStudyRemindersOnSignIn = async (): Promise<void> => {
+  runSerially(cancelScheduledStudyReminders).catch((error: unknown) => console.warn("Failed to cancel study reminders:", error))
+  await cancelScheduledStudyReminders()
+}
 ```
+
+- 取り消しをキューの前の処理を待たずに行うため、キューの処理は積んだときの **世代の番号** を持ち、ログアウト・ログイン切れ（`clearStudyReminders` / `discardStudyReminderSetting`）で世代が進んでいたら、await から戻っても結果を反映せず予約もしない（上のコード例では世代の確認を省いている）
 
 ### 5. 同期のタイミング（`use-study-reminder-sync.ts`）とログアウト
 
@@ -227,8 +250,10 @@ export function useStudyReminderSync() {
 ```
 
 - 前面復帰の同期で `permission` も更新されるので、OS の設定で許可して戻ると案内が消え、予約が作られる
-- **ログアウト**: github-auth step4 の「ユーザーがログアウトを押したとき」の処理に `await clearStudyReminders()` を足す。**refresh の失敗による強制ログアウトでは呼ばない**（ログインが切れても通知は届き、タップでログイン画面 → 開始確認に進む仕様のため。README「通知をタップしたとき」）。次にログインしたときの同期で、そのユーザーの設定に作り直される
+- **ログアウト**: github-auth step4 の「ユーザーがログアウトを押したとき」の処理に `await clearStudyReminders()` を足す（予約と届き済みのリマインダーを消す）。**refresh の失敗による強制ログアウトでは呼ばない**（ログインが切れても通知は届き、タップでログイン画面 → 開始確認に進む仕様のため。README「通知をタップしたとき」）。次にログインしたときの同期で、そのユーザーの設定に作り直される
+- **ログイン**: `signInWithGitHub` / `signInAsDevUser` の成功時、`setStatus("signedIn")`（同期が始まる）の前に `await cancelStudyRemindersOnSignIn()` を呼ぶ（失敗してもログインは続ける）。強制ログアウトのあとに別のユーザーがログインし、最初の取得に失敗しても前のユーザーの予約を残さないため（README「[ログアウト・強制ログアウト・ログイン](../README.md#ログアウト強制ログアウトログイン)」）
 - **アカウント削除**: `DELETE /api/user` の成功後に `await clearStudyReminders()`（github-auth step7。[クライアントの後始末](../../github-auth/README.md#アカウント削除の処理)）
+- **通信の打ち切り**: `authApi.logout`（`POST /api/auth/logout`）と `userApi.delete`（`DELETE /api/user`）にも `timeout: 15_000` を付ける（定数は各 `*.api.ts` に置く）。`signOut` は失効を待ってから予約を取り消すので、応答が無いとログアウトも取り消しも終わらないため。アカウント削除の timeout は通信エラーと同じく、何も消さずに再試行できる状態に戻る
 
 ### 6. 通知のタップ
 
@@ -324,6 +349,7 @@ mobile には test runner が無いので、純関数は次の表どおりかを
   - [ ] 次の 15 分刻みに合わせて待つと通知が出る（タイトル・本文が README の文言）。Android は OS の設定に通知チャンネル「学習のリマインダー」がある
 - 権限
   - [ ] 許可しないとオンのまま保存され、案内の帯が出る。「設定を開く」→ OS の設定で許可 → app に戻ると案内が消え、予約される
+  - [ ] 案内が出ている状態で「設定を開く」→ OS の設定で許可 → 機内モードにして app に戻っても、案内が消え、最後に取得した設定で予約される
 - 同期
   - [ ] curl で `PUT /api/user/reminder` して app を前面に戻すと、画面と予約が新しい設定になる
   - [ ] 機内モードで前面に戻しても既存の予約が消えない
@@ -332,5 +358,7 @@ mobile には test runner が無いので、純関数は次の表どおりかを
   - [ ] `npx uri-scheme open "techenglish://passages/random" --ios`（`--android`）でも開始確認が開く。公開中の問題が無ければ問題タブに戻る
   - [ ] ログイン切れ: api を `JWT_ACCESS_EXPIRATION=1m JWT_REFRESH_EXPIRATION=2m` で起動してログインし、リマインダーを設定 → 期限が切れた後に届いた通知をタップ → ログイン画面 → ログイン後に開始確認。期限切れで予約が消えていない
 - 取り消し
-  - [ ] ログアウトで予約が 0 件になる。別のユーザーでログインすると、そのユーザーの設定で予約される
-  - [ ] アカウント削除で予約が 0 件になる（github-auth step7 の実装後）
+  - [ ] ログアウトで予約が 0 件になり、通知センターに届いていたリマインダーも消える。別のユーザーでログインすると、そのユーザーの設定で予約される
+  - [ ] アカウント削除で予約が 0 件になり、届いていたリマインダーも消える（github-auth step7 の実装後）
+  - [ ] 強制ログアウト（上の「ログイン切れ」の手順）では予約も届き済みの通知も残る。そのあとリマインダーをオフにしている別のユーザーでログインすると、予約が 0 件になる（前のユーザーの予約が残らない）
+  - [ ] api が応答しない（例：`kill -STOP` で api を一時停止する）状態でログアウトしても、15 秒ほどでログイン画面に戻り、予約が 0 件になる
