@@ -22,7 +22,7 @@ admin の問題一覧（`/passages`）と問題の確認・修正（`/passages/[
 | `mock/passages/[id]/PassageReview.tsx` | `src/components/features/passage/PassageReview.tsx`（タブごとに `QuestionsTab` / `TranslationsTab` / `GlossaryTab` / `BodyTab` / `BasicsTab` に分ける） |
 | `mock/passages/[id]/PassagePreview.tsx` | `src/components/features/passage/PassagePreview.tsx`（ほぼそのまま） |
 | `mock/_components/ui.ts` | `src/libs/ui-classes.ts`（content-collection step3 が先に作っていればそれを使う） |
-| `libs/mock-data.ts` の型・ラベル | 型は `@repo/api-schema` から。ラベルは `src/features/passage/passage-labels.ts` |
+| `libs/mock-data.ts` の型・ラベル | 型は `@repo/api-schema` から。ラベルは `src/features/passage/passage.labels.ts` |
 
 - `MockStatePanel` と `?state=` の切り替えは移植しない（状態は API のデータで決まる）
 - サイドバー（`AppSidebar.tsx`）に「問題」（`/passages`）を足す。content-collection step3 が tech-english のグループを作っていればそこに並べる
@@ -49,7 +49,7 @@ export const fetchAdminPassage = async (id: number): Promise<GetAdminPassageResp
 export const updateAdminPassage / publishAdminPassage / rejectAdminPassage / unpublishAdminPassage / regenerateAdminPassage
 ```
 
-`passage-labels.ts`（`server-only` を付けない。Client Component から使う）：状態のラベルと `Badge` の色（README の表：収集済み `light`、生成中 `info`、下書き `primary`、公開 `success`、却下 `dark`、失敗 `error`、要確認 `warning`）、難易度（Easy / Normal / Hard）、設問の種類（要旨 / 詳細 / 文脈での語義 / 推論 / 筆者の意図）。キーは `adminPassageStatusSchema.options` などから型付けする。
+`passage.labels.ts`（`server-only` を付けない。Client Component から使う）：状態のラベルと `Badge` の色（README の表：収集済み `light`、生成中 `info`、下書き `primary`、公開 `success`、却下 `dark`、失敗 `error`、要確認 `warning`）、難易度（Easy / Normal / Hard）、設問の種類（要旨 / 詳細 / 文脈での語義 / 推論 / 筆者の意図）。キーは `adminPassageStatusSchema.options` などから型付けする。
 
 ### 3. 問題一覧（`/passages`）
 
