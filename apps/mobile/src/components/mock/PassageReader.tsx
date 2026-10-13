@@ -393,6 +393,15 @@ const styles = StyleSheet.create({
     color: MOCK_COLORS.fg,
     fontFamily: MOCK_FONTS.reading,
   },
+  peek: {
+    backgroundColor: MOCK_COLORS.canvas,
+    left: 0,
+    minHeight: "100%",
+    position: "absolute",
+    right: 0,
+    top: 0,
+    zIndex: 2,
+  },
   playBlockButton: {
     alignItems: "center",
     borderColor: MOCK_COLORS.lineStrong,
@@ -402,15 +411,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     opacity: 0.7,
     width: 20,
-  },
-  peek: {
-    backgroundColor: MOCK_COLORS.canvas,
-    left: 0,
-    minHeight: "100%",
-    position: "absolute",
-    right: 0,
-    top: 0,
-    zIndex: 2,
   },
   readingWord: {
     backgroundColor: "rgba(243, 178, 76, 0.15)",

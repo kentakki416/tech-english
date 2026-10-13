@@ -205,7 +205,7 @@ export function useReadAloud({ attemptId, blocks, onBlockListened }: UseReadAlou
 
 **取得**
 
-- マウント時に `fetch(`/api/attempts/${attemptId}/audio`)` し、`getAttemptAudioResponseSchema` で検証する。`ready` → `buildReadAloudTimeline` で時刻表を作り `ready`（時刻表のブロックが 0 なら `failed`）、`pending` / `failed` はそのまま、通信の失敗・200 以外・検証の失敗は `error`
+- マウント時に `fetch(`/api/attempts/${attemptId}/audio`)` する。レスポンスは Route Handler が `getAttemptAudioResponseSchema` で検証済み（§1 の `attemptApi.getAudio`。検証に失敗すると Route Handler は 500 を返す）なので、ブラウザでは `GetAttemptAudioResponse` の型を付けるだけにする（Zod のスキーマをブラウザの bundle に入れないため）。`ready` → `buildReadAloudTimeline` で時刻表を作り `ready`（時刻表のブロックが 0 なら `failed`）、`pending` / `failed` はそのまま、通信の失敗・200 以外は `error`
 - 画面を離れた後に届いた結果は捨てる（`AbortController` で中断する）
 
 **再生**

@@ -17,7 +17,7 @@
 - [`../product-overview/README.md`](../product-overview/README.md) — 機能一覧・インフラ上の配置
 - [`../minimal-deploy/README.md`](../minimal-deploy/README.md) — cron（ECS RunTask）と S3 の置き場所
 - [`./deferred-voices-and-pronunciation.md`](./deferred-voices-and-pronunciation.md) — MVP 対象外。声の選択、単語の発音、ユーザーの音読の評価
-- **この spec が正本のもの**：`passage_audios` の列定義、音声のマニフェスト（`PassageAudioManifest`）の型、`AUDIO_STATUSES`
+- **この spec が正本のもの**：`passage_audios` の列定義、`reading_attempts.listened_block_count`（読み上げを聞いた段落の数）、音声のマニフェスト（`PassageAudioManifest`）の型、`AUDIO_STATUSES`
 
 ## 目次
 
@@ -108,7 +108,7 @@
 
 - 読み上げを聞いている間も **タイマーは進む**（読解の時間に含める）
 - 解答画面の **一時停止** で読み上げも止まる。再開しても読み上げは自動で再開しない（再生ボタンで再開する）
-- 画面を離れたとき（web はタブを切り替えたとき、mobile はアプリを閉じたとき）は読み上げを止める。タイマーが止まるのと合わせる
+- 画面を離れたとき（web はタブを切り替えたとき、mobile はアプリを閉じたときと、上に画面を積んだとき）は読み上げを止める。タイマーが止まるのと合わせる
 - 和訳を表示中の段落（全文訳を含む）は、**読み上げている間だけ英文で表示** する（音声とハイライトを英文に合わせるため）。次の段落に進むか停止すると、和訳の表示に戻る。和訳の切り替えの状態そのものは変えない
 - 提出すると読み上げは止まる
 - mobile は端末の消音モードでも音を出す（学習アプリとして、マナーモード中でも聞けるようにする）
@@ -169,7 +169,7 @@ Polly の Neural は **単語の時刻（Speech Marks）を返せる最も安い
 | 音声の生成（1 問） | 4,800 文字 × $16 / 100 万文字 | **約 $0.077（約 12 円）**。公開時に 1 回だけ |
 | 月 30 問を公開 | 14.4 万文字 | 約 $2.3 |
 | 月 100 問を公開 | 48 万文字 | 約 $7.7 |
-| 月 300 問を公開（生成タスクの上限） | 144 万文字 | 約 $23 |
+| 月 300 問を公開（[question-generation の生成の上限](../question-generation/README.md#費用の上限)） | 144 万文字 | 約 $23 |
 | 保存（S3） | 1 問 約 1MB（mp3、約 2.7 分）。1,000 問で 1GB × $0.025 | 月 約 $0.03 |
 | 配信（CloudFront） | 1 回の全文再生で約 1MB | 月 1TB（約 100 万回の再生）まで無料。超過分は 1GB あたり $0.114 |
 | 生成タスクの実行（ECS RunTask） | 1 時間ごと、1 回 1 分前後 | 月 $0.2 前後 |
@@ -178,6 +178,7 @@ Polly の Neural は **単語の時刻（Speech Marks）を返せる最も安い
 - 費用は **公開した問題の数に比例** し、ユーザー数や再生回数にはほぼ比例しない（音声を作り置きして使い回すため）
 - 本文を直して再公開したとき（本文のハッシュで判定）と、voice を変えたときだけ作り直す。読み上げ用テキストの作り方の版（`AUDIO_TEXT_VERSION`）を上げても自動では作り直さない（[音声の生成タスク](#音声の生成タスク)）
 - 1 回の実行で作る件数に上限を置く（`AUDIO_MAX_PASSAGES_PER_RUN`、既定 20）。AWS の Budgets で Polly の利用額にアラートを付ける
+- voice の変更・読み上げ用テキストの版の更新では、公開済みの問題数 × 約 $0.077 が 1 度にかかる（1 時間に最大 20 問ずつ作り直す。公開済みが 300 問なら約 $23）
 
 参考：[Amazon Polly の料金](https://aws.amazon.com/polly/pricing/)、[Polly の Speech Marks](https://docs.aws.amazon.com/polly/latest/dg/speechmarks.html)、[Polly の Generative の制約](https://docs.aws.amazon.com/polly/latest/dg/generative-voices.html)、[CloudFront の料金](https://aws.amazon.com/cloudfront/pricing/pay-as-you-go/)、[Google Cloud TTS の料金（調査サイト）](https://texttolab.com/blog/google-cloud-tts-pricing)、[Azure TTS の料金（調査サイト）](https://texttolab.com/blog/azure-text-to-speech-pricing)、[OpenAI TTS の料金（調査サイト）](https://texttolab.com/blog/openai-tts-pricing)、[ElevenLabs の料金](https://elevenlabs.io/pricing)
 
@@ -197,7 +198,7 @@ cron に `generate:audio` タスクを足す。EventBridge Scheduler で **1 時
 6. 失敗したら `attempt_count` を増やし、3 回で `failed`（[失敗時の扱い](#失敗時の扱い)）
 
 - Polly を呼ぶ間はトランザクションを開かない（本番〈minimal〉の DB は PgBouncer の transaction pooling なので、長いトランザクションを避ける）
-- Polly のクライアントは `apps/cron/src/client/polly/`（`@aws-sdk/client-polly`）。資格情報は ECS のタスクロール（IAM に `polly:SynthesizeSpeech`）。ローカルは AWS の資格情報が無ければタスクが「音声合成を使えない」として何もせず終わる（開発中は無音の mp3〈無音の MPEG フレームを並べたもの〉と等間隔の単語の時刻を返す `FakeTtsClient` を env で選べる）
+- Polly のクライアントは `apps/cron/src/client/polly/`（`@aws-sdk/client-polly`）。資格情報は ECS のタスクロール（IAM に `polly:SynthesizeSpeech`）。音声合成は `TTS_PROVIDER` で選び、既定は `production` では `polly`、それ以外は `fake`（無音の mp3〈無音の MPEG フレームを並べたもの〉と等間隔の単語の時刻を返す `FakeTtsClient`。手元の AWS の資格情報で意図せず課金しないため。[step3 の env](./tasks/step3-cron-generate-audio.md#5-taskenvスクリプト)）。ローカルで `polly` を選んで AWS の資格情報が無ければ、タスクは「音声合成を使えない」として何もせず終わる
 - 冪等：同じ問題を 2 回処理しても、同じキーに上書きして同じマニフェストになる
 - 読み上げ用テキストの作り方を変えて `AUDIO_TEXT_VERSION` を上げても、`ready` の行は自動では作り直さない。作り直すときはデプロイの後に `UPDATE passage_audios SET status = 'pending' WHERE status = 'ready'` を流す（次の実行から `AUDIO_MAX_PASSAGES_PER_RUN` 件ずつ作り直す。その間は「準備中」になる。ハッシュが変わらない行は Polly を呼ばずに `ready` に戻る）
 
@@ -229,7 +230,7 @@ cron に `generate:audio` タスクを足す。EventBridge Scheduler で **1 時
 | 再生 | `HTMLAudioElement`（1 つを使い回し、パートごとに `src` を差し替える） | `expo-audio` の `useAudioPlayer`（パートごとに `replace`） |
 | 速度 | `playbackRate`（`preservesPitch = true`） | `setPlaybackRate`（`shouldCorrectPitch = true`） |
 | 時刻の取得 | 再生中だけ `requestAnimationFrame` で `currentTime` を読む | `playbackStatusUpdate` の `currentTime`（更新間隔 100ms） |
-| 画面を離れたとき | `visibilitychange` で一時停止 | `AppState` が `active` でなくなったら一時停止 |
+| 画面を離れたとき | `visibilitychange` で一時停止 | `AppState` が `active` でなくなったとき、`useIsFocused` が false になったとき（上に画面を積んだとき）に一時停止 |
 | 消音モード | ― | `setAudioModeAsync({ playsInSilentMode: true })` |
 | 次のパートの先読み | 次のパートの `Audio` を `preload = "auto"` で先に作る | 行わない（段落の間に短い間が空くのは許容する） |
 
@@ -449,7 +450,7 @@ cron に `generate:audio` タスクを足す。EventBridge Scheduler で **1 時
 └────────────────────────────────────────────┴─────────────────────────────────┘
 ```
 
-- 本文の上の注記を「本文（根拠の箇所をハイライトしています。単語のタップ・和訳・読み上げはここでも使えます）」にする
+- 本文の上の注記を「本文（根拠の箇所をハイライトしています。単語のタップ・和訳・読み上げはここでも使えます）」にする（web だけ。mobile は「本文（根拠の箇所をハイライトしています）」のまま。[mobile の画面](#mobile-の画面)）
 - アシストの使用に「読み上げ n 段落」（解答中に聞いた段落の数）を足す。結果画面で聞いた段落は数えない
 - 結果画面を開いただけでは再生しない
 
@@ -481,6 +482,7 @@ cron に `generate:audio` タスクを足す。EventBridge Scheduler で **1 時
 - 本文の最後の段落がミニプレーヤーに隠れないよう、本文の下の余白を広げる
 - 本文を指で動かし始めたら自動スクロールを止める。自動スクロールは読み上げ中の段落の始まりを「本文の根拠を見る」と同じ位置（画面の上の方）に合わせる
 - 段落の長押し（押している間だけ和訳）は、読み上げ中の段落でも使える
+- 結果画面の本文の上の注記は変えない（「本文（根拠の箇所をハイライトしています）」のまま。web は読み上げも使えることを書き足す）
 
 ### 見た目の決まり
 
@@ -513,7 +515,7 @@ cron に `generate:audio` タスクを足す。EventBridge Scheduler で **1 時
 | 読み上げ中の位置に戻る | 読み上げ中の段落までスクロールし、自動スクロールを再開 |
 | 読み上げ中の単語を押す | 単語のカード（再生は止めない） |
 | 上部バーの一時停止 | 読み上げも一時停止。解答を再開しても読み上げは止まったまま |
-| 画面を離れる（タブの切り替え・アプリを閉じる） | 読み上げを一時停止 |
+| 画面を離れる（タブの切り替え・アプリを閉じる・mobile で上に画面を積む） | 読み上げを一時停止 |
 | 提出・中断 | 読み上げを止める |
 
 ## 必要な API

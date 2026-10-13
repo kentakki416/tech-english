@@ -201,7 +201,7 @@ resource "aws_budgets_budget" "polly" {
 | 変数（`account/variables.tf`） | 型 / 既定値 | description |
 | --- | --- | --- |
 | `budget_alert_emails` | `list(string)` / `[]` | Budgets の通知先。空なら作らない。CI の apply は変数を渡さないので、宛先はチームで決めて既定値に書く |
-| `polly_monthly_budget_usd` | `string` / `"30"` | Polly の月の上限（生成タスクの上限の月 300 問で約 $23） |
+| `polly_monthly_budget_usd` | `string` / `"30"` | Polly の月の上限（question-generation の生成の上限の月 300 問を公開して約 $23。voice の変更・読み上げ用テキストの版の更新をした月は、公開済みの問題数 × 約 $0.077 が 1 度に上乗せになるので超えることがある。[README の費用](../README.md#費用)） |
 
 - `cost_filter` の書き方と `Service` の値（`Amazon Polly`）は、使っている AWS provider のドキュメントと Budgets のコンソールの表示名で確かめる
 

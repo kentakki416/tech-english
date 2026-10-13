@@ -78,7 +78,7 @@
 | **本文** | 問題の英文。取得元の文書から 200〜600 語を抜き出したもの |
 | **設問** | 本文について問う 4 択の質問 1 つ。内部名は `question` |
 | **挑戦** | ユーザーが 1 つの問題を解き始めてから提出するまでの 1 回分。同じ問題に何度でも挑戦できる。内部名は `attempt` |
-| **アシスト** | 解答中に使える補助。段落の和訳表示と、単語の意味表示の 2 種類 |
+| **アシスト** | 解答中に使える補助。段落の和訳表示、単語の意味表示、本文の読み上げの 3 種類 |
 | **ソース** | 英文の取得元として管理者が登録したもの。GitHub リポジトリか、公式ドキュメントのサイト |
 | **出典表示** | 問題ごとに表示する取得元のリンク・ライセンス・改変の有無 |
 
@@ -228,7 +228,7 @@ flowchart LR
 
 ### 実装の順番
 
-機能をまたいで step を進める順番。各 step の「前提」はこの図に合わせて書いてある。テーブルを先にすべて作り、admin・cron・ユーザー向け API を並行して進め、最後に web と mobile の画面を作る。
+機能をまたいで step を進める順番。各 step の「前提」はこの図に合わせて書いてある。テーブルを先にすべて作り、admin・cron・ユーザー向け API を並行して進め、最後に web と mobile の画面を作る。読み上げ（read-aloud）は解答画面・結果画面ができた後に、テーブルから画面までを足す。
 
 ```mermaid
 flowchart TD
@@ -246,10 +246,21 @@ flowchart TD
     L --> K
     I --> K
     J --> K
+    I -->|"reading-practice step7 の後"| M["read-aloud step1-4<br/>passage_audios / cron（音声の生成）/ API"]
+    F --> M
+    G --> M
+    M --> N["web: read-aloud step5"]
+    N --> O["mobile: read-aloud step6"]
+    J -->|"reading-practice step10 の後"| O
+    M --> P["admin: read-aloud step7"]
+    N --> K
+    O --> K
+    P --> K
 ```
 
 - `passages` は content-collection step1 で全列を作る（列の定義の正本は question-generation）
 - learning-record の集計 API は、reading-practice の提出 API（`study_date` を決める `src/lib/time-zone.ts`）の後に作る
+- read-aloud は reading-practice の提出 API（step4）・web の解答画面と結果画面（step6・7）と learning-record の集計 API（step2）の後に始める（`reading_attempts` に列を足し、解答画面・結果画面とアシストの判定に読み上げを足すため）。question-generation の admin（step5・6）と生成タスク（step3）も先に要る（公開の `published_at`・admin の問題の確認画面・同じ「状態で確保する」書き方を使う）。step8（S3・CloudFront・スケジュール）は AWS の設定後に infra の PR にまとめるので図に入れない
 - web と mobile の画面は図の矢印の順に 1 本ずつ進める。モックの共通部品は、最初に使う step が本番の場所に移し、後の step はそれを使う
 
 | 移す step | web | mobile |
@@ -266,7 +277,8 @@ flowchart TD
 
 - **文法問題・単語問題** → [`./deferred-grammar-vocabulary.md`](./deferred-grammar-vocabulary.md)
 - **英文の取得元の拡大**（JavaScript で描画するサイト、許諾を得たブログ、ShareAlike ライセンス）→ [`../content-collection/deferred-more-sources.md`](../content-collection/deferred-more-sources.md)
-- **アシストの拡張**（任意の文の翻訳、読み上げ、厳格モード）→ [`../reading-practice/deferred-assist-and-modes.md`](../reading-practice/deferred-assist-and-modes.md)
+- **アシストの拡張**（任意の文の翻訳、厳格モード）→ [`../reading-practice/deferred-assist-and-modes.md`](../reading-practice/deferred-assist-and-modes.md)
+- **読み上げの拡張**（声の選択、単語ごとの発音、ユーザーの音読の評価）→ [`../read-aloud/deferred-voices-and-pronunciation.md`](../read-aloud/deferred-voices-and-pronunciation.md)
 - **サーバーからのプッシュ通知・web のリマインダー** → [`../study-reminder/deferred-remote-push.md`](../study-reminder/deferred-remote-push.md)
 - **ライトテーマ**。MVP はダークテーマのみ
 - **課金・プラン**。MVP は全機能を無料で提供する
