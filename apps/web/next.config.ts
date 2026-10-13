@@ -1,7 +1,12 @@
 import type { NextConfig } from "next"
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  images: {
+    /**
+     * 共通ヘッダー（AppHeader）の GitHub のアバター
+     */
+    remotePatterns: [{ hostname: "avatars.githubusercontent.com", protocol: "https" }],
+  },
 }
 
 export default nextConfig
