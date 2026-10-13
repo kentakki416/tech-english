@@ -3,6 +3,7 @@ import axios, { create as createAxiosInstance, type InternalAxiosRequestConfig, 
 import { type AuthRefreshRequest, authRefreshResponseSchema } from "@repo/api-schema"
 
 import { env } from "@/env"
+import { useAttemptStore } from "@/features/attempt/attempt.store"
 import { clearStoredTokens, getStoredTokens, saveTokens } from "@/features/auth/auth.storage"
 import { useAuthStore } from "@/features/auth/auth.store"
 
@@ -73,12 +74,13 @@ const tryRefresh = async (): Promise<boolean> => {
 }
 
 /**
- * refresh token が失効したときの強制ログアウト。トークンを消してログイン画面に戻す
+ * refresh token が失効したときの強制ログアウト。トークンとメモリに持つ挑戦（attempt.store）を消してログイン画面に戻す
  *
  * ユーザーが押すログアウト（`src/features/auth/auth.session.ts` の `signOut`）とは別の経路にしている。
  * 強制ログアウトでは通知の予約を取り消さない（ログインが切れても通知は届き、タップでログイン画面に進む仕様。study-reminder）
  */
 const expireSession = async (): Promise<void> => {
   await clearStoredTokens()
+  useAttemptStore.getState().clearStoreAttempts()
   useAuthStore.getState().setStatus("signedOut")
 }
