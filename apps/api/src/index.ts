@@ -36,6 +36,9 @@ import { MemoDeleteController } from "./controller/memo/delete"
 import { MemoDetailController } from "./controller/memo/detail"
 import { MemoListController } from "./controller/memo/list"
 import { MemoUpdateController } from "./controller/memo/update"
+import { PassageDetailController } from "./controller/passage/detail"
+import { PassageListController } from "./controller/passage/list"
+import { PassageRandomController } from "./controller/passage/random"
 import { UserDeleteController } from "./controller/user/delete"
 import { UserGetController } from "./controller/user/get"
 import { UserUpdateController } from "./controller/user/update"
@@ -51,6 +54,7 @@ import {
   DrizzleDatabaseHealthRepository,
   DrizzleMemoRepository,
   DrizzlePassageRepository,
+  DrizzleReadingAttemptRepository,
   DrizzleTransactionRunner,
   DrizzleUserRepository,
 } from "./repository/drizzle"
@@ -60,6 +64,7 @@ import { authRouter } from "./routes/auth-router"
 import { eventRouter } from "./routes/event-router"
 import { healthRouter } from "./routes/health-router"
 import { memoRouter } from "./routes/memo-router"
+import { passageRouter } from "./routes/passage-router"
 import { userRouter } from "./routes/user-router"
 
 /**
@@ -93,6 +98,7 @@ const contentSourceRepository = new DrizzleContentSourceRepository(db)
  * reading-practice のユーザー向け API と共有する
  */
 const passageRepository = new DrizzlePassageRepository(db)
+const readingAttemptRepository = new DrizzleReadingAttemptRepository(db)
 const databaseHealthRepository = new DrizzleDatabaseHealthRepository(db)
 const redisHealthRepository = new IoRedisHealthRepository(redis)
 const refreshTokenRepository = new IoRedisRefreshTokenRepository(redis)
@@ -183,6 +189,13 @@ const adminPassageRegenerateController = new AdminPassageRegenerateController(pa
 const adminPassageRejectController = new AdminPassageRejectController(passageRepository)
 const adminPassageUnpublishController = new AdminPassageUnpublishController(passageRepository)
 const adminPassageUpdateController = new AdminPassageUpdateController(passageRepository)
+
+/**
+ * ユーザー向けの問題（一覧・ランダムに 1 問・開始確認の概要）Controller のインスタンス化
+ */
+const passageDetailController = new PassageDetailController(passageRepository, readingAttemptRepository)
+const passageListController = new PassageListController(passageRepository, readingAttemptRepository)
+const passageRandomController = new PassageRandomController(passageRepository, readingAttemptRepository)
 
 const app = express()
 
@@ -304,6 +317,14 @@ app.use(
     detail: memoDetailController,
     list: memoListController,
     update: memoUpdateController,
+  })
+)
+app.use(
+  "/api/passage",
+  passageRouter({
+    detail: passageDetailController,
+    list: passageListController,
+    random: passageRandomController,
   })
 )
 

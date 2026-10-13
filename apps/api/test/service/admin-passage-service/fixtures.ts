@@ -1,16 +1,7 @@
-import type { PassageRepository } from "../../../src/repository"
-
 /**
- * admin-passage-service のユニットテストで共有する Repository のモック
+ * admin-passage-service のユニットテストで共有する Repository のモック（passage-service と共有するので test/fixture に置いている）
  */
-export const createMockPassageRepository = () => ({
-  countByStatus: vi.fn<PassageRepository["countByStatus"]>(),
-  findAdminDetail: vi.fn<PassageRepository["findAdminDetail"]>(),
-  findAdminList: vi.fn<PassageRepository["findAdminList"]>(),
-  resetForRegeneration: vi.fn<PassageRepository["resetForRegeneration"]>(),
-  transitionStatus: vi.fn<PassageRepository["transitionStatus"]>(),
-  updateDraftContent: vi.fn<PassageRepository["updateDraftContent"]>(),
-})
+export { createMockPassageRepository } from "../../fixture/passage-repository-mock"
 
 /**
  * 全状態 0 件

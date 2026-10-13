@@ -1,10 +1,13 @@
 import type {
+  GitHubRepositorySource,
   GlossaryEntry,
   Passage,
   PassageBlock,
   PassageDifficulty,
   PassageStatus,
   Question,
+  SourceKind,
+  WebsiteSource,
 } from "@repo/domain"
 
 /**
@@ -98,18 +101,80 @@ export type PassageTransition = {
 }
 
 /**
- * 問題（passages と、その設問・用語集）のリポジトリ。reading-practice のユーザー向け API と共有する
+ * ユーザー向けの公開中の問題の絞り込み。difficulties / tags は空なら絞り込まず、指定したらどれかに当てはまるもの（OR）
+ */
+export type PublishedPassageFilter = {
+  difficulties: PassageDifficulty[]
+  kind: SourceKind | null
+  tags: string[]
+  /**
+   * 指定するとそのユーザーが提出済みの問題を除く（挑戦中・期限切れだけの問題は残す）
+   */
+  unattemptedByUserId: number | null
+}
+
+/**
+ * ユーザー向けの問題一覧のカーソル。published_at DESC, id DESC の並びで、この行より後ろを返す
+ */
+export type PassageCursor = { id: number; publishedAt: Date }
+
+/**
+ * 出典と一覧の表示に使うソースの列（取得方法ごとに持つ列が違う）
+ */
+export type PassageSource =
+  | Pick<
+    GitHubRepositorySource,
+    "branch" | "fetchType" | "kind" | "licenseSpdx" | "licenseUrl" | "name" | "publicUrlStripPrefix" | "publicUrlTemplate" | "repository" | "tags"
+  >
+  | Pick<WebsiteSource, "fetchType" | "kind" | "licenseSpdx" | "licenseUrl" | "name" | "siteUrl" | "tags">
+
+/**
+ * blocks を読まない一覧用の列。公開中の問題は difficulty / publishedAt / timeLimitSeconds が必ずある（公開の条件と公開の操作で埋まる）
+ */
+export type PassageOverview = Pick<Passage, "id" | "sourceCommitSha" | "sourcePath" | "sourceRetrievedAt" | "title" | "wordCount"> & {
+  difficulty: PassageDifficulty
+  publishedAt: Date
+  timeLimitSeconds: number
+}
+
+/**
+ * 公開中の問題の一覧・概要の 1 件
+ */
+export type PublishedPassageSummary = { passage: PassageOverview; questionCount: number; source: PassageSource }
+
+/**
+ * 問題（passages と、その設問・用語集）のリポジトリ。admin の API（findAdmin* など）と reading-practice のユーザー向け API（*Published*）で共有する
  */
 export interface PassageRepository {
   /**
    * 状態ごとの件数（絞り込みなしの全体）。行が無い状態は 0 で埋める
    */
   countByStatus(): Promise<Record<PassageStatus, number>>
+  /**
+   * 絞り込みに当てはまる公開中の問題の件数
+   */
+  countPublished(filter: PublishedPassageFilter): Promise<number>
   findAdminDetail(id: number): Promise<AdminPassageDetail | null>
   /**
    * limit + 1 件まで返す（has_more の判定は service）
    */
   findAdminList(query: AdminPassageListQuery): Promise<AdminPassageListItem[]>
+  /**
+   * 公開中の問題の概要。公開中でなければ null
+   */
+  findPublishedById(id: number): Promise<PublishedPassageSummary | null>
+  /**
+   * 公開中の問題を published_at DESC, id DESC の順に、cursor の行より後ろから limit 件まで返す（次のページの有無は service が limit + 1 を渡して判定する）
+   */
+  findPublishedPage(filter: PublishedPassageFilter, page: { cursor: PassageCursor | null; limit: number }): Promise<PublishedPassageSummary[]>
+  /**
+   * 公開中の問題があるソースのタグを重複なしで昇順に返す
+   */
+  findPublishedTags(): Promise<string[]>
+  /**
+   * 絞り込みに当てはまる公開中の問題からランダムに 1 つの id を返す。無ければ null
+   */
+  findRandomPublishedId(filter: PublishedPassageFilter): Promise<number | null>
   /**
    * 生成した内容（設問・用語集・和訳・難易度・制限時間・生成の記録・却下の理由・確認の記録・要確認）を消して collected に戻し、
    * generation_attempt_count を 0 にする。英文とタイトルは残す。

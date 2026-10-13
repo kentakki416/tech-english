@@ -1,0 +1,61 @@
+import { Response } from "express"
+
+import { getPassagePathParamSchema, getPassageResponseSchema } from "@repo/api-schema"
+
+import { parseRequest, parseResponse } from "../../lib/parse-schema"
+import { sendError } from "../../lib/send-error"
+import { AuthRequest } from "../../middleware/auth"
+import { PassageRepository, ReadingAttemptRepository } from "../../repository"
+import * as service from "../../service"
+
+/**
+ * 開始確認の概要API（公開中の問題だけ。本文は含まず、出典と期限内の挑戦中、サーバーの現在時刻を返す）
+ */
+export class PassageDetailController {
+  constructor(
+    private _passageRepository: PassageRepository,
+    private _readingAttemptRepository: ReadingAttemptRepository,
+  ) {}
+
+  public async execute(req: AuthRequest, res: Response) {
+    const { id } = parseRequest(getPassagePathParamSchema, req.params)
+
+    const result = await service.passage.getPassageOverview(
+      { now: new Date(), passageId: id, userId: req.userId! },
+      { passageRepository: this._passageRepository, readingAttemptRepository: this._readingAttemptRepository },
+    )
+
+    if (!result.ok) {
+      return sendError(req, res, result.error)
+    }
+
+    const { attribution, inProgressAttempt, passage, questionCount, serverNow } = result.value
+    const response = parseResponse(getPassageResponseSchema, {
+      id: passage.id,
+      attribution: {
+        commit_sha: attribution.commitSha,
+        license_spdx: attribution.licenseSpdx,
+        license_url: attribution.licenseUrl,
+        page_url: attribution.pageUrl,
+        permalink_url: attribution.permalinkUrl,
+        retrieved_at: attribution.retrievedAt.toISOString(),
+        source_kind: attribution.sourceKind,
+        source_name: attribution.sourceName,
+      },
+      difficulty: passage.difficulty,
+      in_progress_attempt: inProgressAttempt
+        ? {
+          id: inProgressAttempt.id,
+          expires_at: inProgressAttempt.expiresAt.toISOString(),
+          started_at: inProgressAttempt.startedAt.toISOString(),
+        }
+        : null,
+      question_count: questionCount,
+      server_now: serverNow.toISOString(),
+      time_limit_seconds: passage.timeLimitSeconds,
+      title: passage.title,
+      word_count: passage.wordCount,
+    })
+    return res.status(200).json(response)
+  }
+}

@@ -11,6 +11,7 @@ import { GLOSSARY_ITEMS, locateGlossaryItem, PASSAGE_BLOCKS, QUESTION_ITEMS } fr
 
 type ContentSourceInsert = typeof contentSources.$inferInsert
 type PassageInsert = typeof passages.$inferInsert
+type ReadingAttemptInsert = typeof readingAttempts.$inferInsert
 
 let sequence = 0
 
@@ -114,16 +115,77 @@ export const insertGeneratedPassage = async (overrides: Partial<PassageInsert> =
 }
 
 /**
- * 挑戦中の挑戦を、新しいユーザーで入れる
+ * サイト（website）のソースの列。insertPassageSource の overrides に渡す
  */
-export const insertReadingAttempt = async (passageId: number) => {
+export const buildWebsiteSourceValues = (overrides: Partial<ContentSourceInsert> = {}): Partial<ContentSourceInsert> => ({
+  branch: null,
+  fetchType: "website",
+  includeGlobs: ["/doc/**"],
+  kind: "docs",
+  licenseSpdx: "BSD-3-Clause",
+  licenseUrl: "https://go.dev/LICENSE",
+  name: "Go 公式ドキュメント",
+  publicUrlStripPrefix: null,
+  publicUrlTemplate: null,
+  repository: null,
+  siteUrl: `https://go-${issueSequence()}.example.com`,
+  startUrl: "https://go.dev/doc/",
+  tags: ["go"],
+  ...overrides,
+})
+
+/**
+ * 公開中の問題の passages の行を入れる（設問・用語集は insertPassageContent で入れる）
+ */
+export const insertPublishedPassage = async (sourceDocumentId: number, overrides: Partial<PassageInsert> = {}) =>
+  insertPassage(sourceDocumentId, {
+    publishedAt: new Date("2026-10-12T03:00:00.000Z"),
+    reviewedAt: new Date("2026-10-12T03:00:00.000Z"),
+    status: "published",
+    ...overrides,
+  })
+
+/**
+ * 挑戦するユーザーを入れる
+ */
+export const insertAttemptUser = async () => {
   const [user] = await testDb
     .insert(users)
     .values({ email: `attempt-user-${issueSequence()}@example.com`, name: "Attempt User" })
     .returning()
+  return user
+}
+
+/**
+ * 挑戦を入れる。userId を渡さなければ新しいユーザーで入れる。既定は開始したばかりの挑戦中
+ */
+export const insertReadingAttempt = async (passageId: number, overrides: Partial<ReadingAttemptInsert> = {}) => {
+  const userId = overrides.userId ?? (await insertAttemptUser()).id
   const [attempt] = await testDb
     .insert(readingAttempts)
-    .values({ passageId, startedAt: new Date(), timeLimitSeconds: 180, userId: user.id })
+    .values({ passageId, startedAt: new Date(), timeLimitSeconds: 180, ...overrides, userId })
     .returning()
   return attempt
 }
+
+/**
+ * 提出済みの挑戦を入れる
+ */
+export const insertSubmittedAttempt = async (
+  passageId: number,
+  userId: number,
+  correctCount: number,
+  overrides: Partial<ReadingAttemptInsert> = {},
+) =>
+  insertReadingAttempt(passageId, {
+    correctCount,
+    elapsedSeconds: 150,
+    isOvertime: false,
+    questionCount: 3,
+    startedAt: new Date("2026-10-12T00:00:00.000Z"),
+    status: "submitted",
+    studyDate: "2026-10-12",
+    submittedAt: new Date("2026-10-12T00:02:30.000Z"),
+    userId,
+    ...overrides,
+  })
