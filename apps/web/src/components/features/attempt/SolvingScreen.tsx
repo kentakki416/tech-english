@@ -7,10 +7,13 @@ import { useCallback, useEffect, useMemo, useState, useTransition } from "react"
 import type { InProgressAttempt, SubmitAttemptRequest } from "@repo/api-schema"
 
 import type { SubmitAttemptActionResult } from "@/app/attempts/[id]/actions"
-import { PassageReader, type ReaderFontSize } from "@/components/features/passage/PassageReader"
+import { PassageReader, type ReaderFontSize, type ReaderReadAloud } from "@/components/features/passage/PassageReader"
 import { SourceMeta } from "@/components/features/passage/SourceMeta"
 import { useDictionaryLookup } from "@/components/features/passage/use-dictionary-lookup"
 import { useReaderFontSize } from "@/components/features/passage/use-reader-font-size"
+import { ReadAloudBar, ReturnToReadingButton } from "@/components/features/read-aloud/ReadAloudBar"
+import { useReadAloud } from "@/components/features/read-aloud/use-read-aloud"
+import { useReadingAutoScroll } from "@/components/features/read-aloud/use-reading-auto-scroll"
 import { Keycap } from "@/components/ui/Keycap"
 import {
   type AttemptProgress,
@@ -83,9 +86,12 @@ const isValidWordLookup = (lookup: WordLookupRecord): boolean =>
 
 /**
  * 端末に保存した途中経過を読み、いまの挑戦に無い設問・選択肢・ブロックと提出の検証を通らない記録を除く
- * （古い保存や壊れた値のせいで提出できなくならないように）
+ * （古い保存や壊れた値のせいで提出できなくならないように）。聞いた段落は読み上げより前の保存には無い
  */
-const restoreProgress = (attempt: InProgressAttempt, translatableBlockIndexes: Set<number>): RestoredProgress | null => {
+const restoreProgress = (
+  attempt: InProgressAttempt,
+  blockIndexes: { readable: Set<number>, translatable: Set<number> },
+): RestoredProgress | null => {
   const saved = readAttemptProgress(attempt.id)
   if (saved === null) return null
 
@@ -99,7 +105,8 @@ const restoreProgress = (attempt: InProgressAttempt, translatableBlockIndexes: S
   return {
     answers,
     elapsedSeconds: Number.isFinite(saved.elapsedSeconds) ? Math.max(0, Math.floor(saved.elapsedSeconds)) : 0,
-    translatedBlockIndexes: [...new Set(saved.translatedBlockIndexes)].filter(index => translatableBlockIndexes.has(index)),
+    listenedBlockIndexes: [...new Set(saved.listenedBlockIndexes)].filter(index => blockIndexes.readable.has(index)),
+    translatedBlockIndexes: [...new Set(saved.translatedBlockIndexes)].filter(index => blockIndexes.translatable.has(index)),
     wordLookups: saved.wordLookups.filter(isValidWordLookup).slice(0, MAX_WORD_LOOKUPS),
   }
 }
@@ -134,7 +141,17 @@ function SolvingSession({
     [attempt.blocks],
   )
 
-  const [savedProgress] = useState(() => (isHydrated ? restoreProgress(attempt, translatableBlockIndexes) : null))
+  /**
+   * 読み上げるブロック（code 以外）。聞いた段落として戻してよい対象
+   */
+  const readableBlockIndexes = useMemo(
+    () => new Set(attempt.blocks.flatMap((block, index) => (block.type !== "code" ? [index] : []))),
+    [attempt.blocks],
+  )
+
+  const [savedProgress] = useState(() => (
+    isHydrated ? restoreProgress(attempt, { readable: readableBlockIndexes, translatable: translatableBlockIndexes }) : null
+  ))
   const [answers, setAnswers] = useState<Record<number, number>>(savedProgress?.answers ?? {})
   /**
    * 再開したときは最初の未回答の設問から
@@ -154,11 +171,27 @@ function SolvingSession({
    */
   const [viewedTranslationBlocks, setViewedTranslationBlocks] = useState<Set<number>>(() => new Set(savedProgress?.translatedBlockIndexes))
   const [wordLookups, setWordLookups] = useState<WordLookupRecord[]>(savedProgress?.wordLookups ?? [])
+  /**
+   * 読み上げを 1 秒以上聞いた段落（提出の listened_block_count）
+   */
+  const [listenedBlocks, setListenedBlocks] = useState<Set<number>>(() => new Set(savedProgress?.listenedBlockIndexes))
   const [isExpired, setIsExpired] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [isSubmitting, startSubmitting] = useTransition()
   const [fontSize, setFontSize] = useReaderFontSize()
   const lookupDictionary = useDictionaryLookup()
+
+  const recordListenedBlock = useCallback((blockIndex: number) => {
+    setListenedBlocks(current => (current.has(blockIndex) ? current : new Set(current).add(blockIndex)))
+  }, [])
+
+  /**
+   * hydration の後に作り直す前の描画（key が server）では取得しない（取得を 1 回にする）
+   */
+  const readAloud = useReadAloud({ attemptId: attempt.id, blocks: attempt.blocks, isEnabled: isHydrated, onBlockListened: recordListenedBlock })
+  const { pause: pauseReadAloud, playBlock: playReadAloudBlock, stop: stopReadAloud } = readAloud
+  const autoScroll = useReadingAutoScroll(readAloud.playback?.blockIndex ?? null)
+  const { resumeFollowing } = autoScroll
 
   const isRunning = isHydrated && !isPaused && !isExpired && !isSubmitting
   const elapsedSeconds = useActiveSeconds({ initialSeconds: savedProgress?.elapsedSeconds ?? 0, isRunning })
@@ -179,6 +212,7 @@ function SolvingSession({
     const progress: RestoredProgress = {
       answers,
       elapsedSeconds,
+      listenedBlockIndexes: [...listenedBlocks],
       translatedBlockIndexes: [...viewedTranslationBlocks],
       wordLookups,
     }
@@ -188,7 +222,7 @@ function SolvingSession({
     }
     document.addEventListener("visibilitychange", writeOnHide)
     return () => document.removeEventListener("visibilitychange", writeOnHide)
-  }, [answers, attempt.id, elapsedSeconds, isHydrated, viewedTranslationBlocks, wordLookups])
+  }, [answers, attempt.id, elapsedSeconds, isHydrated, listenedBlocks, viewedTranslationBlocks, wordLookups])
 
   /**
    * 期限（開始から 24 時間）を 1 分ごとと画面に戻ったときに確かめる。端末の時計のずれは server_now で補正する
@@ -202,6 +236,7 @@ function SolvingSession({
       setIsExpired(true)
       setIsConfirmOpen(false)
       setIsShortcutsOpen(false)
+      stopReadAloud()
     }
     const timer = window.setInterval(checkExpiry, EXPIRY_CHECK_INTERVAL_MS)
     document.addEventListener("visibilitychange", checkExpiry)
@@ -209,7 +244,7 @@ function SolvingSession({
       window.clearInterval(timer)
       document.removeEventListener("visibilitychange", checkExpiry)
     }
-  }, [attempt.expires_at, attempt.server_now, isHydrated])
+  }, [attempt.expires_at, attempt.server_now, isHydrated, stopReadAloud])
 
   const chooseAnswer = useCallback((questionId: number, choiceIndex: number) => {
     setAnswers(current => ({ ...current, [questionId]: choiceIndex }))
@@ -242,6 +277,30 @@ function SolvingSession({
     setWordLookups(current => (current.length >= MAX_WORD_LOOKUPS ? current : [...current, lookup]))
   }, [])
 
+  /**
+   * 待機中に再生を始めるときは、読み上げ中の段落を追うスクロールを再開する
+   */
+  const toggleReadAloud = () => {
+    if (readAloud.playback === null) resumeFollowing()
+    readAloud.togglePlay()
+  }
+
+  /**
+   * 本文のブロックは memo されているので、参照を変えないよう useCallback にする
+   */
+  const playBlock = useCallback((blockIndex: number) => {
+    resumeFollowing()
+    playReadAloudBlock(blockIndex)
+  }, [playReadAloudBlock, resumeFollowing])
+
+  /**
+   * 一時停止で読み上げも止める。再開しても読み上げは自動で再開しない（再生ボタンで再開する）
+   */
+  const togglePause = () => {
+    if (!isPaused) pauseReadAloud()
+    setIsPaused(value => !value)
+  }
+
   const openSubmitConfirm = () => {
     setSubmitError(null)
     setIsConfirmOpen(true)
@@ -255,9 +314,11 @@ function SolvingSession({
   const submit = () => {
     if (isSubmitting) return
     setSubmitError(null)
+    stopReadAloud()
     const input: SubmitAttemptRequest = {
       active_seconds: elapsedSeconds,
       answers: questions.map(question => ({ question_id: question.id, selected_choice_index: answers[question.id] ?? null })),
+      listened_block_count: listenedBlocks.size,
       translated_block_count: viewedTranslationBlocks.size,
       word_lookups: wordLookups.map(lookup => ({
         glossary_entry_id: lookup.glossaryEntryId,
@@ -300,7 +361,16 @@ function SolvingSession({
     onOpenShortcuts: () => setIsShortcutsOpen(true),
     onOpenSubmitConfirm: openSubmitConfirm,
     onToggleAllTranslations: toggleAllTranslations,
+    onToggleReadAloud: toggleReadAloud,
   })
+
+  const readerReadAloud: ReaderReadAloud = {
+    activeBlockIndex: readAloud.playback?.blockIndex ?? null,
+    isAvailable: readAloud.availability === "ready",
+    playingBlockIndex: readAloud.playback?.mode === "block" && readAloud.playback.isPlaying ? readAloud.playback.blockIndex : null,
+    reading: readAloud.reading,
+    onPlayBlock: playBlock,
+  }
 
   const statusLabel = isExpired ? "期限切れ" : isPaused ? "一時停止中" : isOvertime ? "時間超過" : "読解中"
 
@@ -358,7 +428,7 @@ function SolvingSession({
               className={`grid size-8 place-items-center rounded-md border text-fg-muted hover:border-line-strong hover:text-fg ${HEADER_BUTTON_FOCUS_CLASS} ${
                 isPaused ? "border-line-strong bg-raised" : "border-line"
               }`}
-              onClick={() => setIsPaused(value => !value)}
+              onClick={togglePause}
               type="button"
             >
               {isPaused ? (
@@ -384,12 +454,21 @@ function SolvingSession({
         </header>
 
         <div className="relative flex-1 overflow-hidden lg:grid lg:grid-cols-[minmax(0,1fr)_420px]">
-          <main className="h-full overflow-y-auto pt-8 pr-5 pb-28 pl-1 sm:px-6 lg:px-10 lg:pb-16" inert={isPaused}>
+          {/**
+            * ミニプレーヤーは本文の列の下端に sticky で固定する。止まる位置はスクロール領域の padding の内側なので、
+            * スマホ幅は閉じた設問シート（64px）の上、PC は下端から 20px。一時停止中は main が inert なので押せない
+            */}
+          <main
+            className="h-full overflow-y-auto pt-8 pr-5 pb-20 pl-1 sm:px-6 lg:px-10 lg:pb-5"
+            inert={isPaused}
+            {...autoScroll.scrollHandlers}
+          >
             <div className="mx-auto max-w-3xl">
               <PassageReader
                 blocks={attempt.blocks}
                 fontSize={fontSize}
                 glossary={attempt.glossary}
+                readAloud={readerReadAloud}
                 showAllTranslations={showAllTranslations}
                 translatedBlocks={translatedBlocks}
                 onLookupDictionary={lookupDictionary}
@@ -397,6 +476,22 @@ function SolvingSession({
                 onToggleTranslation={toggleTranslation}
               />
               <AttributionNote attribution={attempt.attribution} />
+            </div>
+            <div className="pointer-events-none sticky bottom-0 z-10 mx-auto mt-8 max-w-3xl pl-11 sm:pl-14">
+              <div className="pointer-events-auto">
+                {readAloud.playback !== null && !autoScroll.isFollowing && <ReturnToReadingButton onClick={resumeFollowing} />}
+                <ReadAloudBar
+                  isShortcutVisible
+                  availability={readAloud.availability}
+                  blocks={attempt.blocks}
+                  playback={readAloud.playback}
+                  progress={readAloud.progress}
+                  rate={readAloud.rate}
+                  onRateChange={readAloud.setRate}
+                  onStop={stopReadAloud}
+                  onToggle={toggleReadAloud}
+                />
+              </div>
             </div>
           </main>
 
@@ -438,8 +533,10 @@ function SolvingSession({
           <span aria-hidden className="h-3 w-px bg-line-strong" />
           <span className="tabular-nums">和訳 {viewedTranslationBlocks.size} 段落</span>
           <span className="tabular-nums">単語 {wordLookups.length} 回</span>
+          <span className="tabular-nums">読み上げ {listenedBlocks.size} 段落</span>
           <div className="ml-auto flex items-center gap-4">
             <span className="flex items-center gap-1.5"><Keycap>T</Keycap>全文訳</span>
+            <span className="flex items-center gap-1.5"><Keycap>R</Keycap>読み上げ</span>
             <span className="flex items-center gap-1.5"><Keycap>J</Keycap><Keycap>K</Keycap>設問</span>
             <span className="flex items-center gap-1.5"><Keycap>⌘</Keycap><Keycap>↵</Keycap>提出</span>
             <button className="flex items-center gap-1.5 rounded hover:text-fg focus-visible:ring-2 focus-visible:ring-amber/60 outline-none" onClick={() => setIsShortcutsOpen(true)} type="button">
