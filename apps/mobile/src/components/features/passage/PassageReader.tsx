@@ -1,22 +1,117 @@
-import { Fragment, useMemo } from "react"
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native"
+import { Fragment, memo, useCallback, useMemo, useRef, useState } from "react"
+import {
+  FlatList,
+  type LayoutChangeEvent,
+  type ListRenderItem,
+  Platform,
+  Pressable,
+  ScrollView,
+  type StyleProp,
+  StyleSheet,
+  Text,
+  View,
+  type ViewStyle,
+} from "react-native"
+
+import type { AttemptBlock, AttemptGlossaryEntry, PassageSegmentResponse } from "@repo/api-schema"
 
 import { THEME_COLORS, THEME_FONTS } from "@/const/design-theme"
+import type { WordLookupRecord } from "@/features/attempt/attempt-progress"
+import type { LookupDictionary } from "@/features/dictionary/use-dictionary-lookup"
 
-import { lookUpDictionary, type Segment, segmentText } from "./passage-text"
-import type { ReaderBlock, ReaderGlossaryEntry } from "./types"
+import { splitInlineCode } from "./passage-text"
+import type { WordCardContent } from "./WordCard"
 
-export type WordCardContent = {
-  lemma?: string
-  meaningJa?: string
-  noteJa?: string
-  partOfSpeech?: string
-  source: "dictionary" | "glossary" | "not_found"
-  surface: string
+/**
+ * 根拠のハイライト。blockIndex のブロックで、セグメントの添字が [segmentStart, segmentEnd) の範囲
+ */
+export type ReaderHighlight = {
+  blockIndex: number
+  segmentEnd: number
+  segmentStart: number
 }
+
+type PassageReaderProps = {
+  blocks: AttemptBlock[]
+  /**
+   * 本文の FlatList の余白（画面ごとに上下の区画が違うため）
+   */
+  contentContainerStyle?: StyleProp<ViewStyle>
+  fontSize?: number
+  glossary: AttemptGlossaryEntry[]
+  /**
+   * 結果画面の根拠。セグメントの添字の範囲
+   */
+  highlight?: ReaderHighlight | null
+  ListFooterComponent?: React.ReactElement
+  ListHeaderComponent?: React.ReactElement
+  peekBlock?: number | null
+  /**
+   * React 19 なので forwardRef を使わず props で受ける（結果画面の scrollToIndex に使う）
+   */
+  ref?: React.Ref<FlatList<AttemptBlock>>
+  /**
+   * 縦の ScrollView の中に置くとき（ログイン画面のデモ）は false にする。入れ子の VirtualizedList の警告を出さないため
+   */
+  scrollEnabled?: boolean
+  showAllTranslations?: boolean
+  translatedBlocks: Set<number>
+  /**
+   * 用語集に無い単語を引く。親がキャッシュと通信を持つ（useDictionaryLookup）
+   */
+  onLookupDictionary: LookupDictionary
+  /**
+   * 意味が見つかったときだけ呼ぶ（解答画面が調べた単語として記録する）
+   */
+  onLookupWord?: (lookup: WordLookupRecord) => void
+  onPeekEnd?: () => void
+  onPeekStart?: (blockIndex: number) => void
+  onToggleTranslation?: (blockIndex: number) => void
+  /**
+   * 単語のカードを出す・中身を差し替える。辞書は結果を待つ間 loading で 1 回、届いたら同じ requestId でもう 1 回呼ぶ
+   */
+  onWordCard: (content: WordCardContent) => void
+}
+
+type BlockRowProps = {
+  block: AttemptBlock
+  blockIndex: number
+  fontSize: number
+  /**
+   * このブロックの根拠の範囲。根拠が別のブロックなら null
+   */
+  highlightEnd: number | null
+  highlightStart: number | null
+  isPeeking: boolean
+  isTranslated: boolean
+  onPeekEnd?: () => void
+  onPeekStart?: (blockIndex: number) => void
+  onPressWord: (segment: PassageSegmentResponse) => void
+  onToggleTranslation?: (blockIndex: number) => void
+}
+
+type SegmentTextProps = {
+  blockIndex: number
+  fontSize: number
+  isHighlighted: boolean
+  segment: PassageSegmentResponse
+  onPeekEnd?: () => void
+  onPeekStart?: (blockIndex: number) => void
+  onPressWord: (segment: PassageSegmentResponse) => void
+}
+
+const DEFAULT_FONT_SIZE = 17
+
+/**
+ * 段落の長押しが成立するまでの時間。単語の <Text> の長押しは RN の既定（500ms）で、Text では変えられない
+ */
+const LONG_PRESS_DELAY_MS = 300
 
 const CODE_TOKEN_PATTERN = /(\/\/.*$)|("[^"]*")|\b(function|const|let|return|import|from|export)\b|\b([A-Za-z_]\w*)(?=\()/gm
 
+/**
+ * コードブロックの簡易シンタックスハイライト
+ */
 function HighlightedCode({ code }: { code: string }) {
   const nodes: React.ReactNode[] = []
   let cursor = 0
@@ -32,193 +127,248 @@ function HighlightedCode({ code }: { code: string }) {
 }
 
 /**
- * 段落番号（見出しとコードは数えない）。設問の "paragraph 1" と対応する
+ * 和訳。インラインコードはバッククォートで分けて等幅にする（表示だけの処理）
  */
-const numberParagraphs = (blocks: ReaderBlock[]): (number | null)[] => {
-  let count = 0
-  return blocks.map(block => (block.type === "code" || block.type === "heading" ? null : ++count))
-}
-
-/**
- * 本文を表示する。段落番号の列・段落ごとの「訳」・長押しで和訳の一時表示・単語のタップ・根拠のハイライトを持つ
- *
- * 単語は入れ子の <Text onPress> にする（RN の Text は選択範囲を取得できないため、単語単位で押させる）。
- */
-export function PassageReader({
-  blocks,
-  dictionary,
-  fontSize = 17,
-  glossary,
-  hiddenGlossaryIds = [],
-  highlight = null,
-  peekBlock = null,
-  showAllTranslations = false,
-  translatedBlocks,
-  onBlockLayout,
-  onPeekEnd,
-  onPeekStart,
-  onToggleTranslation,
-  onWordPress,
-}: {
-  blocks: ReaderBlock[]
-  dictionary: Record<string, string>
-  fontSize?: number
-  glossary: ReaderGlossaryEntry[]
-  hiddenGlossaryIds?: number[]
-  highlight?: { blockIndex: number, quote: string } | null
-  peekBlock?: number | null
-  showAllTranslations?: boolean
-  translatedBlocks: Set<number>
-  onBlockLayout?: (blockIndex: number, y: number) => void
-  onPeekEnd?: () => void
-  onPeekStart?: (blockIndex: number) => void
-  onToggleTranslation?: (blockIndex: number) => void
-  onWordPress?: (content: WordCardContent) => void
-}) {
-  const visibleGlossary = useMemo(() => glossary.filter(entry => !hiddenGlossaryIds.includes(entry.id)), [glossary, hiddenGlossaryIds])
-  const paragraphNumbers = useMemo(() => numberParagraphs(blocks), [blocks])
-  const lineHeight = Math.round(fontSize * 1.75)
-
-  const pressWord = (segment: Segment) => {
-    const entry = visibleGlossary.find(item => item.id === segment.glossaryId)
-    if (entry) {
-      onWordPress?.({ lemma: entry.lemma, meaningJa: entry.meaningJa, noteJa: entry.noteJa, partOfSpeech: entry.partOfSpeech, source: "glossary", surface: segment.text })
-      return
-    }
-    const result = lookUpDictionary(segment.text, dictionary)
-    onWordPress?.(result ? { lemma: result.lemma, meaningJa: result.meaningJa, source: "dictionary", surface: segment.text } : { source: "not_found", surface: segment.text })
-  }
-
-  const renderSegments = (segments: Segment[], blockIndex: number, isHighlighted = false) =>
-    segments.map((segment, index) => {
-      const highlightStyle = isHighlighted ? styles.highlight : undefined
-      if (segment.kind === "code") {
-        return <Text key={index} style={[styles.inlineCode, { fontSize: fontSize * 0.82 }]}>{segment.text}</Text>
-      }
-      if (segment.kind !== "word") {
-        return <Text key={index} style={highlightStyle}>{segment.text}</Text>
-      }
-      return (
-        <Text
-          key={index}
-          onLongPress={() => onPeekStart?.(blockIndex)}
-          onPress={() => pressWord(segment)}
-          onPressOut={onPeekEnd}
-          style={highlightStyle}
-        >
-          {segment.text}
-        </Text>
-      )
-    })
-
+function TranslationText({ fontSize, isHeading, text }: { fontSize: number, isHeading: boolean, text: string }) {
   return (
-    <View>
-      {blocks.map((block, blockIndex) => {
-        const isCode = block.type === "code"
-        const isHeading = block.type === "heading"
-        const isTranslated = !isCode && (showAllTranslations || translatedBlocks.has(blockIndex))
-        const isPeeking = peekBlock === blockIndex && !isTranslated
-        const quote = highlight?.blockIndex === blockIndex && block.text.includes(highlight.quote) ? highlight.quote : null
-
-        return (
-          <View key={blockIndex} onLayout={event => onBlockLayout?.(blockIndex, event.nativeEvent.layout.y)} style={styles.blockRow}>
-            <View style={[styles.gutter, { paddingTop: isHeading ? 8 : 6 }]}>
-              {isHeading && <Text style={styles.gutterText}>#</Text>}
-              {paragraphNumbers[blockIndex] !== null && <Text style={styles.gutterText}>{paragraphNumbers[blockIndex]}</Text>}
-              {!isCode && onToggleTranslation && (
-                <Pressable
-                  accessibilityLabel={isTranslated ? "英文に戻す" : "この段落を和訳で表示"}
-                  hitSlop={8}
-                  onPress={() => onToggleTranslation(blockIndex)}
-                  style={[styles.translateButton, isTranslated && styles.translateButtonActive]}
-                >
-                  <Text style={[styles.translateButtonText, isTranslated && { color: THEME_COLORS.amber }]}>訳</Text>
-                </Pressable>
-              )}
-            </View>
-
-            <View style={styles.blockBody}>
-              {isCode ? (
-                <ScrollView horizontal style={styles.codeBlock}>
-                  <HighlightedCode code={block.text} />
-                </ScrollView>
-              ) : isTranslated ? (
-                <Text style={[styles.translation, isHeading && { fontWeight: "600" }, { fontSize: fontSize * 0.92, lineHeight: Math.round(fontSize * 1.8) }]}>
-                  {segmentText(block.translationJa ?? "", []).map((segment, index) =>
-                    segment.kind === "code"
-                      ? <Text key={index} style={[styles.inlineCode, { fontSize: fontSize * 0.78 }]}>{segment.text}</Text>
-                      : <Fragment key={index}>{segment.text}</Fragment>)}
-                </Text>
-              ) : (
-                <View>
-                  <Text
-                    onLongPress={() => onPeekStart?.(blockIndex)}
-                    onPressOut={onPeekEnd}
-                    style={[
-                      isHeading ? styles.heading : styles.paragraph,
-                      isHeading ? { fontSize: fontSize * 1.45, lineHeight: Math.round(fontSize * 1.8) } : { fontSize, lineHeight },
-                    ]}
-                  >
-                    {quote ? (
-                      <>
-                        {renderSegments(segmentText(block.text.slice(0, block.text.indexOf(quote)), visibleGlossary), blockIndex)}
-                        {renderSegments(segmentText(quote, visibleGlossary), blockIndex, true)}
-                        {renderSegments(segmentText(block.text.slice(block.text.indexOf(quote) + quote.length), visibleGlossary), blockIndex)}
-                      </>
-                    ) : (
-                      renderSegments(segmentText(block.text, visibleGlossary), blockIndex)
-                    )}
-                  </Text>
-                  {isPeeking && (
-                    <View pointerEvents="none" style={styles.peek}>
-                      <Text style={[styles.translation, { fontSize: fontSize * 0.92, lineHeight: Math.round(fontSize * 1.8) }]}>{block.translationJa}</Text>
-                    </View>
-                  )}
-                </View>
-              )}
-            </View>
-          </View>
-        )
-      })}
-    </View>
+    <Text style={[styles.translation, isHeading && styles.translationHeading, { fontSize: fontSize * 0.92, lineHeight: Math.round(fontSize * 1.8) }]}>
+      {splitInlineCode(text).map((part, index) =>
+        part.isCode
+          ? <Text key={index} style={[styles.inlineCode, { fontSize: fontSize * 0.78 }]}>{part.text}</Text>
+          : <Fragment key={index}>{part.text}</Fragment>)}
+    </Text>
   )
 }
 
 /**
- * 単語のカード（画面の下端に全幅で出す）
+ * 本文の 1 セグメント。単語だけ押せる（入れ子の <Text onPress>。RN の Text は選択範囲を取得できないため、単語単位で押させる）。
+ * 単語の上の長押しも段落の和訳にする（RN の Responder は長押しが成立すると onPress を呼ばないので、カードは出ない）
  */
-export function WordCard({ content, onClose }: { content: WordCardContent, onClose: () => void }) {
+function SegmentText({ blockIndex, fontSize, isHighlighted, segment, onPeekEnd, onPeekStart, onPressWord }: SegmentTextProps) {
+  if (segment.kind === "code") {
+    return <Text style={[styles.inlineCode, { fontSize: fontSize * 0.82 }, isHighlighted && styles.highlight]}>{segment.text}</Text>
+  }
+  if (segment.kind !== "word") {
+    return isHighlighted ? <Text style={styles.highlight}>{segment.text}</Text> : segment.text
+  }
   return (
-    <View style={styles.card}>
-      <View style={styles.cardHeader}>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.cardSurface}>{content.surface}</Text>
-          {content.source !== "not_found" && (
-            <Text style={styles.cardMeta}>
-              {content.lemma && content.lemma !== content.surface.toLowerCase() ? `${content.lemma}  ` : ""}
-              {content.partOfSpeech ?? ""}
-            </Text>
-          )}
-        </View>
-        <Pressable accessibilityLabel="閉じる" hitSlop={12} onPress={onClose}>
-          <Text style={styles.cardClose}>×</Text>
-        </Pressable>
+    <Text
+      style={isHighlighted ? styles.highlight : undefined}
+      onLongPress={onPeekStart ? () => onPeekStart(blockIndex) : undefined}
+      onPress={() => onPressWord(segment)}
+      onPressOut={onPeekEnd}
+    >
+      {segment.text}
+    </Text>
+  )
+}
+
+const MemoizedSegmentText = memo(SegmentText)
+
+/**
+ * 本文の 1 ブロック（FlatList の 1 行）。左に段落番号の列と「訳」、右に英文 / 和訳 / コード。
+ * 行ごとの値だけを受け取り memo する（1 段落の切り替えや毎秒のタイマーで全行を描き直さないため）
+ */
+function BlockRow({
+  block,
+  blockIndex,
+  fontSize,
+  highlightEnd,
+  highlightStart,
+  isPeeking,
+  isTranslated,
+  onPeekEnd,
+  onPeekStart,
+  onPressWord,
+  onToggleTranslation,
+}: BlockRowProps) {
+  /**
+   * 長押しの和訳の高さ。英文より高いときは本文の高さをそこまで広げる（次の行に重ならないように）
+   */
+  const [peekHeight, setPeekHeight] = useState(0)
+  const isCode = block.type === "code"
+  const isHeading = block.type === "heading"
+  const translation = isCode ? null : block.translation_ja
+  const isPeekVisible = isPeeking && !isTranslated && translation !== null
+
+  const measurePeek = useCallback((event: LayoutChangeEvent) => setPeekHeight(event.nativeEvent.layout.height), [])
+
+  return (
+    <View style={styles.blockRow}>
+      <View style={[styles.gutter, isHeading ? styles.gutterHeading : null]}>
+        {isHeading && <Text style={styles.gutterText}>#</Text>}
+        {block.paragraph_number !== null && <Text style={styles.gutterText}>{block.paragraph_number}</Text>}
+        {translation !== null && onToggleTranslation && (
+          <Pressable
+            accessibilityLabel={isTranslated ? "英文に戻す" : "この段落を和訳で表示"}
+            accessibilityRole="button"
+            accessibilityState={{ selected: isTranslated }}
+            hitSlop={8}
+            style={[styles.translateButton, isTranslated && styles.translateButtonActive]}
+            onPress={() => onToggleTranslation(blockIndex)}
+          >
+            <Text style={[styles.translateButtonText, isTranslated && styles.translateButtonTextActive]}>訳</Text>
+          </Pressable>
+        )}
       </View>
-      {content.source === "not_found" ? (
-        <Text style={styles.cardNote}>辞書に見つかりませんでした。</Text>
-      ) : (
-        <>
-          <Text style={styles.cardMeaning}>{content.meaningJa}</Text>
-          {content.noteJa && <Text style={styles.cardNote}>{content.noteJa}</Text>}
-        </>
-      )}
-      <View style={styles.cardSource}>
-        <View style={[styles.cardDot, { backgroundColor: content.source === "glossary" ? THEME_COLORS.amber : THEME_COLORS.fgFaint }]} />
-        <Text style={{ color: content.source === "glossary" ? THEME_COLORS.amber : THEME_COLORS.fgFaint, fontSize: 11 }}>
-          {content.source === "glossary" ? "この文での意味" : "英和辞書（一般的な意味）"}
-        </Text>
+
+      <View style={styles.blockBody}>
+        {isCode ? (
+          <ScrollView horizontal style={styles.codeBlock}>
+            <HighlightedCode code={block.text} />
+          </ScrollView>
+        ) : isTranslated && translation !== null ? (
+          <TranslationText fontSize={fontSize} isHeading={isHeading} text={translation} />
+        ) : (
+          <Pressable
+            delayLongPress={LONG_PRESS_DELAY_MS}
+            disabled={!onPeekStart}
+            style={isPeekVisible && peekHeight > 0 ? { minHeight: peekHeight } : undefined}
+            onLongPress={() => onPeekStart?.(blockIndex)}
+            onPressOut={onPeekEnd}
+          >
+            <Text
+              style={isHeading
+                ? [styles.heading, { fontSize: fontSize * 1.45, lineHeight: Math.round(fontSize * 1.8) }]
+                : [styles.paragraph, { fontSize, lineHeight: Math.round(fontSize * 1.75) }]}
+            >
+              {block.segments.map((segment, index) => (
+                <MemoizedSegmentText
+                  key={index}
+                  blockIndex={blockIndex}
+                  fontSize={fontSize}
+                  isHighlighted={highlightStart !== null && highlightEnd !== null && index >= highlightStart && index < highlightEnd}
+                  segment={segment}
+                  onPeekEnd={onPeekEnd}
+                  onPeekStart={onPeekStart}
+                  onPressWord={onPressWord}
+                />
+              ))}
+            </Text>
+            {/**
+              * 長押し中の和訳は英文の要素を残したまま上に重ねる（英文を差し替えると押している要素が消えて onPressOut が来なくなるため）
+              */}
+            {isPeekVisible && (
+              <View style={styles.peek} onLayout={measurePeek}>
+                <TranslationText fontSize={fontSize} isHeading={isHeading} text={translation} />
+              </View>
+            )}
+          </Pressable>
+        )}
       </View>
     </View>
+  )
+}
+
+const MemoizedBlockRow = memo(BlockRow)
+
+const extractBlockKey = (_block: AttemptBlock, index: number): string => String(index)
+
+/**
+ * 本文を表示する。段落番号の列・段落ごとの「訳」・長押しで和訳の一時表示・単語の意味・根拠のハイライトを持つ。
+ * セグメントは api が分割したもの（blocks[].segments）をそのまま描画する（分割は api の 1 か所だけ）
+ *
+ * - ブロックごとに FlatList の 1 行にして、画面外のブロックは描画しない（600 語で入れ子の <Text> が 1,500 程度になるため）
+ * - 単語を押すと、用語集の語句（glossary_entry_id）は「この文での意味」、それ以外は onLookupDictionary で英和辞書を引く
+ * - 長押しはブロックの本文を包む Pressable と単語の <Text> の両方で受け、押している間だけ和訳を重ねる
+ */
+export function PassageReader({
+  blocks,
+  contentContainerStyle,
+  fontSize = DEFAULT_FONT_SIZE,
+  glossary,
+  highlight = null,
+  ListFooterComponent,
+  ListHeaderComponent,
+  peekBlock = null,
+  ref,
+  scrollEnabled = true,
+  showAllTranslations = false,
+  translatedBlocks,
+  onLookupDictionary,
+  onLookupWord,
+  onPeekEnd,
+  onPeekStart,
+  onToggleTranslation,
+  onWordCard,
+}: PassageReaderProps) {
+  /**
+   * 押すたびに増やす。辞書の結果が届いたときに、別の単語を押した後なら捨てる
+   */
+  const requestIdRef = useRef(0)
+  const glossaryById = useMemo(() => new Map(glossary.map(entry => [entry.id, entry])), [glossary])
+
+  const showDictionaryMeaning = useCallback(async (requestId: number, surface: string) => {
+    const isCurrent = () => requestIdRef.current === requestId
+    try {
+      const result = await onLookupDictionary(surface)
+      if (!isCurrent()) return
+      if (result === null) {
+        onWordCard({ meaning: { status: "not_found" }, requestId, surface })
+        return
+      }
+      onWordCard({ meaning: { lemma: result.headword, meaningJa: result.meaningJa, status: "dictionary" }, requestId, surface })
+      onLookupWord?.({ glossaryEntryId: null, lemma: result.headword, source: "dictionary", surface })
+    } catch {
+      if (isCurrent()) onWordCard({ meaning: { status: "failed" }, requestId, surface })
+    }
+  }, [onLookupDictionary, onLookupWord, onWordCard])
+
+  const pressWord = useCallback((segment: PassageSegmentResponse) => {
+    requestIdRef.current += 1
+    const requestId = requestIdRef.current
+    const surface = segment.text
+    const entry = segment.glossary_entry_id === undefined ? undefined : glossaryById.get(segment.glossary_entry_id)
+    if (entry) {
+      onWordCard({
+        meaning: { lemma: entry.lemma, meaningJa: entry.meaning_ja, noteJa: entry.note_ja, partOfSpeech: entry.part_of_speech, status: "glossary" },
+        requestId,
+        surface,
+      })
+      onLookupWord?.({ glossaryEntryId: entry.id, lemma: entry.lemma, source: "glossary", surface })
+      return
+    }
+    /**
+     * 結果を待つ間もカードは出し、意味の部分だけ後から埋める
+     */
+    onWordCard({ meaning: { status: "loading" }, requestId, surface })
+    void showDictionaryMeaning(requestId, surface)
+  }, [glossaryById, onLookupWord, onWordCard, showDictionaryMeaning])
+
+  const renderItem = useCallback<ListRenderItem<AttemptBlock>>(({ index, item }) => {
+    const isHighlighted = highlight?.blockIndex === index
+    return (
+      <MemoizedBlockRow
+        block={item}
+        blockIndex={index}
+        fontSize={fontSize}
+        highlightEnd={isHighlighted ? highlight.segmentEnd : null}
+        highlightStart={isHighlighted ? highlight.segmentStart : null}
+        isPeeking={peekBlock === index}
+        isTranslated={item.type !== "code" && item.translation_ja !== null && (showAllTranslations || translatedBlocks.has(index))}
+        onPeekEnd={onPeekEnd}
+        onPeekStart={onPeekStart}
+        onPressWord={pressWord}
+        onToggleTranslation={onToggleTranslation}
+      />
+    )
+  }, [fontSize, highlight, onPeekEnd, onPeekStart, onToggleTranslation, peekBlock, pressWord, showAllTranslations, translatedBlocks])
+
+  return (
+    <FlatList
+      ref={ref}
+      ListFooterComponent={ListFooterComponent}
+      ListHeaderComponent={ListHeaderComponent}
+      contentContainerStyle={contentContainerStyle}
+      data={blocks}
+      initialNumToRender={6}
+      keyExtractor={extractBlockKey}
+      maxToRenderPerBatch={4}
+      removeClippedSubviews={Platform.OS === "android"}
+      renderItem={renderItem}
+      scrollEnabled={scrollEnabled}
+      windowSize={7}
+    />
   )
 }
 
@@ -230,59 +380,6 @@ const styles = StyleSheet.create({
   blockRow: {
     flexDirection: "row",
     marginBottom: 14,
-  },
-  card: {
-    backgroundColor: THEME_COLORS.raised,
-    borderColor: THEME_COLORS.lineStrong,
-    borderRadius: 14,
-    borderWidth: 1,
-    padding: 16,
-    shadowColor: "#000",
-    shadowOffset: { height: 12, width: 0 },
-    shadowOpacity: 0.45,
-    shadowRadius: 24,
-  },
-  cardClose: {
-    color: THEME_COLORS.fgFaint,
-    fontSize: 22,
-    lineHeight: 22,
-  },
-  cardDot: {
-    borderRadius: 3,
-    height: 6,
-    width: 6,
-  },
-  cardHeader: {
-    flexDirection: "row",
-    gap: 12,
-  },
-  cardMeaning: {
-    color: THEME_COLORS.fg,
-    fontSize: 15,
-    lineHeight: 23,
-    marginTop: 10,
-  },
-  cardMeta: {
-    color: THEME_COLORS.fgMuted,
-    fontSize: 12,
-    marginTop: 2,
-  },
-  cardNote: {
-    color: THEME_COLORS.fgMuted,
-    fontSize: 13,
-    lineHeight: 20,
-    marginTop: 6,
-  },
-  cardSource: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: 6,
-    marginTop: 12,
-  },
-  cardSurface: {
-    color: THEME_COLORS.fg,
-    fontFamily: THEME_FONTS.readingSemiBold,
-    fontSize: 20,
   },
   code: {
     color: THEME_COLORS.fg,
@@ -301,7 +398,11 @@ const styles = StyleSheet.create({
     alignItems: "flex-end",
     gap: 6,
     paddingRight: 10,
+    paddingTop: 6,
     width: 40,
+  },
+  gutterHeading: {
+    paddingTop: 8,
   },
   gutterText: {
     color: THEME_COLORS.fgFaint,
@@ -328,6 +429,7 @@ const styles = StyleSheet.create({
     backgroundColor: THEME_COLORS.canvas,
     left: 0,
     minHeight: "100%",
+    pointerEvents: "none",
     position: "absolute",
     right: 0,
     top: 0,
@@ -350,10 +452,16 @@ const styles = StyleSheet.create({
     color: THEME_COLORS.fgMuted,
     fontSize: 11,
   },
+  translateButtonTextActive: {
+    color: THEME_COLORS.amber,
+  },
   translation: {
     borderColor: "rgba(243, 178, 76, 0.5)",
     borderLeftWidth: 2,
     color: THEME_COLORS.fg,
     paddingLeft: 12,
+  },
+  translationHeading: {
+    fontWeight: "600",
   },
 })

@@ -1,39 +1,170 @@
-import type { ReaderBlock, ReaderGlossaryEntry } from "@/components/features/passage/types"
+import type { AttemptBlock, AttemptGlossaryEntry } from "@repo/api-schema"
+
+import type { DictionaryLookupResult } from "@/features/dictionary/use-dictionary-lookup"
 
 /**
  * ログイン画面の体験デモで使う本文・用語集・英和辞書
  *
- * API を呼ばずに描画するための固定値（未ログインでは API を呼べないため）。
+ * API を呼ばずに描画するための固定値で（未ログインでは API を呼べないため）、解答画面と同じ形（API のレスポンスの型）にしてある。
+ * セグメントは api の分割（apps/api/src/lib/segment-passage.ts）が返すものと同じ（web の `sign-in-demo-data.ts` の段落と同じ値）。
+ * 本文の英文はデモ用に書いたもので、実在の文書の引用ではない。
  */
 
-export const DEMO_BLOCKS: ReaderBlock[] = [
+export const DEMO_BLOCKS: AttemptBlock[] = [
   {
+    lang: null,
+    paragraph_number: 1,
+    segments: [
+      { kind: "word", text: "When" },
+      { kind: "space", text: " " },
+      { kind: "word", text: "you" },
+      { kind: "space", text: " " },
+      { kind: "word", text: "do" },
+      { kind: "space", text: " " },
+      { kind: "word", text: "need" },
+      { kind: "space", text: " " },
+      { kind: "word", text: "an" },
+      { kind: "space", text: " " },
+      { kind: "word", text: "Effect" },
+      { kind: "punct", text: "," },
+      { kind: "space", text: " " },
+      { kind: "word", text: "React" },
+      { kind: "space", text: " " },
+      { kind: "word", text: "runs" },
+      { kind: "space", text: " " },
+      { kind: "word", text: "it" },
+      { kind: "space", text: " " },
+      { kind: "word", text: "after" },
+      { kind: "space", text: " " },
+      { kind: "word", text: "every" },
+      { kind: "space", text: " " },
+      { kind: "word", text: "render" },
+      { kind: "space", text: " " },
+      { kind: "word", text: "by" },
+      { kind: "space", text: " " },
+      { kind: "word", text: "default" },
+      { kind: "punct", text: "." },
+      { kind: "space", text: " " },
+      { kind: "word", text: "In" },
+      { kind: "space", text: " " },
+      { kind: "word", text: "most" },
+      { kind: "space", text: " " },
+      { kind: "word", text: "cases" },
+      { kind: "punct", text: "," },
+      { kind: "space", text: " " },
+      { kind: "word", text: "that" },
+      { kind: "space", text: " " },
+      { kind: "word", text: "is" },
+      { kind: "space", text: " " },
+      { kind: "word", text: "more" },
+      { kind: "space", text: " " },
+      { kind: "word", text: "often" },
+      { kind: "space", text: " " },
+      { kind: "word", text: "than" },
+      { kind: "space", text: " " },
+      { kind: "word", text: "necessary" },
+      { kind: "punct", text: "." },
+      { kind: "space", text: " " },
+      { kind: "word", text: "You" },
+      { kind: "space", text: " " },
+      { kind: "word", text: "can" },
+      { kind: "space", text: " " },
+      { glossary_entry_id: 6, kind: "word", text: "opt out of" },
+      { kind: "space", text: " " },
+      { kind: "word", text: "re-running" },
+      { kind: "space", text: " " },
+      { kind: "word", text: "it" },
+      { kind: "space", text: " " },
+      { kind: "word", text: "by" },
+      { kind: "space", text: " " },
+      { kind: "word", text: "specifying" },
+      { kind: "space", text: " " },
+      { kind: "word", text: "a" },
+      { kind: "space", text: " " },
+      { kind: "word", text: "dependency" },
+      { kind: "space", text: " " },
+      { kind: "word", text: "array" },
+      { kind: "punct", text: "," },
+      { kind: "space", text: " " },
+      { kind: "word", text: "which" },
+      { kind: "space", text: " " },
+      { kind: "word", text: "tells" },
+      { kind: "space", text: " " },
+      { kind: "word", text: "React" },
+      { kind: "space", text: " " },
+      { kind: "word", text: "to" },
+      { kind: "space", text: " " },
+      { kind: "word", text: "skip" },
+      { kind: "space", text: " " },
+      { kind: "word", text: "the" },
+      { kind: "space", text: " " },
+      { kind: "word", text: "Effect" },
+      { kind: "space", text: " " },
+      { kind: "word", text: "unless" },
+      { kind: "space", text: " " },
+      { kind: "word", text: "one" },
+      { kind: "space", text: " " },
+      { kind: "word", text: "of" },
+      { kind: "space", text: " " },
+      { kind: "word", text: "the" },
+      { kind: "space", text: " " },
+      { kind: "word", text: "listed" },
+      { kind: "space", text: " " },
+      { kind: "word", text: "values" },
+      { kind: "space", text: " " },
+      { kind: "word", text: "has" },
+      { kind: "space", text: " " },
+      { kind: "word", text: "changed" },
+      { kind: "punct", text: "." },
+      { kind: "space", text: " " },
+      { glossary_entry_id: 7, kind: "word", text: "Under the hood" },
+      { kind: "punct", text: "," },
+      { kind: "space", text: " " },
+      { kind: "word", text: "React" },
+      { kind: "space", text: " " },
+      { kind: "word", text: "compares" },
+      { kind: "space", text: " " },
+      { kind: "word", text: "each" },
+      { kind: "space", text: " " },
+      { kind: "word", text: "dependency" },
+      { kind: "space", text: " " },
+      { kind: "word", text: "with" },
+      { kind: "space", text: " " },
+      { kind: "word", text: "its" },
+      { kind: "space", text: " " },
+      { kind: "word", text: "previous" },
+      { kind: "space", text: " " },
+      { kind: "word", text: "value" },
+      { kind: "space", text: " " },
+      { kind: "word", text: "using" },
+      { kind: "space", text: " " },
+      { kind: "code", text: "Object.is" },
+      { kind: "punct", text: "." },
+    ],
     text: "When you do need an Effect, React runs it after every render by default. In most cases, that is more often than necessary. You can opt out of re-running it by specifying a dependency array, which tells React to skip the Effect unless one of the listed values has changed. Under the hood, React compares each dependency with its previous value using `Object.is`.",
-    translationJa: "エフェクトが本当に必要な場合、React はデフォルトで毎回のレンダー後にそれを実行します。ほとんどの場合、それは必要以上に頻繁です。依存配列を指定すると再実行をやめられます。依存配列は、列挙した値のどれかが変わらない限りエフェクトをスキップするよう React に伝えます。内部では、React は各依存値を前回の値と `Object.is` で比較しています。",
+    translation_ja: "エフェクトが本当に必要な場合、React はデフォルトで毎回のレンダー後にそれを実行します。ほとんどの場合、それは必要以上に頻繁です。依存配列を指定すると再実行をやめられます。依存配列は、列挙した値のどれかが変わらない限りエフェクトをスキップするよう React に伝えます。内部では、React は各依存値を前回の値と `Object.is` で比較しています。",
     type: "paragraph",
   },
 ]
 
 /**
- * 用語集。`blockIndex` は DEMO_BLOCKS の添字
+ * 用語集。本文中の位置は DEMO_BLOCKS のセグメントの glossary_entry_id で示す
  */
-export const DEMO_GLOSSARY: ReaderGlossaryEntry[] = [
+export const DEMO_GLOSSARY: AttemptGlossaryEntry[] = [
   {
     id: 6,
-    blockIndex: 0,
     lemma: "opt out of",
-    meaningJa: "〜をやめる、（既定の動作を）無効にする",
-    noteJa: "対になるのは opt in（自分で選んで有効にする）。",
-    partOfSpeech: "熟語",
+    meaning_ja: "〜をやめる、（既定の動作を）無効にする",
+    note_ja: "対になるのは opt in（自分で選んで有効にする）。",
+    part_of_speech: "熟語",
     surface: "opt out of",
   },
   {
     id: 7,
-    blockIndex: 0,
     lemma: "under the hood",
-    meaningJa: "内部では、仕組みとしては",
-    noteJa: "車のボンネット（hood）の下、つまり外から見えない内部の仕組みのこと。",
-    partOfSpeech: "熟語",
+    meaning_ja: "内部では、仕組みとしては",
+    note_ja: "車のボンネット（hood）の下、つまり外から見えない内部の仕組みのこと。",
+    part_of_speech: "熟語",
     surface: "Under the hood",
   },
 ]
@@ -41,7 +172,7 @@ export const DEMO_GLOSSARY: ReaderGlossaryEntry[] = [
 /**
  * 英和辞書（EJDict-hand 相当）の抜粋。用語集に無い単語をタップしたときに引く
  */
-export const DEMO_DICTIONARY: Record<string, string> = {
+const DEMO_DICTIONARY: Record<string, string> = {
   api: "アプリケーション・プログラミング・インターフェース",
   browser: "閲覧者 / （インターネットの）ブラウザ",
   cleanup: "大掃除、一掃",
@@ -59,4 +190,25 @@ export const DEMO_DICTIONARY: Record<string, string> = {
   render: "（…を）…にする / …を表現する、描写する",
   synchronize: "同時に起こる / （…と）…を同期させる",
   widget: "（名前のわからない）小さな装置、部品",
+}
+
+/**
+ * デモの英和辞書を引く（PassageReader の onLookupDictionary）。見出し語そのまま → 語尾の規則を外した候補の順に試す。
+ * 本番は api が引く（ログイン前は api を呼べないため、デモだけ手元の抜粋で引く）
+ */
+export const lookUpDemoDictionary = async (word: string): Promise<DictionaryLookupResult | null> => {
+  const lower = word.toLowerCase().replace(/['’]s$/, "")
+  const candidates = [
+    lower,
+    lower.replace(/ies$/, "y"),
+    lower.replace(/es$/, ""),
+    lower.replace(/s$/, ""),
+    lower.replace(/ed$/, ""),
+    lower.replace(/ed$/, "e"),
+    lower.replace(/ing$/, ""),
+    lower.replace(/ing$/, "e"),
+    lower.replace(/d$/, ""),
+  ]
+  const headword = candidates.find(candidate => DEMO_DICTIONARY[candidate])
+  return headword ? { headword, meaningJa: DEMO_DICTIONARY[headword] } : null
 }

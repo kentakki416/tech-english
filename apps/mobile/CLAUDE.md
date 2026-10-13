@@ -47,3 +47,4 @@ pnpm ios          # iOS で起動
   2. api の CORS を Expo の origin に合わせて起動する: `cd apps/api && FRONTEND_URL=http://localhost:8085 pnpm dev`
   3. `EXPO_PUBLIC_API_URL` を `http://localhost:8080` にして起動する。dev のバンドルは `.env*` ファイルの値がシェルの環境変数より優先されるため、一時的な `apps/mobile/.env.development.local`（`EXPO_PUBLIC_API_URL=http://localhost:8080`）で上書きし、終わったら消す（git 管理外にしていないのでコミットしない）
   4. `npx expo start --web --port 8085` → ログイン画面の「Dev Login: alice」
+- web 表示で確かめられないこと: 振動（`expo-haptics`）、`Alert.alert`（react-native-web では何も出ない）、Android の戻るボタン、描画性能。本文の長押し（`Pressable` の `onLongPress`）はマウスを押し続けると和訳が重なるが、離すと単語のカードも出る（react-native-web の `Text` の `onPress` は click で、長押しで取り消されないため。iOS / Android の Responder は長押しが成立すると `onPress` を呼ばない）

@@ -1,11 +1,12 @@
 import { Ionicons } from "@expo/vector-icons"
 import { StatusBar } from "expo-status-bar"
-import { useState } from "react"
+import { useCallback, useState } from "react"
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 
-import { DEMO_BLOCKS, DEMO_DICTIONARY, DEMO_GLOSSARY } from "@/components/features/auth/sign-in-demo-data"
-import { PassageReader, WordCard, type WordCardContent } from "@/components/features/passage/PassageReader"
+import { DEMO_BLOCKS, DEMO_GLOSSARY, lookUpDemoDictionary } from "@/components/features/auth/sign-in-demo-data"
+import { PassageReader } from "@/components/features/passage/PassageReader"
+import { useWordCard, WordCard } from "@/components/features/passage/WordCard"
 import { appStyles } from "@/components/ui/app-styles"
 import { Wordmark } from "@/components/ui/Wordmark"
 import { THEME_COLORS, THEME_FONTS } from "@/const/design-theme"
@@ -27,9 +28,15 @@ const DEV_LOGIN_USERS = [
 export default function SignInScreen() {
   const [translatedBlocks, setTranslatedBlocks] = useState<Set<number>>(new Set())
   const [peekBlock, setPeekBlock] = useState<number | null>(null)
-  const [wordCard, setWordCard] = useState<WordCardContent | null>(null)
+  const { closeWordCard, showWordCard, wordCard } = useWordCard()
   const [isSigningIn, setIsSigningIn] = useState(false)
   const [isFailed, setIsFailed] = useState(false)
+
+  const endPeek = useCallback(() => setPeekBlock(null), [])
+
+  const toggleTranslation = useCallback((blockIndex: number) => {
+    setTranslatedBlocks(value => (value.has(blockIndex) ? new Set() : new Set([blockIndex])))
+  }, [])
 
   const pressSignIn = async () => {
     setIsSigningIn(true)
@@ -67,17 +74,21 @@ export default function SignInScreen() {
             <Text style={appStyles.caption}>React 公式ドキュメント</Text>
           </View>
           <View style={{ paddingRight: 14, paddingTop: 14 }}>
+            {/**
+              * 画面全体の ScrollView の中に置くので、本文の FlatList はスクロールさせない（1 段落だけ）
+              */}
             <PassageReader
               blocks={DEMO_BLOCKS}
-              dictionary={DEMO_DICTIONARY}
               fontSize={15}
               glossary={DEMO_GLOSSARY}
               peekBlock={peekBlock}
+              scrollEnabled={false}
               translatedBlocks={translatedBlocks}
-              onPeekEnd={() => setPeekBlock(null)}
+              onLookupDictionary={lookUpDemoDictionary}
+              onPeekEnd={endPeek}
               onPeekStart={setPeekBlock}
-              onToggleTranslation={blockIndex => setTranslatedBlocks(value => (value.has(blockIndex) ? new Set() : new Set([blockIndex])))}
-              onWordPress={setWordCard}
+              onToggleTranslation={toggleTranslation}
+              onWordCard={showWordCard}
             />
           </View>
           <Text style={styles.demoNote}>単語をタップすると意味が出ます。段落を長押しすると、押している間だけ和訳になります。</Text>
@@ -86,7 +97,7 @@ export default function SignInScreen() {
 
       {wordCard && (
         <View style={styles.wordCardWrapper}>
-          <WordCard content={wordCard} onClose={() => setWordCard(null)} />
+          <WordCard content={wordCard} onClose={closeWordCard} />
         </View>
       )}
 
