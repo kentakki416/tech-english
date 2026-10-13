@@ -4,6 +4,8 @@ import type { ContentSource } from "@repo/domain"
 import type {
   ContentSourceInput,
   ContentSourceRepository,
+  ContentSourceSaveResult,
+  ContentSourceUpdateOptions,
   FailedPage,
   PassageCountRow,
 } from "../content-source-repository"
@@ -17,6 +19,20 @@ type ContentSourceRow = typeof contentSources.$inferSelect
  * 取得に失敗したとみなす HTTP ステータスの下限
  */
 const FAILED_HTTP_STATUS = 400
+
+/**
+ * Postgres の unique 制約違反の SQLSTATE
+ */
+const UNIQUE_VIOLATION = "23505"
+
+/**
+ * unique 制約違反か。Drizzle は pg のエラーを DrizzleQueryError の cause に入れる。
+ * content_sources の unique 制約は主キーと repository / site_url だけなので、重複の登録とみなせる
+ */
+const isUniqueViolation = (error: unknown): boolean => {
+  const cause = typeof error === "object" && error !== null && "cause" in error ? error.cause : undefined
+  return typeof cause === "object" && cause !== null && "code" in cause && cause.code === UNIQUE_VIOLATION
+}
 
 /**
  * 入力から、取得方法ごとの列と共通の列の値を作る（fetch_type は含めない）
@@ -78,12 +94,17 @@ export class DrizzleContentSourceRepository implements ContentSourceRepository {
       .groupBy(sourceDocuments.sourceId, passages.status)
   }
 
-  public async create(input: ContentSourceInput): Promise<ContentSource> {
-    const [row] = await this._db
-      .insert(contentSources)
-      .values({ ...buildColumnValues(input), fetchType: input.fetchType })
-      .returning()
-    return this._toDomain(row)
+  public async create(input: ContentSourceInput): Promise<ContentSourceSaveResult> {
+    try {
+      const [row] = await this._db
+        .insert(contentSources)
+        .values({ ...buildColumnValues(input), fetchType: input.fetchType })
+        .returning()
+      return { kind: "saved", source: this._toDomain(row) }
+    } catch (error) {
+      if (isUniqueViolation(error)) return { kind: "duplicate" }
+      throw error
+    }
   }
 
   public async findAll(): Promise<ContentSource[]> {
@@ -121,24 +142,47 @@ export class DrizzleContentSourceRepository implements ContentSourceRepository {
     })
   }
 
+  public async hasSourceDocuments(sourceId: number): Promise<boolean> {
+    const rows = await this._db
+      .select({ id: sourceDocuments.id })
+      .from(sourceDocuments)
+      .where(eq(sourceDocuments.sourceId, sourceId))
+      .limit(1)
+    return rows.length > 0
+  }
+
   /**
    * 対象が無いときは Prisma 実装（P2025）と同じく throw する
    */
   public async update(
     id: number,
     input: ContentSourceInput,
-    options: { shouldResetCollectedCommit: boolean },
-  ): Promise<ContentSource> {
-    const [row] = await this._db
-      .update(contentSources)
-      .set({
-        ...buildColumnValues(input),
-        ...(options.shouldResetCollectedCommit ? { lastCollectedCommitSha: null } : {}),
+    options: ContentSourceUpdateOptions,
+  ): Promise<ContentSourceSaveResult> {
+    try {
+      const row = await this._db.transaction(async (tx) => {
+        const [updated] = await tx
+          .update(contentSources)
+          .set({
+            ...buildColumnValues(input),
+            ...(options.shouldResetCollectedCommit ? { lastCollectedCommitSha: null } : {}),
+          })
+          .where(and(eq(contentSources.id, id), eq(contentSources.fetchType, input.fetchType)))
+          .returning()
+        if (!updated) throw new Error(`Content source not found: id=${id}, fetchType=${input.fetchType}`)
+        if (options.shouldResetDocumentCache) {
+          await tx
+            .update(sourceDocuments)
+            .set({ contentHash: null, etag: null, lastModified: null })
+            .where(eq(sourceDocuments.sourceId, id))
+        }
+        return updated
       })
-      .where(and(eq(contentSources.id, id), eq(contentSources.fetchType, input.fetchType)))
-      .returning()
-    if (!row) throw new Error(`Content source not found: id=${id}, fetchType=${input.fetchType}`)
-    return this._toDomain(row)
+      return { kind: "saved", source: this._toDomain(row) }
+    } catch (error) {
+      if (isUniqueViolation(error)) return { kind: "duplicate" }
+      throw error
+    }
   }
 
   /**
