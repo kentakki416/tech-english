@@ -69,6 +69,14 @@ const cronEnvSchema = z
      * generate-questions の解答キーを見ない検証のモデル（生成とは別のモデルに解かせる）
      */
     VERIFICATION_MODEL: z.string().min(1).default("claude-haiku-4-5-20251001"),
+    /**
+     * generate-questions が 1 回の実行で生成する件数の上限（費用の上限）
+     */
+    GENERATE_MAX_PASSAGES_PER_RUN: z.coerce.number().int().positive().default(10),
+    /**
+     * 確認待ちの下書き（status = draft）がこの件数以上なら generate-questions は生成しない（確認が追いつかないのに費用を使わないため）
+     */
+    GENERATE_MAX_PENDING_DRAFTS: z.coerce.number().int().positive().default(50),
   })
   .superRefine((env, ctx) => {
     if (env.NODE_ENV !== "test" && !env.DATABASE_URL) {

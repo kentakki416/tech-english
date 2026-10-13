@@ -1,0 +1,99 @@
+=== system ===
+You are taking an English reading-comprehension test. Each request contains one passage from English technical documentation and multiple-choice questions about it. Read the passage carefully and, for each question, choose the one choice that the passage best supports.
+
+# Input
+
+The passage is given as XML:
+
+<passage title="..." word_count="...">
+<block index="0" type="heading">...</block>
+<block index="1" type="paragraph" paragraph="1">...</block>
+<block index="2" type="code" lang="js" translate="no">...</block>
+</passage>
+
+- paragraph: the paragraph number. When a question mentions a paragraph (e.g. "in paragraph 2"), it means the block with that paragraph attribute, not the index attribute.
+- Inline code is wrapped in backquotes. The text is raw: characters such as < and & are not escaped.
+
+The questions follow the passage:
+
+<questions>
+<question number="1">
+<prompt>...</prompt>
+<choice letter="A">...</choice>
+<choice letter="B">...</choice>
+<choice letter="C">...</choice>
+<choice letter="D">...</choice>
+</question>
+</questions>
+
+# Answering
+
+- Base each answer on what the passage says, not on general knowledge.
+- Answer every question with exactly one choice, even when you are unsure: pick the most likely one.
+- For each question, return questionNumber (the number attribute of <question>) and choiceIndex (0 for A, 1 for B, 2 for C, 3 for D).
+
+=== user ===
+<passage title="Retries &amp; Idempotency" word_count="149">
+<block index="0" type="heading">Retries & Idempotency</block>
+<block index="1" type="paragraph" paragraph="1">Network calls fail for many reasons that have nothing to do with your code. A server may be restarting, a load balancer may drop a connection, or the client may hit a rate limit. Instead of showing every failure to the user, the client can opt in to automatic retries with `retry: true`.</block>
+<block index="2" type="paragraph" paragraph="2">Retries are only safe when a request is idempotent, which means that sending it twice has the same effect as sending it once. A `GET` request is idempotent by definition, but a `POST` that charges a credit card is not. Under the hood, the client attaches an idempotency key so that the server can discard duplicates.</block>
+<block index="3" type="list_item" paragraph="3">Wait a little longer after each attempt (exponential backoff).</block>
+<block index="4" type="list_item" paragraph="4">Add random jitter so that thousands of clients do not retry at the same moment.</block>
+<block index="5" type="code" lang="ts" translate="no">const response = await client.get("/items?limit=10&page=2", {
+  retry: { attempts: 3, delayMs: 500 },
+})
+if (response.status < 500) return response</block>
+<block index="6" type="quote" paragraph="5">One caveat: a retry cannot fix a request that is wrong, so 4xx errors are returned right away.</block>
+</passage>
+
+<questions>
+<question number="1">
+<prompt>What is the main purpose of this passage?</prompt>
+<choice letter="A">To explain when automatic retries are safe</choice>
+<choice letter="B">To list HTTP status codes</choice>
+<choice letter="C">To describe credit card payments</choice>
+<choice letter="D">To compare HTTP clients</choice>
+</question>
+<question number="2">
+<prompt>According to the passage, what happens to 4xx errors?</prompt>
+<choice letter="A">They are retried.</choice>
+<choice letter="B">They are returned right away.</choice>
+<choice letter="C">They are logged.</choice>
+<choice letter="D">They become 5xx errors.</choice>
+</question>
+</questions>
+
+Answer all 2 questions.
+
+=== output_config.format.schema ===
+{
+  "type": "object",
+  "properties": {
+    "answers": {
+      "type": "array",
+      "description": "One answer for every question",
+      "items": {
+        "type": "object",
+        "properties": {
+          "choiceIndex": {
+            "type": "integer",
+            "description": "0-based index of the chosen choice (0 = A, 1 = B, 2 = C, 3 = D)"
+          },
+          "questionNumber": {
+            "type": "integer",
+            "description": "The number attribute of <question>"
+          }
+        },
+        "required": [
+          "choiceIndex",
+          "questionNumber"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "answers"
+  ],
+  "additionalProperties": false
+}
