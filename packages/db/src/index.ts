@@ -27,6 +27,7 @@ export {
   lte,
   max,
   notExists,
+  notInArray,
   or,
   sql,
 } from "drizzle-orm"

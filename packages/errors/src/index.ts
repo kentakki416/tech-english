@@ -7,4 +7,4 @@ export {
   ok,
   unauthorizedError,
 } from "./result"
-export type { ApiError, ApiErrorType, Result } from "./result"
+export type { ApiError, ApiErrorDetail, ApiErrorType, Result } from "./result"

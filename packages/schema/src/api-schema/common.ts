@@ -5,14 +5,26 @@ import { z } from "zod"
 // ========================================================
 
 /**
+ * エラーの詳細の 1 項目（`@repo/errors` の ApiErrorDetail と同じ形）
+ * `{ code: "evidence_not_found", message: "...", path: ["questions", 1, "evidence"] }`
+ */
+export const errorDetailSchema = z.object({
+  code: z.string(),
+  message: z.string(),
+  path: z.array(z.union([z.number(), z.string()])),
+})
+
+/**
  * エラーレスポンススキーマ（全エンドポイント共通）
- * `{ error: "...", status_code: 400 }`
+ * `{ error: "...", status_code: 400 }`。原因の詳細を返すエンドポイント（admin の問題の公開など）だけ `details` を付ける
  */
 export const errorResponseSchema = z.object({
+  details: z.array(errorDetailSchema).optional(),
   error: z.string(),
   status_code: z.number(),
 })
 
+export type ErrorDetail = z.infer<typeof errorDetailSchema>
 export type ErrorResponse = z.infer<typeof errorResponseSchema>
 
 // ========================================================

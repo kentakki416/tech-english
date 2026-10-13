@@ -40,6 +40,7 @@ packages/db/
 │   ├── ejdict.ts           # EJDict-hand の行を dictionary_entries の行にする純関数（ejdict.test.ts は node:test）
 │   ├── migrations/         # db:generate の出力。db:migrate で適用する
 │   ├── seed-dictionary.ts  # 英和辞書（EJDict-hand）の投入。本番でも流す
+│   ├── seed-sample-passages.ts  # 開発用のサンプル問題の投入（production では実行できない）
 │   └── seed.ts             # 開発用ユーザーの投入
 ├── prisma/
 │   ├── migrations/         # Prisma で管理していた頃の履歴（適用しない）
@@ -66,6 +67,7 @@ packages/db/
 | `db:push` | `drizzle-kit push` | マイグレーションを作らずにスキーマを DB へ直接反映する（ローカルでの試行錯誤用） |
 | `db:seed` | `tsx drizzle/seed.ts` | 開発用ユーザー（alice / bob）を投入する。何度流してもよい |
 | `db:seed:dictionary` | `tsx drizzle/seed-dictionary.ts` | 英和辞書（EJDict-hand、コミット固定）を取得して `dictionary_entries` に upsert する（約 4.6 万件）。何度流してもよい。`NODE_ENV=production` でもスキップしない（本番は migration イメージを command override で one-shot 起動して流す。初回と辞書の版を上げるときだけ） |
+| `db:seed:sample-passages` | `tsx drizzle/seed-sample-passages.ts` | 開発用のサンプル問題（ソース 1 件・公開 1 件・下書き 2 件。本文・設問・用語集・和訳は web のモックのもの）を投入する。admin の問題の確認・公開と reading-practice の画面をローカルで確かめる用。何度流してもよく、流すと問題の状態と内容が初期値に戻る（挑戦の記録は消さない）。`NODE_ENV=production` では実行できない |
 | `db:studio` | `drizzle-kit studio` | Drizzle Studio を起動する。画面は `https://local.drizzle.studio` から読み込まれるが、DB への接続はローカルのまま |
 | `prisma:generate` | `prisma generate` | Prisma Client を `generated/` に生成する。turbo の `build` がこれに依存する |
 | `test` | `tsx --test drizzle/ejdict.test.ts` | seed の純関数のテスト（packages/db には vitest が無いので Node 標準の `node:test`）。DB は不要 |
