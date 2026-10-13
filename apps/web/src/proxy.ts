@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 
-import { ACCESS_TOKEN_COOKIE, REFRESH_TOKEN_COOKIE } from "@/libs/auth"
+import { ACCESS_TOKEN_COOKIE, AUTH_COOKIE_OPTIONS, REFRESH_TOKEN_COOKIE } from "@/libs/auth"
+import { isAccessTokenUsable, refreshAuthTokens } from "@/libs/token-refresh"
 
 /**
  * production 以外でのみ公開する dev 専用パス
@@ -43,31 +44,55 @@ const PUBLIC_PATHS = [
 const matchesPathPrefix = (pathname: string, p: string): boolean =>
   pathname === p || pathname.startsWith(`${p}/`)
 
+const redirectToSignIn = (req: NextRequest): NextResponse => {
+  const url = new URL("/sign-in", req.url)
+  url.searchParams.set("redirect", req.nextUrl.pathname)
+  return NextResponse.redirect(url)
+}
+
 /**
- * Edge ランタイムで動くため JWT 検証は行わず、Cookie の有無だけで判断する
- * （実検証は API 側で行う）
+ * JWT の署名は検証せず、Cookie の有無と exp だけで判断する（実検証は API 側で行う）
  *
- * hasRefresh だけでも入場を許可する理由:
- * Server Component 側で apiClient が 401 → refresh → 再試行する設計のため、
- * access が切れている状態で proxy で蹴ると refresh の機会が失われる。
+ * access token が無い（ブラウザが期限で消した）か期限が近ければ、ここで refresh する。
+ * Server Component は cookie を書き換えられないので、描画より前のここで更新し、
+ * 新しい cookie をこのリクエスト（Server Component / Server Action / Route Handler が読む）とブラウザの両方に渡す。
+ * - refresh token が使えない（4xx）: cookie を消してログイン画面へ（Route Handler は 401）
+ * - api の障害: 更新せずに通す（ログアウトさせず、ページ側のエラー表示に任せる）
  */
-export const proxy = (req: NextRequest) => {
+export const proxy = async (req: NextRequest) => {
   const { pathname } = req.nextUrl
 
   if (PUBLIC_PATHS.some(p => matchesPathPrefix(pathname, p))) {
     return NextResponse.next()
   }
 
-  const hasAccess = req.cookies.has(ACCESS_TOKEN_COOKIE)
-  const hasRefresh = req.cookies.has(REFRESH_TOKEN_COOKIE)
+  const accessToken = req.cookies.get(ACCESS_TOKEN_COOKIE)?.value
+  const refreshToken = req.cookies.get(REFRESH_TOKEN_COOKIE)?.value
 
-  if (!hasAccess && !hasRefresh) {
-    const url = new URL("/sign-in", req.url)
-    url.searchParams.set("redirect", pathname)
-    return NextResponse.redirect(url)
+  if (!accessToken && !refreshToken) return redirectToSignIn(req)
+
+  const now = Date.now()
+  if (!refreshToken || isAccessTokenUsable(accessToken, now)) return NextResponse.next()
+
+  const result = await refreshAuthTokens(refreshToken, now)
+  if (result.kind === "unavailable") return NextResponse.next()
+
+  if (result.kind === "rejected") {
+    const res = pathname.startsWith("/api/")
+      ? NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      : redirectToSignIn(req)
+    res.cookies.delete(ACCESS_TOKEN_COOKIE)
+    res.cookies.delete(REFRESH_TOKEN_COOKIE)
+    return res
   }
 
-  return NextResponse.next()
+  /** req.cookies.set はリクエストの cookie ヘッダーも書き換えるので、それを next に渡す */
+  req.cookies.set(ACCESS_TOKEN_COOKIE, result.accessToken)
+  req.cookies.set(REFRESH_TOKEN_COOKIE, result.refreshToken)
+  const res = NextResponse.next({ request: { headers: req.headers } })
+  res.cookies.set(ACCESS_TOKEN_COOKIE, result.accessToken, AUTH_COOKIE_OPTIONS.access)
+  res.cookies.set(REFRESH_TOKEN_COOKIE, result.refreshToken, AUTH_COOKIE_OPTIONS.refresh)
+  return res
 }
 
 export const config = {

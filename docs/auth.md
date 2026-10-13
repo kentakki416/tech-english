@@ -63,7 +63,7 @@ sequenceDiagram
 ### 後半: cookie に保存して認証完了 (⑫〜⑬)
 
 - **⑫**: web が JWT を **httpOnly cookie** に保存（JavaScript から触れないので XSS で盗まれない）
-- **⑬**: ホームに遷移。以降のリクエストは middleware が cookie の有無で認証ガード
+- **⑬**: ホームに遷移。以降のリクエストは proxy（`apps/web/src/proxy.ts`）が cookie の有無で認証ガードし、access token が切れていれば（期限が近ければ）描画より前に refresh して cookie を書き換える（`apps/web/src/libs/token-refresh.ts`）
 
 ## URL の整理
 
@@ -116,7 +116,7 @@ redirect_uri: `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/callback/google`,
 - `apps/web/src/app/sign-in/actions.ts` — `startGoogleOAuth`（Server Action）
 - `apps/web/src/app/api/auth/callback/google/route.ts` — Google callback Route Handler
 - `apps/web/src/libs/auth.ts` — cookie 操作（`setAuthCookies` ほか）
-- `apps/web/src/middleware.ts` — 認証ガード
+- `apps/web/src/proxy.ts` — 認証ガードと access token の更新（`libs/token-refresh.ts`）
 
 ### api (Express)
 

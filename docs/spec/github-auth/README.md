@@ -156,7 +156,7 @@ api は code を access token に交換した直後に以下を取得し、**Git
 
 | クライアント | 保管場所 | API 呼び出し |
 | --- | --- | --- |
-| web | httpOnly cookie（既存） | Server Component / Server Action から Bearer で api へ |
+| web | httpOnly cookie（既存） | Server Component / Server Action から Bearer で api へ。access token が切れている（期限が近い）ときは、描画より前に proxy が `POST /api/auth/refresh` で更新して cookie を書き換える（Server Component は cookie を書き換えられないため） |
 | mobile | `expo-secure-store`（Keychain / Keystore） | app から直接 Bearer で api へ。401 なら `POST /api/auth/refresh` で更新して再試行 |
 
 api の認証は既存の Bearer トークン（`authMiddleware`）のままで、web / mobile で区別しない。
