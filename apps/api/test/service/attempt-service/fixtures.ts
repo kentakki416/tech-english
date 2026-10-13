@@ -102,13 +102,14 @@ export const EXPECTED_ATTRIBUTION = {
 }
 
 /**
- * 提出済みの挑戦（FIXED_NOW の 14 時間前に開始し、150 秒で 3 問中 1 問正解）
+ * 提出済みの挑戦（FIXED_NOW の 14 時間前に開始し、150 秒で 3 問中 1 問正解。和訳 2 段落・単語 3 回・読み上げ 1 段落）
  */
 export const buildSubmittedAttempt = (overrides: Partial<ReadingAttempt> = {}): ReadingAttempt =>
   buildAttempt({
     correctCount: 1,
     elapsedSeconds: 150,
     isOvertime: false,
+    listenedBlockCount: 1,
     questionCount: 3,
     status: "submitted",
     studyDate: "2026-10-13",
@@ -196,6 +197,7 @@ export const buildExpectedSubmittedView = () => ({
   elapsedSeconds: 150,
   glossary: EXPECTED_FULL_GLOSSARY,
   isOvertime: false,
+  listenedBlockCount: 1,
   passage: { id: 1, difficulty: 2, title: "Synchronizing with Effects", wordCount: 60 },
   questionCount: 3,
   questions: QUESTION_ITEMS.map((item, index) => ({

@@ -25,6 +25,19 @@ const apiEnvSchema = z.object({
     .default("false"),
 
   /**
+   * 読み上げの音声の URL の base（本番は CloudFront の URL。docs/spec/read-aloud/tasks/step8-infra-audio.md）。
+   * 未設定なら、開発では http://localhost:${PORT}/media（mediaRouter）、production では null（音声 API は pending を返し、起動時に warn）。
+   * infra より先に本番へ出しても起動が止まらないよう必須にしない。空文字は未設定と同じ。
+   * mobile の実機で確かめるときは http://<PC の LAN の IP>:8080/media にする
+   */
+  AUDIO_PUBLIC_URL_BASE: z.preprocess((value) => (value === "" ? undefined : value), z.string().url().optional()),
+
+  /**
+   * /media の配信元（apps/api からの相対。cron の AUDIO_STORAGE_LOCAL_DIR と同じリポジトリ直下の .storage/audio/）。production では使わない
+   */
+  AUDIO_STORAGE_LOCAL_DIR: z.string().min(1).default("../../.storage/audio"),
+
+  /**
    * Postgres 接続文字列
    * 未指定時は packages/db 側でローカル開発用デフォルトにフォールバックする
    */

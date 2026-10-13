@@ -97,6 +97,15 @@ pnpm exec dotenvx set KEY "value" -f .env.local
 
 `GITHUB_LICENSE_TOKEN`（任意）は admin のソース登録で GitHub のライセンスを検出するときに使う。未設定でも動くが、GitHub の rate limit（60 回 / 時）が低くなる。
 
+読み上げ（[read-aloud](../../docs/spec/read-aloud/README.md#音声の保存と配信)）の音声の env:
+
+| 変数 | 既定 | 説明 |
+| --- | --- | --- |
+| `AUDIO_PUBLIC_URL_BASE` | なし（任意の URL。空文字は未設定と同じ） | `GET /api/attempt/:id/audio` が返す mp3 の URL の base（マニフェストのキーとつなぐ）。本番は CloudFront の URL。未設定なら、開発では `http://localhost:${PORT}/media`、`production` では null（音声 API は `pending` を返し、起動時に warn。infra より先に出しても起動は止めない）。mobile の実機で確かめるときは `http://<PC の LAN の IP>:8080/media` |
+| `AUDIO_STORAGE_LOCAL_DIR` | `../../.storage/audio` | `/media` の配信元（`apps/api` からの相対。cron の `generate:audio` の保存先と同じリポジトリ直下の `.storage/audio/`） |
+
+**`/media/*` は開発環境だけ**の配信（cron が書いた mp3。本番は S3 + CloudFront）。dev-login と同じくガードを 1 か所に集めない：`src/index.ts` は `production` で `mediaRouter` を登録せず、`DEV_ONLY_PUBLIC_PATHS`（`<audio>` は Authorization ヘッダを付けられないので認証の対象外にする）も `production` では `/media` を含めず、`src/routes/media-router.ts` も先頭で `production` なら 404 にする。Range のリクエストが続くので `apiRateLimiter` より前に登録し、helmet の `Cross-Origin-Resource-Policy` はこの router だけ `cross-origin` に上書きする（別オリジンの web の `<audio>` が読めるように）。
+
 ## 新エンドポイント追加の手順
 
 1. `@repo/api-schema` にスキーマを定義（命名規則は `packages/schema/CLAUDE.md`）

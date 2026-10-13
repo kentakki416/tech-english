@@ -2,6 +2,7 @@ import type {
   GitHubRepositorySource,
   GlossaryEntry,
   Passage,
+  PassageAudio,
   PassageBlock,
   PassageDifficulty,
   PassageStatus,
@@ -56,6 +57,10 @@ export type AdminPassageDetail = {
    * 挑戦の件数（状態を問わない。挑戦中のユーザーも設問 ID に回答を送るため）
    */
   attemptCount: number
+  /**
+   * 読み上げの音声。行がまだ無ければ null
+   */
+  audio: PassageAudio | null
   glossary: GlossaryEntry[]
   passage: Passage
   questions: Question[]
@@ -159,6 +164,9 @@ export interface PassageRepository {
    * 絞り込みに当てはまる公開中の問題の件数
    */
   countPublished(filter: PublishedPassageFilter): Promise<number>
+  /**
+   * admin の問題の詳細（読み上げの音声の行も読む）。存在しなければ null
+   */
   findAdminDetail(id: number): Promise<AdminPassageDetail | null>
   /**
    * limit + 1 件まで返す（has_more の判定は service）

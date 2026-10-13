@@ -14,6 +14,7 @@ import {
   insertAttemptUser,
   insertGeneratedPassage,
   insertPassage,
+  insertPassageAudio,
   insertPassageContent,
   insertPassageDocument,
   insertPassageSource,
@@ -21,6 +22,7 @@ import {
   insertReadingAttempt,
   insertSubmittedAttempt,
 } from "../fixture/passage"
+import { AUDIO_TEXT_HASH, buildAudioManifest } from "../fixture/passage-audio"
 import { PASSAGE_BLOCKS } from "../fixture/passage-content"
 
 /**
@@ -176,6 +178,7 @@ describe.each(implementations)("%s PassageRepository", (_name, passageRepository
 
         expect(detail).toEqual({
           attemptCount: 1,
+          audio: null,
           glossary: glossary.map((entry) => ({ ...entry })),
           passage: {
             ...passage,
@@ -187,6 +190,33 @@ describe.each(implementations)("%s PassageRepository", (_name, passageRepository
         })
         expect(detail?.glossary.map((entry) => entry.surface)).toEqual(["stay in sync with", "escape hatch", "opt out of"])
         expect(detail?.questions.map((question) => question.orderIndex)).toEqual([0, 1, 2])
+      })
+
+      it("読み上げの音声の行があれば audio に返す（マニフェストも読める）", async () => {
+        const { passage } = await insertGeneratedPassage({ publishedAt: at("2026-10-12T03:00:00.000Z"), status: "published" })
+        const audio = await insertPassageAudio(passage.id, {
+          attemptCount: 3,
+          lastError: "ServiceFailureException: Polly is unavailable",
+          status: "failed",
+        })
+
+        const detail = await passageRepository.findAdminDetail(passage.id)
+
+        expect(detail?.audio).toEqual({
+          id: audio.id,
+          attemptCount: 3,
+          billedCharacters: 4800,
+          generatedAt: at("2026-10-12T04:00:00.000Z"),
+          generationStartedAt: null,
+          lastError: "ServiceFailureException: Polly is unavailable",
+          manifest: buildAudioManifest(passage.id),
+          passageId: passage.id,
+          status: "failed",
+          textHash: AUDIO_TEXT_HASH,
+          voiceId: "Joanna",
+          createdAt: audio.createdAt,
+          updatedAt: audio.updatedAt,
+        })
       })
     })
 

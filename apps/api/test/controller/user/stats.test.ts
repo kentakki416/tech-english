@@ -145,6 +145,23 @@ describe("GET /api/user/stats", () => {
       })
     })
 
+    it("no_assist に読み上げだけを使った挑戦は入らず、最近の挑戦ではアシストありになる", async () => {
+      const { token, user } = await createTestUser()
+      const today = formatToday("Asia/Tokyo")
+      const { passage, questions } = await insertGeneratedPassage({ publishedAt: new Date("2026-10-01T03:00:00.000Z"), status: "published" })
+      const base = { passageId: passage.id, questionIds: questions.map((question) => question.id), studyDate: today, userId: user.id }
+      await createSubmittedAttempt({ ...base, correctness: [true, true, true], listenedBlockCount: 2 })
+      await createSubmittedAttempt({ ...base, correctness: [true, false, false] })
+
+      const res = await request(app).get("/api/user/stats").set("Authorization", `Bearer ${token}`)
+
+      expect(res.status).toBe(200)
+      expect(res.body.no_assist).toEqual({ accuracy_percent: 33, correct_count: 1, question_count: 3 })
+      expect(res.body.totals).toMatchObject({ attempt_count: 2, correct_count: 4, question_count: 6 })
+      expect(res.body.recent_attempts.map((attempt: { correct_count: number; used_assist: boolean }) => [attempt.correct_count, attempt.used_assist]))
+        .toEqual(expect.arrayContaining([[3, true], [1, false]]))
+    })
+
     it("まだ 1 問も解いていなければ、累計 0・正答率 null・目標 null・最近の挑戦なしで 200", async () => {
       const { token } = await createTestUser()
       const today = formatToday("Asia/Tokyo")

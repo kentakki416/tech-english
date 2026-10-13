@@ -93,6 +93,7 @@ const SUBMIT_VALUES = {
   correctCount: 2,
   elapsedSeconds: 175,
   isOvertime: false,
+  listenedBlockCount: 1,
   questionCount: 3,
   studyDate: "2026-10-13",
   submittedAt: at("2026-10-12T15:30:00.123Z"),
@@ -386,7 +387,6 @@ describe.each(implementations)("%s ReadingAttemptRepository", (_name, readingAtt
         expect(submitted).toEqual({
           id: attempt.id,
           ...SUBMIT_VALUES,
-          listenedBlockCount: 0,
           passageId: passage.id,
           startedAt: at("2026-10-12T15:27:00.000Z"),
           status: "submitted",

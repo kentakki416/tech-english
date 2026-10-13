@@ -7,6 +7,7 @@ import {
 } from "@repo/domain"
 
 import type { AdminPassageEditInput } from "../../../lib/admin-passage-edit"
+import { resolveAudioStatus } from "../../../lib/passage-audio"
 import type { AdminPassageDetail, AdminPassageListItem } from "../../../repository"
 
 /**
@@ -38,6 +39,19 @@ export const convertAdminPassageListItemToResponse = (item: AdminPassageListItem
 })
 
 /**
+ * 読み上げの音声の状態。音声の行があるか公開中なら返し（公開中で行がまだ無ければ pending）、それ以外（下書きなどで行も無い）は null。
+ * generating はそのまま返す
+ */
+const convertAudioToResponse = ({ audio, passage }: AdminPassageDetail): AdminPassageDetailResponse["audio"] => {
+  if (!audio && passage.status !== "published") return null
+  return {
+    generated_at: audio?.generatedAt?.toISOString() ?? null,
+    last_error: audio?.lastError ?? null,
+    status: resolveAudioStatus(audio, passage.publishedAt),
+  }
+}
+
+/**
  * 問題の全情報（詳細と保存のレスポンス。ドメイン → snake_case、日時は ISO 8601）
  */
 export const convertAdminPassageDetailToResponse = (detail: AdminPassageDetail): AdminPassageDetailResponse => {
@@ -46,6 +60,7 @@ export const convertAdminPassageDetailToResponse = (detail: AdminPassageDetail):
     id: passage.id,
     attempt_count: detail.attemptCount,
     attention_reasons: passage.attentionReasons,
+    audio: convertAudioToResponse(detail),
     blocks: passage.blocks.map((block) => ({
       lang: block.lang ?? null,
       text: block.text,

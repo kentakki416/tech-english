@@ -13,6 +13,7 @@ import {
   notExists,
   notInArray,
   or,
+  passageAudios,
   passageGlossaryEntries,
   passages,
   questions,
@@ -36,6 +37,8 @@ import type {
   PublishedPassageFilter,
   PublishedPassageSummary,
 } from "../passage-repository"
+
+import { convertPassageAudioRowToDomain } from "./passage-audio-row"
 
 /**
  * Drizzleの型
@@ -259,6 +262,7 @@ export class DrizzlePassageRepository implements PassageRepository {
     const [row] = await db
       .select({
         attemptCount: ATTEMPT_COUNT_SQL,
+        audio: passageAudios,
         passage: passages,
         sourceId: contentSources.id,
         sourceName: contentSources.name,
@@ -266,6 +270,7 @@ export class DrizzlePassageRepository implements PassageRepository {
       .from(passages)
       .innerJoin(sourceDocuments, eq(passages.sourceDocumentId, sourceDocuments.id))
       .innerJoin(contentSources, eq(sourceDocuments.sourceId, contentSources.id))
+      .leftJoin(passageAudios, eq(passageAudios.passageId, passages.id))
       .where(eq(passages.id, id))
     if (!row) return null
 
@@ -279,6 +284,7 @@ export class DrizzlePassageRepository implements PassageRepository {
     ])
     return {
       attemptCount: row.attemptCount,
+      audio: row.audio ? convertPassageAudioRowToDomain(row.audio) : null,
       glossary: glossaryRows.map(convertGlossaryEntryRowToDomain),
       passage: convertPassageRowToDomain(row.passage),
       questions: questionRows.map(convertQuestionRowToDomain),

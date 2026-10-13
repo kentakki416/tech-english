@@ -45,6 +45,7 @@ const convertSubmittedAttemptRowToDomain = (row: SubmittedAttemptRow): Submitted
   correctCount: requireSubmittedValue(row.correctCount, "correct_count", row.id),
   elapsedSeconds: requireSubmittedValue(row.elapsedSeconds, "elapsed_seconds", row.id),
   isOvertime: requireSubmittedValue(row.isOvertime, "is_overtime", row.id),
+  listenedBlockCount: row.listenedBlockCount,
   passageId: row.passageId,
   passageTitle: row.passage.title,
   questionCount: requireSubmittedValue(row.questionCount, "question_count", row.id),
@@ -155,10 +156,13 @@ export class PrismaLearningRecordRepository implements LearningRecordRepository 
         ])
   }
 
+  /**
+   * 和訳・単語・読み上げをどれも使っていない挑戦だけ
+   */
   public async summarizeNoAssistAccuracy(userId: number): Promise<AccuracyCount> {
     const result = await this._prisma.readingAttempt.aggregate({
       _sum: { correctCount: true, questionCount: true },
-      where: { status: "submitted", translatedBlockCount: 0, userId, wordLookupCount: 0 },
+      where: { listenedBlockCount: 0, status: "submitted", translatedBlockCount: 0, userId, wordLookupCount: 0 },
     })
     return { correctCount: result._sum.correctCount ?? 0, questionCount: result._sum.questionCount ?? 0 }
   }

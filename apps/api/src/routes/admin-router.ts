@@ -10,6 +10,7 @@ import { AdminPassageListController } from "../controller/admin/passage/list"
 import { AdminPassagePublishController } from "../controller/admin/passage/publish"
 import { AdminPassageRegenerateController } from "../controller/admin/passage/regenerate"
 import { AdminPassageRejectController } from "../controller/admin/passage/reject"
+import { AdminPassageRetryAudioController } from "../controller/admin/passage/retry-audio"
 import { AdminPassageUnpublishController } from "../controller/admin/passage/unpublish"
 import { AdminPassageUpdateController } from "../controller/admin/passage/update"
 import { adminAuthMiddleware } from "../middleware/admin-auth"
@@ -31,6 +32,7 @@ type AdminRouterControllers = {
     publish?: AdminPassagePublishController
     regenerate?: AdminPassageRegenerateController
     reject?: AdminPassageRejectController
+    retryAudio?: AdminPassageRetryAudioController
     unpublish?: AdminPassageUnpublishController
     update?: AdminPassageUpdateController
   }
@@ -146,6 +148,14 @@ export const adminRouter = (controllers: AdminRouterControllers): Router => {
   if (passage.regenerate) {
     const controller = passage.regenerate
     router.post("/passage/:id/regenerate", async (req, res) => controller.execute(req, res))
+  }
+
+  /**
+   * POST /api/admin/passage/:id/audio/retry
+   */
+  if (passage.retryAudio) {
+    const controller = passage.retryAudio
+    router.post("/passage/:id/audio/retry", async (req, res) => controller.execute(req, res))
   }
 
   return router

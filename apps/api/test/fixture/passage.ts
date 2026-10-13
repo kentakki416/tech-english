@@ -1,7 +1,17 @@
-import { contentSources, passageGlossaryEntries, passages, questions, readingAttempts, sourceDocuments, users } from "@repo/db"
+import {
+  contentSources,
+  passageAudios,
+  passageGlossaryEntries,
+  passages,
+  questions,
+  readingAttempts,
+  sourceDocuments,
+  users,
+} from "@repo/db"
 
 import { testDb } from "../controller/setup"
 
+import { AUDIO_TEXT_HASH, buildAudioManifest } from "./passage-audio"
 import { GLOSSARY_ITEMS, locateGlossaryItem, PASSAGE_BLOCKS, QUESTION_ITEMS } from "./passage-content"
 
 /**
@@ -10,6 +20,7 @@ import { GLOSSARY_ITEMS, locateGlossaryItem, PASSAGE_BLOCKS, QUESTION_ITEMS } fr
  */
 
 type ContentSourceInsert = typeof contentSources.$inferInsert
+type PassageAudioInsert = typeof passageAudios.$inferInsert
 type PassageInsert = typeof passages.$inferInsert
 type ReadingAttemptInsert = typeof readingAttempts.$inferInsert
 
@@ -189,3 +200,24 @@ export const insertSubmittedAttempt = async (
     userId,
     ...overrides,
   })
+
+/**
+ * 読み上げの音声の行を入れる。既定は作成済み（ready。マニフェストのキーはその問題の ID）
+ */
+export const insertPassageAudio = async (passageId: number, overrides: Partial<PassageAudioInsert> = {}) => {
+  const [row] = await testDb
+    .insert(passageAudios)
+    .values({
+      billedCharacters: 4800,
+      generatedAt: new Date("2026-10-12T04:00:00.000Z"),
+      manifest: buildAudioManifest(passageId),
+      passageId,
+      status: "ready",
+      textHash: AUDIO_TEXT_HASH,
+      updatedAt: new Date("2026-10-12T04:00:00.000Z"),
+      voiceId: "Joanna",
+      ...overrides,
+    })
+    .returning()
+  return row
+}

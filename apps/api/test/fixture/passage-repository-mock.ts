@@ -1,8 +1,13 @@
-import type { PassageRepository, ReadingAttemptRepository } from "../../src/repository"
+import type { PassageAudioRepository, PassageRepository, ReadingAttemptRepository } from "../../src/repository"
 
 /**
- * service のユニットテストで共有する問題・挑戦の Repository のモック（admin-passage-service・passage-service・attempt-service）
+ * service のユニットテストで共有する問題・挑戦・読み上げの音声の Repository のモック（admin-passage-service・passage-service・attempt-service）
  */
+
+export const createMockPassageAudioRepository = () => ({
+  findByPassageId: vi.fn<PassageAudioRepository["findByPassageId"]>(),
+  resetFailed: vi.fn<PassageAudioRepository["resetFailed"]>(),
+})
 
 export const createMockPassageRepository = () => ({
   countByStatus: vi.fn<PassageRepository["countByStatus"]>(),

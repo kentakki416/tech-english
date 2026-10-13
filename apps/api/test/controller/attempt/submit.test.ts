@@ -65,6 +65,7 @@ const buildRequestBody = (questionIds: number[], glossaryEntryId: number) => ({
     { question_id: questionIds[0], selected_choice_index: 1 },
     { question_id: questionIds[1], selected_choice_index: 0 },
   ],
+  listened_block_count: 3,
   translated_block_count: 2,
   word_lookups: [
     { glossary_entry_id: glossaryEntryId, lemma: "stay in sync with", source: "glossary", surface: "stay in sync with" },
@@ -139,6 +140,7 @@ describe("POST /api/attempt/:id/submit", () => {
           surface: entry.surface,
         })),
         is_overtime: false,
+        listened_block_count: 3,
         passage: { id: passage.id, difficulty: 2, title: "Synchronizing with Effects", word_count: 60 },
         question_count: 3,
         questions: questions.map((question, index) => ({
@@ -186,6 +188,7 @@ describe("POST /api/attempt/:id/submit", () => {
         correctCount: 1,
         elapsedSeconds: 150,
         isOvertime: false,
+        listenedBlockCount: 3,
         questionCount: 3,
         status: "submitted",
         studyDate: formatToday("Asia/Tokyo"),
@@ -206,6 +209,37 @@ describe("POST /api/attempt/:id/submit", () => {
         { ...common, glossaryEntryId: null, lemma: "effect", source: "dictionary", surface: "Effects" },
         { ...common, glossaryEntryId: null, lemma: "effect", source: "dictionary", surface: "Effect" },
       ])
+    })
+
+    it.each([
+      ["2 なら 2", 2, 2],
+      ["code 以外のブロック数（4）ちょうどはそのまま（境界値）", 4, 4],
+      ["code 以外のブロック数（4）より大きければ 4 に切り詰める", 5, 4],
+      ["0 なら 0", 0, 0],
+    ])("listened_block_count が %s を保存して結果に返す", async (_label, listenedBlockCount, expected) => {
+      const { attempt, token } = await setupAttempt()
+
+      const res = await request(app)
+        .post(`/api/attempt/${attempt.id}/submit`)
+        .set("Authorization", `Bearer ${token}`)
+        .send({ active_seconds: 10, answers: [], listened_block_count: listenedBlockCount, translated_block_count: 0, word_lookups: [] })
+
+      expect(res.status).toBe(200)
+      expect(res.body.listened_block_count).toBe(expected)
+      expect(await selectAttempt(attempt.id)).toMatchObject({ listenedBlockCount: expected, status: "submitted" })
+    })
+
+    it("listened_block_count を省略すると 0 として保存する（送ってこない古いアプリ）", async () => {
+      const { attempt, token } = await setupAttempt()
+
+      const res = await request(app)
+        .post(`/api/attempt/${attempt.id}/submit`)
+        .set("Authorization", `Bearer ${token}`)
+        .send({ active_seconds: 10, answers: [], translated_block_count: 0, word_lookups: [] })
+
+      expect(res.status).toBe(200)
+      expect(res.body.listened_block_count).toBe(0)
+      expect(await selectAttempt(attempt.id)).toMatchObject({ listenedBlockCount: 0, status: "submitted" })
     })
 
     it("study_date はユーザーのタイムゾーンの日付にする", async () => {
@@ -381,6 +415,8 @@ describe("POST /api/attempt/:id/submit", () => {
       ["selected_choice_index が 4", { answers: [{ question_id: 1, selected_choice_index: 4 }] }],
       ["active_seconds が負", { active_seconds: -1 }],
       ["active_seconds が小数", { active_seconds: 1.5 }],
+      ["listened_block_count が負", { listened_block_count: -1 }],
+      ["listened_block_count が小数", { listened_block_count: 1.5 }],
       ["source が glossary なのに glossary_entry_id が null", {
         word_lookups: [{ glossary_entry_id: null, lemma: "x", source: "glossary", surface: "x" }],
       }],

@@ -4,6 +4,7 @@ import type {
   AttemptPassage,
   AttemptQuestion,
   ExpiredAttempt,
+  GetAttemptAudioResponse,
   InProgressAttempt,
   PassageAttributionResponse,
   PassageSegmentResponse,
@@ -13,6 +14,7 @@ import type {
 import type { PassageAttribution } from "../../lib/build-attribution"
 import type { PassageSegment } from "../../lib/segment-passage"
 import type {
+  AttemptAudioView,
   AttemptBlockView,
   AttemptGlossaryEntryView,
   AttemptPassageView,
@@ -109,6 +111,7 @@ export const convertSubmittedAttemptToResponse = (view: SubmittedAttemptView): S
   elapsed_seconds: view.elapsedSeconds,
   glossary: view.glossary.map(convertGlossaryEntryToResponse),
   is_overtime: view.isOvertime,
+  listened_block_count: view.listenedBlockCount,
   passage: convertAttemptPassageToResponse(view.passage),
   question_count: view.questionCount,
   questions: view.questions.map((question) => ({
@@ -151,3 +154,17 @@ export const convertExpiredAttemptToResponse = (view: ExpiredAttemptView): Expir
   started_at: view.startedAt.toISOString(),
   status: view.status,
 })
+
+/**
+ * 挑戦の問題の読み上げの音声（単語の時刻のタプルはそのまま返す）
+ */
+export const convertAttemptAudioToResponse = (view: AttemptAudioView): GetAttemptAudioResponse =>
+  view.status === "ready"
+    ? {
+      blocks: view.blocks.map((block) => ({
+        block_index: block.blockIndex,
+        parts: block.parts.map((part) => ({ duration_ms: part.durationMs, url: part.url, words: part.words })),
+      })),
+      status: view.status,
+    }
+    : { status: view.status }

@@ -232,6 +232,7 @@ export class DrizzleReadingAttemptRepository implements ReadingAttemptRepository
         correctCount: input.correctCount,
         elapsedSeconds: input.elapsedSeconds,
         isOvertime: input.isOvertime,
+        listenedBlockCount: input.listenedBlockCount,
         questionCount: input.questionCount,
         status: "submitted",
         studyDate: input.studyDate,

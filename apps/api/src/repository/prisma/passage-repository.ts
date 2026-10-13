@@ -31,6 +31,8 @@ import type {
   PublishedPassageSummary,
 } from "../passage-repository"
 
+import { convertPassageAudioRowToDomain } from "./passage-audio-row"
+
 /**
  * Prismaの型
  */
@@ -324,8 +326,10 @@ export class PrismaPassageRepository implements PassageRepository {
       })
       const questionRows = await tx.question.findMany({ orderBy: { orderIndex: "asc" }, where: { passageId: id } })
       const attemptCount = await tx.readingAttempt.count({ where: { passageId: id } })
+      const audio = await tx.passageAudio.findUnique({ where: { passageId: id } })
       return {
         attemptCount,
+        audio: audio ? convertPassageAudioRowToDomain(audio) : null,
         glossary: glossaryRows.map(convertGlossaryEntryRowToDomain),
         passage: convertPassageRowToDomain(passage),
         questions: questionRows.map(convertQuestionRowToDomain),

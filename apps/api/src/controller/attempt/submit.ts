@@ -34,6 +34,7 @@ export class AttemptSubmitController {
           selectedChoiceIndex: answer.selected_choice_index,
         })),
         attemptId: id,
+        listenedBlockCount: body.listened_block_count,
         now: new Date(),
         translatedBlockCount: body.translated_block_count,
         userId: req.userId!,

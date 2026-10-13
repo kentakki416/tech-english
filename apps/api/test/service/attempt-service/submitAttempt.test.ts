@@ -38,6 +38,7 @@ const INPUT = {
     { questionId: 202, selectedChoiceIndex: 0 },
   ],
   attemptId: 301,
+  listenedBlockCount: 1,
   now: FIXED_NOW,
   translatedBlockCount: 2,
   userId: 7,
@@ -88,6 +89,7 @@ describe("submitAttempt", () => {
           correctCount: 1,
           elapsedSeconds: 150,
           isOvertime: false,
+          listenedBlockCount: 1,
           questionCount: 3,
           studyDate: "2026-10-13",
           submittedAt: FIXED_NOW,
@@ -172,6 +174,17 @@ describe("submitAttempt", () => {
       expect(extractSubmitInput()?.translatedBlockCount).toBe(expected)
     })
 
+    it.each([
+      ["code 以外のブロック数（4）を超えたら 4 にする", 10, 4],
+      ["code 以外のブロック数ちょうどはそのまま（境界値）", 4, 4],
+      ["code 以外のブロック数より少なければそのまま", 3, 3],
+      ["0 はそのまま", 0, 0],
+    ])("listenedBlockCount は %s", async (_label, listenedBlockCount, expected) => {
+      await submitAttempt(buildInput({ listenedBlockCount }), repo)
+
+      expect(extractSubmitInput()?.listenedBlockCount).toBe(expected)
+    })
+
     it("この問題の用語集に無い ID の単語は捨て（語義設問の対象 102 は残す）、wordLookupCount は残った件数", async () => {
       await submitAttempt(
         buildInput({
@@ -230,8 +243,11 @@ describe("submitAttempt", () => {
     it("すでに提出済みなら入力を無視し、markSubmitted を呼ばずに保存済みの結果を返す（冪等）", async () => {
       readingAttemptRepository.findByIdForUser.mockResolvedValue(buildSubmittedAttempt())
 
-      const result = await submitAttempt(buildInput({ activeSeconds: 9999, answers: [] }), repo)
+      const result = await submitAttempt(buildInput({ activeSeconds: 9999, answers: [], listenedBlockCount: 4 }), repo)
 
+      /**
+       * listenedBlockCount も入力（4）ではなく保存済みの値（1）
+       */
       expect(result).toEqual({ ok: true, value: buildExpectedSubmittedView() })
       expect(transactionRunner.run).not.toHaveBeenCalled()
       expect(readingAttemptRepository.markSubmitted).not.toHaveBeenCalled()

@@ -8,6 +8,7 @@ import { listPublishViolations } from "../lib/passage-publish-check"
 import type {
   AdminPassageDetail,
   AdminPassageListItem,
+  PassageAudioRepository,
   PassageRepository,
 } from "../repository"
 
@@ -245,4 +246,30 @@ export const regenerateAdminPassage = async (id: number, repo: PassageRepo): Pro
   }
   logger.info("AdminPassageService: Passage reset for regeneration", { id })
   return ok({ id, status: "collected" })
+}
+
+/**
+ * 読み上げの音声の再試行。failed のときだけ pending に戻す（attempt_count = 0）。生成タスクが次の実行で作り直す。
+ * 問題が無ければ 404、音声の行が無い・failed でない（pending・generating・ready）・同時に状態が変わったときは 409
+ */
+export const retryAdminPassageAudio = async (
+  id: number,
+  repo: { passageAudioRepository: PassageAudioRepository },
+): Promise<Result<{ passageId: number; status: "pending" }>> => {
+  const found = await repo.passageAudioRepository.findByPassageId(id)
+  if (!found) {
+    logger.debug("AdminPassageService: Passage not found", { id })
+    return err(notFoundError("Passage not found"))
+  }
+  if (found.audio?.status !== "failed") {
+    logger.debug("AdminPassageService: Passage audio is not failed", { id, status: found.audio?.status ?? null })
+    return err(conflictError("Passage audio can be retried only when it has failed"))
+  }
+
+  if (!await repo.passageAudioRepository.resetFailed(id)) {
+    logger.debug("AdminPassageService: Passage audio changed during retry", { id })
+    return err(conflictError("Passage audio status changed"))
+  }
+  logger.info("AdminPassageService: Passage audio reset for retry", { id })
+  return ok({ passageId: id, status: "pending" })
 }

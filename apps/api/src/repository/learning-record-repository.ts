@@ -49,6 +49,7 @@ export type SubmittedAttempt = {
   correctCount: number
   elapsedSeconds: number
   isOvertime: boolean
+  listenedBlockCount: number
   passageId: number
   passageTitle: string
   questionCount: number
@@ -91,7 +92,8 @@ export interface LearningRecordRepository {
    */
   summarizeByDate(userId: number, range: { from: string; to: string }): Promise<DailyStudySummary[]>
   /**
-   * アシストを一度も使わなかった（translated_block_count = 0 かつ word_lookup_count = 0）挑戦だけの正答数と設問数
+   * 和訳・単語・読み上げをどれも使っていない（translated_block_count = 0 かつ word_lookup_count = 0 かつ listened_block_count = 0）
+   * 挑戦だけの正答数と設問数
    */
   summarizeNoAssistAccuracy(userId: number): Promise<AccuracyCount>
   summarizeTotals(userId: number): Promise<StudyTotals>

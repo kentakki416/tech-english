@@ -1,6 +1,7 @@
 import {
   type AttemptAnswer,
   type AttemptWordLookup,
+  type AudioWordTiming,
   type GlossaryEntry,
   numberParagraphs,
   type Passage,
@@ -16,10 +17,12 @@ import { logger } from "@repo/logger"
 import { calculateAliveSince, calculateExpiresAt, isAttemptExpired } from "../lib/attempt-expiry"
 import { buildAttribution, type PassageAttribution } from "../lib/build-attribution"
 import { type AnswerInput, calculateWordsPerMinute, clampElapsedSeconds, gradeAnswers, isOvertime } from "../lib/grade-attempt"
+import { buildAudioUrl, convertToUserAudioStatus, resolveAudioStatus } from "../lib/passage-audio"
 import { findEvidenceSegmentRange, type PassageSegment, segmentPassage, type SegmentWithRange } from "../lib/segment-passage"
 import { formatDateInTimeZone } from "../lib/time-zone"
 import type {
   AttemptContent,
+  PassageAudioRepository,
   PassageRepository,
   ReadingAttemptRepository,
   ReadOptions,
@@ -128,6 +131,10 @@ export type SubmittedAttemptView = {
   elapsedSeconds: number
   glossary: AttemptGlossaryEntryView[]
   isOvertime: boolean
+  /**
+   * 解答中に読み上げを聞いた段落の数
+   */
+  listenedBlockCount: number
   passage: AttemptPassageView
   questionCount: number
   questions: ResultQuestionView[]
@@ -160,6 +167,18 @@ export type ExpiredAttemptView = { id: number; passage: AttemptPassageView; star
  * 挑戦の取得の結果
  */
 export type AttemptView = ExpiredAttemptView | InProgressAttemptView | SubmittedAttemptView
+
+/**
+ * 読み上げの音声の 1 パート（url は AUDIO_PUBLIC_URL_BASE とキーから組み立てる）
+ */
+export type AttemptAudioPartView = { durationMs: number; url: string; words: AudioWordTiming[] }
+
+/**
+ * 挑戦の問題の読み上げの音声。利用者には generating も pending と見せる
+ */
+export type AttemptAudioView =
+  | { status: "failed" | "pending" }
+  | { blocks: { blockIndex: number; parts: AttemptAudioPartView[] }[]; status: "ready" }
 
 /**
  * 問題の概要。挑戦がある問題は一度公開されているので難易度を必ず持つ（公開の条件。非公開に戻しても消えない）
@@ -303,6 +322,7 @@ const buildSubmittedView = (
     elapsedSeconds,
     glossary: buildGlossaryViews(content.glossary),
     isOvertime,
+    listenedBlockCount: attempt.listenedBlockCount,
     passage: buildPassageView(content.passage),
     questionCount,
     questions: content.questions.map((question) => {
@@ -500,6 +520,7 @@ export const submitAttempt = async (
     activeSeconds: number
     answers: AnswerInput[]
     attemptId: number
+    listenedBlockCount: number
     now: Date
     translatedBlockCount: number
     userId: number
@@ -550,7 +571,10 @@ export const submitAttempt = async (
 
   const graded = gradeAnswers(content.questions, input.answers)
   const elapsedSeconds = clampElapsedSeconds(input.activeSeconds, attempt.startedAt, input.now)
-  const translatableBlockCount = content.passage.blocks.filter((block) => block.type !== "code").length
+  /**
+   * 和訳と読み上げはどちらも code 以外のブロックにだけあるので、その数で上限をかける（超えても 400 にせず、提出を失敗させない）
+   */
+  const nonCodeBlockCount = content.passage.blocks.filter((block) => block.type !== "code").length
   const wordLookups = resolveWordLookups(input.wordLookups, content.glossary, attempt.id)
 
   const submitted = await repo.transactionRunner.run(async (tx) => {
@@ -563,10 +587,11 @@ export const submitAttempt = async (
          * 開始時点の制限時間で判定する
          */
         isOvertime: isOvertime(elapsedSeconds, attempt.timeLimitSeconds),
+        listenedBlockCount: Math.min(input.listenedBlockCount, nonCodeBlockCount),
         questionCount: content.questions.length,
         studyDate: formatDateInTimeZone(input.now, user.timezone),
         submittedAt: input.now,
-        translatedBlockCount: Math.min(input.translatedBlockCount, translatableBlockCount),
+        translatedBlockCount: Math.min(input.translatedBlockCount, nonCodeBlockCount),
         wordLookupCount: wordLookups.length,
       },
       tx,
@@ -619,4 +644,51 @@ export const submitAttempt = async (
     userId: input.userId,
   })
   return ok(await loadSubmittedView(submitted, content, repo.readingAttemptRepository, PRIMARY_READ))
+}
+
+/**
+ * 挑戦の問題の読み上げの音声（マニフェストのキーを URL にしたもの）。他人の挑戦・存在しない ID は 404 で、挑戦の状態は問わない
+ * （解答画面と結果画面の両方で使う）。音声が使えない間は status だけを返す。
+ * audioPublicUrlBase が null（production で AUDIO_PUBLIC_URL_BASE が未設定）なら、音声があっても pending にする
+ */
+export const getAttemptAudio = async (
+  input: { attemptId: number; userId: number },
+  repo: { passageAudioRepository: PassageAudioRepository; readingAttemptRepository: ReadingAttemptRepository },
+  deps: { audioPublicUrlBase: string | null },
+): Promise<Result<AttemptAudioView>> => {
+  const attempt = await repo.readingAttemptRepository.findByIdForUser(input.attemptId, input.userId)
+  if (!attempt) {
+    logger.debug("AttemptService: Attempt not found", { attemptId: input.attemptId, userId: input.userId })
+    return err(notFoundError("Attempt not found"))
+  }
+
+  /**
+   * passages は物理削除しないので、挑戦があれば問題もある。それでも無ければ、取得 API なので 404 にする
+   */
+  const found = await repo.passageAudioRepository.findByPassageId(attempt.passageId)
+  if (!found) {
+    logger.warn("AttemptService: Passage of attempt not found", { attemptId: attempt.id, passageId: attempt.passageId })
+    return err(notFoundError("Passage not found"))
+  }
+
+  const status = convertToUserAudioStatus(resolveAudioStatus(found.audio, found.passagePublishedAt))
+  if (status !== "ready") return ok({ status })
+  if (deps.audioPublicUrlBase === null) {
+    logger.debug("AttemptService: Audio URL base is not configured", { passageId: attempt.passageId })
+    return ok({ status: "pending" })
+  }
+  /**
+   * resolveAudioStatus はマニフェストがあるときだけ ready を返す
+   */
+  const manifest = found.audio?.manifest
+  if (!manifest) throw new Error(`Ready passage audio has no manifest: passageId=${attempt.passageId}`)
+
+  const baseUrl = deps.audioPublicUrlBase
+  return ok({
+    blocks: manifest.blocks.map((block) => ({
+      blockIndex: block.blockIndex,
+      parts: block.parts.map((part) => ({ durationMs: part.durationMs, url: buildAudioUrl(baseUrl, part.key), words: part.words })),
+    })),
+    status: "ready",
+  })
 }

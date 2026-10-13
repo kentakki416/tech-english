@@ -36,7 +36,7 @@ const learningRecordAttemptSchema = z.object({
   submitted_time: z.string(),
   title: z.string(),
   /**
-   * 訳の表示・単語の意味のどちらかを 1 回以上使った
+   * 訳の表示・単語の意味・読み上げのどれかを 1 回以上使った
    */
   used_assist: z.boolean(),
 })
@@ -72,7 +72,7 @@ export const getUserStatsResponseSchema = z.object({
     })
     .nullable(),
   /**
-   * アシスト（訳・単語の意味）を一度も使わなかった挑戦だけの正答率
+   * アシスト（訳・単語の意味・読み上げ）を一度も使わなかった挑戦だけの正答率
    */
   no_assist: accuracySchema,
   /**
