@@ -6,10 +6,14 @@ import type { UpdateUserReminderRequest } from "@repo/api-schema"
 
 import { appStyles } from "@/components/ui/app-styles"
 import { THEME_COLORS } from "@/const/design-theme"
-import { isNotificationPermissionGranted, requestNotificationPermission } from "@/features/study-reminder/study-reminder.notification"
+import {
+  isNotificationPermissionGranted,
+  type NotificationPermission,
+  requestNotificationPermission,
+} from "@/features/study-reminder/study-reminder.notification"
 import { shiftReminderTime, toggleWeekday } from "@/features/study-reminder/study-reminder.schedule"
 import { useStudyReminderStore } from "@/features/study-reminder/study-reminder.store"
-import { refreshStudyReminders, saveStudyReminder } from "@/features/study-reminder/study-reminder.sync"
+import { refreshStudyReminders, runWhileAwaitingPermission, saveStudyReminder } from "@/features/study-reminder/study-reminder.sync"
 
 import { ReminderPermissionNotice } from "./ReminderPermissionNotice"
 import { ReminderTimeStepper } from "./ReminderTimeStepper"
@@ -27,13 +31,16 @@ const saveSetting = (setting: UpdateUserReminderRequest): void => {
 }
 
 /**
- * 許可を求める。失敗しても（OS の不具合など）設定の保存は続ける
+ * 許可を求めて store に反映し、求めた後の権限を返す。失敗しても（OS の不具合など）設定の保存は続ける（null を返す）
  */
-const requestPermission = async (): Promise<void> => {
+const requestPermission = async (): Promise<NotificationPermission | null> => {
   try {
-    useStudyReminderStore.getState().setPermission(await requestNotificationPermission())
+    const permission = await requestNotificationPermission()
+    useStudyReminderStore.getState().setPermission(permission)
+    return permission
   } catch (error) {
     console.warn("Failed to request notification permission:", error)
+    return null
   }
 }
 
@@ -60,21 +67,25 @@ export function ReminderSection() {
 
   /**
    * オンにするときは表示を先に切り替え、許可を求めてから保存する。拒否されてもオンのまま保存する（案内が出る）。
+   * 許可を待つ間は編集中として扱い（前面復帰の同期で表示を戻さない）、保存する値は待った後の最新の画面の値から作る。
    * オフは許可を求めずに保存する
    */
   const changeEnabled = async (isEnabled: boolean) => {
     const current = useStudyReminderStore.getState().setting
     if (!current) return
-    const next = { ...current, is_enabled: isEnabled }
     if (!isEnabled) {
-      saveSetting(next)
+      saveSetting({ ...current, is_enabled: false })
       return
     }
-    useStudyReminderStore.getState().editSetting(next)
+    useStudyReminderStore.getState().editSetting({ ...current, is_enabled: true })
     setIsRequestingPermission(true)
-    await requestPermission()
+    await runWhileAwaitingPermission(requestPermission)
     setIsRequestingPermission(false)
-    saveSetting(next)
+    /**
+     * 待っている間にログアウトした（画面の値が空になった）なら保存しない
+     */
+    const latest = useStudyReminderStore.getState().setting
+    if (latest) saveSetting({ ...latest, is_enabled: true })
   }
 
   /**
@@ -98,12 +109,13 @@ export function ReminderSection() {
   }
 
   /**
-   * まだ一度も許可を求めていない端末（別の端末でオンにした場合など）ならその場で求めて予約し直す。
-   * 拒否済みなら OS のこのアプリの設定画面を開く（許可して戻ると前面復帰の同期で案内が消える）
+   * まだ求められる端末（別の端末でオンにした場合など）ならその場で求め、許可されたら予約し直す。
+   * 許可されなければ OS のこのアプリの設定画面を開く（許可して戻ると前面復帰の同期で案内が消える）。
+   * Android 13 以上で実行時の権限はあるのに通知をオフにしているときは、canAskAgain が true のまま
+   * 求めてもダイアログが出ずに拒否で返るため、ここで設定画面に進める
    */
   const openNotificationSettings = async () => {
-    if (permission?.canAskAgain) {
-      await requestPermission()
+    if (permission?.canAskAgain && isNotificationPermissionGranted(await requestPermission())) {
       syncStudyReminders()
       return
     }

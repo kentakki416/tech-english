@@ -22,7 +22,8 @@ import { useNotificationRedirect } from "@/hooks/use-notification-redirect"
 import { useStudyReminderSync } from "@/hooks/use-study-reminder-sync"
 
 /**
- * app が前面にいるときも通知のバナーを出す
+ * app が前面にいるときも通知を出す。iOS はバナーで出る。Android は shouldPlaySound: false で音・振動の無い通知になり、
+ * 通知チャンネルの重要度も既定のため、ヘッドアップ（画面上部の表示）にはならず通知領域に入るだけ
  */
 Notifications.setNotificationHandler({
   handleNotification: async () => ({

@@ -4,7 +4,7 @@ import type { GetUserReminderResponse } from "@repo/api-schema"
 
 export const STUDY_REMINDER_CHANNEL_ID = "study-reminder"
 export const STUDY_REMINDER_URL = "techenglish://passages/random"
-const STUDY_REMINDER_HREF = "/passages/random"
+export const STUDY_REMINDER_HREF = "/passages/random"
 const STUDY_REMINDER_ID_PREFIX = "study-reminder-"
 const MINUTES_PER_DAY = 24 * 60
 

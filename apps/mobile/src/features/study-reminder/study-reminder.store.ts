@@ -15,6 +15,10 @@ type StudyReminderState = {
    */
   applySavedSetting: (setting: GetUserReminderResponse, isEditing: boolean) => void
   /**
+   * ログインが切れたとき（強制ログアウトを含む）に設定と権限を空にする。通知のタップの遷移待ち（pendingHref）は残す
+   */
+  clearSetting: () => void
+  /**
    * 画面の値を先に変える（保存の完了を待たない）
    */
   editSetting: (setting: GetUserReminderResponse) => void
@@ -65,6 +69,7 @@ export const useStudyReminderStore = create<StudyReminderState>((set) => ({
     savedSetting: setting,
     setting: isEditing ? state.setting : setting,
   })),
+  clearSetting: () => set({ permission: null, savedSetting: null, setting: null }),
   editSetting: (setting) => set({ setting }),
   reset: () => set(INITIAL_STATE),
   revertSetting: () => set((state) => ({ setting: state.savedSetting })),
