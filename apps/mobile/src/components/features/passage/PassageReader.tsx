@@ -1,4 +1,4 @@
-import { Fragment, memo, useCallback, useMemo, useRef, useState } from "react"
+import { Fragment, memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   FlatList,
   type LayoutChangeEvent,
@@ -47,7 +47,7 @@ type PassageReaderProps = {
   ListHeaderComponent?: React.ReactElement
   peekBlock?: number | null
   /**
-   * React 19 なので forwardRef を使わず props で受ける（結果画面の scrollToIndex に使う）
+   * React 19 なので forwardRef を使わず props で受ける（結果画面の scrollToIndex に使う。viewOffset は BLOCK_SCROLL_VIEW_OFFSET）
    */
   ref?: React.Ref<FlatList<AttemptBlock>>
   /**
@@ -101,6 +101,22 @@ type SegmentTextProps = {
 }
 
 const DEFAULT_FONT_SIZE = 17
+
+/**
+ * scrollToIndex でブロックを出すときの上の余白（ブロックを画面の上端に貼り付けない）。
+ * まだ描画していないブロックへの scrollToIndex をやり直すときもこの値を使うので、呼び出し側も同じ値を渡す
+ */
+export const BLOCK_SCROLL_VIEW_OFFSET = 80
+
+/**
+ * まだ描画していないブロックへの scrollToIndex をやり直すまでの時間（見積もった位置までスクロールして描画させる間）
+ */
+const SCROLL_TO_INDEX_RETRY_DELAY_MS = 100
+
+/**
+ * scrollToIndex をやり直す回数の上限（描画が追いつかなくても繰り返し続けないため）
+ */
+const MAX_SCROLL_TO_INDEX_RETRIES = 3
 
 /**
  * 段落の長押しが成立するまでの時間。単語の <Text> の長押しは RN の既定（500ms）で、Text では変えられない
@@ -298,6 +314,57 @@ export function PassageReader({
   const requestIdRef = useRef(0)
   const glossaryById = useMemo(() => new Map(glossary.map(entry => [entry.id, entry])), [glossary])
 
+  /**
+   * scrollToIndex のやり直しに使う FlatList。props の ref にも同じものを渡す
+   */
+  const listRef = useRef<FlatList<AttemptBlock> | null>(null)
+  /**
+   * 本文より上の区画（ListHeaderComponent）の高さ。まだ描画していないブロックの位置の見積もりに足す
+   */
+  const headerHeightRef = useRef(0)
+  /**
+   * 実行中の scrollToIndex のやり直しが何回目か。0 は呼び出し側からの scrollToIndex
+   * （scrollToIndex は失敗すると同期で onScrollToIndexFailed を呼ぶので、その中で何回目の失敗かが分かる）
+   */
+  const retryAttemptRef = useRef(0)
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => () => {
+    if (retryTimerRef.current !== null) clearTimeout(retryTimerRef.current)
+  }, [])
+
+  const setListRef = useCallback((instance: FlatList<AttemptBlock> | null) => {
+    listRef.current = instance
+    if (typeof ref === "function") ref(instance)
+    else if (ref) ref.current = instance
+  }, [ref])
+
+  const measureHeader = useCallback((event: LayoutChangeEvent) => {
+    headerHeightRef.current = event.nativeEvent.layout.height
+  }, [])
+
+  const header = useMemo(
+    () => (ListHeaderComponent ? <View onLayout={measureHeader}>{ListHeaderComponent}</View> : undefined),
+    [ListHeaderComponent, measureHeader],
+  )
+
+  /**
+   * まだ描画していない遠いブロックへの scrollToIndex は失敗する（高さが行ごとに違い getItemLayout を渡せないため）。
+   * 描画済みのブロックの平均の高さから見積もった位置まで先にスクロールして描画させ、100ms 後にもう一度 scrollToIndex する
+   */
+  const retryScrollToIndex = useCallback((info: { averageItemLength: number, index: number }) => {
+    const attempt = retryAttemptRef.current + 1
+    if (attempt > MAX_SCROLL_TO_INDEX_RETRIES) return
+    listRef.current?.scrollToOffset({ animated: false, offset: headerHeightRef.current + info.averageItemLength * info.index })
+    if (retryTimerRef.current !== null) clearTimeout(retryTimerRef.current)
+    retryTimerRef.current = setTimeout(() => {
+      retryTimerRef.current = null
+      retryAttemptRef.current = attempt
+      listRef.current?.scrollToIndex({ animated: true, index: info.index, viewOffset: BLOCK_SCROLL_VIEW_OFFSET })
+      retryAttemptRef.current = 0
+    }, SCROLL_TO_INDEX_RETRY_DELAY_MS)
+  }, [])
+
   const showDictionaryMeaning = useCallback(async (requestId: number, surface: string) => {
     const isCurrent = () => requestIdRef.current === requestId
     try {
@@ -356,9 +423,9 @@ export function PassageReader({
 
   return (
     <FlatList
-      ref={ref}
+      ref={setListRef}
       ListFooterComponent={ListFooterComponent}
-      ListHeaderComponent={ListHeaderComponent}
+      ListHeaderComponent={header}
       contentContainerStyle={contentContainerStyle}
       data={blocks}
       initialNumToRender={6}
@@ -368,6 +435,7 @@ export function PassageReader({
       renderItem={renderItem}
       scrollEnabled={scrollEnabled}
       windowSize={7}
+      onScrollToIndexFailed={retryScrollToIndex}
     />
   )
 }

@@ -14,6 +14,7 @@ pnpm ios          # iOS で起動
 
 - ファイルベースルーティング: `app/` ディレクトリ
 - ナビゲーション: React Navigation（bottom tabs）
+  - タブの上に積んだ画面（解答・結果など）からタブへ戻るときは `router.dismissTo("/passages")` のように `dismissTo` を使う（`router.replace` だとルートのスタックにタブがもう 1 つ積まれる）
 - テーマ: `@react-navigation/native`
 - 型・スキーマは `@repo/api-schema` から import（**ローカル独自定義は禁止**：API 側の変更に追従できず型不整合バグが発生するため）
 

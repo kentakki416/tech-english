@@ -1,30 +1,15 @@
-import { Linking, StyleSheet, Text } from "react-native"
+import { StyleSheet, Text } from "react-native"
 
 import type { PassageAttributionResponse } from "@repo/api-schema"
 
 import { THEME_COLORS, THEME_FONTS } from "@/const/design-theme"
 
+import { ExternalLinkText } from "./ExternalLinkText"
+
 /**
  * 取得元のコミットの短い SHA（GitHub の表示に合わせて 7 文字）
  */
-const SHORT_SHA_LENGTH = 7
-
-/**
- * 外部のページを開く。アプリを離れている間はタイマーが止まる（AppState が active でなくなるため）
- */
-function ExternalLinkText({ children, url }: { children: React.ReactNode, url: string }) {
-  return (
-    <Text
-      accessibilityRole="link"
-      style={styles.link}
-      onPress={() => {
-        Linking.openURL(url).catch((error: unknown) => console.warn("Failed to open url:", error))
-      }}
-    >
-      {children}
-    </Text>
-  )
-}
+export const SHORT_SHA_LENGTH = 7
 
 /**
  * 本文の下の出典の注記（content-collection README「出典表示」。web の AttributionNote と同じ内容）。
@@ -49,10 +34,6 @@ export function AttributionNote({ attribution }: { attribution: PassageAttributi
 }
 
 const styles = StyleSheet.create({
-  link: {
-    textDecorationColor: THEME_COLORS.lineStrong,
-    textDecorationLine: "underline",
-  },
   note: {
     color: THEME_COLORS.fgFaint,
     fontSize: 11,
