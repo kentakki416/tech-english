@@ -7,6 +7,7 @@ import { unified } from "unified"
 import { parseDocument } from "yaml"
 
 import { convertPhrasingToText } from "./convert-mdast-to-blocks"
+import { convertHtmlComponentsToJsx, removeMdxComments } from "./markdown-jsx"
 
 /**
  * frontmatter（YAML）の `title` を返す。YAML が壊れている・title が文字列でないときは null（throw しない）
@@ -34,14 +35,34 @@ const findFirstHeadingText = (root: Root, depth: Heading["depth"]): string | nul
   return (heading && convertPhrasingToText(heading.children)) || null
 }
 
+const parseMdx = (source: string): Root =>
+  unified().use(remarkParse).use(remarkFrontmatter, ["yaml", "toml"]).use(remarkGfm).use(remarkMdx).parse(source)
+
+/**
+ * `.md` を素の Markdown として読む。react.dev のように MDX の書き方が混ざった `.md` もあるので、続けて以下を行う
+ *
+ * 1. MDX のコメント（見出しのアンカーなど）を消して読み直す（コードの中は消さない）
+ * 2. HTML ブロックで書かれたコンポーネントを mdxJsxFlowElement にまとめる（HTML ブロックの中の Markdown は断片として同じ手順で読む）
+ *
+ * 断片はファイルの先頭ではないので frontmatter を読まない
+ */
+const parsePlainMarkdown = (source: string, options: { isFragment: boolean }): Root => {
+  const processor = unified().use(remarkParse)
+  if (!options.isFragment) processor.use(remarkFrontmatter, ["yaml", "toml"])
+  processor.use(remarkGfm)
+  const parsed = processor.parse(source)
+  const sourceWithoutComments = removeMdxComments(source, parsed)
+  const root = sourceWithoutComments === source ? parsed : processor.parse(sourceWithoutComments)
+  const parseFragment = (fragment: string) => parsePlainMarkdown(fragment, { isFragment: true }).children
+  return { ...root, children: convertHtmlComponentsToJsx(root.children, parseFragment) }
+}
+
 /**
  * Markdown / MDX を mdast にする。タイトルは frontmatter の title → 最初の h1 の順
  *
  * MDX の構文エラーは remark-mdx が throw する。ここでは握りつぶさず、呼び出し元が文書単位の失敗として扱う
  */
 export const parseMarkdown = (source: string, options: { isMdx: boolean }): { root: Root; title: string | null } => {
-  const processor = unified().use(remarkParse).use(remarkFrontmatter, ["yaml", "toml"]).use(remarkGfm)
-  if (options.isMdx) processor.use(remarkMdx)
-  const root = processor.parse(source)
+  const root = options.isMdx ? parseMdx(source) : parsePlainMarkdown(source, { isFragment: false })
   return { root, title: findFrontmatterTitle(root) ?? findFirstHeadingText(root, 1) }
 }

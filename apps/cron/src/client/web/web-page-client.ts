@@ -8,6 +8,7 @@ import { logger } from "@repo/logger"
 import {
   CRAWLER_NAME,
   MAX_CHILD_SITEMAPS,
+  MAX_CRAWL_DELAY_SECONDS,
   MAX_HTML_BYTES,
   MAX_REDIRECTS,
   MAX_SITEMAP_BYTES,
@@ -15,7 +16,7 @@ import {
 } from "../../const/collection"
 import { type ParsedSitemap, parseSitemap } from "../../lib/parse-sitemap"
 
-import { BlockedUrlError, WebSourceThrottledError } from "./errors"
+import { BlockedUrlError, CrawlDelayTooLongError, WebSourceThrottledError } from "./errors"
 import { createSafeLookup, isBlockedIpLiteral } from "./safe-lookup"
 
 /**
@@ -69,7 +70,8 @@ export interface IWebPageClient {
    */
   isAllowedByRobots(url: string): boolean
   /**
-   * robots.txt を読む。読めない（5xx・ネットワークエラー）なら throw する（読めないまま取得しない）
+   * robots.txt を読む。読めない（5xx・ネットワークエラー）なら throw する（読めないまま取得しない）。
+   * Crawl-delay が MAX_CRAWL_DELAY_SECONDS を超えていれば CrawlDelayTooLongError を throw する
    */
   loadRobots(): Promise<void>
 }
@@ -88,7 +90,7 @@ export type WebPageClientOptions = {
    */
   now?: () => number
   /**
-   * 同じオリジンへのリクエストの間隔（ミリ秒）。robots.txt の Crawl-delay の方が長ければそちらに従う
+   * 同じオリジンへのリクエストの間隔（ミリ秒）。robots.txt の Crawl-delay の方が長ければそちらに従う（上限は MAX_CRAWL_DELAY_SECONDS）
    */
   requestIntervalMs: number
   /**
@@ -222,7 +224,8 @@ const isDeclaredTooLarge = (response: Response, maxBytes: number): boolean => {
  * 2. 接続先の IP：undici の Agent の connect.lookup に createSafeLookup を渡し、接続のときに名前解決した全アドレスを検査する
  * 3. リダイレクト：redirect: "manual" で自分でたどり、最大 MAX_REDIRECTS 回、毎回 1 と robots.txt を検査する
  *
- * すべてのリクエストは直列で、前回の開始から max(requestIntervalMs, Crawl-delay) 空ける。env は読まずコンストラクタで受ける
+ * すべてのリクエストは直列で、前回の開始から max(requestIntervalMs, Crawl-delay) 空ける。Crawl-delay が MAX_CRAWL_DELAY_SECONDS を
+ * 超えるサイトは loadRobots で CrawlDelayTooLongError を throw する（従うと処理が長時間止まるため）。env は読まずコンストラクタで受ける
  */
 export class WebPageClient implements IWebPageClient {
   private _crawlDelayMs = 0
@@ -487,9 +490,16 @@ export class WebPageClient implements IWebPageClient {
     }
   }
 
+  /**
+   * robots.txt の内容を持つ。Crawl-delay が MAX_CRAWL_DELAY_SECONDS を超えていれば CrawlDelayTooLongError を throw する
+   */
   private _setRobots(robotsUrl: string, content: string): void {
-    this._robots = robotsParser(robotsUrl, content)
-    const crawlDelay = this._robots.getCrawlDelay(CRAWLER_NAME)
+    const robots = robotsParser(robotsUrl, content)
+    const crawlDelay = robots.getCrawlDelay(CRAWLER_NAME)
+    if (crawlDelay !== undefined && crawlDelay > MAX_CRAWL_DELAY_SECONDS) {
+      throw new CrawlDelayTooLongError({ crawlDelaySeconds: crawlDelay, maxCrawlDelaySeconds: MAX_CRAWL_DELAY_SECONDS, url: robotsUrl })
+    }
+    this._robots = robots
     this._crawlDelayMs = crawlDelay !== undefined && Number.isFinite(crawlDelay) && crawlDelay > 0 ? crawlDelay * 1000 : 0
   }
 

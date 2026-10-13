@@ -2,7 +2,7 @@ import { ReadableStream } from "node:stream/web"
 
 import { fetch, Response } from "undici"
 
-import { BlockedUrlError, WebPageClient, WebSourceThrottledError } from "../../../src/client/web"
+import { BlockedUrlError, CrawlDelayTooLongError, WebPageClient, WebSourceThrottledError } from "../../../src/client/web"
 
 const ORIGIN = "https://docs.example.com"
 
@@ -272,6 +272,18 @@ describe("WebPageClient", () => {
       expect(harness.requestStartedAt).toEqual([1_000_000, 1_005_000, 1_010_000])
     })
 
+    it("Crawl-delay が上限（30 秒）ちょうどなら従って 30000ms 空ける", async () => {
+      const harness = createHarness({
+        [ROBOTS_URL]: () => createRobotsResponse("User-agent: *\nCrawl-delay: 30\nAllow: /\n"),
+        [`${ORIGIN}/doc/a`]: () => createHtmlResponse("<h1>A</h1>"),
+      })
+      await harness.client.loadRobots()
+
+      await harness.client.fetchPage(`${ORIGIN}/doc/a`, NO_CONDITIONAL)
+
+      expect(harness.sleep.mock.calls).toEqual([[30_000]])
+    })
+
     it("fetchSitemapUrls は urlset の loc / lastmod を返す", async () => {
       const harness = createHarness({
         [`${ORIGIN}/sitemap.xml`]: () => createXmlResponse([
@@ -402,6 +414,33 @@ describe("WebPageClient", () => {
       const harness = createHarness({ [ROBOTS_URL]: () => new Response("busy", { status: 503 }) })
 
       await expect(harness.client.loadRobots()).rejects.toBeInstanceOf(WebSourceThrottledError)
+    })
+
+    it.each([
+      ["TechEnglishBot 向け", "User-agent: TechEnglishBot\nCrawl-delay: 3600\nAllow: /\n", 3600],
+      ["全ボット向け", "User-agent: *\nCrawl-delay: 30.5\n", 30.5],
+    ])("Crawl-delay が上限（30 秒）を超える（%s）と loadRobots が CrawlDelayTooLongError を throw し、ページも取得しない", async (_, robotsTxt, crawlDelaySeconds) => {
+      const harness = createHarness({
+        [ROBOTS_URL]: () => createRobotsResponse(robotsTxt),
+        [`${ORIGIN}/doc/a`]: () => createHtmlResponse("<h1>A</h1>"),
+      })
+
+      const error: unknown = await harness.client.loadRobots().catch((caught: unknown) => caught)
+
+      expect(error).toBeInstanceOf(CrawlDelayTooLongError)
+      expect(error).toMatchObject({ crawlDelaySeconds, maxCrawlDelaySeconds: 30, url: ROBOTS_URL })
+      expect(await harness.client.fetchPage(`${ORIGIN}/doc/a`, NO_CONDITIONAL))
+        .toEqual({ kind: "skipped", reason: "robots_disallowed", status: null })
+      expect(harness.requestedUrls()).toEqual([ROBOTS_URL])
+      expect(harness.sleep).not.toHaveBeenCalled()
+    })
+
+    it("別のボット向けの大きい Crawl-delay は TechEnglishBot に影響しない", async () => {
+      const harness = createHarness({
+        [ROBOTS_URL]: () => createRobotsResponse("User-agent: SlowBot\nCrawl-delay: 3600\n\nUser-agent: *\nAllow: /\n"),
+      })
+
+      await expect(harness.client.loadRobots()).resolves.toBeUndefined()
     })
 
     describe("実際の undici の fetch と名前解決（外部には接続しない）", () => {

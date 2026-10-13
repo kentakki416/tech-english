@@ -1,7 +1,13 @@
 import type { SourceDocument, WebsiteSource } from "@repo/domain"
 import { logger } from "@repo/logger"
 
-import { type FetchPageResult, type IWebPageClient, type SitemapUrl, WebSourceThrottledError } from "../../client/web"
+import {
+  CrawlDelayTooLongError,
+  type FetchPageResult,
+  type IWebPageClient,
+  type SitemapUrl,
+  WebSourceThrottledError,
+} from "../../client/web"
 import { COLLECT_RUN_INTERVAL_MS, MAX_CONSECUTIVE_NETWORK_ERRORS } from "../../const/collection"
 import type { ExtractedDocument } from "../../lib/document"
 import { isTargetPath } from "../../lib/path-filter"
@@ -60,6 +66,32 @@ const warnIfRetryAfterIsBeyondNextRun = (error: WebSourceThrottledError, now: Da
   if (retryAt !== null && retryAt.getTime() > now.getTime() + COLLECT_RUN_INTERVAL_MS) {
     logger.warn("Retry-After is later than the next run", { retryAfter: error.retryAfter, sourceId, url: error.url })
   }
+}
+
+/**
+ * ソースを失敗にせずに打ち切る例外（Crawl-delay が上限を超える・429 / 503）なら warn を出して終わり方を返す。それ以外は throw し直す
+ */
+const resolveAbortedStatus = (error: unknown, now: Date, sourceId: number): "crawl_delay_too_long" | "throttled" => {
+  if (error instanceof CrawlDelayTooLongError) {
+    logger.warn("Crawl-delay in robots.txt exceeds the limit; the source is skipped in this run", {
+      crawlDelaySeconds: error.crawlDelaySeconds,
+      maxCrawlDelaySeconds: error.maxCrawlDelaySeconds,
+      sourceId,
+      url: error.url,
+    })
+    return "crawl_delay_too_long"
+  }
+  if (error instanceof WebSourceThrottledError) {
+    logger.warn("site is throttling requests; remaining pages are left for the next run", {
+      retryAfter: error.retryAfter,
+      sourceId,
+      status: error.status,
+      url: error.url,
+    })
+    warnIfRetryAfterIsBeyondNextRun(error, now, sourceId)
+    return "throttled"
+  }
+  throw error
 }
 
 /**
@@ -189,7 +221,7 @@ const fetchQueuedDocuments = async (
   input: CollectWebsiteSourceInput & { client: IWebPageClient; progress: Progress; queue: SourceDocument[] },
   repo: CollectionRepo,
   deps: WebsiteCollectionDeps,
-): Promise<Exclude<SourceCollectionStatus, "rate_limited" | "throttled" | "up_to_date">> => {
+): Promise<Exclude<SourceCollectionStatus, "crawl_delay_too_long" | "rate_limited" | "throttled" | "up_to_date">> => {
   const { client, now, progress, queue, source } = input
   let consecutiveNetworkErrorCount = 0
   for (const document of queue) {
@@ -232,12 +264,13 @@ const fetchQueuedDocuments = async (
 /**
  * 公式ドキュメントのサイトのソースを 1 つ収集する。source_documents をクロールの待ち行列として使う。
  *
- * 1. robots.txt を読む（読めなければ throw）
+ * 1. robots.txt を読む（読めなければ throw。Crawl-delay が上限を超えていれば crawl_delay_too_long で打ち切る）
  * 2. sitemap と開始ページから URL を見つけて未取得の行として入れる
  * 3. 取得待ちの行（未取得 → 取得から refetchDays 日たったもの）を maxDocuments 件まで、条件付きリクエストで取得する
  * 4. 200 のページはリンクを未取得の行として入れ、本文のハッシュが前回と違えば本文候補を作る
  *
- * 429 / 503 はそのソースを throttled で打ち切る（失敗にしない）。取得先の制限（BlockedUrlError）と robots.txt の読込み失敗は throw する
+ * Crawl-delay が上限を超えるサイトと 429 / 503 はそのソースを打ち切る（失敗にしない）。
+ * 取得先の制限（BlockedUrlError）と robots.txt の読込み失敗は throw する
  */
 export const collectWebsiteSource = async (
   input: CollectWebsiteSourceInput,
@@ -259,15 +292,7 @@ export const collectWebsiteSource = async (
     logger.info("website fetch queue loaded", { queuedDocumentCount: queue.length, sourceId: source.id })
     status = await fetchQueuedDocuments({ ...input, client, progress, queue }, repo, deps)
   } catch (error) {
-    if (!(error instanceof WebSourceThrottledError)) throw error
-    logger.warn("site is throttling requests; remaining pages are left for the next run", {
-      retryAfter: error.retryAfter,
-      sourceId: source.id,
-      status: error.status,
-      url: error.url,
-    })
-    warnIfRetryAfterIsBeyondNextRun(error, now, source.id)
-    status = "throttled"
+    status = resolveAbortedStatus(error, now, source.id)
   }
 
   await repo.contentSourceRepository.markCollected(source.id, { lastCollectedAt: now })

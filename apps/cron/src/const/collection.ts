@@ -29,6 +29,12 @@ export const MAX_MARKDOWN_FILE_BYTES = 1_000_000
 export const CRAWLER_NAME = "TechEnglishBot"
 
 /**
+ * robots.txt の Crawl-delay（秒）の上限（この値ちょうどは従う）。これを超える値を返すサイトは、そのソースを今回の実行では打ち切る（失敗にはしない）。
+ * 極端に大きい値（3600 など）にそのまま従うと、1 ソースの処理が何時間も止まるため
+ */
+export const MAX_CRAWL_DELAY_SECONDS = 30
+
+/**
  * サイトへの 1 リクエストのタイムアウト（ミリ秒）
  */
 export const WEB_REQUEST_TIMEOUT_MS = 10_000

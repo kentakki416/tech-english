@@ -2,6 +2,9 @@ import type { Blockquote, Code, Heading, ListItem, Paragraph, PhrasingContent, R
 
 import type { PassageBlock } from "@repo/domain"
 
+import { PROSE_COMPONENT_NAMES } from "./const"
+import type { MdxJsxFlowElement } from "./markdown-jsx"
+
 /**
  * 見出しの深さを持つブロック。切り分けにだけ使い、保存する前に PassageBlock に戻す
  */
@@ -103,7 +106,15 @@ const convertListItem = (node: ListItem): DocumentBlock[] => convertContainerChi
 const convertBlockquote = (node: Blockquote): DocumentBlock[] => convertContainerChildren(node.children, "quote")
 
 /**
- * table / image / html / thematicBreak / yaml / toml / definition / footnoteDefinition / MDX の JSX・ESM・式は捨てる
+ * 文章を包むコンポーネント（PROSE_COMPONENT_NAMES）はタグだけ除いて中身を変換し、それ以外のコンポーネントは中身ごと捨てる。
+ * 名前の無いもの（フラグメント `<>`）も捨てる
+ */
+const convertJsxElement = (node: MdxJsxFlowElement): DocumentBlock[] =>
+  node.name !== null && PROSE_COMPONENT_NAMES.has(node.name) ? node.children.flatMap(convertNode) : []
+
+/**
+ * table / image / html / thematicBreak / yaml / toml / definition / footnoteDefinition / MDX の ESM・式と、
+ * 文章を包むもの以外の JSX のコンポーネントは捨てる
  */
 const convertNode = (node: RootContent): DocumentBlock[] => {
   switch (node.type) {
@@ -117,6 +128,8 @@ const convertNode = (node: RootContent): DocumentBlock[] => {
     return node.children.flatMap(convertListItem)
   case "listItem":
     return convertListItem(node)
+  case "mdxJsxFlowElement":
+    return convertJsxElement(node)
   case "paragraph":
     return convertParagraph(node)
   default:

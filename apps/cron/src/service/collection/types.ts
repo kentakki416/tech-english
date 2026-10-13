@@ -30,6 +30,7 @@ export type CollectionDeps = {
  * 1 ソースの収集の終わり方
  *
  * - completed: 対象の文書を全部処理した（GitHub は last_collected_commit_sha を更新する。サイトは取得待ちの行を全部処理した）
+ * - crawl_delay_too_long: サイトの robots.txt の Crawl-delay が上限を超えているので打ち切った（失敗にはしない）
  * - interrupted: 停止指示を受けて途中で抜けた
  * - limit_reached: 文書数・本文候補数の上限で打ち切った。またはツリーが切り詰められて全部を列挙できなかった
  * - rate_limited: GitHub の rate limit の残りが閾値を切ったので打ち切った
@@ -38,6 +39,7 @@ export type CollectionDeps = {
  */
 export type SourceCollectionStatus =
   | "completed"
+  | "crawl_delay_too_long"
   | "interrupted"
   | "limit_reached"
   | "rate_limited"

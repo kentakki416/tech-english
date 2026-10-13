@@ -32,3 +32,17 @@ export const PROSE_CHARS_PER_LINE = 80
  * 節の区切りにする見出しの深さの上限。h1〜h3 で区切り、h4 以下では区切らない
  */
 export const SECTION_HEADING_MAX_DEPTH = 3
+
+/**
+ * 中身を本文として残す MDX / JSX のコンポーネント（文章を包むもの。react.dev の `<Intro>` / `<Note>` など）。タグだけ除いて中の文章を残す。
+ * ここに無いコンポーネント（`<Sandpack>` / `<Diagram>` / `<Illustration>` / `<Challenges>` のようにコード・図・演習を包むもの）は中身ごと捨てる。
+ * `.mdx` の JSX と、`.md` の HTML ブロックで書かれたコンポーネントの両方に使う
+ */
+export const PROSE_COMPONENT_NAMES: ReadonlySet<string> = new Set([
+  "DeepDive",
+  "Intro",
+  "Note",
+  "Pitfall",
+  "Recap",
+  "YouWillLearn",
+])

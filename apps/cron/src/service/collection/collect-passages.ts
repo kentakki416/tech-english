@@ -54,7 +54,7 @@ const findTargetSources = async (sourceId: number | null, repo: CollectionRepo):
  * - 1 ソースの失敗はログに出して failedSourceIds に入れ、次のソースへ進む
  * - GitHub の rate limit（例外・rate_limited のどちらも）は失敗にせず、以降の GitHub のソースを飛ばす（rate limit は token 単位のため）。
  *   サイトのソースには影響させない
- * - サイトの 429 / 503（throttled）は失敗にしない
+ * - サイトの 429 / 503（throttled）と、robots.txt の Crawl-delay が上限を超えるサイト（crawl_delay_too_long）は失敗にしない
  */
 export const collectPassages = async (
   input: CollectPassagesInput,

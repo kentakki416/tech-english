@@ -119,16 +119,16 @@ describe("collectPassages", () => {
       )
     })
 
-    it("website の throttled は失敗に数えず、次のソースへ進む", async () => {
+    it.each(["throttled", "crawl_delay_too_long"] as const)("website の %s は失敗に数えず、次のソースへ進む", async (status) => {
       const repo = createFakeRepo({ enabledSources: [buildWebsiteSource({ id: 2 }), buildGitHubSource({ id: 1 })] })
-      collectWebsiteSourceMock.mockResolvedValueOnce({ createdPassageCount: 1, fetchedDocumentCount: 3, status: "throttled" })
+      collectWebsiteSourceMock.mockResolvedValueOnce({ createdPassageCount: 1, fetchedDocumentCount: 3, status })
       collectGitHubSourceMock.mockResolvedValueOnce(buildCompletedResult(2))
 
       const result = await collectPassages(buildInput(), repo, createDeps(createFakeGitHubClient()))
 
       expect(result.failedSourceIds).toEqual([])
-      expect(result.results.map(({ sourceId, status }) => ({ sourceId, status }))).toEqual([
-        { sourceId: 2, status: "throttled" },
+      expect(result.results.map(({ sourceId, status: resultStatus }) => ({ sourceId, status: resultStatus }))).toEqual([
+        { sourceId: 2, status },
         { sourceId: 1, status: "completed" },
       ])
     })

@@ -62,6 +62,81 @@ describe("parseMarkdown", () => {
       ])
     })
 
+    it.each([
+      [".md", false],
+      [".mdx", true],
+    ])("components.md を %s として読む：MDX のコメントを消し、文章を包むコンポーネントは中身を残し、コード・図・演習のコンポーネントは中身ごと捨てる", (_, isMdx) => {
+      const { root, title } = parseMarkdown(readFixture("components.md"), { isMdx })
+
+      expect(title).toBe("Sharing Data Between Screens")
+      expect(convertMdastToBlocks(root)).toEqual([
+        {
+          text: "Screens often need the same piece of data. This page shows how to keep that data in one place and pass it down.",
+          type: "paragraph",
+        },
+        { text: "How to lift data to a common parent", type: "list_item" },
+        { text: "How to pass data down with props", type: "list_item" },
+        { headingDepth: 2, text: "Lift the data up", type: "heading" },
+        { text: "When two screens read the same value, move the value to their closest common parent.", type: "paragraph" },
+        { lang: "jsx", text: "<Profile>{/* children go here */}</Profile>", type: "code" },
+        { text: "Keep only one copy of each value. Two copies drift apart over time.", type: "paragraph" },
+        { headingDepth: 4, text: "Why not copy the data?", type: "heading" },
+        { text: "Copies look simple at first, but every update must reach both of them.", type: "paragraph" },
+        {
+          text: "Do not store a value that you can compute from other values. The text `{/* kept */}` in inline code stays.",
+          type: "paragraph",
+        },
+        { text: "Keep each value in one place.", type: "list_item" },
+      ])
+    })
+
+    it(".md の h1 の MDX のコメントはタイトルに残さない", () => {
+      const { title } = parseMarkdown("# Getting Started {/*getting-started*/}\n\nBody text.\n", { isMdx: false })
+
+      expect(title).toBe("Getting Started")
+    })
+
+    it(".md の複数行の MDX のコメント（コメントアウトした節）は中身ごと消す", () => {
+      const source = "Before the comment.\n\n{/*\n## Old Section\n\nOld text.\n*/}\n\nAfter the comment.\n"
+
+      expect(convertMdastToBlocks(parseMarkdown(source, { isMdx: false }).root)).toEqual([
+        { text: "Before the comment.", type: "paragraph" },
+        { text: "After the comment.", type: "paragraph" },
+      ])
+    })
+
+    it(".md の引用・箇条書きの中のコンポーネントも同じ規則で扱う", () => {
+      const source = [
+        "> <Note>",
+        "> Quoted note text.",
+        "> </Note>",
+        ">",
+        "> <Sandpack>",
+        ">",
+        "> ```js",
+        "> const quoted = true",
+        "> ```",
+        ">",
+        "> </Sandpack>",
+        "",
+        "- Item text.",
+        "",
+        "  <Pitfall>",
+        "  Item pitfall text.",
+        "  </Pitfall>",
+        "",
+        "  <Diagram name=\"item\">",
+        "  Diagram caption.",
+        "  </Diagram>",
+      ].join("\n")
+
+      expect(convertMdastToBlocks(parseMarkdown(source, { isMdx: false }).root)).toEqual([
+        { text: "Quoted note text.", type: "paragraph" },
+        { text: "Item text.", type: "list_item" },
+        { text: "Item pitfall text.", type: "paragraph" },
+      ])
+    })
+
     it("frontmatter の title が文字列でなければ最初の h1 をタイトルにする", () => {
       const { title } = parseMarkdown("---\ntitle: 42\n---\n\n## Second\n\n# First Heading\n", { isMdx: false })
 
@@ -96,6 +171,15 @@ describe("parseMarkdown", () => {
       const source = "# Title\n\n<Sandpack>\n\nThe component is never closed.\n"
 
       expect(() => parseMarkdown(source, { isMdx: false })).not.toThrow()
+    })
+
+    it(".md の閉じられていないコンポーネントはタグだけ無かったことにして中身を残し、対応する開始タグの無い終了タグは無視する", () => {
+      const source = "<Sandpack>\n\nText after an unclosed tag.\n\n</Note>\n\nText after a stray closing tag.\n"
+
+      expect(convertMdastToBlocks(parseMarkdown(source, { isMdx: false }).root)).toEqual([
+        { text: "Text after an unclosed tag.", type: "paragraph" },
+        { text: "Text after a stray closing tag.", type: "paragraph" },
+      ])
     })
 
     it("壊れた YAML の frontmatter は throw せず、最初の h1 をタイトルにする", () => {

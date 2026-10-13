@@ -147,7 +147,7 @@ GitHub に Markdown のソースがあるドキュメントは GitHub から取�
 | 文章であること | 箇条書き・表・リンクだけの塊ではない | 目次やリンク集を除外する |
 
 - コードブロックとインラインコードは本文に残す（エンジニアが読む文書はコードを含むのが自然なため）が、英単語数には数えない
-- 表・画像・埋め込みコンポーネント（MDX の `<Sandpack>` など）・サイトのナビゲーションやフッターは本文から除く
+- 表・画像・埋め込みコンポーネント（MDX の `<Sandpack>` など）・サイトのナビゲーションやフッターは本文から除く。文章を包むコンポーネント（`<Intro>` / `<Note>` / `<Pitfall>` / `<DeepDive>` / `<Recap>` / `<YouWillLearn>`）はタグだけ除いて中の文章を残す
 
 ### 出典表示
 
@@ -237,7 +237,7 @@ URL の正規化：クエリ文字列とフラグメント（`#...`）を除く�
 
 | 項目 | 値 |
 | --- | --- |
-| `robots.txt` | 実行ごとに取得して守る。禁止されている URL は取得しない。`Crawl-delay` があればそれに従う |
+| `robots.txt` | 実行ごとに取得して守る。禁止されている URL は取得しない。`Crawl-delay` があればそれに従う。ただし 30 秒を超える `Crawl-delay` のサイトは、従うと処理が長時間止まるので今回の実行では打ち切る（失敗にしない） |
 | リクエストの間隔 | 同じホストに `COLLECT_WEB_REQUEST_INTERVAL_MS`（既定 1,000ms）以上空ける。並列にしない |
 | `User-Agent` | `TechEnglishBot/1.0 (+{サービスのトップの URL})`。サイトの管理者がどのサービスのボットか分かるようにする。止めたいときは robots.txt で `TechEnglishBot` を指定してもらう（守る）。ボットの説明ページは作らない |
 | タイムアウト | 1 リクエスト 10 秒 |
@@ -253,7 +253,7 @@ cron は AWS の VPC 内で動くため、登録された URL を経由して内
 
 ### 本文の抽出と解析
 
-**Markdown**：`unified` + `remark-parse` + `remark-frontmatter` + `remark-gfm`（`.mdx` は `remark-mdx`）で mdast にする。frontmatter の `title` があれば文書タイトルにする。
+**Markdown**：`unified` + `remark-parse` + `remark-frontmatter` + `remark-gfm`（`.mdx` は `remark-mdx`）で mdast にする。frontmatter の `title` があれば文書タイトルにする。`.md` に MDX の書き方が混ざっている場合（react.dev の `.md` など）に備え、`.md` でも MDX のコメント（`{/* ... */}`。見出しのアンカーなど）をコードの外で消し、HTML ブロックで書かれたコンポーネントは `.mdx` の JSX と同じ規則で扱う。
 
 **HTML**：
 
@@ -274,7 +274,8 @@ cron は AWS の VPC 内で動くため、登録された URL を経由して内
 | `blockquote` | `quote` ブロック |
 | `inlineCode` | ブロック内のテキストにバッククォートつきで残す（表示時にコードとして描画） |
 | `link` | テキストだけ残し URL は捨てる |
-| `table` / `image` / `html` / `mdxJsxFlowElement` / `yaml`（frontmatter） | 捨てる |
+| `mdxJsxFlowElement`（`.md` の HTML ブロックのコンポーネントを含む） | 文章を包むコンポーネント（許可リスト）はタグを除いて中身を変換する。それ以外は中身ごと捨てる |
+| `table` / `image` / `html` / `yaml`（frontmatter） | 捨てる |
 
 **JavaScript で本文を描画するサイトには対応しない**（ヘッドレスブラウザを cron に載せない）。取得した HTML に本文が入っていないサイトは、試し実行で英単語数がほぼ 0 になるので登録時に分かる（[deferred](./deferred-more-sources.md#javascript-で描画するサイト)）。
 

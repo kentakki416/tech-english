@@ -1,4 +1,4 @@
-import { BlockedUrlError, WebSourceThrottledError } from "../../../src/client/web"
+import { BlockedUrlError, CrawlDelayTooLongError, WebSourceThrottledError } from "../../../src/client/web"
 import { collectWebsiteSource, type CollectWebsiteSourceInput, extractWebPage } from "../../../src/service/collection"
 
 import {
@@ -296,6 +296,29 @@ describe("collectWebsiteSource", () => {
 
       expect(result.status).toBe("throttled")
       expect(repo.sourceDocumentRepository.findFetchQueue).not.toHaveBeenCalled()
+    })
+
+    it("robots.txt の Crawl-delay が上限を超えるサイトは、ページを探さず取得もせずに crawl_delay_too_long を返し、warn を出して markCollected する", async () => {
+      const source = { ...SOURCE, sitemapUrl: `${SITE}/sitemap.xml`, startUrl: `${SITE}/doc/` }
+      const { client, deps, repo } = setup({
+        client: {
+          loadRobotsError: new CrawlDelayTooLongError({ crawlDelaySeconds: 3600, maxCrawlDelaySeconds: 30, url: `${SITE}/robots.txt` }),
+        },
+        queue: [buildQueuedDocument(1, "/doc/a")],
+      })
+
+      const result = await collectWebsiteSource(buildInput({ source }), repo, deps)
+
+      expect(result).toEqual({ createdPassageCount: 0, fetchedDocumentCount: 0, status: "crawl_delay_too_long" })
+      expect(client.fetchSitemapUrls).not.toHaveBeenCalled()
+      expect(client.fetchPage).not.toHaveBeenCalled()
+      expect(repo.sourceDocumentRepository.upsertDiscovered).not.toHaveBeenCalled()
+      expect(repo.sourceDocumentRepository.findFetchQueue).not.toHaveBeenCalled()
+      expect(repo.contentSourceRepository.markCollected).toHaveBeenCalledWith(2, { lastCollectedAt: NOW })
+      expect(warnMock).toHaveBeenCalledWith(
+        "Crawl-delay in robots.txt exceeds the limit; the source is skipped in this run",
+        expect.objectContaining({ crawlDelaySeconds: 3600, maxCrawlDelaySeconds: 30, sourceId: 2 }),
+      )
     })
 
     it("network_error は何も更新せず、間に ok を挟むと連続の回数を数え直す", async () => {
