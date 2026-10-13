@@ -65,6 +65,23 @@ describe("formatDryRun", () => {
       ].join("\n"))
     })
 
+    it("サイトのページを取得できなかったものは理由を出す", () => {
+      const text = formatDryRun(buildPreview({
+        documents: [{ path: "/doc/gone", reason: "HTTP 404", status: "not_fetched" }],
+        fetchedFrom: "https://go.dev（sitemap: https://go.dev/sitemap.xml）",
+        targetDocumentCount: 3,
+      }))
+
+      expect(text).toBe([
+        "ソース #12 React 公式ドキュメント（https://go.dev（sitemap: https://go.dev/sitemap.xml））",
+        "対象の文書 3 件のうち 1 件を取得しました（DB には書き込んでいません）",
+        "",
+        "■ /doc/gone",
+        "  [取得できず] HTTP 404",
+        "",
+      ].join("\n"))
+    })
+
     it("ツリーが切り詰められていたら注意書きを出す", () => {
       expect(formatDryRun(buildPreview({ isComplete: false }))).toContain("ツリーが切り詰められたため")
     })

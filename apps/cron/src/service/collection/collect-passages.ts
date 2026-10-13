@@ -4,6 +4,7 @@ import { logger } from "@repo/logger"
 import { GitHubRateLimitError } from "../../client/github"
 
 import { collectGitHubSource } from "./collect-github-source"
+import { collectWebsiteSource } from "./collect-website-source"
 import type { CollectionDeps, CollectionRepo, SourceCollectionResult } from "./types"
 
 export type CollectPassagesInput = {
@@ -14,6 +15,10 @@ export type CollectPassagesInput = {
   maxDocumentsPerSource: number
   maxPassagesPerRun: number
   now: Date
+  /**
+   * サイトのページを取り直す間隔（日）
+   */
+  refetchDays: number
   /**
    * null は有効な全ソース
    */
@@ -47,8 +52,9 @@ const findTargetSources = async (sourceId: number | null, repo: CollectionRepo):
  *
  * - 本文候補の上限（maxPassagesPerRun）の残りを各ソースに渡し、残りが無くなったら以降のソースは処理しない（失敗ではない）
  * - 1 ソースの失敗はログに出して failedSourceIds に入れ、次のソースへ進む
- * - GitHub の rate limit（例外・rate_limited のどちらも）は失敗にせず、以降の GitHub のソースを飛ばす（rate limit は token 単位のため）
- * - website のソースは未対応なので飛ばす
+ * - GitHub の rate limit（例外・rate_limited のどちらも）は失敗にせず、以降の GitHub のソースを飛ばす（rate limit は token 単位のため）。
+ *   サイトのソースには影響させない
+ * - サイトの 429 / 503（throttled）は失敗にしない
  */
 export const collectPassages = async (
   input: CollectPassagesInput,
@@ -68,27 +74,35 @@ export const collectPassages = async (
       logger.info("passage limit per run reached; remaining sources are skipped", { sourceId: source.id })
       break
     }
-    if (source.fetchType === "website") {
-      logger.warn("website sources are not supported yet; skipped", { sourceId: source.id })
-      continue
-    }
-    if (isGitHubRateLimited) {
+    if (source.fetchType === "github_repository" && isGitHubRateLimited) {
       logger.warn("GitHub rate limit is low; skipped", { sourceId: source.id })
       continue
     }
 
     try {
-      const result = await collectGitHubSource(
-        {
-          maxDocuments: input.maxDocumentsPerSource,
-          maxPassages: remainingPassages,
-          minRateLimitRemaining: input.githubMinRateLimitRemaining,
-          now: input.now,
-          source,
-        },
-        repo,
-        deps,
-      )
+      const result = source.fetchType === "website"
+        ? await collectWebsiteSource(
+          {
+            maxDocuments: input.maxDocumentsPerSource,
+            maxPassages: remainingPassages,
+            now: input.now,
+            refetchDays: input.refetchDays,
+            source,
+          },
+          repo,
+          deps,
+        )
+        : await collectGitHubSource(
+          {
+            maxDocuments: input.maxDocumentsPerSource,
+            maxPassages: remainingPassages,
+            minRateLimitRemaining: input.githubMinRateLimitRemaining,
+            now: input.now,
+            source,
+          },
+          repo,
+          deps,
+        )
       logger.info("source collected", { ...result, sourceId: source.id })
       results.push({ ...result, sourceId: source.id })
       createdPassageCount += result.createdPassageCount

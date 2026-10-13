@@ -2,6 +2,7 @@ import { createDrizzleClient } from "@repo/db"
 import { logger } from "@repo/logger"
 
 import { GitHubContentClient } from "../client/github"
+import { WebPageClient } from "../client/web"
 import {
   COLLECTOR_USER_AGENT,
   DRY_RUN_MAX_DOCUMENTS,
@@ -29,7 +30,7 @@ import * as service from "../service"
  *   pnpm collect:passages --source-id=3            # 1 ソースだけ
  *   pnpm collect:passages --source-id=3 --dry-run  # 最大 5 件を取得して抽出結果を表示する（DB に書かない）
  *
- * task 自身は env を読んで DB client / Repository / GitHub client を組み立てて service に DI するだけ。
+ * task 自身は env を読んで DB client / Repository / GitHub client / サイトの client の作り方を組み立てて service に DI するだけ。
  * 1 ソースでも失敗があれば最後に throw して exit code 1 で終え、スケジューラに通知する。
  */
 const main = async (): Promise<void> => {
@@ -51,8 +52,19 @@ const main = async (): Promise<void> => {
     passageRepository: new DrizzlePassageRepository(db),
     sourceDocumentRepository: new DrizzleSourceDocumentRepository(db),
   }
+  /**
+   * サイトの管理者がどのサービスのボットか分かるよう、サービスのトップの URL があれば User-Agent に入れる
+   */
+  const userAgent = env.COLLECT_WEB_CONTACT_URL
+    ? `${COLLECTOR_USER_AGENT} (+${env.COLLECT_WEB_CONTACT_URL})`
+    : COLLECTOR_USER_AGENT
   const deps = {
-    githubContentClient: new GitHubContentClient({ token: env.GITHUB_CONTENT_TOKEN, userAgent: COLLECTOR_USER_AGENT }),
+    createWebPageClient: (origin: string) => new WebPageClient({
+      allowedOrigin: origin,
+      requestIntervalMs: env.COLLECT_WEB_REQUEST_INTERVAL_MS,
+      userAgent,
+    }),
+    githubContentClient: new GitHubContentClient({ token: env.GITHUB_CONTENT_TOKEN, userAgent }),
     isShuttingDown,
   }
 
@@ -70,6 +82,7 @@ const main = async (): Promise<void> => {
     logger.info("collect-passages started", {
       maxDocumentsPerSource: env.COLLECT_MAX_DOCUMENTS_PER_SOURCE,
       maxPassagesPerRun: env.COLLECT_MAX_PASSAGES_PER_RUN,
+      refetchDays: env.COLLECT_WEB_REFETCH_DAYS,
       sourceId: args.sourceId,
     })
     const result = await service.collection.collectPassages(
@@ -80,6 +93,7 @@ const main = async (): Promise<void> => {
         maxDocumentsPerSource: env.COLLECT_MAX_DOCUMENTS_PER_SOURCE,
         maxPassagesPerRun: env.COLLECT_MAX_PASSAGES_PER_RUN,
         now: new Date(),
+        refetchDays: env.COLLECT_WEB_REFETCH_DAYS,
         sourceId: args.sourceId,
       },
       repo,

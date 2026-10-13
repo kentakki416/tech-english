@@ -40,6 +40,19 @@ const cronEnvSchema = z
      * collect-passages が 1 回の実行で作る本文候補の上限（生成側の処理量を超えて溜め込まないため）
      */
     COLLECT_MAX_PASSAGES_PER_RUN: z.coerce.number().int().positive().default(200),
+    /**
+     * collect-passages がサイトをクロールするときの、同じホストへのリクエストの間隔（ミリ秒）。1 秒未満にはできない
+     */
+    COLLECT_WEB_REQUEST_INTERVAL_MS: z.coerce.number().int().min(1000).default(1000),
+    /**
+     * collect-passages がサイトのページを取り直す間隔（日）
+     */
+    COLLECT_WEB_REFETCH_DAYS: z.coerce.number().int().positive().default(7),
+    /**
+     * 収集のリクエストの User-Agent に入れるサービスのトップの URL（`TechEnglishBot/1.0 (+{url})`）。
+     * 他のタスクでは不要なので任意。未設定なら `TechEnglishBot/1.0` だけを送る
+     */
+    COLLECT_WEB_CONTACT_URL: z.string().url().optional(),
   })
   .superRefine((env, ctx) => {
     if (env.NODE_ENV !== "test" && !env.DATABASE_URL) {
