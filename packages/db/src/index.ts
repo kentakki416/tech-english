@@ -11,7 +11,25 @@ export type { CreatePrismaClientOptions } from "./prisma/client"
  * 依存に持つと、peer dependency の解決次第で packages/db と別インスタンスになり、
  * テーブル定義と演算子の型が噛み合わなくなるため。必要な演算子が増えたらここに足す。
  */
-export { and, asc, count, desc, eq, gte, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm"
+export {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  exists,
+  gt,
+  gte,
+  inArray,
+  isNotNull,
+  isNull,
+  lt,
+  lte,
+  max,
+  notExists,
+  or,
+  sql,
+} from "drizzle-orm"
 
 /**
  * Prisma が生成するドメイン型 / 型ユーティリティを「型としてのみ」re-export する。
@@ -23,12 +41,18 @@ export { and, asc, count, desc, eq, gte, inArray, isNotNull, isNull, lt, or, sql
  * `import type { User, Memo, PrismaClient } from "@repo/db"` で参照する。
  */
 export type {
+  AttemptAnswer,
+  AttemptWordLookup,
   AuthAccount,
   ContentSource,
+  DictionaryEntry,
   Memo,
   Passage,
+  PassageGlossaryEntry,
   Prisma,
   PrismaClient,
+  Question,
+  ReadingAttempt,
   SourceDocument,
   User,
 } from "../generated/client"

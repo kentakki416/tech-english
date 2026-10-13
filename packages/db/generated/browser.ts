@@ -18,6 +18,16 @@ export { Prisma }
 export * as $Enums from './enums.js'
 export * from './enums.js';
 /**
+ * Model AttemptAnswer
+ * 
+ */
+export type AttemptAnswer = Prisma.AttemptAnswerModel
+/**
+ * Model AttemptWordLookup
+ * 
+ */
+export type AttemptWordLookup = Prisma.AttemptWordLookupModel
+/**
  * Model AuthAccount
  * 
  */
@@ -28,6 +38,11 @@ export type AuthAccount = Prisma.AuthAccountModel
  */
 export type ContentSource = Prisma.ContentSourceModel
 /**
+ * Model DictionaryEntry
+ * 
+ */
+export type DictionaryEntry = Prisma.DictionaryEntryModel
+/**
  * Model Memo
  * 
  */
@@ -37,6 +52,21 @@ export type Memo = Prisma.MemoModel
  * 
  */
 export type Passage = Prisma.PassageModel
+/**
+ * Model PassageGlossaryEntry
+ * 
+ */
+export type PassageGlossaryEntry = Prisma.PassageGlossaryEntryModel
+/**
+ * Model Question
+ * 
+ */
+export type Question = Prisma.QuestionModel
+/**
+ * Model ReadingAttempt
+ * 
+ */
+export type ReadingAttempt = Prisma.ReadingAttemptModel
 /**
  * Model SourceDocument
  * 

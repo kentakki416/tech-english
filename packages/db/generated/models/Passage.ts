@@ -389,6 +389,10 @@ export type PassageWhereInput = {
   createdAt?: Prisma.DateTimeFilter<"Passage"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Passage"> | Date | string
   sourceDocument?: Prisma.XOR<Prisma.SourceDocumentScalarRelationFilter, Prisma.SourceDocumentWhereInput>
+  questions?: Prisma.QuestionListRelationFilter
+  glossaryEntries?: Prisma.PassageGlossaryEntryListRelationFilter
+  readingAttempts?: Prisma.ReadingAttemptListRelationFilter
+  wordLookups?: Prisma.AttemptWordLookupListRelationFilter
 }
 
 export type PassageOrderByWithRelationInput = {
@@ -418,6 +422,10 @@ export type PassageOrderByWithRelationInput = {
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   sourceDocument?: Prisma.SourceDocumentOrderByWithRelationInput
+  questions?: Prisma.QuestionOrderByRelationAggregateInput
+  glossaryEntries?: Prisma.PassageGlossaryEntryOrderByRelationAggregateInput
+  readingAttempts?: Prisma.ReadingAttemptOrderByRelationAggregateInput
+  wordLookups?: Prisma.AttemptWordLookupOrderByRelationAggregateInput
 }
 
 export type PassageWhereUniqueInput = Prisma.AtLeast<{
@@ -450,6 +458,10 @@ export type PassageWhereUniqueInput = Prisma.AtLeast<{
   createdAt?: Prisma.DateTimeFilter<"Passage"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Passage"> | Date | string
   sourceDocument?: Prisma.XOR<Prisma.SourceDocumentScalarRelationFilter, Prisma.SourceDocumentWhereInput>
+  questions?: Prisma.QuestionListRelationFilter
+  glossaryEntries?: Prisma.PassageGlossaryEntryListRelationFilter
+  readingAttempts?: Prisma.ReadingAttemptListRelationFilter
+  wordLookups?: Prisma.AttemptWordLookupListRelationFilter
 }, "id" | "contentHash">
 
 export type PassageOrderByWithAggregationInput = {
@@ -541,6 +553,10 @@ export type PassageCreateInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   sourceDocument: Prisma.SourceDocumentCreateNestedOneWithoutPassagesInput
+  questions?: Prisma.QuestionCreateNestedManyWithoutPassageInput
+  glossaryEntries?: Prisma.PassageGlossaryEntryCreateNestedManyWithoutPassageInput
+  readingAttempts?: Prisma.ReadingAttemptCreateNestedManyWithoutPassageInput
+  wordLookups?: Prisma.AttemptWordLookupCreateNestedManyWithoutPassageInput
 }
 
 export type PassageUncheckedCreateInput = {
@@ -569,6 +585,10 @@ export type PassageUncheckedCreateInput = {
   publishedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  questions?: Prisma.QuestionUncheckedCreateNestedManyWithoutPassageInput
+  glossaryEntries?: Prisma.PassageGlossaryEntryUncheckedCreateNestedManyWithoutPassageInput
+  readingAttempts?: Prisma.ReadingAttemptUncheckedCreateNestedManyWithoutPassageInput
+  wordLookups?: Prisma.AttemptWordLookupUncheckedCreateNestedManyWithoutPassageInput
 }
 
 export type PassageUpdateInput = {
@@ -596,6 +616,10 @@ export type PassageUpdateInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   sourceDocument?: Prisma.SourceDocumentUpdateOneRequiredWithoutPassagesNestedInput
+  questions?: Prisma.QuestionUpdateManyWithoutPassageNestedInput
+  glossaryEntries?: Prisma.PassageGlossaryEntryUpdateManyWithoutPassageNestedInput
+  readingAttempts?: Prisma.ReadingAttemptUpdateManyWithoutPassageNestedInput
+  wordLookups?: Prisma.AttemptWordLookupUpdateManyWithoutPassageNestedInput
 }
 
 export type PassageUncheckedUpdateInput = {
@@ -624,6 +648,10 @@ export type PassageUncheckedUpdateInput = {
   publishedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  questions?: Prisma.QuestionUncheckedUpdateManyWithoutPassageNestedInput
+  glossaryEntries?: Prisma.PassageGlossaryEntryUncheckedUpdateManyWithoutPassageNestedInput
+  readingAttempts?: Prisma.ReadingAttemptUncheckedUpdateManyWithoutPassageNestedInput
+  wordLookups?: Prisma.AttemptWordLookupUncheckedUpdateManyWithoutPassageNestedInput
 }
 
 export type PassageCreateManyInput = {
@@ -706,6 +734,11 @@ export type PassageUncheckedUpdateManyInput = {
   publishedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+}
+
+export type PassageScalarRelationFilter = {
+  is?: Prisma.PassageWhereInput
+  isNot?: Prisma.PassageWhereInput
 }
 
 export type PassageCountOrderByAggregateInput = {
@@ -816,12 +849,60 @@ export type PassageOrderByRelationAggregateInput = {
   _count?: Prisma.SortOrder
 }
 
-export type NullableIntFieldUpdateOperationsInput = {
-  set?: number | null
-  increment?: number
-  decrement?: number
-  multiply?: number
-  divide?: number
+export type PassageCreateNestedOneWithoutWordLookupsInput = {
+  create?: Prisma.XOR<Prisma.PassageCreateWithoutWordLookupsInput, Prisma.PassageUncheckedCreateWithoutWordLookupsInput>
+  connectOrCreate?: Prisma.PassageCreateOrConnectWithoutWordLookupsInput
+  connect?: Prisma.PassageWhereUniqueInput
+}
+
+export type PassageUpdateOneRequiredWithoutWordLookupsNestedInput = {
+  create?: Prisma.XOR<Prisma.PassageCreateWithoutWordLookupsInput, Prisma.PassageUncheckedCreateWithoutWordLookupsInput>
+  connectOrCreate?: Prisma.PassageCreateOrConnectWithoutWordLookupsInput
+  upsert?: Prisma.PassageUpsertWithoutWordLookupsInput
+  connect?: Prisma.PassageWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.PassageUpdateToOneWithWhereWithoutWordLookupsInput, Prisma.PassageUpdateWithoutWordLookupsInput>, Prisma.PassageUncheckedUpdateWithoutWordLookupsInput>
+}
+
+export type PassageCreateNestedOneWithoutGlossaryEntriesInput = {
+  create?: Prisma.XOR<Prisma.PassageCreateWithoutGlossaryEntriesInput, Prisma.PassageUncheckedCreateWithoutGlossaryEntriesInput>
+  connectOrCreate?: Prisma.PassageCreateOrConnectWithoutGlossaryEntriesInput
+  connect?: Prisma.PassageWhereUniqueInput
+}
+
+export type PassageUpdateOneRequiredWithoutGlossaryEntriesNestedInput = {
+  create?: Prisma.XOR<Prisma.PassageCreateWithoutGlossaryEntriesInput, Prisma.PassageUncheckedCreateWithoutGlossaryEntriesInput>
+  connectOrCreate?: Prisma.PassageCreateOrConnectWithoutGlossaryEntriesInput
+  upsert?: Prisma.PassageUpsertWithoutGlossaryEntriesInput
+  connect?: Prisma.PassageWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.PassageUpdateToOneWithWhereWithoutGlossaryEntriesInput, Prisma.PassageUpdateWithoutGlossaryEntriesInput>, Prisma.PassageUncheckedUpdateWithoutGlossaryEntriesInput>
+}
+
+export type PassageCreateNestedOneWithoutQuestionsInput = {
+  create?: Prisma.XOR<Prisma.PassageCreateWithoutQuestionsInput, Prisma.PassageUncheckedCreateWithoutQuestionsInput>
+  connectOrCreate?: Prisma.PassageCreateOrConnectWithoutQuestionsInput
+  connect?: Prisma.PassageWhereUniqueInput
+}
+
+export type PassageUpdateOneRequiredWithoutQuestionsNestedInput = {
+  create?: Prisma.XOR<Prisma.PassageCreateWithoutQuestionsInput, Prisma.PassageUncheckedCreateWithoutQuestionsInput>
+  connectOrCreate?: Prisma.PassageCreateOrConnectWithoutQuestionsInput
+  upsert?: Prisma.PassageUpsertWithoutQuestionsInput
+  connect?: Prisma.PassageWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.PassageUpdateToOneWithWhereWithoutQuestionsInput, Prisma.PassageUpdateWithoutQuestionsInput>, Prisma.PassageUncheckedUpdateWithoutQuestionsInput>
+}
+
+export type PassageCreateNestedOneWithoutReadingAttemptsInput = {
+  create?: Prisma.XOR<Prisma.PassageCreateWithoutReadingAttemptsInput, Prisma.PassageUncheckedCreateWithoutReadingAttemptsInput>
+  connectOrCreate?: Prisma.PassageCreateOrConnectWithoutReadingAttemptsInput
+  connect?: Prisma.PassageWhereUniqueInput
+}
+
+export type PassageUpdateOneRequiredWithoutReadingAttemptsNestedInput = {
+  create?: Prisma.XOR<Prisma.PassageCreateWithoutReadingAttemptsInput, Prisma.PassageUncheckedCreateWithoutReadingAttemptsInput>
+  connectOrCreate?: Prisma.PassageCreateOrConnectWithoutReadingAttemptsInput
+  upsert?: Prisma.PassageUpsertWithoutReadingAttemptsInput
+  connect?: Prisma.PassageWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.PassageUpdateToOneWithWhereWithoutReadingAttemptsInput, Prisma.PassageUpdateWithoutReadingAttemptsInput>, Prisma.PassageUncheckedUpdateWithoutReadingAttemptsInput>
 }
 
 export type PassageCreateNestedManyWithoutSourceDocumentInput = {
@@ -866,6 +947,558 @@ export type PassageUncheckedUpdateManyWithoutSourceDocumentNestedInput = {
   deleteMany?: Prisma.PassageScalarWhereInput | Prisma.PassageScalarWhereInput[]
 }
 
+export type PassageCreateWithoutWordLookupsInput = {
+  sourcePath: string
+  sourceCommitSha?: string | null
+  sourceRetrievedAt: Date | string
+  status?: string
+  title: string
+  blocks: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  wordCount: number
+  contentHash: string
+  difficulty?: number | null
+  timeLimitSeconds?: number | null
+  generationAttemptCount?: number
+  generationStartedAt?: Date | string | null
+  generationError?: string | null
+  generationModel?: string | null
+  generationPromptVersion?: string | null
+  generatedAt?: Date | string | null
+  needsAttention?: boolean
+  attentionReasons?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  rejectReason?: string | null
+  reviewedAt?: Date | string | null
+  publishedAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  sourceDocument: Prisma.SourceDocumentCreateNestedOneWithoutPassagesInput
+  questions?: Prisma.QuestionCreateNestedManyWithoutPassageInput
+  glossaryEntries?: Prisma.PassageGlossaryEntryCreateNestedManyWithoutPassageInput
+  readingAttempts?: Prisma.ReadingAttemptCreateNestedManyWithoutPassageInput
+}
+
+export type PassageUncheckedCreateWithoutWordLookupsInput = {
+  id?: number
+  sourceDocumentId: number
+  sourcePath: string
+  sourceCommitSha?: string | null
+  sourceRetrievedAt: Date | string
+  status?: string
+  title: string
+  blocks: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  wordCount: number
+  contentHash: string
+  difficulty?: number | null
+  timeLimitSeconds?: number | null
+  generationAttemptCount?: number
+  generationStartedAt?: Date | string | null
+  generationError?: string | null
+  generationModel?: string | null
+  generationPromptVersion?: string | null
+  generatedAt?: Date | string | null
+  needsAttention?: boolean
+  attentionReasons?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  rejectReason?: string | null
+  reviewedAt?: Date | string | null
+  publishedAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  questions?: Prisma.QuestionUncheckedCreateNestedManyWithoutPassageInput
+  glossaryEntries?: Prisma.PassageGlossaryEntryUncheckedCreateNestedManyWithoutPassageInput
+  readingAttempts?: Prisma.ReadingAttemptUncheckedCreateNestedManyWithoutPassageInput
+}
+
+export type PassageCreateOrConnectWithoutWordLookupsInput = {
+  where: Prisma.PassageWhereUniqueInput
+  create: Prisma.XOR<Prisma.PassageCreateWithoutWordLookupsInput, Prisma.PassageUncheckedCreateWithoutWordLookupsInput>
+}
+
+export type PassageUpsertWithoutWordLookupsInput = {
+  update: Prisma.XOR<Prisma.PassageUpdateWithoutWordLookupsInput, Prisma.PassageUncheckedUpdateWithoutWordLookupsInput>
+  create: Prisma.XOR<Prisma.PassageCreateWithoutWordLookupsInput, Prisma.PassageUncheckedCreateWithoutWordLookupsInput>
+  where?: Prisma.PassageWhereInput
+}
+
+export type PassageUpdateToOneWithWhereWithoutWordLookupsInput = {
+  where?: Prisma.PassageWhereInput
+  data: Prisma.XOR<Prisma.PassageUpdateWithoutWordLookupsInput, Prisma.PassageUncheckedUpdateWithoutWordLookupsInput>
+}
+
+export type PassageUpdateWithoutWordLookupsInput = {
+  sourcePath?: Prisma.StringFieldUpdateOperationsInput | string
+  sourceCommitSha?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sourceRetrievedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  status?: Prisma.StringFieldUpdateOperationsInput | string
+  title?: Prisma.StringFieldUpdateOperationsInput | string
+  blocks?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  wordCount?: Prisma.IntFieldUpdateOperationsInput | number
+  contentHash?: Prisma.StringFieldUpdateOperationsInput | string
+  difficulty?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  timeLimitSeconds?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  generationAttemptCount?: Prisma.IntFieldUpdateOperationsInput | number
+  generationStartedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  generationError?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  generationModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  generationPromptVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  generatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  needsAttention?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  attentionReasons?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  rejectReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reviewedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  publishedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  sourceDocument?: Prisma.SourceDocumentUpdateOneRequiredWithoutPassagesNestedInput
+  questions?: Prisma.QuestionUpdateManyWithoutPassageNestedInput
+  glossaryEntries?: Prisma.PassageGlossaryEntryUpdateManyWithoutPassageNestedInput
+  readingAttempts?: Prisma.ReadingAttemptUpdateManyWithoutPassageNestedInput
+}
+
+export type PassageUncheckedUpdateWithoutWordLookupsInput = {
+  id?: Prisma.IntFieldUpdateOperationsInput | number
+  sourceDocumentId?: Prisma.IntFieldUpdateOperationsInput | number
+  sourcePath?: Prisma.StringFieldUpdateOperationsInput | string
+  sourceCommitSha?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sourceRetrievedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  status?: Prisma.StringFieldUpdateOperationsInput | string
+  title?: Prisma.StringFieldUpdateOperationsInput | string
+  blocks?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  wordCount?: Prisma.IntFieldUpdateOperationsInput | number
+  contentHash?: Prisma.StringFieldUpdateOperationsInput | string
+  difficulty?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  timeLimitSeconds?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  generationAttemptCount?: Prisma.IntFieldUpdateOperationsInput | number
+  generationStartedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  generationError?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  generationModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  generationPromptVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  generatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  needsAttention?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  attentionReasons?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  rejectReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reviewedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  publishedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  questions?: Prisma.QuestionUncheckedUpdateManyWithoutPassageNestedInput
+  glossaryEntries?: Prisma.PassageGlossaryEntryUncheckedUpdateManyWithoutPassageNestedInput
+  readingAttempts?: Prisma.ReadingAttemptUncheckedUpdateManyWithoutPassageNestedInput
+}
+
+export type PassageCreateWithoutGlossaryEntriesInput = {
+  sourcePath: string
+  sourceCommitSha?: string | null
+  sourceRetrievedAt: Date | string
+  status?: string
+  title: string
+  blocks: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  wordCount: number
+  contentHash: string
+  difficulty?: number | null
+  timeLimitSeconds?: number | null
+  generationAttemptCount?: number
+  generationStartedAt?: Date | string | null
+  generationError?: string | null
+  generationModel?: string | null
+  generationPromptVersion?: string | null
+  generatedAt?: Date | string | null
+  needsAttention?: boolean
+  attentionReasons?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  rejectReason?: string | null
+  reviewedAt?: Date | string | null
+  publishedAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  sourceDocument: Prisma.SourceDocumentCreateNestedOneWithoutPassagesInput
+  questions?: Prisma.QuestionCreateNestedManyWithoutPassageInput
+  readingAttempts?: Prisma.ReadingAttemptCreateNestedManyWithoutPassageInput
+  wordLookups?: Prisma.AttemptWordLookupCreateNestedManyWithoutPassageInput
+}
+
+export type PassageUncheckedCreateWithoutGlossaryEntriesInput = {
+  id?: number
+  sourceDocumentId: number
+  sourcePath: string
+  sourceCommitSha?: string | null
+  sourceRetrievedAt: Date | string
+  status?: string
+  title: string
+  blocks: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  wordCount: number
+  contentHash: string
+  difficulty?: number | null
+  timeLimitSeconds?: number | null
+  generationAttemptCount?: number
+  generationStartedAt?: Date | string | null
+  generationError?: string | null
+  generationModel?: string | null
+  generationPromptVersion?: string | null
+  generatedAt?: Date | string | null
+  needsAttention?: boolean
+  attentionReasons?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  rejectReason?: string | null
+  reviewedAt?: Date | string | null
+  publishedAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  questions?: Prisma.QuestionUncheckedCreateNestedManyWithoutPassageInput
+  readingAttempts?: Prisma.ReadingAttemptUncheckedCreateNestedManyWithoutPassageInput
+  wordLookups?: Prisma.AttemptWordLookupUncheckedCreateNestedManyWithoutPassageInput
+}
+
+export type PassageCreateOrConnectWithoutGlossaryEntriesInput = {
+  where: Prisma.PassageWhereUniqueInput
+  create: Prisma.XOR<Prisma.PassageCreateWithoutGlossaryEntriesInput, Prisma.PassageUncheckedCreateWithoutGlossaryEntriesInput>
+}
+
+export type PassageUpsertWithoutGlossaryEntriesInput = {
+  update: Prisma.XOR<Prisma.PassageUpdateWithoutGlossaryEntriesInput, Prisma.PassageUncheckedUpdateWithoutGlossaryEntriesInput>
+  create: Prisma.XOR<Prisma.PassageCreateWithoutGlossaryEntriesInput, Prisma.PassageUncheckedCreateWithoutGlossaryEntriesInput>
+  where?: Prisma.PassageWhereInput
+}
+
+export type PassageUpdateToOneWithWhereWithoutGlossaryEntriesInput = {
+  where?: Prisma.PassageWhereInput
+  data: Prisma.XOR<Prisma.PassageUpdateWithoutGlossaryEntriesInput, Prisma.PassageUncheckedUpdateWithoutGlossaryEntriesInput>
+}
+
+export type PassageUpdateWithoutGlossaryEntriesInput = {
+  sourcePath?: Prisma.StringFieldUpdateOperationsInput | string
+  sourceCommitSha?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sourceRetrievedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  status?: Prisma.StringFieldUpdateOperationsInput | string
+  title?: Prisma.StringFieldUpdateOperationsInput | string
+  blocks?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  wordCount?: Prisma.IntFieldUpdateOperationsInput | number
+  contentHash?: Prisma.StringFieldUpdateOperationsInput | string
+  difficulty?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  timeLimitSeconds?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  generationAttemptCount?: Prisma.IntFieldUpdateOperationsInput | number
+  generationStartedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  generationError?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  generationModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  generationPromptVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  generatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  needsAttention?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  attentionReasons?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  rejectReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reviewedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  publishedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  sourceDocument?: Prisma.SourceDocumentUpdateOneRequiredWithoutPassagesNestedInput
+  questions?: Prisma.QuestionUpdateManyWithoutPassageNestedInput
+  readingAttempts?: Prisma.ReadingAttemptUpdateManyWithoutPassageNestedInput
+  wordLookups?: Prisma.AttemptWordLookupUpdateManyWithoutPassageNestedInput
+}
+
+export type PassageUncheckedUpdateWithoutGlossaryEntriesInput = {
+  id?: Prisma.IntFieldUpdateOperationsInput | number
+  sourceDocumentId?: Prisma.IntFieldUpdateOperationsInput | number
+  sourcePath?: Prisma.StringFieldUpdateOperationsInput | string
+  sourceCommitSha?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sourceRetrievedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  status?: Prisma.StringFieldUpdateOperationsInput | string
+  title?: Prisma.StringFieldUpdateOperationsInput | string
+  blocks?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  wordCount?: Prisma.IntFieldUpdateOperationsInput | number
+  contentHash?: Prisma.StringFieldUpdateOperationsInput | string
+  difficulty?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  timeLimitSeconds?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  generationAttemptCount?: Prisma.IntFieldUpdateOperationsInput | number
+  generationStartedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  generationError?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  generationModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  generationPromptVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  generatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  needsAttention?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  attentionReasons?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  rejectReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reviewedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  publishedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  questions?: Prisma.QuestionUncheckedUpdateManyWithoutPassageNestedInput
+  readingAttempts?: Prisma.ReadingAttemptUncheckedUpdateManyWithoutPassageNestedInput
+  wordLookups?: Prisma.AttemptWordLookupUncheckedUpdateManyWithoutPassageNestedInput
+}
+
+export type PassageCreateWithoutQuestionsInput = {
+  sourcePath: string
+  sourceCommitSha?: string | null
+  sourceRetrievedAt: Date | string
+  status?: string
+  title: string
+  blocks: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  wordCount: number
+  contentHash: string
+  difficulty?: number | null
+  timeLimitSeconds?: number | null
+  generationAttemptCount?: number
+  generationStartedAt?: Date | string | null
+  generationError?: string | null
+  generationModel?: string | null
+  generationPromptVersion?: string | null
+  generatedAt?: Date | string | null
+  needsAttention?: boolean
+  attentionReasons?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  rejectReason?: string | null
+  reviewedAt?: Date | string | null
+  publishedAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  sourceDocument: Prisma.SourceDocumentCreateNestedOneWithoutPassagesInput
+  glossaryEntries?: Prisma.PassageGlossaryEntryCreateNestedManyWithoutPassageInput
+  readingAttempts?: Prisma.ReadingAttemptCreateNestedManyWithoutPassageInput
+  wordLookups?: Prisma.AttemptWordLookupCreateNestedManyWithoutPassageInput
+}
+
+export type PassageUncheckedCreateWithoutQuestionsInput = {
+  id?: number
+  sourceDocumentId: number
+  sourcePath: string
+  sourceCommitSha?: string | null
+  sourceRetrievedAt: Date | string
+  status?: string
+  title: string
+  blocks: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  wordCount: number
+  contentHash: string
+  difficulty?: number | null
+  timeLimitSeconds?: number | null
+  generationAttemptCount?: number
+  generationStartedAt?: Date | string | null
+  generationError?: string | null
+  generationModel?: string | null
+  generationPromptVersion?: string | null
+  generatedAt?: Date | string | null
+  needsAttention?: boolean
+  attentionReasons?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  rejectReason?: string | null
+  reviewedAt?: Date | string | null
+  publishedAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  glossaryEntries?: Prisma.PassageGlossaryEntryUncheckedCreateNestedManyWithoutPassageInput
+  readingAttempts?: Prisma.ReadingAttemptUncheckedCreateNestedManyWithoutPassageInput
+  wordLookups?: Prisma.AttemptWordLookupUncheckedCreateNestedManyWithoutPassageInput
+}
+
+export type PassageCreateOrConnectWithoutQuestionsInput = {
+  where: Prisma.PassageWhereUniqueInput
+  create: Prisma.XOR<Prisma.PassageCreateWithoutQuestionsInput, Prisma.PassageUncheckedCreateWithoutQuestionsInput>
+}
+
+export type PassageUpsertWithoutQuestionsInput = {
+  update: Prisma.XOR<Prisma.PassageUpdateWithoutQuestionsInput, Prisma.PassageUncheckedUpdateWithoutQuestionsInput>
+  create: Prisma.XOR<Prisma.PassageCreateWithoutQuestionsInput, Prisma.PassageUncheckedCreateWithoutQuestionsInput>
+  where?: Prisma.PassageWhereInput
+}
+
+export type PassageUpdateToOneWithWhereWithoutQuestionsInput = {
+  where?: Prisma.PassageWhereInput
+  data: Prisma.XOR<Prisma.PassageUpdateWithoutQuestionsInput, Prisma.PassageUncheckedUpdateWithoutQuestionsInput>
+}
+
+export type PassageUpdateWithoutQuestionsInput = {
+  sourcePath?: Prisma.StringFieldUpdateOperationsInput | string
+  sourceCommitSha?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sourceRetrievedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  status?: Prisma.StringFieldUpdateOperationsInput | string
+  title?: Prisma.StringFieldUpdateOperationsInput | string
+  blocks?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  wordCount?: Prisma.IntFieldUpdateOperationsInput | number
+  contentHash?: Prisma.StringFieldUpdateOperationsInput | string
+  difficulty?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  timeLimitSeconds?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  generationAttemptCount?: Prisma.IntFieldUpdateOperationsInput | number
+  generationStartedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  generationError?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  generationModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  generationPromptVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  generatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  needsAttention?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  attentionReasons?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  rejectReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reviewedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  publishedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  sourceDocument?: Prisma.SourceDocumentUpdateOneRequiredWithoutPassagesNestedInput
+  glossaryEntries?: Prisma.PassageGlossaryEntryUpdateManyWithoutPassageNestedInput
+  readingAttempts?: Prisma.ReadingAttemptUpdateManyWithoutPassageNestedInput
+  wordLookups?: Prisma.AttemptWordLookupUpdateManyWithoutPassageNestedInput
+}
+
+export type PassageUncheckedUpdateWithoutQuestionsInput = {
+  id?: Prisma.IntFieldUpdateOperationsInput | number
+  sourceDocumentId?: Prisma.IntFieldUpdateOperationsInput | number
+  sourcePath?: Prisma.StringFieldUpdateOperationsInput | string
+  sourceCommitSha?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sourceRetrievedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  status?: Prisma.StringFieldUpdateOperationsInput | string
+  title?: Prisma.StringFieldUpdateOperationsInput | string
+  blocks?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  wordCount?: Prisma.IntFieldUpdateOperationsInput | number
+  contentHash?: Prisma.StringFieldUpdateOperationsInput | string
+  difficulty?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  timeLimitSeconds?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  generationAttemptCount?: Prisma.IntFieldUpdateOperationsInput | number
+  generationStartedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  generationError?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  generationModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  generationPromptVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  generatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  needsAttention?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  attentionReasons?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  rejectReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reviewedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  publishedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  glossaryEntries?: Prisma.PassageGlossaryEntryUncheckedUpdateManyWithoutPassageNestedInput
+  readingAttempts?: Prisma.ReadingAttemptUncheckedUpdateManyWithoutPassageNestedInput
+  wordLookups?: Prisma.AttemptWordLookupUncheckedUpdateManyWithoutPassageNestedInput
+}
+
+export type PassageCreateWithoutReadingAttemptsInput = {
+  sourcePath: string
+  sourceCommitSha?: string | null
+  sourceRetrievedAt: Date | string
+  status?: string
+  title: string
+  blocks: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  wordCount: number
+  contentHash: string
+  difficulty?: number | null
+  timeLimitSeconds?: number | null
+  generationAttemptCount?: number
+  generationStartedAt?: Date | string | null
+  generationError?: string | null
+  generationModel?: string | null
+  generationPromptVersion?: string | null
+  generatedAt?: Date | string | null
+  needsAttention?: boolean
+  attentionReasons?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  rejectReason?: string | null
+  reviewedAt?: Date | string | null
+  publishedAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  sourceDocument: Prisma.SourceDocumentCreateNestedOneWithoutPassagesInput
+  questions?: Prisma.QuestionCreateNestedManyWithoutPassageInput
+  glossaryEntries?: Prisma.PassageGlossaryEntryCreateNestedManyWithoutPassageInput
+  wordLookups?: Prisma.AttemptWordLookupCreateNestedManyWithoutPassageInput
+}
+
+export type PassageUncheckedCreateWithoutReadingAttemptsInput = {
+  id?: number
+  sourceDocumentId: number
+  sourcePath: string
+  sourceCommitSha?: string | null
+  sourceRetrievedAt: Date | string
+  status?: string
+  title: string
+  blocks: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  wordCount: number
+  contentHash: string
+  difficulty?: number | null
+  timeLimitSeconds?: number | null
+  generationAttemptCount?: number
+  generationStartedAt?: Date | string | null
+  generationError?: string | null
+  generationModel?: string | null
+  generationPromptVersion?: string | null
+  generatedAt?: Date | string | null
+  needsAttention?: boolean
+  attentionReasons?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  rejectReason?: string | null
+  reviewedAt?: Date | string | null
+  publishedAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  questions?: Prisma.QuestionUncheckedCreateNestedManyWithoutPassageInput
+  glossaryEntries?: Prisma.PassageGlossaryEntryUncheckedCreateNestedManyWithoutPassageInput
+  wordLookups?: Prisma.AttemptWordLookupUncheckedCreateNestedManyWithoutPassageInput
+}
+
+export type PassageCreateOrConnectWithoutReadingAttemptsInput = {
+  where: Prisma.PassageWhereUniqueInput
+  create: Prisma.XOR<Prisma.PassageCreateWithoutReadingAttemptsInput, Prisma.PassageUncheckedCreateWithoutReadingAttemptsInput>
+}
+
+export type PassageUpsertWithoutReadingAttemptsInput = {
+  update: Prisma.XOR<Prisma.PassageUpdateWithoutReadingAttemptsInput, Prisma.PassageUncheckedUpdateWithoutReadingAttemptsInput>
+  create: Prisma.XOR<Prisma.PassageCreateWithoutReadingAttemptsInput, Prisma.PassageUncheckedCreateWithoutReadingAttemptsInput>
+  where?: Prisma.PassageWhereInput
+}
+
+export type PassageUpdateToOneWithWhereWithoutReadingAttemptsInput = {
+  where?: Prisma.PassageWhereInput
+  data: Prisma.XOR<Prisma.PassageUpdateWithoutReadingAttemptsInput, Prisma.PassageUncheckedUpdateWithoutReadingAttemptsInput>
+}
+
+export type PassageUpdateWithoutReadingAttemptsInput = {
+  sourcePath?: Prisma.StringFieldUpdateOperationsInput | string
+  sourceCommitSha?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sourceRetrievedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  status?: Prisma.StringFieldUpdateOperationsInput | string
+  title?: Prisma.StringFieldUpdateOperationsInput | string
+  blocks?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  wordCount?: Prisma.IntFieldUpdateOperationsInput | number
+  contentHash?: Prisma.StringFieldUpdateOperationsInput | string
+  difficulty?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  timeLimitSeconds?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  generationAttemptCount?: Prisma.IntFieldUpdateOperationsInput | number
+  generationStartedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  generationError?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  generationModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  generationPromptVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  generatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  needsAttention?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  attentionReasons?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  rejectReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reviewedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  publishedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  sourceDocument?: Prisma.SourceDocumentUpdateOneRequiredWithoutPassagesNestedInput
+  questions?: Prisma.QuestionUpdateManyWithoutPassageNestedInput
+  glossaryEntries?: Prisma.PassageGlossaryEntryUpdateManyWithoutPassageNestedInput
+  wordLookups?: Prisma.AttemptWordLookupUpdateManyWithoutPassageNestedInput
+}
+
+export type PassageUncheckedUpdateWithoutReadingAttemptsInput = {
+  id?: Prisma.IntFieldUpdateOperationsInput | number
+  sourceDocumentId?: Prisma.IntFieldUpdateOperationsInput | number
+  sourcePath?: Prisma.StringFieldUpdateOperationsInput | string
+  sourceCommitSha?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sourceRetrievedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  status?: Prisma.StringFieldUpdateOperationsInput | string
+  title?: Prisma.StringFieldUpdateOperationsInput | string
+  blocks?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  wordCount?: Prisma.IntFieldUpdateOperationsInput | number
+  contentHash?: Prisma.StringFieldUpdateOperationsInput | string
+  difficulty?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  timeLimitSeconds?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  generationAttemptCount?: Prisma.IntFieldUpdateOperationsInput | number
+  generationStartedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  generationError?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  generationModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  generationPromptVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  generatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  needsAttention?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  attentionReasons?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  rejectReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reviewedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  publishedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  questions?: Prisma.QuestionUncheckedUpdateManyWithoutPassageNestedInput
+  glossaryEntries?: Prisma.PassageGlossaryEntryUncheckedUpdateManyWithoutPassageNestedInput
+  wordLookups?: Prisma.AttemptWordLookupUncheckedUpdateManyWithoutPassageNestedInput
+}
+
 export type PassageCreateWithoutSourceDocumentInput = {
   sourcePath: string
   sourceCommitSha?: string | null
@@ -890,6 +1523,10 @@ export type PassageCreateWithoutSourceDocumentInput = {
   publishedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  questions?: Prisma.QuestionCreateNestedManyWithoutPassageInput
+  glossaryEntries?: Prisma.PassageGlossaryEntryCreateNestedManyWithoutPassageInput
+  readingAttempts?: Prisma.ReadingAttemptCreateNestedManyWithoutPassageInput
+  wordLookups?: Prisma.AttemptWordLookupCreateNestedManyWithoutPassageInput
 }
 
 export type PassageUncheckedCreateWithoutSourceDocumentInput = {
@@ -917,6 +1554,10 @@ export type PassageUncheckedCreateWithoutSourceDocumentInput = {
   publishedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  questions?: Prisma.QuestionUncheckedCreateNestedManyWithoutPassageInput
+  glossaryEntries?: Prisma.PassageGlossaryEntryUncheckedCreateNestedManyWithoutPassageInput
+  readingAttempts?: Prisma.ReadingAttemptUncheckedCreateNestedManyWithoutPassageInput
+  wordLookups?: Prisma.AttemptWordLookupUncheckedCreateNestedManyWithoutPassageInput
 }
 
 export type PassageCreateOrConnectWithoutSourceDocumentInput = {
@@ -1027,6 +1668,10 @@ export type PassageUpdateWithoutSourceDocumentInput = {
   publishedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  questions?: Prisma.QuestionUpdateManyWithoutPassageNestedInput
+  glossaryEntries?: Prisma.PassageGlossaryEntryUpdateManyWithoutPassageNestedInput
+  readingAttempts?: Prisma.ReadingAttemptUpdateManyWithoutPassageNestedInput
+  wordLookups?: Prisma.AttemptWordLookupUpdateManyWithoutPassageNestedInput
 }
 
 export type PassageUncheckedUpdateWithoutSourceDocumentInput = {
@@ -1054,6 +1699,10 @@ export type PassageUncheckedUpdateWithoutSourceDocumentInput = {
   publishedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  questions?: Prisma.QuestionUncheckedUpdateManyWithoutPassageNestedInput
+  glossaryEntries?: Prisma.PassageGlossaryEntryUncheckedUpdateManyWithoutPassageNestedInput
+  readingAttempts?: Prisma.ReadingAttemptUncheckedUpdateManyWithoutPassageNestedInput
+  wordLookups?: Prisma.AttemptWordLookupUncheckedUpdateManyWithoutPassageNestedInput
 }
 
 export type PassageUncheckedUpdateManyWithoutSourceDocumentInput = {
@@ -1084,6 +1733,62 @@ export type PassageUncheckedUpdateManyWithoutSourceDocumentInput = {
 }
 
 
+/**
+ * Count Type PassageCountOutputType
+ */
+
+export type PassageCountOutputType = {
+  questions: number
+  glossaryEntries: number
+  readingAttempts: number
+  wordLookups: number
+}
+
+export type PassageCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  questions?: boolean | PassageCountOutputTypeCountQuestionsArgs
+  glossaryEntries?: boolean | PassageCountOutputTypeCountGlossaryEntriesArgs
+  readingAttempts?: boolean | PassageCountOutputTypeCountReadingAttemptsArgs
+  wordLookups?: boolean | PassageCountOutputTypeCountWordLookupsArgs
+}
+
+/**
+ * PassageCountOutputType without action
+ */
+export type PassageCountOutputTypeDefaultArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the PassageCountOutputType
+   */
+  select?: Prisma.PassageCountOutputTypeSelect<ExtArgs> | null
+}
+
+/**
+ * PassageCountOutputType without action
+ */
+export type PassageCountOutputTypeCountQuestionsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.QuestionWhereInput
+}
+
+/**
+ * PassageCountOutputType without action
+ */
+export type PassageCountOutputTypeCountGlossaryEntriesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.PassageGlossaryEntryWhereInput
+}
+
+/**
+ * PassageCountOutputType without action
+ */
+export type PassageCountOutputTypeCountReadingAttemptsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.ReadingAttemptWhereInput
+}
+
+/**
+ * PassageCountOutputType without action
+ */
+export type PassageCountOutputTypeCountWordLookupsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.AttemptWordLookupWhereInput
+}
+
 
 export type PassageSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -1112,6 +1817,11 @@ export type PassageSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs 
   createdAt?: boolean
   updatedAt?: boolean
   sourceDocument?: boolean | Prisma.SourceDocumentDefaultArgs<ExtArgs>
+  questions?: boolean | Prisma.Passage$questionsArgs<ExtArgs>
+  glossaryEntries?: boolean | Prisma.Passage$glossaryEntriesArgs<ExtArgs>
+  readingAttempts?: boolean | Prisma.Passage$readingAttemptsArgs<ExtArgs>
+  wordLookups?: boolean | Prisma.Passage$wordLookupsArgs<ExtArgs>
+  _count?: boolean | Prisma.PassageCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["passage"]>
 
 export type PassageSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -1203,6 +1913,11 @@ export type PassageSelectScalar = {
 export type PassageOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "sourceDocumentId" | "sourcePath" | "sourceCommitSha" | "sourceRetrievedAt" | "status" | "title" | "blocks" | "wordCount" | "contentHash" | "difficulty" | "timeLimitSeconds" | "generationAttemptCount" | "generationStartedAt" | "generationError" | "generationModel" | "generationPromptVersion" | "generatedAt" | "needsAttention" | "attentionReasons" | "rejectReason" | "reviewedAt" | "publishedAt" | "createdAt" | "updatedAt", ExtArgs["result"]["passage"]>
 export type PassageInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   sourceDocument?: boolean | Prisma.SourceDocumentDefaultArgs<ExtArgs>
+  questions?: boolean | Prisma.Passage$questionsArgs<ExtArgs>
+  glossaryEntries?: boolean | Prisma.Passage$glossaryEntriesArgs<ExtArgs>
+  readingAttempts?: boolean | Prisma.Passage$readingAttemptsArgs<ExtArgs>
+  wordLookups?: boolean | Prisma.Passage$wordLookupsArgs<ExtArgs>
+  _count?: boolean | Prisma.PassageCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type PassageIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   sourceDocument?: boolean | Prisma.SourceDocumentDefaultArgs<ExtArgs>
@@ -1215,6 +1930,10 @@ export type $PassagePayload<ExtArgs extends runtime.Types.Extensions.InternalArg
   name: "Passage"
   objects: {
     sourceDocument: Prisma.$SourceDocumentPayload<ExtArgs>
+    questions: Prisma.$QuestionPayload<ExtArgs>[]
+    glossaryEntries: Prisma.$PassageGlossaryEntryPayload<ExtArgs>[]
+    readingAttempts: Prisma.$ReadingAttemptPayload<ExtArgs>[]
+    wordLookups: Prisma.$AttemptWordLookupPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: number
@@ -1655,6 +2374,10 @@ readonly fields: PassageFieldRefs;
 export interface Prisma__PassageClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
   sourceDocument<T extends Prisma.SourceDocumentDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.SourceDocumentDefaultArgs<ExtArgs>>): Prisma.Prisma__SourceDocumentClient<runtime.Types.Result.GetResult<Prisma.$SourceDocumentPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+  questions<T extends Prisma.Passage$questionsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Passage$questionsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$QuestionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  glossaryEntries<T extends Prisma.Passage$glossaryEntriesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Passage$glossaryEntriesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$PassageGlossaryEntryPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  readingAttempts<T extends Prisma.Passage$readingAttemptsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Passage$readingAttemptsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ReadingAttemptPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  wordLookups<T extends Prisma.Passage$wordLookupsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Passage$wordLookupsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AttemptWordLookupPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -2107,6 +2830,102 @@ export type PassageDeleteManyArgs<ExtArgs extends runtime.Types.Extensions.Inter
    * Limit how many Passages to delete.
    */
   limit?: number
+}
+
+/**
+ * Passage.questions
+ */
+export type Passage$questionsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the Question
+   */
+  select?: Prisma.QuestionSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the Question
+   */
+  omit?: Prisma.QuestionOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.QuestionInclude<ExtArgs> | null
+  where?: Prisma.QuestionWhereInput
+  orderBy?: Prisma.QuestionOrderByWithRelationInput | Prisma.QuestionOrderByWithRelationInput[]
+  cursor?: Prisma.QuestionWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.QuestionScalarFieldEnum | Prisma.QuestionScalarFieldEnum[]
+}
+
+/**
+ * Passage.glossaryEntries
+ */
+export type Passage$glossaryEntriesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the PassageGlossaryEntry
+   */
+  select?: Prisma.PassageGlossaryEntrySelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the PassageGlossaryEntry
+   */
+  omit?: Prisma.PassageGlossaryEntryOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.PassageGlossaryEntryInclude<ExtArgs> | null
+  where?: Prisma.PassageGlossaryEntryWhereInput
+  orderBy?: Prisma.PassageGlossaryEntryOrderByWithRelationInput | Prisma.PassageGlossaryEntryOrderByWithRelationInput[]
+  cursor?: Prisma.PassageGlossaryEntryWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.PassageGlossaryEntryScalarFieldEnum | Prisma.PassageGlossaryEntryScalarFieldEnum[]
+}
+
+/**
+ * Passage.readingAttempts
+ */
+export type Passage$readingAttemptsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the ReadingAttempt
+   */
+  select?: Prisma.ReadingAttemptSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the ReadingAttempt
+   */
+  omit?: Prisma.ReadingAttemptOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.ReadingAttemptInclude<ExtArgs> | null
+  where?: Prisma.ReadingAttemptWhereInput
+  orderBy?: Prisma.ReadingAttemptOrderByWithRelationInput | Prisma.ReadingAttemptOrderByWithRelationInput[]
+  cursor?: Prisma.ReadingAttemptWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.ReadingAttemptScalarFieldEnum | Prisma.ReadingAttemptScalarFieldEnum[]
+}
+
+/**
+ * Passage.wordLookups
+ */
+export type Passage$wordLookupsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the AttemptWordLookup
+   */
+  select?: Prisma.AttemptWordLookupSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the AttemptWordLookup
+   */
+  omit?: Prisma.AttemptWordLookupOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.AttemptWordLookupInclude<ExtArgs> | null
+  where?: Prisma.AttemptWordLookupWhereInput
+  orderBy?: Prisma.AttemptWordLookupOrderByWithRelationInput | Prisma.AttemptWordLookupOrderByWithRelationInput[]
+  cursor?: Prisma.AttemptWordLookupWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.AttemptWordLookupScalarFieldEnum | Prisma.AttemptWordLookupScalarFieldEnum[]
 }
 
 /**

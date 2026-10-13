@@ -51,10 +51,16 @@ export const AnyNull = runtime.AnyNull
 
 
 export const ModelName = {
+  AttemptAnswer: 'AttemptAnswer',
+  AttemptWordLookup: 'AttemptWordLookup',
   AuthAccount: 'AuthAccount',
   ContentSource: 'ContentSource',
+  DictionaryEntry: 'DictionaryEntry',
   Memo: 'Memo',
   Passage: 'Passage',
+  PassageGlossaryEntry: 'PassageGlossaryEntry',
+  Question: 'Question',
+  ReadingAttempt: 'ReadingAttempt',
   SourceDocument: 'SourceDocument',
   User: 'User'
 } as const
@@ -73,6 +79,35 @@ export const TransactionIsolationLevel = runtime.makeStrictEnum({
 } as const)
 
 export type TransactionIsolationLevel = (typeof TransactionIsolationLevel)[keyof typeof TransactionIsolationLevel]
+
+
+export const AttemptAnswerScalarFieldEnum = {
+  id: 'id',
+  attemptId: 'attemptId',
+  questionId: 'questionId',
+  selectedChoiceIndex: 'selectedChoiceIndex',
+  isCorrect: 'isCorrect',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type AttemptAnswerScalarFieldEnum = (typeof AttemptAnswerScalarFieldEnum)[keyof typeof AttemptAnswerScalarFieldEnum]
+
+
+export const AttemptWordLookupScalarFieldEnum = {
+  id: 'id',
+  attemptId: 'attemptId',
+  userId: 'userId',
+  passageId: 'passageId',
+  surface: 'surface',
+  lemma: 'lemma',
+  source: 'source',
+  glossaryEntryId: 'glossaryEntryId',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type AttemptWordLookupScalarFieldEnum = (typeof AttemptWordLookupScalarFieldEnum)[keyof typeof AttemptWordLookupScalarFieldEnum]
 
 
 export const AuthAccountScalarFieldEnum = {
@@ -116,6 +151,17 @@ export const ContentSourceScalarFieldEnum = {
 export type ContentSourceScalarFieldEnum = (typeof ContentSourceScalarFieldEnum)[keyof typeof ContentSourceScalarFieldEnum]
 
 
+export const DictionaryEntryScalarFieldEnum = {
+  id: 'id',
+  headword: 'headword',
+  meaningJa: 'meaningJa',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type DictionaryEntryScalarFieldEnum = (typeof DictionaryEntryScalarFieldEnum)[keyof typeof DictionaryEntryScalarFieldEnum]
+
+
 export const MemoScalarFieldEnum = {
   id: 'id',
   title: 'title',
@@ -156,6 +202,66 @@ export const PassageScalarFieldEnum = {
 } as const
 
 export type PassageScalarFieldEnum = (typeof PassageScalarFieldEnum)[keyof typeof PassageScalarFieldEnum]
+
+
+export const PassageGlossaryEntryScalarFieldEnum = {
+  id: 'id',
+  passageId: 'passageId',
+  blockIndex: 'blockIndex',
+  startOffset: 'startOffset',
+  endOffset: 'endOffset',
+  surface: 'surface',
+  lemma: 'lemma',
+  meaningJa: 'meaningJa',
+  partOfSpeech: 'partOfSpeech',
+  noteJa: 'noteJa',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type PassageGlossaryEntryScalarFieldEnum = (typeof PassageGlossaryEntryScalarFieldEnum)[keyof typeof PassageGlossaryEntryScalarFieldEnum]
+
+
+export const QuestionScalarFieldEnum = {
+  id: 'id',
+  passageId: 'passageId',
+  orderIndex: 'orderIndex',
+  type: 'type',
+  prompt: 'prompt',
+  choices: 'choices',
+  correctChoiceIndex: 'correctChoiceIndex',
+  explanationJa: 'explanationJa',
+  evidenceBlockIndex: 'evidenceBlockIndex',
+  evidenceQuote: 'evidenceQuote',
+  targetGlossaryEntryId: 'targetGlossaryEntryId',
+  verificationChoiceIndex: 'verificationChoiceIndex',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type QuestionScalarFieldEnum = (typeof QuestionScalarFieldEnum)[keyof typeof QuestionScalarFieldEnum]
+
+
+export const ReadingAttemptScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  passageId: 'passageId',
+  status: 'status',
+  startedAt: 'startedAt',
+  submittedAt: 'submittedAt',
+  timeLimitSeconds: 'timeLimitSeconds',
+  elapsedSeconds: 'elapsedSeconds',
+  isOvertime: 'isOvertime',
+  questionCount: 'questionCount',
+  correctCount: 'correctCount',
+  translatedBlockCount: 'translatedBlockCount',
+  wordLookupCount: 'wordLookupCount',
+  studyDate: 'studyDate',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type ReadingAttemptScalarFieldEnum = (typeof ReadingAttemptScalarFieldEnum)[keyof typeof ReadingAttemptScalarFieldEnum]
 
 
 export const SourceDocumentScalarFieldEnum = {
@@ -206,6 +312,14 @@ export const JsonNullValueInput = {
 export type JsonNullValueInput = (typeof JsonNullValueInput)[keyof typeof JsonNullValueInput]
 
 
+export const NullsOrder = {
+  first: 'first',
+  last: 'last'
+} as const
+
+export type NullsOrder = (typeof NullsOrder)[keyof typeof NullsOrder]
+
+
 export const QueryMode = {
   default: 'default',
   insensitive: 'insensitive'
@@ -221,12 +335,4 @@ export const JsonNullValueFilter = {
 } as const
 
 export type JsonNullValueFilter = (typeof JsonNullValueFilter)[keyof typeof JsonNullValueFilter]
-
-
-export const NullsOrder = {
-  first: 'first',
-  last: 'last'
-} as const
-
-export type NullsOrder = (typeof NullsOrder)[keyof typeof NullsOrder]
 

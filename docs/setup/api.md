@@ -75,6 +75,7 @@ pnpm --filter @repo/db prisma:generate   # 併存している Prisma の Client 
 cd apps/api
 pnpm db:migrate             # 未適用の migration を適用
 pnpm db:seed                # シードデータ投入 (任意)
+pnpm db:seed:dictionary     # 英和辞書（EJDict-hand）の投入。GitHub から取得する。単語の意味を引く API に必要
 pnpm db:studio              # Drizzle Studio で DB を見る (任意)
 ```
 

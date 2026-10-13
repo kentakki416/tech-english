@@ -12,10 +12,13 @@
     "db:migrate": "drizzle-kit migrate --config=drizzle/drizzle.config.ts",
     "db:push": "drizzle-kit push --config=drizzle/drizzle.config.ts",
     "db:seed": "tsx drizzle/seed.ts",
+    "db:seed:dictionary": "tsx drizzle/seed-dictionary.ts",
     "db:studio": "drizzle-kit studio --config=drizzle/drizzle.config.ts",
     "prisma:generate": "prisma generate --config=prisma/prisma.config.ts",
     "lint": "eslint 'src/**/*.ts'",
-    "lint:fix": "eslint 'src/**/*.ts' --fix"
+    "lint:fix": "eslint 'src/**/*.ts' --fix",
+    "test": "tsx --test drizzle/ejdict.test.ts",
+    "test:ci": "tsx --test drizzle/ejdict.test.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.7.0",

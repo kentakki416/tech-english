@@ -233,6 +233,8 @@ export type UserWhereInput = {
   createdAt?: Prisma.DateTimeFilter<"User"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"User"> | Date | string
   accounts?: Prisma.AuthAccountListRelationFilter
+  readingAttempts?: Prisma.ReadingAttemptListRelationFilter
+  wordLookups?: Prisma.AttemptWordLookupListRelationFilter
 }
 
 export type UserOrderByWithRelationInput = {
@@ -244,6 +246,8 @@ export type UserOrderByWithRelationInput = {
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   accounts?: Prisma.AuthAccountOrderByRelationAggregateInput
+  readingAttempts?: Prisma.ReadingAttemptOrderByRelationAggregateInput
+  wordLookups?: Prisma.AttemptWordLookupOrderByRelationAggregateInput
 }
 
 export type UserWhereUniqueInput = Prisma.AtLeast<{
@@ -258,6 +262,8 @@ export type UserWhereUniqueInput = Prisma.AtLeast<{
   createdAt?: Prisma.DateTimeFilter<"User"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"User"> | Date | string
   accounts?: Prisma.AuthAccountListRelationFilter
+  readingAttempts?: Prisma.ReadingAttemptListRelationFilter
+  wordLookups?: Prisma.AttemptWordLookupListRelationFilter
 }, "id" | "email">
 
 export type UserOrderByWithAggregationInput = {
@@ -296,6 +302,8 @@ export type UserCreateInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   accounts?: Prisma.AuthAccountCreateNestedManyWithoutUserInput
+  readingAttempts?: Prisma.ReadingAttemptCreateNestedManyWithoutUserInput
+  wordLookups?: Prisma.AttemptWordLookupCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateInput = {
@@ -307,6 +315,8 @@ export type UserUncheckedCreateInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   accounts?: Prisma.AuthAccountUncheckedCreateNestedManyWithoutUserInput
+  readingAttempts?: Prisma.ReadingAttemptUncheckedCreateNestedManyWithoutUserInput
+  wordLookups?: Prisma.AttemptWordLookupUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserUpdateInput = {
@@ -317,6 +327,8 @@ export type UserUpdateInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   accounts?: Prisma.AuthAccountUpdateManyWithoutUserNestedInput
+  readingAttempts?: Prisma.ReadingAttemptUpdateManyWithoutUserNestedInput
+  wordLookups?: Prisma.AttemptWordLookupUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateInput = {
@@ -328,6 +340,8 @@ export type UserUncheckedUpdateInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   accounts?: Prisma.AuthAccountUncheckedUpdateManyWithoutUserNestedInput
+  readingAttempts?: Prisma.ReadingAttemptUncheckedUpdateManyWithoutUserNestedInput
+  wordLookups?: Prisma.AttemptWordLookupUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateManyInput = {
@@ -402,6 +416,20 @@ export type UserSumOrderByAggregateInput = {
   id?: Prisma.SortOrder
 }
 
+export type UserCreateNestedOneWithoutWordLookupsInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutWordLookupsInput, Prisma.UserUncheckedCreateWithoutWordLookupsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutWordLookupsInput
+  connect?: Prisma.UserWhereUniqueInput
+}
+
+export type UserUpdateOneRequiredWithoutWordLookupsNestedInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutWordLookupsInput, Prisma.UserUncheckedCreateWithoutWordLookupsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutWordLookupsInput
+  upsert?: Prisma.UserUpsertWithoutWordLookupsInput
+  connect?: Prisma.UserWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutWordLookupsInput, Prisma.UserUpdateWithoutWordLookupsInput>, Prisma.UserUncheckedUpdateWithoutWordLookupsInput>
+}
+
 export type UserCreateNestedOneWithoutAccountsInput = {
   create?: Prisma.XOR<Prisma.UserCreateWithoutAccountsInput, Prisma.UserUncheckedCreateWithoutAccountsInput>
   connectOrCreate?: Prisma.UserCreateOrConnectWithoutAccountsInput
@@ -416,6 +444,82 @@ export type UserUpdateOneRequiredWithoutAccountsNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutAccountsInput, Prisma.UserUpdateWithoutAccountsInput>, Prisma.UserUncheckedUpdateWithoutAccountsInput>
 }
 
+export type UserCreateNestedOneWithoutReadingAttemptsInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutReadingAttemptsInput, Prisma.UserUncheckedCreateWithoutReadingAttemptsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutReadingAttemptsInput
+  connect?: Prisma.UserWhereUniqueInput
+}
+
+export type UserUpdateOneRequiredWithoutReadingAttemptsNestedInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutReadingAttemptsInput, Prisma.UserUncheckedCreateWithoutReadingAttemptsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutReadingAttemptsInput
+  upsert?: Prisma.UserUpsertWithoutReadingAttemptsInput
+  connect?: Prisma.UserWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutReadingAttemptsInput, Prisma.UserUpdateWithoutReadingAttemptsInput>, Prisma.UserUncheckedUpdateWithoutReadingAttemptsInput>
+}
+
+export type UserCreateWithoutWordLookupsInput = {
+  email?: string | null
+  name?: string | null
+  avatarUrl?: string | null
+  timezone?: string
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  accounts?: Prisma.AuthAccountCreateNestedManyWithoutUserInput
+  readingAttempts?: Prisma.ReadingAttemptCreateNestedManyWithoutUserInput
+}
+
+export type UserUncheckedCreateWithoutWordLookupsInput = {
+  id?: number
+  email?: string | null
+  name?: string | null
+  avatarUrl?: string | null
+  timezone?: string
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  accounts?: Prisma.AuthAccountUncheckedCreateNestedManyWithoutUserInput
+  readingAttempts?: Prisma.ReadingAttemptUncheckedCreateNestedManyWithoutUserInput
+}
+
+export type UserCreateOrConnectWithoutWordLookupsInput = {
+  where: Prisma.UserWhereUniqueInput
+  create: Prisma.XOR<Prisma.UserCreateWithoutWordLookupsInput, Prisma.UserUncheckedCreateWithoutWordLookupsInput>
+}
+
+export type UserUpsertWithoutWordLookupsInput = {
+  update: Prisma.XOR<Prisma.UserUpdateWithoutWordLookupsInput, Prisma.UserUncheckedUpdateWithoutWordLookupsInput>
+  create: Prisma.XOR<Prisma.UserCreateWithoutWordLookupsInput, Prisma.UserUncheckedCreateWithoutWordLookupsInput>
+  where?: Prisma.UserWhereInput
+}
+
+export type UserUpdateToOneWithWhereWithoutWordLookupsInput = {
+  where?: Prisma.UserWhereInput
+  data: Prisma.XOR<Prisma.UserUpdateWithoutWordLookupsInput, Prisma.UserUncheckedUpdateWithoutWordLookupsInput>
+}
+
+export type UserUpdateWithoutWordLookupsInput = {
+  email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  accounts?: Prisma.AuthAccountUpdateManyWithoutUserNestedInput
+  readingAttempts?: Prisma.ReadingAttemptUpdateManyWithoutUserNestedInput
+}
+
+export type UserUncheckedUpdateWithoutWordLookupsInput = {
+  id?: Prisma.IntFieldUpdateOperationsInput | number
+  email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  accounts?: Prisma.AuthAccountUncheckedUpdateManyWithoutUserNestedInput
+  readingAttempts?: Prisma.ReadingAttemptUncheckedUpdateManyWithoutUserNestedInput
+}
+
 export type UserCreateWithoutAccountsInput = {
   email?: string | null
   name?: string | null
@@ -423,6 +527,8 @@ export type UserCreateWithoutAccountsInput = {
   timezone?: string
   createdAt?: Date | string
   updatedAt?: Date | string
+  readingAttempts?: Prisma.ReadingAttemptCreateNestedManyWithoutUserInput
+  wordLookups?: Prisma.AttemptWordLookupCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutAccountsInput = {
@@ -433,6 +539,8 @@ export type UserUncheckedCreateWithoutAccountsInput = {
   timezone?: string
   createdAt?: Date | string
   updatedAt?: Date | string
+  readingAttempts?: Prisma.ReadingAttemptUncheckedCreateNestedManyWithoutUserInput
+  wordLookups?: Prisma.AttemptWordLookupUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutAccountsInput = {
@@ -458,6 +566,8 @@ export type UserUpdateWithoutAccountsInput = {
   timezone?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  readingAttempts?: Prisma.ReadingAttemptUpdateManyWithoutUserNestedInput
+  wordLookups?: Prisma.AttemptWordLookupUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutAccountsInput = {
@@ -468,6 +578,70 @@ export type UserUncheckedUpdateWithoutAccountsInput = {
   timezone?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  readingAttempts?: Prisma.ReadingAttemptUncheckedUpdateManyWithoutUserNestedInput
+  wordLookups?: Prisma.AttemptWordLookupUncheckedUpdateManyWithoutUserNestedInput
+}
+
+export type UserCreateWithoutReadingAttemptsInput = {
+  email?: string | null
+  name?: string | null
+  avatarUrl?: string | null
+  timezone?: string
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  accounts?: Prisma.AuthAccountCreateNestedManyWithoutUserInput
+  wordLookups?: Prisma.AttemptWordLookupCreateNestedManyWithoutUserInput
+}
+
+export type UserUncheckedCreateWithoutReadingAttemptsInput = {
+  id?: number
+  email?: string | null
+  name?: string | null
+  avatarUrl?: string | null
+  timezone?: string
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  accounts?: Prisma.AuthAccountUncheckedCreateNestedManyWithoutUserInput
+  wordLookups?: Prisma.AttemptWordLookupUncheckedCreateNestedManyWithoutUserInput
+}
+
+export type UserCreateOrConnectWithoutReadingAttemptsInput = {
+  where: Prisma.UserWhereUniqueInput
+  create: Prisma.XOR<Prisma.UserCreateWithoutReadingAttemptsInput, Prisma.UserUncheckedCreateWithoutReadingAttemptsInput>
+}
+
+export type UserUpsertWithoutReadingAttemptsInput = {
+  update: Prisma.XOR<Prisma.UserUpdateWithoutReadingAttemptsInput, Prisma.UserUncheckedUpdateWithoutReadingAttemptsInput>
+  create: Prisma.XOR<Prisma.UserCreateWithoutReadingAttemptsInput, Prisma.UserUncheckedCreateWithoutReadingAttemptsInput>
+  where?: Prisma.UserWhereInput
+}
+
+export type UserUpdateToOneWithWhereWithoutReadingAttemptsInput = {
+  where?: Prisma.UserWhereInput
+  data: Prisma.XOR<Prisma.UserUpdateWithoutReadingAttemptsInput, Prisma.UserUncheckedUpdateWithoutReadingAttemptsInput>
+}
+
+export type UserUpdateWithoutReadingAttemptsInput = {
+  email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  accounts?: Prisma.AuthAccountUpdateManyWithoutUserNestedInput
+  wordLookups?: Prisma.AttemptWordLookupUpdateManyWithoutUserNestedInput
+}
+
+export type UserUncheckedUpdateWithoutReadingAttemptsInput = {
+  id?: Prisma.IntFieldUpdateOperationsInput | number
+  email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  accounts?: Prisma.AuthAccountUncheckedUpdateManyWithoutUserNestedInput
+  wordLookups?: Prisma.AttemptWordLookupUncheckedUpdateManyWithoutUserNestedInput
 }
 
 
@@ -477,10 +651,14 @@ export type UserUncheckedUpdateWithoutAccountsInput = {
 
 export type UserCountOutputType = {
   accounts: number
+  readingAttempts: number
+  wordLookups: number
 }
 
 export type UserCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   accounts?: boolean | UserCountOutputTypeCountAccountsArgs
+  readingAttempts?: boolean | UserCountOutputTypeCountReadingAttemptsArgs
+  wordLookups?: boolean | UserCountOutputTypeCountWordLookupsArgs
 }
 
 /**
@@ -500,6 +678,20 @@ export type UserCountOutputTypeCountAccountsArgs<ExtArgs extends runtime.Types.E
   where?: Prisma.AuthAccountWhereInput
 }
 
+/**
+ * UserCountOutputType without action
+ */
+export type UserCountOutputTypeCountReadingAttemptsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.ReadingAttemptWhereInput
+}
+
+/**
+ * UserCountOutputType without action
+ */
+export type UserCountOutputTypeCountWordLookupsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.AttemptWordLookupWhereInput
+}
+
 
 export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -510,6 +702,8 @@ export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   createdAt?: boolean
   updatedAt?: boolean
   accounts?: boolean | Prisma.User$accountsArgs<ExtArgs>
+  readingAttempts?: boolean | Prisma.User$readingAttemptsArgs<ExtArgs>
+  wordLookups?: boolean | Prisma.User$wordLookupsArgs<ExtArgs>
   _count?: boolean | Prisma.UserCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["user"]>
 
@@ -546,6 +740,8 @@ export type UserSelectScalar = {
 export type UserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "email" | "name" | "avatarUrl" | "timezone" | "createdAt" | "updatedAt", ExtArgs["result"]["user"]>
 export type UserInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   accounts?: boolean | Prisma.User$accountsArgs<ExtArgs>
+  readingAttempts?: boolean | Prisma.User$readingAttemptsArgs<ExtArgs>
+  wordLookups?: boolean | Prisma.User$wordLookupsArgs<ExtArgs>
   _count?: boolean | Prisma.UserCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type UserIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {}
@@ -555,6 +751,8 @@ export type $UserPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
   name: "User"
   objects: {
     accounts: Prisma.$AuthAccountPayload<ExtArgs>[]
+    readingAttempts: Prisma.$ReadingAttemptPayload<ExtArgs>[]
+    wordLookups: Prisma.$AttemptWordLookupPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: number
@@ -962,6 +1160,8 @@ readonly fields: UserFieldRefs;
 export interface Prisma__UserClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
   accounts<T extends Prisma.User$accountsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$accountsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AuthAccountPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  readingAttempts<T extends Prisma.User$readingAttemptsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$readingAttemptsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ReadingAttemptPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  wordLookups<T extends Prisma.User$wordLookupsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$wordLookupsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AttemptWordLookupPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1412,6 +1612,54 @@ export type User$accountsArgs<ExtArgs extends runtime.Types.Extensions.InternalA
   take?: number
   skip?: number
   distinct?: Prisma.AuthAccountScalarFieldEnum | Prisma.AuthAccountScalarFieldEnum[]
+}
+
+/**
+ * User.readingAttempts
+ */
+export type User$readingAttemptsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the ReadingAttempt
+   */
+  select?: Prisma.ReadingAttemptSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the ReadingAttempt
+   */
+  omit?: Prisma.ReadingAttemptOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.ReadingAttemptInclude<ExtArgs> | null
+  where?: Prisma.ReadingAttemptWhereInput
+  orderBy?: Prisma.ReadingAttemptOrderByWithRelationInput | Prisma.ReadingAttemptOrderByWithRelationInput[]
+  cursor?: Prisma.ReadingAttemptWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.ReadingAttemptScalarFieldEnum | Prisma.ReadingAttemptScalarFieldEnum[]
+}
+
+/**
+ * User.wordLookups
+ */
+export type User$wordLookupsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the AttemptWordLookup
+   */
+  select?: Prisma.AttemptWordLookupSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the AttemptWordLookup
+   */
+  omit?: Prisma.AttemptWordLookupOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.AttemptWordLookupInclude<ExtArgs> | null
+  where?: Prisma.AttemptWordLookupWhereInput
+  orderBy?: Prisma.AttemptWordLookupOrderByWithRelationInput | Prisma.AttemptWordLookupOrderByWithRelationInput[]
+  cursor?: Prisma.AttemptWordLookupWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.AttemptWordLookupScalarFieldEnum | Prisma.AttemptWordLookupScalarFieldEnum[]
 }
 
 /**
