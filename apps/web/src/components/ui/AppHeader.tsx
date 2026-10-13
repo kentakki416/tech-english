@@ -1,8 +1,8 @@
-import Image from "next/image"
 import Link from "next/link"
 
 import { getUser } from "@/features/user/get-user"
 
+import { UserAvatar } from "./UserAvatar"
 import { Wordmark } from "./Wordmark"
 
 type NavKey = "history" | "home" | "passages" | "settings"
@@ -22,7 +22,6 @@ export async function AppHeader({ current }: { current: NavKey }) {
    * ヘッダーの取得失敗でページ全体を落とさない（アバターの代わりに空の丸を出す）
    */
   const user = await getUser().catch(() => null)
-  const userName = user?.name ?? "ユーザー"
 
   return (
     <header className="sticky top-0 z-30 border-b border-line bg-canvas/90 backdrop-blur">
@@ -45,23 +44,12 @@ export async function AppHeader({ current }: { current: NavKey }) {
             </Link>
           ))}
         </nav>
-        {user?.avatar_url ? (
-          <Image
-            alt={userName}
-            className="ml-auto size-8 shrink-0 rounded-full border border-line-strong bg-raised sm:ml-0"
-            height={32}
-            src={user.avatar_url}
-            width={32}
-          />
-        ) : (
-          <span
-            aria-label={userName}
-            className="ml-auto grid size-8 shrink-0 place-items-center rounded-full border border-line-strong bg-raised text-sm font-semibold text-fg sm:ml-0"
-            role="img"
-          >
-            {user?.name?.charAt(0).toUpperCase() ?? ""}
-          </span>
-        )}
+        <UserAvatar
+          avatarUrl={user?.avatar_url ?? null}
+          className="ml-auto size-8 text-sm sm:ml-0"
+          name={user?.name ?? null}
+          size={32}
+        />
       </div>
     </header>
   )
