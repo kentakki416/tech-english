@@ -52,6 +52,7 @@ export class PrismaPassageAudioRepository implements PassageAudioRepository {
             passage_audios.id IS NULL
             OR passage_audios.status = 'pending'
             OR (passage_audios.status = 'ready' AND passage_audios.updated_at < passages.published_at)
+            OR (passage_audios.status = 'ready' AND passage_audios.voice_id <> ${input.voiceId})
           )
         ORDER BY passages.published_at ASC, passages.id ASC
         LIMIT ${input.limit}::integer
@@ -136,8 +137,11 @@ export class PrismaPassageAudioRepository implements PassageAudioRepository {
       }
 
       if (outcome.kind === "unchanged") {
+        /**
+         * manifest と generated_at は前の成功のまま（Drizzle 実装のコメントのとおり ready の CHECK 制約を満たす）。失敗の回数とエラーは消す
+         */
         await tx.passageAudio.updateMany({
-          data: { generationStartedAt: null, status: "ready", updatedAt: options.now },
+          data: { attemptCount: 0, generationStartedAt: null, lastError: null, status: "ready", updatedAt: options.now },
           where: claimWhere,
         })
         return "unchanged"

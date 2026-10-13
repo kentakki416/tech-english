@@ -123,12 +123,12 @@ stateDiagram-v2
     generating --> pending: 失敗（3 回未満）・生成中に本文が変わった・30 分以上止まった
     generating --> failed: 3 回失敗
     failed --> pending: 管理者が再試行
-    ready --> generating: 公開し直された（本文が変わったか確かめる）
+    ready --> generating: 公開し直された（本文が変わったか確かめる）・voice を変えた
 ```
 
 - 音声は **問題が公開された後** に作る。生成タスクは 1 時間ごとに動くので、公開から最大 1 時間ほどで聞けるようになる
 - 下書き（未公開）の問題には音声を作らない（却下される問題に費用をかけないため）
-- 公開済みの問題を非公開に戻して本文を直し、再公開すると、音声を作り直す。本文が変わっていなければ作り直さない（作り直すかを確かめる間は「準備中」になる）
+- 公開済みの問題を非公開に戻して本文を直し、再公開すると、音声を作り直す。本文が変わっていなければ作り直さない（非公開の間と、再公開の後に作り直すかを確かめる間は「準備中」になる）
 - 利用者には `pending` と `generating` をどちらも「準備中」と見せる。失敗した問題は、管理者が再試行するまで自動では作り直さない
 - 管理者は admin の問題の確認画面で、音声の状態（準備中・生成中・作成済み・失敗）と作成日時を見られる。失敗したものは「再試行」できる
 
@@ -176,7 +176,7 @@ Polly の Neural は **単語の時刻（Speech Marks）を返せる最も安い
 
 - **無料枠**：Polly の Neural は、AWS アカウントを作ってから 12 か月間、月 100 万文字（約 200 問）まで無料。ただし対象は **2025 年 7 月 15 日より前に作ったアカウント** だけで、それ以降に作ったアカウントは代わりに最大 $200 のクレジット（6 か月）が付く。どちらの期間も過ぎたアカウントは上の表のとおり課金される
 - 費用は **公開した問題の数に比例** し、ユーザー数や再生回数にはほぼ比例しない（音声を作り置きして使い回すため）
-- 本文を直して再公開したときだけ作り直す（本文のハッシュで判定）
+- 本文を直して再公開したとき（本文のハッシュで判定）と、voice を変えたときだけ作り直す。読み上げ用テキストの作り方の版（`AUDIO_TEXT_VERSION`）を上げても自動では作り直さない（[音声の生成タスク](#音声の生成タスク)）
 - 1 回の実行で作る件数に上限を置く（`AUDIO_MAX_PASSAGES_PER_RUN`、既定 20）。AWS の Budgets で Polly の利用額にアラートを付ける
 
 参考：[Amazon Polly の料金](https://aws.amazon.com/polly/pricing/)、[Polly の Speech Marks](https://docs.aws.amazon.com/polly/latest/dg/speechmarks.html)、[Polly の Generative の制約](https://docs.aws.amazon.com/polly/latest/dg/generative-voices.html)、[CloudFront の料金](https://aws.amazon.com/cloudfront/pricing/pay-as-you-go/)、[Google Cloud TTS の料金（調査サイト）](https://texttolab.com/blog/google-cloud-tts-pricing)、[Azure TTS の料金（調査サイト）](https://texttolab.com/blog/azure-text-to-speech-pricing)、[OpenAI TTS の料金（調査サイト）](https://texttolab.com/blog/openai-tts-pricing)、[ElevenLabs の料金](https://elevenlabs.io/pricing)
@@ -186,8 +186,8 @@ Polly の Neural は **単語の時刻（Speech Marks）を返せる最も安い
 cron に `generate:audio` タスクを足す。EventBridge Scheduler で **1 時間ごと** に起動する（`generate:questions` とは独立）。
 
 1. `generating` のまま 30 分以上たった行を `pending` に戻す（前回の実行が途中で落ちた場合の回収。[question-generation の生成タスク](../question-generation/README.md#生成タスクの動き) と同じ）
-2. 対象を **状態で確保する**。`status = 'published'` の問題のうち、`passage_audios` が無い・`status = 'pending'`・`ready` で音声を作った後に公開し直された（`passage_audios.updated_at < passages.published_at`）問題を、古い順に `AUDIO_MAX_PASSAGES_PER_RUN` 件まで、短いトランザクションで `FOR UPDATE SKIP LOCKED` で取り、`status = 'generating'`・`generation_started_at = now()` にして commit する（行が無ければ作る）。実行が重なっても同じ問題を二重に処理しない
-3. 1 件ずつ、**トランザクションの外で** 音声を作る。本文のハッシュ（`text_hash`）を求め、`ready` だった行で前と同じなら作り直さない。違えば、読み上げるブロック（[読み上げない部分](#読み上げない部分) を除く）を順に処理する
+2. 対象を **状態で確保する**。`status = 'published'` の問題のうち、`passage_audios` が無い・`status = 'pending'`・`ready` で音声を作った後に公開し直された（`passage_audios.updated_at < passages.published_at`）・`ready` で `voice_id` が今の voice と違う問題を、古い順に `AUDIO_MAX_PASSAGES_PER_RUN` 件まで、短いトランザクションで `FOR UPDATE SKIP LOCKED` で取り、`status = 'generating'`・`generation_started_at = now()` にして commit する（行が無ければ作る）。実行が重なっても同じ問題を二重に処理しない
+3. 1 件ずつ、**トランザクションの外で** 音声を作る。本文のハッシュ（`text_hash`）を求め、前の成功のマニフェストがあってそのハッシュと同じなら、行の状態を問わず作り直さない（`pending` に戻された行でも Polly を呼ばない。マニフェストの mp3 は別のハッシュの生成が成功して置き換わるまで消さないので、そのまま使える）。違えば、読み上げるブロック（[読み上げない部分](#読み上げない部分) を除く）を順に処理する
    - ブロックから読み上げ用のテキストを作る（[次節](#読み上げ用のテキストと文字位置の対応)）
    - Polly の `SynthesizeSpeech` を 2 回呼ぶ：mp3（`OutputFormat=mp3`）と単語の時刻（`OutputFormat=json`、`SpeechMarkTypes=["word"]`）
    - 1 リクエストの上限（課金対象 3,000 文字）を超えるブロックは文の区切りで分け、**パート** ごとに音声を作る（まれ）
@@ -199,6 +199,7 @@ cron に `generate:audio` タスクを足す。EventBridge Scheduler で **1 時
 - Polly を呼ぶ間はトランザクションを開かない（本番〈minimal〉の DB は PgBouncer の transaction pooling なので、長いトランザクションを避ける）
 - Polly のクライアントは `apps/cron/src/client/polly/`（`@aws-sdk/client-polly`）。資格情報は ECS のタスクロール（IAM に `polly:SynthesizeSpeech`）。ローカルは AWS の資格情報が無ければタスクが「音声合成を使えない」として何もせず終わる（開発中は無音の mp3〈無音の MPEG フレームを並べたもの〉と等間隔の単語の時刻を返す `FakeTtsClient` を env で選べる）
 - 冪等：同じ問題を 2 回処理しても、同じキーに上書きして同じマニフェストになる
+- 読み上げ用テキストの作り方を変えて `AUDIO_TEXT_VERSION` を上げても、`ready` の行は自動では作り直さない。作り直すときはデプロイの後に `UPDATE passage_audios SET status = 'pending' WHERE status = 'ready'` を流す（次の実行から `AUDIO_MAX_PASSAGES_PER_RUN` 件ずつ作り直す。その間は「準備中」になる。ハッシュが変わらない行は Polly を呼ばずに `ready` に戻る）
 
 ### 読み上げ用のテキストと文字位置の対応
 
@@ -214,9 +215,11 @@ cron に `generate:audio` タスクを足す。EventBridge Scheduler で **1 時
 
 - 保存は `@repo/storage` の `Storage`（本番は S3、ローカルは `LocalStorage`）。音声用に 1 つのインスタンス（`audioStorage`）を作る。S3 の実装に、保存時の `Cache-Control` の指定と mp3 の Content-Type（`audio/mpeg`）を足す
 - 本番は S3 の専用 bucket を CloudFront（OAC）で配信する。音声は公開してよい英文の読み上げなので、署名付き URL にはしない（キーに本文のハッシュを含めるので推測されにくい）。キャッシュは長期（`Cache-Control: public, max-age=31536000, immutable`）。本文や声が変わるとキーが変わるので（`text_hash` に voice も含める）古いキャッシュは問題にならない。CloudFront は独自ドメインにせず既定のドメインを使う（独自ドメインは us-east-1 の証明書が要るため）
-- ローカルは cron が `.storage/audio/` に書き、api が開発環境でだけ `/media/*` として配信する（`production` では配信しない）
+- ローカルは cron が `.storage/audio/` に書き、api が開発環境でだけ `/media/*` として配信する（`production` では配信しない）。`production` で保存先が `local`（`AUDIO_STORAGE_TYPE` の既定）のままなら、生成タスクは起動時に throw する（コンテナの一時領域に mp3 を書いて `ready` にしないため。cron の他のタスクを止めないよう env の検証では弾かない）
 - api はマニフェストのキーを `AUDIO_PUBLIC_URL_BASE` と組み合わせて URL にして返す。本番で未設定なら音声は「準備中」を返す（infra より先に api を出しても起動を止めない）
-- api は `ready` でも、音声を作った（または同じ本文だと確かめた）後に問題が公開し直されていれば（`updated_at < published_at`）、本文が変わって位置がずれているかもしれないので「準備中」として返す。生成タスクが本文を確かめると `ready` に戻る
+- api は `ready` でも、次のときは本文が変わって位置がずれているかもしれないので「準備中」として返す（利用者の API・admin の詳細の両方）
+  - 問題が公開中でない（非公開に戻した）。非公開に戻しても `published_at` は残り、下書きのまま本文を直せるので、`updated_at` と `published_at` の比較では直した後の本文に古いマニフェストが重なる。再公開すると生成タスクが本文のハッシュを確かめて `ready` に戻す（本文が同じなら Polly を呼ばない）
+  - 音声を作った（または同じ本文だと確かめた）後に問題が公開し直された（`updated_at < published_at`）。生成タスクが本文を確かめると `ready` に戻る
 - infra（AWS の設定後）：cron のタスクロールを execution role から分けて Polly と bucket への書き込みの権限を付ける。min の deploy の role にそのタスクロールの `iam:PassRole` を足す。Polly の費用は環境ごとに分けられないので、Budgets のアラートはアカウントに 1 つ置く（[step8](./tasks/step8-infra-audio.md)）
 
 ### 再生の実装
@@ -236,6 +239,9 @@ cron に `generate:audio` タスクを足す。EventBridge Scheduler で **1 時
 - 再生位置は音声の中の時刻なので、速度を変えても単語の時刻はそのまま使える
 - 「聞いた段落」の記録は、ブロックの中の再生位置が 1 秒を超えたら `listenedBlockIndexes` に足す（シークの操作は無いので、再生位置で再生した時間を表せる）。途中経過として端末に保存する値（web は `localStorage`、mobile は `AsyncStorage`）に含め、提出時に件数（`listened_block_count`）を送る。途中経過の版は上げず、この値が無い古い保存も読む（解答中の挑戦の途中経過を消さないため）
 - マニフェストは解答画面・結果画面を開いた後に、挑戦とは別のリクエストで取得する（挑戦の開始・取得のレスポンスを重くしない。押す前に「準備中」を出すため、押したときではなく開いたときに取る）。web は Route Handler（`/api/attempts/[id]/audio`）を経由する
+- 外から止めた（一時停止の操作・上部バーの一時停止・画面を離れた）直後にパートの終わりが届いたら、次のパートは鳴らさずに用意だけして一時停止のままにする（再開すると次のパートの最初から鳴る。次が無ければ待機に戻る）。止める直前にパートが終わっていると、終わりの通知が後から届いて次のパートが勝手に鳴るため
+- 取得の失敗だけでなく再生の失敗（mp3 を読み込めない。mobile は 10 秒たっても読み込めない）でも時刻表を捨て、再生ボタンでマニフェストを取り直す（取り直したら待機に戻り、もう一度押すと再生する）。公開し直しで音声が作り直されて古い mp3 が消えていると、同じ時刻表の URL では失敗し続けるため
+- mobile は、パートを `replace` した後に届く前のパートの再生状態の通知を、通知の音声の長さ（`duration`）が新しいパートの長さと合う（±250ms）まで捨てる（ネイティブからの通知は非同期で、前のパートの通知が何件も後から届くことがある）。詳細は [step6](./tasks/step6-mobile-read-aloud.md)
 
 ### 失敗時の扱い
 
@@ -514,9 +520,9 @@ cron に `generate:audio` タスクを足す。EventBridge Scheduler で **1 時
 
 | メソッド | パス | 認証 | 説明 |
 | --- | --- | --- | --- |
-| GET | `/api/attempt/:id/audio` | 必要 | 自分の挑戦の問題の音声マニフェスト。`status`（`pending` / `ready` / `failed`。`generating` と公開し直された後の確認待ちは `pending` として返す）と、`ready` のときブロックごとのパート（`url`・`duration_ms`・単語の時刻 `[start_ms, end_ms, start_offset, end_offset][]`）。他人の挑戦は 404 |
+| GET | `/api/attempt/:id/audio` | 必要 | 自分の挑戦の問題の音声マニフェスト。`status`（`pending` / `ready` / `failed`。`generating`・非公開に戻された問題の `ready`・公開し直された後の確認待ちは `pending` として返す）と、`ready` のときブロックごとのパート（`url`・`duration_ms`・単語の時刻 `[start_ms, end_ms, start_offset, end_offset][]`）。他人の挑戦は 404 |
 | POST | `/api/attempt/:id/submit` | 必要 | 既存。リクエストに `listened_block_count`（0〜ブロック数。省略時は 0、ブロック数を超えたら切り詰める）を足す。結果のレスポンスにも返す |
-| GET | `/api/admin/passage/:id` | admin | 既存。`audio`（`status`・`generated_at`・`last_error`）を足す。`status` は `generating` もそのまま返す |
+| GET | `/api/admin/passage/:id` | admin | 既存。`audio`（`status`・`generated_at`・`last_error`）を足す。`status` は `generating` もそのまま返す。非公開に戻された問題の `ready`・公開し直された後の確認待ちは `pending` |
 | POST | `/api/admin/passage/:id/audio/retry` | admin | 失敗した音声を `pending` に戻す（`failed` のときだけ。それ以外は 409） |
 
 学習記録の API（`/api/user/stats`・`/api/user/attempts`）は、アシストの判定に `listened_block_count > 0` を含める（レスポンスの形は変えない）。

@@ -83,7 +83,8 @@ const cronEnvSchema = z
      */
     TTS_PROVIDER: z.enum(["polly", "fake"]).optional(),
     /**
-     * generate-audio の Polly の voice（Neural に対応したもの）。変えると text_hash が変わり、全問の音声が作り直しになる
+     * generate-audio の Polly の voice（Neural に対応したもの）。変えると、voice_id が違う ready の音声を生成タスクが確保し、
+     * 次の実行から AUDIO_MAX_PASSAGES_PER_RUN 件ずつ作り直す（text_hash にも voice を含むので保存キーも変わる）
      */
     TTS_VOICE_ID: z.string().min(1).default("Joanna"),
     /**
@@ -95,7 +96,9 @@ const cronEnvSchema = z
      */
     AUDIO_MAX_PASSAGES_PER_RUN: z.coerce.number().int().positive().default(20),
     /**
-     * generate-audio の mp3 の保存先。local は AUDIO_STORAGE_LOCAL_DIR、s3 は AUDIO_STORAGE_S3_BUCKET
+     * generate-audio の mp3 の保存先。local は AUDIO_STORAGE_LOCAL_DIR、s3 は AUDIO_STORAGE_S3_BUCKET。
+     * production の local は generate-audio の起動時に throw する（コンテナの一時領域に mp3 を書いて ready にしないため）。
+     * スキーマでは検査しない（cron の他のタスクを止めないため）
      */
     AUDIO_STORAGE_TYPE: z.enum(["local", "s3"]).default("local"),
     /**

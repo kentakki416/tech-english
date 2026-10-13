@@ -21,7 +21,8 @@ type Props = {
 const MAX_AUDIO_ATTEMPTS = 3
 
 /**
- * 状態ごとの本文（README の「音声ができるまで」）。準備中・生成中は、前に作った音声があれば前回の作成日時も出す（公開し直した後の確認待ち）
+ * 状態ごとの本文（README の「音声ができるまで」）。準備中・生成中は、前に作った音声があれば前回の作成日時も出す
+ * （公開し直した後の確認待ち。非公開に戻した問題の作成済みの音声も、API が準備中として返す）
  */
 const listAudioMessages = (audio: AdminPassageAudio): string[] => {
   const previous = audio.generated_at ? [`前回の作成：${formatDateTime(audio.generated_at)}`] : []

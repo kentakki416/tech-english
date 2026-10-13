@@ -5,37 +5,50 @@ import { buildPassageAudio } from "../fixture/passage-audio"
 
 const PUBLISHED_AT = new Date("2026-10-12T03:00:00.000Z")
 
+const PUBLISHED_PASSAGE = { publishedAt: PUBLISHED_AT, status: "published" as const }
+
 describe("resolveAudioStatus", () => {
   describe("正常系", () => {
-    it("ready で、音声を作った時刻が公開日時より後なら ready", () => {
-      expect(resolveAudioStatus(buildPassageAudio({ updatedAt: new Date("2026-10-12T04:00:00.000Z") }), PUBLISHED_AT)).toBe("ready")
+    it("ready で、公開中の問題で、音声を作った時刻が公開日時より後なら ready", () => {
+      expect(resolveAudioStatus(buildPassageAudio({ updatedAt: new Date("2026-10-12T04:00:00.000Z") }), PUBLISHED_PASSAGE)).toBe("ready")
     })
 
     it("ready で、音声を作った時刻と公開日時が同じなら ready（境界値）", () => {
-      expect(resolveAudioStatus(buildPassageAudio({ updatedAt: PUBLISHED_AT }), PUBLISHED_AT)).toBe("ready")
+      expect(resolveAudioStatus(buildPassageAudio({ updatedAt: PUBLISHED_AT }), PUBLISHED_PASSAGE)).toBe("ready")
     })
 
     it.each<AudioStatus>(["pending", "generating", "failed"])("%s はそのまま返す", (status) => {
-      expect(resolveAudioStatus(buildPassageAudio({ status }), PUBLISHED_AT)).toBe(status)
+      expect(resolveAudioStatus(buildPassageAudio({ status }), PUBLISHED_PASSAGE)).toBe(status)
+    })
+
+    it.each<AudioStatus>(["pending", "generating", "failed"])("非公開に戻した問題でも %s はそのまま返す", (status) => {
+      expect(resolveAudioStatus(buildPassageAudio({ status }), { ...PUBLISHED_PASSAGE, status: "draft" })).toBe(status)
     })
   })
 
   describe("異常系", () => {
     it("音声の行が無ければ pending", () => {
-      expect(resolveAudioStatus(null, PUBLISHED_AT)).toBe("pending")
+      expect(resolveAudioStatus(null, PUBLISHED_PASSAGE)).toBe("pending")
     })
 
     it("ready でも、音声を作った後に公開し直されていれば pending（1 ミリ秒前。境界値）", () => {
-      expect(resolveAudioStatus(buildPassageAudio({ updatedAt: new Date(PUBLISHED_AT.getTime() - 1) }), PUBLISHED_AT)).toBe("pending")
+      expect(resolveAudioStatus(buildPassageAudio({ updatedAt: new Date(PUBLISHED_AT.getTime() - 1) }), PUBLISHED_PASSAGE)).toBe("pending")
     })
 
     it("ready でも、公開日時が null なら pending", () => {
-      expect(resolveAudioStatus(buildPassageAudio(), null)).toBe("pending")
+      expect(resolveAudioStatus(buildPassageAudio(), { publishedAt: null, status: "published" })).toBe("pending")
     })
 
     it("ready でも、マニフェストが無ければ pending", () => {
-      expect(resolveAudioStatus(buildPassageAudio({ manifest: null }), PUBLISHED_AT)).toBe("pending")
+      expect(resolveAudioStatus(buildPassageAudio({ manifest: null }), PUBLISHED_PASSAGE)).toBe("pending")
     })
+
+    it.each(["draft", "rejected"] as const)(
+      "ready でも、問題が %s（非公開に戻した）なら、音声を作った後に公開し直されていなくても pending（published_at は残り、下書きのまま本文を直せるため）",
+      (status) => {
+        expect(resolveAudioStatus(buildPassageAudio({ updatedAt: new Date("2026-10-12T04:00:00.000Z") }), { ...PUBLISHED_PASSAGE, status })).toBe("pending")
+      },
+    )
   })
 })
 

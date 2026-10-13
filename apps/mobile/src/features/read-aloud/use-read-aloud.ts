@@ -25,7 +25,7 @@ import {
 } from "./read-aloud-timeline"
 
 /**
- * 音声の情報の状態。loading は画面を開いてから取得が終わるまで、error は取得か再生の失敗（再生ボタンで取り直す）
+ * 音声の情報の状態。loading は画面を開いてから取得が終わるまで、error は取得か再生の失敗（どちらも時刻表を捨ててあり、再生ボタンで取り直す）
  */
 export type ReadAloudAvailability = "error" | "failed" | "loading" | "pending" | "ready"
 
@@ -77,7 +77,7 @@ type PlaybackUpdate = (current: ReadAloudPlayback | null) => ReadAloudPlayback |
 
 type ControllerEvents = {
   /**
-   * 音声の読み込みの失敗。再生は止めてから呼ぶ
+   * 音声の読み込みの失敗。再生は止めてから呼ぶ（呼び出し側は時刻表を捨てて、次の再生ボタンでマニフェストを取り直す）
    */
   onError: () => void
   onListened: (blockIndex: number) => void
@@ -102,10 +102,22 @@ const STATUS_UPDATE_INTERVAL_MS = 100
 const LOAD_TIMEOUT_MS = 10_000
 
 /**
- * replace の直後に届いた更新のうち、再生位置がこれ以上のものは前のパートのものとして捨てる
- * （ネイティブからの更新は非同期に届くので、replace より前に送られた更新が後から届くことがある）
+ * replace の後、status.duration（秒）がこのパートの durationMs（マニフェストの mp3 のフレームから求めた長さ）とこの範囲で合う更新を、
+ * このパートの更新とみなす（ネイティブからの更新は非同期に届くので、replace より前に送られた前のパートの更新が何件も後から届くことがある）
+ */
+const PART_DURATION_TOLERANCE_MS = 250
+
+/**
+ * 前のパートと長さが PART_DURATION_TOLERANCE_MS 以内で区別できないときは、再生位置がこれ未満の更新だけをこのパートのものとみなす
+ * （このパートは最初から鳴らすので、最初の更新の位置は 0 に近い。前のパートの終わりの更新は位置が長さと同じになる）
  */
 const STALE_STATUS_MIN_MS = 1000
+
+/**
+ * replace からこの時間たっても長さの合う更新が来なければ、長さを問わずこのパートの更新とみなす（長さの報告が manifest とずれる端末でも
+ * 単語の追跡とパートの終わりの処理を止めないため。前のパートの更新は replace の直後に届き終える）
+ */
+const STALE_STATUS_MAX_DELAY_MS = 2000
 
 /**
  * 速度を変えても声の高さを保つ。iOS は medium（timeDomain。声に向く）。
@@ -144,9 +156,22 @@ const createReadAloudController = (player: AudioPlayer, events: ControllerEvents
    */
   let isStarting = false
   /**
-   * replace の後、このパートの更新がまだ届いていない
+   * replace の後、このパートの更新だと分かる更新がまだ届いていない（届くまでの更新は前のパートのものとして捨てる）
    */
   let isAwaitingPartStatus = false
+  /**
+   * player に今 replace してあるパートの長さと、その前に replace してあったパートの長さ（前のパートの更新と見分けるのに使う）。
+   * 停止しても player には前のパートが残るので、停止では消さない
+   */
+  let loadedPartDurationMs: number | null = null
+  let previousPartDurationMs: number | null = null
+  let replacedAt = 0
+  /**
+   * 外から止めた（一時停止の操作・上部バーの一時停止・アプリが前面でなくなった・上に画面を積んだ。pause()）。
+   * 立っている間にパートの終わり（didJustFinish）が届いたら、次のパートを replace するだけで play() しない（止める直前にパートが終わっていると、
+   * 止めた後に終わりの更新が届いて次のパートが勝手に鳴るため）。再開と、自分の操作で始めたとき（start）に下ろす
+   */
+  let isPauseRequested = false
   /**
    * このパートで status.playing を見たか。再生を始める前に届いた didJustFinish は前のパートのものとして無視する
    */
@@ -183,6 +208,7 @@ const createReadAloudController = (player: AudioPlayer, events: ControllerEvents
     wordIndex = -1
     isPlaying = false
     isStarting = false
+    isPauseRequested = false
     player.pause()
     events.onPlaybackChange(() => null)
   }
@@ -199,26 +225,30 @@ const createReadAloudController = (player: AudioPlayer, events: ControllerEvents
   }
 
   /**
-   * パートを最初から再生する。読み込みに失敗しても AudioStatus にはエラーが無いので、10 秒たっても読み込めていなければ止める
+   * パートを最初から再生する。shouldPlay が false なら replace するだけで play() せず、一時停止の表示にする（再開すると最初から鳴る）。
+   * 読み込みに失敗しても AudioStatus にはエラーが無いので、10 秒たっても読み込めていなければ止める
    */
-  const startPart = (blockIndex: number, partIndex: number, mode: ReadAloudMode) => {
+  const startPart = (blockIndex: number, partIndex: number, mode: ReadAloudMode, options: { shouldPlay: boolean }) => {
     const part = findBlock(blockIndex)?.parts[partIndex]
     if (!part) return
     cursor = { blockIndex, mode, partIndex }
     wordIndex = -1
-    isPlaying = true
-    isStarting = true
+    isPlaying = options.shouldPlay
+    isStarting = options.shouldPlay
     isAwaitingPartStatus = true
     hasPlayedPart = false
     hasFinishedPart = false
-    events.onPlaybackChange(() => ({ blockIndex, isPlaying: true, mode, partIndex, wordIndex: -1 }))
+    previousPartDurationMs = loadedPartDurationMs
+    loadedPartDurationMs = part.durationMs
+    replacedAt = Date.now()
+    events.onPlaybackChange(() => ({ blockIndex, isPlaying: options.shouldPlay, mode, partIndex, wordIndex: -1 }))
     player.replace({ uri: part.url })
     /**
      * replace の後は速度が戻ることがあるので、パートごとに設定し直す
      */
     player.shouldCorrectPitch = true
     player.setPlaybackRate(rate, PITCH_CORRECTION_QUALITY)
-    player.play()
+    if (options.shouldPlay) player.play()
     clearLoadTimer()
     loadTimer = setTimeout(() => {
       loadTimer = null
@@ -229,20 +259,37 @@ const createReadAloudController = (player: AudioPlayer, events: ControllerEvents
   }
 
   /**
-   * 同じブロックの次のパート → 全文なら次のブロック → 終わり の順
+   * 同じブロックの次のパート → 全文なら次のブロック → 終わり の順。外から止めた後に届いたパートの終わりなら、次のパートを一時停止のまま用意する。
+   * 次が無ければ（段落の再生の最後・全文の最後）止めたかに関わらず待機に戻す
    */
   const startNextPart = (current: PlaybackCursor) => {
+    const shouldPlay = !isPauseRequested
     const block = findBlock(current.blockIndex)
     if (block && current.partIndex + 1 < block.parts.length) {
-      startPart(block.blockIndex, current.partIndex + 1, current.mode)
+      startPart(block.blockIndex, current.partIndex + 1, current.mode, { shouldPlay })
       return
     }
     const nextBlock = current.mode === "all" ? findNextBlock(current.blockIndex) : undefined
     if (nextBlock) {
-      startPart(nextBlock.blockIndex, 0, "all")
+      startPart(nextBlock.blockIndex, 0, "all", { shouldPlay })
       return
     }
     stop()
+  }
+
+  /**
+   * replace の後に届いた更新が、今のパートのものか。status.duration が今のパートの長さと合うものだけを今のパートのものとし、
+   * 長さがまだ分からない（0・NaN）更新と前のパートの長さの更新は捨てる。前のパートと長さで区別できないときは、再生位置が 1 秒未満のものだけにする
+   * （1 秒未満の短いパートどうしを切り替えた直後に限り、前のパートの終わりの更新を取り違えることがある。そのときは次のパートへ早く進む）。
+   * replace から 2 秒たっても合わなければ、長さを問わず今のパートのものとする
+   */
+  const isCurrentPartStatus = (status: AudioStatus, partDurationMs: number): boolean => {
+    if (Date.now() - replacedAt >= STALE_STATUS_MAX_DELAY_MS) return true
+    const durationMs = status.duration * 1000
+    if (!Number.isFinite(durationMs) || durationMs <= 0) return false
+    if (Math.abs(durationMs - partDurationMs) > PART_DURATION_TOLERANCE_MS) return false
+    const isAmbiguous = previousPartDurationMs !== null && Math.abs(previousPartDurationMs - partDurationMs) <= PART_DURATION_TOLERANCE_MS
+    return !isAmbiguous || status.currentTime * 1000 < STALE_STATUS_MIN_MS
   }
 
   /**
@@ -264,8 +311,12 @@ const createReadAloudController = (player: AudioPlayer, events: ControllerEvents
     }
   }
 
+  /**
+   * 外から止める（一時停止の操作・上部バーの一時停止・アプリが前面でなくなった・上に画面を積んだ）。待機中は何もしない
+   */
   const pause = () => {
     if (!cursor) return
+    isPauseRequested = true
     player.pause()
     isStarting = false
     updateIsPlaying(false)
@@ -284,11 +335,12 @@ const createReadAloudController = (player: AudioPlayer, events: ControllerEvents
      */
     if (loadTimer !== null && player.isLoaded) clearLoadTimer()
 
-    const positionMs = status.currentTime * 1000
     if (isAwaitingPartStatus) {
-      if (positionMs >= STALE_STATUS_MIN_MS) return
+      const partDurationMs = block.parts[cursor.partIndex]?.durationMs ?? 0
+      if (!isCurrentPartStatus(status, partDurationMs)) return
       isAwaitingPartStatus = false
     }
+    const positionMs = status.currentTime * 1000
     if (status.didJustFinish) {
       if (hasPlayedPart && !hasFinishedPart) {
         hasFinishedPart = true
@@ -339,8 +391,9 @@ const createReadAloudController = (player: AudioPlayer, events: ControllerEvents
     start: (input: { blockIndex: number, mode: ReadAloudMode, rate: ReadAloudRate, timeline: ReadAloudTimeline }) => {
       timeline = input.timeline
       rate = input.rate
+      isPauseRequested = false
       requestAudioMode()
-      startPart(input.blockIndex, 0, input.mode)
+      startPart(input.blockIndex, 0, input.mode, { shouldPlay: true })
     },
     stop,
     /**
@@ -352,6 +405,7 @@ const createReadAloudController = (player: AudioPlayer, events: ControllerEvents
         pause()
         return
       }
+      isPauseRequested = false
       isStarting = true
       updateIsPlaying(true)
       player.play()
@@ -394,7 +448,7 @@ export function useReadAloud({ attemptId, blocks, onBlockListened }: UseReadAlou
   const [timeline, setTimeline] = useState<ReadAloudTimeline | null>(null)
   const [playback, setPlayback] = useState<ReadAloudPlayback | null>(null)
   /**
-   * 増やすと音声の情報を取り直す（取得の失敗の後に再生ボタンを押したとき）
+   * 増やすと音声の情報を取り直す（取得・再生の失敗の後に再生ボタンを押したとき）
    */
   const [fetchCount, setFetchCount] = useState(0)
   /**
@@ -463,14 +517,24 @@ export function useReadAloud({ attemptId, blocks, onBlockListened }: UseReadAlou
     }
   }, [])
 
+  /**
+   * 取得・再生の失敗。時刻表を捨てて、次の再生ボタンでマニフェストを取り直す（再公開で音声が作り直されて古い mp3 が消えていると、
+   * 同じ時刻表の URL では失敗し続けるため）
+   */
+  const markPlaybackFailed = useCallback(() => {
+    timelineRef.current = null
+    setTimeline(null)
+    updateAvailability("error")
+  }, [updateAvailability])
+
   const getController = useCallback((): ReadAloudController => {
     controllerRef.current ??= createReadAloudController(player, {
-      onError: () => updateAvailability("error"),
+      onError: markPlaybackFailed,
       onListened: blockIndex => onBlockListenedRef.current?.(blockIndex),
       onPlaybackChange: setPlayback,
     })
     return controllerRef.current
-  }, [player, updateAvailability])
+  }, [markPlaybackFailed, player])
 
   useEventListener(player, "playbackStatusUpdate", (status) => {
     controllerRef.current?.handleStatus(status)
@@ -481,18 +545,16 @@ export function useReadAloud({ attemptId, blocks, onBlockListened }: UseReadAlou
   }, [getController])
 
   const togglePlay = useCallback(() => {
-    const currentTimeline = timelineRef.current
-    const firstBlock = currentTimeline?.blocks[0]
+    /**
+     * 取得・再生の失敗の後は取り直すだけ（取り直したら待機に戻り、もう一度押すと再生する）
+     */
     if (availabilityRef.current === "error") {
-      if (currentTimeline && firstBlock) {
-        updateAvailability("ready")
-        startPlayback(currentTimeline, firstBlock.blockIndex, "all")
-      } else {
-        updateAvailability("loading")
-        setFetchCount(count => count + 1)
-      }
+      updateAvailability("loading")
+      setFetchCount(count => count + 1)
       return
     }
+    const currentTimeline = timelineRef.current
+    const firstBlock = currentTimeline?.blocks[0]
     if (availabilityRef.current !== "ready" || !currentTimeline || !firstBlock) return
     const controller = getController()
     if (controller.getCursor() === null) startPlayback(currentTimeline, firstBlock.blockIndex, "all")

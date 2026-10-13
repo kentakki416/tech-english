@@ -16,7 +16,7 @@ import {
 import { type ReadAloudRate, useReadAloudRate } from "./use-read-aloud-rate"
 
 /**
- * 音声の情報の状態。loading は画面を開いてから取得が終わるまで、error は取得か再生の失敗（再生ボタンで取り直す）
+ * 音声の情報の状態。loading は画面を開いてから取得が終わるまで、error は取得か再生の失敗（どちらも時刻表を捨ててあり、再生ボタンで取り直す）
  */
 export type ReadAloudAvailability = "error" | "failed" | "loading" | "pending" | "ready"
 
@@ -72,7 +72,7 @@ type PlaybackUpdate = (current: ReadAloudPlayback | null) => ReadAloudPlayback |
 
 type PlayerEvents = {
   /**
-   * 音声の読み込みの失敗など。再生は止めてから呼ぶ
+   * 音声の読み込みの失敗など。再生は止めてから呼ぶ（呼び出し側は時刻表を捨てて、次の再生ボタンでマニフェストを取り直す）
    */
   onError: () => void
   onListened: (blockIndex: number) => void
@@ -116,6 +116,12 @@ const createReadAloudPlayer = (events: PlayerEvents) => {
   let wordIndex = -1
   let frameId: number | null = null
   /**
+   * 外から止めた（一時停止の操作・上部バーの一時停止・タブの切り替えなど。pause() と toggle() の一時停止）。
+   * 立っている間にパートの終わり（ended）が届いたら、次のパートの src を差し替えるだけで鳴らさない（止める直前にパートが終わっていると、
+   * 止めた後に ended が届いて次のパートが勝手に鳴るため）。再開と、自分の操作で始めたとき（start）に下ろす
+   */
+  let isPauseRequested = false
+  /**
    * 「聞いた段落」として通知したブロック。親も重複を除くので、二重に通知しても害は無い
    */
   const listenedBlocks = new Set<number>()
@@ -123,6 +129,16 @@ const createReadAloudPlayer = (events: PlayerEvents) => {
   const findBlock = (blockIndex: number): TimelineBlock | undefined => timeline?.blocks.find(block => block.blockIndex === blockIndex)
 
   const findNextBlock = (blockIndex: number): TimelineBlock | undefined => timeline?.blocks.find(block => block.blockIndex > blockIndex)
+
+  /**
+   * 同じブロックの次のパート → 全文なら次のブロックの最初のパート。無ければ（段落の再生の最後・全文の最後）null
+   */
+  const findNextCursor = (current: PlaybackCursor): PlaybackCursor | null => {
+    const block = findBlock(current.blockIndex)
+    if (block && current.partIndex + 1 < block.parts.length) return { ...current, partIndex: current.partIndex + 1 }
+    const nextBlock = current.mode === "all" ? findNextBlock(current.blockIndex) : undefined
+    return nextBlock ? { blockIndex: nextBlock.blockIndex, mode: "all", partIndex: 0 } : null
+  }
 
   const stopTracking = () => {
     if (frameId !== null) window.cancelAnimationFrame(frameId)
@@ -169,6 +185,7 @@ const createReadAloudPlayer = (events: PlayerEvents) => {
     stopTracking()
     cursor = null
     wordIndex = -1
+    isPauseRequested = false
     preloadAudio = null
     unloadAudio()
     events.onPlaybackChange(() => null)
@@ -202,22 +219,18 @@ const createReadAloudPlayer = (events: PlayerEvents) => {
   }
 
   /**
-   * 同じブロックの次のパート → 全文なら次のブロック → 終わり の順
+   * 同じブロックの次のパート → 全文なら次のブロック → 終わり の順。外から止めた後に届いたときは、次のパートを一時停止のまま用意する
+   * （再開すると次のパートの最初から鳴る）。次が無ければ止めたかに関わらず待機に戻す
    */
   const handleEnded = () => {
     stopTracking()
     if (!cursor) return
-    const block = findBlock(cursor.blockIndex)
-    if (block && cursor.partIndex + 1 < block.parts.length) {
-      startPart(block.blockIndex, cursor.partIndex + 1, cursor.mode)
+    const next = findNextCursor(cursor)
+    if (!next) {
+      stop()
       return
     }
-    const nextBlock = cursor.mode === "all" ? findNextBlock(cursor.blockIndex) : undefined
-    if (nextBlock) {
-      startPart(nextBlock.blockIndex, 0, "all")
-      return
-    }
-    stop()
+    startPart(next.blockIndex, next.partIndex, next.mode, { shouldPlay: !isPauseRequested })
   }
 
   const handleError = () => {
@@ -258,22 +271,40 @@ const createReadAloudPlayer = (events: PlayerEvents) => {
     preloadAudio = element
   }
 
-  const startPart = (blockIndex: number, partIndex: number, mode: ReadAloudMode) => {
+  /**
+   * パートの src を差し替えて最初から再生する。shouldPlay が false なら差し替えるだけで鳴らさず、一時停止の表示にする
+   * （パートの終わりの pause は audio.ended のため handlePause が表示に反映しないので、ここで合わせる）
+   */
+  const startPart = (blockIndex: number, partIndex: number, mode: ReadAloudMode, options: { shouldPlay: boolean }) => {
     const part = findBlock(blockIndex)?.parts[partIndex]
     if (!part) return
     const element = ensureAudio()
     stopTracking()
     cursor = { blockIndex, mode, partIndex }
     wordIndex = -1
-    events.onPlaybackChange(current => ({ blockIndex, isPlaying: current?.isPlaying ?? false, mode, partIndex, wordIndex: -1 }))
+    events.onPlaybackChange(current => ({
+      blockIndex,
+      isPlaying: options.shouldPlay && (current?.isPlaying ?? false),
+      mode,
+      partIndex,
+      wordIndex: -1,
+    }))
     element.src = part.url
     /**
      * src を差し替えると playbackRate が defaultPlaybackRate に戻るので、差し替えた後に設定する
      */
     element.defaultPlaybackRate = rate
     element.playbackRate = rate
-    playAudio(element)
+    if (options.shouldPlay) playAudio(element)
     preloadNextPart(blockIndex, partIndex, mode)
+  }
+
+  /**
+   * 外から止める。パートの終わり（audio.ended）で止まっている間も、続く ended で次のパートを鳴らさないよう印を付ける
+   */
+  const requestPause = () => {
+    isPauseRequested = true
+    audio?.pause()
   }
 
   return {
@@ -283,12 +314,16 @@ const createReadAloudPlayer = (events: PlayerEvents) => {
     dispose: () => {
       stopTracking()
       cursor = null
+      isPauseRequested = false
       preloadAudio = null
       unloadAudio()
     },
     getCursor: (): PlaybackCursor | null => cursor,
+    /**
+     * 一時停止（上部バーの一時停止・タブの切り替え）。待機中は何もしない
+     */
     pause: () => {
-      if (cursor) audio?.pause()
+      if (cursor) requestPause()
     },
     setRate: (next: ReadAloudRate) => {
       rate = next
@@ -302,16 +337,22 @@ const createReadAloudPlayer = (events: PlayerEvents) => {
     start: (input: { blockIndex: number, mode: ReadAloudMode, rate: ReadAloudRate, timeline: ReadAloudTimeline }) => {
       timeline = input.timeline
       rate = input.rate
-      startPart(input.blockIndex, 0, input.mode)
+      isPauseRequested = false
+      startPart(input.blockIndex, 0, input.mode, { shouldPlay: true })
     },
     stop,
     /**
-     * 再生中なら一時停止、一時停止中なら続きから
+     * 再生中なら一時停止、一時停止中なら続きから。パートの終わり（ended が届く前）は再生中として扱い、一時停止にする
+     * （paused だけで見ると、終わったパートを最初から鳴らし直してしまうため）
      */
     toggle: () => {
       if (!audio || !cursor) return
-      if (audio.paused) playAudio(audio)
-      else audio.pause()
+      if (audio.paused && !audio.ended) {
+        isPauseRequested = false
+        playAudio(audio)
+        return
+      }
+      requestPause()
     },
   }
 }
@@ -342,7 +383,7 @@ export function useReadAloud({ attemptId, blocks, isEnabled = true, onBlockListe
   const [timeline, setTimeline] = useState<ReadAloudTimeline | null>(null)
   const [playback, setPlayback] = useState<ReadAloudPlayback | null>(null)
   /**
-   * 増やすと音声の情報を取り直す（取得の失敗の後に再生ボタンを押したとき）
+   * 増やすと音声の情報を取り直す（取得・再生の失敗の後に再生ボタンを押したとき）
    */
   const [fetchCount, setFetchCount] = useState(0)
   const [rate, saveRate] = useReadAloudRate()
@@ -392,32 +433,40 @@ export function useReadAloud({ attemptId, blocks, isEnabled = true, onBlockListe
     return () => controller.abort()
   }, [attemptId, blocks, fetchCount, isEnabled, updateAvailability])
 
+  /**
+   * 取得・再生の失敗。時刻表を捨てて、次の再生ボタンでマニフェストを取り直す（再公開で音声が作り直されて古い mp3 が消えていると、
+   * 同じ時刻表の URL では失敗し続けるため）
+   */
+  const markPlaybackFailed = useCallback(() => {
+    timelineRef.current = null
+    setTimeline(null)
+    updateAvailability("error")
+  }, [updateAvailability])
+
   const getPlayer = useCallback((): ReadAloudPlayer => {
     playerRef.current ??= createReadAloudPlayer({
-      onError: () => updateAvailability("error"),
+      onError: markPlaybackFailed,
       onListened: blockIndex => onBlockListenedRef.current?.(blockIndex),
       onPlaybackChange: setPlayback,
     })
     return playerRef.current
-  }, [updateAvailability])
+  }, [markPlaybackFailed])
 
   const startPlayback = useCallback((currentTimeline: ReadAloudTimeline, blockIndex: number, mode: ReadAloudMode) => {
     getPlayer().start({ blockIndex, mode, rate: rateRef.current, timeline: currentTimeline })
   }, [getPlayer])
 
   const togglePlay = useCallback(() => {
-    const currentTimeline = timelineRef.current
-    const firstBlock = currentTimeline?.blocks[0]
+    /**
+     * 取得・再生の失敗の後は取り直すだけ（取り直したら待機に戻り、もう一度押すと再生する）
+     */
     if (availabilityRef.current === "error") {
-      if (currentTimeline && firstBlock) {
-        updateAvailability("ready")
-        startPlayback(currentTimeline, firstBlock.blockIndex, "all")
-      } else {
-        updateAvailability("loading")
-        setFetchCount(count => count + 1)
-      }
+      updateAvailability("loading")
+      setFetchCount(count => count + 1)
       return
     }
+    const currentTimeline = timelineRef.current
+    const firstBlock = currentTimeline?.blocks[0]
     if (availabilityRef.current !== "ready" || !currentTimeline || !firstBlock) return
     const player = getPlayer()
     if (player.getCursor() === null) startPlayback(currentTimeline, firstBlock.blockIndex, "all")

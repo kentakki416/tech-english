@@ -87,7 +87,9 @@ const describeError = (error: unknown): string => {
 }
 
 /**
- * 1 件分の音声を作る（トランザクションの外）。ready だった行で本文のハッシュが同じなら作り直さない。
+ * 1 件分の音声を作る（トランザクションの外）。前の成功のマニフェストがあり、その本文のハッシュ（voice と AUDIO_TEXT_VERSION を含む）が
+ * 今と同じなら、行の状態を問わず作り直さない（admin の再試行・手動の UPDATE などで pending に戻された ready の行でも Polly を呼ばない）。
+ * manifest がある行の text_hash はその manifest のもので、その mp3 は別の hash の生成が成功して置き換わるまで消さないので、そのまま使える。
  * 読み上げるブロック → パートの順に、音声合成 → 長さ・単語の時刻 → mp3 の保存をする。
  * 設定の誤り（isFatalTtsError）は throw し、それ以外の失敗は failed の outcome にする
  */
@@ -97,7 +99,9 @@ const buildPassageAudio = async (
   deps: GenerateAudioDeps,
 ): Promise<AudioClaimOutcome> => {
   const textHash = options.calculateTextHash(target.blocks)
-  if (target.previous?.status === "ready" && target.previous.textHash === textHash) return { kind: "unchanged", textHash }
+  if (target.previous !== null && target.previous.manifest !== null && target.previous.textHash === textHash) {
+    return { kind: "unchanged", textHash }
+  }
 
   try {
     let billedCharacters = 0

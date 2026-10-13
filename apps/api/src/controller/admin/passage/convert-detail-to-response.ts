@@ -40,14 +40,14 @@ export const convertAdminPassageListItemToResponse = (item: AdminPassageListItem
 
 /**
  * 読み上げの音声の状態。音声の行があるか公開中なら返し（公開中で行がまだ無ければ pending）、それ以外（下書きなどで行も無い）は null。
- * generating はそのまま返す
+ * generating はそのまま返す。非公開に戻した問題の ready は、本文を直したかもしれないので pending にする（resolveAudioStatus。再公開すると生成タスクが確かめる）
  */
 const convertAudioToResponse = ({ audio, passage }: AdminPassageDetail): AdminPassageDetailResponse["audio"] => {
   if (!audio && passage.status !== "published") return null
   return {
     generated_at: audio?.generatedAt?.toISOString() ?? null,
     last_error: audio?.lastError ?? null,
-    status: resolveAudioStatus(audio, passage.publishedAt),
+    status: resolveAudioStatus(audio, passage),
   }
 }
 

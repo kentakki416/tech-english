@@ -44,17 +44,20 @@ export const getAttemptAudioResponseSchema = z.discriminatedUnion("status", [
 
 ```ts
 /**
- * 表示する状態（admin と利用者で共通）。ready でも、音声を作った（または cron が本文の同一を確かめた）後に公開し直されていれば、
- * 本文が変わってマニフェストの位置がずれているかもしれないので pending として扱う（cron が次の実行で作り直すか確かめる）。
+ * 表示する状態（admin と利用者で共通）。ready でも、次のときは本文が変わってマニフェストの位置がずれているかもしれないので pending として扱う。
+ * - 問題が公開中でない（非公開に戻した）：published_at は残り、下書きのまま本文を直せるので、updated_at と published_at の比較だけでは
+ *   直した後の本文に古いマニフェストが重なる。再公開すると cron が本文の hash を確かめて ready に戻す（本文が同じなら Polly を呼ばない）
+ * - 音声を作った（または cron が本文の同一を確かめた）後に公開し直された：cron が次の実行で作り直すか確かめる
  * generating はそのまま返す（admin 向け）。利用者向けには toUserAudioStatus で pending にする
  */
 export const resolveAudioStatus = (
   audio: Pick<PassageAudio, "manifest" | "status" | "updatedAt"> | null,
-  publishedAt: Date | null,
+  passage: Pick<Passage, "publishedAt" | "status">,
 ): AudioStatus => {
   if (!audio) return "pending"
   if (audio.status !== "ready") return audio.status
-  return audio.manifest && publishedAt && audio.updatedAt >= publishedAt ? "ready" : "pending"
+  if (passage.status !== "published") return "pending"
+  return audio.manifest && passage.publishedAt && audio.updatedAt >= passage.publishedAt ? "ready" : "pending"
 }
 
 /** 利用者には generating も「準備中」と見せる */
@@ -65,22 +68,22 @@ export const toUserAudioStatus = (status: AudioStatus): Exclude<AudioStatus, "ge
 export const buildAudioUrl = (baseUrl: string, key: string): string
 ```
 
-公開し直した直後は、本文が変わっていなくても cron が確かめるまで（最大 1 時間）`pending` になる。
+公開し直した直後は、本文が変わっていなくても cron が確かめるまで（最大 1 時間）`pending` になる。非公開に戻している間も `pending`（挑戦中・提出済みの挑戦からは、非公開の問題の音声 API も呼ばれる）。
 
 ### 3. Repository
 
 ```ts
 /** src/repository/passage-audio-repository.ts（新規。Drizzle / Prisma の両方に実装し、index.ts に足す） */
-export type PassageAudioWithPassage = { audio: PassageAudio | null; passagePublishedAt: Date | null }
+export type PassageAudioWithPassage = { audio: PassageAudio | null; passage: Pick<Passage, "publishedAt" | "status"> }
 export interface PassageAudioRepository {
-  /** passages に passage_audios を left join。問題が無ければ null */
+  /** passages に passage_audios を left join（passages の状態と公開日時も読む）。問題が無ければ null */
   findByPassageId(passageId: number): Promise<PassageAudioWithPassage | null>
   /** status = 'failed' のときだけ pending に戻す（attempt_count = 0、last_error = null）。更新できなければ false */
   resetFailed(passageId: number): Promise<boolean>
 }
 ```
 
-- Prisma 実装の `_toDomain()` は `status` を `isAudioStatus` で検証し（未知の値は throw）、`manifest` は `Json` を `PassageAudioManifest` として扱う
+- Prisma 実装の `_toDomain()` は `status` を `isAudioStatus` で検証し（未知の値は throw）、`manifest` は `Json` を `PassageAudioManifest` として扱う。`findByPassageId` の `passages.status` も `isPassageStatus` で検証する
 - `PassageRepository`：`AdminPassageDetail` に `audio: PassageAudio | null` を足し、`findAdminDetail` で読む（join か別のクエリ。両実装）
 - `ReadingAttemptRepository`：`SubmitReadingAttemptInput` に `listenedBlockCount` を足し、`markSubmitted` で書く
 - `LearningRecordRepository`：`SubmittedAttempt` に `listenedBlockCount` を足し、`summarizeNoAssistAccuracy` の条件に `listened_block_count = 0` を足す（コメントも「和訳・単語・読み上げをどれも使っていない挑戦だけ」に直す）
@@ -103,7 +106,7 @@ export const getAttemptAudio = async (
 
 1. `findByIdForUser(attemptId, userId)` が null なら `err(notFoundError(...))`（他人の挑戦も 404。状態は問わない）
 2. `findByPassageId(attempt.passageId)` が null なら 404
-3. `toUserAudioStatus(resolveAudioStatus(...))` が `ready` でなければその状態だけ返す（`generating` は `pending`）。`audioPublicUrlBase` が null（本番で未設定。[step8](./step8-infra-audio.md) の前）なら `pending`
+3. `toUserAudioStatus(resolveAudioStatus(found.audio, found.passage))` が `ready` でなければその状態だけ返す（`generating`・非公開に戻された問題の `ready` は `pending`）。`audioPublicUrlBase` が null（本番で未設定。[step8](./step8-infra-audio.md) の前）なら `pending`
 4. マニフェストの各パートの `key` を `buildAudioUrl` で URL にして返す（単語の時刻はそのまま）
 
 `submitAttempt`：入力に `listenedBlockCount` を足す。`translatedBlockCount` と同じく **code 以外のブロック数で上限をかけて** 保存する（超えても 400 にしない。提出を失敗させないため）。`SubmittedAttemptView` と `buildSubmittedView` に `listenedBlockCount` を足し、保存済みの結果を返す経路（冪等・`getAttempt`）も同じ値を返す。
@@ -121,7 +124,7 @@ export const retryAdminPassageAudio = async (
 
 `findByPassageId` が null → 404、`audio?.status !== "failed"`（行が無い・pending・generating・ready）→ `conflictError`、`resetFailed` が false（同時に状態が変わった）→ 409。
 
-詳細の変換（`convertAdminPassageDetailToResponse`）の `audio`：行があるか公開中なら `{ generated_at, last_error, status: resolveAudioStatus(detail.audio, detail.passage.publishedAt) }`（公開中で行が無ければ `pending` と null 2 つ）、それ以外は null。保存（PUT）のレスポンスも同じ変換を通る。
+詳細の変換（`convertAdminPassageDetailToResponse`）の `audio`：行があるか公開中なら `{ generated_at, last_error, status: resolveAudioStatus(detail.audio, detail.passage) }`（非公開に戻した問題の `ready` は `pending`）（公開中で行が無ければ `pending` と null 2 つ）、それ以外は null。保存（PUT）のレスポンスも同じ変換を通る。
 
 ### 5. Controller・Router・DI
 
@@ -162,29 +165,29 @@ pnpm lint:fix
 
 lib（`test/lib/passage-audio.test.ts`）：
 
-- [ ] `resolveAudioStatus`：行が無い → pending / pending・generating・failed はそのまま / ready で `updatedAt >= publishedAt` → ready、`updatedAt < publishedAt`・`publishedAt` が null → pending
+- [ ] `resolveAudioStatus`：行が無い → pending / pending・generating・failed はそのまま（非公開の問題でも）/ 公開中の ready で `updatedAt >= publishedAt` → ready、`updatedAt < publishedAt`・`publishedAt` が null → pending / 問題が `published` でない（draft・rejected）ready → pending
 - [ ] `toUserAudioStatus`：generating → pending、他はそのまま
 - [ ] `buildAudioUrl`：base の末尾のスラッシュの有無で同じ URL
 
 Service（ユニット）：
 
-- [ ] `getAttemptAudio`：他人の挑戦は 404 で `findByPassageId` を呼ばない / ready は URL 付きのブロックを返す / generating・公開し直された ready・`audioPublicUrlBase` が null は pending / failed は failed
+- [ ] `getAttemptAudio`：他人の挑戦は 404 で `findByPassageId` を呼ばない / ready は URL 付きのブロックを返す / generating・公開し直された ready・非公開に戻された問題の ready・`audioPublicUrlBase` が null は pending / failed は failed
 - [ ] `submitAttempt`：`listenedBlockCount` が code 以外のブロック数で切り詰められて `markSubmitted` に渡る。保存済みの結果を返すときも同じ値
 - [ ] `usedAssist`：読み上げだけ使った挑戦が true、どれも 0 なら false
 - [ ] `retryAdminPassageAudio`：failed → ok / 行が無い・pending・generating・ready → 409 / 問題が無い → 404 / `resetFailed` が false → 409
 
 Controller（インテグレーション。実 DB）：
 
-- [ ] `GET /api/attempt/:id/audio`：認証なしで 401 / 他人の挑戦・存在しない ID で 404 / 行が無い・`generating` の行は `{ status: "pending" }` / ready の行で、`url` が `AUDIO_PUBLIC_URL_BASE` + キー、`words` がタプルの配列（`toEqual` + `expect.any`）/ 提出済みの挑戦でも返る
+- [ ] `GET /api/attempt/:id/audio`：認証なしで 401 / 他人の挑戦・存在しない ID で 404 / 行が無い・`generating` の行・問題を非公開に戻した ready の行は `{ status: "pending" }` / ready の行で、`url` が `AUDIO_PUBLIC_URL_BASE` + キー、`words` がタプルの配列（`toEqual` + `expect.any`）/ 提出済みの挑戦でも返る
 - [ ] `POST /api/attempt/:id/submit`：`listened_block_count: 2` を送ると DB と結果に 2 / 省略すると 0 / ブロック数より大きいと切り詰められる / `-1` で 400
 - [ ] `GET /api/user/stats` の `no_assist` に読み上げだけ使った挑戦が入らない。`GET /api/user/attempts` の `used_assist` が true
-- [ ] `GET /api/admin/passage/:id`：音声の無い公開中の問題で `audio.status: "pending"`、下書きで null、`generating` の行で `audio.status: "generating"`、failed の行で `last_error`
+- [ ] `GET /api/admin/passage/:id`：音声の無い公開中の問題で `audio.status: "pending"`、下書きで null、`generating` の行で `audio.status: "generating"`、failed の行で `last_error`、非公開に戻した問題の ready の行で `audio.status: "pending"`（failed は failed のまま）
 - [ ] `POST /api/admin/passage/:id/audio/retry`：failed → 200 で DB が `pending`・`attempt_count = 0`・`last_error = null` / ready・generating・行なし → 409 / 存在しない ID → 404 / `X-Admin-Token` なしで 401
 - [ ] `/media`：`NODE_ENV=test` で `.storage/audio`（テストでは一時ディレクトリを `audioDir` に渡す）の mp3 が 200 で返り、`Range: bytes=0-99` で 206、無いファイルと `..` を含むパスで 404、`Cross-Origin-Resource-Policy: cross-origin`。`mediaRouter` の guard を `NODE_ENV=production` にして 404
 
 Repository の契約テスト（`test/repository/passage-audio-repository.test.ts`、Drizzle / Prisma の `describe.each`）：
 
-- [ ] `findByPassageId`：行が無い問題は `audio: null` と `passagePublishedAt` / 存在しない問題は null / `manifest` がそのまま読める
+- [ ] `findByPassageId`：行が無い問題は `audio: null` と `passage`（`status`・`publishedAt`）/ 非公開に戻した問題は `publishedAt` が残ったまま `status: "draft"` / 存在しない問題は null / `manifest` がそのまま読める
 - [ ] `resetFailed`：failed だけ更新して true、pending・generating・ready は変えずに false
 - [ ] `findAdminDetail` が `audio` を返す、`summarizeNoAssistAccuracy` が `listened_block_count > 0` の挑戦を数えない（既存の契約テストに足す）
 

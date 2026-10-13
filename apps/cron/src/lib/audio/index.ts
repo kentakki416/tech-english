@@ -1,4 +1,5 @@
 export { buildAudioKey, listUnusedAudioKeys } from "./audio-key"
+export { isAudioStorageAllowed } from "./audio-storage"
 export { measureMp3DurationMs } from "./mp3-duration"
 export { listReadAloudBlocks } from "./read-aloud-blocks"
 export { buildSpeechText, mapSpeechRangeToSource } from "./speech-text"

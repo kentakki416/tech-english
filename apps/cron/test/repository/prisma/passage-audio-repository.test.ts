@@ -47,7 +47,7 @@ const createFakePrisma = (options: { blocks?: PassageBlock[] | null; queryResult
 describe("PrismaPassageAudioRepository", () => {
   describe("claimTargets", () => {
     describe("正常系", () => {
-      it("Drizzle 実装と同じ条件・順序・行ロックで選び、unnest で insert して ON CONFLICT は pending / ready だけ generating にする", async () => {
+      it("Drizzle 実装と同じ条件（voice が今と違う ready を含む）・順序・行ロックで選び、unnest で insert して ON CONFLICT は pending / ready だけ generating にする", async () => {
         const fake = createFakePrisma({
           queryResults: [
             [
@@ -64,11 +64,13 @@ describe("PrismaPassageAudioRepository", () => {
         const [selectStrings, ...selectValues] = fake.queryRaw.mock.calls[0] ?? []
         const selectSql = readRawSql(selectStrings)
         expect(selectSql).toContain("WHERE passages.status = 'published'")
-        expect(selectSql).toContain(
-          "passage_audios.id IS NULL OR passage_audios.status = 'pending' OR (passage_audios.status = 'ready' AND passage_audios.updated_at < passages.published_at)",
-        )
+        expect(selectSql).toContain([
+          "passage_audios.id IS NULL OR passage_audios.status = 'pending'",
+          " OR (passage_audios.status = 'ready' AND passage_audios.updated_at < passages.published_at)",
+          " OR (passage_audios.status = 'ready' AND passage_audios.voice_id <> $?)",
+        ].join(""))
         expect(selectSql).toContain("ORDER BY passages.published_at ASC, passages.id ASC LIMIT $?::integer FOR UPDATE OF passages SKIP LOCKED")
-        expect(selectValues).toEqual([20])
+        expect(selectValues).toEqual(["Joanna", 20])
 
         const [insertStrings, ...insertValues] = fake.queryRaw.mock.calls[1] ?? []
         const insertSql = readRawSql(insertStrings)
@@ -128,7 +130,7 @@ describe("PrismaPassageAudioRepository", () => {
         })
       })
 
-      it("unchanged：status を ready にして updated_at を進めるだけ", async () => {
+      it("unchanged：status を ready にして updated_at を進め、失敗の回数とエラーを消す（manifest・text_hash・generated_at は前の成功のまま）", async () => {
         const fake = createFakePrisma({ queryResults: [[{ id: 1 }]] })
 
         const result = await new PrismaPassageAudioRepository(fake.prisma).completeClaim(
@@ -139,7 +141,7 @@ describe("PrismaPassageAudioRepository", () => {
 
         expect(result).toBe("unchanged")
         expect(fake.updateMany).toHaveBeenCalledWith({
-          data: { generationStartedAt: null, status: "ready", updatedAt: NOW },
+          data: { attemptCount: 0, generationStartedAt: null, lastError: null, status: "ready", updatedAt: NOW },
           where: CLAIM_WHERE,
         })
       })

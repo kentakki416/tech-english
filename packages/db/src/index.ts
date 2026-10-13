@@ -27,6 +27,7 @@ export {
   lt,
   lte,
   max,
+  ne,
   notExists,
   notInArray,
   or,

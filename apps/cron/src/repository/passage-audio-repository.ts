@@ -18,7 +18,8 @@ export type ClaimedAudioTarget = AudioClaim & {
    */
   blocks: PassageBlock[]
   /**
-   * 確保する前の行（pending / ready）。確保で行を作ったときは null
+   * 確保する前の行（pending / ready）。確保で行を作ったときは null。manifest と textHash は最後に成功した生成のもの
+   * （pending に戻された行でも、前に成功していれば値を持つ）
    */
   previous: Pick<PassageAudio, "manifest" | "status" | "textHash"> | null
 }
@@ -27,7 +28,7 @@ export type ClaimedAudioTarget = AudioClaim & {
  * 1 件の生成の結果
  *
  * - ready: 音声を作った
- * - unchanged: ready だった行で本文のハッシュが同じだった（作り直さない）
+ * - unchanged: 前の成功のマニフェストがあり、その本文のハッシュが今の本文と同じだった（状態を問わない。作り直さない）
  * - failed: 音声合成・保存に失敗した（失敗回数を増やし、maxAttempts に達したら failed）
  */
 export type AudioClaimOutcome =
@@ -56,10 +57,10 @@ export type CalculateTextHash = (blocks: PassageBlock[]) => string
  */
 export interface PassageAudioRepository {
   /**
-   * 公開済みの問題のうち、音声の行が無い・pending・ready で音声を作った後に公開し直された（updated_at < published_at）ものを、
-   * published_at の古い順に最大 limit 件、generating にしながら取る（短いトランザクションで FOR UPDATE SKIP LOCKED）。
-   * 行が無ければ作る（text_hash は calculateTextHash の値）。既にある行は status・generation_started_at・updated_at だけを更新し、
-   * manifest と text_hash は前の成功のまま残す
+   * 公開済みの問題のうち、音声の行が無い・pending・ready で音声を作った後に公開し直された（updated_at < published_at）・
+   * ready で voice_id が voiceId（今の voice）と違うものを、published_at の古い順に最大 limit 件、generating にしながら取る
+   * （短いトランザクションで FOR UPDATE SKIP LOCKED）。行が無ければ作る（text_hash は calculateTextHash の値、voice_id は voiceId）。
+   * 既にある行は status・generation_started_at・updated_at だけを更新し、manifest・text_hash・voice_id は前の成功のまま残す
    */
   claimTargets(input: { calculateTextHash: CalculateTextHash; limit: number; now: Date; voiceId: string }): Promise<ClaimedAudioTarget[]>
   /**

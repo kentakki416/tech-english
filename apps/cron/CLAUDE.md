@@ -9,7 +9,7 @@
 | `cleanup:old-memos` | `pnpm cleanup:old-memos` | `CLEANUP_MEMO_OLDER_THAN_DAYS`（既定 90）日より前の memo を一括削除 |
 | `collect:passages` | `pnpm collect:passages [--source-id=N] [--dry-run]` | 有効なソースから英文を取得して本文候補（`passages`、`status = collected`）を作る（[content-collection](../../docs/spec/content-collection/README.md)）。`--source-id` で 1 ソースに絞り、`--dry-run`（`--source-id` 必須）は最大 5 件を取得して抽出結果を表示する（DB に書かない・無効のソースも可）。`github_repository`（GitHub API）と `website`（公式ドキュメントのサイトのクロール）の両方を扱う |
 | `generate:questions` | `pnpm generate:questions [--passage-id=N]` | `collected` の本文候補から Claude API で設問・和訳・用語集を生成し、解答キーを見ない検証をして `draft` にする（[question-generation](../../docs/spec/question-generation/README.md#生成タスクの動き)）。`ANTHROPIC_API_KEY` が必須。`--passage-id` で 1 件だけ（`collected` でなければ throw。下書きの上限を見ない）。1 件でも `failed` になれば exit 1 |
-| `generate:audio` | `pnpm generate:audio` | 公開済みの問題の読み上げの音声（mp3 と単語の時刻のマニフェスト）を Amazon Polly で作り、`passage_audios` を `ready` にする（[read-aloud](../../docs/spec/read-aloud/README.md#音声の生成タスク)）。本番は 1 時間ごと。`production` 以外の既定は `TTS_PROVIDER=fake`（無音の mp3 と等間隔の単語の時刻。ローカルの確認用）。`polly` で AWS の資格情報を解決できなければ、`production` 以外は warn を出して何もせず exit 0。1 件でも失敗（`failed`・次の実行に回した失敗）があれば exit 1 |
+| `generate:audio` | `pnpm generate:audio` | 公開済みの問題の読み上げの音声（mp3 と単語の時刻のマニフェスト）を Amazon Polly で作り、`passage_audios` を `ready` にする（[read-aloud](../../docs/spec/read-aloud/README.md#音声の生成タスク)）。本番は 1 時間ごと。`production` 以外の既定は `TTS_PROVIDER=fake`（無音の mp3 と等間隔の単語の時刻。ローカルの確認用）。`polly` で AWS の資格情報を解決できなければ、`production` 以外は warn を出して何もせず exit 0。`production` で `AUDIO_STORAGE_TYPE=local` なら起動時に throw（exit 1）。1 件でも失敗（`failed`・次の実行に回した失敗）があれば exit 1 |
 
 ## Commands
 
@@ -133,15 +133,17 @@ Markdown / MDX / HTML から本文を抽出し、200〜600 語の本文候補に
 | `lib/audio/utf8-offset.ts` / `word-timings.ts` | Polly の UTF-8 のバイト位置 → UTF-16 の位置の表、Speech Marks → マニフェストの単語の時刻 `[startMs, endMs, startOffset, endOffset]`（位置は元の本文の UTF-16。`endMs` は次の単語の `time`、最後はパートの長さ） |
 | `lib/audio/split-speech-text.ts` | 3,000 文字（`POLLY_MAX_BILLED_CHARACTERS`）を超えるブロックを文の区切り → 空白 → 上限の長さの順で切ってパートにする |
 | `lib/audio/mp3-duration.ts` | mp3 のフレームを数えて長さを求める（Polly は長さを返さない）。ID3v2 を飛ばし、Layer III のフレームヘッダを読む。先頭の Xing / Info / VBRI のフレームは数えない |
+| `lib/audio/audio-storage.ts` | `isAudioStorageAllowed`：`production` の `local` の保存先を使わせない判定（task が起動時に見て throw する） |
 | `lib/audio/text-hash.ts` / `read-aloud-blocks.ts` / `audio-key.ts` | `calculateAudioTextHash`（読み上げるブロックの `[blockIndex, text]`・`AUDIO_TEXT_VERSION`・voice の SHA-256。和訳と code の変更では変わらない）、`listReadAloudBlocks`（code と空白だけのブロックを除く）、保存キー `passages/{passageId}/{textHash}/{blockIndex}-{partIndex}.mp3` と使わなくなったキー |
 | `service/audio/generate-audio.ts` | 本体。30 分以上 generating の行の回収 → `claimTargets` → 1 件ずつ（トランザクションの外で）音声合成と保存 → `completeClaim` → 前の hash の mp3 の削除 |
-| `repository/passage-audio-repository.ts` | `claimTargets`（短いトランザクションで `passages` に `passage_audios` を left join し、`FOR UPDATE OF passages SKIP LOCKED` で選んで insert。既にある行は `ON CONFLICT` で `status IN ('pending', 'ready')` のときだけ generating に）/ `completeClaim`（claim のガード付きで `FOR UPDATE` で読み、ready / unchanged は今の本文の hash を求め直して違えば pending）/ `releaseClaim` / `releaseStaleGenerating` |
+| `repository/passage-audio-repository.ts` | `claimTargets`（短いトランザクションで `passages` に `passage_audios` を left join し、`FOR UPDATE OF passages SKIP LOCKED` で選んで insert。今の voice を受け取り、`voice_id` が違う `ready` も選ぶ。既にある行は `ON CONFLICT` で `status IN ('pending', 'ready')` のときだけ generating に）/ `completeClaim`（claim のガード付きで `FOR UPDATE` で読み、ready / unchanged は今の本文の hash を求め直して違えば pending）/ `releaseClaim` / `releaseStaleGenerating` |
 
-- **対象**：`passages.status = 'published'` で、`passage_audios` の行が無い・`pending`・`ready` で音声を作った後に公開し直された（`updated_at < published_at`）問題を `published_at` の古い順に `AUDIO_MAX_PASSAGES_PER_RUN` 件。`failed` は管理者の再試行（`pending` に戻る）を待つ
-- **作り直さない**：`ready` だった行で本文の hash が同じなら Polly を呼ばずに `unchanged`（`updated_at` だけ進み、api は公開し直しの後でも `ready` を返す）。同じ本文・同じ voice は同じキーに上書きして同じマニフェストになる（冪等）
+- **対象**：`passages.status = 'published'` で、`passage_audios` の行が無い・`pending`・`ready` で音声を作った後に公開し直された（`updated_at < published_at`）・`ready` で `voice_id` が今の `TTS_VOICE_ID` と違う問題を `published_at` の古い順に `AUDIO_MAX_PASSAGES_PER_RUN` 件。`failed` は管理者の再試行（`pending` に戻る）を待つ
+- **作り直さない**：前の成功のマニフェストがあり、その本文の hash（voice と `AUDIO_TEXT_VERSION` を含む）が今と同じなら、行の状態（`ready` / `pending`）を問わず Polly を呼ばずに `unchanged`（`status = 'ready'`・`attempt_count = 0`・`last_error = null` にして `updated_at` だけ進む。api は公開し直しの後でも `ready` を返す）。マニフェストがある行の `text_hash` はそのマニフェストのもので、その mp3 は別の hash の生成が成功して置き換わるまで消さないので、そのまま使える（`manifest` と `generated_at` は `ready` の書き込みで一緒に入るので、`ready` の CHECK 制約も満たす）。同じ本文・同じ voice は同じキーに上書きして同じマニフェストになる（冪等）
+- **voice・読み上げ用テキストの版を変えたとき**：`TTS_VOICE_ID` を変えると、`voice_id` が違う `ready` の行が対象になり、次の実行から `AUDIO_MAX_PASSAGES_PER_RUN` 件ずつ作り直す（作り直すまでは前の声のまま `ready`）。`AUDIO_TEXT_VERSION`（`const/audio.ts`）を上げただけでは `ready` の行は作り直さない。作り直すときはデプロイの後に `UPDATE passage_audios SET status = 'pending' WHERE status = 'ready'` を流す（作り直すまでは利用者に「準備中」と見える。本文・voice・版が同じで hash が変わらない行は Polly を呼ばずに `ready` に戻る）
 - **claim のガード**：結果の書き込みは `WHERE passage_id = ? AND status = 'generating' AND generation_started_at = ?`。当たらなければ `lost_claim`（何も書かず、mp3 も消さない）。生成中に本文が変わった（非公開 → 修正 → 再公開）ら `text_changed` で `pending` に戻し、今回作った mp3 を消す
 - **失敗の扱い**：Polly の throttling・5xx は SDK のリトライ（`POLLY_MAX_ATTEMPTS`）に任せる。それでも失敗した・保存に失敗した問題は `attempt_count` を増やし、3 回目で `failed`（`last_error` に「種類: メッセージ」）。`manifest` と `text_hash` は前の成功のまま残す（前の mp3 のキーを後で消すため）。設定の誤り（`isFatalTtsError`）は失敗回数を増やさずに `releaseClaim` して throw（他の確保済みの行は 30 分後に回収される）
-- **保存先**：`audioStorage`（`@repo/storage`）。`local` はリポジトリ直下の `.storage/audio/`（git に入れない。api が開発環境でだけ `/media` で配信する）、`s3` は `Cache-Control: public, max-age=31536000, immutable`（`AUDIO_CACHE_CONTROL`）。マニフェストにはキーだけを保存し、URL は api が組み立てる。削除の失敗は warn だけ（空のディレクトリは残る）
+- **保存先**：`audioStorage`（`@repo/storage`）。`local` はリポジトリ直下の `.storage/audio/`（git に入れない。api が開発環境でだけ `/media` で配信する。`production` の `local` はコンテナの一時領域に mp3 を書いて `ready` にしてしまうので、task が起動時に throw する。cron の他のタスクを止めないよう env のスキーマでは検査しない）、`s3` は `Cache-Control: public, max-age=31536000, immutable`（`AUDIO_CACHE_CONTROL`）。マニフェストにはキーだけを保存し、URL は api が組み立てる。削除の失敗は warn だけ（空のディレクトリは残る）
 - **ローカルの AWS の資格情報に注意**：`TTS_PROVIDER` の既定は `production` だけ `polly`、それ以外は `fake`。`TTS_PROVIDER=polly` を明示すると、資格情報は SDK の既定の解決順（環境変数・`~/.aws`・SSO など）で探すので、手元に有効な資格情報があれば実際に Polly を呼んで課金される
 
 ## ESM 専用の依存（require(esm)）
@@ -181,10 +183,10 @@ run-once モデルなので、**処理の途中でシグナルを受けて終了
 | `GENERATE_MAX_PASSAGES_PER_RUN` | no | `10` | generate:questions が 1 回の実行で生成する件数の上限（費用の上限） |
 | `GENERATE_MAX_PENDING_DRAFTS` | no | `50` | 確認待ちの下書き（`draft`）がこの件数以上なら generate:questions は生成しない（`--passage-id` の指定時は見ない） |
 | `TTS_PROVIDER` | no | `production` は `polly`、それ以外は `fake` | generate:audio の音声合成。`polly`（Amazon Polly。AWS の資格情報が要る）/ `fake`（無音の mp3 と等間隔の単語の時刻。ローカルの確認用） |
-| `TTS_VOICE_ID` | no | `Joanna` | generate:audio の Polly の voice（Neural に対応したもの）。変えると text_hash が変わり、全問の音声が作り直しになる |
+| `TTS_VOICE_ID` | no | `Joanna` | generate:audio の Polly の voice（Neural に対応したもの）。変えると `voice_id` が違う `ready` の音声を確保し、次の実行から `AUDIO_MAX_PASSAGES_PER_RUN` 件ずつ作り直す（text_hash にも voice を含むので保存キーも変わる） |
 | `AWS_REGION` | no | `ap-northeast-1` | generate:audio が使う Polly と S3 のリージョン |
 | `AUDIO_MAX_PASSAGES_PER_RUN` | no | `20` | generate:audio が 1 回の実行で確保する問題の上限（Polly の費用の上限） |
-| `AUDIO_STORAGE_TYPE` | no | `local` | generate:audio の mp3 の保存先。`local` / `s3` |
+| `AUDIO_STORAGE_TYPE` | no | `local` | generate:audio の mp3 の保存先。`local` / `s3`。`production` で `local` なら generate:audio は起動時に throw する（スキーマでは検査しないので他のタスクは動く） |
 | `AUDIO_STORAGE_LOCAL_DIR` | no | `../../.storage/audio` | `local` の保存先（`apps/cron` からの相対。リポジトリ直下の `.storage/audio/` になり、api の `/media` 配信と共有する） |
 | `AUDIO_STORAGE_S3_BUCKET` | `AUDIO_STORAGE_TYPE=s3` で必須 | - | `s3` の保存先の bucket（`superRefine` で検査。空文字は未設定と同じ） |
 | `NODE_ENV` | no | `development` | `development` / `test` / `production` |
@@ -197,7 +199,7 @@ run-once モデルなので、**処理の途中でシグナルを受けて終了
 - 待ち行列の SQL（`findFetchQueue` / `upsertDiscovered`）は unit test では生成される SQL の文字列までしか確かめないので、変えたらローカル DB で並び順・404 の扱い・戻しを確かめる
 - 問題生成の取得・保存の SQL（`claimCollected` の `FOR UPDATE SKIP LOCKED`、`recordGenerationFailure` の `CASE`、`saveDraft` のトランザクション、claim のガード）も同じく SQL の文字列までなので、変えたらローカル DB で Drizzle / Prisma の両方の実装を確かめる（別のトランザクションで行をロックしたまま取得して飛ばされること、31 分前の generating が戻ること、3 回目で failed になること、古い claim で更新されないこと）
 - `generate:questions` の service のテストは Repository を `vi.fn()`、`ILlmClient` を偽物（モデル名で生成と検証の応答を分ける）にする。生成の出力の例は `test/lib/question-generation/helpers.ts`
-- **Amazon Polly は呼ばない**。`PollyTtsClient` のテストは `send` を `vi.fn()` にした SDK の偽物（`AudioStream` は `Readable` に `transformToByteArray` などを足したもの）を渡す。`generate:audio` の service のテストは Repository を `vi.fn()`、音声合成を `FakeTtsClient`、`audioStorage` を `vi.fn()` にする。音声の確保・結果の書き込みの SQL（`claimTargets` の `FOR UPDATE OF passages SKIP LOCKED` と `ON CONFLICT ... WHERE`、`completeClaim` のガードと `CASE`）も SQL の文字列までなので、変えたらローカル DB で Drizzle / Prisma の両方を確かめる（ロック中の問題が飛ばされること、3 回目で failed になること、古い claim で書かれないこと、生成中の本文の変更で pending に戻ること）
+- **Amazon Polly は呼ばない**。`PollyTtsClient` のテストは `send` を `vi.fn()` にした SDK の偽物（`AudioStream` は `Readable` に `transformToByteArray` などを足したもの）を渡す。`generate:audio` の service のテストは Repository を `vi.fn()`、音声合成を `FakeTtsClient`、`audioStorage` を `vi.fn()` にする。音声の確保・結果の書き込みの SQL（`claimTargets` の `FOR UPDATE OF passages SKIP LOCKED` と `ON CONFLICT ... WHERE`、`completeClaim` のガードと `CASE`）も SQL の文字列までなので、変えたらローカル DB で Drizzle / Prisma の両方を確かめる（ロック中の問題が飛ばされること、3 回目で failed になること、古い claim で書かれないこと、生成中の本文の変更で pending に戻ること、`voice_id` が違う ready が確保されること、マニフェストのある pending が unchanged で ready に戻ること）
 - **Claude API は呼ばない**（キーも費用も要るため）。`AnthropicClient` のテストは `messages.create` を `vi.fn()` にした SDK の偽物を渡し、リトライの設定は実物の SDK に `fetch` の偽物を渡して確かめる（`createAnthropicClient({ apiKey, fetch })`。レスポンスの `retry-after-ms: 1` で待ち時間を縮める）。プロンプトのテストは `test/fixtures/prompt/` の本文で組み立てた文字列を確かめる
 - `lib/document` のテストは `test/fixtures/document/`、プロンプトのテストは `test/fixtures/prompt/` の fixture を使う。**fixture の英文は自作する**（実在のドキュメントをコピーしない。ライセンスのため）
 - 統合テストは無い（task はエントリポイントから直接 service を呼ぶフラットな構造のため）

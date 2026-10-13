@@ -192,11 +192,22 @@ describe("GET /api/admin/passage/:id", () => {
         expect(await requestAudio(passage.id)).toEqual({ generated_at: "2026-10-12T04:00:00.000Z", last_error: null, status: "pending" })
       })
 
-      it("非公開に戻した問題でも音声の行があれば返す", async () => {
+      it("非公開に戻した問題の ready の行は、本文を直したかもしれないので pending（前回の作成日時は返す）", async () => {
         const { passage } = await insertGeneratedPassage({ publishedAt: PUBLISHED_AT, status: "draft" })
         await insertPassageAudio(passage.id)
 
-        expect(await requestAudio(passage.id)).toEqual({ generated_at: "2026-10-12T04:00:00.000Z", last_error: null, status: "ready" })
+        expect(await requestAudio(passage.id)).toEqual({ generated_at: "2026-10-12T04:00:00.000Z", last_error: null, status: "pending" })
+      })
+
+      it("非公開に戻した問題の failed の行は failed のまま返す（再試行できる）", async () => {
+        const { passage } = await insertGeneratedPassage({ publishedAt: PUBLISHED_AT, status: "draft" })
+        await insertPassageAudio(passage.id, { attemptCount: 3, lastError: "ServiceFailureException", status: "failed" })
+
+        expect(await requestAudio(passage.id)).toEqual({
+          generated_at: "2026-10-12T04:00:00.000Z",
+          last_error: "ServiceFailureException",
+          status: "failed",
+        })
       })
     })
   })

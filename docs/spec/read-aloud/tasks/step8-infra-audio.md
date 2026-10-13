@@ -142,7 +142,7 @@ module "cron_task_role" {
 ```
 
 - `polly:SynthesizeSpeech` の `resources` は、Service Authorization Reference でリソースの型（lexicon）を確かめて決める。絞れなければ `*` のまま、trivy の指摘を §7 の扱いにする
-- `module "ecs_cron"` に `task_role_arn = module.cron_task_role.arn` を足し、`environment`（question-generation step7 の `COLLECT_WEB_CONTACT_URL`）に `AUDIO_STORAGE_S3_BUCKET = module.audio_cdn.bucket_name`・`AUDIO_STORAGE_TYPE = "s3"`・`AWS_REGION = var.aws_region`・`TTS_PROVIDER = "polly"` を足す（キーはアルファベット順。`TTS_VOICE_ID`・`AUDIO_MAX_PASSAGES_PER_RUN` は既定値のまま渡さない）
+- `module "ecs_cron"` に `task_role_arn = module.cron_task_role.arn` を足し、`environment`（question-generation step7 の `COLLECT_WEB_CONTACT_URL`）に `AUDIO_STORAGE_S3_BUCKET = module.audio_cdn.bucket_name`・`AUDIO_STORAGE_TYPE = "s3"`・`AWS_REGION = var.aws_region`・`TTS_PROVIDER = "polly"` を足す（キーはアルファベット順。`TTS_VOICE_ID`・`AUDIO_MAX_PASSAGES_PER_RUN` は既定値のまま渡さない。`AUDIO_STORAGE_TYPE` の既定は `local` で、`production` の `local` は `generate:audio` が起動時に throw するので、`s3` を必ず渡す）
 - `module "cron_schedule"` と `module "cron_task_schedules"` に `task_role_arn = module.cron_task_role.arn` を足す（Scheduler の role が RunTask のときに task role を `iam:PassRole` できるようにする。module が `task_role_arn` から policy を作る）
 - `local.cron_task_schedules` に足す
 

@@ -50,7 +50,7 @@ afterAll(async () => {
 describe.each(implementations)("%s PassageAudioRepository", (_name, passageAudioRepository) => {
   describe("findByPassageId", () => {
     describe("正常系", () => {
-      it("音声の行と問題の公開日時を返し、マニフェストは書いたとおりに読める", async () => {
+      it("音声の行と問題の状態・公開日時を返し、マニフェストは書いたとおりに読める", async () => {
         const passage = await insertPublishedPassage()
         const audio = await insertPassageAudio(passage.id)
 
@@ -72,20 +72,33 @@ describe.each(implementations)("%s PassageAudioRepository", (_name, passageAudio
             createdAt: audio.createdAt,
             updatedAt: new Date("2026-10-12T04:00:00.000Z"),
           },
-          passagePublishedAt: PUBLISHED_AT,
+          passage: { publishedAt: PUBLISHED_AT, status: "published" },
         })
       })
 
-      it("音声の行が無い問題は audio: null と公開日時を返す", async () => {
+      it("音声の行が無い問題は audio: null と問題の状態・公開日時を返す", async () => {
         const passage = await insertPublishedPassage()
 
-        expect(await passageAudioRepository.findByPassageId(passage.id)).toEqual({ audio: null, passagePublishedAt: PUBLISHED_AT })
+        expect(await passageAudioRepository.findByPassageId(passage.id)).toEqual({
+          audio: null,
+          passage: { publishedAt: PUBLISHED_AT, status: "published" },
+        })
       })
 
-      it("下書きの問題は公開日時が null", async () => {
+      it("下書きの問題は状態が draft で公開日時が null", async () => {
         const { passage } = await insertGeneratedPassage()
 
-        expect(await passageAudioRepository.findByPassageId(passage.id)).toEqual({ audio: null, passagePublishedAt: null })
+        expect(await passageAudioRepository.findByPassageId(passage.id)).toEqual({ audio: null, passage: { publishedAt: null, status: "draft" } })
+      })
+
+      it("非公開に戻した問題は、公開日時が残ったまま状態が draft（api はこれで ready の音声を pending にする）", async () => {
+        const { passage } = await insertGeneratedPassage({ publishedAt: PUBLISHED_AT, status: "draft" })
+        await insertPassageAudio(passage.id)
+
+        const found = await passageAudioRepository.findByPassageId(passage.id)
+
+        expect(found?.passage).toEqual({ publishedAt: PUBLISHED_AT, status: "draft" })
+        expect(found?.audio?.status).toBe("ready")
       })
     })
 

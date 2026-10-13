@@ -82,9 +82,10 @@ useEventListener(player, "playbackStatusUpdate", (status) => {
 - **音声の設定**：初めて再生するときに 1 回だけ `setAudioModeAsync({ interruptionMode: "doNotMix", playsInSilentMode: true, shouldPlayInBackground: false })`（消音モードでも鳴らす。ほかのアプリの音楽は止める）。失敗しても再生は続ける（`console.warn`）
 - **パートの開始**：`player.replace({ uri: part.url })` → `player.shouldCorrectPitch = true` → `player.setPlaybackRate(rate)` → `player.play()`。`replace` の後は速度が戻ることがあるので、毎回設定し直す
 - **単語の追跡**：`playbackStatusUpdate` の `currentTime`（秒）× 1000 で `findWordIndexAt`。単語が変わったときだけ state を変える
-- **パートの終わり**：`status.didJustFinish` で、web の `ended` と同じく次のパート・次のブロック・待機に進む
+- **パートの終わり**：`status.didJustFinish` で、web の `ended` と同じく次のパート・次のブロック・待機に進む。外から止めた（`pause()`：一時停止の操作・上部バーの一時停止・`AppState`・上に画面を積んだとき）後に届いたら、web と同じく次のパートがあれば `replace` だけして `play()` せず一時停止の表示にする（再開すると次のパートの最初から鳴る）。次が無ければ `stop()`。「止めた」印は `togglePlay` の再開と自分の操作で始めたとき（`start`）に下ろす
+- **前のパートの更新を捨てる**：ネイティブからの `playbackStatusUpdate` は非同期に届くので、`replace` の前に送られた前のパートの更新が何件も後から届くことがある。`replace` の後は、`status.duration`（秒）が新しいパートの `durationMs` と ±250ms で合う更新が来るまで捨てる（`duration` がまだ 0・NaN の更新も捨てる）。前のパートと長さが 250ms 以内で区別できないときは、合わせて再生位置が 1 秒未満の更新だけを新しいパートのものとする（新しいパートは最初から鳴らすので、最初の更新の位置は 0 に近い。1 秒未満の短いパートどうしを切り替えた直後に限り、前のパートの終わりの更新を取り違えて次のパートへ早く進むことがある）。`replace` から 2 秒たっても合う更新が来なければ、長さを問わず新しいパートのものとする（長さの報告がマニフェストとずれる端末でも、単語の追跡とパートの終わりの処理を止めないため）
 - **isPlaying**：`status.playing` に合わせる（電話・ほかのアプリの音声で OS が止めたときも表示を合わせる）
-- **読み込みの失敗**：`AudioStatus` にはエラーが無いので、`replace` してから 10 秒たっても `status.isLoaded` にならなければ止めて `availability = "error"` にする
+- **読み込みの失敗**：`AudioStatus` にはエラーが無いので、`replace` してから 10 秒たっても `status.isLoaded` にならなければ止めて `availability = "error"` にする。web と同じく時刻表も捨て、次の再生ボタンでマニフェストを取り直す（取り直したら待機に戻り、もう一度押すと再生する）
 - **アプリが前面でなくなったとき**：`AppState` が `active` 以外になったら `pause()`
 - **速度**：`cycleRate()` で `findNextReadAloudRate`、`writeReadAloudRate`、再生中なら `player.setPlaybackRate`
 - アンマウントで `pause()`（player の解放は `useAudioPlayer` が行う）

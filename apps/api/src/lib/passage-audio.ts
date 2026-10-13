@@ -1,22 +1,27 @@
-import type { AudioStatus, PassageAudio } from "@repo/domain"
+import type { AudioStatus, Passage, PassageAudio } from "@repo/domain"
 
 /**
  * 読み上げの音声の状態と URL（docs/spec/read-aloud/README.md「音声の保存と配信」）。admin と利用者向けの API で共有する
  */
 
 /**
- * 表示する状態（admin と利用者で共通）。ready でも、音声を作った（または生成タスクが本文の同一を確かめた）後に公開し直されていれば、
- * 本文が変わってマニフェストの位置がずれているかもしれないので pending として扱う（生成タスクが次の実行で作り直すか確かめる）。
- * 公開し直した直後は、本文が変わっていなくても生成タスクが確かめるまで（最大 1 時間）pending になる。
+ * 表示する状態（admin と利用者で共通）。ready でも、次のときは本文が変わってマニフェストの位置がずれているかもしれないので pending として扱う。
+ *
+ * - 問題が公開中でない（非公開に戻した）：published_at は残り、下書きのまま本文を直せるので、updated_at と published_at の比較では
+ *   直した後の本文に古いマニフェストが重なってしまう。再公開すると生成タスクが本文の hash を確かめて ready に戻す（本文が同じなら作り直さない）
+ * - 音声を作った（または生成タスクが本文の同一を確かめた）後に公開し直された（updated_at < published_at）：生成タスクが次の実行で作り直すか確かめる。
+ *   公開し直した直後は、本文が変わっていなくても生成タスクが確かめるまで（最大 1 時間）pending になる
+ *
  * generating はそのまま返す（admin 向け）。利用者向けには convertToUserAudioStatus で pending にする
  */
 export const resolveAudioStatus = (
   audio: Pick<PassageAudio, "manifest" | "status" | "updatedAt"> | null,
-  publishedAt: Date | null,
+  passage: Pick<Passage, "publishedAt" | "status">,
 ): AudioStatus => {
   if (!audio) return "pending"
   if (audio.status !== "ready") return audio.status
-  return audio.manifest && publishedAt && audio.updatedAt >= publishedAt ? "ready" : "pending"
+  if (passage.status !== "published") return "pending"
+  return audio.manifest && passage.publishedAt && audio.updatedAt >= passage.publishedAt ? "ready" : "pending"
 }
 
 /**

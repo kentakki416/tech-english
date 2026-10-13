@@ -6,6 +6,7 @@ import {
   inArray,
   isNull,
   lt,
+  ne,
   or,
   passageAudios,
   passages,
@@ -40,7 +41,7 @@ export class DrizzlePassageAudioRepository implements PassageAudioRepository {
 
   /**
    * 短いトランザクションで ① passages に passage_audios を left join して対象を選び、passages の行をロックする（FOR UPDATE OF passages SKIP LOCKED。
-   * left join の nullable 側はロックできない）② 行を insert し、既にある行は ON CONFLICT で generating にする。
+   * left join の nullable 側はロックできない。ready は公開し直されたものと、voice_id が今の voice と違うもの）② 行を insert し、既にある行は ON CONFLICT で generating にする。
    * ロックするのは passages で更新するのは passage_audios なので、別の実行がほんの少し前に確保した行を古いスナップショットで取り直さないよう、
    * conflict の更新は status が pending / ready の行だけにし、RETURNING で返った行だけを確保できたものとする
    */
@@ -68,6 +69,7 @@ export class DrizzlePassageAudioRepository implements PassageAudioRepository {
               isNull(passageAudios.id),
               eq(passageAudios.status, "pending"),
               and(eq(passageAudios.status, "ready"), lt(passageAudios.updatedAt, passages.publishedAt)),
+              and(eq(passageAudios.status, "ready"), ne(passageAudios.voiceId, input.voiceId)),
             ),
           ),
         )
@@ -166,11 +168,13 @@ export class DrizzlePassageAudioRepository implements PassageAudioRepository {
 
       if (outcome.kind === "unchanged") {
         /**
-         * updated_at が進むので、api は公開し直しの後でも ready を返すようになる
+         * updated_at が進むので、api は公開し直しの後でも ready を返すようになる。manifest と generated_at は前の成功のまま
+         * （service は manifest がある行だけを unchanged にし、manifest と generated_at は ready の書き込みで一緒に入って消されないので、
+         * ready の CHECK 制約を満たす）。pending に戻された行（失敗の後など）からも来るので、失敗の回数とエラーは ready と同じく消す
          */
         await tx
           .update(passageAudios)
-          .set({ generationStartedAt: null, status: "ready", updatedAt: options.now })
+          .set({ attemptCount: 0, generationStartedAt: null, lastError: null, status: "ready", updatedAt: options.now })
           .where(this._buildClaimCondition(claim))
         return "unchanged"
       }

@@ -17,13 +17,15 @@ const INPUT = { attemptId: 301, userId: 7 }
  */
 const PUBLISHED_AT = new Date("2026-10-12T03:00:00.000Z")
 
+const PUBLISHED_PASSAGE = { publishedAt: PUBLISHED_AT, status: "published" as const }
+
 const KEY_PREFIX = `passages/1/${AUDIO_TEXT_HASH}`
 
 describe("getAttemptAudio", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     readingAttemptRepository.findByIdForUser.mockResolvedValue(buildAttempt())
-    passageAudioRepository.findByPassageId.mockResolvedValue({ audio: buildPassageAudio(), passagePublishedAt: PUBLISHED_AT })
+    passageAudioRepository.findByPassageId.mockResolvedValue({ audio: buildPassageAudio(), passage: PUBLISHED_PASSAGE })
   })
 
   describe("正常系", () => {
@@ -63,7 +65,7 @@ describe("getAttemptAudio", () => {
     it("音声を作った時刻と公開日時が同じなら ready（境界値）", async () => {
       passageAudioRepository.findByPassageId.mockResolvedValue({
         audio: buildPassageAudio({ updatedAt: PUBLISHED_AT }),
-        passagePublishedAt: PUBLISHED_AT,
+        passage: PUBLISHED_PASSAGE,
       })
 
       const result = await getAttemptAudio(INPUT, repo, DEPS)
@@ -77,17 +79,36 @@ describe("getAttemptAudio", () => {
       ["generating", buildPassageAudio({ generationStartedAt: new Date("2026-10-12T04:00:00.000Z"), status: "generating" })],
       ["音声を作った後に公開し直された ready（1 ミリ秒後。境界値）", buildPassageAudio({ updatedAt: new Date(PUBLISHED_AT.getTime() - 1) })],
     ])("%s は pending だけを返す", async (_label, audio) => {
-      passageAudioRepository.findByPassageId.mockResolvedValue({ audio, passagePublishedAt: PUBLISHED_AT })
+      passageAudioRepository.findByPassageId.mockResolvedValue({ audio, passage: PUBLISHED_PASSAGE })
 
       const result = await getAttemptAudio(INPUT, repo, DEPS)
 
       expect(result).toEqual({ ok: true, value: { status: "pending" } })
     })
 
+    it.each(["draft", "rejected"] as const)("問題が %s（非公開に戻した）なら、ready の音声があっても pending だけを返す（下書きのまま本文を直せるため）", async (status) => {
+      passageAudioRepository.findByPassageId.mockResolvedValue({ audio: buildPassageAudio(), passage: { publishedAt: PUBLISHED_AT, status } })
+
+      const result = await getAttemptAudio(INPUT, repo, DEPS)
+
+      expect(result).toEqual({ ok: true, value: { status: "pending" } })
+    })
+
+    it("非公開に戻した問題の failed は failed のまま返す", async () => {
+      passageAudioRepository.findByPassageId.mockResolvedValue({
+        audio: buildPassageAudio({ attemptCount: 3, lastError: "ServiceFailureException", status: "failed" }),
+        passage: { publishedAt: PUBLISHED_AT, status: "draft" },
+      })
+
+      const result = await getAttemptAudio(INPUT, repo, DEPS)
+
+      expect(result).toEqual({ ok: true, value: { status: "failed" } })
+    })
+
     it("failed は failed だけを返す（前の生成のマニフェストがあっても返さない）", async () => {
       passageAudioRepository.findByPassageId.mockResolvedValue({
         audio: buildPassageAudio({ attemptCount: 3, lastError: "ServiceFailureException", status: "failed" }),
-        passagePublishedAt: PUBLISHED_AT,
+        passage: PUBLISHED_PASSAGE,
       })
 
       const result = await getAttemptAudio(INPUT, repo, DEPS)

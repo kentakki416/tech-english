@@ -130,6 +130,17 @@ describe("GET /api/attempt/:id/audio", () => {
       expect(res.body).toEqual({ status: "pending" })
     })
 
+    it("問題を非公開に戻すと、ready の行があっても pending だけを返す（公開日時は残るが、下書きのまま本文を直せるため）", async () => {
+      const { attempt, passage, token } = await setupAttempt()
+      await insertPassageAudio(passage.id)
+      await testDb.update(passages).set({ status: "draft" }).where(eq(passages.id, passage.id))
+
+      const res = await request(app).get(`/api/attempt/${attempt.id}/audio`).set("Authorization", `Bearer ${token}`)
+
+      expect(res.status).toBe(200)
+      expect(res.body).toEqual({ status: "pending" })
+    })
+
     it("failed の行は failed だけを返す", async () => {
       const { attempt, passage, token } = await setupAttempt()
       await insertPassageAudio(passage.id, { attemptCount: 3, lastError: "ServiceFailureException", status: "failed" })

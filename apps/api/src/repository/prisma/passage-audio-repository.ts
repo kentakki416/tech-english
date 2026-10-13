@@ -1,4 +1,5 @@
 import type { PrismaClient } from "@repo/db"
+import { isPassageStatus } from "@repo/domain"
 
 import type { PassageAudioRepository, PassageAudioWithPassage } from "../passage-audio-repository"
 
@@ -16,13 +17,17 @@ export class PrismaPassageAudioRepository implements PassageAudioRepository {
 
   public async findByPassageId(passageId: number): Promise<PassageAudioWithPassage | null> {
     const passage = await this._prisma.passage.findUnique({
-      select: { audio: true, publishedAt: true },
+      select: { audio: true, publishedAt: true, status: true },
       where: { id: passageId },
     })
     if (!passage) return null
+    /**
+     * Prisma は CHECK 制約の値の集合を型に持たないので、domain の判定関数で検証する（未知の値は throw）
+     */
+    if (!isPassageStatus(passage.status)) throw new Error(`Invalid passage status: id=${passageId}, status=${passage.status}`)
     return {
       audio: passage.audio ? convertPassageAudioRowToDomain(passage.audio) : null,
-      passagePublishedAt: passage.publishedAt,
+      passage: { publishedAt: passage.publishedAt, status: passage.status },
     }
   }
 

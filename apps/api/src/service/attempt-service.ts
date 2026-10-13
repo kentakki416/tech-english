@@ -649,6 +649,7 @@ export const submitAttempt = async (
 /**
  * 挑戦の問題の読み上げの音声（マニフェストのキーを URL にしたもの）。他人の挑戦・存在しない ID は 404 で、挑戦の状態は問わない
  * （解答画面と結果画面の両方で使う）。音声が使えない間は status だけを返す。
+ * 問題が非公開に戻されていれば、ready の音声があっても pending にする（下書きのまま本文を直せるため。非公開の問題でも挑戦中・提出済みの挑戦からは開ける）。
  * audioPublicUrlBase が null（production で AUDIO_PUBLIC_URL_BASE が未設定）なら、音声があっても pending にする
  */
 export const getAttemptAudio = async (
@@ -671,7 +672,7 @@ export const getAttemptAudio = async (
     return err(notFoundError("Passage not found"))
   }
 
-  const status = convertToUserAudioStatus(resolveAudioStatus(found.audio, found.passagePublishedAt))
+  const status = convertToUserAudioStatus(resolveAudioStatus(found.audio, found.passage))
   if (status !== "ready") return ok({ status })
   if (deps.audioPublicUrlBase === null) {
     logger.debug("AttemptService: Audio URL base is not configured", { passageId: attempt.passageId })

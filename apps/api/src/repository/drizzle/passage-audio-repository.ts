@@ -16,14 +16,14 @@ export class DrizzlePassageAudioRepository implements PassageAudioRepository {
 
   public async findByPassageId(passageId: number): Promise<PassageAudioWithPassage | null> {
     const [row] = await this._db
-      .select({ audio: passageAudios, passagePublishedAt: passages.publishedAt })
+      .select({ audio: passageAudios, passagePublishedAt: passages.publishedAt, passageStatus: passages.status })
       .from(passages)
       .leftJoin(passageAudios, eq(passageAudios.passageId, passages.id))
       .where(eq(passages.id, passageId))
     if (!row) return null
     return {
       audio: row.audio ? convertPassageAudioRowToDomain(row.audio) : null,
-      passagePublishedAt: row.passagePublishedAt,
+      passage: { publishedAt: row.passagePublishedAt, status: row.passageStatus },
     }
   }
 

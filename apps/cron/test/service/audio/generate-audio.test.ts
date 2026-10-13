@@ -161,10 +161,13 @@ describe("generateAudio", () => {
       expect(longText.slice(lastWord?.[2], lastWord?.[3])).toBe("retries")
     })
 
-    it("前の行が ready で hash が同じなら unchanged で、音声合成も保存もしない", async () => {
+    it.each([
+      ["ready（公開し直された・voice の確認）", "ready"],
+      ["pending（再試行・手動の UPDATE で ready から戻された）", "pending"],
+    ] as const)("前の行が %s でも、前の成功のマニフェストの hash が同じなら unchanged で、音声合成も保存もしない", async (_label, status) => {
       const repo = createFakeRepo({
         completeResult: "unchanged",
-        targets: [buildTarget({ previous: { manifest: PREVIOUS_MANIFEST, status: "ready", textHash: TEXT_HASH } })],
+        targets: [buildTarget({ previous: { manifest: PREVIOUS_MANIFEST, status, textHash: TEXT_HASH } })],
       })
       const ttsClient = new FakeTtsClient()
       const synthesize = vi.spyOn(ttsClient, "synthesize")
@@ -190,7 +193,7 @@ describe("generateAudio", () => {
       expect(readOutcome(repo).kind).toBe("ready")
     })
 
-    it("前の行が pending なら hash が同じでも作り直す（失敗の後のやり直し）", async () => {
+    it("前の行にマニフェストが無ければ（一度も成功していない）、hash が同じでも作り直す（失敗の後のやり直し）", async () => {
       const repo = createFakeRepo({
         targets: [buildTarget({ previous: { manifest: null, status: "pending", textHash: TEXT_HASH } })],
       })
@@ -198,6 +201,21 @@ describe("generateAudio", () => {
       await generateAudio(buildInput(), repo, createDeps())
 
       expect(readOutcome(repo).kind).toBe("ready")
+    })
+
+    it("前の行が pending でマニフェストがあっても、hash が違えば（AUDIO_TEXT_VERSION を上げた後など）作り直して前の mp3 を消す", async () => {
+      const repo = createFakeRepo({
+        targets: [buildTarget({ previous: { manifest: PREVIOUS_MANIFEST, status: "pending", textHash: "old-hash" } })],
+      })
+      const deps = createDeps()
+
+      await generateAudio(buildInput(), repo, deps)
+
+      expect(readOutcome(repo).kind).toBe("ready")
+      expect(deps.audioStorage.delete.mock.calls.map(([key]) => key)).toEqual([
+        "passages/42/old-hash/0-0.mp3",
+        "passages/42/old-hash/1-0.mp3",
+      ])
     })
 
     it("completeClaim が ready なら前の hash の mp3 を消し、delete が throw しても続ける", async () => {

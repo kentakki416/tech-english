@@ -1,14 +1,14 @@
-import type { PassageAudio } from "@repo/domain"
+import type { Passage, PassageAudio } from "@repo/domain"
 
 /**
- * 問題の読み上げの音声と、問題の公開日時（音声を作った後に公開し直されたかの判定に使う）
+ * 問題の読み上げの音声と、問題の状態・公開日時（非公開に戻されたか・音声を作った後に公開し直されたかの判定に使う）
  */
 export type PassageAudioWithPassage = {
   /**
    * 音声の行がまだ無ければ null
    */
   audio: PassageAudio | null
-  passagePublishedAt: Date | null
+  passage: Pick<Passage, "publishedAt" | "status">
 }
 
 /**
@@ -17,7 +17,7 @@ export type PassageAudioWithPassage = {
  */
 export interface PassageAudioRepository {
   /**
-   * passages に passage_audios を left join して読む。問題が無ければ null
+   * passages に passage_audios を left join して読む（passages の状態と公開日時も）。問題が無ければ null
    */
   findByPassageId(passageId: number): Promise<PassageAudioWithPassage | null>
   /**

@@ -9,6 +9,7 @@ import { createStorage, type Storage } from "@repo/storage"
 import { FakeTtsClient, isPollyVoiceId, PollyTtsClient, type TtsClient } from "../client/polly"
 import { AUDIO_CACHE_CONTROL, POLLY_MAX_ATTEMPTS } from "../const/audio"
 import { env } from "../env"
+import { isAudioStorageAllowed } from "../lib/audio"
 import { DrizzlePassageAudioRepository } from "../repository/drizzle"
 import { setupGracefulShutdown } from "../runtime/graceful-shutdown"
 import * as service from "../service"
@@ -65,8 +66,15 @@ const createAudioStorage = (): Storage => {
  *
  * task 自身は env を読んで DB client / Repository / 音声合成のクライアント / 保存先を組み立てて service に DI するだけ。
  * 1 件でも失敗（failed・次の実行に回した失敗）があれば最後に throw して exit code 1 で終え、スケジューラに通知する。
+ * production で AUDIO_STORAGE_TYPE が local なら、何もせずに起動時に throw する（env のスキーマでは検査しない。cron の他のタスクを止めないため）
  */
 const main = async (): Promise<void> => {
+  if (!isAudioStorageAllowed({ nodeEnv: env.NODE_ENV, storageType: env.AUDIO_STORAGE_TYPE })) {
+    throw new Error(
+      "AUDIO_STORAGE_TYPE=local cannot be used in production: the mp3 files would be written to the container's ephemeral storage " +
+        "while passage_audios becomes ready. Set AUDIO_STORAGE_TYPE=s3 and AUDIO_STORAGE_S3_BUCKET",
+    )
+  }
   const ttsClient = await createTtsClient()
   if (!ttsClient) return
 

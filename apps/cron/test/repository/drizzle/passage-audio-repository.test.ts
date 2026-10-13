@@ -104,7 +104,7 @@ describe("DrizzlePassageAudioRepository", () => {
 
   describe("claimTargets", () => {
     describe("正常系", () => {
-      it("公開済みで、行が無い・pending・公開し直された ready の問題を古い順に FOR UPDATE OF passages SKIP LOCKED で選ぶ", async () => {
+      it("公開済みで、行が無い・pending・公開し直された ready・voice が今と違う ready の問題を古い順に FOR UPDATE OF passages SKIP LOCKED で選ぶ", async () => {
         const fake = createFakeDb([[]])
 
         const claimed = await new DrizzlePassageAudioRepository(fake.db).claimTargets({ calculateTextHash, limit: 20, now: NOW, voiceId: "Joanna" })
@@ -115,10 +115,11 @@ describe("DrizzlePassageAudioRepository", () => {
         expect(sql).toContain("from \"passages\" left join \"passage_audios\" on \"passage_audios\".\"passage_id\" = \"passages\".\"id\"")
         expect(sql).toContain([
           "where ((\"passages\".\"status\" = $?) and ((((\"passage_audios\".\"id\" is null)) or (\"passage_audios\".\"status\" = $?)",
-          " or (((\"passage_audios\".\"status\" = $?) and (\"passage_audios\".\"updated_at\" < \"passages\".\"published_at\"))))))",
+          " or (((\"passage_audios\".\"status\" = $?) and (\"passage_audios\".\"updated_at\" < \"passages\".\"published_at\")))",
+          " or (((\"passage_audios\".\"status\" = $?) and (\"passage_audios\".\"voice_id\" <> $?))))))",
         ].join(""))
         expect(sql).toContain("order by \"passages\".\"published_at\" asc, \"passages\".\"id\" asc limit $? for update of \"passages\" skip locked")
-        expect(params).toEqual(["published", "pending", "ready", 20])
+        expect(params).toEqual(["published", "pending", "ready", "ready", "Joanna", 20])
         /**
          * 対象が無ければ insert しない
          */
@@ -205,7 +206,7 @@ describe("DrizzlePassageAudioRepository", () => {
         expect(renderQuery(fake.queries[2]).sql).toContain(CLAIM_CONDITION_SQL)
       })
 
-      it("unchanged：status を ready にして updated_at を進めるだけ", async () => {
+      it("unchanged：status を ready にして updated_at を進め、失敗の回数とエラーを消す（manifest・text_hash・generated_at は前の成功のまま）", async () => {
         const fake = createFakeDb([[{ id: 1 }], [{ blocks: BLOCKS }], []])
 
         const result = await new DrizzlePassageAudioRepository(fake.db).completeClaim(
@@ -215,7 +216,14 @@ describe("DrizzlePassageAudioRepository", () => {
         )
 
         expect(result).toBe("unchanged")
-        expect(findArgs(fake.queries[2], "set")?.[0]).toEqual({ generationStartedAt: null, status: "ready", updatedAt: NOW })
+        expect(findArgs(fake.queries[2], "set")?.[0]).toEqual({
+          attemptCount: 0,
+          generationStartedAt: null,
+          lastError: null,
+          status: "ready",
+          updatedAt: NOW,
+        })
+        expect(renderQuery(fake.queries[2]).sql).toContain(CLAIM_CONDITION_SQL)
       })
 
       it("今の本文の hash が違えば ready にせず pending に戻して text_changed", async () => {
