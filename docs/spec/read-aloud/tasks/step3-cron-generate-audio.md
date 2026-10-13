@@ -21,7 +21,7 @@
 | `passage_audios` の行が無い | 初めての公開 |
 | `status = 'pending'` | 失敗して次の実行に回った・管理者が再試行した・回収された |
 | `status = 'ready'` かつ `passage_audios.updated_at < passages.published_at` | 音声を作った後に公開し直された（本文が変わったかもしれない） |
-| `status = 'ready'` かつ `passage_audios.voice_id <> 今の TTS_VOICE_ID` | voice を変えた（`text_hash` にも voice を含むので作り直しになる） |
+| `status = 'ready'` かつ `passage_audios.voice_id <> 今の voice` | voice を変えた（`text_hash` にも voice を含むので作り直しになる）。今の voice は `TTS_VOICE_ID`、`TTS_PROVIDER=fake` のときは `fake:<TTS_VOICE_ID>`（§5 の `buildAudioVoiceId`）なので、fake と Polly の切り替えでも作り直す |
 
 `AUDIO_TEXT_VERSION` を上げただけでは `ready` の行は対象にならない（自動では作り直さない）。作り直すときは、デプロイの後に `UPDATE passage_audios SET status = 'pending' WHERE status = 'ready'` を流す（次の実行から `AUDIO_MAX_PASSAGES_PER_RUN` 件ずつ作り直す。その間は利用者に「準備中」と見える。本文・voice・版が同じでハッシュが変わらない行は、下の `unchanged` で Polly を呼ばずに `ready` に戻る）。
 
@@ -32,7 +32,7 @@ flowchart TD
     C -- はい --> U[outcome: unchanged]
     C -- いいえ --> E["ブロック・パートごとに Polly → mp3 を保存"]
     E -- 成功 --> R[outcome: ready]
-    E -- 設定の誤り --> X["releaseClaim（pending）して throw"]
+    E -- 設定の誤り（Polly・保存先） --> X["releaseClaim（pending）して throw"]
     E -- その他の失敗 --> F[outcome: failed]
     U --> W["completeClaim（短いトランザクション）<br/>status = generating かつ確保の時刻が一致する行だけ"]
     R --> W
@@ -40,6 +40,7 @@ flowchart TD
     W -- 確保が取り直されていた --> L["lost_claim：何も書かず、mp3 も消さない"]
     W -- 今の本文の hash が違う --> T["text_changed：pending に戻し、作った mp3 を消す"]
     W -- ready --> D["前の hash の mp3 を消す"]
+    D -- 保存先の設定の誤り --> Y["throw（行は ready のまま）"]
 ```
 
 - Polly の呼び出しと mp3 の保存はトランザクションの外で行う（本番〈minimal〉の DB は PgBouncer の transaction pooling。長いトランザクションを開かない）
@@ -116,13 +117,22 @@ export const generateAudio = async (
 2. 確保した問題を 1 件ずつ（各回の頭で `isShuttingDown()` なら break。残りは 30 分後に回収される。**1 件の失敗で他の件は止めない**）、`buildPassageAudio(target, { calculateTextHash, maxAttempts, voiceId }, deps)`（非公開の関数）で outcome を作る
    - `textHash = calculateTextHash(target.blocks)`。`target.previous` の `manifest` が null でなく、`textHash` が同じなら（状態は問わない）`{ kind: "unchanged", textHash }`。`manifest` がある行の `text_hash` はその `manifest` のもので、その mp3 は別の hash の生成が成功して置き換わるまで消さないので、そのまま使える
    - `listReadAloudBlocks` の順に、`buildSpeechText` → `splitSpeechText(speechText, POLLY_MAX_BILLED_CHARACTERS)` → パートごとに `ttsClient.synthesize` → `measureMp3DurationMs` → `convertSpeechMarksToWordTimings` → `audioStorage.save(buildAudioKey(...), audio)`。課金文字数を足し上げる。パートは順番に呼ぶ。読み上げるブロックが無ければ `blocks: []` のマニフェスト
-   - 例外：`isFatalTtsError` なら呼び出し側で `releaseClaim(target)` して throw（失敗回数を増やさない。他の確保済みの行は 30 分後に回収される）。それ以外は `{ error: "<name>: <message>", kind: "failed", maxAttempts }`
+   - 例外：設定の誤り（`isFatalAudioGenerationError`。下記）なら呼び出し側で `releaseClaim(target)` して throw（失敗回数を増やさない。他の確保済みの行は 30 分後に回収される）。それ以外（throttling・5xx・ローカルの保存先の失敗など）は `{ error: "<name>: <message>", kind: "failed", maxAttempts }`
 3. `completeClaim(target, outcome, { calculateTextHash, now: input.now() })` の結果で後始末する
    - `ready`：`listUnusedAudioKeys(target.previous?.manifest ?? null, outcome.manifest)` を `audioStorage.delete`
    - `text_changed`（outcome が `ready` のとき）：今回作った mp3 のうち前のマニフェストに無いもの（`listUnusedAudioKeys(outcome.manifest, target.previous?.manifest ?? null)`）を消す
    - `lost_claim`：`logger.warn` だけ。mp3 は消さない（取り直した実行が同じキーに書いているかもしれないため）
-   - 削除の失敗は `logger.warn` だけ（残っても実害は無い）
+   - 削除の失敗は `logger.warn` だけ（残っても実害は無い）。ただし保存先の設定の誤り（`isFatalAudioGenerationError`）は `logger.error` を出して throw し、実行を止める（以降の問題でも同じく消せず、mp3 が残り続けるのに気づけないため。この行の結果は書き終えているので戻さない）
 4. 1 件ごとに `logger.info`（`passageId`、結果、パート数、課金文字数）
+
+`isFatalAudioGenerationError(error: unknown): error is Error`（`src/lib/audio/fatal-error.ts`）：音声の生成全体（音声合成・mp3 の保存・使わなくなった mp3 の削除）で、**どの問題でも同じように失敗する設定の誤り** なら true。`error.name` を 2 つの定数の配列と照らす。
+
+| 対象 | `error.name` |
+| --- | --- |
+| 音声合成（Polly） | `CredentialsProviderError`（資格情報を解決できない）、`AccessDeniedException`、`UnrecognizedClientException` / `InvalidSignatureException` / `ExpiredTokenException` など（無効な資格情報）、`EngineNotSupportedException` / `LanguageNotSupportedException`、`ValidationException`（存在しない voice） |
+| 保存先（S3 の `PutObject` / `DeleteObject`） | `AccessDenied`（権限が無い）、`NoSuchBucket`、`InvalidAccessKeyId` / `SignatureDoesNotMatch` / `ExpiredToken`（無効な資格情報）、`PermanentRedirect` / `AuthorizationHeaderMalformed`（bucket のリージョンが `AWS_REGION` と違う） |
+
+throttling・5xx（Polly の `ServiceFailureException`、S3 の `InternalError` / `SlowDown`）・`TextLengthExceededException`・ローカルの保存先の失敗（ENOSPC など）は 1 件の失敗として扱う。保存は音声合成の後なので、保存先の誤りを 1 件の失敗にすると、毎回 `AUDIO_MAX_PASSAGES_PER_RUN` 件ずつ Polly の料金をかけて全件が `failed` に進んでしまう。
 
 純関数を `src/lib/audio/audio-key.ts` に足す：`buildAudioKey({ blockIndex, partIndex, passageId, textHash })` → `passages/{passageId}/{textHash}/{blockIndex}-{partIndex}.mp3`、`listUnusedAudioKeys(from: PassageAudioManifest | null, keep: PassageAudioManifest | null): string[]`（`from` にあって `keep` に無いキー）。
 
@@ -133,7 +143,7 @@ export const generateAudio = async (
 | 変数 | 既定 | 説明 |
 | --- | --- | --- |
 | `TTS_PROVIDER` | `production` は `polly`、それ以外は `fake`（手元の AWS の資格情報で意図せず課金しないため） | `polly` / `fake` |
-| `TTS_VOICE_ID` | `Joanna` | Polly の voice（Neural に対応したもの）。変えると `voice_id` が違う `ready` の行が対象になり、次の実行から `AUDIO_MAX_PASSAGES_PER_RUN` 件ずつ作り直す |
+| `TTS_VOICE_ID` | `Joanna` | Polly の voice（Neural に対応したもの）。変えると `voice_id` が違う `ready` の行が対象になり、次の実行から `AUDIO_MAX_PASSAGES_PER_RUN` 件ずつ作り直す。`passage_audios.voice_id` と `text_hash` には `buildAudioVoiceId` の値（`fake` のときは `fake:<TTS_VOICE_ID>`）が入る |
 | `AWS_REGION` | `ap-northeast-1` | Polly と S3 のリージョン |
 | `AUDIO_MAX_PASSAGES_PER_RUN` | `20` | 1 回の実行で確保する問題の上限 |
 | `AUDIO_STORAGE_TYPE` | `local` | `local` / `s3`。`production` で `local` なら `generate:audio` は起動時に throw する（コンテナの一時領域に mp3 を書いて `ready` にしないため。cron の他のタスクを止めないよう env のスキーマでは検査しない） |
@@ -142,6 +152,7 @@ export const generateAudio = async (
 
 `src/task/generate-audio.ts`（env の読み込みと DI だけ。`collect-passages.ts` と同じ形）：
 
+- voice は `buildAudioVoiceId({ provider: env.TTS_PROVIDER, voiceId: env.TTS_VOICE_ID })`（`src/lib/audio/audio-voice-id.ts`）。`polly` は `TTS_VOICE_ID` のまま、`fake` は `fake:<TTS_VOICE_ID>`（例 `fake:Joanna`）。Polly と同じ値にすると、fake で `ready` にした問題を polly に切り替えても voice も hash も同じで作り直されず（`unchanged`）、保存キーも同じなので CloudFront の長期キャッシュに無音の mp3 が残るため。この値を service の `voiceId` に渡す（`passage_audios.voice_id`・`text_hash`・音声合成のすべてに使う。`FakeTtsClient` は voice を見ない）
 - `TTS_PROVIDER=fake` なら `new FakeTtsClient()`。`polly` なら `new PollyClient({ region: env.AWS_REGION })` を作り、資格情報を解決できるか確かめる（`client.config.credentials()` を呼ぶ等。方法は実装時に確認）。解決できなければ、`production` では throw、それ以外は「AWS の資格情報が無いので音声を作らない」と `logger.warn` して何もせず終わる（exit 0）
 - `audioStorage`：`s3` は `` createStorage({ bucket, cacheControl: AUDIO_CACHE_CONTROL, publicUrlBase: `s3://${bucket}`, region: env.AWS_REGION, type: "s3" }) ``、`local` は `createStorage({ baseDir: resolve(env.AUDIO_STORAGE_LOCAL_DIR), publicUrlPrefix: "/media", type: "local" })`。`save` の戻り値の URL は使わない（マニフェストにはキーだけを保存し、URL は api が組み立てる）
 - `setupGracefulShutdown(db)` の `isShuttingDown`、`now: () => new Date()`、`DrizzlePassageAudioRepository(db)` を渡す
@@ -157,9 +168,11 @@ pnpm --filter cron test
 pnpm --filter cron lint
 ```
 
-`test/lib/audio/audio-key.test.ts`：
+`test/lib/audio/audio-key.test.ts`・`fatal-error.test.ts`・`audio-voice-id.test.ts`：
 
 - [ ] `buildAudioKey` が `passages/42/<hash>/3-0.mp3` / `listUnusedAudioKeys` は `from` が null なら空、hash が変われば `from` のキーをすべて返し、同じキーは返さない
+- [ ] `isFatalAudioGenerationError`：上の表の `name` のエラーは true、throttling・5xx・`TextLengthExceededException`・ENOSPC・普通の `Error`・Error でない値は false
+- [ ] `buildAudioVoiceId`：`polly` は `Joanna`、`fake` は `fake:Joanna`。fake と polly で `calculateAudioTextHash` が変わる
 
 `test/service/audio/generate-audio.test.ts`（Repository は `vi.fn()`、`FakeTtsClient`、`audioStorage` は `vi.fn`）：
 
@@ -169,7 +182,10 @@ pnpm --filter cron lint
 - [ ] `previous` にマニフェストがあり hash が同じ → `ready`・`pending` のどちらでも `unchanged`、`synthesize` も `save` も呼ばない。voice が違えば・マニフェストが無ければ作り直す
 - [ ] `completeClaim` が `ready` → 前のキーが `delete` される（`delete` が throw しても続く）/ `text_changed` → 今回作ったキーが消される / `lost_claim` → 何も消さない
 - [ ] `synthesize` が普通のエラー → `failed` の outcome（`maxAttempts: 3`、`error` に name と message）、次の問題の処理は続く
-- [ ] `isFatalTtsError` に当たるエラー → `releaseClaim` が呼ばれ、generateAudio が throw する
+- [ ] `save` の一時的な失敗（S3 の 5xx・ローカルの容量不足）→ `failed` の outcome、次の問題の処理は続く
+- [ ] 設定の誤り（音声合成の `CredentialsProviderError`、保存の `AccessDenied` / `NoSuchBucket` / `InvalidAccessKeyId` / `SignatureDoesNotMatch` / `ExpiredToken`）→ `releaseClaim` が呼ばれ、`completeClaim` は呼ばれず、generateAudio が throw する（2 件目の音声合成は呼ばない）
+- [ ] 前の mp3 の `delete` が `AccessDenied` → generateAudio が throw し、2 件目は処理しない（`releaseClaim` は呼ばない）
+- [ ] voice が違う（別の Polly の voice・`fake:Joanna` で作った）`ready` の行は作り直す
 - [ ] `isShuttingDown` が true になったら残りを処理しない
 
 `test/repository/drizzle/passage-audio-repository.test.ts`（既存と同じく偽の DB で、条件と更新値を確かめる）：
@@ -191,3 +207,4 @@ ls -R .storage/audio/passages
 - [ ] `UPDATE passage_audios SET status = 'generating', generation_started_at = now() - interval '31 minutes'` の後に実行すると、回収されて処理される。`interval '5 minutes'` なら手を付けない
 - [ ] 2 つのターミナルで同時に実行しても、同じ問題が二重に処理されない
 - [ ] `TTS_PROVIDER=polly` で AWS の資格情報が無いと、warn を出して exit 0。資格情報がある環境なら 1 件だけ作り、mp3 を聞いて単語の時刻がずれていないか確かめる
+- [ ] `TTS_PROVIDER=fake` で作った行の `voice_id` が `fake:Joanna`。資格情報がある環境で `TTS_PROVIDER=polly` にして実行すると、その行が確保されて新しい hash のディレクトリに作り直され（`voice_id` が `Joanna`）、無音の mp3 が消える

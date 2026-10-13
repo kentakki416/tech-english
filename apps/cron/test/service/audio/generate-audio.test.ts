@@ -182,8 +182,11 @@ describe("generateAudio", () => {
       expect(deps.audioStorage.delete).not.toHaveBeenCalled()
     })
 
-    it("前の行が ready でも voice が違えば（hash が違うので）作り直す", async () => {
-      const previousHash = calculateAudioTextHash({ blocks: BLOCKS, voiceId: "Matthew" })
+    it.each([
+      ["別の Polly の voice", "Matthew"],
+      ["fake（無音の mp3）で作った音声", "fake:Joanna"],
+    ])("前の行が ready でも voice が違えば（%s。hash が違うので）作り直す", async (_label, previousVoiceId) => {
+      const previousHash = calculateAudioTextHash({ blocks: BLOCKS, voiceId: previousVoiceId })
       const repo = createFakeRepo({
         targets: [buildTarget({ previous: { manifest: PREVIOUS_MANIFEST, status: "ready", textHash: previousHash } })],
       })
@@ -288,18 +291,67 @@ describe("generateAudio", () => {
       expect(result).toMatchObject({ readyCount: 1, retryLaterCount: 1 })
     })
 
-    it("保存の失敗も failed の outcome にする", async () => {
-      const repo = createFakeRepo({ completeResult: "failed" })
+    it.each([
+      ["S3 の 5xx", Object.assign(new Error("We encountered an internal error"), { name: "InternalError" }), "InternalError: We encountered an internal error"],
+      ["ローカルの保存先の容量不足", new Error("disk full"), "Error: disk full"],
+    ])("保存の一時的な失敗（%s）は failed の outcome にし、次の問題は続ける", async (_label, error, expectedError) => {
+      const repo = createFakeRepo({ targets: [buildTarget(), buildTarget({ passageId: 43 })] })
+      repo.passageAudioRepository.completeClaim.mockImplementation(async (_claim, outcome) =>
+        (outcome.kind === "failed" ? "failed" : "ready"))
       const deps = createDeps()
-      deps.audioStorage.save.mockRejectedValueOnce(new Error("disk full"))
+      deps.audioStorage.save.mockRejectedValueOnce(error)
 
       const result = await generateAudio(buildInput(), repo, deps)
 
-      expect(readOutcome(repo)).toEqual({ error: "Error: disk full", kind: "failed", maxAttempts: 3 })
-      expect(result.failedCount).toBe(1)
+      expect(readOutcome(repo, 0)).toEqual({ error: expectedError, kind: "failed", maxAttempts: 3 })
+      expect(readOutcome(repo, 1).kind).toBe("ready")
+      expect(repo.passageAudioRepository.releaseClaim).not.toHaveBeenCalled()
+      expect(result).toMatchObject({ failedCount: 1, readyCount: 1 })
     })
 
-    it("設定の誤り（isFatalTtsError）なら releaseClaim して throw し、残りの問題は処理しない", async () => {
+    it.each(["AccessDenied", "NoSuchBucket", "InvalidAccessKeyId", "SignatureDoesNotMatch", "ExpiredToken"])(
+      "保存先の設定の誤り（%s）なら失敗回数を増やさずに releaseClaim して throw し、残りの問題は処理しない",
+      async (name) => {
+        const second = buildTarget({ passageId: 43 })
+        const repo = createFakeRepo({ targets: [buildTarget(), second] })
+        const ttsClient = new FakeTtsClient()
+        const synthesize = vi.spyOn(ttsClient, "synthesize")
+        const deps = createDeps(ttsClient)
+        const fatal = Object.assign(new Error(`${name} occurred`), { name })
+        deps.audioStorage.save.mockRejectedValue(fatal)
+
+        await expect(generateAudio(buildInput(), repo, deps)).rejects.toBe(fatal)
+
+        expect(repo.passageAudioRepository.releaseClaim).toHaveBeenCalledTimes(1)
+        expect(repo.passageAudioRepository.releaseClaim).toHaveBeenCalledWith(buildTarget())
+        expect(repo.passageAudioRepository.completeClaim).not.toHaveBeenCalled()
+        /**
+         * 1 件目の最初のパートで止まり、2 件目の音声合成（Polly の料金）は呼ばない
+         */
+        expect(synthesize).toHaveBeenCalledTimes(1)
+        expect(deps.audioStorage.save).toHaveBeenCalledTimes(1)
+      },
+    )
+
+    it("前の mp3 の削除で保存先の設定の誤りが起きたら throw し、残りの問題は処理しない（結果は書き終えているので releaseClaim しない）", async () => {
+      const repo = createFakeRepo({
+        targets: [
+          buildTarget({ previous: { manifest: PREVIOUS_MANIFEST, status: "ready", textHash: "old-hash" } }),
+          buildTarget({ passageId: 43 }),
+        ],
+      })
+      const deps = createDeps()
+      const fatal = Object.assign(new Error("Access Denied"), { name: "AccessDenied" })
+      deps.audioStorage.delete.mockRejectedValue(fatal)
+
+      await expect(generateAudio(buildInput(), repo, deps)).rejects.toBe(fatal)
+
+      expect(repo.passageAudioRepository.completeClaim).toHaveBeenCalledTimes(1)
+      expect(repo.passageAudioRepository.releaseClaim).not.toHaveBeenCalled()
+      expect(deps.audioStorage.delete).toHaveBeenCalledTimes(1)
+    })
+
+    it("音声合成の設定の誤り（資格情報を解決できない）なら releaseClaim して throw し、残りの問題は処理しない", async () => {
       const second = buildTarget({ passageId: 43 })
       const repo = createFakeRepo({ targets: [buildTarget(), second] })
       const ttsClient = new FakeTtsClient()

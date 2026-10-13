@@ -246,8 +246,9 @@ cron に `generate:audio` タスクを足す。EventBridge Scheduler で **1 時
 ### 失敗時の扱い
 
 - Polly の一時的なエラー（throttling・5xx）は SDK のリトライに任せる。それでも失敗した問題は `attempt_count` を増やして次の実行に回す
+- mp3 の保存の一時的なエラー（S3 の 5xx・throttling、ローカルの保存先の失敗）も、Polly の一時的なエラーと同じく `attempt_count` を増やして次の実行に回す
 - 3 回失敗したら `failed` にして `last_error` を残す。管理者が admin で「再試行」すると `pending` に戻る（`attempt_count = 0`）
-- 資格情報・権限・voice の設定の誤りのように、どの問題でも同じく失敗するエラーでは、失敗の回数を増やさずに確保を `pending` に戻してタスクを止める（全件が `failed` にならないように）
+- 資格情報・権限・voice の設定の誤りのように、どの問題でも同じく失敗するエラーでは、失敗の回数を増やさずに確保を `pending` に戻してタスクを止める（全件が `failed` にならないように）。Polly だけでなく mp3 の保存先（S3 の権限が無い・bucket が無い・資格情報が無効・bucket のリージョンが違う）の誤りも同じ（保存は音声合成の後なので、1 件の失敗にすると Polly の料金をかけて全件が `failed` に進む）。前の mp3 の削除でこの誤りが起きたときも、その問題の結果は書き終えたままタスクを止める
 - 1 件でも失敗があればタスクは exit 1（ECS のタスクの終了コードとログに残す。通知は MVP では持たない。[content-collection](../content-collection/README.md#実行の上限と失敗時の扱い) と同じ）
 - 音声が無い・失敗した問題でも、解答は普段どおりできる（読み上げのボタンが無効になるだけ）
 
@@ -538,7 +539,7 @@ erDiagram
         int id PK
         int passage_id FK "unique"
         text status "AUDIO_STATUSES"
-        text voice_id "例: Joanna"
+        text voice_id "例: Joanna（TTS_PROVIDER=fake は fake:Joanna）"
         text text_hash "読み上げ対象の本文と voice のハッシュ"
         jsonb manifest "PassageAudioManifest, nullable"
         int billed_characters "Polly の課金文字数（音声 + 単語の時刻）"
@@ -562,6 +563,7 @@ erDiagram
 - `AUDIO_STATUSES = ["pending", "generating", "ready", "failed"]` は `@repo/domain` の `const/audio.ts`。DB の CHECK 制約はここから作る
 - `PassageAudioManifest`（`@repo/domain` の `types/audio.ts`）：`{ blocks: { blockIndex: number; parts: { durationMs: number; key: string; words: [startMs, endMs, startOffset, endOffset][] }[] }[] }`。単語の時刻は容量を抑えるため配列のタプルにする（600 語で約 20KB）
 - `generation_started_at` は生成タスクが確保したときの時刻。結果を書くときの条件（確保のトークン）と、30 分以上止まった `generating` の回収に使う。`generating` の行は必ず値を持つ（CHECK 制約）
+- `voice_id` は生成に使った voice。`TTS_PROVIDER=fake`（無音の mp3）は `fake:<voice>` にして `text_hash` にも入れる（fake で作った問題を Polly に切り替えたときに、voice が違う行として作り直し、保存キーも変える。同じ値だと CloudFront の長期キャッシュに無音の mp3 が残る）
 - `manifest` / `text_hash` は最後に成功した生成のもの。失敗しても前の値を残す（前の mp3 のキーを後で消すため。利用者には `ready` のときしかマニフェストを返さない）
 - index：`(status)`（生成タスクの取得用）
 - ユーザーに紐づかないテーブルなので、アカウント削除の cascade の対象外

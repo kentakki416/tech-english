@@ -84,7 +84,8 @@ const cronEnvSchema = z
     TTS_PROVIDER: z.enum(["polly", "fake"]).optional(),
     /**
      * generate-audio の Polly の voice（Neural に対応したもの）。変えると、voice_id が違う ready の音声を生成タスクが確保し、
-     * 次の実行から AUDIO_MAX_PASSAGES_PER_RUN 件ずつ作り直す（text_hash にも voice を含むので保存キーも変わる）
+     * 次の実行から AUDIO_MAX_PASSAGES_PER_RUN 件ずつ作り直す（text_hash にも voice を含むので保存キーも変わる）。
+     * TTS_PROVIDER=fake のときの voice_id は fake:<TTS_VOICE_ID>（buildAudioVoiceId）
      */
     TTS_VOICE_ID: z.string().min(1).default("Joanna"),
     /**

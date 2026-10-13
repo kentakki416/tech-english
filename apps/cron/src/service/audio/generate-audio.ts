@@ -2,13 +2,14 @@ import type { PassageAudioPart } from "@repo/domain"
 import { logger } from "@repo/logger"
 import type { Storage } from "@repo/storage"
 
-import { isFatalTtsError, type TtsClient } from "../../client/polly"
+import type { TtsClient } from "../../client/polly"
 import { POLLY_MAX_BILLED_CHARACTERS } from "../../const/audio"
 import {
   buildAudioKey,
   buildSpeechText,
   calculateAudioTextHash,
   convertSpeechMarksToWordTimings,
+  isFatalAudioGenerationError,
   listReadAloudBlocks,
   listUnusedAudioKeys,
   measureMp3DurationMs,
@@ -41,6 +42,9 @@ export type GenerateAudioInput = {
   isShuttingDown: () => boolean
   maxPassagesPerRun: number
   now: () => Date
+  /**
+   * passage_audios.voice_id と text_hash に入れる voice（buildAudioVoiceId の値。fake は `fake:<voice>`）。音声合成にもそのまま渡す（FakeTtsClient は voice を見ない）
+   */
   voiceId: string
 }
 
@@ -91,7 +95,7 @@ const describeError = (error: unknown): string => {
  * 今と同じなら、行の状態を問わず作り直さない（admin の再試行・手動の UPDATE などで pending に戻された ready の行でも Polly を呼ばない）。
  * manifest がある行の text_hash はその manifest のもので、その mp3 は別の hash の生成が成功して置き換わるまで消さないので、そのまま使える。
  * 読み上げるブロック → パートの順に、音声合成 → 長さ・単語の時刻 → mp3 の保存をする。
- * 設定の誤り（isFatalTtsError）は throw し、それ以外の失敗は failed の outcome にする
+ * 設定の誤り（isFatalAudioGenerationError。Polly の資格情報・権限・voice、保存先の権限・bucket など）は throw し、それ以外の失敗は failed の outcome にする
  */
 const buildPassageAudio = async (
   target: ClaimedAudioTarget,
@@ -122,19 +126,24 @@ const buildPassageAudio = async (
     }
     return { billedCharacters, kind: "ready", manifest: { blocks }, textHash, voiceId: options.voiceId }
   } catch (error) {
-    if (isFatalTtsError(error)) throw error
+    if (isFatalAudioGenerationError(error)) throw error
     return { error: describeError(error), kind: "failed", maxAttempts: MAX_AUDIO_ATTEMPTS }
   }
 }
 
 /**
- * 使わなくなった mp3 を消す。失敗しても warn だけ（残っても実害は無い）
+ * 使わなくなった mp3 を消す。保存先の設定の誤り（isFatalAudioGenerationError。権限・bucket など）は throw して実行を止める
+ * （以降の問題でも同じく消せず、mp3 が残り続けるのに気づけないため）。それ以外の失敗は warn だけ（残っても実害は無い）
  */
 const deleteAudioKeys = async (keys: string[], passageId: number, audioStorage: Storage): Promise<void> => {
   for (const key of keys) {
     try {
       await audioStorage.delete(key)
     } catch (error) {
+      if (isFatalAudioGenerationError(error)) {
+        logger.error("failed to delete an unused audio file because of a storage configuration error", error, { key, passageId })
+        throw error
+      }
       logger.warn("failed to delete an unused audio file", { error: describeError(error), key, passageId })
     }
   }
@@ -179,8 +188,8 @@ const summarizeOutcome = (outcome: AudioClaimOutcome) => {
  *
  * 1. generating のまま 30 分以上たった行を pending に戻す
  * 2. 対象を古い順に generating にしながら取る（短いトランザクション。FOR UPDATE SKIP LOCKED）
- * 3. 1 件ずつ、トランザクションの外で音声を作る。1 件の失敗で他の件は止めない。設定の誤りはその行を pending に戻して throw する
- * 4. 確保した時刻を条件に結果を書き、使わなくなった mp3 を消す
+ * 3. 1 件ずつ、トランザクションの外で音声を作る。1 件の失敗で他の件は止めない。設定の誤り（音声合成・保存先）はその行を pending に戻して throw する
+ * 4. 確保した時刻を条件に結果を書き、使わなくなった mp3 を消す。削除で保存先の設定の誤りが起きたら throw する（結果は書き終えているので行は戻さない）
  */
 export const generateAudio = async (
   input: GenerateAudioInput,
@@ -218,15 +227,18 @@ export const generateAudio = async (
       outcome = await buildPassageAudio(target, { calculateTextHash, voiceId: input.voiceId }, deps)
     } catch (error) {
       /**
-       * 資格情報・権限・voice の誤りは全件で同じく失敗するので、失敗回数を増やさずに戻して止める（他の確保済みの行は 30 分後に回収される）
+       * 資格情報・権限・voice・保存先の誤りは全件で同じく失敗するので、失敗回数を増やさずに戻して止める（他の確保済みの行は 30 分後に回収される）
        */
       await repo.passageAudioRepository.releaseClaim(target)
       throw error
     }
 
     const claimResult = await repo.passageAudioRepository.completeClaim(target, outcome, { calculateTextHash, now: input.now() })
-    await cleanUpAudioFiles(target, outcome, claimResult, deps)
     logger.info("passage audio processed", { passageId: target.passageId, result: claimResult, ...summarizeOutcome(outcome) })
+    /**
+     * 削除で保存先の設定の誤りが起きたら throw して止める。この行の結果は書き終えているので戻さない（他の確保済みの行は 30 分後に回収される）
+     */
+    await cleanUpAudioFiles(target, outcome, claimResult, deps)
 
     if (claimResult === "failed") result.failedCount++
     if (claimResult === "lost_claim") {

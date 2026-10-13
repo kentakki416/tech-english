@@ -1,4 +1,3 @@
-export { isFatalTtsError } from "./errors"
 export { FakeTtsClient } from "./fake-tts-client"
 export { parseSpeechMarks } from "./parse-speech-marks"
 export { isPollyVoiceId, PollyTtsClient } from "./polly-tts-client"
