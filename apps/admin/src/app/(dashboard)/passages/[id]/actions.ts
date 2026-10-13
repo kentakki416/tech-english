@@ -39,6 +39,8 @@ const NOT_FOUND_MESSAGE = "この問題は見つかりませんでした。一�
 
 const CONFLICT_MESSAGE = "他の操作で状態が変わりました。画面を再読み込みしてください。"
 
+const AUDIO_CONFLICT_MESSAGE = "音声の状態が変わりました。画面を再読み込みしてください。"
+
 const INVALID_ID_FAILURE: PassageActionFailure = { details: undefined, error: NOT_FOUND_MESSAGE, ok: false, status: 404 }
 
 /**
@@ -170,5 +172,24 @@ export const regeneratePassageAction = async (id: number): Promise<PassageAction
     return convertApiErrorToFailure(error, "再生成できませんでした")
   }
   revalidatePassagePaths(passageId)
+  return { ok: true }
+}
+
+/**
+ * 失敗した読み上げの音声を再試行する（pending に戻し、次回の生成タスクで作り直す）。
+ * 404 と 409（別のタブで先に再試行した・状態が変わった）は失敗の結果にし、それ以外は throw して global-error.tsx に任せる
+ */
+export const retryPassageAudioAction = async (id: number): Promise<PassageActionResult> => {
+  const passageId = parsePassageId(id)
+  if (passageId === null) return INVALID_ID_FAILURE
+
+  try {
+    await passageApi.retryAudio(passageId)
+  } catch (error) {
+    if (!(error instanceof ApiClientError) || ![404, 409].includes(error.status)) throw error
+    const message = error.status === 404 ? NOT_FOUND_MESSAGE : AUDIO_CONFLICT_MESSAGE
+    return { details: undefined, error: message, ok: false, status: error.status }
+  }
+  revalidatePath(`/passages/${passageId}`)
   return { ok: true }
 }

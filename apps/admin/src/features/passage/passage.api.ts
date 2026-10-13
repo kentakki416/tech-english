@@ -12,6 +12,8 @@ import {
   regenerateAdminPassageResponseSchema,
   type RejectAdminPassageResponse,
   rejectAdminPassageResponseSchema,
+  type RetryAdminPassageAudioResponse,
+  retryAdminPassageAudioResponseSchema,
   type UnpublishAdminPassageResponse,
   unpublishAdminPassageResponseSchema,
   type UpdateAdminPassageRequest,
@@ -101,6 +103,14 @@ export const passageApi = {
   reject: async (id: number, reason: string): Promise<RejectAdminPassageResponse> => {
     const raw = await apiClient.post<unknown>(`${BASE_PATH}/${id}/reject`, { reason })
     return rejectAdminPassageResponseSchema.parse(raw)
+  },
+
+  /**
+   * 失敗した読み上げの音声を pending に戻す（failed のときだけ。それ以外の状態・音声の行が無ければ 409）
+   */
+  retryAudio: async (id: number): Promise<RetryAdminPassageAudioResponse> => {
+    const raw = await apiClient.post<unknown>(`${BASE_PATH}/${id}/audio/retry`, {})
+    return retryAdminPassageAudioResponseSchema.parse(raw)
   },
 
   unpublish: async (id: number): Promise<UnpublishAdminPassageResponse> => {
