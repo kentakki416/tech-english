@@ -1,5 +1,6 @@
 export { ATTEMPT_EXPIRY_SECONDS, ATTEMPT_STATUSES, WORD_LOOKUP_SOURCES } from "./const/attempt"
 export { ALLOWED_LICENSES, SOURCE_FETCH_TYPES, SOURCE_KINDS } from "./const/content-source"
+export { GOAL_METRICS, GOAL_TEXT_MAX_LENGTH } from "./const/goal"
 export { MEMBERSHIP_TIERS } from "./const/membership-tier"
 export {
   PASSAGE_BLOCK_TYPES,
@@ -18,6 +19,14 @@ export {
 } from "./const/question"
 export { isAttemptStatus, isWordLookupSource } from "./rules/attempt"
 export { isAllowedLicense, isSourceFetchType, isSourceKind } from "./rules/content-source"
+export { isGoalMetric } from "./rules/goal"
+export {
+  addDaysToDate,
+  calculateStreak,
+  convertStudySecondsToLevel,
+  countDaysBetween,
+  getWeekRange,
+} from "./rules/learning-record"
 export { isMembershipTier } from "./rules/membership-tier"
 export { canShareMemo } from "./rules/memo"
 export { calculateQuestionCount, calculateTimeLimitSeconds, isPassageDifficulty, isPassageStatus } from "./rules/passage"
@@ -40,6 +49,7 @@ export type {
   SourceKind,
   WebsiteSource,
 } from "./types/content-source"
+export type { CalendarLevel, GoalMetric, StreakSummary, UserGoal, WeekRange } from "./types/goal"
 export type { MembershipTier } from "./types/membership-tier"
 export type { Memo } from "./types/memo"
 export type { Passage, PassageBlock, PassageBlockType, PassageDifficulty, PassageStatus } from "./types/passage"

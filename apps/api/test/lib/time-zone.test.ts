@@ -1,4 +1,4 @@
-import { formatDateInTimeZone } from "../../src/lib/time-zone"
+import { formatDateInTimeZone, formatTimeInTimeZone } from "../../src/lib/time-zone"
 
 describe("formatDateInTimeZone", () => {
   describe("正常系", () => {
@@ -22,6 +22,27 @@ describe("formatDateInTimeZone", () => {
   describe("異常系", () => {
     it("タイムゾーン名が不正なら RangeError を throw する", () => {
       expect(() => formatDateInTimeZone(new Date("2026-10-10T00:00:00.000Z"), "Mars/Olympus_Mons")).toThrow(RangeError)
+    })
+  })
+})
+
+describe("formatTimeInTimeZone", () => {
+  describe("正常系", () => {
+    it.each([
+      ["Asia/Tokyo の 0 時は 00（24 にしない）", "2026-10-10T15:00:00.000Z", "Asia/Tokyo", "00:00"],
+      ["Asia/Tokyo の日付の終わり", "2026-10-10T14:59:59.999Z", "Asia/Tokyo", "23:59"],
+      ["秒は切り捨てる", "2026-10-09T23:14:59.999Z", "Asia/Tokyo", "08:14"],
+      ["時と分を 0 埋めする", "2026-10-10T03:05:00.000Z", "UTC", "03:05"],
+      ["America/Los_Angeles の夏時間（PDT = UTC-7）", "2026-10-10T19:30:00.000Z", "America/Los_Angeles", "12:30"],
+      ["America/Los_Angeles の標準時（PST = UTC-8）", "2026-12-10T19:30:00.000Z", "America/Los_Angeles", "11:30"],
+    ])("%s", (_label, instant, timeZone, expected) => {
+      expect(formatTimeInTimeZone(new Date(instant), timeZone)).toBe(expected)
+    })
+  })
+
+  describe("異常系", () => {
+    it("タイムゾーン名が不正なら RangeError を throw する", () => {
+      expect(() => formatTimeInTimeZone(new Date("2026-10-10T00:00:00.000Z"), "Mars/Olympus_Mons")).toThrow(RangeError)
     })
   })
 })

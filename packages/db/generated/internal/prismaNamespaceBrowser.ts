@@ -62,7 +62,8 @@ export const ModelName = {
   Question: 'Question',
   ReadingAttempt: 'ReadingAttempt',
   SourceDocument: 'SourceDocument',
-  User: 'User'
+  User: 'User',
+  UserGoal: 'UserGoal'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -295,6 +296,20 @@ export const UserScalarFieldEnum = {
 } as const
 
 export type UserScalarFieldEnum = (typeof UserScalarFieldEnum)[keyof typeof UserScalarFieldEnum]
+
+
+export const UserGoalScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  goalText: 'goalText',
+  targetDate: 'targetDate',
+  weeklyMetric: 'weeklyMetric',
+  weeklyTarget: 'weeklyTarget',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type UserGoalScalarFieldEnum = (typeof UserGoalScalarFieldEnum)[keyof typeof UserGoalScalarFieldEnum]
 
 
 export const SortOrder = {

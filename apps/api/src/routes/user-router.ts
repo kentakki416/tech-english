@@ -1,12 +1,22 @@
 import { Router } from "express"
 
+import { UserAttemptsController } from "../controller/user/attempts"
+import { UserCalendarController } from "../controller/user/calendar"
 import { UserDeleteController } from "../controller/user/delete"
 import { UserGetController } from "../controller/user/get"
+import { UserGetGoalController } from "../controller/user/get-goal"
+import { UserPutGoalController } from "../controller/user/put-goal"
+import { UserStatsController } from "../controller/user/stats"
 import { UserUpdateController } from "../controller/user/update"
 
 type UserRouterControllers = {
+  attempts?: UserAttemptsController
+  calendar?: UserCalendarController
   delete?: UserDeleteController
   get?: UserGetController
+  getGoal?: UserGetGoalController
+  putGoal?: UserPutGoalController
+  stats?: UserStatsController
   update?: UserUpdateController
 }
 
@@ -35,6 +45,46 @@ export const userRouter = (controllers: UserRouterControllers): Router => {
   if (controllers.delete) {
     const controller = controllers.delete
     router.delete("/", async (req, res) => controller.execute(req, res))
+  }
+
+  /**
+   * GET /api/user/stats（マイページの統計）
+   */
+  if (controllers.stats) {
+    const controller = controllers.stats
+    router.get("/stats", async (req, res) => controller.execute(req, res))
+  }
+
+  /**
+   * GET /api/user/calendar（学習カレンダー）
+   */
+  if (controllers.calendar) {
+    const controller = controllers.calendar
+    router.get("/calendar", async (req, res) => controller.execute(req, res))
+  }
+
+  /**
+   * GET /api/user/attempts（提出した挑戦の一覧）
+   */
+  if (controllers.attempts) {
+    const controller = controllers.attempts
+    router.get("/attempts", async (req, res) => controller.execute(req, res))
+  }
+
+  /**
+   * GET /api/user/goal（目標の取得）
+   */
+  if (controllers.getGoal) {
+    const controller = controllers.getGoal
+    router.get("/goal", async (req, res) => controller.execute(req, res))
+  }
+
+  /**
+   * PUT /api/user/goal（目標の保存）
+   */
+  if (controllers.putGoal) {
+    const controller = controllers.putGoal
+    router.put("/goal", async (req, res) => controller.execute(req, res))
   }
 
   return router

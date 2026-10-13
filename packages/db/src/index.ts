@@ -15,6 +15,7 @@ export {
   and,
   asc,
   count,
+  countDistinct,
   desc,
   eq,
   exists,
@@ -56,4 +57,5 @@ export type {
   ReadingAttempt,
   SourceDocument,
   User,
+  UserGoal,
 } from "../generated/client"
