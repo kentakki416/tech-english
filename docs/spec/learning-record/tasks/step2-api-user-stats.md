@@ -20,7 +20,7 @@ flowchart LR
     C --> D["calculateStreak・週の進捗・正答率を計算"]
 ```
 
-1. `repo.userRepository.findById(userId)` が `null` なら `err(unauthorizedError(...))`。「今日」を求めるのにタイムゾーンが要るため、読み取りの API でも 401 にする（削除済みユーザーの access token。クライアントは refresh に失敗してログイン画面へ戻る）
+1. `repo.userRepository.findById(userId)` が `null` なら `err(unauthorizedError(...))`。「今日」を求めるのにタイムゾーンが要るため、読み取りの API でも 401 にする（削除済みユーザーの access token。mobile は refresh に失敗して、web は 401 を受けたページが cookie を消して（`/api/auth/session-expired`）ログイン画面へ戻る）
 2. 「今日」は `formatDateInTimeZone(deps.now, user.timezone)`。集計そのものは `study_date` だけで決まり、タイムゾーン変換はしない
 3. 数えるのは `status = 'submitted'` の挑戦だけ（途中・期限切れは数えない。期限切れへの更新はこの API では行わない）
 

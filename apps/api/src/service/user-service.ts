@@ -10,7 +10,7 @@ type RefreshVerifier = (token: string) => { jti: string; userId: number } | null
  * ユーザーIDからユーザー情報を取得
  *
  * ユーザーが無いときは 401 にする。access token は JWT なので、アカウント削除後も最長 15 分は残る。
- * 401 を返せばクライアントは refresh を試み、refresh も 401 になってログイン画面に戻る
+ * 401 を返せば、mobile は refresh を試みて refresh も 401 になり、web は cookie を消して（/api/auth/session-expired）ログイン画面に戻る
  */
 export const getUserById = async (
   userId: number,

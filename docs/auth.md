@@ -9,6 +9,7 @@
   - [前半: 認証情報の取得 (①〜④)](#前半-認証情報の取得-)
   - [中盤: code を JWT に変換 (⑤〜⑪)](#中盤-code-を-jwt-に変換-)
   - [後半: cookie に保存して認証完了 (⑫〜⑬)](#後半-cookie-に保存して認証完了-)
+- [トークンの更新（refresh）](#トークンの更新refresh)
 - [URL の整理](#url-の整理)
 - [なぜ間に web を挟むのか](#なぜ間に-web-を挟むのか)
 - [セキュリティ設計のまとめ](#セキュリティ設計のまとめ)
@@ -65,6 +66,32 @@ sequenceDiagram
 - **⑫**: web が JWT を **httpOnly cookie** に保存（JavaScript から触れないので XSS で盗まれない）
 - **⑬**: ホームに遷移。以降のリクエストは proxy（`apps/web/src/proxy.ts`）が cookie の有無で認証ガードし、access token が切れていれば（期限が近ければ）描画より前に refresh して cookie を書き換える（`apps/web/src/libs/token-refresh.ts`）
 
+## トークンの更新（refresh）
+
+```mermaid
+sequenceDiagram
+    participant Web as web（proxy）
+    participant Api as api
+    participant Redis as Redis
+
+    Web->>Api: POST /api/auth/refresh（refresh token A）
+    Api->>Redis: 新しいペア B を保存 / A → B を 30 秒だけ保存 / A の jti を破棄
+    Api--xWeb: 200（B）が届かない（timeout・通信断）
+    Web->>Api: 30 秒以内にもう一度 A で更新
+    Api->>Redis: A → B を見つける
+    Api-->>Web: 200（同じ B。新しく発行しない）
+```
+
+- **ローテーション**: api は refresh token を 1 回で失効させる。旧 jti を破棄して新しいペア（access / refresh）を発行する
+- **30 秒の猶予（同じペアを返す）**: 旧 jti を破棄する前に、旧 jti → 発行したペアを Redis に 30 秒だけ残す（`refresh_token_rotated:{jti}`）。その間に同じ旧 refresh token が来たら、**新しく発行せず同じペアを返す**。猶予を過ぎたら今までどおり 401。発行したペアがログアウトで失効している・ユーザーが削除済みなら猶予の間でも 401
+  - 理由: 次の場合に 2 回目の更新が 401 になり、ログアウトさせないため
+    - 応答を受け取れなかったクライアント（web の 5 秒の timeout・mobile の通信断）。api はローテーションを終えているのに、クライアントには旧 token が残る
+    - 同じ token での同時の更新（ページと prefetch など）
+    - web を複数台にしたとき（web のプロセス内で同じ token の更新をまとめる仕組みは台をまたがない）
+- **web がログアウトさせる条件**: refresh API が 401 / 400（token が使えない）を返したときだけ cookie を消す。429（api のレート制限。IP 単位で、web からの呼び出しは web サーバーの IP に集まる）・5xx・timeout では cookie を残し、次のリクエストで再試行する
+- **public なパスでも更新する**: `/api/events` などログイン不要のパスでも、refresh cookie があって access token が使えなければ proxy が更新だけ行う（token が使えなければ cookie を消すだけで、リダイレクトしない）
+- **期限内の access token が拒まれたとき**: 別の端末でアカウントを削除した・JWT の secret を差し替えたなどで、api が期限内の access token を 401 で拒むと、web の Server Component（共通ヘッダーのユーザー取得など）が `/api/auth/session-expired` へ redirect し、その Route Handler が cookie を消してからログイン画面へ移す（Server Component は cookie を書き換えられないため）
+
 ## URL の整理
 
 `/api/` で始まるからといって Express api サーバとは限らない。**Next.js の Route Handler も `/api/...` を使う** ので注意。
@@ -106,6 +133,7 @@ redirect_uri: `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/callback/google`,
 | **access (15分)** + **refresh (7日)** の2種類 | access が漏れても短時間で失効、利便性は refresh で確保 |
 | **Client Secret は api だけ** が持つ | ブラウザに漏れない |
 | refresh の **jti を Redis 管理** | サーバ側で個別失効が可能。ローテーション運用も対応 |
+| ローテーションに **30 秒の猶予**（同じペアを返す） | 応答を受け取れなかった・同時の更新で 2 回目が 401 になり、ログアウトさせない |
 | cookie は **sameSite=lax** | OAuth コールバックの cross-site 連鎖ナビゲーションでも cookie が送信される |
 
 ## 関連ファイル
@@ -117,6 +145,7 @@ redirect_uri: `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/callback/google`,
 - `apps/web/src/app/api/auth/callback/google/route.ts` — Google callback Route Handler
 - `apps/web/src/libs/auth.ts` — cookie 操作（`setAuthCookies` ほか）
 - `apps/web/src/proxy.ts` — 認証ガードと access token の更新（`libs/token-refresh.ts`）
+- `apps/web/src/libs/session.ts` / `apps/web/src/app/api/auth/session-expired/route.ts` — 期限内の access token が拒まれたときに cookie を消してログイン画面へ
 
 ### api (Express)
 
@@ -124,5 +153,5 @@ redirect_uri: `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/callback/google`,
 - `apps/api/src/service/auth-service.ts` — `authenticateWithGoogle` / `refreshTokens` / `logout`
 - `apps/api/src/client/google-oauth.ts` — Google OAuth クライアント
 - `apps/api/src/lib/jwt.ts` — JWT 発行・検証
-- `apps/api/src/repository/redis/refresh-token-repository.ts` — refresh token の Redis 永続化
+- `apps/api/src/repository/redis/refresh-token-repository.ts` — refresh token の Redis 永続化（ローテーションの猶予の記録を含む）
 - `apps/api/src/repository/drizzle/auth-account-repository.ts` — User と AuthAccount の DB 操作（Prisma 版は `repository/prisma/`）

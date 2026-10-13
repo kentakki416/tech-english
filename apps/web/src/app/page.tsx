@@ -10,13 +10,18 @@ import { AppHeader } from "@/components/ui/AppHeader"
 import { UserAvatar } from "@/components/ui/UserAvatar"
 import { learningRecordApi } from "@/features/learning-record/learning-record.api"
 import { getUser } from "@/features/user/get-user"
+import { redirectIfSessionRejected } from "@/libs/session"
 
 /**
  * マイページ（ログイン後の最初の画面）。PC は左に学習カレンダーと統計、右に囲みのパネル。
  * 1024px 未満ではパネルを先に並べる（続ける動機になる連続日数と目標を先に見せる）
  */
 export default async function HomePage() {
+  /**
+   * 削除済みユーザーの access token では stats / calendar も 401 になる。getUser より先に返っても、ログイン画面へ移す
+   */
   const [user, stats, calendar] = await Promise.all([getUser(), learningRecordApi.getStats(), learningRecordApi.getCalendar()])
+    .catch(redirectIfSessionRejected)
   const isEmpty = stats.totals.attempt_count === 0
 
   return (
