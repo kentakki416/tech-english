@@ -78,7 +78,7 @@ export class DrizzleUserRepository implements UserRepository {
 
   /**
    * 関連テーブル（auth_accounts など）は DB の ON DELETE CASCADE で消える。
-   * 対象が無いときは Prisma 実装（P2025）と同じく throw する
+   * 対象が無いときは何もしない（interface の契約。Prisma 実装も deleteMany で同じ）
    */
   public async deleteById(id: number): Promise<void> {
     await this._db.delete(users).where(eq(users.id, id))
