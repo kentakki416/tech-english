@@ -2,7 +2,7 @@ import { useFocusEffect } from "@react-navigation/native"
 import { Image } from "expo-image"
 import { useRouter } from "expo-router"
 import { useCallback, useRef, useState } from "react"
-import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native"
+import { ActivityIndicator, AppState, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 
 import type { GetUserCalendarResponse, GetUserResponse, GetUserStatsResponse } from "@repo/api-schema"
@@ -49,7 +49,7 @@ function UserAvatar({ user }: { user: GetUserResponse | null }) {
 
 /**
  * マイページ（タブ）。続ける動機になる連続日数と目標のパネルを先に、次にカレンダー・累計・種類別を縦に並べる。
- * 問題を解いて戻ったときに反映させるため、フォーカスのたびに取り直す
+ * 問題を解いて戻ったときに反映させるため、フォーカスのたびに取り直す（フォーカス中にアプリが前面に戻ったときも）
  */
 export default function HomeScreen() {
   const router = useRouter()
@@ -81,9 +81,17 @@ export default function HomeScreen() {
     }
   }, [])
 
+  /**
+   * フォーカスのたびと、フォーカス中にアプリが前面に戻ったときに取り直す
+   * （タブの画面はアンマウントされないので、バックグラウンドのまま日付をまたいで戻ったときに古い「今日」のままにしない）
+   */
   useFocusEffect(
     useCallback(() => {
       void load()
+      const subscription = AppState.addEventListener("change", (state) => {
+        if (state === "active") void load()
+      })
+      return () => subscription.remove()
     }, [load]),
   )
 
