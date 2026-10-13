@@ -1,4 +1,4 @@
-import { asc, contentSources, DrizzleClient, eq, sql } from "@repo/db"
+import { and, asc, contentSources, DrizzleClient, eq, isNull, sql } from "@repo/db"
 
 import { DrizzleContentSourceRepository } from "../../../src/repository/drizzle"
 
@@ -34,9 +34,10 @@ const buildRow = (overrides: Partial<ContentSourceRow> = {}): ContentSourceRow =
 })
 
 /**
- * `db.select().from(table).where(condition).orderBy(...)` と `db.update(table).set(values).where(condition)` だけを持つ偽物
+ * `db.select().from(table).where(condition).orderBy(...)` と `db.update(table).set(values).where(condition)` だけを持つ偽物。
+ * update は条件に合った行数（updatedCount）を rowCount で返す
  */
-const createFakeDb = (rows: ContentSourceRow[]) => {
+const createFakeDb = (rows: ContentSourceRow[], updatedCount = 1) => {
   const orderBy = vi.fn(async (..._columns: unknown[]) => rows)
   /**
    * Drizzle のクエリと同じく、where の戻り値は orderBy を続けても、そのまま await してもよい（thenable）
@@ -47,7 +48,7 @@ const createFakeDb = (rows: ContentSourceRow[]) => {
   }))
   const from = vi.fn((_table: unknown) => ({ where: selectWhere }))
   const select = vi.fn(() => ({ from }))
-  const updateWhere = vi.fn(async (_condition: unknown) => ({ rowCount: 1 }))
+  const updateWhere = vi.fn(async (_condition: unknown) => ({ rowCount: updatedCount }))
   const set = vi.fn((_values: unknown) => ({ where: updateWhere }))
   const update = vi.fn((_table: unknown) => ({ set }))
   return { db: { select, update } as unknown as DrizzleClient, orderBy, selectWhere, set, update, updateWhere }
@@ -137,24 +138,58 @@ describe("DrizzleContentSourceRepository", () => {
 
   describe("markCollected", () => {
     describe("正常系", () => {
-      it("lastCollectedCommitSha を省略したら last_collected_at だけを更新する", async () => {
+      it("lastCollectedCommitSha を省略したら id だけを条件に last_collected_at だけを更新し、true を返す", async () => {
         const fake = createFakeDb([])
         const lastCollectedAt = new Date("2026-10-10T03:00:00.000Z")
 
-        await new DrizzleContentSourceRepository(fake.db).markCollected(1, { lastCollectedAt })
+        const isUpdated = await new DrizzleContentSourceRepository(fake.db).markCollected(1, { lastCollectedAt })
 
+        expect(isUpdated).toBe(true)
         expect(fake.update).toHaveBeenCalledWith(contentSources)
         expect(fake.set).toHaveBeenCalledWith({ lastCollectedAt })
         expect(fake.updateWhere).toHaveBeenCalledWith(eq(contentSources.id, 1))
       })
 
-      it("lastCollectedCommitSha を渡したら一緒に更新する", async () => {
+      it("lastCollectedCommitSha を渡したら、収集を始めたときの SHA を条件に一緒に更新する", async () => {
         const fake = createFakeDb([])
         const lastCollectedAt = new Date("2026-10-10T03:00:00.000Z")
 
-        await new DrizzleContentSourceRepository(fake.db).markCollected(1, { lastCollectedAt, lastCollectedCommitSha: "abc" })
+        const isUpdated = await new DrizzleContentSourceRepository(fake.db).markCollected(1, {
+          lastCollectedAt,
+          lastCollectedCommitSha: { expected: "old-sha", next: "new-sha" },
+        })
 
-        expect(fake.set).toHaveBeenCalledWith({ lastCollectedAt, lastCollectedCommitSha: "abc" })
+        expect(isUpdated).toBe(true)
+        expect(fake.set).toHaveBeenCalledWith({ lastCollectedAt, lastCollectedCommitSha: "new-sha" })
+        expect(fake.updateWhere).toHaveBeenCalledWith(
+          and(eq(contentSources.id, 1), eq(contentSources.lastCollectedCommitSha, "old-sha")),
+        )
+      })
+
+      it("収集を始めたときの SHA が null なら IS NULL を条件にする", async () => {
+        const fake = createFakeDb([])
+
+        await new DrizzleContentSourceRepository(fake.db).markCollected(1, {
+          lastCollectedAt: new Date("2026-10-10T03:00:00.000Z"),
+          lastCollectedCommitSha: { expected: null, next: "new-sha" },
+        })
+
+        expect(fake.updateWhere).toHaveBeenCalledWith(
+          and(eq(contentSources.id, 1), isNull(contentSources.lastCollectedCommitSha)),
+        )
+      })
+    })
+
+    describe("異常系", () => {
+      it("収集の途中で last_collected_commit_sha が変わって条件に合わなければ false を返す", async () => {
+        const fake = createFakeDb([], 0)
+
+        const isUpdated = await new DrizzleContentSourceRepository(fake.db).markCollected(1, {
+          lastCollectedAt: new Date("2026-10-10T03:00:00.000Z"),
+          lastCollectedCommitSha: { expected: "old-sha", next: "new-sha" },
+        })
+
+        expect(isUpdated).toBe(false)
       })
     })
   })

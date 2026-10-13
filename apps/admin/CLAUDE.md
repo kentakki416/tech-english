@@ -42,7 +42,7 @@ cd apps/admin && pnpm exec dotenvx set API_URL "http://localhost:8080" -f .env.l
 
 MVP の管理者は 1〜2 人なので、共有シークレットで保護する（設計は [question-generation の 管理画面のアクセス制御](../../docs/spec/question-generation/README.md#管理画面のアクセス制御)）。
 
-- **画面**: `src/proxy.ts` が Basic 認証をかける（`_next/static`・`_next/image`・`favicon.ico` 以外のすべて。モックの `/mock` も対象）。`ADMIN_BASIC_AUTH_USER` / `ADMIN_BASIC_AUTH_PASSWORD` が未設定なら誰も通さない（fail closed）。`src/env.ts` は `server-only` なので proxy からは使わず `process.env` を直接読む。比較は `src/libs/basic-auth.ts`（`node:crypto` を使わない定数時間比較）
+- **画面**: `src/proxy.ts` が Basic 認証をかける（`_next/static`・`_next/image`・`favicon.ico`・`images/` 以外のすべて。モックの `/mock` も対象）。`images/`（`public/images` のテンプレートの静的画像）を除くのは、秘密を含まないうえ、next/image の最適化（`/_next/image`）がサーバーの内部から元の画像を認証なしで取得するため（Basic 認証をかけると最適化した画像が 401 で表示されない）。`ADMIN_BASIC_AUTH_USER` / `ADMIN_BASIC_AUTH_PASSWORD` が未設定なら誰も通さない（fail closed）。`src/env.ts` は `server-only` なので proxy からは使わず `process.env` を直接読む。比較は `src/libs/basic-auth.ts`（`node:crypto` を使わない定数時間比較）
 - **api**: `src/libs/api-client.ts` がすべてのリクエストに `X-Admin-Token: ADMIN_API_TOKEN` を付ける。トークンはブラウザに渡らない（Client Component の props やエラーに含めない）
 - ローカルの資格情報は `.env.local`（dotenvx で暗号化済み）に入っている。値は `pnpm exec dotenvx get ADMIN_BASIC_AUTH_PASSWORD -f .env.local` で確認する
 

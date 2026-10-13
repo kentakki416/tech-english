@@ -2,6 +2,11 @@ import { GitHubContentClient, GitHubNotFoundError, GitHubRateLimitError } from "
 
 const USER_AGENT = "TechEnglishBot/1.0"
 
+/**
+ * application/vnd.github.sha で返るコミットの SHA（40 桁の 16 進数）
+ */
+const COMMIT_SHA = "c0ffee0123456789abcdef0123456789abcdef01"
+
 const createResponse = (body: string, init: { headers?: Record<string, string>; status?: number } = {}): Response =>
   new Response(body, { headers: init.headers, status: init.status ?? 200 })
 
@@ -23,15 +28,15 @@ const readRequest = (fetchMock: ReturnType<typeof vi.fn<typeof fetch>>) => {
 
 describe("GitHubContentClient", () => {
   describe("正常系", () => {
-    it("getLatestCommitSha は commits/{branch} の sha を返し、token があれば Authorization を付ける", async () => {
-      const { client, fetchMock } = createClient(createJsonResponse({ commit: {}, sha: "c0ffee" }), "ghp_token")
+    it("getLatestCommitSha は commits/{branch} を SHA だけのメディアタイプで取得して SHA を返し、token があれば Authorization を付ける", async () => {
+      const { client, fetchMock } = createClient(createResponse(COMMIT_SHA), "ghp_token")
 
       const sha = await client.getLatestCommitSha("reactjs/react.dev", "main")
 
-      expect(sha).toBe("c0ffee")
+      expect(sha).toBe(COMMIT_SHA)
       expect(fetchMock).toHaveBeenCalledWith("https://api.github.com/repos/reactjs/react.dev/commits/main", {
         headers: {
-          Accept: "application/vnd.github+json",
+          Accept: "application/vnd.github.sha",
           Authorization: "Bearer ghp_token",
           "User-Agent": USER_AGENT,
           "X-GitHub-Api-Version": "2022-11-28",
@@ -44,15 +49,22 @@ describe("GitHubContentClient", () => {
       ["undefined", undefined],
       ["空文字", ""],
     ])("token が %s なら Authorization を付けない", async (_label, token) => {
-      const { client, fetchMock } = createClient(createJsonResponse({ sha: "c0ffee" }), token)
+      const { client, fetchMock } = createClient(createResponse(COMMIT_SHA), token)
 
       await client.getLatestCommitSha("reactjs/react.dev", "main")
 
       expect(readRequest(fetchMock).headers).not.toHaveProperty("Authorization")
     })
 
+    it("getLatestCommitSha は前後の空白・改行を除き、SHA-256 のリポジトリの 64 桁の SHA も受け取る", async () => {
+      const sha256 = "ab".repeat(32)
+      const { client } = createClient(createResponse(`${sha256}\n`))
+
+      expect(await client.getLatestCommitSha("owner/repo", "main")).toBe(sha256)
+    })
+
     it("branch を URL エンコードする", async () => {
-      const { client, fetchMock } = createClient(createJsonResponse({ sha: "c0ffee" }))
+      const { client, fetchMock } = createClient(createResponse(COMMIT_SHA))
 
       await client.getLatestCommitSha("owner/repo", "release/v1")
 
@@ -104,7 +116,7 @@ describe("GitHubContentClient", () => {
     })
 
     it("x-ratelimit-remaining を getRateLimitRemaining に反映する（呼ぶ前は null）", async () => {
-      const { client } = createClient(createJsonResponse({ sha: "c0ffee" }, { headers: { "x-ratelimit-remaining": "4321" } }))
+      const { client } = createClient(createResponse(COMMIT_SHA, { headers: { "x-ratelimit-remaining": "4321" } }))
 
       expect(client.getRateLimitRemaining()).toBeNull()
       await client.getLatestCommitSha("owner/repo", "main")
@@ -156,20 +168,27 @@ describe("GitHubContentClient", () => {
     })
 
     it.each([
-      ["commits の sha が無い", { commit: {} }, "commit"],
-      ["trees の tree が配列でない", { tree: "x", truncated: false }, "tree"],
-      ["trees の type が想定外", { tree: [{ path: "a", sha: "b", type: "symlink" }], truncated: false }, "tree"],
-    ])("%s JSON は throw する", async (_label, body, method) => {
+      ["JSON（Accept が効いていない）", JSON.stringify({ sha: COMMIT_SHA })],
+      ["空", ""],
+      ["短い SHA", "c0ffee"],
+      ["大文字を含む", COMMIT_SHA.toUpperCase()],
+    ])("getLatestCommitSha は本文が SHA でない（%s）と throw する", async (_label, body) => {
+      const { client } = createClient(createResponse(body))
+
+      await expect(client.getLatestCommitSha("owner/repo", "main")).rejects.toThrow()
+    })
+
+    it.each([
+      ["trees の tree が配列でない", { tree: "x", truncated: false }],
+      ["trees の type が想定外", { tree: [{ path: "a", sha: "b", type: "symlink" }], truncated: false }],
+    ])("%s JSON は throw する", async (_label, body) => {
       const { client } = createClient(createJsonResponse(body))
 
-      const promise = method === "commit"
-        ? client.getLatestCommitSha("owner/repo", "main")
-        : client.getTree("owner/repo", "abc", { isRecursive: true })
-      await expect(promise).rejects.toThrow()
+      await expect(client.getTree("owner/repo", "abc", { isRecursive: true })).rejects.toThrow()
     })
 
     it("owner/name の形でない repository は throw する", async () => {
-      const { client, fetchMock } = createClient(createJsonResponse({ sha: "c0ffee" }))
+      const { client, fetchMock } = createClient(createResponse(COMMIT_SHA))
 
       await expect(client.getLatestCommitSha("owner/repo/extra", "main")).rejects.toThrow("Invalid GitHub repository")
       expect(fetchMock).not.toHaveBeenCalled()
