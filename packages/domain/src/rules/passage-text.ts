@@ -53,6 +53,19 @@ export const hasQuote = (text: string, quote: string): boolean => {
 }
 
 /**
+ * ブロックごとの見出しの番号（1 始まり）。heading だけを数え、それ以外は null。
+ * 要確認の理由・公開の条件の「見出し 2」と対応する（和訳の無い見出しが複数あっても理由を区別できるように）
+ */
+export const numberHeadings = (blocks: Pick<PassageBlock, "type">[]): (number | null)[] => {
+  let headingNumber = 0
+  return blocks.map((block) => {
+    if (block.type !== "heading") return null
+    headingNumber++
+    return headingNumber
+  })
+}
+
+/**
  * ブロックごとの段落番号（1 始まり）。heading と code は数えず null。
  * 設問文の "paragraph 2"、要確認の理由・公開の条件の「段落 2」と対応する
  */
