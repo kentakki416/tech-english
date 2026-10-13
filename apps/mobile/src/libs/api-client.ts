@@ -7,10 +7,12 @@ import { clearStoredTokens, getStoredTokens, saveTokens } from "@/features/auth/
 import { useAuthStore } from "@/features/auth/auth.store"
 
 /**
- * refresh の応答を待つ上限（web の `token-refresh.ts` と同じ）。応答の無い通信があると refreshPromise が
- * 決着せず、それ以降に 401 になったリクエストがすべて待ち続けるため
+ * refresh の応答を待つ上限。応答の無い通信があると refreshPromise が決着せず、それ以降に 401 になったリクエストが
+ * すべて待ち続けるため。モバイルの回線は遅いことがあるので、web（server 間の通信で 5 秒）より長くし、ほかの API と
+ * 同じ 15 秒にする（打ち切った後に api が更新を終えていても、api は旧 refresh token を短い猶予の間だけ受け付けるので、
+ * 次の refresh で同じ新しい token を受け取れる）
  */
-const REFRESH_TIMEOUT_MS = 5_000
+const REFRESH_TIMEOUT_MS = 15_000
 
 /**
  * 401 で refresh したあと 1 回だけ再送したかの印
