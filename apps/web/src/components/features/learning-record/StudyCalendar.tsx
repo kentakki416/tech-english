@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 
 import type { GetUserAttemptsResponse, GetUserCalendarResponse, LearningRecordAttemptResponse } from "@repo/api-schema"
 
-import { convertStudySecondsToMinutes, formatDayLabel, formatSeconds } from "@/libs/format"
+import { formatDayLabel, formatSeconds, formatStudyMinutes } from "@/libs/format"
 
 type CalendarDay = GetUserCalendarResponse["days"][number]
 
@@ -208,13 +208,13 @@ export function StudyCalendar({ initialCalendar }: { initialCalendar: GetUserCal
                   ) : (
                     <button
                       key={day.date}
-                      aria-label={`${formatDayLabel(day.date)} ${day.attempt_count} 問 ${convertStudySecondsToMinutes(day.study_seconds)} 分`}
+                      aria-label={`${formatDayLabel(day.date)} ${day.attempt_count} 問 ${formatStudyMinutes(day.study_seconds)}`}
                       aria-pressed={day.date === selectedDate}
                       className={`size-[11px] rounded-[2px] outline-none transition-shadow focus-visible:ring-2 focus-visible:ring-amber/60 ${getLevelClass(day.level)} ${
                         day.date === selectedDate ? "ring-1 ring-fg ring-offset-1 ring-offset-canvas" : ""
                       } ${day.date === today && day.level > 0 ? "shadow-[0_0_10px_rgb(243_178_76/0.7)] motion-safe:animate-lamp-on [animation-delay:400ms]" : ""}`}
                       onClick={() => setSelectedDate(day.date)}
-                      title={`${formatDayLabel(day.date)}：${day.attempt_count} 問、${convertStudySecondsToMinutes(day.study_seconds)} 分`}
+                      title={`${formatDayLabel(day.date)}：${day.attempt_count} 問、${formatStudyMinutes(day.study_seconds)}`}
                       type="button"
                     />
                   ))}
@@ -301,7 +301,7 @@ export function StudyCalendar({ initialCalendar }: { initialCalendar: GetUserCal
           <h3 className="text-sm font-medium text-fg">{formatDayLabel(selectedDate)}</h3>
           {selectedDay && selectedDay.attempt_count > 0 && (
             <p className="text-xs text-fg-muted tabular-nums">
-              {selectedDay.attempt_count} 問、{convertStudySecondsToMinutes(selectedDay.study_seconds)} 分
+              {selectedDay.attempt_count} 問、{formatStudyMinutes(selectedDay.study_seconds)}
             </p>
           )}
         </div>

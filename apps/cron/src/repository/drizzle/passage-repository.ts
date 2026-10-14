@@ -40,10 +40,10 @@ export class DrizzlePassageRepository implements PassageRepository {
 
   /**
    * 候補の select に行ロック（FOR UPDATE SKIP LOCKED）を付けて、同じ UPDATE 文で generating にする。
-   * 別の実行がロック中の行は飛ばすので、実行が重なっても同じ行を二重に取らない。RETURNING の順序は保証されないので created_at, id で並べ直す
+   * 別の実行がロック中の行は飛ばすので、実行が重なっても同じ行を二重に取らない
    */
-  public async claimCollected(input: { limit: number; now: Date; passageId?: number }): Promise<ClaimedPassage[]> {
-    const candidates = this._db
+  public async claimNextCollected(input: { now: Date; passageId?: number }): Promise<ClaimedPassage | null> {
+    const candidate = this._db
       .select({ id: passages.id })
       .from(passages)
       .where(
@@ -53,12 +53,12 @@ export class DrizzlePassageRepository implements PassageRepository {
         ),
       )
       .orderBy(asc(passages.createdAt), asc(passages.id))
-      .limit(input.limit)
+      .limit(1)
       .for("update", { skipLocked: true })
-    const rows = await this._db
+    const [row] = await this._db
       .update(passages)
       .set({ generationStartedAt: input.now, status: "generating" })
-      .where(inArray(passages.id, candidates))
+      .where(inArray(passages.id, candidate))
       .returning({
         id: passages.id,
         blocks: passages.blocks,
@@ -66,18 +66,16 @@ export class DrizzlePassageRepository implements PassageRepository {
         generationStartedAt: passages.generationStartedAt,
         title: passages.title,
         wordCount: passages.wordCount,
-        createdAt: passages.createdAt,
       })
-    return rows
-      .sort((left, right) => left.createdAt.getTime() - right.createdAt.getTime() || left.id - right.id)
-      .map((row) => ({
-        id: row.id,
-        blocks: row.blocks,
-        generationAttemptCount: row.generationAttemptCount,
-        generationStartedAt: row.generationStartedAt ?? input.now,
-        title: row.title,
-        wordCount: row.wordCount,
-      }))
+    if (!row) return null
+    return {
+      id: row.id,
+      blocks: row.blocks,
+      generationAttemptCount: row.generationAttemptCount,
+      generationStartedAt: row.generationStartedAt ?? input.now,
+      title: row.title,
+      wordCount: row.wordCount,
+    }
   }
 
   public async countByStatus(status: PassageStatus): Promise<number> {

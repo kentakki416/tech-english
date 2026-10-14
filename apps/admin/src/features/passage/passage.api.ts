@@ -14,6 +14,10 @@ import {
   regenerateAdminPassageResponseSchema,
   type RejectAdminPassageResponse,
   rejectAdminPassageResponseSchema,
+  type ResolveAdminPassageAttentionResponse,
+  resolveAdminPassageAttentionResponseSchema,
+  type RestoreAdminPassageResponse,
+  restoreAdminPassageResponseSchema,
   type RetryAdminPassageAudioResponse,
   retryAdminPassageAudioResponseSchema,
   type UnpublishAdminPassageResponse,
@@ -113,6 +117,22 @@ export const passageApi = {
   reject: async (id: number, reason: string): Promise<RejectAdminPassageResponse> => {
     const raw = await apiClient.post<unknown>(`${BASE_PATH}/${id}/reject`, { reason })
     return rejectAdminPassageResponseSchema.parse(raw)
+  },
+
+  /**
+   * 要確認の印を外す（解除済みでも 200）
+   */
+  resolveAttention: async (id: number): Promise<ResolveAdminPassageAttentionResponse> => {
+    const raw = await apiClient.post<unknown>(`${BASE_PATH}/${id}/attention/resolve`, {})
+    return resolveAdminPassageAttentionResponseSchema.parse(raw)
+  },
+
+  /**
+   * 却下を取り消す（設問があれば下書き、無ければ生成待ちに戻る）
+   */
+  restore: async (id: number): Promise<RestoreAdminPassageResponse> => {
+    const raw = await apiClient.post<unknown>(`${BASE_PATH}/${id}/restore`, {})
+    return restoreAdminPassageResponseSchema.parse(raw)
   },
 
   /**

@@ -176,6 +176,38 @@ export const regeneratePassageAction = async (id: number): Promise<PassageAction
 }
 
 /**
+ * 却下を取り消す（設問があれば下書き、無ければ生成待ちに戻る）
+ */
+export const restorePassageAction = async (id: number): Promise<PassageActionResult> => {
+  const passageId = parsePassageId(id)
+  if (passageId === null) return INVALID_ID_FAILURE
+
+  try {
+    await passageApi.restore(passageId)
+  } catch (error) {
+    return convertApiErrorToFailure(error, "却下を取り消せませんでした")
+  }
+  revalidatePassagePaths(passageId)
+  return { ok: true }
+}
+
+/**
+ * 要確認の印を外す（一覧の要確認の先頭から外れる）
+ */
+export const resolvePassageAttentionAction = async (id: number): Promise<PassageActionResult> => {
+  const passageId = parsePassageId(id)
+  if (passageId === null) return INVALID_ID_FAILURE
+
+  try {
+    await passageApi.resolveAttention(passageId)
+  } catch (error) {
+    return convertApiErrorToFailure(error, "要確認を解除できませんでした")
+  }
+  revalidatePassagePaths(passageId)
+  return { ok: true }
+}
+
+/**
  * 音声の操作の 404 と 409（別のタブで先に操作した・状態が変わった）を失敗の結果にする。それ以外は throw して global-error.tsx に任せる
  */
 const convertAudioApiErrorToFailure = (error: unknown): PassageActionFailure => {

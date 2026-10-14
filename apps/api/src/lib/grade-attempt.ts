@@ -43,6 +43,16 @@ export const gradeAnswers = (
 }
 
 /**
+ * 提出後に設問の正解が直されたか。提出時に保存した正誤と、保存した回答をいまの正解で採点し直した正誤が食い違えば true
+ * （提出時の採点は変えないので、結果画面で「あなたの回答 B・正解 B・不正解」のような食い違いを注記するために使う）。
+ * 未回答はいまの正解でも不正解なので false
+ */
+export const hasAnswerKeyChanged = (
+  storedAnswer: Pick<GradedAnswer, "isCorrect" | "selectedChoiceIndex">,
+  correctChoiceIndex: number,
+): boolean => storedAnswer.isCorrect !== (storedAnswer.selectedChoiceIndex === correctChoiceIndex)
+
+/**
  * 読む速さ（英単語数 ÷ かかった分。四捨五入した整数）。かかった時間が 0 秒なら null
  */
 export const calculateWordsPerMinute = (wordCount: number, elapsedSeconds: number): number | null =>

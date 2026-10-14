@@ -150,7 +150,8 @@ stateDiagram-v2
     draft --> collected: 管理者が再生成
     published --> draft: 管理者が非公開に戻す
     failed --> collected: 管理者が再試行
-    rejected --> collected: 管理者が再生成
+    rejected --> collected: 管理者が再生成<br/>または却下の取り消し（設問なし）
+    rejected --> draft: 管理者が却下の取り消し<br/>（設問あり）
 ```
 
 | 状態 | 内部名 | ユーザーに見えるか | 意味 |
@@ -159,7 +160,7 @@ stateDiagram-v2
 | 生成中 | `generating` | ❌ | 生成タスクが処理中 |
 | 下書き | `draft` | ❌ | 生成済み。管理者の確認待ち |
 | 公開 | `published` | ✅ | ユーザーが解ける |
-| 却下 | `rejected` | ❌ | 題材に不向き（LLM または管理者が判断）。理由を残す |
+| 却下 | `rejected` | ❌ | 題材に不向き（LLM または管理者が判断）。理由を残す。管理者が取り消せる |
 | 失敗 | `failed` | ❌ | 生成が 3 回失敗した |
 
 ### 管理者ができること
@@ -169,9 +170,11 @@ stateDiagram-v2
 - 下書きを修正する：タイトル、難易度、制限時間（計算式で再計算するボタンあり）、本文の英文の軽微な修正、和訳、設問（設問文・選択肢・正解・解説・根拠）、用語集（追加・修正・削除）
 - 公開する。公開前に [公開の条件](#出力の検証と後処理) を満たしているかを検査し、満たしていなければ公開できない
 - 却下する（理由を入力）
+- 却下を取り消す（誤って却下したとき。生成した設問があれば内容を残したまま下書きに、無ければ（LLM が不向きと判定したもの）生成待ちに戻す）
 - 再生成する（生成した内容を捨てて生成待ちに戻す）
 - 公開済みの問題を非公開に戻す
 - 公開済みの問題の読み上げの音声の状態を見て、作成に失敗したものを再試行し、作成済みのものを作り直す（[read-aloud](../read-aloud/README.md#音声ができるまで)。失敗した音声は問題を公開し直しても作り直しの対象に戻る）
+- 要確認の印を解除する（理由を確かめた・直した後に。一覧の要確認の先頭から外れる。生成し直すまで印は付かない）
 
 ### 公開済みの問題を直すとき
 
@@ -222,8 +225,11 @@ type PassageBlock = {
 
 1. 下書きの件数が上限（`GENERATE_MAX_PENDING_DRAFTS`）以上なら何もせず終える（確認が追いつかないのに生成して費用を使わないため）
 2. `generating` のまま 30 分以上たった行を `collected` に戻す（前回の実行が途中で落ちた場合の回収）
-3. `collected` を古い順に最大 `GENERATE_MAX_PASSAGES_PER_RUN` 件、`generating` に更新しながら取得する（`FOR UPDATE SKIP LOCKED`。実行が重なっても同じ行を二重に処理しない）
-4. 1 件ずつ：生成 → 検証と後処理 → 解答キーを見ない検証 → `passages` / `questions` / `passage_glossary_entries` を 1 トランザクションで保存して `draft` に更新
+3. 最大 `GENERATE_MAX_PASSAGES_PER_RUN` 件まで、1 件ずつ次を繰り返す（取れる行が無くなったら終える）
+   1. `collected` の最も古い 1 行を `generating` に更新しながら取得する（`FOR UPDATE SKIP LOCKED`。実行が重なっても同じ行を二重に処理しない）。`generation_started_at` はその行を取った時刻
+   2. 生成 → 検証と後処理 → 解答キーを見ない検証 → `passages` / `questions` / `passage_glossary_entries` を 1 トランザクションで保存して `draft` に更新
+
+最初にまとめて取得しないのは、全件に同じ `generation_started_at` が入り、1 回の実行が 30 分を超えると後半の（まだ処理していない）行が次の実行に回収・再取得されて LLM の費用が二重にかかるため。保存は `id` + `status = generating` + `generation_started_at` が取得したときと同じ場合だけ行う（回収・再取得された行を古い実行が上書きしない）。
 
 ### LLM の呼び出し
 
@@ -232,6 +238,8 @@ type PassageBlock = {
 | 生成モデル | `GENERATION_MODEL`（既定 `claude-sonnet-5-5`） |
 | 検証モデル | `VERIFICATION_MODEL`（既定 `claude-haiku-4-5-20251001`） |
 | 出力形式 | JSON Schema を指定した structured output で受け取り、Zod で検証する |
+| thinking と effort | 生成は `thinking: { type: "adaptive" }` と `output_config.effort: "high"` を明示する。検証はどちらも送らない（検証モデルの Claude Haiku 4.5 は adaptive thinking を受け付けない） |
+| 出力の上限（`max_tokens`） | 生成 16000、検証 2000。非ストリーミングで SDK のタイムアウトに収まる上限 |
 | プロンプト | `apps/cron/src/prompt/generate-questions.ts` に置き、`PROMPT_VERSION` を持たせる。生成した問題に `generation_prompt_version` として記録する（プロンプト改善の前後で品質を比べるため） |
 | プロンプトキャッシュ | 指示部分（system prompt）は全件共通なのでキャッシュを有効にする |
 
@@ -244,6 +252,12 @@ type PassageBlock = {
 | `questions[]` | `type` / `prompt` / `choices[4]` / `correctChoiceIndex` / `explanationJa` / `evidence: { blockIndex, quote }` / `vocabularyTarget?: { blockIndex, surface }`（`vocabulary` のときだけ） |
 | `translations[]` | `{ blockIndex, translationJa }`（コード以外の全ブロック） |
 | `glossary[]` | `{ blockIndex, surface, lemma, meaningJa, partOfSpeech, noteJa? }` |
+
+**thinking と出力の上限**：思考（thinking）のトークンは、内容が返らなくても `max_tokens` に数えられる。`claude-sonnet-5-5` は `thinking` を省略すると adaptive thinking で動き、effort の既定は `high`（`budget_tokens` は指定できず、思考を止める設定は `between_tools`）。structured output では effort が low / medium のときに思考が `max_tokens` まで続くことがあり、high 以上ではほぼ起きない（Anthropic のドキュメント：[Effort](https://platform.claude.com/docs/en/build-with-claude/effort)・[Prompting Claude Sonnet 5.5](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-sonnet-5-5)・[Steering thinking](https://platform.claude.com/docs/en/build-with-claude/thinking-steering-and-cost)）。
+
+- 生成は adaptive thinking と effort `high` を明示する。既定と同じ値なので挙動もプロンプトキャッシュも変わらないが、`GENERATION_MODEL` を effort の既定が違うモデル（Claude Opus 5.5 は medium）に変えても下がらない
+- `max_tokens` は非ストリーミングの上限に近いので上げない。思考を止める `between_tools` は、structured output では思考なしで答えることになり正解の質が下がるので使わない
+- それでも `stop_reason` が `max_tokens` で止まったら（JSON として読めても）使わず、warn のログに `usage.output_tokens` を出して一時的な失敗にする（[失敗時の扱い](#失敗時の扱い)）
 
 **文字位置（offset）は LLM に答えさせない。** LLM は文字数を数えるのが苦手で位置がずれやすいため、`surface`（本文中の表記そのまま）だけを答えさせ、位置はコードで本文から検索して求める。
 
@@ -287,6 +301,7 @@ LLM の出力を保存する前に、コードで以下を検査・加工する�
 | --- | --- |
 | Claude API の一時的なエラー（429 / 5xx / タイムアウト） | SDK のリトライ（指数バックオフ、最大 2 回）。それでも失敗したら `collected` に戻し `generation_attempt_count` を +1 |
 | 出力の検証に 2 回不合格 | 同上 |
+| 出力が `max_tokens` で切れた（`stop_reason: max_tokens`） | その場で作り直さず（同じ上限では切れやすく、費用だけが増える）同上。warn のログに `usage.output_tokens` と上限を出す |
 | `generation_attempt_count` が 3 に達した | `failed` にして `generation_error` に最後のエラーを残す |
 | LLM が `isSuitable = false` と判定 | `rejected` にして `reject_reason` に理由を残す |
 
@@ -295,7 +310,7 @@ LLM の出力を保存する前に、コードで以下を検査・加工する�
 - 1 件でも `failed` になったものがある
 - 取得した全件が一時的な失敗で `collected` に戻った（下書き・却下が 0 件）。JSON Schema が API に受け付けられない（400）など、設定や実装の誤りで毎回全件が失敗するのを、3 回目の `failed` まで待たずに知らせるため
 
-冪等：保存は 1 トランザクションで、`draft` への更新と設問・用語集の挿入を同時に行う。途中で落ちた行は `generating` のまま残り、次回の実行で `collected` に戻されてやり直される。
+冪等：保存は 1 トランザクションで、`draft` への更新と設問・用語集の挿入を同時に行う。途中で落ちた行は `generating` のまま残り、次回の実行で `collected` に戻されてやり直される。1 件ずつ取得するので、途中で落ちても `generating` で残るのは処理中だった 1 行だけになる。
 
 ### 費用の上限
 
@@ -335,7 +350,7 @@ MVP の管理者は 1〜2 人を想定し、**共有シークレットで保護�
 | 画面 | 概要 |
 | --- | --- |
 | 問題一覧 | 状態・ソース・要確認の有無で絞り込める。状態ごとの件数を上部に出す。下書きは要確認 → 古い順 |
-| 問題の確認・修正 | 左にユーザーと同じ見た目のプレビュー（和訳の切り替え・用語集のハイライト）、右に編集フォーム（設問・和訳・用語集・難易度・制限時間）。要確認の理由を上部に出す。操作：保存 / 公開 / 却下 / 再生成 / 非公開に戻す。公開した問題には読み上げの音声のカード（状態・作成日時、失敗したときの「再試行」、作成済みのときの「作り直す」。[read-aloud](../read-aloud/README.md#音声ができるまで)）も出す |
+| 問題の確認・修正 | 左にユーザーと同じ見た目のプレビュー（和訳の切り替え・用語集のハイライト）、右に編集フォーム（設問・和訳・用語集・難易度・制限時間）。要確認の理由を上部に出す。操作：保存 / 公開 / 却下 / 却下の取り消し / 再生成 / 非公開に戻す / 要確認の解除。公開した問題には読み上げの音声のカード（状態・作成日時、失敗したときの「再試行」、作成済みのときの「作り直す」。[read-aloud](../read-aloud/README.md#音声ができるまで)）も出す |
 
 具体的な UI は [UI 設計](#ui-設計) を参照。
 
@@ -403,7 +418,7 @@ MVP の管理者は 1〜2 人を想定し、**共有シークレットで保護�
 │ ソース / 取得元（パス@コミット） / 英単語数 / 生成モデル /                 │ ← 生成の記録
 │ プロンプトの版 / 生成日時 / 制限時間                                       │
 ├────────────────────────────────────────────────────────────────────────────┤
-│ ⚠ 要確認：Q3：検証モデルは A を選択（正解は B）                            │ ← warning の囲み
+│ ⚠ 要確認：Q3：検証モデルは A を選択（正解は B）             [要確認を解除] │ ← warning の囲み
 ├──────────────────────────────────────┬─────────────────────────────────────┤
 │ プレビュー     ☑用語集の下線 ☐全文訳 │ 設問(4) 和訳 用語集(10) 本文 基本情…│ ← 左：ユーザーと同じ見た目 / 右：タブ
 │ ┌───────────────────────────────────┐│         ━━━━━                       │
@@ -429,7 +444,7 @@ MVP の管理者は 1〜2 人を想定し、**共有シークレットで保護�
 **上部**
 
 - 状態のバッジ（下書き / 公開）と要確認のバッジ、タイトル
-- 操作：下書きは「再生成」（副）・「却下」（危険）・「保存」（副）・「公開する」（主要）。公開中は「非公開に戻す」だけ
+- 操作：下書きは「再生成」（副）・「却下」（危険）・「保存」（副）・「公開する」（主要）。公開中は「非公開に戻す」だけ。却下済みは「却下を取り消す」（副）・「再生成」（副）。失敗は「再生成」だけ
 - 生成の記録：ソース、取得元（パスと `@コミット`）、英単語数、生成モデル、プロンプトの版、生成日時、制限時間
 - 「保存」を押すと「下書きを保存しました」を出す
 
@@ -439,7 +454,8 @@ MVP の管理者は 1〜2 人を想定し、**共有シークレットで保護�
 | --- | --- | --- |
 | 公開中 | info | 「公開中の問題は編集できません」：非公開に戻してから修正すること、挑戦があるため設問の数の変更と再生成はできないこと |
 | 公開の条件を満たしていない（「公開する」で 400） | error | 「公開の条件を満たしていないため、公開できません」と、満たしていない条件の一覧（例「Q2：根拠の引用が段落 2 の本文に見つかりません」「段落 4 の和訳が空です」）。該当の設問には `error` のバッジ「根拠が見つかりません」、該当の和訳の入力欄は `error` の枠 |
-| 要確認の印がある | warning | 「要確認」と理由の一覧（例「Q3：検証モデルは A を選択（正解は B）」） |
+| 要確認の印がある（下書き） | warning | 「要確認」と理由の一覧（例「Q3：検証モデルは A を選択（正解は B）」）。右上に「要確認を解除」（副）。押すと印と理由が消える（未保存の修正があれば先に保存する。ダイアログは出さない） |
+| 却下済み | info | 「却下した問題です」と却下の理由。「却下を取り消す」「再生成」で戻せること |
 
 **プレビュー（左、1280px 以上では画面に追従）**
 
@@ -463,7 +479,8 @@ MVP の管理者は 1〜2 人を想定し、**共有シークレットで保護�
 
 | 操作 | 内容 |
 | --- | --- |
-| 却下 | 「この問題を却下する」：却下するとユーザーに表示されないこと、あとから再生成で戻せること。却下の理由（必須）。「キャンセル」「却下する」（`error` の塗り） |
+| 却下 | 「この問題を却下する」：却下するとユーザーに表示されないこと、誤って却下したときは「却下を取り消す」で下書きに戻せること。却下の理由（必須）。「キャンセル」「却下する」（`error` の塗り） |
+| 却下を取り消す | 「却下を取り消す」：設問があれば下書きに戻ること（生成した内容と修正は残り、却下の理由は消える）、無ければ生成待ちに戻って次回の生成タスクで作られること。「キャンセル」「却下を取り消す」（主要） |
 | 再生成 | 「問題を再生成する」：生成した設問・和訳・用語集を削除して生成待ちに戻すこと、修正した内容も消えること。「キャンセル」「再生成する」 |
 
 ## 必要な API
@@ -479,6 +496,8 @@ admin 向け（`X-Admin-Token` 必須）。
 | POST | `/api/admin/passage/:id/reject` | 却下（`reason` 必須） |
 | POST | `/api/admin/passage/:id/unpublish` | 公開 → 下書き |
 | POST | `/api/admin/passage/:id/regenerate` | 生成した内容を削除して `collected` に戻す（`draft` / `rejected` / `failed` のとき。挑戦が 1 件でもあれば 409） |
+| POST | `/api/admin/passage/:id/restore` | 却下の取り消し（`rejected` のときだけ。それ以外は 409）。設問があれば `draft`（設問・用語集・和訳・要確認は残し、`reject_reason` を消す）、無ければ再生成と同じく生成の記録を空にして `collected` に戻す。挑戦があっても取り消せる |
+| POST | `/api/admin/passage/:id/attention/resolve` | 要確認の解除（`needs_attention = false`、`attention_reasons = []`）。状態は問わない。対象が無ければ 404、解除済みでも 200（冪等） |
 
 cron タスク：
 
@@ -578,8 +597,8 @@ sequenceDiagram
 
     Cron->>DB: 下書きが上限未満か確認
     Cron->>DB: 古い generating を collected に戻す
-    Cron->>DB: collected を最大 N 件 generating に<br/>(SKIP LOCKED)
-    loop 1 件ずつ
+    loop 最大 N 件、1 件ずつ
+        Cron->>DB: collected の最も古い 1 行を generating に<br/>(SKIP LOCKED。generation_started_at = 取った時刻)
         Cron->>Gen: 本文（番号つきブロック）
         Gen-->>Cron: 設問・和訳・用語集・難易度
         Cron->>Cron: Zod 検証 / 位置の検索 /<br/>選択肢シャッフル / 制限時間
@@ -587,7 +606,7 @@ sequenceDiagram
         Ver-->>Cron: 検証モデルの回答
         Cron->>DB: 1 トランザクションで保存して draft に<br/>(食い違いがあれば needs_attention)
     end
-    Admin->>API: 下書きを確認・修正
+    Admin->>API: 下書きを確認・修正（要確認を解除）
     Admin->>API: 公開
     API->>API: 公開の条件を検査
     API->>DB: published に更新
@@ -603,6 +622,6 @@ sequenceDiagram
 | [step2-cron-llm-client](./tasks/step2-cron-llm-client.md) | `AnthropicClient`（structured output）、プロンプト、出力の Zod スキーマ |
 | [step3-cron-generate-questions](./tasks/step3-cron-generate-questions.md) | 検証と後処理（純関数 + テスト）、解答キーを見ない検証、`generate:questions` タスク |
 | [step4-api-admin-auth](./tasks/step4-api-admin-auth.md) | `adminAuthMiddleware`、admin の Basic 認証、admin の api client にトークンを付与 |
-| [step5-api-admin-passage](./tasks/step5-api-admin-passage.md) | 問題一覧・詳細・保存・公開・却下・非公開・再生成の API と公開の条件の検査 |
+| [step5-api-admin-passage](./tasks/step5-api-admin-passage.md) | 問題一覧・詳細・保存・公開・却下・却下の取り消し・非公開・再生成・要確認の解除の API と公開の条件の検査 |
 | [step6-admin-passage-review](./tasks/step6-admin-passage-review.md) | admin の問題一覧と確認・修正画面 |
 | [step7-infra-cron-schedules](./tasks/step7-infra-cron-schedules.md) | `collect:passages` / `generate:questions` の EventBridge Scheduler の登録と cron の secret の追加 |

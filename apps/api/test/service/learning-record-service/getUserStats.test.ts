@@ -198,7 +198,8 @@ describe("getUserStats", () => {
       ["目標値ちょうど（3600 秒 = 60 分）は達成", [buildWeekDay("2026-10-05", 1, 1800), buildWeekDay("2026-10-11", 1, 1800)], 60, true],
       ["目標値の 1 秒前（3599 秒 = 59 分の切り捨て）は未達成", [buildWeekDay("2026-10-05", 1, 1800), buildWeekDay("2026-10-11", 1, 1799)], 59, false],
       ["目標値を超えても達成", [buildWeekDay("2026-10-06", 3, 5000)], 83, true],
-    ])("週の目標が minutes のとき、進捗は今週の秒の合計 ÷ 60 の切り捨て: %s", async (_label, weekDays, progress, achieved) => {
+      ["1 分未満（30 秒）は切り捨てて 0 分で未達成", [buildWeekDay("2026-10-11", 1, 30)], 0, false],
+    ])("週の目標が minutes のとき、進捗は今週の秒の合計 ÷ 60 の切り捨て、達成は秒の合計が目標値 × 60 以上: %s", async (_label, weekDays, progress, achieved) => {
       const repo = setup()
       repo.learningRecordRepository.summarizeByDate.mockResolvedValue(weekDays)
       repo.userGoalRepository.findByUserId.mockResolvedValue(buildUserGoal({ weeklyMetric: "minutes", weeklyTarget: 60 }))

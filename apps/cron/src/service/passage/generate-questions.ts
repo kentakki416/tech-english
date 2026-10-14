@@ -4,6 +4,7 @@ import { logger } from "@repo/logger"
 import {
   type ILlmClient,
   isFatalLlmError,
+  type LlmEffort,
   LlmInvalidJsonError,
   LlmOutputTruncatedError,
   type LlmUsage,
@@ -48,6 +49,14 @@ const MAX_GENERATION_CALLS = 2
 const GENERATION_MAX_TOKENS = 16000
 
 /**
+ * 生成の effort。adaptive thinking と一緒に明示して送る。Claude Sonnet 5.5 の既定（high）と同じ値だが、明示しておくと
+ * GENERATION_MODEL を既定の違うモデル（Claude Opus 5.5 は medium）に変えても下がらない。
+ * structured output では low / medium のときに思考が max_tokens まで続くことがあり、high 以上ではほぼ起きない（Anthropic のドキュメント）。
+ * max_tokens は SDK の非ストリーミングの上限に近く上げられないので、effort を下げずに出力の予算を確保する
+ */
+const GENERATION_EFFORT: LlmEffort = "high"
+
+/**
  * 検証の出力の上限。設問番号と選択肢の index だけを返させる
  */
 const VERIFICATION_MAX_TOKENS = 2000
@@ -67,7 +76,7 @@ const VERIFICATION_FAILED_REASON = "検証モデルでの確認に失敗しま�
 export type GenerateQuestionsInput = {
   generationModel: string
   /**
-   * 停止指示を受けたか。各件の頭で見て、true なら残りを処理せずに終える（取得済みの残りは 30 分後に回収される）
+   * 停止指示を受けたか。次の行を取る前に見て、true なら取らずに終える（取得済みで処理していない行は残らない）
    */
   isShuttingDown: () => boolean
   maxPassagesPerRun: number
@@ -95,7 +104,7 @@ export type GenerateQuestionsResult = {
   failedCount: number
   rejectedCount: number
   /**
-   * 失敗したが上限に達していないので collected に戻した件数（次回の実行でやり直す）。
+   * 失敗したが上限に達していないので collected に戻した件数（次回の実行でやり直す。出力が max_tokens で切れたものを含む）。
    * draftCount と rejectedCount が 0 でこれが 1 以上（全件が失敗）なら task が exit 1 で終える
    */
   retryLaterCount: number
@@ -116,11 +125,12 @@ type GenerateQuestionsDeps = {
 type PassageOutcome = "draft" | "failed" | "rejected" | "retry_later" | "stale"
 
 /**
- * 生成の結果。不合格のときは最後の不合格の理由を持つ
+ * 生成の結果。不合格（invalid）のときは最後の不合格の理由、出力が上限で切れた（truncated）ときはそのエラーを持つ
  */
 type GenerationResult =
   | { model: string; ok: true; output: GenerateQuestionsOutput; usage: LlmUsage }
-  | { errors: string[]; ok: false; usage: LlmUsage }
+  | { errors: string[]; ok: false; reason: "invalid"; usage: LlmUsage }
+  | { error: LlmOutputTruncatedError; ok: false; reason: "truncated"; usage: LlmUsage }
 
 /**
  * 解答キーを見ない検証の結果。fatalError は API キーやモデル ID の誤り（下書きを保存してからタスクを止める）
@@ -151,16 +161,9 @@ const describeError = (error: unknown): string => {
 }
 
 /**
- * 出力が途中で切れた・JSON として読めないときの再生成の指示
- */
-const describeUnparsableOutput = (error: LlmInvalidJsonError | LlmOutputTruncatedError): string =>
-  error instanceof LlmOutputTruncatedError
-    ? `${error.message}. Write more concisely so that the whole JSON object fits.`
-    : error.message
-
-/**
- * 生成して検証する。不合格（途中で切れた・JSON でない出力を含む）なら不合格の理由を付けて 1 回だけ再生成する。
- * API エラー・拒否はそのまま throw する
+ * 生成して検証する。不合格（JSON でない出力を含む）なら不合格の理由を付けて 1 回だけ再生成する。
+ * 出力が max_tokens で切れたら再生成せずに返す（思考のトークンも上限に含まれるので、同じ上限ですぐに作り直しても切れやすく、
+ * 費用だけが増える。一時的な失敗として次の実行に回す）。API エラー・拒否はそのまま throw する
  */
 const generateValidOutput = async (
   passage: ClaimedPassage,
@@ -172,6 +175,7 @@ const generateValidOutput = async (
   for (let call = 1; call <= MAX_GENERATION_CALLS; call++) {
     try {
       const response = await deps.llmClient.createStructuredMessage({
+        adaptiveThinking: { effort: GENERATION_EFFORT },
         jsonSchema: GENERATE_QUESTIONS_OUTPUT_JSON_SCHEMA,
         maxTokens: GENERATION_MAX_TOKENS,
         model: input.generationModel,
@@ -189,12 +193,13 @@ const generateValidOutput = async (
       if (validation.ok) return { model: response.model, ok: true, output: validation.output, usage }
       retryErrors = validation.errors
     } catch (error) {
-      if (!(error instanceof LlmOutputTruncatedError || error instanceof LlmInvalidJsonError)) throw error
-      retryErrors = [describeUnparsableOutput(error)]
+      if (error instanceof LlmOutputTruncatedError) return { error, ok: false, reason: "truncated", usage }
+      if (!(error instanceof LlmInvalidJsonError)) throw error
+      retryErrors = [error.message]
     }
     logger.info("generated output was rejected by validation", { call, errors: retryErrors, passageId: passage.id })
   }
-  return { errors: retryErrors, ok: false, usage }
+  return { errors: retryErrors, ok: false, reason: "invalid", usage }
 }
 
 /**
@@ -278,6 +283,23 @@ const processPassage = async (
   deps: GenerateQuestionsDeps,
 ): Promise<PassageOutcome> => {
   const generation = await generateValidOutput(passage, input, deps)
+  if (!generation.ok && generation.reason === "truncated") {
+    const error = describeError(generation.error)
+    const outcome = await recordFailure(claim, error, repo)
+    /**
+     * 出力が上限で切れた（思考が長引いたか、出力が長すぎる）。output_tokens と上限を出して頻度を追えるようにする
+     */
+    logger.warn("passage generation failed", {
+      error,
+      generationUsage: generation.usage,
+      maxTokens: GENERATION_MAX_TOKENS,
+      outcome,
+      outputTokens: generation.error.outputTokens,
+      passageId: passage.id,
+      stopReason: generation.error.stopReason,
+    })
+    return outcome
+  }
   if (!generation.ok) {
     const outcome = await recordFailure(claim, `validation failed: ${generation.errors.join("; ")}`, repo)
     logger.warn("passage generation failed", {
@@ -362,8 +384,11 @@ const calculateClaimLimit = async (input: GenerateQuestionsInput, repo: Generate
  *
  * 1. 下書きの件数が上限以上なら何もせず終える（passageId の指定時は見ない）
  * 2. generating のまま 30 分以上たった行を collected に戻す
- * 3. collected を古い順に generating にしながら取る（FOR UPDATE SKIP LOCKED）。passageId の指定で取れなければ throw
- * 4. 1 件ずつ処理する。1 件の失敗で他の件は止めない。API キー・モデル ID の誤りはその行を collected に戻して throw する
+ * 3. 上限の件数まで、1 件ずつ「collected の最も古い行を generating にしながら取る（FOR UPDATE SKIP LOCKED）→ 処理する」を繰り返す。
+ *    まとめて取らないのは、全件に同じ generation_started_at が入り、実行が 30 分を超えたときに後半の行が別の実行に回収・再取得されて
+ *    LLM の費用が二重にかかるため（1 件ずつ取れば、各行の generation_started_at はその行を取った時刻になる）。
+ *    passageId の指定で取れなければ throw
+ * 4. 1 件の失敗で他の件は止めない。API キー・モデル ID の誤りはその行を collected に戻して throw する
  */
 export const generateQuestions = async (
   input: GenerateQuestionsInput,
@@ -383,32 +408,32 @@ export const generateQuestions = async (
     return { ...result, skippedReason: "pending_drafts_limit" }
   }
 
-  const now = input.now()
   const releasedCount = await repo.passageRepository.releaseStaleGenerating(
-    new Date(now.getTime() - STALE_GENERATING_MINUTES * MILLIS_PER_MINUTE),
+    new Date(input.now().getTime() - STALE_GENERATING_MINUTES * MILLIS_PER_MINUTE),
   )
   if (releasedCount > 0) logger.warn("stale generating passages were released", { releasedCount })
 
-  const claimed = await repo.passageRepository.claimCollected({ limit, now, passageId: input.passageId })
-  if (input.passageId !== undefined && claimed.length === 0) {
-    const status = await repo.passageRepository.findStatusById(input.passageId)
-    throw new Error(
-      status === null
-        ? `Passage not found: id=${input.passageId}`
-        : `Passage is not collected: id=${input.passageId}, status=${status} (a collected passage may also be locked by another run)`,
-    )
-  }
-  logger.info("passages claimed", { count: claimed.length, passageIds: claimed.map((passage) => passage.id) })
-
-  for (const passage of claimed) {
+  for (let claimedCount = 0; claimedCount < limit; claimedCount++) {
     if (input.isShuttingDown()) break
+    const passage = await repo.passageRepository.claimNextCollected({ now: input.now(), passageId: input.passageId })
+    if (!passage) {
+      if (input.passageId === undefined) break
+      const status = await repo.passageRepository.findStatusById(input.passageId)
+      throw new Error(
+        status === null
+          ? `Passage not found: id=${input.passageId}`
+          : `Passage is not collected: id=${input.passageId}, status=${status} (a collected passage may also be locked by another run)`,
+      )
+    }
+    logger.info("passage claimed", { generationStartedAt: passage.generationStartedAt, passageId: passage.id })
+
     const claim: PassageClaim = { generationStartedAt: passage.generationStartedAt, id: passage.id }
     let outcome: PassageOutcome
     try {
       outcome = await processPassage(passage, claim, input, repo, deps)
     } catch (error) {
       /**
-       * 設定の誤りで全件の失敗回数を増やさないよう、失敗を記録せずに戻して止める（他の取得済みの行は 30 分後に回収される）。
+       * 設定の誤りで全件の失敗回数を増やさないよう、失敗を記録せずに戻して止める（まだ取っていない行はそのまま残る）。
        * 下書きを保存した後なら claim のガードで何も更新しない
        */
       if (isFatalLlmError(error)) {

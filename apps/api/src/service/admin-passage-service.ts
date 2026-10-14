@@ -43,6 +43,11 @@ export type AdminPassageList = {
 export type AdminPassageStatusChange = { id: number; status: PassageStatus }
 
 /**
+ * 要確認を解除した結果
+ */
+export type AdminPassageAttentionResolution = { id: number; attentionReasons: string[]; needsAttention: boolean }
+
+/**
  * 再生成できる状態（生成済みで、公開中でないもの）
  */
 const REGENERATABLE_STATUSES: PassageStatus[] = ["draft", "rejected", "failed"]
@@ -256,6 +261,38 @@ export const regenerateAdminPassage = async (id: number, repo: PassageRepo): Pro
   }
   logger.info("AdminPassageService: Passage reset for regeneration", { id })
   return ok({ id, status: "collected" })
+}
+
+/**
+ * 却下を取り消す（rejected のときだけ）。設問があれば draft、無ければ（LLM が不向きと判定したもの）collected に戻す。
+ * 挑戦があっても取り消せる（設問は消さない）
+ */
+export const restoreAdminPassage = async (id: number, repo: PassageRepo): Promise<Result<AdminPassageStatusChange>> => {
+  const found = await findDetailInStatus(id, ["rejected"], repo)
+  if (!found.ok) return found
+
+  const status = await repo.passageRepository.restoreRejected(id)
+  if (status === null) {
+    logger.debug("AdminPassageService: Passage status changed during restore", { id })
+    return err(conflictError("Passage status changed"))
+  }
+  logger.info("AdminPassageService: Rejected passage restored", { id, status })
+  return ok({ id, status })
+}
+
+/**
+ * 要確認の印を外す（管理者が理由を確かめた・直した後に、一覧の要確認の先頭から外すため）。状態は問わず、外れていても 200
+ */
+export const resolveAdminPassageAttention = async (
+  id: number,
+  repo: PassageRepo,
+): Promise<Result<AdminPassageAttentionResolution>> => {
+  if (!await repo.passageRepository.clearAttention(id)) {
+    logger.debug("AdminPassageService: Passage not found", { id })
+    return err(notFoundError("Passage not found"))
+  }
+  logger.info("AdminPassageService: Passage attention resolved", { id })
+  return ok({ id, attentionReasons: [], needsAttention: false })
 }
 
 /**

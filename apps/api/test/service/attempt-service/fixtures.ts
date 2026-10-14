@@ -205,6 +205,7 @@ export const buildExpectedSubmittedView = () => ({
     correctChoiceIndex: item.correctChoiceIndex,
     evidence: EXPECTED_EVIDENCES[index],
     explanationJa: item.explanationJa,
+    isAnswerKeyChanged: false,
     isCorrect: index === 0,
     selectedChoiceIndex: [1, 0, null][index],
   })),

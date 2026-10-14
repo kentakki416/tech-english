@@ -24,6 +24,8 @@ import { AdminPassagePublishController } from "./controller/admin/passage/publis
 import { AdminPassageRegenerateController } from "./controller/admin/passage/regenerate"
 import { AdminPassageRegenerateAudioController } from "./controller/admin/passage/regenerate-audio"
 import { AdminPassageRejectController } from "./controller/admin/passage/reject"
+import { AdminPassageResolveAttentionController } from "./controller/admin/passage/resolve-attention"
+import { AdminPassageRestoreController } from "./controller/admin/passage/restore"
 import { AdminPassageRetryAudioController } from "./controller/admin/passage/retry-audio"
 import { AdminPassageUnpublishController } from "./controller/admin/passage/unpublish"
 import { AdminPassageUpdateController } from "./controller/admin/passage/update"
@@ -259,6 +261,8 @@ const adminPassagePublishController = new AdminPassagePublishController(passageR
 const adminPassageRegenerateController = new AdminPassageRegenerateController(passageRepository)
 const adminPassageRegenerateAudioController = new AdminPassageRegenerateAudioController(passageAudioRepository)
 const adminPassageRejectController = new AdminPassageRejectController(passageRepository)
+const adminPassageResolveAttentionController = new AdminPassageResolveAttentionController(passageRepository)
+const adminPassageRestoreController = new AdminPassageRestoreController(passageRepository)
 const adminPassageRetryAudioController = new AdminPassageRetryAudioController(passageAudioRepository)
 const adminPassageUnpublishController = new AdminPassageUnpublishController(passageRepository)
 const adminPassageUpdateController = new AdminPassageUpdateController(passageRepository)
@@ -379,6 +383,8 @@ app.use(
       regenerate: adminPassageRegenerateController,
       regenerateAudio: adminPassageRegenerateAudioController,
       reject: adminPassageRejectController,
+      resolveAttention: adminPassageResolveAttentionController,
+      restore: adminPassageRestoreController,
       retryAudio: adminPassageRetryAudioController,
       unpublish: adminPassageUnpublishController,
       update: adminPassageUpdateController,
