@@ -144,7 +144,8 @@ const findSentenceEnds = (text: string): number[] => {
  */
 export const extractSentence = (text: string, range: { end: number; start: number }): ExtractedSentence => {
   const ends = findSentenceEnds(text)
-  const rawStart = ends.filter((end) => end <= range.start).at(-1) ?? 0
+  const startCandidates = ends.filter((end) => end <= range.start)
+  const rawStart = startCandidates.length > 0 ? startCandidates[startCandidates.length - 1] : 0
   const rawEnd = ends.find((end) => end >= range.end) ?? text.length
   const leading = text.slice(rawStart, rawEnd).length - text.slice(rawStart, rawEnd).trimStart().length
   const sentenceStart = rawStart + leading
@@ -617,7 +618,8 @@ pnpm lint:fix
   - [ ] インラインコードの中の `. `（`` `a. b` ``）では区切らない
   - [ ] `e.g.` `i.e.` `etc.` `vs.` の後では区切らない
   - [ ] 文の前後の空白（改行を含む）が除かれる
-  - [ ] 240 文字ちょうどの文は切らず、241 文字の文は単語を含む 240 文字に切られて前後に `…` が付き、`highlight*` が切った後の文字列で単語を指す（境界値）
+  - [ ] 240 文字ちょうどの文は切らず、241 文字の文は 240 文字に切られて切った側にだけ `…` が付き、`highlight*` が切った後の文字列で単語を指す（境界値）
+  - [ ] 長い文の真ん中の単語は、前後を切って両側に `…` が付く
   - [ ] 単語が長い文の先頭・末尾にあるとき、片側だけに `…` が付く
 
 `test/lib/build-vocabulary-card.test.ts`：
