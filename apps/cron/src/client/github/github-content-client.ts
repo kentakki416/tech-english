@@ -58,12 +58,19 @@ const JSON_ACCEPT = "application/vnd.github+json"
 
 const RAW_ACCEPT = "application/vnd.github.raw+json"
 
+/**
+ * GET /repos/{owner}/{repo}/commits/{ref} がコミットの SHA の文字列だけを返すメディアタイプ
+ * （JSON はコミットの diff・変更ファイルまで含んで大きいため）
+ */
+const SHA_ACCEPT = "application/vnd.github.sha"
+
 const REQUEST_TIMEOUT_MS = 10_000
 
 /**
- * 外部 API のレスポンスは無検証キャストせず Zod で検証する（利用しないフィールドは無視）
+ * 外部 API のレスポンスは無検証キャストせず Zod で検証する（利用しないフィールドは無視）。
+ * コミットの SHA は 16 進数の 40 桁（SHA-1）か 64 桁（SHA-256 のリポジトリ）
  */
-const commitResponseSchema = z.object({ sha: z.string().min(1) })
+const commitShaSchema = z.string().regex(/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/)
 
 const treeResponseSchema = z.object({
   tree: z.array(
@@ -119,9 +126,9 @@ export class GitHubContentClient implements IGitHubContentClient {
   public async getLatestCommitSha(repository: string, branch: string): Promise<string> {
     const response = await this._request(
       `${buildRepositoryPath(repository)}/commits/${encodeURIComponent(branch)}`,
-      JSON_ACCEPT,
+      SHA_ACCEPT,
     )
-    return commitResponseSchema.parse(await response.json()).sha
+    return commitShaSchema.parse((await response.text()).trim())
   }
 
   public getRateLimitRemaining(): number | null {

@@ -1,7 +1,7 @@
-import { asc, contentSources, DrizzleClient, eq, sql } from "@repo/db"
+import { and, asc, contentSources, DrizzleClient, eq, isNull, sql } from "@repo/db"
 import type { ContentSource } from "@repo/domain"
 
-import type { ContentSourceRepository } from "../content-source-repository"
+import type { ContentSourceRepository, MarkCollectedInput } from "../content-source-repository"
 
 /**
  * Drizzleの型
@@ -32,17 +32,27 @@ export class DrizzleContentSourceRepository implements ContentSourceRepository {
     return rows.map((row) => this._toDomain(row))
   }
 
-  public async markCollected(
-    id: number,
-    input: { lastCollectedAt: Date; lastCollectedCommitSha?: string },
-  ): Promise<void> {
-    await this._db
+  /**
+   * commit SHA を渡したときは、WHERE に収集を始めたときの last_collected_commit_sha を足す（null は IS NULL で比べる）
+   */
+  public async markCollected(id: number, input: MarkCollectedInput): Promise<boolean> {
+    const commit = input.lastCollectedCommitSha
+    const isTarget = eq(contentSources.id, id)
+    const result = await this._db
       .update(contentSources)
       .set({
         lastCollectedAt: input.lastCollectedAt,
-        ...(input.lastCollectedCommitSha === undefined ? {} : { lastCollectedCommitSha: input.lastCollectedCommitSha }),
+        ...(commit === undefined ? {} : { lastCollectedCommitSha: commit.next }),
       })
-      .where(eq(contentSources.id, id))
+      .where(commit === undefined
+        ? isTarget
+        : and(
+          isTarget,
+          commit.expected === null
+            ? isNull(contentSources.lastCollectedCommitSha)
+            : eq(contentSources.lastCollectedCommitSha, commit.expected),
+        ))
+    return (result.rowCount ?? 0) > 0
   }
 
   /**

@@ -1,28 +1,13 @@
 import { z } from "zod"
 
 // ========================================================
-// 共通: リマインダーの設定
+// 共通: 時刻の形式
 // ========================================================
 
 /**
  * "HH:mm" かつ 15 分刻み（00 / 15 / 30 / 45）。"24:00" や秒付きは不可
  */
 const REMINDER_TIME_PATTERN = /^([01]\d|2[0-3]):(00|15|30|45)$/
-
-/**
- * リマインダーの設定（GET / PUT のレスポンス共通の形）
- */
-const reminderSettingSchema = z.object({
-  is_enabled: z.boolean(),
-  /**
-   * "HH:mm"（端末の時刻、15 分刻み）
-   */
-  time: z.string(),
-  /**
-   * ISO の曜日番号（1 = 月曜 〜 7 = 日曜）の昇順の配列
-   */
-  weekdays: z.array(z.number()),
-})
 
 // ========================================================
 // GET /api/user/reminder - リマインダーの設定の取得
@@ -31,7 +16,17 @@ const reminderSettingSchema = z.object({
 /**
  * リマインダーの設定の取得のレスポンススキーマ。未保存なら既定値（オフ・毎日・21:00）
  */
-export const getUserReminderResponseSchema = reminderSettingSchema
+export const getUserReminderResponseSchema = z.object({
+  is_enabled: z.boolean(),
+  /**
+   * "HH:mm"（端末の時刻、15 分刻み）
+   */
+  time: z.string().regex(REMINDER_TIME_PATTERN),
+  /**
+   * ISO の曜日番号（1 = 月曜 〜 7 = 日曜）の昇順の配列
+   */
+  weekdays: z.array(z.number().int().min(1).max(7)),
+})
 
 export type GetUserReminderResponse = z.infer<typeof getUserReminderResponseSchema>
 
@@ -60,6 +55,16 @@ export type UpdateUserReminderRequest = z.infer<typeof updateUserReminderRequest
 /**
  * リマインダーの設定の保存のレスポンススキーマ（保存後の値）
  */
-export const updateUserReminderResponseSchema = reminderSettingSchema
+export const updateUserReminderResponseSchema = z.object({
+  is_enabled: z.boolean(),
+  /**
+   * "HH:mm"（端末の時刻、15 分刻み）
+   */
+  time: z.string().regex(REMINDER_TIME_PATTERN),
+  /**
+   * ISO の曜日番号（1 = 月曜 〜 7 = 日曜）の昇順の配列
+   */
+  weekdays: z.array(z.number().int().min(1).max(7)),
+})
 
 export type UpdateUserReminderResponse = z.infer<typeof updateUserReminderResponseSchema>

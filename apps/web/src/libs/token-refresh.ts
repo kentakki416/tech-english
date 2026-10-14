@@ -15,14 +15,17 @@ import { env } from "@/env"
 const ACCESS_TOKEN_REFRESH_MARGIN_MS = 60_000
 
 /**
- * refresh API の応答を待つ上限。api が応答しないときに全リクエストを止めない
+ * refresh API の応答を待つ上限。api が応答しないときに全リクエストを止めない。
+ * 打ち切っても api はローテーションを終えていることがあるが、api はローテーション後 30 秒の間は同じ旧 refresh token に
+ * 同じペアを返す（猶予）ので、次のリクエストの再試行で受け取れる
  */
 const REFRESH_TIMEOUT_MS = 5_000
 
 /**
- * 同じ refresh token での更新結果を使い回す時間。api は refresh token を 1 回で失効させる（ローテーション）ので、
- * 期限切れの cookie を持つリクエストが同時に来たとき（ページと prefetch など）に 2 回目の更新が 401 になってログアウトしないようにする。
- * プロセス内の Map なので、web を複数台にしたときは台をまたいで共有されない
+ * 同じ refresh token での更新結果を使い回す時間。期限切れの cookie を持つリクエストが同時に来たとき（ページと prefetch など）の
+ * 更新を、このプロセスでは 1 回の api 呼び出しにまとめる。
+ * 2 回目以降の更新が 401 にならないことは api の猶予（ローテーション後 30 秒は同じペアを返す）が保証するので、
+ * これは api の呼び出しを減らすためのもの（プロセス内の Map なので、web を複数台にしたときは台をまたいで共有されない）
  */
 const RECENT_REFRESH_TTL_MS = 30_000
 
@@ -60,7 +63,9 @@ export const isAccessTokenUsable = (accessToken: string | undefined, now: number
 }
 
 /**
- * 4xx は refresh token が使えない（失効・削除済みユーザー）ので rejected、それ以外の失敗は unavailable
+ * refresh API が token を使えないと返したとき（401: 失効・削除済みユーザー・署名の不一致、400: body が不正）だけ rejected。
+ * 429（レート制限）・5xx・timeout・通信の失敗は unavailable（ログアウトさせず、次のリクエストで再試行する）。
+ * api のレート制限は IP 単位で、web からの呼び出しは web サーバーの IP に集まるため、429 でログアウトさせない
  */
 const requestRefresh = async (refreshToken: string): Promise<RefreshResult> => {
   try {
@@ -70,7 +75,7 @@ const requestRefresh = async (refreshToken: string): Promise<RefreshResult> => {
       method: "POST",
       signal: AbortSignal.timeout(REFRESH_TIMEOUT_MS),
     })
-    if (res.status >= 400 && res.status < 500) return { kind: "rejected" }
+    if (res.status === 401 || res.status === 400) return { kind: "rejected" }
     if (!res.ok) return { kind: "unavailable" }
     const tokens = authRefreshResponseSchema.parse(await res.json())
     return { accessToken: tokens.access_token, kind: "refreshed", refreshToken: tokens.refresh_token }
@@ -81,7 +86,7 @@ const requestRefresh = async (refreshToken: string): Promise<RefreshResult> => {
 
 /**
  * refresh token で access / refresh token を更新する。同じ refresh token の更新は RECENT_REFRESH_TTL_MS の間 1 回にまとめる。
- * unavailable（api の障害）は使い回さず、次のリクエストで再試行する
+ * unavailable（api の障害・レート制限）は使い回さず、次のリクエストで再試行する（api の猶予の間なら、打ち切った更新と同じペアが返る）
  */
 export const refreshAuthTokens = async (refreshToken: string, now: number): Promise<RefreshResult> => {
   for (const [token, entry] of recentRefreshes) {

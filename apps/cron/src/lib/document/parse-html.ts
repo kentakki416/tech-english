@@ -48,12 +48,13 @@ const selectContentHtml = (document: Document, contentSelector: string, excludeS
 }
 
 /**
- * Readability で本文を推定して取り出す。Readability は DOM を書き換えるので複製に対して行う
+ * Readability で本文を推定して取り出す。Readability は DOM を書き換えるので複製に対して行う。
+ * Readability は既定で class を消すので keepClasses を指定する（`<code class="language-go">` の lang を rehype-remark が読むため）
  */
 const extractContentHtmlWithReadability = (document: Document, excludeSelectors: string[]): string | null => {
   const clone = document.cloneNode(true) as Document
   removeElements(clone, [...REMOVED_SELECTORS, ...excludeSelectors])
-  return new Readability(clone).parse()?.content ?? null
+  return new Readability(clone, { keepClasses: true }).parse()?.content ?? null
 }
 
 /**

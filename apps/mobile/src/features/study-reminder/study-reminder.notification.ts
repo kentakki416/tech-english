@@ -68,6 +68,20 @@ export const cancelScheduledStudyReminders = async (): Promise<void> => {
 }
 
 /**
+ * 通知センターに届いている study-reminder-* の通知をすべて消す（他の通知には触れない）。
+ * 届いた通知の識別子は予約したときの識別子のまま（iOS は UNNotificationRequest、Android は通知の tag）
+ */
+export const dismissPresentedStudyReminders = async (): Promise<void> => {
+  if (!IS_LOCAL_NOTIFICATION_SUPPORTED) return
+  const notifications = await Notifications.getPresentedNotificationsAsync()
+  await Promise.all(
+    notifications
+      .filter(notification => isStudyReminderIdentifier(notification.request.identifier))
+      .map(async notification => Notifications.dismissNotificationAsync(notification.request.identifier)),
+  )
+}
+
+/**
  * 全取り消し → 作り直し（冪等）。オフ、または通知が許可されていなければ作らない
  * （許可されたら、前面に戻したときの同期で作られる）
  */

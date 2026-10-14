@@ -11,16 +11,26 @@ describe("convertMdastToBlocks", () => {
       expect(blocks).toEqual([{ text: "Call `useState` from the hooks guide today.", type: "paragraph" }])
     })
 
-    it("Hugo のショートコードを消し、ショートコードだけの段落は捨てる", () => {
+    it("Hugo のショートコードを消し、glossary_tooltip は text の語に置き換え、ショートコードだけの段落は捨てる", () => {
       const blocks = convertMarkdown([
         "{{< note >}}",
         "",
-        "Create a {{< glossary_tooltip text=\"Pod\" term_id=\"pod\" >}} before you {{% tab name=\"apply\" %}} the file.",
+        "Create a {{< glossary_tooltip text=\"Pod\" term_id=\"pod\" >}} before you {{% tab name=\"apply\" %}} apply the file.",
         "",
         "{{< /note >}}",
       ].join("\n"))
 
-      expect(blocks).toEqual([{ text: "Create a before you the file.", type: "paragraph" }])
+      expect(blocks).toEqual([{ text: "Create a Pod before you apply the file.", type: "paragraph" }])
+    })
+
+    it("glossary_tooltip は引数の順序・改行によらず text に置き換え、text が無ければ term_id にする", () => {
+      const blocks = convertMarkdown([
+        "The {{< glossary_tooltip term_id=\"kube-scheduler\" text=\"scheduler\" >}} assigns Pods to",
+        "{{< glossary_tooltip text=\"nodes\"",
+        "term_id=\"node\" >}}, and the {{< glossary_tooltip term_id=\"kubelet\" >}} runs them.",
+      ].join("\n"))
+
+      expect(blocks).toEqual([{ text: "The scheduler assigns Pods to nodes, and the kubelet runs them.", type: "paragraph" }])
     })
 
     it("GitHub の注記マーカー（[!NOTE]）を消して quote にする", () => {

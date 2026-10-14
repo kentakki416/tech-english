@@ -67,7 +67,7 @@ export const learningRecordApi = {
 
 ### マイページ（`(tabs)/index.tsx`）
 
-- `useFocusEffect` で `learningRecordApi.getStats()` と `getCalendar()` を並列に取得する（問題を解いて戻ったときに反映させるため）。名前とアイコンは github-auth step4 が持つログイン中のユーザー（無ければ `GET /api/user`）。`ScrollView` に `RefreshControl` を付けて引っ張って再取得できるようにする
+- `useFocusEffect` で `learningRecordApi.getStats()` と `getCalendar()` を並列に取得する（問題を解いて戻ったときに反映させるため）。フォーカス中は `AppState` の `change` を購読し、`active` になったときにも取り直す（タブの画面はアンマウントされないので、バックグラウンドのまま日付をまたいで前面に戻したときに古い「今日」のままにしない。購読は `useFocusEffect` の後始末で外す）。名前とアイコンは github-auth step4 が持つログイン中のユーザー（無ければ `GET /api/user`）。`ScrollView` に `RefreshControl` を付けて引っ張って再取得できるようにする
 - 初回の取得中は `ActivityIndicator`、失敗したら「読み込めませんでした。」と「再読み込み」（副ボタン）
 - 値の対応・目標のパネルの出し分け・今週の進捗の線と文言・空の状態は web の [step4 の「マイページ」](./step4-web-mypage.md#マイページsrcapppagetsx) と同じ。mobile だけの違い:
   - 上部はロゴ（`Wordmark`）とアイコン（`expo-image` で `avatar_url`。無ければ頭文字）
@@ -81,6 +81,7 @@ export const learningRecordApi = {
 - 年表示は曜日のラベルの列を横スクロールの外に固定し、マスだけを `ScrollView horizontal` にする。`onContentSizeChange` で `scrollToEnd({ animated: false })`
 - 月表示は 7 列のマスに日付と色のマスだけ（問題数は出さない）。前後の月への移動ボタン（`chevron-back` / `chevron-forward`）を月の見出しの横に足し、今月で「次」を無効にする
 - 選んだ日の取得は、日付を素早く切り替えたときに古い結果で上書きしないよう、取得時の日付と現在の `selectedDate` が一致するときだけ state に入れる
+- タブの画面はアンマウントされないので、`selectedDate` / `month` の state は最初のマウントの値のまま残る。前回の `calendar.today` を ref に持ち、取り直して `today` が変わったら、`selectedDate` が前の今日のままなら新しい今日へ、`month` が前の今日の月のままなら今月へ移す（ユーザーが選び直した日・移動した月はそのまま）。web はマイページへの遷移のたびに再マウントされるので不要
 
 ### 学習履歴（`history.tsx`）
 
@@ -118,6 +119,8 @@ pnpm --filter mobile ios   # development build で確認する
 - [ ] マイページの連続日数・目標・最近の挑戦（3 件）・カレンダー・累計・種類別が API の値になっている
 - [ ] 挑戦 0 件のユーザーで「最初の 1 問を解いてみましょう」が出て、統計と最近の挑戦が出ない
 - [ ] 問題を提出してマイページに戻ると、今日のマスと連続日数が更新される（`useFocusEffect`）。引っ張って再取得できる
+- [ ] 日付をまたいでから問題を提出してマイページに戻ると、選んだ日の挑戦が新しい今日になる。月をまたいだときは月表示も今月になる
+- [ ] マイページを開いたままバックグラウンドにし、日付をまたいでから前面に戻すと、今日のマスと選んだ日が新しい今日になる（`AppState`）
 - [ ] 年表示が右端（今日）から始まり、曜日の列はスクロールしても動かない。月表示で前後の月に移動でき、1 年より前の月も表示される
 - [ ] 日付を選ぶとその日の挑戦が出る。素早く切り替えても最後に選んだ日の内容になる
 - [ ] 「すべて見る」で学習履歴が開き、下までスクロールすると続きが読み込まれる。「‹ マイページ」で戻れる

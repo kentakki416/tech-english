@@ -1,5 +1,6 @@
 "use server"
 
+import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 
 import { type SubmitAttemptRequest, submitAttemptPathParamSchema, submitAttemptRequestSchema } from "@repo/api-schema"
@@ -30,6 +31,10 @@ export const submitAttemptAction = async (attemptId: number, input: SubmitAttemp
     if (error instanceof ApiClientError && error.status === 409) return { error: "expired" }
     return { error: "failed" }
   }
+  /**
+   * 解答画面のキャッシュを捨てる（「戻る」で提出済みの挑戦の解答画面を出さず、取り直して結果画面へ redirect させる）
+   */
+  revalidatePath(`/attempts/${parsedId.data.id}`)
   /**
    * redirect は NEXT_REDIRECT という例外で実現されるので try / catch の外で呼ぶ
    */

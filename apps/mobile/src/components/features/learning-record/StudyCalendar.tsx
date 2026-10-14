@@ -86,6 +86,25 @@ export function StudyCalendar({
    */
   const selectedDateRef = useRef(today)
   const pendingMonthsRef = useRef(new Set<string>())
+  /**
+   * 前回の描画のときの今日。タブの画面はアンマウントされず state が最初のマウントの値のまま残るので、日付をまたいだかを比べるのに使う
+   */
+  const previousTodayRef = useRef(today)
+
+  /**
+   * 日付をまたいで取り直したとき（calendar.today が変わる）、前の今日を選んだままなら新しい今日を選び、
+   * 前の今月を表示したままなら今月を表示する。ユーザーが選び直した日・移動した月はそのままにする
+   */
+  useEffect(() => {
+    const previousToday = previousTodayRef.current
+    if (previousToday === today) return
+    previousTodayRef.current = today
+    if (selectedDateRef.current === previousToday) {
+      selectedDateRef.current = today
+      setSelectedDate(today)
+    }
+    setMonth(current => current === previousToday.slice(0, 7) ? today.slice(0, 7) : current)
+  }, [today])
 
   /**
    * from の曜日の数だけ空のマスで前を埋め、7 日ずつの列（月曜始まり）にする

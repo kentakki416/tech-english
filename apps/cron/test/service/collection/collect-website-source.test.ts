@@ -204,18 +204,60 @@ describe("collectWebsiteSource", () => {
       expect(repo.sourceDocumentRepository.markFetched).toHaveBeenCalledWith(11, expect.objectContaining({ httpStatus: 200 }))
     })
 
-    it("本文の抽出が throw したページ（不正な CSS セレクタ）は本文候補 0 件で markFetched する", async () => {
+    it("本文の抽出が throw したページ（不正な CSS セレクタ）は本文候補を作らず、ETag / Last-Modified / ハッシュを保存しない（markResponse）", async () => {
       const source = { ...SOURCE, contentSelector: "main[[" }
+      const page = buildOkPage(`${SITE}/doc/a`, buildHtmlPage({ links: ["/doc/b"], sectionTitles: ["Alpha"] }), {
+        etag: "\"v2\"",
+        lastModified: "Sat, 10 Oct 2026 00:00:00 GMT",
+      })
       const { deps, repo } = setup({
-        client: { pages: { [`${SITE}/doc/a`]: buildOkPage(`${SITE}/doc/a`, buildHtmlPage({ sectionTitles: ["Alpha"] })) } },
+        client: { pages: { [`${SITE}/doc/a`]: page } },
         queue: [buildQueuedDocument(10, "/doc/a")],
       })
 
       const result = await collectWebsiteSource(buildInput({ source }), repo, deps)
 
       expect(repo.passageRepository.insertIgnoringDuplicates).not.toHaveBeenCalled()
-      expect(repo.sourceDocumentRepository.markFetched).toHaveBeenCalledWith(10, expect.objectContaining({ contentHash: null, title: null }))
-      expect(result.status).toBe("completed")
+      expect(repo.sourceDocumentRepository.upsertDiscovered).not.toHaveBeenCalled()
+      expect(repo.sourceDocumentRepository.markFetched).not.toHaveBeenCalled()
+      expect(repo.sourceDocumentRepository.markResponse).toHaveBeenCalledWith(10, { fetchedAt: NOW, httpStatus: 200 })
+      expect(result).toEqual({ createdPassageCount: 0, fetchedDocumentCount: 1, status: "completed" })
+    })
+
+    it.each([
+      ["除外パス", `${SITE}/doc/devel/a`],
+      ["対象パスの外", `${SITE}/blog/a`],
+      ["ページでない拡張子", `${SITE}/doc/a.txt`],
+    ])("リダイレクトの行き先が%sなら本文候補を作らず、リンクの発見と markFetched は続ける", async (_label, finalUrl) => {
+      const source = { ...SOURCE, excludeGlobs: ["/doc/devel/**"] }
+      const html = buildHtmlPage({ links: ["/doc/b"], sectionTitles: ["Alpha"] })
+      const { deps, repo } = setup({
+        client: { pages: { [`${SITE}/doc/a`]: buildOkPage(finalUrl, html) } },
+        queue: [buildQueuedDocument(10, "/doc/a")],
+      })
+
+      const result = await collectWebsiteSource(buildInput({ source }), repo, deps)
+
+      expect(repo.passageRepository.insertIgnoringDuplicates).not.toHaveBeenCalled()
+      expect(repo.sourceDocumentRepository.upsertDiscovered).toHaveBeenCalledWith(
+        2,
+        [{ path: "/doc/b", sitemapLastmod: null }],
+        { shouldReviveGone: true },
+      )
+      expect(repo.sourceDocumentRepository.markFetched).toHaveBeenCalledWith(10, expect.objectContaining({ httpStatus: 200 }))
+      expect(result.createdPassageCount).toBe(0)
+    })
+
+    it("リダイレクトの行き先も対象パスなら、本文候補を元のパスの出典で作る", async () => {
+      const { deps, repo } = setup({
+        client: { pages: { [`${SITE}/doc/a`]: buildOkPage(`${SITE}/doc/new-a`, buildHtmlPage({ sectionTitles: ["Alpha"] })) } },
+        queue: [buildQueuedDocument(10, "/doc/a")],
+      })
+
+      const result = await collectWebsiteSource(buildInput(), repo, deps)
+
+      expect(result.createdPassageCount).toBe(1)
+      expect(repo.passageRepository.insertIgnoringDuplicates.mock.calls[0][0][0]).toMatchObject({ sourcePath: "/doc/a" })
     })
 
     it("404 / skipped は markResponse に status を記録する（robots で取得しなかったものは null）", async () => {
@@ -240,7 +282,7 @@ describe("collectWebsiteSource", () => {
       expect(result).toEqual({ createdPassageCount: 0, fetchedDocumentCount: 3, status: "completed" })
     })
 
-    it("429 / 503（WebSourceThrottledError）で残りの行を取得せずに throttled を返し、markCollected する", async () => {
+    it("429 / 503（WebSourceThrottledError）で残りの行を取得せずに throttled を返し、その行に試した時刻を記録して、last_collected_at は進めない", async () => {
       const { client, deps, repo } = setup({
         client: {
           pages: {
@@ -256,7 +298,11 @@ describe("collectWebsiteSource", () => {
 
       expect(result).toEqual({ createdPassageCount: 0, fetchedDocumentCount: 1, status: "throttled" })
       expect(client.fetchPage).toHaveBeenCalledTimes(2)
-      expect(repo.contentSourceRepository.markCollected).toHaveBeenCalledWith(2, { lastCollectedAt: NOW })
+      expect(repo.sourceDocumentRepository.markResponse.mock.calls).toEqual([
+        [1, { fetchedAt: NOW, httpStatus: 304 }],
+        [2, { fetchedAt: NOW, httpStatus: 429 }],
+      ])
+      expect(repo.contentSourceRepository.markCollected).not.toHaveBeenCalled()
     })
 
     it("Retry-After が次回の実行（24 時間後）より先なら warn を出す", async () => {
@@ -298,7 +344,7 @@ describe("collectWebsiteSource", () => {
       expect(repo.sourceDocumentRepository.findFetchQueue).not.toHaveBeenCalled()
     })
 
-    it("robots.txt の Crawl-delay が上限を超えるサイトは、ページを探さず取得もせずに crawl_delay_too_long を返し、warn を出して markCollected する", async () => {
+    it("robots.txt の Crawl-delay が上限を超えるサイトは、ページを探さず取得もせずに crawl_delay_too_long を返し、warn を出して last_collected_at は進めない", async () => {
       const source = { ...SOURCE, sitemapUrl: `${SITE}/sitemap.xml`, startUrl: `${SITE}/doc/` }
       const { client, deps, repo } = setup({
         client: {
@@ -314,14 +360,14 @@ describe("collectWebsiteSource", () => {
       expect(client.fetchPage).not.toHaveBeenCalled()
       expect(repo.sourceDocumentRepository.upsertDiscovered).not.toHaveBeenCalled()
       expect(repo.sourceDocumentRepository.findFetchQueue).not.toHaveBeenCalled()
-      expect(repo.contentSourceRepository.markCollected).toHaveBeenCalledWith(2, { lastCollectedAt: NOW })
+      expect(repo.contentSourceRepository.markCollected).not.toHaveBeenCalled()
       expect(warnMock).toHaveBeenCalledWith(
         "Crawl-delay in robots.txt exceeds the limit; the source is skipped in this run",
         expect.objectContaining({ crawlDelaySeconds: 3600, maxCrawlDelaySeconds: 30, sourceId: 2 }),
       )
     })
 
-    it("network_error は何も更新せず、間に ok を挟むと連続の回数を数え直す", async () => {
+    it("network_error の行は試した時刻を記録して待ち行列から外し（http_status は null）、間に ok を挟むと連続の回数を数え直す", async () => {
       const html = buildHtmlPage({ sectionTitles: ["Alpha"] })
       const { deps, repo } = setup({
         client: {
@@ -339,7 +385,7 @@ describe("collectWebsiteSource", () => {
       const result = await collectWebsiteSource(buildInput(), repo, deps)
 
       expect(result).toEqual({ createdPassageCount: 1, fetchedDocumentCount: 1, status: "completed" })
-      expect(repo.sourceDocumentRepository.markResponse).not.toHaveBeenCalled()
+      expect(repo.sourceDocumentRepository.markResponse.mock.calls).toEqual([1, 2, 4, 5].map((id) => [id, { fetchedAt: NOW, httpStatus: null }]))
       expect(repo.sourceDocumentRepository.markFetched).toHaveBeenCalledTimes(1)
     })
 
@@ -352,6 +398,7 @@ describe("collectWebsiteSource", () => {
       const result = await collectWebsiteSource(buildInput({ maxDocuments: 2 }), repo, deps)
 
       expect(result.status).toBe("limit_reached")
+      expect(repo.contentSourceRepository.markCollected).toHaveBeenCalledWith(2, { lastCollectedAt: NOW })
     })
 
     it("本文候補の上限に達したら残りの行を取得せず limit_reached", async () => {
@@ -366,18 +413,19 @@ describe("collectWebsiteSource", () => {
       expect(client.fetchPage).toHaveBeenCalledTimes(1)
     })
 
-    it("停止指示を受けたら interrupted", async () => {
+    it("停止指示を受けたら interrupted で、last_collected_at は進めない", async () => {
       const { client, deps, repo } = setup({ isShuttingDown: () => true, queue: [buildQueuedDocument(1, "/doc/a")] })
 
       const result = await collectWebsiteSource(buildInput(), repo, deps)
 
       expect(result.status).toBe("interrupted")
       expect(client.fetchPage).not.toHaveBeenCalled()
+      expect(repo.contentSourceRepository.markCollected).not.toHaveBeenCalled()
     })
   })
 
   describe("異常系", () => {
-    it("network_error が 3 回続いたら throw する", async () => {
+    it("network_error が 3 回続いたら、3 行に試した時刻を記録してから throw する", async () => {
       const { client, deps, repo } = setup({
         client: {
           pages: Object.fromEntries([1, 2, 3, 4].map((id) => [`${SITE}/doc/${id}`, { errorMessage: "ECONNRESET", kind: "network_error" as const }])),
@@ -387,6 +435,7 @@ describe("collectWebsiteSource", () => {
 
       await expect(collectWebsiteSource(buildInput(), repo, deps)).rejects.toThrow("Network errors occurred 3 times in a row")
       expect(client.fetchPage).toHaveBeenCalledTimes(3)
+      expect(repo.sourceDocumentRepository.markResponse.mock.calls).toEqual([1, 2, 3].map((id) => [id, { fetchedAt: NOW, httpStatus: null }]))
       expect(repo.contentSourceRepository.markCollected).not.toHaveBeenCalled()
     })
 

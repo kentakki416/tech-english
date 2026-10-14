@@ -44,8 +44,10 @@ const mockUserRepository: UserRepository = {
 const mockRefreshTokenSave = vi.fn<(_0: string, _1: number, _2: number) => Promise<void>>()
 const mockRefreshTokenRepository: RefreshTokenRepository = {
   delete: vi.fn(),
+  findRotatedTokens: vi.fn(),
   findUserId: vi.fn(),
   save: mockRefreshTokenSave,
+  saveRotatedTokens: vi.fn(),
 }
 
 /**

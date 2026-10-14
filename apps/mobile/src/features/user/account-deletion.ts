@@ -2,6 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage"
 
 import { DELETE_ACCOUNT_CONFIRMATION_TEXT } from "@repo/api-schema"
 
+import { useAttemptStore } from "@/features/attempt/attempt.store"
 import { clearStoredTokens, getStoredTokens } from "@/features/auth/auth.storage"
 import { useAuthStore } from "@/features/auth/auth.store"
 import { clearStudyReminders } from "@/features/study-reminder/study-reminder.sync"
@@ -35,9 +36,13 @@ export const deleteAccount = async (): Promise<void> => {
  * サーバー側は削除済みなので、1 つ失敗しても残りは続け、完了の表示に進む
  */
 const clearDeviceData = async (): Promise<void> => {
+  /**
+   * 開始・提出のレスポンスを入れたメモリ上の挑戦（ユーザーごとのデータ）
+   */
+  useAttemptStore.getState().clearStoreAttempts()
   const results = await Promise.allSettled([
     /**
-     * リマインダーの予約（study-reminder-{曜日}）の取り消しと、リマインダーの設定の store を空にする
+     * リマインダーの予約（study-reminder-{曜日}）の取り消し、通知センターに届き済みのリマインダーの削除、リマインダーの設定の store を空にする
      */
     clearStudyReminders(),
     clearStoredTokens(),

@@ -62,10 +62,8 @@ describe("POST /api/auth/refresh", () => {
       expect(newPayload).not.toBeNull()
       expect(await refreshTokenRepository.findUserId(newPayload!.jti)).toBe(user.id)
     })
-  })
 
-  describe("異常系", () => {
-    it("同じ Refresh Token を 2 回連続で使うと 2 回目は 401（再利用検知）", async () => {
+    it("猶予（30 秒）の間に同じ Refresh Token をもう一度使うと、1 回目と同じペアを返し、新しく発行しない", async () => {
       const { user } = await createTestUser()
       const { jti, token } = generateRefreshToken(user.id)
       await refreshTokenRepository.save(jti, user.id, REFRESH_TTL_SECONDS)
@@ -74,6 +72,61 @@ describe("POST /api/auth/refresh", () => {
         .post("/api/auth/refresh")
         .send({ refresh_token: token })
       expect(first.status).toBe(200)
+
+      const second = await request(app)
+        .post("/api/auth/refresh")
+        .send({ refresh_token: token })
+      expect(second.status).toBe(200)
+      expect(second.body).toEqual(first.body)
+
+      /**
+       * 猶予の記録は 30 秒以内の TTL で残る
+       */
+      const ttl = await testRedis.ttl(`refresh_token_rotated:${jti}`)
+      expect(ttl).toBeGreaterThan(0)
+      expect(ttl).toBeLessThanOrEqual(30)
+      /**
+       * Redis に残る refresh token は 1 回目で発行したものだけ
+       */
+      const firstPayload = verifyRefreshToken(first.body.refresh_token)
+      expect(await testRedis.keys("refresh_token:*")).toEqual([`refresh_token:${firstPayload!.jti}`])
+    })
+  })
+
+  describe("異常系", () => {
+    it("猶予を過ぎてから同じ Refresh Token を使うと 401（再利用検知）", async () => {
+      const { user } = await createTestUser()
+      const { jti, token } = generateRefreshToken(user.id)
+      await refreshTokenRepository.save(jti, user.id, REFRESH_TTL_SECONDS)
+
+      const first = await request(app)
+        .post("/api/auth/refresh")
+        .send({ refresh_token: token })
+      expect(first.status).toBe(200)
+
+      /**
+       * 猶予の記録の TTL が切れた状態にする
+       */
+      await testRedis.del(`refresh_token_rotated:${jti}`)
+
+      const second = await request(app)
+        .post("/api/auth/refresh")
+        .send({ refresh_token: token })
+      expect(second.status).toBe(401)
+      expect(second.body).toEqual({ error: expect.any(String), status_code: 401 })
+    })
+
+    it("猶予の間でも、ユーザーが削除済みなら 401 を返す", async () => {
+      const { user } = await createTestUser()
+      const { jti, token } = generateRefreshToken(user.id)
+      await refreshTokenRepository.save(jti, user.id, REFRESH_TTL_SECONDS)
+
+      const first = await request(app)
+        .post("/api/auth/refresh")
+        .send({ refresh_token: token })
+      expect(first.status).toBe(200)
+
+      await userRepository.deleteById(user.id)
 
       const second = await request(app)
         .post("/api/auth/refresh")

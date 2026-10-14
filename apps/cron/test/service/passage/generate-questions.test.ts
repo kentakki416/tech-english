@@ -12,10 +12,10 @@ import { generateQuestions, type GenerateQuestionsInput } from "../../../src/ser
 import { buildGeneratedOutput, buildQuestion, PASSAGE } from "../../lib/question-generation/helpers"
 
 /**
- * 1 件ごとのログ（捨てた用語集・usage）を確かめるため logger を差し替える（@repo/logger の logger は Proxy で spyOn できない）
+ * 1 件ごとのログ（捨てた用語集・usage・失敗）を確かめるため logger を差し替える（@repo/logger の logger は Proxy で spyOn できない）
  */
-const { infoMock } = vi.hoisted(() => ({ infoMock: vi.fn() }))
-vi.mock("@repo/logger", () => ({ logger: { debug: vi.fn(), error: vi.fn(), info: infoMock, warn: vi.fn() } }))
+const { infoMock, warnMock } = vi.hoisted(() => ({ infoMock: vi.fn(), warnMock: vi.fn() }))
+vi.mock("@repo/logger", () => ({ logger: { debug: vi.fn(), error: vi.fn(), info: infoMock, warn: warnMock } }))
 
 const NOW = new Date("2026-10-13T03:00:00.000Z")
 
@@ -302,6 +302,11 @@ describe("generateQuestions", () => {
       )
       expect(llmClient.requestsOf(GENERATION_MODEL)).toHaveLength(2)
       expect(llmClient.requestsOf(VERIFICATION_MODEL)).toEqual([])
+      expect(warnMock).toHaveBeenCalledWith("passage generation failed", expect.objectContaining({
+        errors: ["questions: expected 3 questions but got 2"],
+        outcome: "retry_later",
+        passageId: 1,
+      }))
     })
 
     it("API エラーで recordGenerationFailure が failed を返せば failedCount が 1。2 件目の処理は続く", async () => {
@@ -317,6 +322,12 @@ describe("generateQuestions", () => {
       expect(failure.error).toMatch(/^InternalServerError: /)
       expect(failure.maxAttempts).toBe(3)
       expect(repo.passageRepository.saveDraft.mock.calls[0][0].id).toBe(2)
+      expect(warnMock).toHaveBeenCalledWith("passage generation failed", expect.objectContaining({
+        error: expect.stringMatching(/^InternalServerError: /),
+        outcome: "failed",
+        passageId: 1,
+      }))
+      expect(infoMock).not.toHaveBeenCalledWith("passage processed", expect.objectContaining({ passageId: 1 }))
     })
 
     it("拒否（LlmRefusalError）は再生成せずに失敗として記録する", async () => {

@@ -83,5 +83,18 @@ describe("GET /api/user/reminder", () => {
       expect(res.status).toBe(401)
       expect(res.body).toEqual({ error: expect.any(String), status_code: 401 })
     })
+
+    it.each([
+      ["time が 15 分刻みでない", { time: "21:10" }],
+      ["weekdays に 8（上限 + 1）", { weekdays: [8] }],
+    ])("DB に契約外の値（%s）があれば、そのまま返さずに 500 を返す（レスポンスの検証）", async (_, overrides) => {
+      const { token, user } = await createTestUser()
+      await insertReminderSetting(user.id, overrides)
+
+      const res = await request(app).get("/api/user/reminder").set("Authorization", `Bearer ${token}`)
+
+      expect(res.status).toBe(500)
+      expect(res.body).toEqual({ error: expect.any(String), status_code: 500 })
+    })
   })
 })

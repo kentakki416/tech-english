@@ -77,7 +77,8 @@ GitHub アカウントから以下を取り込み、マイページに表示す�
 | アイコン | GitHub の avatar | マイページ・ヘッダー |
 | メールアドレス | GitHub の primary かつ verified のメール | 現状は表示しない（将来の連絡手段用に保存のみ） |
 
-- 取り込むのは **ログインのたびに最新化** する（GitHub 側で名前やアイコンを変えたら次回ログインで反映される）
+- 表示名とアイコンは **ログインのたびに最新化** する（GitHub 側で名前やアイコンを変えたら次回ログインで反映される）
+- メールアドレスは **初回のログイン（ユーザーの作成）のときだけ** 保存し、以後は更新しない。現状は表示も連絡もしないうえ、更新すると別のユーザーのメールと unique で衝突したときの扱いを決める必要があるため
 - GitHub のリポジトリや private な情報にはアクセスしない（要求する権限は読み取り専用のプロフィールとメールだけ）
 
 ### アカウントの削除
@@ -156,10 +157,24 @@ api は code を access token に交換した直後に以下を取得し、**Git
 
 | クライアント | 保管場所 | API 呼び出し |
 | --- | --- | --- |
-| web | httpOnly cookie（既存） | Server Component / Server Action から Bearer で api へ。access token が切れている（期限が近い）ときは、描画より前に proxy が `POST /api/auth/refresh` で更新して cookie を書き換える（Server Component は cookie を書き換えられないため） |
+| web | httpOnly cookie（既存） | Server Component / Server Action から Bearer で api へ。access token が切れている（期限が近い）ときは、描画より前に proxy が `POST /api/auth/refresh` で更新して cookie を書き換える（Server Component は cookie を書き換えられないため）。ログイン不要のパス（`/api/events` など）でも refresh cookie があれば更新だけ行う |
 | mobile | `expo-secure-store`（Keychain / Keystore） | app から直接 Bearer で api へ。401 なら `POST /api/auth/refresh` で更新して再試行 |
 
 api の認証は既存の Bearer トークン（`authMiddleware`）のままで、web / mobile で区別しない。
+
+**refresh token のローテーションと 30 秒の猶予**：api は refresh token を 1 回で失効させ、新しいペア（access / refresh）を発行する。旧 jti を破棄する前に、旧 jti → 発行したペアを Redis に 30 秒だけ残し、**その間に同じ旧 refresh token が来たら新しく発行せずに同じペアを返す**。猶予を過ぎたら 401。発行したペアがログアウトで失効している・ユーザーが削除済みなら猶予の間でも 401。次の場合に 2 回目の更新が 401 になってログアウトさせないため：
+
+- 応答を受け取れなかったクライアント（web の refresh の 5 秒の timeout・mobile の通信断）。api はローテーションを終えているのに、クライアントには旧 token が残る
+- 同じ token での同時の更新（ページと prefetch など）
+- web を複数台にしたとき（web のプロセス内で同じ token の更新をまとめる仕組みは台をまたがない）
+
+**web がログアウトさせる条件**：
+
+| 状況 | web の動き |
+| --- | --- |
+| refresh API が 401 / 400（token が使えない） | cookie を消してログイン画面へ（Route Handler は 401）。ログイン不要のパスでは cookie を消すだけ |
+| refresh API が 429（api のレート制限）・5xx・timeout | cookie を残して通し、次のリクエストで再試行する（レート制限は IP 単位で、web からの呼び出しは web サーバーの IP に集まるため、429 でログアウトさせない） |
+| 期限内の access token を api が 401 で拒む（別の端末でアカウントを削除した・JWT の secret を差し替えた） | ユーザーを取得するページ（共通ヘッダー・マイページ・設定・学習履歴）が `/api/auth/session-expired` へ redirect し、その Route Handler が cookie を消してからログイン画面へ移す（Server Component は cookie を書き換えられず、cookie を残したままでは同じ 401 を繰り返すため）。問題・挑戦の画面はページのデータ取得が共通ヘッダーより先に行われるので、そのデータ取得まで 401 になる場合（JWT の secret の差し替え）はエラー画面になる。access token の期限（最長 15 分）が切れると proxy が更新し、更新できれば元どおり、refresh token も使えなければログイン画面へ移る |
 
 ### 既存の Google OAuth の扱い
 
@@ -187,8 +202,8 @@ api の認証は既存の Bearer トークン（`authMiddleware`）のままで�
 
 | 場所 | 扱い |
 | --- | --- |
-| Redis の refresh token | jti 単位で保存していてユーザー単位で一括削除できない。代わりに **`POST /api/auth/refresh` でユーザーが存在するかを確認し、存在しなければ 401 を返して jti を消す**。残った jti も TTL（7 日）で消える。削除を実行した端末の refresh token は、リクエストに含めてもらいその場で消す |
-| access token（最長 15 分） | JWT なので失効させられない。**ユーザー単位で書き込む API（挑戦の開始・提出、目標・リマインダーの保存）はユーザーの存在を確認し、無ければ 401** を返す（外部キー違反の 500 にしない）。読み取りの API は空の結果を返すだけなので扱いを変えない。ただし「今日」を決めるのに `users.timezone` が要る学習記録の API（stats / calendar / attempts）は 401 を返す |
+| Redis の refresh token | jti 単位で保存していてユーザー単位で一括削除できない。代わりに **`POST /api/auth/refresh` でユーザーが存在するかを確認し、存在しなければ 401 を返して jti を消す**（ローテーションの猶予の間も 401）。残った jti も TTL（7 日）で消える。削除を実行した端末の refresh token は、リクエストに含めてもらいその場で消す |
+| access token（最長 15 分） | JWT なので失効させられない。**ユーザー単位で書き込む API（挑戦の開始・提出、目標・リマインダーの保存）はユーザーの存在を確認し、無ければ 401** を返す（外部キー違反の 500 にしない）。読み取りの API は空の結果を返すだけなので扱いを変えない。ただし「今日」を決めるのに `users.timezone` が要る学習記録の API（stats / calendar / attempts）と `GET /api/user` は 401 を返す（`GET /api/user` は 404 にせず 401 にして、クライアントに refresh を試みさせ、それも 401 になってログイン画面に戻すため）。web はこの 401 を受けたページで cookie を消してログイン画面へ移す（[トークンの保管](#トークンの保管)） |
 | 行動イベント（ClickHouse） | `user_id` しか持たず個人を特定する値を含まないため、消さない（[user-behavior-events](../user-behavior-events/README.md#記録しないもの)）。プライバシーポリシーに明記する |
 | 運用ログ | 保持期間で消える。リクエストログに個人を特定する値を出さない既存方針のまま |
 
@@ -197,7 +212,7 @@ api の認証は既存の Bearer トークン（`authMiddleware`）のままで�
 | | 処理 |
 | --- | --- |
 | web | Server Action で `DELETE /api/user` を呼び、成功したら cookie を消してログイン画面へ redirect |
-| mobile | `DELETE /api/user` が成功したら、通知の予約をすべて取り消し、secure-store のトークンと端末に保存した解答途中のデータを消してログイン画面へ |
+| mobile | `DELETE /api/user`（15 秒で打ち切り）が成功したら、通知の予約をすべて取り消して通知センターに届き済みのリマインダーも消し、secure-store のトークンと端末に保存した解答途中のデータを消してログイン画面へ |
 
 ### MVP 対象外（将来検討）
 
@@ -330,7 +345,7 @@ mobile のモックは `apps/mobile/src/app/mock/`（`/mock/sign-in`、`/mock/de
 | GET | `/api/user` | 必要 | ログイン中のユーザー情報（既存）。レスポンスに `timezone` を足す |
 | PATCH | `/api/user` | 必要 | タイムゾーンの変更（新規） |
 | DELETE | `/api/user` | 必要 | アカウントの削除（新規）。`confirmation`（`"delete my account"` 以外は 400）と、任意で `refresh_token`（その場で失効させる）を受け取る。成功は 204 |
-| POST | `/api/auth/refresh` | 不要 | 既存。ユーザーが存在しなければ 401 を返して jti を消すよう変更する |
+| POST | `/api/auth/refresh` | 不要 | 既存。ユーザーが存在しなければ 401 を返して jti を消すよう変更する。ローテーション後 30 秒は、同じ旧 refresh token に発行済みの同じペアを返す（[トークンの保管](#トークンの保管)） |
 | POST | `/api/auth/logout` | 必要 | 既存 |
 
 web 側の Next.js Route Handler：
@@ -421,13 +436,15 @@ sequenceDiagram
     Api->>DB: DELETE FROM users（関連テーブルは cascade）
     Api->>Redis: この端末の refresh token の jti を削除
     Api-->>App: 204
-    App->>App: 通知の予約を取り消し / トークンと端末のデータを削除
+    App->>App: 通知の予約と届き済みのリマインダーを消す / トークンと端末のデータを削除
     App-->>U: GitHub 側の連携解除の案内 → ログイン画面
     Other->>Api: POST /api/auth/refresh（access token の期限切れ後）
     Api->>DB: ユーザーが存在しない
     Api->>Redis: jti を削除
     Api-->>Other: 401 → ログイン画面
 ```
+
+別の端末が web の場合は、access token の期限内でも、ユーザーを取得するページ（共通ヘッダー・マイページ・設定・学習履歴）を開いた時点で `GET /api/user` などが 401 になり、`/api/auth/session-expired` が cookie を消してログイン画面へ移す。
 
 ## 実装ステップ
 

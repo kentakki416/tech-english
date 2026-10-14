@@ -3,7 +3,7 @@ import { z } from "zod"
 import { Prisma as PrismaTypes, PrismaClient } from "@repo/db"
 import { type ContentSource, isAllowedLicense, isSourceFetchType, isSourceKind } from "@repo/domain"
 
-import type { ContentSourceRepository } from "../content-source-repository"
+import type { ContentSourceRepository, MarkCollectedInput } from "../content-source-repository"
 
 /**
  * Prismaの型
@@ -38,17 +38,20 @@ export class PrismaContentSourceRepository implements ContentSourceRepository {
     return rows.map((row) => this._toDomain(row))
   }
 
-  public async markCollected(
-    id: number,
-    input: { lastCollectedAt: Date; lastCollectedCommitSha?: string },
-  ): Promise<void> {
-    await this._prisma.contentSource.update({
+  /**
+   * 条件に合わない（楽観ロックで外れた）ときに throw しないよう updateMany を使う。
+   * commit SHA を渡したときは、where に収集を始めたときの last_collected_commit_sha を足す（null は IS NULL になる）
+   */
+  public async markCollected(id: number, input: MarkCollectedInput): Promise<boolean> {
+    const commit = input.lastCollectedCommitSha
+    const { count } = await this._prisma.contentSource.updateMany({
       data: {
         lastCollectedAt: input.lastCollectedAt,
-        ...(input.lastCollectedCommitSha === undefined ? {} : { lastCollectedCommitSha: input.lastCollectedCommitSha }),
+        ...(commit === undefined ? {} : { lastCollectedCommitSha: commit.next }),
       },
-      where: { id },
+      where: { id, ...(commit === undefined ? {} : { lastCollectedCommitSha: commit.expected }) },
     })
+    return count > 0
   }
 
   /**

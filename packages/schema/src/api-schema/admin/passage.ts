@@ -126,6 +126,10 @@ export const adminPassageDetailSchema = adminPassageSummaryBaseSchema.extend({
       verification_choice_index: z.number().int().nullable(),
     }),
   ),
+  /**
+   * 英単語数（word_count）から決まる目安の設問数（domain の calculateQuestionCount。admin は @repo/domain を import できないため API から渡す）
+   */
+  recommended_question_count: z.number().int(),
   reviewed_at: z.string().nullable(),
   /**
    * 出典。path / commit_sha / retrieved_at は取得した時点の値（passages に持つ）

@@ -3,7 +3,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage"
 import type { SubmitAttemptRequest } from "@repo/api-schema"
 
 /**
- * 端末（AsyncStorage）に保存する挑戦の途中経過。解答画面（step9）が書き、開始確認の再開の表示と結果画面（step10）が読む・消す。
+ * 端末（AsyncStorage）に保存する挑戦の途中経過。解答画面（step9）が書き、開始確認の再開の表示が読み、結果画面（step10）と期限切れの表示が消す。
  * 形は web の `attempt-progress.ts`（localStorage）と同じ。読み書きはすべて try / catch で包み、失敗しても画面は動かす
  */
 

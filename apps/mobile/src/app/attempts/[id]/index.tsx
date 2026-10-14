@@ -11,6 +11,7 @@ import { SolvingScreen } from "@/components/features/attempt/SolvingScreen"
 import { appStyles } from "@/components/ui/app-styles"
 import { SecondaryButton } from "@/components/ui/SecondaryButton"
 import { THEME_COLORS } from "@/const/design-theme"
+import { removeAttemptProgress } from "@/features/attempt/attempt-progress"
 import { attemptApi } from "@/features/attempt/attempt.api"
 import { useAttemptStore } from "@/features/attempt/attempt.store"
 
@@ -69,6 +70,7 @@ export default function AttemptScreen() {
   }, [attemptId, loadState.kind, setStoreAttempt])
 
   const isSubmitted = loadState.kind === "ready" && loadState.attempt.status === "submitted"
+  const isExpired = loadState.kind === "ready" && loadState.attempt.status === "expired"
 
   /**
    * 提出済みの挑戦は結果画面へ
@@ -76,6 +78,13 @@ export default function AttemptScreen() {
   useEffect(() => {
     if (isSubmitted && attemptId !== null) router.replace(`/attempts/${attemptId}/result`)
   }, [attemptId, isSubmitted, router])
+
+  /**
+   * 期限切れの挑戦はもう提出できないので、端末の途中経過を消す
+   */
+  useEffect(() => {
+    if (isExpired && attemptId !== null) void removeAttemptProgress(attemptId)
+  }, [attemptId, isExpired])
 
   const backToList = () => router.dismissTo("/passages")
 
@@ -87,7 +96,7 @@ export default function AttemptScreen() {
 
   return (
     <SafeAreaView edges={["top", "bottom"]} style={appStyles.screen}>
-      {loadState.kind === "ready" && loadState.attempt.status === "expired" && <ExpiredNotice onBackToList={backToList} />}
+      {isExpired && <ExpiredNotice onBackToList={backToList} />}
 
       {(loadState.kind === "loading" || isSubmitted) && (
         <View style={styles.center}>

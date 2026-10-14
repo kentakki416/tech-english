@@ -49,7 +49,7 @@ describe("parseHtml", () => {
       ])
     })
 
-    it("article-no-selector.html：セレクタが無ければ Readability で本文だけを取り出す", () => {
+    it("article-no-selector.html：セレクタが無ければ Readability で本文だけを取り出し、language-* のコードを lang つきにする", () => {
       const { root, title } = parseHtml(readFixture("article-no-selector.html"), {
         contentSelector: null,
         excludeSelectors: [],
@@ -67,6 +67,8 @@ describe("parseHtml", () => {
           text: "A stored copy stays fresh for the number of seconds given in the `max-age` directive. After that, the edge server asks the origin whether the copy is still valid, usually by sending the previous validator in a conditional request. If nothing has changed, the origin answers with a short status code, and the copy becomes fresh again without transferring the body.",
           type: "paragraph",
         },
+        { text: "You can check the directives that a response carries by requesting only its headers:", type: "paragraph" },
+        { lang: "sh", text: "curl -sI https://docs.example.dev/assets/app.css | grep -i cache-control", type: "code" },
         { headingDepth: 2, text: "Choosing what to cache", type: "heading" },
         {
           text: "Static files, such as images, fonts, and compiled scripts, are the easiest place to start, because their content rarely changes and their names often include a version. Pages that depend on the signed-in user, on the other hand, should not be stored in a shared cache, since one visitor could otherwise see the data of another.",
