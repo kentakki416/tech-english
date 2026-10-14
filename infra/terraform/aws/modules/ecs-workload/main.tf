@@ -41,12 +41,15 @@ resource "aws_ecs_task_definition" "this" {
           for k, v in var.environment : { name = k, value = v }
         ]
 
-        secrets = var.secrets_arn != null ? [
-          for k in var.secret_keys : {
-            name      = k
-            valueFrom = "${var.secrets_arn}:${k}::"
-          }
-        ] : []
+        secrets = concat(
+          var.secrets_arn != null ? [
+            for k in var.secret_keys : {
+              name      = k
+              valueFrom = "${var.secrets_arn}:${k}::"
+            }
+          ] : [],
+          [for k, v in var.additional_secrets : { name = k, valueFrom = v }],
+        )
 
         logConfiguration = {
           logDriver = "awslogs"

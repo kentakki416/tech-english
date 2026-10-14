@@ -9,6 +9,7 @@ on:
   pull_request:
     paths:
       - 'infra/terraform/**'
+      - 'infra/clickhouse/cdc-tables.json' # ClickPipe の同期対象として Terraform が読む
       - '.github/workflows/terraform-aws-env-ci.yml'
   push:
     branches:
@@ -16,6 +17,7 @@ on:
       - develop
     paths:
       - 'infra/terraform/**'
+      - 'infra/clickhouse/cdc-tables.json' # ClickPipe の同期対象として Terraform が読む
       - '.github/workflows/terraform-aws-env-ci.yml'
   workflow_dispatch:
 
@@ -185,9 +187,14 @@ jobs:
       # continue-on-error で後続のコメント投稿まで必ず到達させ、最後のステップで失敗を再現する。
       # Pattern A 採用のため tfplan バイナリは保存せず、出力テキストのみ tee で tfplan.txt に保管する。
       # apply は terraform-aws-env-apply.yml 側で plan を再生成してから適用するため、ここでは plan を保持しない。
+      # CLICKHOUSE_* は enable_data_warehouse = true の環境の GitHub Environment にだけ置く（ClickHouse のリソースの refresh に要る。false に戻す apply が終わるまでは消さない）
       - name: Terraform Plan
         id: plan
         continue-on-error: true
+        env:
+          TF_VAR_clickhouse_org_id: ${{ secrets.CLICKHOUSE_ORG_ID }}
+          TF_VAR_clickhouse_token_key: ${{ secrets.CLICKHOUSE_TOKEN_KEY }}
+          TF_VAR_clickhouse_token_secret: ${{ secrets.CLICKHOUSE_TOKEN_SECRET }}
         run: |
           set +e
           set -o pipefail

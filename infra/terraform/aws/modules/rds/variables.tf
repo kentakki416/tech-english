@@ -126,6 +126,22 @@ variable "skip_final_snapshot" {
   default     = false
 }
 
+variable "parameters" {
+  description = "DB パラメータグループに設定するパラメータ。空ならパラメータグループを作らず AWS の既定を使う。static なパラメータ (apply_method = pending-reboot) は再起動するまで効かない"
+  type = list(object({
+    name         = string
+    value        = string
+    apply_method = optional(string, "pending-reboot")
+  }))
+  default = []
+}
+
+variable "parameter_group_family" {
+  description = "パラメータグループのファミリー。engine_version のメジャーを上げるときは一緒に変える (例: postgres17)"
+  type        = string
+  default     = "postgres16"
+}
+
 variable "tags" {
   type    = map(string)
   default = {}

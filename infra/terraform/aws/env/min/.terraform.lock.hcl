@@ -1,6 +1,29 @@
 # This file is maintained automatically by "terraform init".
 # Manual edits may be lost in future updates.
 
+provider "registry.terraform.io/clickhouse/clickhouse" {
+  version     = "3.38.0"
+  constraints = "~> 3.38"
+  hashes = [
+    "h1:LHV4V/sMzjt0fK5pBpam2cOZoSuUzLIbukK0rbgF9Ao=",
+    "h1:Psdci5R7NA4VPXiHdwNw3SGaERE2EiP/z23HxS71jQM=",
+    "zh:0554d334cee73eef576fb2a893efca20bb12f42272fc48069dd3d830bebf6b94",
+    "zh:1290d999145d8e06c0cee09a0401d37e613547abd1db9c592f025a846a3b81db",
+    "zh:4729a3b8e6824c673eb0eaa07d832539f9988b8bf0a5062d45350d0bae7ae3af",
+    "zh:5a49d12309e11e3358eddf61234fb4c249f9e2c80bd21e1a093100e03d462196",
+    "zh:7842e8efd079a6de59b52ff3e83402e3cf6a218740b145e440c7d63a8a8d5cb6",
+    "zh:a097075dd1677a74370cb10170ac4a5f0d1ac89b9dbed84da18310dd37eecc4c",
+    "zh:a5f18e1d44948c822536aa17ee88594c4a6619b41a478a25585eb2ae8ec05ff5",
+    "zh:ccd11b19f6a989fb0a027a55715bcd6802961d8a4886307245fedec874b9a97a",
+    "zh:ceebc24df846a621d7907ca139cfd71770ab014644aac83efb57a25169088981",
+    "zh:d4a0e4b15eddf15b98bdc95a6c31dddbad5a51e5070f0b615d05c1845d649536",
+    "zh:e91666c668db9dcbef192e2da8697a00f5ad49866bd69f9e63a8d359eb116134",
+    "zh:eb6c21bcda75a72152f6e4a6a3cd5f1b0ef70b47c8e2a6e608745b01befb7f5b",
+    "zh:f26e0763dbe6a6b2195c94b44696f2110f7f55433dc142839be16b9697fa5597",
+    "zh:f976c5511ade059796ed836d635d8b1adcf369981bfa3cca8e710a541f24c9de",
+  ]
+}
+
 provider "registry.terraform.io/hashicorp/archive" {
   version     = "2.8.0"
   constraints = "~> 2.0"

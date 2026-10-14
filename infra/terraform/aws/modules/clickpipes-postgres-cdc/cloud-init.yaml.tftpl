@@ -1,0 +1,19 @@
+#cloud-config
+users:
+  - default
+  - name: clickpipes
+    lock_passwd: true
+    shell: /sbin/nologin
+    ssh_authorized_keys:
+      - ${public_key}
+write_files:
+  - path: /etc/ssh/sshd_config.d/90-clickpipes.conf
+    content: |
+      Match User clickpipes
+        AllowTcpForwarding local
+        PermitOpen ${rds_address}:${rds_port}
+        PermitTTY no
+        X11Forwarding no
+        AllowAgentForwarding no
+runcmd:
+  - systemctl reload sshd

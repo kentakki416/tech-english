@@ -5,7 +5,7 @@ import type { DataWarehouse } from "./data-warehouse"
 /**
  * 何も書き込まない DataWarehouse 実装
  *
- * データウェアハウスをホスティングしない環境（ローカルの一部・dev 等）で使う。
+ * データウェアハウスを持たない環境（Terraform の enable_data_warehouse = false の環境）で使う。
  * 行動イベントの分析価値が無い環境のためにインスタンスを常駐させるのは
  * コストに見合わないが、実装が無いと worker が起動できなくなるため
  * 「繋ぎ先が無い」を明示的に表現する実装を用意する。
