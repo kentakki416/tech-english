@@ -183,6 +183,8 @@ worker は queue から取り出したイベントを **まとめて 1 回の IN
 | ClickHouse HTTP | 8123 | **8124** | `CLICKHOUSE_HTTP_PORT` |
 | ClickHouse native | 9000 | **9003** | `CLICKHOUSE_NATIVE_PORT` |
 
+`events` テーブルは `docker compose up` では作られない。Postgres の migration の後に `pnpm --filter @repo/data-warehouse dwh:migrate` で適用する（[`clickhouse-migration`](../clickhouse-migration/README.md)）。
+
 ### MVP 対象外（将来検討）
 
 詳細は [`deferred-event-delivery.md`](./deferred-event-delivery.md)。
@@ -238,7 +240,7 @@ erDiagram
     }
 ```
 
-ClickHouse のテーブル定義:
+ClickHouse のテーブル定義（`packages/data-warehouse/clickhouse/migrations/1_create_events.sql`）:
 
 | カラム | 型 | 備考 |
 | --- | --- | --- |
