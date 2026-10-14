@@ -39,6 +39,8 @@ const NOT_FOUND_MESSAGE = "この問題は見つかりませんでした。一�
 
 const CONFLICT_MESSAGE = "他の操作で状態が変わりました。画面を再読み込みしてください。"
 
+const AUDIO_CONFLICT_MESSAGE = "音声の状態が変わりました。画面を再読み込みしてください。"
+
 const INVALID_ID_FAILURE: PassageActionFailure = { details: undefined, error: NOT_FOUND_MESSAGE, ok: false, status: 404 }
 
 /**
@@ -202,5 +204,46 @@ export const resolvePassageAttentionAction = async (id: number): Promise<Passage
     return convertApiErrorToFailure(error, "要確認を解除できませんでした")
   }
   revalidatePassagePaths(passageId)
+  return { ok: true }
+}
+
+/**
+ * 音声の操作の 404 と 409（別のタブで先に操作した・状態が変わった）を失敗の結果にする。それ以外は throw して global-error.tsx に任せる
+ */
+const convertAudioApiErrorToFailure = (error: unknown): PassageActionFailure => {
+  if (!(error instanceof ApiClientError) || ![404, 409].includes(error.status)) throw error
+  const message = error.status === 404 ? NOT_FOUND_MESSAGE : AUDIO_CONFLICT_MESSAGE
+  return { details: undefined, error: message, ok: false, status: error.status }
+}
+
+/**
+ * 失敗した読み上げの音声を再試行する（pending に戻し、次回の生成タスクで作り直す）
+ */
+export const retryPassageAudioAction = async (id: number): Promise<PassageActionResult> => {
+  const passageId = parsePassageId(id)
+  if (passageId === null) return INVALID_ID_FAILURE
+
+  try {
+    await passageApi.retryAudio(passageId)
+  } catch (error) {
+    return convertAudioApiErrorToFailure(error)
+  }
+  revalidatePath(`/passages/${passageId}`)
+  return { ok: true }
+}
+
+/**
+ * 作成済みの読み上げの音声の作り直しを依頼する（次回の生成タスクが Polly で作り直す。作り直すまでは前の音声のまま）
+ */
+export const regeneratePassageAudioAction = async (id: number): Promise<PassageActionResult> => {
+  const passageId = parsePassageId(id)
+  if (passageId === null) return INVALID_ID_FAILURE
+
+  try {
+    await passageApi.regenerateAudio(passageId)
+  } catch (error) {
+    return convertAudioApiErrorToFailure(error)
+  }
+  revalidatePath(`/passages/${passageId}`)
   return { ok: true }
 }

@@ -1,6 +1,7 @@
 import { z } from "zod"
 
 import {
+  AUDIO_STATUSES,
   MAX_QUESTIONS_PER_PASSAGE,
   PASSAGE_BLOCK_TYPES,
   PASSAGE_DIFFICULTIES,
@@ -69,9 +70,31 @@ export const adminPassageListItemSchema = adminPassageSummaryBaseSchema.extend({
 })
 
 /**
+ * 読み上げの音声の状態。status は generating もそのまま返す（admin は「生成中」と出す）。
+ * ready でも非公開に戻した・音声を作った後に公開し直されていれば、生成タスクが本文を確かめるまで pending にする。
+ * voice の変更・作り直しの間は ready のまま（前の音声を返し続ける）
+ */
+const adminPassageAudioSchema = z.object({
+  generated_at: z.string().nullable(),
+  /**
+   * 最後に失敗したときのエラー（成功すると null に戻る）。ready でも、voice の変更・作り直しに失敗していれば値がある（前の音声を出し続けている）
+   */
+  last_error: z.string().nullable(),
+  /**
+   * 作り直しの依頼の日時（POST /api/admin/passage/:id/audio/regenerate）。生成タスクが作り直すと null に戻る
+   */
+  regenerate_requested_at: z.string().nullable(),
+  status: z.enum(AUDIO_STATUSES),
+})
+
+/**
  * 問題の全情報（詳細・保存のレスポンス）
  */
 export const adminPassageDetailSchema = adminPassageSummaryBaseSchema.extend({
+  /**
+   * 読み上げの音声。公開中でなく音声の行も無ければ null（公開中で行がまだ無ければ pending）
+   */
+  audio: adminPassageAudioSchema.nullable(),
   /**
    * 本文。lang は code のみ、translation_ja は code 以外（未入力なら null）
    */
@@ -428,3 +451,47 @@ export const resolveAdminPassageAttentionResponseSchema = z.object({
 
 export type ResolveAdminPassageAttentionPathParam = z.infer<typeof resolveAdminPassageAttentionPathParamSchema>
 export type ResolveAdminPassageAttentionResponse = z.infer<typeof resolveAdminPassageAttentionResponseSchema>
+
+// ========================================================
+// POST /api/admin/passage/:id/audio/retry - 読み上げの音声の再試行
+// ========================================================
+
+/**
+ * 音声の再試行のパスパラメータスキーマ。音声が failed のときだけ pending に戻す（それ以外は 409）
+ */
+export const retryAdminPassageAudioPathParamSchema = z.object({
+  id: z.coerce.number().int().positive(),
+})
+
+/**
+ * 音声の再試行のレスポンススキーマ
+ */
+export const retryAdminPassageAudioResponseSchema = z.object({
+  passage_id: z.number().int(),
+  status: z.literal("pending"),
+})
+
+export type RetryAdminPassageAudioPathParam = z.infer<typeof retryAdminPassageAudioPathParamSchema>
+export type RetryAdminPassageAudioResponse = z.infer<typeof retryAdminPassageAudioResponseSchema>
+
+// ========================================================
+// POST /api/admin/passage/:id/audio/regenerate - 読み上げの音声の作り直しの依頼
+// ========================================================
+
+/**
+ * 音声の作り直しの依頼のパスパラメータスキーマ。音声が ready（作成済み）のときだけ依頼を入れる（それ以外は 409）
+ */
+export const regenerateAdminPassageAudioPathParamSchema = z.object({
+  id: z.coerce.number().int().positive(),
+})
+
+/**
+ * 音声の作り直しの依頼のレスポンススキーマ
+ */
+export const regenerateAdminPassageAudioResponseSchema = z.object({
+  passage_id: z.number().int(),
+  regenerate_requested_at: z.string(),
+})
+
+export type RegenerateAdminPassageAudioPathParam = z.infer<typeof regenerateAdminPassageAudioPathParamSchema>
+export type RegenerateAdminPassageAudioResponse = z.infer<typeof regenerateAdminPassageAudioResponseSchema>

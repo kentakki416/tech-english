@@ -63,6 +63,7 @@ export const buildSubmittedAttempt = (overrides: Partial<SubmittedAttempt> = {})
   correctCount: 3,
   elapsedSeconds: 312,
   isOvertime: false,
+  listenedBlockCount: 0,
   passageId: 11,
   passageTitle: "Synchronizing with Effects",
   questionCount: 4,

@@ -5,7 +5,7 @@ import { env } from "../../../../src/env"
 import { ADMIN_TOKEN_HEADER } from "../../../../src/middleware/admin-auth"
 import { DrizzlePassageRepository } from "../../../../src/repository/drizzle/passage-repository"
 import { adminRouter } from "../../../../src/routes/admin-router"
-import { insertGeneratedPassage, insertReadingAttempt } from "../../../fixture/passage"
+import { insertGeneratedPassage, insertPassageAudio, insertReadingAttempt } from "../../../fixture/passage"
 import { PASSAGE_BLOCKS, QUESTION_ITEMS } from "../../../fixture/passage-content"
 import { attachUnhandledExceptionHandler, createTestApp } from "../../helper"
 import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb } from "../../setup"
@@ -45,6 +45,7 @@ describe("GET /api/admin/passage/:id", () => {
         id: passage.id,
         attempt_count: 1,
         attention_reasons: ["Q3：検証モデルは A を選択（正解は B）"],
+        audio: null,
         blocks: PASSAGE_BLOCKS.map((block) => ({
           lang: block.lang ?? null,
           text: block.text,
@@ -130,6 +131,103 @@ describe("GET /api/admin/passage/:id", () => {
         title: "Synchronizing with Effects",
         word_count: 60,
         updated_at: expect.any(String),
+      })
+    })
+
+    describe("読み上げの音声（audio）", () => {
+      const PUBLISHED_AT = new Date("2026-10-12T03:00:00.000Z")
+
+      const requestAudio = async (passageId: number) => {
+        const res = await request(app).get(`/api/admin/passage/${passageId}`).set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        expect(res.status).toBe(200)
+        return res.body.audio
+      }
+
+      it("音声の行が無い公開中の問題は pending（作成日時・エラーは null）", async () => {
+        const { passage } = await insertGeneratedPassage({ publishedAt: PUBLISHED_AT, status: "published" })
+
+        expect(await requestAudio(passage.id)).toEqual({ generated_at: null, last_error: null, regenerate_requested_at: null, status: "pending" })
+      })
+
+      it("音声の行が無い下書きは null", async () => {
+        const { passage } = await insertGeneratedPassage()
+
+        expect(await requestAudio(passage.id)).toBeNull()
+      })
+
+      it("ready の行は作成日時つきで ready", async () => {
+        const { passage } = await insertGeneratedPassage({ publishedAt: PUBLISHED_AT, status: "published" })
+        await insertPassageAudio(passage.id)
+
+        expect(await requestAudio(passage.id)).toEqual({ generated_at: "2026-10-12T04:00:00.000Z", last_error: null, regenerate_requested_at: null, status: "ready" })
+      })
+
+      it("作り直しの依頼中・ready のまま作り直している（確保中の）行は ready のまま、依頼の日時と前の失敗のエラーを返す", async () => {
+        const { passage } = await insertGeneratedPassage({ publishedAt: PUBLISHED_AT, status: "published" })
+        await insertPassageAudio(passage.id, {
+          attemptCount: 1,
+          generationStartedAt: new Date("2026-10-13T02:50:00.000Z"),
+          lastError: "ServiceFailureException: Polly is unavailable",
+          regenerateRequestedAt: new Date("2026-10-13T02:00:00.000Z"),
+        })
+
+        expect(await requestAudio(passage.id)).toEqual({
+          generated_at: "2026-10-12T04:00:00.000Z",
+          last_error: "ServiceFailureException: Polly is unavailable",
+          regenerate_requested_at: "2026-10-13T02:00:00.000Z",
+          status: "ready",
+        })
+      })
+
+      it("generating の行は generating をそのまま返す", async () => {
+        const { passage } = await insertGeneratedPassage({ publishedAt: PUBLISHED_AT, status: "published" })
+        await insertPassageAudio(passage.id, { generationStartedAt: new Date(), status: "generating" })
+
+        expect(await requestAudio(passage.id)).toEqual({ generated_at: "2026-10-12T04:00:00.000Z", last_error: null, regenerate_requested_at: null, status: "generating" })
+      })
+
+      it("failed の行は last_error を返す", async () => {
+        const { passage } = await insertGeneratedPassage({ publishedAt: PUBLISHED_AT, status: "published" })
+        await insertPassageAudio(passage.id, {
+          attemptCount: 3,
+          generatedAt: null,
+          lastError: "ServiceFailureException: Polly is unavailable",
+          manifest: null,
+          status: "failed",
+        })
+
+        expect(await requestAudio(passage.id)).toEqual({
+          generated_at: null,
+          last_error: "ServiceFailureException: Polly is unavailable",
+          regenerate_requested_at: null,
+          status: "failed",
+        })
+      })
+
+      it("音声を作った後に公開し直された ready の行は、生成タスクが確かめるまで pending", async () => {
+        const { passage } = await insertGeneratedPassage({ publishedAt: new Date("2026-10-12T05:00:00.000Z"), status: "published" })
+        await insertPassageAudio(passage.id)
+
+        expect(await requestAudio(passage.id)).toEqual({ generated_at: "2026-10-12T04:00:00.000Z", last_error: null, regenerate_requested_at: null, status: "pending" })
+      })
+
+      it("非公開に戻した問題の ready の行は、本文を直したかもしれないので pending（前回の作成日時は返す）", async () => {
+        const { passage } = await insertGeneratedPassage({ publishedAt: PUBLISHED_AT, status: "draft" })
+        await insertPassageAudio(passage.id)
+
+        expect(await requestAudio(passage.id)).toEqual({ generated_at: "2026-10-12T04:00:00.000Z", last_error: null, regenerate_requested_at: null, status: "pending" })
+      })
+
+      it("非公開に戻した問題の failed の行は failed のまま返す（再試行できる）", async () => {
+        const { passage } = await insertGeneratedPassage({ publishedAt: PUBLISHED_AT, status: "draft" })
+        await insertPassageAudio(passage.id, { attemptCount: 3, lastError: "ServiceFailureException", status: "failed" })
+
+        expect(await requestAudio(passage.id)).toEqual({
+          generated_at: "2026-10-12T04:00:00.000Z",
+          last_error: "ServiceFailureException",
+          regenerate_requested_at: null,
+          status: "failed",
+        })
       })
     })
   })

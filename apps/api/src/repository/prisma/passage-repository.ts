@@ -31,6 +31,10 @@ import type {
   PublishedPassageSummary,
   RestoredPassageStatus,
 } from "../passage-repository"
+import type { TransactionContext } from "../transaction"
+
+import { convertPassageAudioRowToDomain } from "./passage-audio-row"
+import { resolvePrismaClient } from "./transaction-runner"
 
 /**
  * Prismaの型
@@ -355,8 +359,10 @@ export class PrismaPassageRepository implements PassageRepository {
       })
       const questionRows = await tx.question.findMany({ orderBy: { orderIndex: "asc" }, where: { passageId: id } })
       const attemptCount = await tx.readingAttempt.count({ where: { passageId: id } })
+      const audio = await tx.passageAudio.findUnique({ where: { passageId: id } })
       return {
         attemptCount,
+        audio: audio ? convertPassageAudioRowToDomain(audio) : null,
         glossary: glossaryRows.map(convertGlossaryEntryRowToDomain),
         passage: convertPassageRowToDomain(passage),
         questions: questionRows.map(convertQuestionRowToDomain),
@@ -501,8 +507,8 @@ export class PrismaPassageRepository implements PassageRepository {
     })
   }
 
-  public async transitionStatus(id: number, transition: PassageTransition): Promise<boolean> {
-    const result = await this._prisma.passage.updateMany({
+  public async transitionStatus(id: number, transition: PassageTransition, tx?: TransactionContext): Promise<boolean> {
+    const result = await resolvePrismaClient(this._prisma, tx).passage.updateMany({
       data: {
         ...(transition.publishedAt === undefined ? {} : { publishedAt: transition.publishedAt }),
         ...(transition.rejectReason === undefined ? {} : { rejectReason: transition.rejectReason }),

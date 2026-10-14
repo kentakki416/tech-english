@@ -6,10 +6,13 @@ import { useCallback, useState } from "react"
 import type { PassageAttributionResponse, ResultQuestion, SubmittedAttempt } from "@repo/api-schema"
 
 import { QUESTION_TYPE_LABELS } from "@/components/features/passage/labels"
-import { PassageReader, type ReaderHighlight } from "@/components/features/passage/PassageReader"
+import { PassageReader, type ReaderHighlight, type ReaderReadAloud } from "@/components/features/passage/PassageReader"
 import { SourceMeta } from "@/components/features/passage/SourceMeta"
 import { useDictionaryLookup } from "@/components/features/passage/use-dictionary-lookup"
 import { useReaderFontSize } from "@/components/features/passage/use-reader-font-size"
+import { ReadAloudBar, ReturnToReadingButton } from "@/components/features/read-aloud/ReadAloudBar"
+import { useReadAloud } from "@/components/features/read-aloud/use-read-aloud"
+import { useReadingAutoScroll } from "@/components/features/read-aloud/use-reading-auto-scroll"
 import { ScoreSquares } from "@/components/ui/ScoreSquares"
 import { formatSeconds } from "@/libs/format"
 
@@ -149,6 +152,13 @@ export function ResultScreen({ result }: { result: SubmittedAttempt }) {
    */
   const [fontSize] = useReaderFontSize()
   const lookupDictionary = useDictionaryLookup()
+  /**
+   * 結果画面で聞いた段落は数えない（onBlockListened を渡さない）。開いただけでは再生しない
+   */
+  const readAloud = useReadAloud({ attemptId: result.id, blocks: result.blocks })
+  const { playBlock: playReadAloudBlock } = readAloud
+  const autoScroll = useReadingAutoScroll(readAloud.playback?.blockIndex ?? null)
+  const { resumeFollowing } = autoScroll
 
   const highlightEvidence = questions.find(question => question.id === highlightQuestionId)?.evidence ?? null
   const highlight: ReaderHighlight | null = highlightEvidence
@@ -193,6 +203,30 @@ export function ResultScreen({ result }: { result: SubmittedAttempt }) {
     })
   }, [])
 
+  /**
+   * 待機中に再生を始めるときは、読み上げ中の段落を追うスクロールを再開する
+   */
+  const toggleReadAloud = () => {
+    if (readAloud.playback === null) resumeFollowing()
+    readAloud.togglePlay()
+  }
+
+  /**
+   * 本文のブロックは memo されているので、参照を変えないよう useCallback にする
+   */
+  const playBlock = useCallback((blockIndex: number) => {
+    resumeFollowing()
+    playReadAloudBlock(blockIndex)
+  }, [playReadAloudBlock, resumeFollowing])
+
+  const readerReadAloud: ReaderReadAloud = {
+    activeBlockIndex: readAloud.playback?.blockIndex ?? null,
+    isAvailable: readAloud.availability === "ready",
+    playingBlockIndex: readAloud.playback?.mode === "block" && readAloud.playback.isPlaying ? readAloud.playback.blockIndex : null,
+    reading: readAloud.reading,
+    onPlayBlock: playBlock,
+  }
+
   return (
     <div className="flex min-h-dvh flex-col lg:h-dvh lg:overflow-hidden">
       <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-3 border-b border-line bg-canvas/95 px-3 backdrop-blur sm:px-4">
@@ -223,20 +257,46 @@ export function ResultScreen({ result }: { result: SubmittedAttempt }) {
       </header>
 
       <div className="flex flex-1 flex-col-reverse lg:grid lg:min-h-0 lg:grid-cols-[minmax(0,1fr)_480px]">
-        <main className="border-t border-line pt-8 pr-5 pb-16 pl-1 sm:px-6 lg:overflow-y-auto lg:border-t-0 lg:px-10">
+        {/**
+          * スマホ幅はページ全体がスクロールするが、本文の上でのホイール・タッチで自動スクロールが止まれば足りる
+          */}
+        <main
+          className="border-t border-line pt-8 pr-5 pb-5 pl-1 sm:px-6 lg:overflow-y-auto lg:border-t-0 lg:px-10"
+          {...autoScroll.scrollHandlers}
+        >
           <div className="mx-auto max-w-3xl">
             <p className="mb-6 pl-11 text-xs text-fg-muted sm:pl-14">
-              本文（根拠の箇所をハイライトしています。単語のタップと和訳はここでも使えます）
+              本文（根拠の箇所をハイライトしています。単語のタップ・和訳・読み上げはここでも使えます）
             </p>
             <PassageReader
               blocks={result.blocks}
               fontSize={fontSize}
               glossary={result.glossary}
               highlight={highlight}
+              readAloud={readerReadAloud}
               translatedBlocks={translatedBlocks}
               onLookupDictionary={lookupDictionary}
               onToggleTranslation={toggleTranslation}
             />
+          </div>
+          {/**
+            * スマホ幅はページの末尾に固定した「もう一度解く」「次の問題を解く」（高さ 69px）の上に 12px あけて止める
+            */}
+          <div className="pointer-events-none sticky bottom-[81px] z-10 mx-auto mt-8 max-w-3xl pl-11 sm:pl-14 lg:bottom-0">
+            <div className="pointer-events-auto">
+              {readAloud.playback !== null && !autoScroll.isFollowing && <ReturnToReadingButton onClick={resumeFollowing} />}
+              <ReadAloudBar
+                availability={readAloud.availability}
+                blocks={result.blocks}
+                isShortcutVisible={false}
+                playback={readAloud.playback}
+                progress={readAloud.progress}
+                rate={readAloud.rate}
+                onRateChange={readAloud.setRate}
+                onStop={readAloud.stop}
+                onToggle={toggleReadAloud}
+              />
+            </div>
           </div>
         </main>
 
@@ -282,6 +342,7 @@ export function ResultScreen({ result }: { result: SubmittedAttempt }) {
                 <dd className="mt-1 text-fg tabular-nums">
                   和訳 {result.translated_block_count} 段落
                   <p className="text-fg">単語 {result.word_lookup_count} 回</p>
+                  <p className="text-fg">読み上げ {result.listened_block_count} 段落</p>
                 </dd>
               </div>
             </dl>

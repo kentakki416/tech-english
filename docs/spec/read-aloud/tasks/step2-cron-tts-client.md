@@ -20,19 +20,23 @@ pnpm --filter cron add @aws-sdk/client-polly
 
 | ファイル | 中身 |
 | --- | --- |
-| `src/const/audio.ts` | `POLLY_MAX_BILLED_CHARACTERS = 3000`、`AUDIO_TEXT_VERSION = 1`（読み上げ用テキストの作り方を変えたら上げる。ハッシュは変わるが、`ready` の行は自動では作り直さない。作り直すときはデプロイの後に `UPDATE passage_audios SET status = 'pending' WHERE status = 'ready'` を流す。[step3 §1](./step3-cron-generate-audio.md#1-対象と流れ)） |
+| `src/const/audio.ts` | `POLLY_MAX_BILLED_CHARACTERS = 3000`、`AUDIO_TEXT_VERSION = 1`（読み上げ用テキストの作り方を変えたら上げる。ハッシュは変わるが、`ready` の行は自動では作り直さない。作り直すときはデプロイの後に作り直しの依頼〈`regenerate_requested_at`〉を入れる。[step3 §1](./step3-cron-generate-audio.md#1-対象と流れ)） |
 | `src/client/polly/tts-client.ts` | `TtsClient` interface と入出力の型 |
 | `src/client/polly/polly-tts-client.ts` | `PollyTtsClient` |
 | `src/client/polly/parse-speech-marks.ts` | Speech Marks（1 行 1 JSON）の parse |
 | `src/client/polly/fake-tts-client.ts` | `FakeTtsClient`（無音の mp3 と等間隔の時刻） |
-| `src/client/polly/errors.ts` | `isFatalTtsError`（step3 が使う） |
 | `src/lib/audio/*.ts` | 純関数（下の §3）。`index.ts` で名前を列挙して export |
 
 ### 2. クライアント
 
 ```ts
 /** src/client/polly/tts-client.ts */
-export type SynthesizeInput = { text: string; voiceId: string }
+export type SynthesizeInput = {
+  /** 課金されたリクエスト（音声・単語の時刻）が成功するたびに、その文字数で呼ぶ（月の上限の集計。step3 の service が audio_synthesis_usages に書く） */
+  recordBilledCharacters: (characters: number) => Promise<void>
+  text: string
+  voiceId: string
+}
 export type SynthesizeResult = {
   /** mp3 */
   audio: Buffer
@@ -54,11 +58,18 @@ export class PollyTtsClient implements TtsClient {
 
   public async synthesize(input: SynthesizeInput): Promise<SynthesizeResult> {
     const base = { Engine: "neural", Text: input.text, TextType: "text", VoiceId: input.voiceId } as const
-    /** 音声と単語の時刻は別々のリクエスト（どちらも課金される。README「費用」） */
-    const [audioResponse, marksResponse] = await Promise.all([
+    /** 音声と単語の時刻は別々のリクエスト（どちらも課金される。README「費用」）。片方が失敗しても成功した方は課金されるので、allSettled で記録してから throw する */
+    const [audioResult, marksResult] = await Promise.allSettled([
       this._polly.send(new SynthesizeSpeechCommand({ ...base, OutputFormat: "mp3" })),
       this._polly.send(new SynthesizeSpeechCommand({ ...base, OutputFormat: "json", SpeechMarkTypes: ["word"] })),
     ])
+    for (const result of [audioResult, marksResult]) {
+      if (result.status === "fulfilled") await input.recordBilledCharacters(result.value.RequestCharacters ?? 0)
+    }
+    if (audioResult.status === "rejected") throw audioResult.reason
+    if (marksResult.status === "rejected") throw marksResult.reason
+    const audioResponse = audioResult.value
+    const marksResponse = marksResult.value
     const audio = Buffer.from(await readAudioStream(audioResponse.AudioStream))
     const marks = parseSpeechMarks(new TextDecoder().decode(await readAudioStream(marksResponse.AudioStream)))
     return { audio, billedCharacters: (audioResponse.RequestCharacters ?? 0) + (marksResponse.RequestCharacters ?? 0), marks }
@@ -70,7 +81,7 @@ export class PollyTtsClient implements TtsClient {
 - `PollyClient` の生成（`region`、リトライの回数）は step3 の task が行う。一時的なエラー（throttling・5xx）は SDK の既定のリトライに任せ、ここでは再試行しない
 - `SampleRate` は指定しない（Neural の mp3 の既定は 24000 Hz）
 - `parseSpeechMarks(ndjson: string): SpeechMark[]`：空行を飛ばし、各行を Zod（`{ end, start, time, type, value }`）で検証する。`type !== "word"` は捨て、壊れた行があれば throw
-- `isFatalTtsError(error: unknown): boolean`：資格情報が無い・権限が無い・voice と engine の組み合わせが不正など、**どの問題でも同じように失敗する設定の誤り** なら true（step3 は失敗回数を増やさずに止める）。対象の `error.name`（資格情報の解決の失敗、`AccessDenied` 系、`EngineNotSupportedException` など）は実装時に SDK のエラー一覧で確認して定数の配列にする
+- 資格情報が無い・権限が無い・voice と engine の組み合わせが不正など、**どの問題でも同じように失敗する設定の誤り** の判定は、保存先（S3）の設定の誤りと合わせて音声の生成全体の判定 `isFatalAudioGenerationError`（`src/lib/audio/fatal-error.ts`、[step3 §4](./step3-cron-generate-audio.md)）にする。Polly の対象の `error.name`（資格情報の解決の失敗、`AccessDenied` 系、`EngineNotSupportedException` など）は SDK のエラー一覧で確認して定数の配列にする
 
 ```ts
 /** src/client/polly/fake-tts-client.ts */
@@ -84,7 +95,7 @@ const SILENT_FRAME_MS = 36
 const FAKE_MS_PER_WORD = 300
 const FAKE_WORD_PATTERN = /[A-Za-z0-9]+(?:['’-][A-Za-z0-9]+)*/g
 
-/** ローカル（TTS_PROVIDER=fake）とテスト用。外部に通信せず、同じ入力には同じ結果を返す */
+/** ローカル（TTS_PROVIDER=fake）とテスト用。外部に通信せず、同じ入力には同じ結果を返す。課金されないので recordBilledCharacters は呼ばない */
 export class FakeTtsClient implements TtsClient {
   public async synthesize(input: SynthesizeInput): Promise<SynthesizeResult> {
     const words = [...input.text.matchAll(FAKE_WORD_PATTERN)]
@@ -152,7 +163,7 @@ export const measureMp3DurationMs = (audio: Buffer): number
 - **`createUtf8ToUtf16IndexMap`**：`for (const char of text)` でコードポイントごとに、UTF-8 のバイト数（`< 0x80` は 1、`< 0x800` は 2、`< 0x10000` は 3、それ以上は 4）の分だけ表を埋め、UTF-16 の index は `char.length`（サロゲートペアは 2）ずつ進める。コードポイントの途中のバイトはその先頭の index にする。孤立したサロゲートは UTF-8 で U+FFFD（3 バイト）になるので 3 として数える（`Buffer.byteLength` と一致させる）
 - **`splitSpeechText`**：区切りの候補は `/[.!?]["')\]]*\s+/g` の一致の直後。`start + maxLength` 以内で最も遠い候補で切り、無ければ最後の空白、それも無ければ `maxLength` で切る（サロゲートペアの間では切らない）。各パートは前後の空白を除き、除いた分 `start` を進める。Polly の上限（課金対象 3,000 文字）は文字数なので、`length`（UTF-16。コードポイント数以上）で比べれば必ず収まる
 - **`convertSpeechMarksToWordTimings`**：パートのテキストで表を作り、`mark.start` / `mark.end` を UTF-16 にして `part.start` を足し、`mapSpeechRangeToSource` で元の本文の位置にする。`endMs` は次の単語の `time`、最後の単語はパートの `durationMs`。範囲が空になった単語は捨てる
-- **`calculateAudioTextHash`**：`JSON.stringify({ blocks: [[blockIndex, text], ...]（code 以外）, version: AUDIO_TEXT_VERSION, voiceId })` の SHA-256（hex）。和訳とコードのブロックの変更では変わらない。voice を含めるのは、声を変えたときに保存キーを変え、CloudFront の長期キャッシュに古い声が残らないようにするため
+- **`calculateAudioTextHash`**：`JSON.stringify({ blocks: [[blockIndex, text], ...]（code 以外）, version: AUDIO_TEXT_VERSION, voiceId })` の SHA-256（hex）。和訳とコードのブロックの変更では変わらない。voice を含めるのは、声を変えたときに保存キーを変え、CloudFront の長期キャッシュに古い声が残らないようにするため。`voiceId` は `passage_audios.voice_id` と同じ値で、`TTS_PROVIDER=fake` のときは `fake:<voice>`（例 `fake:Joanna`。step3 の `buildAudioVoiceId`）なので、fake と Polly を切り替えても hash と保存キーが変わる
 - **`measureMp3DurationMs`**：先頭に ID3v2 タグ（`"ID3"`）があれば、ヘッダのサイズ（syncsafe 整数）の分を飛ばす。以降はフレームヘッダ（同期ビット 11 bit）を読み、バージョン・レイヤ・ビットレート・サンプリング周波数・パディングからフレーム長を求めて進め、`サンプル数 ÷ サンプリング周波数` を足し上げる（Layer III は MPEG-1 が 1152、MPEG-2 / 2.5 が 576 サンプル。フレーム長は MPEG-1 が `144 × bitrate ÷ samplerate + padding`、MPEG-2 / 2.5 が `72 × …`）。ビットレートと周波数の表は MPEG オーディオの仕様の表と照らし合わせて書く。フレームが 1 つも読めなければ throw
 
 ## 動作確認
@@ -176,6 +187,6 @@ pnpm --filter cron lint
 `test/client/polly/`：
 
 - [ ] `parseSpeechMarks`：複数行を parse / 空行を飛ばす / `sentence` は捨てる / 壊れた JSON は throw
-- [ ] `PollyTtsClient`：偽の `send`（`vi.fn`）に 2 回呼ばれ、片方が `OutputFormat: "mp3"`、もう片方が `OutputFormat: "json"` と `SpeechMarkTypes: ["word"]`。どちらも `Engine: "neural"`・`TextType: "text"`・指定の `VoiceId`。`billedCharacters` が 2 つの `RequestCharacters` の合計（`AudioStream` の偽物は SDK の型に合わせて作る）
+- [ ] `PollyTtsClient`：偽の `send`（`vi.fn`）に 2 回呼ばれ、片方が `OutputFormat: "mp3"`、もう片方が `OutputFormat: "json"` と `SpeechMarkTypes: ["word"]`。どちらも `Engine: "neural"`・`TextType: "text"`・指定の `VoiceId`。`billedCharacters` が 2 つの `RequestCharacters` の合計（`AudioStream` の偽物は SDK の型に合わせて作る）。`recordBilledCharacters` が 2 つの `RequestCharacters` で 1 回ずつ呼ばれ、単語の時刻のリクエストだけが失敗したら音声の分だけ記録してから throw する。`FakeTtsClient` は `recordBilledCharacters` を呼ばない
 - [ ] `FakeTtsClient`：同じ入力に同じ結果 / 単語の数だけ時刻があり等間隔で `durationMs` 未満 / 絵文字を含むテキストでも `start` / `end` が UTF-8 のバイト位置になっている / `measureMp3DurationMs(audio)` が `frameCount × 36`
-- [ ] `isFatalTtsError`：配列に入れた `name` のエラーは true、throttling・`TextLengthExceededException`・普通の `Error` は false
+- [ ] 設定の誤りの判定（`isFatalAudioGenerationError`）のテストは step3（`test/lib/audio/fatal-error.test.ts`）

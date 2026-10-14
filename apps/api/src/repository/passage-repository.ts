@@ -2,6 +2,7 @@ import type {
   GitHubRepositorySource,
   GlossaryEntry,
   Passage,
+  PassageAudio,
   PassageBlock,
   PassageDifficulty,
   PassageStatus,
@@ -9,6 +10,8 @@ import type {
   SourceKind,
   WebsiteSource,
 } from "@repo/domain"
+
+import type { TransactionContext } from "./transaction"
 
 /**
  * admin の問題一覧のカーソル（並びのキー）。draft は needsAttention DESC, updatedAt ASC, id ASC、
@@ -56,6 +59,10 @@ export type AdminPassageDetail = {
    * 挑戦の件数（状態を問わない。挑戦中のユーザーも設問 ID に回答を送るため）
    */
   attemptCount: number
+  /**
+   * 読み上げの音声。行がまだ無ければ null
+   */
+  audio: PassageAudio | null
   glossary: GlossaryEntry[]
   passage: Passage
   questions: Question[]
@@ -168,6 +175,9 @@ export interface PassageRepository {
    * 絞り込みに当てはまる公開中の問題の件数
    */
   countPublished(filter: PublishedPassageFilter): Promise<number>
+  /**
+   * admin の問題の詳細（読み上げの音声の行も読む）。存在しなければ null
+   */
   findAdminDetail(id: number): Promise<AdminPassageDetail | null>
   /**
    * limit + 1 件まで返す（has_more の判定は service）
@@ -206,9 +216,9 @@ export interface PassageRepository {
    */
   restoreRejected(id: number): Promise<RestoredPassageStatus | null>
   /**
-   * 状態を遷移させる。状態が from に無ければ何もせず false（同時操作の保護）
+   * 状態を遷移させる。状態が from に無ければ何もせず false（同時操作の保護）。tx を渡すとそのトランザクションで書く
    */
-  transitionStatus(id: number, transition: PassageTransition): Promise<boolean>
+  transitionStatus(id: number, transition: PassageTransition, tx?: TransactionContext): Promise<boolean>
   /**
    * 下書きの内容（passages の列・用語集・設問）を 1 トランザクションで置き換える。
    * リクエストに無い用語集・設問は削除し、id のあるものは更新、id が null のものは追加する。draft でなければ何もせず false

@@ -172,6 +172,10 @@ export const submittedAttemptSchema = z.object({
   elapsed_seconds: z.number().int(),
   glossary: z.array(attemptGlossaryEntrySchema),
   is_overtime: z.boolean(),
+  /**
+   * 解答中に読み上げを聞いた段落の数（結果画面の「読み上げ n 段落」）
+   */
+  listened_block_count: z.number().int(),
   passage: attemptPassageSchema,
   question_count: z.number().int(),
   questions: z.array(resultQuestionSchema),
@@ -293,6 +297,11 @@ export const submitAttemptRequestSchema = z.object({
     )
     .max(MAX_QUESTIONS_PER_PASSAGE),
   /**
+   * 読み上げを 1 秒以上聞いた段落の数。サーバーが code 以外のブロック数で上限をかける。
+   * 古いアプリ（送ってこない版）のために省略時は 0
+   */
+  listened_block_count: z.number().int().nonnegative().default(0),
+  /**
    * 和訳を一度でも見た段落の数。サーバーが code 以外のブロック数で上限をかける
    */
   translated_block_count: z.number().int().nonnegative(),
@@ -322,5 +331,53 @@ export const submitAttemptRequestSchema = z.object({
 export const submitAttemptResponseSchema = submittedAttemptSchema
 
 export type SubmitAttemptPathParam = z.infer<typeof submitAttemptPathParamSchema>
-export type SubmitAttemptRequest = z.infer<typeof submitAttemptRequestSchema>
+/**
+ * クライアントが送る形（listened_block_count は省略できる）なので入力の型にする。api は parseRequest で既定値を埋めた出力の型を受け取る
+ */
+export type SubmitAttemptRequest = z.input<typeof submitAttemptRequestSchema>
 export type SubmitAttemptResponse = z.infer<typeof submitAttemptResponseSchema>
+
+// ========================================================
+// GET /api/attempt/:id/audio - 挑戦の問題の読み上げの音声
+// ========================================================
+
+/**
+ * 挑戦の音声のパスパラメータスキーマ（挑戦の ID）
+ */
+export const getAttemptAudioPathParamSchema = z.object({
+  id: z.coerce.number().int().positive(),
+})
+
+/**
+ * 単語 1 つの時刻と位置 [start_ms, end_ms, start_offset, end_offset]。
+ * offset は blocks[block_index].text（バッククォートを含む元の本文）上の UTF-16 の index で、end_offset は含まない
+ */
+const audioWordTimingSchema = z.tuple([z.number(), z.number(), z.number(), z.number()])
+
+/**
+ * 挑戦の音声のレスポンススキーマ。status で形が変わる。
+ * pending は準備中（生成待ち・生成中・公開し直された後の確認待ちを含む）、failed は生成に失敗した（管理者が再試行するまで作り直さない）、
+ * ready は読み上げるブロック（code を除く）ごとのパート（ふつう 1 ブロック 1 パート）の URL・長さ・単語の時刻
+ */
+export const getAttemptAudioResponseSchema = z.discriminatedUnion("status", [
+  z.object({ status: z.literal("pending") }),
+  z.object({ status: z.literal("failed") }),
+  z.object({
+    blocks: z.array(
+      z.object({
+        block_index: z.number().int(),
+        parts: z.array(
+          z.object({
+            duration_ms: z.number(),
+            url: z.string(),
+            words: z.array(audioWordTimingSchema),
+          }),
+        ),
+      }),
+    ),
+    status: z.literal("ready"),
+  }),
+])
+
+export type GetAttemptAudioPathParam = z.infer<typeof getAttemptAudioPathParamSchema>
+export type GetAttemptAudioResponse = z.infer<typeof getAttemptAudioResponseSchema>

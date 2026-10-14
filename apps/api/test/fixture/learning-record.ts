@@ -19,6 +19,7 @@ type CreateSubmittedAttemptInput = {
    */
   elapsedSeconds?: number
   isOvertime?: boolean
+  listenedBlockCount?: number
   passageId: number
   /**
    * 回答（attempt_answers）を入れる設問。question_count はこの数になる
@@ -45,6 +46,7 @@ export const createSubmittedAttempt = async (input: CreateSubmittedAttemptInput)
     correctCount: correctness.filter(Boolean).length,
     elapsedSeconds,
     isOvertime: input.isOvertime ?? false,
+    listenedBlockCount: input.listenedBlockCount ?? 0,
     questionCount: input.questionIds.length,
     startedAt: new Date(submittedAt.getTime() - elapsedSeconds * 1000),
     status: "submitted",

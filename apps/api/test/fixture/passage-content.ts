@@ -198,6 +198,7 @@ export const buildAdminPassageDetail = (overrides: Partial<AdminPassageDetail> =
   const glossary = buildGlossaryEntries()
   return {
     attemptCount: 0,
+    audio: null,
     glossary,
     passage: buildPassage(),
     questions: buildQuestions(glossary),

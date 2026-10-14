@@ -1,4 +1,5 @@
 export { ATTEMPT_EXPIRY_SECONDS, ATTEMPT_STATUSES, WORD_LOOKUP_SOURCES } from "./const/attempt"
+export { AUDIO_STATUSES } from "./const/audio"
 export { ALLOWED_LICENSES, SOURCE_FETCH_TYPES, SOURCE_KINDS } from "./const/content-source"
 export { GOAL_METRICS, GOAL_TEXT_MAX_LENGTH } from "./const/goal"
 export { MEMBERSHIP_TIERS } from "./const/membership-tier"
@@ -18,6 +19,7 @@ export {
   QUESTION_TYPES,
 } from "./const/question"
 export { isAttemptStatus, isWordLookupSource } from "./rules/attempt"
+export { isAudioStatus } from "./rules/audio"
 export { isAllowedLicense, isSourceFetchType, isSourceKind } from "./rules/content-source"
 export { isGoalMetric } from "./rules/goal"
 export {
@@ -40,6 +42,7 @@ export type {
   ReadingAttempt,
   WordLookupSource,
 } from "./types/attempt"
+export type { AudioStatus, AudioWordTiming, PassageAudio, PassageAudioManifest, PassageAudioPart } from "./types/audio"
 export type { AuthAccount, AuthAccountWithUser } from "./types/auth-account"
 export type {
   AllowedLicense,

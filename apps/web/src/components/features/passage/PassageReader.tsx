@@ -21,6 +21,32 @@ export type ReaderHighlight = {
 }
 
 /**
+ * 読み上げ（解答画面・結果画面だけ渡す。ログイン画面のデモは渡さない）
+ */
+export type ReaderReadAloud = {
+  /**
+   * 読み上げ中（一時停止中を含む）のブロック。待機中は null
+   */
+  activeBlockIndex: number | null
+  /**
+   * false のとき段落の再生ボタンを無効にする（準備中・失敗・取得中）
+   */
+  isAvailable: boolean
+  /**
+   * 段落だけを再生している最中のブロック（その段落の再生ボタンを一時停止のアイコンにする）
+   */
+  playingBlockIndex: number | null
+  /**
+   * 読み上げ中の単語のハイライト。blockIndex のブロックで、セグメントの添字が [segmentStart, segmentEnd) の範囲
+   */
+  reading: { blockIndex: number, segmentEnd: number, segmentStart: number } | null
+  /**
+   * 親が useCallback で参照を固定する（memo したブロックに渡すため）
+   */
+  onPlayBlock: (blockIndex: number) => void
+}
+
+/**
  * 単語のカードの意味の部分。辞書は結果を待つ間 loading で、届いたら埋める
  */
 type WordMeaning =
@@ -52,6 +78,11 @@ const WORD_CARD_ESTIMATED_HEIGHT = 296
 const WORD_CARD_WIDTH = 340
 
 /**
+ * 読み上げ中の単語の印：琥珀の下線と淡い背景（単語のカードを開いた単語の表示とは別の見た目にする）
+ */
+const READING_WORD_CLASS = "bg-amber/15 shadow-[inset_0_-2px_0_var(--color-amber)]"
+
+/**
  * コードブロックの簡易シンタックスハイライト
  */
 function HighlightedCode({ code }: { code: string }) {
@@ -74,22 +105,35 @@ function HighlightedCode({ code }: { code: string }) {
   return <>{nodes}</>
 }
 
-function InlineCode({ children }: { children: string }) {
-  return <code className="rounded border border-line bg-surface px-1 py-px font-code text-[0.82em] text-fg">{children}</code>
+function InlineCode({ children, isReading = false }: { children: string, isReading?: boolean }) {
+  return (
+    <code className={`rounded border border-line px-1 py-px font-code text-[0.82em] text-fg ${isReading ? READING_WORD_CLASS : "bg-surface"}`}>
+      {children}
+    </code>
+  )
 }
 
 /**
- * セグメントを描画する。単語だけ押せる（クリックは article で拾う）。key は添字を offset からの通し番号にする
+ * 読み上げ中の単語の範囲 [start, end)（セグメントの添字）
  */
-const renderSegments = (segments: PassageSegmentResponse[], offset: number): React.ReactNode[] =>
+type ReadingRange = { end: number, start: number } | null
+
+/**
+ * セグメントを描画する。単語だけ押せる（クリックは article で拾う）。key は添字を offset からの通し番号にする。
+ * 読み上げの印は通しの添字が reading の範囲にある単語とインラインコードに付ける（根拠の <mark> で分けた中でも通しで判定する）
+ */
+const renderSegments = (segments: PassageSegmentResponse[], offset: number, reading: ReadingRange): React.ReactNode[] =>
   segments.map((segment, index) => {
     const key = offset + index
-    if (segment.kind === "code") return <InlineCode key={key}>{segment.text}</InlineCode>
+    const isReading = reading !== null && key >= reading.start && key < reading.end
+    if (segment.kind === "code") return <InlineCode key={key} isReading={isReading}>{segment.text}</InlineCode>
     if (segment.kind !== "word") return <Fragment key={key}>{segment.text}</Fragment>
     return (
       <span
         key={key}
-        className="cursor-pointer rounded-[3px] transition-colors hover:bg-amber-wash hover:text-amber-bright data-[active=true]:bg-amber/25 data-[active=true]:text-amber-bright"
+        className={`cursor-pointer rounded-[3px] transition-colors hover:bg-amber-wash hover:text-amber-bright data-[active=true]:bg-amber/25 data-[active=true]:text-amber-bright ${
+          isReading ? READING_WORD_CLASS : ""
+        }`}
         data-glossary-entry-id={segment.glossary_entry_id}
         data-word={segment.text}
       >
@@ -104,22 +148,27 @@ const renderSegments = (segments: PassageSegmentResponse[], offset: number): Rea
 function SegmentList({
   highlightEnd,
   highlightStart,
+  readingEnd,
+  readingStart,
   segments,
 }: {
   highlightEnd: number | null
   highlightStart: number | null
+  readingEnd: number | null
+  readingStart: number | null
   segments: PassageSegmentResponse[]
 }) {
+  const reading: ReadingRange = readingStart !== null && readingEnd !== null ? { end: readingEnd, start: readingStart } : null
   if (highlightStart === null || highlightEnd === null || highlightStart >= highlightEnd) {
-    return <>{renderSegments(segments, 0)}</>
+    return <>{renderSegments(segments, 0, reading)}</>
   }
   return (
     <>
-      {renderSegments(segments.slice(0, highlightStart), 0)}
+      {renderSegments(segments.slice(0, highlightStart), 0, reading)}
       <mark className="rounded-sm bg-amber/20 px-0.5 text-fg ring-1 ring-amber/50">
-        {renderSegments(segments.slice(highlightStart, highlightEnd), highlightStart)}
+        {renderSegments(segments.slice(highlightStart, highlightEnd), highlightStart, reading)}
       </mark>
-      {renderSegments(segments.slice(highlightEnd), highlightEnd)}
+      {renderSegments(segments.slice(highlightEnd), highlightEnd, reading)}
     </>
   )
 }
@@ -135,22 +184,41 @@ function TranslationText({ text }: { text: string }) {
 }
 
 /**
- * 本文の 1 ブロック。左に段落番号の列（エディタの行番号のような gutter）と「訳」、右に英文 / 和訳 / コード。
- * 解答画面はタイマーで毎秒描き直すので memo して、表示が変わったブロックだけを描き直す
+ * 本文の 1 ブロック。左に段落番号の列（エディタの行番号のような gutter）と「訳」・段落の再生ボタン、右に英文 / 和訳 / コード。
+ * 解答画面はタイマーで毎秒描き直すので memo して、表示が変わったブロックだけを描き直す。
+ * 読み上げはブロックごとの値だけを受け取るので、単語が変わっても描き直すのは読み上げ中のブロックだけになる
  */
 function ReaderBlock({
   block,
   blockIndex,
   highlightEnd,
   highlightStart,
+  isPlayingBlock,
+  isReadAloudAvailable,
+  isReadingBlock,
   isTranslated,
+  readingSegmentEnd,
+  readingSegmentStart,
+  onPlayBlock,
   onToggleTranslation,
 }: {
   block: AttemptBlock
   blockIndex: number
   highlightEnd: number | null
   highlightStart: number | null
+  /**
+   * この段落だけを再生している最中
+   */
+  isPlayingBlock: boolean
+  isReadAloudAvailable: boolean
+  /**
+   * 読み上げ中（一時停止中を含む）のブロック
+   */
+  isReadingBlock: boolean
   isTranslated: boolean
+  readingSegmentEnd: number | null
+  readingSegmentStart: number | null
+  onPlayBlock?: (blockIndex: number) => void
   onToggleTranslation?: (blockIndex: number) => void
 }) {
   const isCode = block.type === "code"
@@ -183,6 +251,29 @@ function ReaderBlock({
             訳
           </button>
         )}
+        {!isCode && onPlayBlock && (
+          <button
+            aria-label={isPlayingBlock ? "この段落の読み上げを一時停止" : "この段落を読み上げ"}
+            aria-pressed={isPlayingBlock}
+            className={`grid size-[22px] place-items-center rounded border outline-none transition focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-amber/60 disabled:pointer-events-none ${
+              isReadingBlock
+                ? "border-amber/50 bg-amber-wash text-amber opacity-100"
+                : "border-line-strong text-fg-muted opacity-0 hover:text-fg group-hover:opacity-100 disabled:group-hover:opacity-40 [@media(hover:none)]:opacity-60"
+            }`}
+            disabled={!isReadAloudAvailable}
+            onClick={(event) => {
+              event.stopPropagation()
+              onPlayBlock(blockIndex)
+            }}
+            type="button"
+          >
+            {isPlayingBlock ? (
+              <svg aria-hidden className="size-2.5" fill="currentColor" viewBox="0 0 24 24"><path d="M6 5h4v14H6zM14 5h4v14h-4z" /></svg>
+            ) : (
+              <svg aria-hidden className="size-2.5 translate-x-px" fill="currentColor" viewBox="0 0 24 24"><path d="M7 5v14l12-7z" /></svg>
+            )}
+          </button>
+        )}
       </div>
 
       <div className="min-w-0 max-w-[68ch]">
@@ -199,11 +290,23 @@ function ReaderBlock({
           </p>
         ) : isHeading ? (
           <h1 className="mb-5 text-[1.55em] font-semibold leading-tight tracking-[-0.01em] text-fg">
-            <SegmentList highlightEnd={highlightEnd} highlightStart={highlightStart} segments={block.segments} />
+            <SegmentList
+              highlightEnd={highlightEnd}
+              highlightStart={highlightStart}
+              readingEnd={readingSegmentEnd}
+              readingStart={readingSegmentStart}
+              segments={block.segments}
+            />
           </h1>
         ) : (
           <p className="mb-[1.15em]" lang="en">
-            <SegmentList highlightEnd={highlightEnd} highlightStart={highlightStart} segments={block.segments} />
+            <SegmentList
+              highlightEnd={highlightEnd}
+              highlightStart={highlightStart}
+              readingEnd={readingSegmentEnd}
+              readingStart={readingSegmentStart}
+              segments={block.segments}
+            />
           </p>
         )}
       </div>
@@ -306,12 +409,14 @@ function WordCard({ card, onClose }: { card: WordCardState, onClose: () => void 
  *
  * - 単語を押すと、用語集の語句（glossary_entry_id）は「この文での意味」、それ以外は onLookupDictionary で英和辞書を引く
  * - onLookupWord は意味が見つかったときだけ呼ぶ（解答画面が調べた単語として記録する）
+ * - readAloud を渡すと段落の再生ボタンと読み上げ中の単語の印を出す。読み上げ中の段落は、和訳中・全文訳でも英文で出す
  */
 export function PassageReader({
   blocks,
   fontSize = "md",
   glossary,
   highlight = null,
+  readAloud = null,
   showAllTranslations = false,
   translatedBlocks,
   onLookupDictionary,
@@ -325,6 +430,7 @@ export function PassageReader({
    * 結果画面の根拠
    */
   highlight?: ReaderHighlight | null
+  readAloud?: ReaderReadAloud | null
   showAllTranslations?: boolean
   translatedBlocks: Set<number>
   /**
@@ -426,6 +532,8 @@ export function PassageReader({
       <article className={`font-reading leading-[1.8] text-fg ${FONT_SIZE_CLASS[fontSize]}`} onClick={openWordCard}>
         {blocks.map((block, blockIndex) => {
           const isHighlighted = highlight?.blockIndex === blockIndex
+          const isReadingBlock = readAloud?.activeBlockIndex === blockIndex
+          const reading = readAloud?.reading?.blockIndex === blockIndex ? readAloud.reading : null
           return (
             <MemoizedReaderBlock
               key={blockIndex}
@@ -433,7 +541,16 @@ export function PassageReader({
               blockIndex={blockIndex}
               highlightEnd={isHighlighted ? highlight.segmentEnd : null}
               highlightStart={isHighlighted ? highlight.segmentStart : null}
-              isTranslated={block.type !== "code" && block.translation_ja !== null && (showAllTranslations || translatedBlocks.has(blockIndex))}
+              isPlayingBlock={readAloud?.playingBlockIndex === blockIndex}
+              isReadAloudAvailable={readAloud?.isAvailable ?? false}
+              isReadingBlock={isReadingBlock}
+              /**
+               * 読み上げ中の段落は、和訳を表示していても英文で出す（音声とハイライトを英文に合わせる。translatedBlocks 自体は変えない）
+               */
+              isTranslated={!isReadingBlock && block.type !== "code" && block.translation_ja !== null && (showAllTranslations || translatedBlocks.has(blockIndex))}
+              readingSegmentEnd={reading?.segmentEnd ?? null}
+              readingSegmentStart={reading?.segmentStart ?? null}
+              onPlayBlock={readAloud?.onPlayBlock}
               onToggleTranslation={onToggleTranslation}
             />
           )

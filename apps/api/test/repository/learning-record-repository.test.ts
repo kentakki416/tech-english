@@ -227,7 +227,7 @@ describe.each(implementations)("%s LearningRecordRepository", (_name, learningRe
 
   describe("summarizeNoAssistAccuracy", () => {
     describe("正常系", () => {
-      it("訳も単語の意味も使わなかった挑戦だけの正答数と設問数を返す", async () => {
+      it("訳・単語の意味・読み上げをどれも使わなかった挑戦だけの正答数と設問数を返す", async () => {
         const passage = await insertPassageWithQuestions()
         const user = await insertAttemptUser()
         const base = { passageId: passage.id, questionIds: passage.questionIds, studyDate: "2026-10-10", userId: user.id }
@@ -235,6 +235,7 @@ describe.each(implementations)("%s LearningRecordRepository", (_name, learningRe
         await createSubmittedAttempt({ ...base, correctness: [true, false, false] })
         await createSubmittedAttempt({ ...base, correctness: [true, true, true], translatedBlockCount: 1 })
         await createSubmittedAttempt({ ...base, correctness: [true, true, true], wordLookupCount: 1 })
+        await createSubmittedAttempt({ ...base, correctness: [true, true, true], listenedBlockCount: 1 })
 
         expect(await learningRecordRepository.summarizeNoAssistAccuracy(user.id)).toEqual({ correctCount: 3, questionCount: 6 })
       })
@@ -257,6 +258,7 @@ describe.each(implementations)("%s LearningRecordRepository", (_name, learningRe
         correctness: [true, false, true],
         elapsedSeconds: 312,
         isOvertime: true,
+        listenedBlockCount: 3,
         passageId: otherPassage.id,
         questionIds: otherPassage.questionIds,
         studyDate: "2026-10-11",
@@ -281,6 +283,7 @@ describe.each(implementations)("%s LearningRecordRepository", (_name, learningRe
           correctCount: 2,
           elapsedSeconds: 312,
           isOvertime: true,
+          listenedBlockCount: 3,
           passageId: otherPassage.id,
           passageTitle: "Pod Lifecycle",
           questionCount: 3,

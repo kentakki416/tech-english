@@ -58,6 +58,8 @@ export const ModelName = {
   DictionaryEntry: 'DictionaryEntry',
   Memo: 'Memo',
   Passage: 'Passage',
+  PassageAudio: 'PassageAudio',
+  AudioSynthesisUsage: 'AudioSynthesisUsage',
   PassageGlossaryEntry: 'PassageGlossaryEntry',
   Question: 'Question',
   ReadingAttempt: 'ReadingAttempt',
@@ -206,6 +208,37 @@ export const PassageScalarFieldEnum = {
 export type PassageScalarFieldEnum = (typeof PassageScalarFieldEnum)[keyof typeof PassageScalarFieldEnum]
 
 
+export const PassageAudioScalarFieldEnum = {
+  id: 'id',
+  passageId: 'passageId',
+  status: 'status',
+  voiceId: 'voiceId',
+  textHash: 'textHash',
+  manifest: 'manifest',
+  billedCharacters: 'billedCharacters',
+  attemptCount: 'attemptCount',
+  lastError: 'lastError',
+  generationStartedAt: 'generationStartedAt',
+  generatedAt: 'generatedAt',
+  regenerateRequestedAt: 'regenerateRequestedAt',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type PassageAudioScalarFieldEnum = (typeof PassageAudioScalarFieldEnum)[keyof typeof PassageAudioScalarFieldEnum]
+
+
+export const AudioSynthesisUsageScalarFieldEnum = {
+  id: 'id',
+  passageId: 'passageId',
+  characters: 'characters',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type AudioSynthesisUsageScalarFieldEnum = (typeof AudioSynthesisUsageScalarFieldEnum)[keyof typeof AudioSynthesisUsageScalarFieldEnum]
+
+
 export const PassageGlossaryEntryScalarFieldEnum = {
   id: 'id',
   passageId: 'passageId',
@@ -257,6 +290,7 @@ export const ReadingAttemptScalarFieldEnum = {
   questionCount: 'questionCount',
   correctCount: 'correctCount',
   translatedBlockCount: 'translatedBlockCount',
+  listenedBlockCount: 'listenedBlockCount',
   wordLookupCount: 'wordLookupCount',
   studyDate: 'studyDate',
   createdAt: 'createdAt',
@@ -339,6 +373,14 @@ export const JsonNullValueInput = {
 } as const
 
 export type JsonNullValueInput = (typeof JsonNullValueInput)[keyof typeof JsonNullValueInput]
+
+
+export const NullableJsonNullValueInput = {
+  DbNull: DbNull,
+  JsonNull: JsonNull
+} as const
+
+export type NullableJsonNullValueInput = (typeof NullableJsonNullValueInput)[keyof typeof NullableJsonNullValueInput]
 
 
 export const NullsOrder = {

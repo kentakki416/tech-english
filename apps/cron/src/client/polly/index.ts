@@ -1,0 +1,5 @@
+export { FakeTtsClient } from "./fake-tts-client"
+export { parseSpeechMarks } from "./parse-speech-marks"
+export { isPollyVoiceId, PollyTtsClient } from "./polly-tts-client"
+export type { PollySendApi } from "./polly-tts-client"
+export type { SynthesizeInput, SynthesizeResult, TtsClient } from "./tts-client"

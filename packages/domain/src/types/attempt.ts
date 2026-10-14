@@ -21,6 +21,10 @@ export type ReadingAttempt = {
    */
   elapsedSeconds: number | null
   isOvertime: boolean | null
+  /**
+   * 解答中に読み上げを聞いた段落の数（1 秒以上再生したブロック）
+   */
+  listenedBlockCount: number
   passageId: number
   questionCount: number | null
   startedAt: Date

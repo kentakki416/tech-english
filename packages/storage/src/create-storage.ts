@@ -14,6 +14,10 @@ export type StorageConfig =
   }
   | {
     bucket: string
+    /**
+     * 保存するオブジェクトの Cache-Control。省略時は "public, max-age=86400"
+     */
+    cacheControl?: string
     publicUrlBase: string
     region?: string
     type: "s3"
@@ -26,7 +30,7 @@ export type StorageConfig =
 export const createStorage = (config: StorageConfig): Storage => {
   switch (config.type) {
   case "s3":
-    return new S3Storage(config.bucket, config.publicUrlBase, config.region)
+    return new S3Storage(config.bucket, config.publicUrlBase, config.region, config.cacheControl)
   case "local":
     return new LocalStorage(config.baseDir, config.publicUrlPrefix)
   }

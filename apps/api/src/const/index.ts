@@ -4,9 +4,12 @@
  * /api/auth/dev-login は seed で投入した dev ユーザーで token を発行する API。
  * production では index.ts でコントローラを生成しないためルート自体が存在しない
  * が、念のため PUBLIC_PATHS からも除外する。
+ *
+ * /media は cron が .storage/audio/ に書いた読み上げの mp3 の配信（<audio> は Authorization ヘッダを付けられないため認証の対象外にする）。
+ * production では index.ts で mediaRouter を登録しない（本番は S3 + CloudFront）。
  */
 const DEV_ONLY_PUBLIC_PATHS = process.env.NODE_ENV !== "production"
-  ? ["/api/auth/dev-login"]
+  ? ["/api/auth/dev-login", "/media"]
   : []
 
 /**

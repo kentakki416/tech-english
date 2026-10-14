@@ -73,7 +73,7 @@ export type LearningRecordAttemptView = {
   submittedTime: string
   title: string
   /**
-   * 訳の表示・単語の意味のどちらかを 1 回以上使った
+   * 訳の表示・単語の意味・読み上げのどれかを 1 回以上使った
    */
   usedAssist: boolean
 }
@@ -177,7 +177,7 @@ const convertSubmittedAttemptToView = (attempt: SubmittedAttempt, timeZone: stri
   submittedAt: attempt.submittedAt,
   submittedTime: formatTimeInTimeZone(attempt.submittedAt, timeZone),
   title: attempt.passageTitle,
-  usedAssist: attempt.translatedBlockCount > 0 || attempt.wordLookupCount > 0,
+  usedAssist: attempt.translatedBlockCount > 0 || attempt.wordLookupCount > 0 || attempt.listenedBlockCount > 0,
 })
 
 /**

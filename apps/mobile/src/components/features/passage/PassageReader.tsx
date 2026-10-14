@@ -1,3 +1,4 @@
+import { Ionicons } from "@expo/vector-icons"
 import { Fragment, memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   FlatList,
@@ -31,6 +32,32 @@ export type ReaderHighlight = {
   segmentStart: number
 }
 
+/**
+ * 読み上げ（解答画面・結果画面だけ渡す。ログイン画面のデモは渡さない）。形は web の PassageReader と同じ
+ */
+export type ReaderReadAloud = {
+  /**
+   * 読み上げ中（一時停止中を含む）のブロック。待機中は null
+   */
+  activeBlockIndex: number | null
+  /**
+   * false のとき段落の再生ボタンを無効にする（準備中・失敗・取得中）
+   */
+  isAvailable: boolean
+  /**
+   * 段落だけを再生している最中のブロック（その段落の再生ボタンを一時停止のアイコンにする）
+   */
+  playingBlockIndex: number | null
+  /**
+   * 読み上げ中の単語のハイライト。blockIndex のブロックで、セグメントの添字が [segmentStart, segmentEnd) の範囲
+   */
+  reading: { blockIndex: number, segmentEnd: number, segmentStart: number } | null
+  /**
+   * 親が useCallback で参照を固定する（memo した行に渡すため）
+   */
+  onPlayBlock: (blockIndex: number) => void
+}
+
 type PassageReaderProps = {
   blocks: AttemptBlock[]
   /**
@@ -47,7 +74,11 @@ type PassageReaderProps = {
   ListHeaderComponent?: React.ReactElement
   peekBlock?: number | null
   /**
-   * React 19 なので forwardRef を使わず props で受ける（結果画面の scrollToIndex に使う。viewOffset は BLOCK_SCROLL_VIEW_OFFSET）
+   * 渡すと段落の再生ボタンと読み上げ中の単語の印を出す。読み上げ中の段落は、和訳中・全文訳でも英文で出す
+   */
+  readAloud?: ReaderReadAloud | null
+  /**
+   * React 19 なので forwardRef を使わず props で受ける（結果画面の scrollToIndex と読み上げの自動スクロールに使う。viewOffset は BLOCK_SCROLL_VIEW_OFFSET）
    */
   ref?: React.Ref<FlatList<AttemptBlock>>
   /**
@@ -66,6 +97,10 @@ type PassageReaderProps = {
   onLookupWord?: (lookup: WordLookupRecord) => void
   onPeekEnd?: () => void
   onPeekStart?: (blockIndex: number) => void
+  /**
+   * 本文を指で動かし始めたとき（読み上げの自動スクロールを止める）。FlatList にそのまま渡す
+   */
+  onScrollBeginDrag?: () => void
   onToggleTranslation?: (blockIndex: number) => void
   /**
    * 単語のカードを出す・中身を差し替える。辞書は結果を待つ間 loading で 1 回、届いたら同じ requestId でもう 1 回呼ぶ
@@ -83,9 +118,24 @@ type BlockRowProps = {
   highlightEnd: number | null
   highlightStart: number | null
   isPeeking: boolean
+  /**
+   * この段落だけを再生している最中
+   */
+  isPlayingBlock: boolean
+  isReadAloudAvailable: boolean
+  /**
+   * 読み上げ中（一時停止中を含む）のブロック
+   */
+  isReadingBlock: boolean
   isTranslated: boolean
+  /**
+   * このブロックの読み上げ中の単語の範囲。読み上げ中の単語が別のブロックなら null
+   */
+  readingSegmentEnd: number | null
+  readingSegmentStart: number | null
   onPeekEnd?: () => void
   onPeekStart?: (blockIndex: number) => void
+  onPlayBlock?: (blockIndex: number) => void
   onPressWord: (segment: PassageSegmentResponse) => void
   onToggleTranslation?: (blockIndex: number) => void
 }
@@ -94,6 +144,10 @@ type SegmentTextProps = {
   blockIndex: number
   fontSize: number
   isHighlighted: boolean
+  /**
+   * 読み上げ中の単語（根拠のハイライトと重なってもよい）
+   */
+  isReading: boolean
   segment: PassageSegmentResponse
   onPeekEnd?: () => void
   onPeekStart?: (blockIndex: number) => void
@@ -158,18 +212,23 @@ function TranslationText({ fontSize, isHeading, text }: { fontSize: number, isHe
 
 /**
  * 本文の 1 セグメント。単語だけ押せる（入れ子の <Text onPress>。RN の Text は選択範囲を取得できないため、単語単位で押させる）。
- * 単語の上の長押しも段落の和訳にする（RN の Responder は長押しが成立すると onPress を呼ばないので、カードは出ない）
+ * 単語の上の長押しも段落の和訳にする（RN の Responder は長押しが成立すると onPress を呼ばないので、カードは出ない）。
+ * 読み上げ中の印は単語とインラインコードに付ける（web と同じ）
  */
-function SegmentText({ blockIndex, fontSize, isHighlighted, segment, onPeekEnd, onPeekStart, onPressWord }: SegmentTextProps) {
+function SegmentText({ blockIndex, fontSize, isHighlighted, isReading, segment, onPeekEnd, onPeekStart, onPressWord }: SegmentTextProps) {
   if (segment.kind === "code") {
-    return <Text style={[styles.inlineCode, { fontSize: fontSize * 0.82 }, isHighlighted && styles.highlight]}>{segment.text}</Text>
+    return (
+      <Text style={[styles.inlineCode, { fontSize: fontSize * 0.82 }, isHighlighted && styles.highlight, isReading && styles.readingWord]}>
+        {segment.text}
+      </Text>
+    )
   }
   if (segment.kind !== "word") {
     return isHighlighted ? <Text style={styles.highlight}>{segment.text}</Text> : segment.text
   }
   return (
     <Text
-      style={isHighlighted ? styles.highlight : undefined}
+      style={[isHighlighted && styles.highlight, isReading && styles.readingWord]}
       onLongPress={onPeekStart ? () => onPeekStart(blockIndex) : undefined}
       onPress={() => onPressWord(segment)}
       onPressOut={onPeekEnd}
@@ -182,8 +241,9 @@ function SegmentText({ blockIndex, fontSize, isHighlighted, segment, onPeekEnd, 
 const MemoizedSegmentText = memo(SegmentText)
 
 /**
- * 本文の 1 ブロック（FlatList の 1 行）。左に段落番号の列と「訳」、右に英文 / 和訳 / コード。
- * 行ごとの値だけを受け取り memo する（1 段落の切り替えや毎秒のタイマーで全行を描き直さないため）
+ * 本文の 1 ブロック（FlatList の 1 行）。左に段落番号の列と「訳」・段落の再生ボタン、右に英文 / 和訳 / コード。
+ * 行ごとの値だけを受け取り memo する（1 段落の切り替えや毎秒のタイマーで全行を描き直さないため）。
+ * 読み上げもブロックごとの値だけを受け取るので、単語が変わっても描き直すのは読み上げ中の行だけになる
  */
 function BlockRow({
   block,
@@ -192,9 +252,15 @@ function BlockRow({
   highlightEnd,
   highlightStart,
   isPeeking,
+  isPlayingBlock,
+  isReadAloudAvailable,
+  isReadingBlock,
   isTranslated,
+  readingSegmentEnd,
+  readingSegmentStart,
   onPeekEnd,
   onPeekStart,
+  onPlayBlock,
   onPressWord,
   onToggleTranslation,
 }: BlockRowProps) {
@@ -226,6 +292,19 @@ function BlockRow({
             <Text style={[styles.translateButtonText, isTranslated && styles.translateButtonTextActive]}>訳</Text>
           </Pressable>
         )}
+        {!isCode && onPlayBlock && (
+          <Pressable
+            accessibilityLabel={isPlayingBlock ? "この段落の読み上げを一時停止" : "この段落を読み上げ"}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: !isReadAloudAvailable, selected: isPlayingBlock }}
+            disabled={!isReadAloudAvailable}
+            hitSlop={8}
+            style={[styles.playBlockButton, isReadingBlock && styles.translateButtonActive, !isReadAloudAvailable && styles.playBlockButtonDisabled]}
+            onPress={() => onPlayBlock(blockIndex)}
+          >
+            <Ionicons color={isReadingBlock ? THEME_COLORS.amber : THEME_COLORS.fgMuted} name={isPlayingBlock ? "pause" : "play"} size={10} />
+          </Pressable>
+        )}
       </View>
 
       <View style={styles.blockBody}>
@@ -254,6 +333,7 @@ function BlockRow({
                   blockIndex={blockIndex}
                   fontSize={fontSize}
                   isHighlighted={highlightStart !== null && highlightEnd !== null && index >= highlightStart && index < highlightEnd}
+                  isReading={readingSegmentStart !== null && readingSegmentEnd !== null && index >= readingSegmentStart && index < readingSegmentEnd}
                   segment={segment}
                   onPeekEnd={onPeekEnd}
                   onPeekStart={onPeekStart}
@@ -286,7 +366,8 @@ const extractBlockKey = (_block: AttemptBlock, index: number): string => String(
  *
  * - ブロックごとに FlatList の 1 行にして、画面外のブロックは描画しない（600 語で入れ子の <Text> が 1,500 程度になるため）
  * - 単語を押すと、用語集の語句（glossary_entry_id）は「この文での意味」、それ以外は onLookupDictionary で英和辞書を引く
- * - 長押しはブロックの本文を包む Pressable と単語の <Text> の両方で受け、押している間だけ和訳を重ねる
+ * - 長押しはブロックの本文を包む Pressable と単語の <Text> の両方で受け、押している間だけ和訳を重ねる。読み上げ中の段落でも重ねる
+ * - readAloud を渡すと段落の再生ボタンと読み上げ中の単語の印を出す。読み上げ中の段落は、和訳中・全文訳でも英文で出す
  */
 export function PassageReader({
   blocks,
@@ -297,6 +378,7 @@ export function PassageReader({
   ListFooterComponent,
   ListHeaderComponent,
   peekBlock = null,
+  readAloud = null,
   ref,
   scrollEnabled = true,
   showAllTranslations = false,
@@ -305,6 +387,7 @@ export function PassageReader({
   onLookupWord,
   onPeekEnd,
   onPeekStart,
+  onScrollBeginDrag,
   onToggleTranslation,
   onWordCard,
 }: PassageReaderProps) {
@@ -402,8 +485,21 @@ export function PassageReader({
     void showDictionaryMeaning(requestId, surface)
   }, [glossaryById, onLookupWord, onWordCard, showDictionaryMeaning])
 
+  /**
+   * 読み上げの値は個別に取り出して renderItem の依存にする（親が毎回作る readAloud のオブジェクトで、毎秒のタイマーごとに作り直さないため）
+   */
+  const activeBlockIndex = readAloud?.activeBlockIndex ?? null
+  const isReadAloudAvailable = readAloud?.isAvailable ?? false
+  const playingBlockIndex = readAloud?.playingBlockIndex ?? null
+  const readingBlockIndex = readAloud?.reading?.blockIndex ?? null
+  const readingSegmentEnd = readAloud?.reading?.segmentEnd ?? null
+  const readingSegmentStart = readAloud?.reading?.segmentStart ?? null
+  const onPlayBlock = readAloud?.onPlayBlock
+
   const renderItem = useCallback<ListRenderItem<AttemptBlock>>(({ index, item }) => {
     const isHighlighted = highlight?.blockIndex === index
+    const isReadingBlock = activeBlockIndex === index
+    const isReadingWordBlock = readingBlockIndex === index
     return (
       <MemoizedBlockRow
         block={item}
@@ -412,14 +508,40 @@ export function PassageReader({
         highlightEnd={isHighlighted ? highlight.segmentEnd : null}
         highlightStart={isHighlighted ? highlight.segmentStart : null}
         isPeeking={peekBlock === index}
-        isTranslated={item.type !== "code" && item.translation_ja !== null && (showAllTranslations || translatedBlocks.has(index))}
+        isPlayingBlock={playingBlockIndex === index}
+        isReadAloudAvailable={isReadAloudAvailable}
+        isReadingBlock={isReadingBlock}
+        /**
+         * 読み上げ中の段落は、和訳を表示していても英文で出す（音声とハイライトを英文に合わせる。translatedBlocks 自体は変えない）
+         */
+        isTranslated={!isReadingBlock && item.type !== "code" && item.translation_ja !== null && (showAllTranslations || translatedBlocks.has(index))}
+        readingSegmentEnd={isReadingWordBlock ? readingSegmentEnd : null}
+        readingSegmentStart={isReadingWordBlock ? readingSegmentStart : null}
         onPeekEnd={onPeekEnd}
         onPeekStart={onPeekStart}
+        onPlayBlock={onPlayBlock}
         onPressWord={pressWord}
         onToggleTranslation={onToggleTranslation}
       />
     )
-  }, [fontSize, highlight, onPeekEnd, onPeekStart, onToggleTranslation, peekBlock, pressWord, showAllTranslations, translatedBlocks])
+  }, [
+    activeBlockIndex,
+    fontSize,
+    highlight,
+    isReadAloudAvailable,
+    onPeekEnd,
+    onPeekStart,
+    onPlayBlock,
+    onToggleTranslation,
+    peekBlock,
+    playingBlockIndex,
+    pressWord,
+    readingBlockIndex,
+    readingSegmentEnd,
+    readingSegmentStart,
+    showAllTranslations,
+    translatedBlocks,
+  ])
 
   return (
     <FlatList
@@ -435,6 +557,7 @@ export function PassageReader({
       renderItem={renderItem}
       scrollEnabled={scrollEnabled}
       windowSize={7}
+      onScrollBeginDrag={onScrollBeginDrag}
       onScrollToIndexFailed={retryScrollToIndex}
     />
   )
@@ -502,6 +625,27 @@ const styles = StyleSheet.create({
     right: 0,
     top: 0,
     zIndex: 2,
+  },
+  playBlockButton: {
+    alignItems: "center",
+    borderColor: THEME_COLORS.lineStrong,
+    borderRadius: 4,
+    borderWidth: 1,
+    height: 20,
+    justifyContent: "center",
+    opacity: 0.7,
+    width: 20,
+  },
+  playBlockButtonDisabled: {
+    opacity: 0.3,
+  },
+  /**
+   * 読み上げ中の単語：琥珀の淡い背景と下線（単語のカードを開いた単語の表示とは別の見た目）
+   */
+  readingWord: {
+    backgroundColor: "rgba(243, 178, 76, 0.15)",
+    textDecorationColor: THEME_COLORS.amber,
+    textDecorationLine: "underline",
   },
   translateButton: {
     borderColor: THEME_COLORS.lineStrong,

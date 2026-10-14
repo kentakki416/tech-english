@@ -1,6 +1,6 @@
 # step4-api-attempt-audio
 
-api に読み上げの API を足す：挑戦の音声マニフェスト（`GET /api/attempt/:id/audio`）、提出の `listened_block_count`、学習記録の「アシストなし」の判定への読み上げの追加、admin の問題詳細の音声の状態と再試行（`POST /api/admin/passage/:id/audio/retry`）、ローカルの `/media/*` 配信。API の一覧は [README の必要な API](../README.md#必要な-api)、配信は [音声の保存と配信](../README.md#音声の保存と配信)、アシストの扱いは [使える場面とアシストの扱い](../README.md#使える場面とアシストの扱い)。
+api に読み上げの API を足す：挑戦の音声マニフェスト（`GET /api/attempt/:id/audio`）、提出の `listened_block_count`、学習記録の「アシストなし」の判定への読み上げの追加、admin の問題詳細の音声の状態・再試行（`POST /api/admin/passage/:id/audio/retry`）・作り直しの依頼（`POST /api/admin/passage/:id/audio/regenerate`）、公開での失敗した音声の再試行、ローカルの `/media/*` 配信。API の一覧は [README の必要な API](../README.md#必要な-api)、配信は [音声の保存と配信](../README.md#音声の保存と配信)、アシストの扱いは [使える場面とアシストの扱い](../README.md#使える場面とアシストの扱い)。
 
 ## 前提
 
@@ -38,7 +38,7 @@ export const getAttemptAudioResponseSchema = z.discriminatedUnion("status", [
 ])
 ```
 
-`admin/passage.ts`：`adminPassageDetailSchema` に `audio: z.object({ generated_at: z.string().nullable(), last_error: z.string().nullable(), status: z.enum(AUDIO_STATUSES) }).nullable()`（公開中でなく行も無ければ null。`generating` もそのまま返し、admin は「生成中」と出す）。`retryAdminPassageAudioPathParamSchema`（`{ id }`）と `retryAdminPassageAudioResponseSchema = z.object({ passage_id: z.number(), status: z.literal("pending") })`。型は `z.infer` で export する。
+`admin/passage.ts`：`adminPassageDetailSchema` に `audio: z.object({ generated_at: z.string().nullable(), last_error: z.string().nullable(), regenerate_requested_at: z.string().nullable(), status: z.enum(AUDIO_STATUSES) }).nullable()`（公開中でなく行も無ければ null。`generating` もそのまま返し、admin は「生成中」と出す。`ready` のまま作り直している間は `ready` で、作り直しに失敗していれば `last_error` がある）。`retryAdminPassageAudioPathParamSchema`（`{ id }`）と `retryAdminPassageAudioResponseSchema = z.object({ passage_id: z.number(), status: z.literal("pending") })`、`regenerateAdminPassageAudioPathParamSchema`（`{ id }`）と `regenerateAdminPassageAudioResponseSchema = z.object({ passage_id: z.number(), regenerate_requested_at: z.string() })`。型は `z.infer` で export する。
 
 ### 2. 純関数（`apps/api/src/lib/passage-audio.ts`）
 
@@ -68,7 +68,7 @@ export const convertToUserAudioStatus = (status: AudioStatus): Exclude<AudioStat
 export const buildAudioUrl = (baseUrl: string, key: string): string
 ```
 
-公開し直した直後は、本文が変わっていなくても cron が確かめるまで（最大 1 時間）`pending` になる。非公開に戻している間も `pending`（挑戦中・提出済みの挑戦からは、非公開の問題の音声 API も呼ばれる）。
+公開し直した直後は、本文が変わっていなくても cron が確かめるまで（最大 1 時間）`pending` になる。非公開に戻している間も `pending`（挑戦中・提出済みの挑戦からは、非公開の問題の音声 API も呼ばれる）。voice の変更・作り直しの依頼で cron が `ready` のまま作り直している間（`generation_started_at` がある）は、`updated_at` が変わらないので `ready` のまま前のマニフェストを返す（cron が成功するとマニフェストが置き換わる）。
 
 ### 3. Repository
 
@@ -78,13 +78,16 @@ export type PassageAudioWithPassage = { audio: PassageAudio | null; passage: Pic
 export interface PassageAudioRepository {
   /** passages に passage_audios を left join（passages の状態と公開日時も読む）。問題が無ければ null */
   findByPassageId(passageId: number): Promise<PassageAudioWithPassage | null>
-  /** status = 'failed' のときだけ pending に戻す（attempt_count = 0、last_error = null）。更新できなければ false */
-  resetFailed(passageId: number): Promise<boolean>
+  /** status = 'ready' のときだけ作り直しを依頼する（regenerate_requested_at = now、attempt_count = 0、last_error = null。updated_at は変えない）。更新できなければ false */
+  requestRegeneration(passageId: number, now: Date): Promise<boolean>
+  /** status = 'failed' のときだけ pending に戻す（attempt_count = 0、last_error = null）。更新できなければ false。tx を渡すとそのトランザクションで書く */
+  resetFailed(passageId: number, tx?: TransactionContext): Promise<boolean>
 }
 ```
 
 - Prisma 実装の `_toDomain()` は `status` を `isAudioStatus` で検証し（未知の値は throw）、`manifest` は `Json` を `PassageAudioManifest` として扱う。`findByPassageId` の `passages.status` も `isPassageStatus` で検証する
-- `PassageRepository`：`AdminPassageDetail` に `audio: PassageAudio | null` を足し、`findAdminDetail` で読む（join か別のクエリ。両実装）
+- `requestRegeneration` は `updated_at` を進めない（`resolveAudioStatus` が `updated_at < published_at` で公開し直しを判定するため）。Drizzle は `$onUpdate` が今の時刻を入れるので ``updatedAt: sql`${passageAudios.updatedAt}` `` を明示し、Prisma は `@updatedAt` が付く `updateMany` を使わず `$executeRaw` で書く
+- `PassageRepository`：`AdminPassageDetail` に `audio: PassageAudio | null` を足し、`findAdminDetail` で読む（join か別のクエリ。両実装）。`transitionStatus` に `tx?: TransactionContext` を足す（公開と音声の再試行を 1 つのトランザクションにするため。Drizzle は `resolveDrizzleClient`、Prisma は `resolvePrismaClient`）
 - `ReadingAttemptRepository`：`SubmitReadingAttemptInput` に `listenedBlockCount` を足し、`markSubmitted` で書く
 - `LearningRecordRepository`：`SubmittedAttempt` に `listenedBlockCount` を足し、`summarizeNoAssistAccuracy` の条件に `listened_block_count = 0` を足す（コメントも「和訳・単語・読み上げをどれも使っていない挑戦だけ」に直す）
 
@@ -124,14 +127,28 @@ export const retryAdminPassageAudio = async (
 
 `findByPassageId` が null → 404、`audio?.status !== "failed"`（行が無い・pending・generating・ready）→ `conflictError`、`resetFailed` が false（同時に状態が変わった）→ 409。
 
-詳細の変換（`convertAdminPassageDetailToResponse`）の `audio`：行があるか公開中なら `{ generated_at, last_error, status: resolveAudioStatus(detail.audio, detail.passage) }`（非公開に戻した問題の `ready` は `pending`）（公開中で行が無ければ `pending` と null 2 つ）、それ以外は null。保存（PUT）のレスポンスも同じ変換を通る。
+```ts
+export const regenerateAdminPassageAudio = async (
+  id: number,
+  now: Date,
+  repo: { passageAudioRepository: PassageAudioRepository },
+): Promise<Result<{ passageId: number; regenerateRequestedAt: Date }>>
+```
+
+`findByPassageId` が null → 404、`resolveAudioStatus(found.audio, found.passage) !== "ready"`（行が無い・pending・generating・failed、非公開に戻した・公開し直した後の確認待ちの ready。admin のカードが「作り直す」を出すのと同じ条件）→ 409、`requestRegeneration(id, now)` が false（同時に状態が変わった）→ 409。cron は次の実行で、本文の hash が同じでも Polly で作り直す（作り直す間は `ready` のまま前の音声を返す。[step3](./step3-cron-generate-audio.md)）。
+
+`publishAdminPassage`：repo に `passageAudioRepository` と `transactionRunner` を足し、`transactionRunner.run` の中で `transitionStatus(id, {...}, tx)` が true なら `passageAudioRepository.resetFailed(id, tx)` を呼ぶ（音声が `failed` なら `pending` に戻す。admin の再試行と同じ処理。`failed` でなければ何もしない）。本文を直して再公開しても `failed` のまま作り直されない、ということが無いように。公開できなかった（状態が変わった）ときは戻さない。
+
+詳細の変換（`convertAdminPassageDetailToResponse`）の `audio`：行があるか公開中なら `{ generated_at, last_error, regenerate_requested_at, status: resolveAudioStatus(detail.audio, detail.passage) }`（非公開に戻した問題の `ready` は `pending`）（公開中で行が無ければ `pending` と null 2 つ）、それ以外は null。保存（PUT）のレスポンスも同じ変換を通る。
 
 ### 5. Controller・Router・DI
 
 - `controller/attempt/audio.ts`（`AttemptAudioController`。コンストラクタで 2 つの Repository と `audioPublicUrlBase`）。`mapper.ts` に `convertAttemptAudioToResponse(view)` を足し、提出の変換に `listened_block_count` を足す。`controller/attempt/submit.ts` は `listened_block_count` を Service に渡す
 - `attempt-router.ts` に `audio` を足して `GET /:id/audio`
 - `controller/admin/passage/retry-audio.ts`（`AdminPassageRetryAudioController`）、`admin-router.ts` の `controllers.passage` に `retryAudio` を足して `POST /passage/:id/audio/retry`
-- `src/index.ts`：`DrizzlePassageAudioRepository` を作り、2 つの Controller に渡す。`audioPublicUrlBase` は §7
+- `controller/admin/passage/regenerate-audio.ts`（`AdminPassageRegenerateAudioController`。`new Date()` を Service に渡す）、`controllers.passage` に `regenerateAudio` を足して `POST /passage/:id/audio/regenerate`
+- `controller/admin/passage/publish.ts` の `AdminPassagePublishController` のコンストラクタに `PassageAudioRepository` と `TransactionRunner` を足す
+- `src/index.ts`：`DrizzlePassageAudioRepository` を作り、音声 API・再試行・作り直し・公開の Controller に渡す（公開には `transactionRunner` も）。`audioPublicUrlBase` は §7
 
 ### 6. ローカルの `/media/*` 配信
 
@@ -175,6 +192,8 @@ Service（ユニット）：
 - [ ] `submitAttempt`：`listenedBlockCount` が code 以外のブロック数で切り詰められて `markSubmitted` に渡る。保存済みの結果を返すときも同じ値
 - [ ] `usedAssist`：読み上げだけ使った挑戦が true、どれも 0 なら false
 - [ ] `retryAdminPassageAudio`：failed → ok / 行が無い・pending・generating・ready → 409 / 問題が無い → 404 / `resetFailed` が false → 409
+- [ ] `regenerateAdminPassageAudio`：表示上 ready → `requestRegeneration(id, now)` で ok / 行が無い・pending・generating・failed・非公開に戻した ready・公開し直した後の ready → 409 / 問題が無い → 404 / `requestRegeneration` が false → 409
+- [ ] `publishAdminPassage`：`transitionStatus` と `resetFailed` が同じ tx で、`transitionStatus` の後に呼ばれる。`transitionStatus` が false なら `resetFailed` を呼ばない
 
 Controller（インテグレーション。実 DB）：
 
@@ -183,12 +202,17 @@ Controller（インテグレーション。実 DB）：
 - [ ] `GET /api/user/stats` の `no_assist` に読み上げだけ使った挑戦が入らない。`GET /api/user/attempts` の `used_assist` が true
 - [ ] `GET /api/admin/passage/:id`：音声の無い公開中の問題で `audio.status: "pending"`、下書きで null、`generating` の行で `audio.status: "generating"`、failed の行で `last_error`、非公開に戻した問題の ready の行で `audio.status: "pending"`（failed は failed のまま）
 - [ ] `POST /api/admin/passage/:id/audio/retry`：failed → 200 で DB が `pending`・`attempt_count = 0`・`last_error = null` / ready・generating・行なし → 409 / 存在しない ID → 404 / `X-Admin-Token` なしで 401
+- [ ] `POST /api/admin/passage/:id/audio/regenerate`：ready → 200 で DB の `regenerate_requested_at` が入り、`attempt_count = 0`・`last_error = null`、`status`・`manifest`・`updated_at` は変わらない / pending・generating・failed・非公開に戻した ready・行なし → 409 / 存在しない ID → 404 / `X-Admin-Token` なしで 401
+- [ ] `POST /api/admin/passage/:id/publish`：音声が failed の下書きを公開すると、音声が `pending`・`attempt_count = 0`・`last_error = null`（マニフェストは残る）。ready の音声は変わらない（`updated_at` も）。公開できない（公開中）ときは failed のまま
+- [ ] `GET /api/admin/passage/:id`：作り直しの依頼中・ready のまま確保中の行は `status: "ready"` と `regenerate_requested_at`・`last_error`
 - [ ] `/media`：`NODE_ENV=test` で `.storage/audio`（テストでは一時ディレクトリを `audioDir` に渡す）の mp3 が 200 で返り、`Range: bytes=0-99` で 206、無いファイルと `..` を含むパスで 404、`Cross-Origin-Resource-Policy: cross-origin`。`mediaRouter` の guard を `NODE_ENV=production` にして 404
 
 Repository の契約テスト（`test/repository/passage-audio-repository.test.ts`、Drizzle / Prisma の `describe.each`）：
 
 - [ ] `findByPassageId`：行が無い問題は `audio: null` と `passage`（`status`・`publishedAt`）/ 非公開に戻した問題は `publishedAt` が残ったまま `status: "draft"` / 存在しない問題は null / `manifest` がそのまま読める
-- [ ] `resetFailed`：failed だけ更新して true、pending・generating・ready は変えずに false
+- [ ] `resetFailed`：failed だけ更新して true、pending・generating・ready は変えずに false。tx を渡してロールバックすると戻らない
+- [ ] `requestRegeneration`：ready だけ `regenerate_requested_at`・`attempt_count = 0`・`last_error = null` にして true（`updated_at` は変わらない）、pending・generating・failed・行が無い・存在しない問題は false
+- [ ] `PassageRepository.transitionStatus` に tx を渡してロールバックすると戻らない
 - [ ] `findAdminDetail` が `audio` を返す、`summarizeNoAssistAccuracy` が `listened_block_count > 0` の挑戦を数えない（既存の契約テストに足す）
 
 手動確認：step3 の手順で `ready` にした問題に挑戦し、`curl -H "Authorization: Bearer <token>" localhost:8080/api/attempt/<id>/audio` の `url` をブラウザで開いて再生できる。

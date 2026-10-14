@@ -42,6 +42,10 @@ export type SubmitReadingAttemptInput = {
   correctCount: number
   elapsedSeconds: number
   isOvertime: boolean
+  /**
+   * 読み上げを聞いた段落の数（code 以外のブロック数で切り詰めた値）
+   */
+  listenedBlockCount: number
   questionCount: number
   /**
    * 提出時のユーザーのタイムゾーンでの日付（YYYY-MM-DD）

@@ -1,9 +1,11 @@
 import { Router } from "express"
 
+import { AttemptAudioController } from "../controller/attempt/audio"
 import { AttemptDetailController } from "../controller/attempt/detail"
 import { AttemptSubmitController } from "../controller/attempt/submit"
 
 type AttemptRouterControllers = {
+  audio?: AttemptAudioController
   detail?: AttemptDetailController
   submit?: AttemptSubmitController
 }
@@ -21,6 +23,14 @@ export const attemptRouter = (controllers: AttemptRouterControllers): Router => 
   if (controllers.detail) {
     const controller = controllers.detail
     router.get("/:id", async (req, res) => controller.execute(req, res))
+  }
+
+  /**
+   * GET /api/attempt/:id/audio
+   */
+  if (controllers.audio) {
+    const controller = controllers.audio
+    router.get("/:id/audio", async (req, res) => controller.execute(req, res))
   }
 
   /**

@@ -23,6 +23,11 @@ export type AttemptProgress = {
   answers: Record<number, number>
   elapsedSeconds: number
   /**
+   * 読み上げを 1 秒以上聞いたブロックの添字。読み上げより前の版で保存したものには無い
+   * （版は上げない。上げると解答中の挑戦の途中経過〈回答・経過秒数〉が読めなくなるため。web と同じ）
+   */
+  listenedBlockIndexes?: number[]
+  /**
    * 和訳を一度でも見たブロックの添字
    */
   translatedBlockIndexes: number[]
@@ -54,6 +59,8 @@ const isAttemptProgress = (value: unknown): value is AttemptProgress =>
   && isRecord(value.answers)
   && Object.values(value.answers).every(choice => typeof choice === "number")
   && typeof value.elapsedSeconds === "number"
+  && (value.listenedBlockIndexes === undefined
+    || (Array.isArray(value.listenedBlockIndexes) && value.listenedBlockIndexes.every(index => typeof index === "number")))
   && Array.isArray(value.translatedBlockIndexes)
   && value.translatedBlockIndexes.every(index => typeof index === "number")
   && Array.isArray(value.wordLookups)

@@ -21,6 +21,10 @@ type AttemptShortcutOptions = {
   onOpenShortcuts: () => void
   onOpenSubmitConfirm: () => void
   onToggleAllTranslations: () => void
+  /**
+   * 読み上げの再生・一時停止（準備中・失敗・取得中は呼ばれた側が何もしない）
+   */
+  onToggleReadAloud: () => void
 }
 
 const CHOICE_KEYS = ["1", "2", "3", "4"]
@@ -33,8 +37,8 @@ const isEditableTarget = (target: EventTarget | null): boolean =>
 
 /**
  * 解答画面のキーボード操作（reading-practice README「キーボード操作（web）」）。
- * `1`〜`4` 回答、`J` / `K` 設問の移動、`T` 全文訳、`?` ショートカット一覧、`Ctrl` / `⌘` + `Enter` 提出の確認、`Esc` ダイアログを閉じる。
- * 単語のカードの `Esc` は PassageReader が持つ
+ * `1`〜`4` 回答、`J` / `K` 設問の移動、`T` 全文訳、`R` 読み上げ、`?` ショートカット一覧、`Ctrl` / `⌘` + `Enter` 提出の確認、`Esc` ダイアログを閉じる。
+ * 単語のカードの `Esc` は PassageReader、速度のメニューの `Esc` は ReadAloudBar が持つ
  */
 export function useAttemptShortcuts(options: AttemptShortcutOptions): void {
   /**
@@ -64,6 +68,7 @@ export function useAttemptShortcuts(options: AttemptShortcutOptions): void {
     else if (key === "j") options.onMoveQuestion(1)
     else if (key === "k") options.onMoveQuestion(-1)
     else if (key === "t") options.onToggleAllTranslations()
+    else if (key === "r") options.onToggleReadAloud()
     else if (key === "?") options.onOpenShortcuts()
   })
 

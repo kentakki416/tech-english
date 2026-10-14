@@ -75,6 +75,7 @@ export const buildInProgressAttempt = (overrides: Partial<ReadingAttempt> = {}):
   correctCount: null,
   elapsedSeconds: null,
   isOvertime: null,
+  listenedBlockCount: 0,
   passageId: 1,
   questionCount: null,
   startedAt: new Date("2026-10-12T10:00:00.000Z"),

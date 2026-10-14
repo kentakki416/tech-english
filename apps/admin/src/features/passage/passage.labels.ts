@@ -9,6 +9,13 @@ export type AdminPassageDifficulty = NonNullable<GetAdminPassageResponse["diffic
 
 export type AdminQuestionType = GetAdminPassageResponse["questions"][number]["type"]
 
+/**
+ * 読み上げの音声（詳細の audio）。下書きなどで音声の行も無ければ詳細の audio が null なので、ここでは null を除く
+ */
+export type AdminPassageAudio = NonNullable<GetAdminPassageResponse["audio"]>
+
+export type AdminPassageAudioStatus = AdminPassageAudio["status"]
+
 type BadgeColor = "dark" | "error" | "info" | "light" | "primary" | "success" | "warning"
 
 export const PASSAGE_STATUS_LABELS: Record<AdminPassageStatus, string> = {
@@ -43,6 +50,16 @@ export const PASSAGE_STATUS_ORDER = [
   "rejected",
   "failed",
 ] as const satisfies readonly AdminPassageStatus[]
+
+/**
+ * 読み上げの音声の状態のバッジ。色は問題の状態のラベル（収集済み light・生成中 info）とそろえる
+ */
+export const AUDIO_STATUS_LABELS: Record<AdminPassageAudioStatus, { color: BadgeColor, label: string }> = {
+  failed: { color: "error", label: "失敗" },
+  generating: { color: "info", label: "生成中" },
+  pending: { color: "light", label: "準備中" },
+  ready: { color: "success", label: "作成済み" },
+}
 
 export const PASSAGE_DIFFICULTY_LABELS: Record<AdminPassageDifficulty, string> = {
   1: "Easy",

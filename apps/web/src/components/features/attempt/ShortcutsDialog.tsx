@@ -6,6 +6,7 @@ const SHORTCUTS: { keys: string[], label: string }[] = [
   { keys: ["J"], label: "次の設問へ" },
   { keys: ["K"], label: "前の設問へ" },
   { keys: ["T"], label: "全文の和訳を切り替え" },
+  { keys: ["R"], label: "読み上げの再生・一時停止" },
   { keys: ["Esc"], label: "単語のカードを閉じる" },
   { keys: ["⌘", "Enter"], label: "提出する" },
   { keys: ["?"], label: "この一覧を表示" },

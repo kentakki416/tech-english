@@ -80,6 +80,22 @@ describe("GET /api/user/attempts", () => {
       })
     })
 
+    it("読み上げだけを使った挑戦は used_assist が true、どのアシストも使っていなければ false", async () => {
+      const { token, user } = await createTestUser()
+      const { passage, questions } = await insertGeneratedPassage({ publishedAt: new Date("2026-10-01T03:00:00.000Z"), status: "published" })
+      const base = { passageId: passage.id, questionIds: questions.map((question) => question.id), studyDate: "2026-10-10", userId: user.id }
+      const listenedOnly = await createSubmittedAttempt({ ...base, listenedBlockCount: 1, submittedAt: new Date("2026-10-10T04:00:00.000Z") })
+      const noAssist = await createSubmittedAttempt({ ...base, submittedAt: new Date("2026-10-10T03:00:00.000Z") })
+
+      const res = await request(app).get("/api/user/attempts").set("Authorization", `Bearer ${token}`)
+
+      expect(res.status).toBe(200)
+      expect(res.body.attempts.map((attempt: { id: number; used_assist: boolean }) => [attempt.id, attempt.used_assist])).toEqual([
+        [listenedOnly.id, true],
+        [noAssist.id, false],
+      ])
+    })
+
     it("limit 件ずつ返し、next_cursor で 2 ページ目が取れる。最後のページの next_cursor は null", async () => {
       const { evening, morning, noon, previousDay, token } = await setupAttempts()
 

@@ -1,3 +1,5 @@
+import { resolve } from "node:path"
+
 import cors from "cors"
 import express from "express"
 import helmet from "helmet"
@@ -20,11 +22,14 @@ import { AdminPassageDetailController } from "./controller/admin/passage/detail"
 import { AdminPassageListController } from "./controller/admin/passage/list"
 import { AdminPassagePublishController } from "./controller/admin/passage/publish"
 import { AdminPassageRegenerateController } from "./controller/admin/passage/regenerate"
+import { AdminPassageRegenerateAudioController } from "./controller/admin/passage/regenerate-audio"
 import { AdminPassageRejectController } from "./controller/admin/passage/reject"
 import { AdminPassageResolveAttentionController } from "./controller/admin/passage/resolve-attention"
 import { AdminPassageRestoreController } from "./controller/admin/passage/restore"
+import { AdminPassageRetryAudioController } from "./controller/admin/passage/retry-audio"
 import { AdminPassageUnpublishController } from "./controller/admin/passage/unpublish"
 import { AdminPassageUpdateController } from "./controller/admin/passage/update"
+import { AttemptAudioController } from "./controller/attempt/audio"
 import { AttemptDetailController } from "./controller/attempt/detail"
 import { AttemptStartController } from "./controller/attempt/start"
 import { AttemptSubmitController } from "./controller/attempt/submit"
@@ -56,6 +61,7 @@ import { UserPutReminderController } from "./controller/user/put-reminder"
 import { UserStatsController } from "./controller/user/stats"
 import { UserUpdateController } from "./controller/user/update"
 import { env } from "./env"
+import { resolveAudioPublicUrlBase } from "./lib/passage-audio"
 import { authMiddleware } from "./middleware/auth"
 import { flushEventsBeforeResponse } from "./middleware/flush-events"
 import { apiRateLimiter } from "./middleware/rate-limit"
@@ -68,6 +74,7 @@ import {
   DrizzleDictionaryRepository,
   DrizzleLearningRecordRepository,
   DrizzleMemoRepository,
+  DrizzlePassageAudioRepository,
   DrizzlePassageRepository,
   DrizzleReadingAttemptRepository,
   DrizzleReminderSettingRepository,
@@ -82,6 +89,7 @@ import { authRouter } from "./routes/auth-router"
 import { dictionaryRouter } from "./routes/dictionary-router"
 import { eventRouter } from "./routes/event-router"
 import { healthRouter } from "./routes/health-router"
+import { mediaRouter } from "./routes/media-router"
 import { memoRouter } from "./routes/memo-router"
 import { passageRouter } from "./routes/passage-router"
 import { userRouter } from "./routes/user-router"
@@ -118,6 +126,10 @@ const contentSourceRepository = new DrizzleContentSourceRepository(db)
  */
 const passageRepository = new DrizzlePassageRepository(db)
 const readingAttemptRepository = new DrizzleReadingAttemptRepository(db)
+/**
+ * 読み上げ（read-aloud）の音声。挑戦の音声 API と admin の公開・再試行・作り直しで共有する
+ */
+const passageAudioRepository = new DrizzlePassageAudioRepository(db)
 const dictionaryRepository = new DrizzleDictionaryRepository(db)
 /**
  * 学習記録（learning-record）の集計と目標
@@ -138,6 +150,19 @@ const refreshTokenRepository = new IoRedisRefreshTokenRepository(redis)
 const gitHubOAuthClient = new GitHubOAuthClient(env.GITHUB_OAUTH_CLIENT_ID, env.GITHUB_OAUTH_CLIENT_SECRET)
 const googleOAuthClient = new GoogleOAuthClient(env.GOOGLE_CLIENT_ID, env.GOOGLE_CLIENT_SECRET)
 const gitHubLicenseClient = new GitHubLicenseClient(env.GITHUB_LICENSE_TOKEN)
+
+/**
+ * 読み上げの音声の URL の base。production で AUDIO_PUBLIC_URL_BASE が無ければローカルにフォールバックせず null にする
+ * （音声 API は pending を返す。infra の設定〈read-aloud step8〉より先に api を出しても起動は止めない）
+ */
+const audioPublicUrlBase = resolveAudioPublicUrlBase({
+  audioPublicUrlBase: env.AUDIO_PUBLIC_URL_BASE,
+  nodeEnv: env.NODE_ENV,
+  port: env.PORT,
+})
+if (audioPublicUrlBase === null) {
+  logger.warn("AUDIO_PUBLIC_URL_BASE is not set; read-aloud audio is reported as pending")
+}
 
 /**
  * Health Controller のインスタンス化
@@ -232,11 +257,13 @@ const adminContentSourceUpdateController = new AdminContentSourceUpdateControlle
  */
 const adminPassageDetailController = new AdminPassageDetailController(passageRepository)
 const adminPassageListController = new AdminPassageListController(passageRepository)
-const adminPassagePublishController = new AdminPassagePublishController(passageRepository)
+const adminPassagePublishController = new AdminPassagePublishController(passageRepository, passageAudioRepository, transactionRunner)
 const adminPassageRegenerateController = new AdminPassageRegenerateController(passageRepository)
+const adminPassageRegenerateAudioController = new AdminPassageRegenerateAudioController(passageAudioRepository)
 const adminPassageRejectController = new AdminPassageRejectController(passageRepository)
 const adminPassageResolveAttentionController = new AdminPassageResolveAttentionController(passageRepository)
 const adminPassageRestoreController = new AdminPassageRestoreController(passageRepository)
+const adminPassageRetryAudioController = new AdminPassageRetryAudioController(passageAudioRepository)
 const adminPassageUnpublishController = new AdminPassageUnpublishController(passageRepository)
 const adminPassageUpdateController = new AdminPassageUpdateController(passageRepository)
 
@@ -248,8 +275,9 @@ const passageListController = new PassageListController(passageRepository, readi
 const passageRandomController = new PassageRandomController(passageRepository, readingAttemptRepository)
 
 /**
- * ユーザー向けの挑戦（開始・取得・提出）Controller のインスタンス化
+ * ユーザー向けの挑戦（開始・取得・提出・読み上げの音声）Controller のインスタンス化
  */
+const attemptAudioController = new AttemptAudioController(passageAudioRepository, readingAttemptRepository, audioPublicUrlBase)
 const attemptDetailController = new AttemptDetailController(passageRepository, readingAttemptRepository)
 const attemptStartController = new AttemptStartController(passageRepository, readingAttemptRepository, userRepository)
 const attemptSubmitController = new AttemptSubmitController(
@@ -322,6 +350,13 @@ app.use(
   })
 )
 /**
+ * 開発環境だけ、cron が .storage/audio/ に書いた読み上げの mp3 を /media で配信する（本番は S3 + CloudFront）。
+ * <audio> は 1 ファイルに Range のリクエストを何度も送るので、レート制限より前に登録する
+ */
+if (env.NODE_ENV !== "production") {
+  app.use("/media", mediaRouter({ audioDir: resolve(env.AUDIO_STORAGE_LOCAL_DIR) }))
+}
+/**
  * レート制限を API 全体に適用する。
  * ヘルスチェック（/api/health）はロードバランサの死活監視で高頻度に叩かれるため、本ミドル
  * ウェアより前に登録して対象外にしている（制限に巻き込むと target が unhealthy 判定される恐れ）。
@@ -346,9 +381,11 @@ app.use(
       list: adminPassageListController,
       publish: adminPassagePublishController,
       regenerate: adminPassageRegenerateController,
+      regenerateAudio: adminPassageRegenerateAudioController,
       reject: adminPassageRejectController,
       resolveAttention: adminPassageResolveAttentionController,
       restore: adminPassageRestoreController,
+      retryAudio: adminPassageRetryAudioController,
       unpublish: adminPassageUnpublishController,
       update: adminPassageUpdateController,
     },
@@ -407,6 +444,7 @@ app.use(
 app.use(
   "/api/attempt",
   attemptRouter({
+    audio: attemptAudioController,
     detail: attemptDetailController,
     submit: attemptSubmitController,
   })

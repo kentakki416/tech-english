@@ -77,6 +77,50 @@ const cronEnvSchema = z
      * 確認待ちの下書き（status = draft）がこの件数以上なら generate-questions は生成しない（確認が追いつかないのに費用を使わないため）
      */
     GENERATE_MAX_PENDING_DRAFTS: z.coerce.number().int().positive().default(50),
+    /**
+     * generate-audio の音声合成。polly は Amazon Polly（AWS の資格情報が要る）、fake は無音の mp3 と等間隔の単語の時刻（ローカルの確認用）。
+     * 未設定なら production は polly、それ以外は fake（手元に AWS の資格情報があっても、明示しない限り Polly を呼んで課金しないため）
+     */
+    TTS_PROVIDER: z.enum(["polly", "fake"]).optional(),
+    /**
+     * generate-audio の Polly の voice（Neural に対応したもの）。変えると、voice_id が違う ready の音声を生成タスクが確保し、
+     * 次の実行から AUDIO_MAX_PASSAGES_PER_RUN 件ずつ作り直す（text_hash にも voice を含むので保存キーも変わる）。
+     * TTS_PROVIDER=fake のときの voice_id は fake:<TTS_VOICE_ID>（buildAudioVoiceId）
+     */
+    TTS_VOICE_ID: z.string().min(1).default("Joanna"),
+    /**
+     * generate-audio が使う Polly と S3 のリージョン
+     */
+    AWS_REGION: z.string().min(1).default("ap-northeast-1"),
+    /**
+     * generate-audio が 1 回の実行で確保する問題の上限（Polly の費用の上限）
+     */
+    AUDIO_MAX_PASSAGES_PER_RUN: z.coerce.number().int().positive().default(20),
+    /**
+     * generate-audio が今月（UTC の暦月。Polly の請求の月）に Polly で課金してよい文字数（audio_synthesis_usages の合計）。
+     * 各問題を作る前に「今月の合計 + その問題の見込み」が超えるなら、確保を外して exit 1 で止める（作り直し・不具合の繰り返しで課金が膨らまないため）。
+     * 既定の 180 万文字（約 $29）は、README の費用の試算の「月 300 問を公開」（1 問 4,800 文字 × 300 = 144 万文字・約 $23）に
+     * 失敗の再試行・admin の作り直しの分として 25% の余裕を持たせ、Polly の Budgets の上限（$30）より手前で止まる値。
+     * voice の変更などで公開済みの問題をまとめて作り直す月は、一時的に上げる
+     */
+    AUDIO_MONTHLY_CHARACTER_LIMIT: z.coerce.number().int().positive().default(1_800_000),
+    /**
+     * generate-audio の mp3 の保存先。local は AUDIO_STORAGE_LOCAL_DIR、s3 は AUDIO_STORAGE_S3_BUCKET。
+     * production の local は generate-audio の起動時に throw する（コンテナの一時領域に mp3 を書いて ready にしないため）。
+     * スキーマでは検査しない（cron の他のタスクを止めないため）
+     */
+    AUDIO_STORAGE_TYPE: z.enum(["local", "s3"]).default("local"),
+    /**
+     * local の保存先（apps/cron からの相対。pnpm のスクリプトは apps/cron で動くので、リポジトリ直下の .storage/audio/ になり、api の /media 配信と共有する）
+     */
+    AUDIO_STORAGE_LOCAL_DIR: z.string().min(1).default("../../.storage/audio"),
+    /**
+     * s3 の保存先の bucket。AUDIO_STORAGE_TYPE=s3 のとき必須（空文字は未設定と同じ）
+     */
+    AUDIO_STORAGE_S3_BUCKET: z
+      .string()
+      .optional()
+      .transform((value) => (value === "" ? undefined : value)),
   })
   .superRefine((env, ctx) => {
     if (env.NODE_ENV !== "test" && !env.DATABASE_URL) {
@@ -86,7 +130,18 @@ const cronEnvSchema = z
         path: ["DATABASE_URL"],
       })
     }
+    if (env.AUDIO_STORAGE_TYPE === "s3" && !env.AUDIO_STORAGE_S3_BUCKET) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "AUDIO_STORAGE_S3_BUCKET is required when AUDIO_STORAGE_TYPE is 's3'",
+        path: ["AUDIO_STORAGE_S3_BUCKET"],
+      })
+    }
   })
+  .transform((env) => ({
+    ...env,
+    TTS_PROVIDER: env.TTS_PROVIDER ?? (env.NODE_ENV === "production" ? "polly" : "fake"),
+  }))
 
 const result = cronEnvSchema.safeParse(process.env)
 if (!result.success) {

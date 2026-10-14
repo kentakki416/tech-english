@@ -71,6 +71,7 @@ function ResultSummary({ result }: { result: SubmittedAttempt }) {
           <Text style={appStyles.caption}>アシストの使用</Text>
           <Text style={styles.metricSmall}>和訳 {result.translated_block_count} 段落</Text>
           <Text style={styles.metricSmall}>単語 {result.word_lookup_count} 回</Text>
+          <Text style={styles.metricSmall}>読み上げ {result.listened_block_count} 段落</Text>
         </View>
       </View>
     </View>

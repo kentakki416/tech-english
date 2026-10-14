@@ -43,6 +43,7 @@ import {
 import { BasicsTab } from "./BasicsTab"
 import { BodyTab } from "./BodyTab"
 import { GlossaryTab } from "./GlossaryTab"
+import { PassageAudioCard } from "./PassageAudioCard"
 import { PassagePreview, type PreviewBlock, type PreviewGlossaryEntry } from "./PassagePreview"
 import { QuestionsTab } from "./QuestionsTab"
 import { TranslationsTab } from "./TranslationsTab"
@@ -427,6 +428,7 @@ export function PassageReview({ detail }: { detail: GetAdminPassageResponse }) {
         )}
       </section>
 
+      {detail.audio && <PassageAudioCard audio={detail.audio} passageId={detail.id} />}
       <StatusNotice detail={detail} />
       {feedback?.kind === "error" && <Notice items={feedback.messages} title={feedback.title} tone="error" />}
       {needsAttention && (

@@ -109,6 +109,7 @@ describe("GET /api/attempt/:id", () => {
         .send({
           active_seconds: 0,
           answers: [{ question_id: questions[2].id, selected_choice_index: 1 }],
+          listened_block_count: 2,
           translated_block_count: 1,
           word_lookups: [{ glossary_entry_id: glossary[0].id, lemma: "stay in sync with", source: "glossary", surface: "stay in sync with" }],
         })
@@ -118,7 +119,7 @@ describe("GET /api/attempt/:id", () => {
       expect(submitted.status).toBe(200)
       expect(res.status).toBe(200)
       expect(res.body).toEqual(submitted.body)
-      expect(res.body).toMatchObject({ correct_count: 1, status: "submitted", words_per_minute: null })
+      expect(res.body).toMatchObject({ correct_count: 1, listened_block_count: 2, status: "submitted", words_per_minute: null })
       expect(res.body.glossary.map((entry: { id: number }) => entry.id)).toEqual(glossary.map((entry) => entry.id))
       expect(started.body.glossary.map((entry: { id: number }) => entry.id)).not.toContain(glossary[1]?.id)
     })

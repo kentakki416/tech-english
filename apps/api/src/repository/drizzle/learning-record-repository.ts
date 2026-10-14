@@ -90,6 +90,7 @@ export class DrizzleLearningRecordRepository implements LearningRecordRepository
       correctCount: requireSubmittedValue(attempt.correctCount, "correct_count", attempt.id),
       elapsedSeconds: requireSubmittedValue(attempt.elapsedSeconds, "elapsed_seconds", attempt.id),
       isOvertime: requireSubmittedValue(attempt.isOvertime, "is_overtime", attempt.id),
+      listenedBlockCount: attempt.listenedBlockCount,
       passageId: attempt.passageId,
       passageTitle,
       questionCount: requireSubmittedValue(attempt.questionCount, "question_count", attempt.id),
@@ -140,6 +141,9 @@ export class DrizzleLearningRecordRepository implements LearningRecordRepository
     return rows.flatMap(({ date, ...summary }) => (date === null ? [] : [{ ...summary, date }]))
   }
 
+  /**
+   * 和訳・単語・読み上げをどれも使っていない挑戦だけ
+   */
   public async summarizeNoAssistAccuracy(userId: number): Promise<AccuracyCount> {
     const [row] = await this._db
       .select({
@@ -150,6 +154,7 @@ export class DrizzleLearningRecordRepository implements LearningRecordRepository
       .where(
         and(
           buildSubmittedCondition(userId),
+          eq(readingAttempts.listenedBlockCount, 0),
           eq(readingAttempts.translatedBlockCount, 0),
           eq(readingAttempts.wordLookupCount, 0),
         ),

@@ -5,10 +5,23 @@ import { SafeAreaView } from "react-native-safe-area-context"
 
 import type { AttemptBlock, ResultQuestion, SubmittedAttempt } from "@repo/api-schema"
 
-import { BLOCK_SCROLL_VIEW_OFFSET, PassageReader, type ReaderHighlight } from "@/components/features/passage/PassageReader"
+import {
+  BLOCK_SCROLL_VIEW_OFFSET,
+  PassageReader,
+  type ReaderHighlight,
+  type ReaderReadAloud,
+} from "@/components/features/passage/PassageReader"
 import { useWordCard, WordCard } from "@/components/features/passage/WordCard"
+import {
+  READ_ALOUD_BAR_GAP,
+  READ_ALOUD_BAR_SPACE,
+  ReadAloudBar,
+  ReturnToReadingButton,
+} from "@/components/features/read-aloud/ReadAloudBar"
 import { THEME_COLORS } from "@/const/design-theme"
 import { useDictionaryLookup } from "@/features/dictionary/use-dictionary-lookup"
+import { useReadAloud } from "@/features/read-aloud/use-read-aloud"
+import { useReadingAutoScroll } from "@/features/read-aloud/use-reading-auto-scroll"
 
 import { ResultBottomBar } from "./ResultBottomBar"
 import { ResultHeader } from "./ResultHeader"
@@ -20,9 +33,9 @@ import { ResultTopBar } from "./ResultTopBar"
 const PASSAGE_PADDING_RIGHT = 18
 
 /**
- * 単語のカードと下端の操作の間
+ * 本文の下端の余白（下端の操作の上に浮かべた読み上げのミニプレーヤーの分は別に足す）
  */
-const WORD_CARD_GAP = 12
+const CONTENT_BOTTOM_SPACE = 32
 
 /**
  * 結果・解説画面の本体（提出済みの挑戦を受け取ってから描画する）。
@@ -31,13 +44,22 @@ const WORD_CARD_GAP = 12
  *
  * - 最初は最初の不正解の設問の根拠をハイライトする（スクロールはしない。画面の上から読み始めるため）
  * - 「本文の根拠を見る」でその設問の根拠をハイライトし、根拠のブロックまで scrollToIndex する
- * - 本文は解答画面と同じ部品で、単語のカード・段落の「訳」・長押しの和訳が使える。調べた単語は記録しない（onLookupWord を渡さない）
+ * - 本文は解答画面と同じ部品で、単語のカード・段落の「訳」・長押しの和訳・読み上げが使える。
+ *   調べた単語・聞いた段落は記録しない（onLookupWord・onBlockListened を渡さない）。開いただけでは再生しない
+ * - 読み上げのミニプレーヤーは下端の操作（もう一度解く・次の問題を解く）の上に浮かべる
  */
 export function ResultScreen({ result }: { result: SubmittedAttempt }) {
   const readerRef = useRef<FlatList<AttemptBlock>>(null)
   const lookupDictionary = useDictionaryLookup()
   const { closeWordCard, showWordCard, wordCard } = useWordCard()
   const { blocks, questions } = result
+  /**
+   * 結果画面で聞いた段落は数えない（onBlockListened を渡さない）
+   */
+  const readAloud = useReadAloud({ attemptId: result.id, blocks })
+  const { playBlock: playReadAloudBlock } = readAloud
+  const autoScroll = useReadingAutoScroll(readerRef, readAloud.playback?.blockIndex ?? null)
+  const { resumeFollowing } = autoScroll
 
   const [highlightQuestionId, setHighlightQuestionId] = useState<number | null>(
     () => questions.find(question => !question.is_correct && question.evidence !== null)?.id ?? null,
@@ -96,6 +118,30 @@ export function ResultScreen({ result }: { result: SubmittedAttempt }) {
   const endPeek = useCallback(() => setPeekBlock(null), [])
 
   /**
+   * 待機中に再生を始めるときは、読み上げ中の段落を追うスクロールを再開する
+   */
+  const toggleReadAloud = () => {
+    if (readAloud.playback === null) resumeFollowing()
+    readAloud.togglePlay()
+  }
+
+  /**
+   * 本文の行は memo されているので、参照を変えないよう useCallback にする
+   */
+  const playBlock = useCallback((blockIndex: number) => {
+    resumeFollowing()
+    playReadAloudBlock(blockIndex)
+  }, [playReadAloudBlock, resumeFollowing])
+
+  const readerReadAloud: ReaderReadAloud = {
+    activeBlockIndex: readAloud.playback?.blockIndex ?? null,
+    isAvailable: readAloud.availability === "ready",
+    playingBlockIndex: readAloud.playback?.mode === "block" && readAloud.playback.isPlaying ? readAloud.playback.blockIndex : null,
+    reading: readAloud.reading,
+    onPlayBlock: playBlock,
+  }
+
+  /**
    * 本文より上の区画。単語のカード・長押しで作り直さない（FlatList のヘッダーの描き直しを避ける）
    */
   const header = useMemo(() => (
@@ -117,13 +163,32 @@ export function ResultScreen({ result }: { result: SubmittedAttempt }) {
           glossary={result.glossary}
           highlight={highlight}
           peekBlock={peekBlock}
+          readAloud={readerReadAloud}
           translatedBlocks={translatedBlocks}
           onLookupDictionary={lookupDictionary}
           onPeekEnd={endPeek}
           onPeekStart={startPeek}
+          onScrollBeginDrag={autoScroll.onScrollBeginDrag}
           onToggleTranslation={toggleTranslation}
           onWordCard={showWordCard}
         />
+
+        {/**
+          * body は下端の操作の上で終わるので、その上に浮かぶ。単語のカード（zIndex 35）より下に重ねる
+          */}
+        <View style={styles.readAloudWrapper}>
+          {readAloud.playback !== null && !autoScroll.isFollowing && <ReturnToReadingButton onPress={resumeFollowing} />}
+          <ReadAloudBar
+            availability={readAloud.availability}
+            blocks={blocks}
+            playback={readAloud.playback}
+            progress={readAloud.progress}
+            rate={readAloud.rate}
+            onRateCycle={readAloud.cycleRate}
+            onStop={readAloud.stop}
+            onToggle={toggleReadAloud}
+          />
+        </View>
 
         {wordCard && (
           <View style={styles.wordCardWrapper}>
@@ -142,18 +207,26 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    paddingBottom: 32,
+    paddingBottom: READ_ALOUD_BAR_SPACE + CONTENT_BOTTOM_SPACE,
     paddingRight: PASSAGE_PADDING_RIGHT,
   },
   header: {
     marginRight: -PASSAGE_PADDING_RIGHT,
+  },
+  readAloudWrapper: {
+    bottom: READ_ALOUD_BAR_GAP,
+    left: 12,
+    pointerEvents: "box-none",
+    position: "absolute",
+    right: 12,
+    zIndex: 30,
   },
   screen: {
     backgroundColor: THEME_COLORS.canvas,
     flex: 1,
   },
   wordCardWrapper: {
-    bottom: WORD_CARD_GAP,
+    bottom: READ_ALOUD_BAR_SPACE,
     left: 12,
     position: "absolute",
     right: 12,

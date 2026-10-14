@@ -13,6 +13,7 @@ import {
   notExists,
   notInArray,
   or,
+  passageAudios,
   passageGlossaryEntries,
   passages,
   questions,
@@ -37,6 +38,10 @@ import type {
   PublishedPassageSummary,
   RestoredPassageStatus,
 } from "../passage-repository"
+import type { TransactionContext } from "../transaction"
+
+import { convertPassageAudioRowToDomain } from "./passage-audio-row"
+import { resolveDrizzleClient } from "./transaction-runner"
 
 /**
  * Drizzleの型
@@ -295,6 +300,7 @@ export class DrizzlePassageRepository implements PassageRepository {
     const [row] = await db
       .select({
         attemptCount: ATTEMPT_COUNT_SQL,
+        audio: passageAudios,
         passage: passages,
         sourceId: contentSources.id,
         sourceName: contentSources.name,
@@ -302,6 +308,7 @@ export class DrizzlePassageRepository implements PassageRepository {
       .from(passages)
       .innerJoin(sourceDocuments, eq(passages.sourceDocumentId, sourceDocuments.id))
       .innerJoin(contentSources, eq(sourceDocuments.sourceId, contentSources.id))
+      .leftJoin(passageAudios, eq(passageAudios.passageId, passages.id))
       .where(eq(passages.id, id))
     if (!row) return null
 
@@ -315,6 +322,7 @@ export class DrizzlePassageRepository implements PassageRepository {
     ])
     return {
       attemptCount: row.attemptCount,
+      audio: row.audio ? convertPassageAudioRowToDomain(row.audio) : null,
       glossary: glossaryRows.map(convertGlossaryEntryRowToDomain),
       passage: convertPassageRowToDomain(row.passage),
       questions: questionRows.map(convertQuestionRowToDomain),
@@ -506,8 +514,8 @@ export class DrizzlePassageRepository implements PassageRepository {
     })
   }
 
-  public async transitionStatus(id: number, transition: PassageTransition): Promise<boolean> {
-    const rows = await this._db
+  public async transitionStatus(id: number, transition: PassageTransition, tx?: TransactionContext): Promise<boolean> {
+    const rows = await resolveDrizzleClient(this._db, tx)
       .update(passages)
       .set({
         ...(transition.publishedAt === undefined ? {} : { publishedAt: transition.publishedAt }),
