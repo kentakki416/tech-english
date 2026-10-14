@@ -8,6 +8,8 @@ import { Keycap } from "@/components/ui/Keycap"
 import { useActiveSeconds } from "@/libs/use-active-seconds"
 
 import { CardStackBehind, PaperCardBack, PaperCardFront, PaperSheet, type VocabularyCard } from "./PaperCard"
+import type { PronunciationControls } from "./PronunciationButtons"
+import type { Pronunciation, PronunciationTarget } from "./use-pronunciation"
 import { useVocabularyShortcuts } from "./use-vocabulary-shortcuts"
 
 type Grade = ReviewVocabularyCardRequest["grade"]
@@ -35,11 +37,13 @@ const isReducedMotion = (): boolean => window.matchMedia("(prefers-reduced-motio
  * めくると横に回り、真横を向いた瞬間に表と裏を差し替える。めくり終わった後は変形を残さない（3D の変形が残ると文字がぼやけるため）。
  *
  * カードの中身はボタンに入れず、そのまま読み上げられるようにする（クリックでもめくれる。キーボードは「めくる」ボタンと Space）。
- * めくったら意味を常に置いてある live region で伝え、2 枚目からは出たときにカードへフォーカスを移す
+ * めくったら意味を常に置いてある live region で伝え、2 枚目からは出たときにカードへフォーカスを移す。
+ * 発音（pronunciation）は 1 回分の画面で 1 つだけ持つものを受け取り、出たときに単語の mp3 を読んでおき、めくる・答えると止める
  */
 export function FlashCard({
   card,
   isFirst,
+  pronunciation,
   remainingCount,
   onAnswer,
   onFlip,
@@ -49,6 +53,7 @@ export function FlashCard({
    * 1 回分の最初のカード（フォーカスを動かさない）
    */
   isFirst: boolean
+  pronunciation: Pronunciation
   /**
    * このカードの後ろに残っている枚数（束の厚み）
    */
@@ -69,8 +74,24 @@ export function FlashCard({
     if (!isFirst) cardRef.current?.focus({ preventScroll: true })
   }, [isFirst])
 
+  const { preload, stop: stopPronunciation } = pronunciation
+  const wordUrl = card.pronunciation.word_url
+  useEffect(() => {
+    if (wordUrl) preload(wordUrl)
+  }, [preload, wordUrl])
+
+  const pronunciationControls: PronunciationControls = {
+    playing: pronunciation.playing,
+    onToggle: (target: PronunciationTarget) => {
+      const { sentence } = card.pronunciation
+      if (target === "word" && wordUrl) pronunciation.toggle("word", { url: wordUrl })
+      if (target === "sentence" && sentence) pronunciation.toggle("sentence", { endMs: sentence.end_ms, startMs: sentence.start_ms, url: sentence.url })
+    },
+  }
+
   const flip = () => {
     if (leaving || performance.now() < readyAtRef.current) return
+    stopPronunciation()
     const next = !isFlipped
     setIsFlipped(next)
     if (isReducedMotion()) {
@@ -88,6 +109,7 @@ export function FlashCard({
 
   const answer = (grade: Grade) => {
     if (!isFlipped || leaving) return
+    stopPronunciation()
     if (isReducedMotion()) {
       onAnswer(grade, activeSeconds)
       return
@@ -119,7 +141,9 @@ export function FlashCard({
             >
               <div key={flipCount} className={flipCount > 0 ? "motion-safe:animate-card-flip" : ""}>
                 <PaperSheet className="relative h-[440px] sm:h-[380px]" tone={shownFlipped ? "back" : "front"}>
-                  {shownFlipped ? <PaperCardBack card={card} /> : <PaperCardFront card={card} />}
+                  {shownFlipped
+                    ? <PaperCardBack card={card} pronunciation={pronunciationControls} />
+                    : <PaperCardFront card={card} pronunciation={pronunciationControls} />}
                 </PaperSheet>
               </div>
             </div>

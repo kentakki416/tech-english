@@ -90,20 +90,17 @@ export function PaperSheet({ children, className = "", tone = "front" }: { child
 }
 
 /**
- * 語句と、見出し語が違うときの見出し語・品詞。発音のボタンは語句のすぐ右（表は語句を中央に置いたまま、ボタンだけ右に出す）
+ * 語句と、見出し語が違うときの見出し語・品詞。発音のボタンは語句のすぐ右（表は左にボタンと同じ幅の空きを置いて、語句を中央に保つ）
  */
 function WordHeading({ card, pronunciation, size }: { card: MockVocabularyCard, pronunciation?: MockPronunciation, size: "lg" | "sm" }) {
   return (
     <div className={size === "lg" ? "text-center" : "flex flex-wrap items-center gap-x-2"}>
       <p className={`font-reading text-ink ${size === "lg" ? "text-[30px] leading-tight font-semibold sm:text-[34px]" : "flex items-center gap-1 text-[17px] font-semibold"}`}>
         {size === "lg" ? (
-          <span className="relative inline-block">
-            {card.surface}
-            {pronunciation && (
-              <span className="absolute top-1/2 left-full ml-2 -translate-y-1/2">
-                <WordSoundButton lemma={card.lemma} pronunciation={pronunciation} size="lg" />
-              </span>
-            )}
+          <span className="flex items-center justify-center gap-2">
+            {pronunciation && <span aria-hidden className="w-9 shrink-0" />}
+            <span>{card.surface}</span>
+            {pronunciation && <WordSoundButton lemma={card.lemma} pronunciation={pronunciation} size="lg" />}
           </span>
         ) : (
           <>

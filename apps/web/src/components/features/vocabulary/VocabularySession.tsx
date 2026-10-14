@@ -12,6 +12,7 @@ import { usePaperSound } from "@/libs/paper-sound"
 import { FlashCard } from "./FlashCard"
 import { CardStackBehind, PaperSheet, type VocabularyCard } from "./PaperCard"
 import { type CardAnswer, ProgressSquares, SessionReview } from "./SessionReview"
+import { usePronunciation } from "./use-pronunciation"
 
 type Grade = ReviewVocabularyCardRequest["grade"]
 
@@ -101,7 +102,8 @@ function SessionDone({ nextDueDate }: { nextDueDate: string | null }) {
  * 単語帳の 1 回分。カードをめくって覚えた / まだを付け、全部答えるとふりかえり（vocabulary-cards README「UI 設計 > 1 回分」）。
  *
  * 答えたら保存を待たずに次のカードへ進む。保存は Server Action で 1 枚ずつ行い、失敗したカードはふりかえりで送り直せる。
- * Server Action の呼び出し自体が失敗した（通信が切れた・デプロイで action が変わった）ときも失敗として扱い、エラー画面にしない
+ * Server Action の呼び出し自体が失敗した（通信が切れた・デプロイで action が変わった）ときも失敗として扱い、エラー画面にしない。
+ * カードの発音（vocabulary-pronunciation）の再生はここで 1 つだけ持ち、カードに渡す
  */
 export function VocabularySession({
   cards,
@@ -115,6 +117,7 @@ export function VocabularySession({
   const [answers, setAnswers] = useState<CardAnswer[]>([])
   const [, startSaving] = useTransition()
   const sound = usePaperSound()
+  const pronunciation = usePronunciation()
   const current = cards[answers.length]
 
   const save = (target: CardAnswer) => {
@@ -155,6 +158,7 @@ export function VocabularySession({
             key={current.lemma}
             card={current}
             isFirst={answers.length === 0}
+            pronunciation={pronunciation}
             remainingCount={cards.length - answers.length - 1}
             onAnswer={answer}
             onFlip={sound.play}

@@ -2,6 +2,7 @@ import type { GetVocabularySessionResponse } from "@repo/api-schema"
 
 import { splitDictionarySenses } from "@/components/features/passage/passage-text"
 
+import { type PronunciationControls, SentenceSoundButton, WordSoundButton } from "./PronunciationButtons"
 import { SentenceText } from "./SentenceText"
 
 export type VocabularyCard = GetVocabularySessionResponse["cards"][number]
@@ -55,14 +56,27 @@ export function PaperSheet({ children, className = "", tone = "front" }: { child
 }
 
 /**
- * 語句と、見出し語が違うときの見出し語・品詞
+ * 語句と、見出し語が違うときの見出し語・品詞。発音の操作を渡されたら、語句のすぐ右に単語の発音のボタンを置く。
+ * 表は左にボタンと同じ幅の空きを置いて語句を中央に保つ（長い語句はボタンの左で折り返す）
  */
-function WordHeading({ card, size }: { card: VocabularyCard, size: "lg" | "sm" }) {
+function WordHeading({ card, pronunciation, size }: { card: VocabularyCard, pronunciation?: PronunciationControls, size: "lg" | "sm" }) {
+  const wordButton = pronunciation && (
+    <WordSoundButton controls={pronunciation} isReady={card.pronunciation.word_url !== null} lemma={card.lemma} size={size} />
+  )
   return (
-    <div className={size === "lg" ? "text-center" : "flex flex-wrap items-baseline gap-x-2"}>
-      <p className={`font-reading text-ink ${size === "lg" ? "text-[30px] leading-tight font-semibold sm:text-[34px]" : "text-[17px] font-semibold"}`}>
-        {card.surface}
-      </p>
+    <div className={size === "lg" ? "text-center" : `flex flex-wrap gap-x-2 ${pronunciation ? "items-center" : "items-baseline"}`}>
+      {size === "lg" ? (
+        <div className="flex items-center justify-center gap-2">
+          {pronunciation && <span aria-hidden className="w-9 shrink-0" />}
+          <p className="font-reading text-[30px] leading-tight font-semibold text-ink sm:text-[34px]">{card.surface}</p>
+          {wordButton}
+        </div>
+      ) : (
+        <p className="flex items-center gap-1 font-reading text-[17px] font-semibold text-ink">
+          {card.surface}
+          {wordButton}
+        </p>
+      )}
       <p className={`flex items-center gap-2 text-ink-muted ${size === "lg" ? "mt-2 justify-center text-sm" : "text-xs"}`}>
         {card.lemma !== card.surface.toLowerCase() && <span className="font-reading">{card.lemma}</span>}
         {card.part_of_speech && (
@@ -74,9 +88,10 @@ function WordHeading({ card, size }: { card: VocabularyCard, size: "lg" | "sm" }
 }
 
 /**
- * カードの表。語句・本文の 1 文・出典。新しい単語には印を付ける
+ * カードの表。語句・本文の 1 文・出典。新しい単語には印を付ける。
+ * 発音の操作を渡されたら、語句の右に単語のボタン、1 文の下に 1 文のボタン（1 文の音声があるときだけ）を置く
  */
-export function PaperCardFront({ card }: { card: VocabularyCard }) {
+export function PaperCardFront({ card, pronunciation }: { card: VocabularyCard, pronunciation?: PronunciationControls }) {
   return (
     <div className="flex h-full flex-col px-6 pt-12 pb-5 sm:px-10">
       {card.stage === null && (
@@ -85,8 +100,17 @@ export function PaperCardFront({ card }: { card: VocabularyCard }) {
         </span>
       )}
       <div className="flex flex-1 flex-col justify-center gap-6">
-        <WordHeading card={card} size="lg" />
-        {card.sentence && <SentenceText className="text-center text-[15px] text-ink-muted sm:text-base" sentence={card.sentence} />}
+        <WordHeading card={card} pronunciation={pronunciation} size="lg" />
+        {card.sentence && (
+          <div className="space-y-2">
+            <SentenceText
+              className="text-center text-[15px] text-ink-muted sm:text-base"
+              isPlaying={pronunciation?.playing === "sentence"}
+              sentence={card.sentence}
+            />
+            {pronunciation && card.pronunciation.sentence && <SentenceSoundButton align="center" controls={pronunciation} />}
+          </div>
+        )}
       </div>
       <p className="mt-4 truncate text-center font-reading text-xs text-ink-faint italic">— {card.passage.title} より</p>
     </div>
@@ -94,15 +118,21 @@ export function PaperCardFront({ card }: { card: VocabularyCard }) {
 }
 
 /**
- * カードの裏。表の語句と 1 文を小さく残し、意味・補足・出どころを出す。辞書の意味は " / " で行を分ける
+ * カードの裏。表の語句と 1 文を小さく残し、意味・補足・出どころを出す。辞書の意味は " / " で行を分ける。
+ * 発音のボタンは表と同じく語句の右と 1 文の下（1 文のボタンは左寄せ）
  */
-export function PaperCardBack({ card }: { card: VocabularyCard }) {
+export function PaperCardBack({ card, pronunciation }: { card: VocabularyCard, pronunciation?: PronunciationControls }) {
   const allSenses = card.meaning_source === "dictionary" ? splitDictionarySenses(card.meaning_ja) : [card.meaning_ja]
   const senses = allSenses.length > MAX_SENSES ? [...allSenses.slice(0, MAX_SENSES), "…"] : allSenses
   return (
     <div className="flex h-full flex-col px-6 pt-12 pb-5 sm:px-10">
-      <WordHeading card={card} size="sm" />
-      {card.sentence && <SentenceText className="mt-1.5 line-clamp-2 text-[13px] text-ink-faint" sentence={card.sentence} />}
+      <WordHeading card={card} pronunciation={pronunciation} size="sm" />
+      {card.sentence && (
+        <SentenceText className="mt-1.5 line-clamp-2 text-[13px] text-ink-faint" isPlaying={pronunciation?.playing === "sentence"} sentence={card.sentence} />
+      )}
+      {pronunciation && card.sentence && card.pronunciation.sentence && (
+        <div className="mt-1"><SentenceSoundButton align="start" controls={pronunciation} /></div>
+      )}
       <div className="my-4 border-t border-dashed border-ink-faint/50" />
       <div className="flex-1">
         <div className="space-y-1">

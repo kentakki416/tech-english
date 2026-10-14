@@ -27,13 +27,17 @@ function InkText({ text }: { text: string }) {
 }
 
 /**
- * 本文の 1 文。単語に蛍光ペンのような琥珀の線を引く
+ * 本文の 1 文。単語に蛍光ペンのような琥珀の線を引く。1 文を再生している間は線のまわりをゆっくり光らせる（vocabulary-pronunciation README「UI 設計 > 動き」）
  */
-export function SentenceText({ className = "", sentence }: { className?: string, sentence: VocabularySentence }) {
+export function SentenceText({ className = "", isPlaying = false, sentence }: { className?: string, isPlaying?: boolean, sentence: VocabularySentence }) {
   return (
     <p className={`font-reading leading-relaxed ${className}`}>
       <InkText text={sentence.text.slice(0, sentence.highlight_start)} />
-      <mark className="rounded-[2px] bg-transparent bg-[linear-gradient(transparent_52%,rgb(243_178_76/0.55)_52%)] px-0.5 text-ink">
+      <mark
+        className={`rounded-[2px] bg-transparent bg-[linear-gradient(transparent_52%,rgb(243_178_76/0.55)_52%)] px-0.5 text-ink ${
+          isPlaying ? "motion-safe:animate-highlight-glow" : ""
+        }`}
+      >
         <InkText text={sentence.text.slice(sentence.highlight_start, sentence.highlight_end)} />
       </mark>
       <InkText text={sentence.text.slice(sentence.highlight_end)} />
