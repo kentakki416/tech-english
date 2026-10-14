@@ -8,7 +8,7 @@ import { appStyles } from "@/components/ui/app-styles"
 import { Segment } from "@/components/ui/Segment"
 import { HEAT_COLORS, THEME_COLORS, THEME_FONTS } from "@/const/design-theme"
 import { learningRecordApi } from "@/features/learning-record/learning-record.api"
-import { formatDayLabel, formatSeconds, formatStudyMinutes } from "@/libs/format"
+import { formatDayLabel, formatSeconds, formatStudyDaySummary } from "@/libs/format"
 
 type CalendarDay = GetUserCalendarResponse["days"][number]
 
@@ -63,15 +63,25 @@ const buildMonthDate = (month: string, day: number): string => `${month}-${Strin
 const getHeatColor = (level: number): string => HEAT_COLORS[level] ?? HEAT_COLORS[0]
 
 /**
- * 学習カレンダー。年表示（草）と月表示を切り替え、日付を選ぶとその日の挑戦を出す（データの作り方は web と同じ）。
+ * マスの読み上げのラベル（`10月10日（土） 1 問、単語 12 枚、7 分`）。学習していない日は日付だけ
+ */
+const buildDayCellLabel = (date: string, day: CalendarDay | undefined): string => {
+  const summary = day ? formatStudyDaySummary(day) : ""
+  return summary === "" ? formatDayLabel(date) : `${formatDayLabel(date)} ${summary}`
+}
+
+/**
+ * 学習カレンダー。年表示（草）と月表示を切り替え、日付を選ぶとその日の挑戦と単語帳の枚数を出す（データの作り方は web と同じ）。
  * 年表示のデータは親（マイページ）が取得したものを受け取り、それより前の月と選んだ日の挑戦はここで取得する
  */
 export function StudyCalendar({
   calendar,
   onPressAttempt,
+  onPressVocabulary,
 }: {
   calendar: GetUserCalendarResponse
   onPressAttempt: (id: number) => void
+  onPressVocabulary: () => void
 }) {
   const { today } = calendar
   const currentMonth = today.slice(0, 7)
@@ -169,15 +179,15 @@ export function StudyCalendar({
 
   const selectedDay = dayByDate.get(selectedDate)
   /**
-   * カレンダーで学習していないと分かっている日は取得しない
+   * カレンダーで挑戦が無いと分かっている日（学習していない日・単語帳だけの日）は取得しない
    */
-  const isKnownEmptyDay = selectedDay?.attempt_count === 0
+  const isKnownNoAttemptDay = selectedDay?.attempt_count === 0
 
   /**
    * 選んだ日の挑戦を取得する。マイページが取り直したとき（calendar が変わる）も取り直す（解いて戻ったときの今日の分）
    */
   useEffect(() => {
-    if (isKnownEmptyDay) return
+    if (isKnownNoAttemptDay) return
     const date = selectedDate
     const fetchDayAttempts = async () => {
       try {
@@ -189,14 +199,16 @@ export function StudyCalendar({
       }
     }
     void fetchDayAttempts()
-  }, [calendar, isKnownEmptyDay, selectedDate])
+  }, [calendar, isKnownNoAttemptDay, selectedDate])
 
   const monthLeadingBlanks = getMondayBasedWeekday(buildMonthDate(month, 1))
   const monthLabel = month.slice(0, 4) === currentMonth.slice(0, 4)
     ? `${Number(month.slice(5, 7))}月`
     : `${month.slice(0, 4)}年${Number(month.slice(5, 7))}月`
   const isLatestMonth = month >= currentMonth
-  const selectedAttempts = isKnownEmptyDay ? [] : dayAttempts?.date === selectedDate ? dayAttempts.attempts : undefined
+  const selectedAttempts = isKnownNoAttemptDay ? [] : dayAttempts?.date === selectedDate ? dayAttempts.attempts : undefined
+  const selectedSummary = selectedDay ? formatStudyDaySummary(selectedDay) : ""
+  const selectedCardCount = selectedDay?.card_count ?? 0
 
   return (
     <View>
@@ -229,7 +241,7 @@ export function StudyCalendar({
                   ) : (
                     <Pressable
                       key={day.date}
-                      accessibilityLabel={`${formatDayLabel(day.date)} ${day.attempt_count} 問 ${formatStudyMinutes(day.study_seconds)}`}
+                      accessibilityLabel={buildDayCellLabel(day.date, day)}
                       accessibilityRole="button"
                       accessibilityState={{ selected: day.date === selectedDate }}
                       hitSlop={2}
@@ -288,7 +300,7 @@ export function StudyCalendar({
               return (
                 <Pressable
                   key={date}
-                  accessibilityLabel={day ? `${formatDayLabel(date)} ${day.attempt_count} 問` : formatDayLabel(date)}
+                  accessibilityLabel={buildDayCellLabel(date, day)}
                   accessibilityRole="button"
                   accessibilityState={{ disabled: isFuture, selected: date === selectedDate }}
                   disabled={isFuture}
@@ -314,17 +326,13 @@ export function StudyCalendar({
       <View style={styles.dayDetail}>
         <View style={styles.dayHeader}>
           <Text style={styles.dayTitle}>{formatDayLabel(selectedDate)}</Text>
-          {selectedDay !== undefined && selectedDay.attempt_count > 0 && (
-            <Text style={appStyles.caption}>
-              {selectedDay.attempt_count} 問、{formatStudyMinutes(selectedDay.study_seconds)}
-            </Text>
-          )}
+          {selectedSummary !== "" && <Text style={appStyles.caption}>{selectedSummary}</Text>}
         </View>
         {selectedAttempts === undefined ? (
           <Text style={styles.empty}>読み込み中…</Text>
         ) : selectedAttempts === null ? (
           <Text style={[styles.empty, styles.errorText]}>{LOAD_FAILED_MESSAGE}</Text>
-        ) : selectedAttempts.length === 0 ? (
+        ) : selectedAttempts.length === 0 && selectedCardCount === 0 ? (
           <Text style={styles.empty}>この日の学習はありません。</Text>
         ) : (
           selectedAttempts.map(attempt => (
@@ -340,6 +348,23 @@ export function StudyCalendar({
               <Text style={[appStyles.caption, styles.attemptElapsed]}>{formatSeconds(attempt.elapsed_seconds)}</Text>
             </Pressable>
           ))
+        )}
+        {/**
+          * 挑戦の取得に失敗しても、カレンダーのデータで分かっている単語帳の行は出す
+          */}
+        {selectedAttempts !== undefined && selectedDay !== undefined && selectedCardCount > 0 && (
+          <Pressable
+            accessibilityLabel={`単語帳 ${selectedCardCount} 枚（覚えた ${selectedDay.remembered_count}）`}
+            accessibilityRole="button"
+            style={({ pressed }) => [styles.attemptRow, pressed && styles.attemptRowPressed]}
+            onPress={onPressVocabulary}
+          >
+            <View style={styles.vocabularyIconColumn}>
+              <View style={styles.vocabularyIcon} />
+            </View>
+            <Text numberOfLines={1} style={styles.vocabularyTitle}>単語帳</Text>
+            <Text style={appStyles.caption}>{selectedCardCount} 枚（覚えた {selectedDay.remembered_count}）</Text>
+          </Pressable>
         )}
       </View>
     </View>
@@ -495,6 +520,20 @@ const styles = StyleSheet.create({
     fontSize: 11,
     textAlign: "center",
     width: "13.2%",
+  },
+  vocabularyIcon: {
+    backgroundColor: THEME_COLORS.paper,
+    borderRadius: 2,
+    height: 12,
+    width: 16,
+  },
+  vocabularyIconColumn: {
+    width: 40,
+  },
+  vocabularyTitle: {
+    color: THEME_COLORS.fg,
+    flex: 1,
+    fontSize: 14,
   },
   week: {
     gap: GAP,

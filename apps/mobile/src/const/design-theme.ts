@@ -25,8 +25,21 @@ export const THEME_COLORS = {
   heat2: "#67502a",
   heat3: "#a57a32",
   heat4: "#f3b24c",
+  /**
+   * 単語帳の紙のカードの文字（墨色）。web の `--color-ink*` と同じ値
+   */
+  ink: "#2b261f",
+  inkAmber: "#94600f",
+  inkFaint: "#998c76",
+  inkMuted: "#6b6152",
   line: "#29303f",
   lineStrong: "#3a4356",
+  /**
+   * 単語帳の紙のカード（生成り）。web の `--color-paper*` と同じ値
+   */
+  paper: "#f2e8d5",
+  paperDeep: "#e9dcc3",
+  paperEdge: "#d8c9ac",
   raised: "#202736",
   surface: "#181d28",
   wrong: "#f08c8c",

@@ -31,10 +31,10 @@ import {
 } from "@/features/attempt/attempt-progress"
 import { attemptApi } from "@/features/attempt/attempt.api"
 import { useAttemptStore } from "@/features/attempt/attempt.store"
-import { useActiveSeconds } from "@/features/attempt/use-active-seconds"
 import { useDictionaryLookup } from "@/features/dictionary/use-dictionary-lookup"
 import { useReadAloud } from "@/features/read-aloud/use-read-aloud"
 import { useReadingAutoScroll } from "@/features/read-aloud/use-reading-auto-scroll"
+import { useActiveSeconds } from "@/libs/use-active-seconds"
 
 import { AttributionNote } from "./AttributionNote"
 import { ExpiredNotice } from "./ExpiredNotice"

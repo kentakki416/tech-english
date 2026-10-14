@@ -178,7 +178,7 @@ export default function HomeScreen() {
           </View>
 
           <View style={styles.section}>
-            <StudyCalendar calendar={data.calendar} onPressAttempt={openAttemptResult} />
+            <StudyCalendar calendar={data.calendar} onPressAttempt={openAttemptResult} onPressVocabulary={() => router.navigate("/vocabulary")} />
           </View>
 
           {!isEmpty && (
