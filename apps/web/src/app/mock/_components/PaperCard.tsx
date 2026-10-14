@@ -141,17 +141,29 @@ export function PaperCardBack({ card }: { card: MockVocabularyCard }) {
 }
 
 /**
- * 重ねたカードの束（後ろの 2 枚）。残りの枚数に合わせて出す枚数を減らす
+ * 束の後ろの 2 枚。手前のカードと合わせて 3 枚に見えるよう、1 枚ごとに下へずらし、横にも少しずらして傾ける。
+ * 奥ほど紙を濃くし、上の縁に明るい線を入れて、重なりの境目を見せる
+ */
+const STACK_LAYERS = [
+  { className: "bg-[linear-gradient(180deg,#e7dbc3,#dccfb4)]", transform: "translate(-7px, 22px) rotate(-2.2deg)" },
+  { className: "bg-[linear-gradient(180deg,#efe4ce,#e4d7bd)]", transform: "translate(5px, 11px) rotate(1.4deg)" },
+]
+
+/**
+ * 重ねたカードの束（後ろの 2 枚）。残りの枚数に合わせて出す枚数を減らす（残り 1 枚なら 1 枚、0 枚なら出さない）
  */
 export function CardStackBehind({ count }: { count: number }) {
+  const layers = STACK_LAYERS.slice(STACK_LAYERS.length - Math.min(count, STACK_LAYERS.length))
   return (
     <>
-      {count >= 2 && (
-        <span aria-hidden className="absolute inset-x-4 top-4 -bottom-3 rotate-[-1.5deg] rounded-xl bg-paper-edge/80 shadow-[0_12px_30px_-12px_rgb(0_0_0/0.7)]" />
-      )}
-      {count >= 1 && (
-        <span aria-hidden className="absolute inset-x-2 top-2 -bottom-1.5 rotate-[1deg] rounded-xl bg-paper-deep/90 shadow-[0_12px_30px_-12px_rgb(0_0_0/0.7)]" />
-      )}
+      {layers.map(layer => (
+        <span
+          key={layer.transform}
+          aria-hidden
+          className={`absolute inset-0 rounded-xl shadow-[inset_0_1px_0_rgb(255_255_255/0.45),0_14px_28px_-14px_rgb(0_0_0/0.85),0_2px_0_rgb(0_0_0/0.25)] ${layer.className}`}
+          style={{ transform: layer.transform }}
+        />
+      ))}
     </>
   )
 }

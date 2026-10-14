@@ -156,7 +156,7 @@ export function VocabularySessionMock({ initialState }: { initialState: Vocabula
               </div>
             </div>
 
-            <div className="mt-10 flex h-24 items-start justify-center gap-3">
+            <div className="mt-14 flex h-24 items-start justify-center gap-3">
               {isFlipped ? <AnswerButtons onAnswer={answer} /> : <FlipButton hint="意味を思い出してから、めくりましょう。" onFlip={flip} />}
             </div>
           </div>
