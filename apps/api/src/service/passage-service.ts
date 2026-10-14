@@ -46,10 +46,17 @@ export type PassageListView = {
 export type PassageOverviewView = {
   attribution: PassageAttribution
   /**
+   * 新しく挑戦を始められるか（公開中の問題だけ true）。false のときは inProgressAttempt が必ずある
+   */
+  canStart: boolean
+  /**
    * 期限内の挑戦中。無ければ null
    */
   inProgressAttempt: { expiresAt: Date; id: number; startedAt: Date } | null
-  passage: PassageOverview
+  /**
+   * timeLimitSeconds は公開中の問題なら問題の制限時間、公開中でない問題なら挑戦中の挑戦の開始時点の制限時間
+   */
+  passage: Pick<PassageOverview, "id" | "difficulty" | "timeLimitSeconds" | "title" | "wordCount">
   questionCount: number
   serverNow: Date
 }
@@ -125,30 +132,63 @@ export const getRandomPassageId = async (
 }
 
 /**
- * 開始確認の概要（公開中の問題だけ）。期限内の挑戦中があれば、その期限を付ける
+ * 開始確認の概要。期限内の挑戦中があれば、その期限を付ける。
+ * 公開中でない問題（非公開に戻された問題）は、そのユーザーの期限内の挑戦中があるときだけ再開用に返し（canStart: false）、
+ * 無ければ 404（挑戦の開始 API は非公開に戻された問題の挑戦中を再開できるので、その入口を残す）
  */
 export const getPassageOverview = async (
   input: { now: Date; passageId: number; userId: number },
   repo: PassageRepo,
 ): Promise<Result<PassageOverviewView>> => {
-  const summary = await repo.passageRepository.findPublishedById(input.passageId)
-  if (!summary) {
-    logger.debug("PassageService: Published passage not found", { passageId: input.passageId })
+  const [summary, attempt] = await Promise.all([
+    repo.passageRepository.findPublishedById(input.passageId),
+    repo.readingAttemptRepository.findAliveInProgress(input.userId, input.passageId, calculateAliveSince(input.now)),
+  ])
+  const inProgressAttempt = attempt
+    ? { expiresAt: calculateExpiresAt(attempt.startedAt), id: attempt.id, startedAt: attempt.startedAt }
+    : null
+
+  if (summary) {
+    return ok({
+      attribution: buildAttribution(summary.source, summary.passage),
+      canStart: true,
+      inProgressAttempt,
+      passage: summary.passage,
+      questionCount: summary.questionCount,
+      serverNow: input.now,
+    })
+  }
+  if (!attempt) {
+    logger.debug("PassageService: Passage is not published and has no in-progress attempt", { passageId: input.passageId, userId: input.userId })
     return err(notFoundError("Passage not found"))
   }
 
-  const attempt = await repo.readingAttemptRepository.findAliveInProgress(
-    input.userId,
-    input.passageId,
-    calculateAliveSince(input.now),
-  )
+  /**
+   * passages は物理削除しない（reading_attempts の外部キーは restrict）ので、挑戦があれば問題もある
+   */
+  const content = await repo.passageRepository.findAttemptContentById(input.passageId)
+  if (!content) throw new Error(`Passage of attempt not found: attemptId=${attempt.id}, passageId=${input.passageId}`)
+  const { passage } = content
+  /**
+   * 挑戦がある問題は一度公開されているので難易度を必ず持つ（公開の条件。非公開に戻しても消えない）
+   */
+  if (passage.difficulty === null) throw new Error(`Passage with an attempt has no difficulty: id=${passage.id}`)
+  logger.debug("PassageService: Overview of unpublished passage for resuming", { attemptId: attempt.id, passageId: passage.id })
   return ok({
-    attribution: buildAttribution(summary.source, summary.passage),
-    inProgressAttempt: attempt
-      ? { expiresAt: calculateExpiresAt(attempt.startedAt), id: attempt.id, startedAt: attempt.startedAt }
-      : null,
-    passage: summary.passage,
-    questionCount: summary.questionCount,
+    attribution: buildAttribution(content.source, passage),
+    canStart: false,
+    inProgressAttempt,
+    passage: {
+      id: passage.id,
+      difficulty: passage.difficulty,
+      /**
+       * 非公開の間に問題の制限時間が直されていることがあるので、解答画面と同じ挑戦の開始時点の制限時間を出す
+       */
+      timeLimitSeconds: attempt.timeLimitSeconds,
+      title: passage.title,
+      wordCount: passage.wordCount,
+    },
+    questionCount: content.questions.length,
     serverNow: input.now,
   })
 }

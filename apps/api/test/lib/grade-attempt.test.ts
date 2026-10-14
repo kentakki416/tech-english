@@ -1,4 +1,4 @@
-import { calculateWordsPerMinute, clampElapsedSeconds, gradeAnswers, isOvertime } from "../../src/lib/grade-attempt"
+import { calculateWordsPerMinute, clampElapsedSeconds, gradeAnswers, hasAnswerKeyChanged, isOvertime } from "../../src/lib/grade-attempt"
 
 const STARTED_AT = new Date("2026-10-12T10:00:00.000Z")
 
@@ -75,6 +75,21 @@ describe("gradeAnswers", () => {
       const result = gradeAnswers(QUESTIONS.slice(0, 1), [{ questionId: 999, selectedChoiceIndex: 1 }])
 
       expect(result).toEqual({ answers: [{ isCorrect: false, questionId: 201, selectedChoiceIndex: null }], correctCount: 0 })
+    })
+  })
+})
+
+describe("hasAnswerKeyChanged", () => {
+  describe("正常系", () => {
+    it.each([
+      ["正解（1）を選んで正解のまま、いまの正解も 1 なら false", { isCorrect: true, selectedChoiceIndex: 1 }, 1, false],
+      ["0 を選んで不正解のまま、いまの正解も 1 なら false", { isCorrect: false, selectedChoiceIndex: 0 }, 1, false],
+      ["0 を選んで不正解だったが、いまの正解が 0 に直されていれば true", { isCorrect: false, selectedChoiceIndex: 0 }, 0, true],
+      ["1 を選んで正解だったが、いまの正解が 2 に直されていれば true", { isCorrect: true, selectedChoiceIndex: 1 }, 2, true],
+      ["0 を選んで不正解で、正解が 1 から 2 に直されても不正解のままなので false", { isCorrect: false, selectedChoiceIndex: 0 }, 2, false],
+      ["未回答はいまの正解でも不正解なので false", { isCorrect: false, selectedChoiceIndex: null }, 1, false],
+    ])("%s", (_label, storedAnswer, correctChoiceIndex, expected) => {
+      expect(hasAnswerKeyChanged(storedAnswer, correctChoiceIndex)).toBe(expected)
     })
   })
 })

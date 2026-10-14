@@ -53,9 +53,10 @@ export const passageAttributionSchema = z.object({
 | `getRandomPassageQueryStringSchema` | 一覧と同じ `difficulty` / `kind` / `tag` |
 | `getRandomPassageResponseSchema` | `{ id }` |
 | `getPassagePathParamSchema` | `{ id: z.coerce.number().int().positive() }` |
-| `getPassageResponseSchema` | `id`、`attribution`、`difficulty`、`in_progress_attempt: { id, expires_at, started_at } \| null`、`question_count`、`server_now`、`time_limit_seconds`、`title`、`word_count` |
+| `getPassageResponseSchema` | `id`、`attribution`、`can_start: boolean`（新しく始められるか。公開中の問題だけ true）、`difficulty`、`in_progress_attempt: { id, expires_at, started_at } \| null`、`question_count`、`server_now`、`time_limit_seconds`、`title`、`word_count` |
 
 - `my_status.attempt_count` は提出済みの挑戦の数、`best_correct_count` はその最高正答数、`in_progress_attempt_id` は期限内の挑戦中の ID
+- 開始確認の概要は、公開中でない問題（非公開に戻された問題）でも **自分の期限内の挑戦中があれば** `can_start: false` で返す（挑戦の開始 API は非公開に戻された問題の挑戦中を再開できるので、その入口を残す。一覧には出ない）。このとき `in_progress_attempt` は必ずあり、`time_limit_seconds` は挑戦の開始時点の制限時間（非公開の間に問題の制限時間が直されていることがあるため。解答画面と同じ値）。挑戦中が無ければ今までどおり 404
 - 「未挑戦」は **提出済みの挑戦が 0 件**（挑戦中の問題も未挑戦に含む。モックの `attemptCount === 0` と同じ）
 - 並び順は `published_at` の降順、同時刻は `id` の降順。タグと難易度は「どれかに当てはまる」（OR）
 
@@ -154,7 +155,20 @@ export const getPassageOverview = async (input: { now: Date; passageId: number; 
 
 - `getPassageList`：カーソルが壊れていたら `err(badRequestError(...))`。`findPublishedPage` に `limit + 1` を渡し、余った 1 件で次ページの有無を決める。`countPublished` と `findPublishedTags` は `Promise.all` で並べる。取得した問題の ID で `summarizeByPassageIds` を呼んで `myStatus` を付ける（無ければ `{ attemptCount: 0, bestCorrectCount: null, inProgressAttemptId: null }`）
 - `getRandomPassageId`：未挑戦（`unattemptedByUserId: userId`）から選び、無ければ全体から選ぶ。どちらも無ければ `err(notFoundError(...))`
-- `getPassageOverview`：公開中でなければ 404。`findAliveInProgress` があれば `expiresAt = calculateExpiresAt(startedAt)` を付ける。`serverNow = now`
+- `getPassageOverview`：`findPublishedById` と `findAliveInProgress` を `Promise.all` で読む。`findAliveInProgress` があれば `expiresAt = calculateExpiresAt(startedAt)` を付ける。`serverNow = now`
+  - 公開中なら `canStart: true` で返す
+  - 公開中でなく、期限内の挑戦中も無ければ 404
+  - 公開中でなく、期限内の挑戦中があれば、`findAttemptContentById`（状態を問わない。step3 で足すので、この分岐は step3 の後に入れる）の問題・ソース・設問数から概要を作り、`canStart: false`・`timeLimitSeconds = attempt.timeLimitSeconds` で返す（問題が無ければ throw。passages は物理削除しない）
+
+```mermaid
+flowchart TD
+    A[開始確認の概要] --> B["findPublishedById と findAliveInProgress を並べて読む"]
+    B --> C{公開中?}
+    C -- はい --> OK1["canStart: true（挑戦中があれば in_progress_attempt）"]
+    C -- いいえ --> D{期限内の自分の挑戦中?}
+    D -- いいえ --> X404[404]
+    D -- はい --> E["findAttemptContentById で問題を読む"] --> OK2["canStart: false・制限時間は挑戦の開始時点の値"]
+```
 - `now` は Controller が `new Date()` を渡す（テストで時刻を固定するため）
 
 ### 6. Controller・Router・DI
@@ -181,7 +195,7 @@ Service（ユニット）:
 
 - [ ] `getPassageList`：壊れたカーソルで 400 / `limit + 1` 件返ると `nextCursor` が最後の要素から作られる / `unattemptedOnly` のときだけ `unattemptedByUserId` が渡る / 挑戦の集計が無い問題は未挑戦の形になる
 - [ ] `getRandomPassageId`：未挑戦が無いとき全体から選ぶ / どちらも無ければ 404
-- [ ] `getPassageOverview`：公開中でなければ 404 / 挑戦中があれば `expiresAt` が開始の 24 時間後
+- [ ] `getPassageOverview`：公開中なら `canStart: true` / 挑戦中があれば `expiresAt` が開始の 24 時間後 / 公開中でなく挑戦中も無ければ 404（問題の内容を読まない）/ 公開中でなくても挑戦中があれば `canStart: false` で、制限時間は挑戦の開始時点の値 / その問題が見つからなければ throw
 
 Controller（インテグレーション。問題・設問・ソースを入れる fixture は `test/fixture/passage.ts` に作る。question-generation step5 と共有し、先に作った方を使う）:
 
@@ -189,7 +203,8 @@ Controller（インテグレーション。問題・設問・ソースを入れ�
 - [ ] `GET /api/passage`：下書き・却下の問題が出ない / `published_at` の降順 / `kind`・`tag`（OR）・`difficulty`（OR）・`unattempted_only` で絞り込める / `total_count` が絞り込み後の件数 / `limit=2` で 3 件を 2 ページに分けて取れる / `difficulty=4` で 400
 - [ ] `my_status`：提出 2 回（正答 2・3）で `attempt_count: 2, best_correct_count: 3` / 他人の挑戦は数えない / 開始から 24 時間たった in_progress は `in_progress_attempt_id: null`
 - [ ] `GET /api/passage/random`：未挑戦があればそれを返す / 全部提出済みなら提出済みから返す / 条件に合う問題が無ければ 404
-- [ ] `GET /api/passage/:id`：下書きは 404 / 期限内の挑戦中があれば `in_progress_attempt` が返る / レスポンス全体を `toEqual` + `expect.any(String)` で検証
+- [ ] `GET /api/passage/:id`：下書き・却下は（自分の挑戦中が無ければ）404 / 期限内の挑戦中があれば `in_progress_attempt` が返る / レスポンス全体を `toEqual` + `expect.any(String)` で検証（公開中は `can_start: true`）
+- [ ] `GET /api/passage/:id`：非公開に戻された問題でも期限内の自分の挑戦中があれば 200 で `can_start: false`、`time_limit_seconds` は挑戦の開始時点の値 / 24 時間たった挑戦中・提出済みの挑戦・他人の挑戦中だけなら 404
 
 Repository（`test/repository/passage-repository.test.ts`・`reading-attempt-repository.test.ts`。Drizzle / Prisma の両方）:
 

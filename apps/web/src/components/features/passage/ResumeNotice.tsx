@@ -15,6 +15,11 @@ const buildExpiryText = (remainingMs: number): string =>
     : `あと ${Math.ceil(remainingMs / HOUR_MS)} 時間で期限切れになります。`
 
 /**
+ * 公開を終了した問題（新しく始められない）の挑戦中に添える文
+ */
+const UNPUBLISHED_TEXT = "この問題は公開を終了しています。この挑戦は再開して提出できますが、新しく始めることはできません。"
+
+/**
  * 残り時間（負なら超過時間）
  */
 const buildRemainingText = (remainingSeconds: number): string =>
@@ -23,16 +28,19 @@ const buildRemainingText = (remainingSeconds: number): string =>
 /**
  * 開始確認の「前回の続きから再開できます。」。残り時間と回答数は端末に保存した途中経過から出す
  * （別の端末で始めた挑戦は保存が無いので経過 0・回答 0）。localStorage はサーバーで読めないので、
- * hydration が終わってから数字を出す（サーバーの HTML とのずれを防ぐ）
+ * hydration が終わってから数字を出す（サーバーの HTML とのずれを防ぐ）。
+ * 公開を終了した問題（canStart が false）は、新しく始められないことを添える
  */
 export function ResumeNotice({
   attemptId,
+  canStart,
   expiresAt,
   questionCount,
   serverNow,
   timeLimitSeconds,
 }: {
   attemptId: number
+  canStart: boolean
   expiresAt: string
   questionCount: number
   serverNow: string
@@ -56,6 +64,7 @@ export function ResumeNotice({
           ? `${buildRemainingText(timeLimitSeconds - elapsedSeconds)}、回答 ${answeredCount} / ${questionCount}。${buildExpiryText(expiryRemainingMs)}`
           : null}
       </p>
+      {!canStart && <p className="mt-1 text-fg-muted">{UNPUBLISHED_TEXT}</p>}
     </div>
   )
 }
