@@ -16,6 +16,12 @@ import { useAuthStore } from "@/features/auth/auth.store"
 const REFRESH_TIMEOUT_MS = 15_000
 
 /**
+ * API の呼び出しの既定の打ち切り。axios の既定（0）は無制限で、api が応答しないと画面が読み込み中・提出中のまま止まるため。
+ * 提出は冪等なので、打ち切った後に api が処理を終えていても、もう一度送れば同じ結果が返る
+ */
+const REQUEST_TIMEOUT_MS = 15_000
+
+/**
  * 401 で refresh したあと 1 回だけ再送したかの印
  */
 type RetryableRequestConfig = InternalAxiosRequestConfig & { isRetry?: boolean }
@@ -26,7 +32,7 @@ type RetryableRequestConfig = InternalAxiosRequestConfig & { isRetry?: boolean }
  * - 保存済みの access token を Bearer で付ける
  * - 401 なら refresh token でトークンを更新し、同じリクエストを 1 回だけ再送する
  */
-export const apiClient = createAxiosInstance({ baseURL: env.EXPO_PUBLIC_API_URL })
+export const apiClient = createAxiosInstance({ baseURL: env.EXPO_PUBLIC_API_URL, timeout: REQUEST_TIMEOUT_MS })
 
 apiClient.interceptors.request.use(async (config) => {
   const tokens = await getStoredTokens()
