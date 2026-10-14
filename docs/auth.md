@@ -88,7 +88,7 @@ sequenceDiagram
     - 応答を受け取れなかったクライアント（web の 5 秒の timeout・mobile の通信断）。api はローテーションを終えているのに、クライアントには旧 token が残る
     - 同じ token での同時の更新（ページと prefetch など）
     - web を複数台にしたとき（web のプロセス内で同じ token の更新をまとめる仕組みは台をまたがない）
-- **web がログアウトさせる条件**: refresh API が 401 / 400（token が使えない）を返したときだけ cookie を消す。429（api のレート制限。IP 単位で、web からの呼び出しは web サーバーの IP に集まる）・5xx・timeout では cookie を残し、次のリクエストで再試行する
+- **web がログアウトさせる条件**: refresh API が 401 / 400（token が使えない）を返したときだけ cookie を消す。429（api のレート制限。一時的なもので token が使えないわけではない。数え方は[セキュリティ設計のまとめ](#セキュリティ設計のまとめ)）・5xx・timeout では cookie を残し、次のリクエストで再試行する
 - **public なパスでも更新する**: `/api/events` などログイン不要のパスでも、refresh cookie があって access token が使えなければ proxy が更新だけ行う（token が使えなければ cookie を消すだけで、リダイレクトしない）
 - **期限内の access token が拒まれたとき**: 別の端末でアカウントを削除した・JWT の secret を差し替えたなどで、api が期限内の access token を 401 で拒むと、web の Server Component（共通ヘッダーのユーザー取得など）が `/api/auth/session-expired` へ redirect し、その Route Handler が cookie を消してからログイン画面へ移す（Server Component は cookie を書き換えられないため）
 
@@ -135,6 +135,7 @@ redirect_uri: `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/callback/google`,
 | refresh の **jti を Redis 管理** | サーバ側で個別失効が可能。ローテーション運用も対応 |
 | ローテーションに **30 秒の猶予**（同じペアを返す） | 応答を受け取れなかった・同時の更新で 2 回目が 401 になり、ログアウトさせない |
 | cookie は **sameSite=lax** | OAuth コールバックの cross-site 連鎖ナビゲーションでも cookie が送信される |
+| api のレート制限（1 分 300 回）は **検証できた token のユーザー単位**（Bearer の access token、refresh は body の refresh token。署名と期限だけ見て DB は引かない）。token が無い・検証できなければ **IP 単位** | web の Server Component・Route Handler・proxy からの呼び出しは web サーバーの IP に集まるため、IP だけで数えると全ユーザーで上限を分け合う。token の無い・不正なリクエストは今までどおり IP で数え、総当たりを止める（`apps/api/src/middleware/rate-limit.ts`） |
 
 ## 関連ファイル
 
@@ -153,5 +154,6 @@ redirect_uri: `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/callback/google`,
 - `apps/api/src/service/auth-service.ts` — `authenticateWithGoogle` / `refreshTokens` / `logout`
 - `apps/api/src/client/google-oauth.ts` — Google OAuth クライアント
 - `apps/api/src/lib/jwt.ts` — JWT 発行・検証
+- `apps/api/src/middleware/rate-limit.ts` — レート制限（token のユーザー単位、無ければ IP 単位）
 - `apps/api/src/repository/redis/refresh-token-repository.ts` — refresh token の Redis 永続化（ローテーションの猶予の記録を含む）
 - `apps/api/src/repository/drizzle/auth-account-repository.ts` — User と AuthAccount の DB 操作（Prisma 版は `repository/prisma/`）

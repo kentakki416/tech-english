@@ -173,7 +173,7 @@ api の認証は既存の Bearer トークン（`authMiddleware`）のままで�
 | 状況 | web の動き |
 | --- | --- |
 | refresh API が 401 / 400（token が使えない） | cookie を消してログイン画面へ（Route Handler は 401）。ログイン不要のパスでは cookie を消すだけ |
-| refresh API が 429（api のレート制限）・5xx・timeout | cookie を残して通し、次のリクエストで再試行する（レート制限は IP 単位で、web からの呼び出しは web サーバーの IP に集まるため、429 でログアウトさせない） |
+| refresh API が 429（api のレート制限）・5xx・timeout | cookie を残して通し、次のリクエストで再試行する（429 は一時的なもので token が使えないわけではないため、ログアウトさせない。api のレート制限は body の refresh token が検証できればそのユーザー単位、できなければ IP 単位で数える） |
 | 期限内の access token を api が 401 で拒む（別の端末でアカウントを削除した・JWT の secret を差し替えた） | ページのデータ取得（共通ヘッダーのユーザー取得、マイページ・設定・学習履歴・問題一覧・開始確認・ランダム・解答・結果のデータ取得）が `/api/auth/session-expired` へ redirect し、その Route Handler が cookie を消してからログイン画面へ移す（Server Component は cookie を書き換えられず、cookie を残したままでは同じ 401 を繰り返すため）。access token の期限（最長 15 分）が切れると proxy が更新し、更新できれば元どおり、refresh token も使えなければログイン画面へ移る |
 
 ### 既存の Google OAuth の扱い
