@@ -77,3 +77,8 @@ export type SourceDocument = Prisma.SourceDocumentModel
  * 
  */
 export type User = Prisma.UserModel
+/**
+ * Model UserGoal
+ * 
+ */
+export type UserGoal = Prisma.UserGoalModel

@@ -16,3 +16,17 @@ export const formatDateInTimeZone = (instant: Date, timeZone: string): string =>
   }
   return `${findPart("year")}-${findPart("month")}-${findPart("day")}`
 }
+
+/**
+ * ユーザーのタイムゾーンでの時刻（HH:mm。24 時間制で 0 時は 00）。学習記録の挑戦の一覧の提出時刻に使う。
+ * hourCycle: "h23" を指定しないと、en-US では 0 時が 24 になる実装がある。タイムゾーン名が不正なら RangeError を throw する
+ */
+export const formatTimeInTimeZone = (instant: Date, timeZone: string): string => {
+  const parts = new Intl.DateTimeFormat("en-US", { hour: "2-digit", hourCycle: "h23", minute: "2-digit", timeZone }).formatToParts(instant)
+  const findPart = (type: Intl.DateTimeFormatPartTypes): string => {
+    const value = parts.find((part) => part.type === type)?.value
+    if (value === undefined) throw new Error(`Missing ${type} in formatted time: timeZone=${timeZone}`)
+    return value
+  }
+  return `${findPart("hour")}:${findPart("minute")}`
+}

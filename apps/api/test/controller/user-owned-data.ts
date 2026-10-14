@@ -10,6 +10,7 @@ import {
   questions,
   readingAttempts,
   sourceDocuments,
+  userGoals,
 } from "@repo/db"
 
 import { testDb } from "./setup"
@@ -162,6 +163,19 @@ export const USER_OWNED_TABLES: readonly UserOwnedTable[] = [
       ])
     },
     tableName: "attempt_word_lookups",
+  },
+  {
+    countRows: async (userId) => testDb.$count(userGoals, eq(userGoals.userId, userId)),
+    seed: async (userId) => {
+      await testDb.insert(userGoals).values({
+        goalText: "英語の公式ドキュメントを辞書なしで読めるようになる",
+        targetDate: "2027-03-31",
+        userId,
+        weeklyMetric: "passages",
+        weeklyTarget: 5,
+      })
+    },
+    tableName: "user_goals",
   },
 ]
 

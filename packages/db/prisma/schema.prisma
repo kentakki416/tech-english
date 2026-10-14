@@ -334,8 +334,28 @@ model User {
     updatedAt DateTime @updatedAt @map("updated_at")
 
     accounts        AuthAccount[]
+    goal            UserGoal?
     readingAttempts ReadingAttempt[]
     wordLookups     AttemptWordLookup[]
 
     @@map("users")
+}
+
+// ユーザーの目標（1 ユーザー 1 行）。weekly_metric は @repo/domain の定数から作る CHECK 制約があるが、Prisma では表現できないので String にしている
+// （Prisma 実装の Repository は isGoalMetric で検証してから domain 型にする）。weekly_target の CHECK 制約も Drizzle のマイグレーションが持つ
+model UserGoal {
+    id           Int       @id @default(autoincrement())
+    userId       Int       @unique @map("user_id")
+    goalText     String?   @map("goal_text") @db.VarChar(200)
+    /// Prisma では UTC の 0 時の Date で返るので、Repository で toISOString().slice(0, 10) にする
+    targetDate   DateTime? @map("target_date") @db.Date
+    /// GOAL_METRICS
+    weeklyMetric String?   @map("weekly_metric")
+    weeklyTarget Int?      @map("weekly_target")
+    createdAt    DateTime  @default(now()) @map("created_at")
+    updatedAt    DateTime  @updatedAt @map("updated_at")
+
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+    @@map("user_goals")
 }

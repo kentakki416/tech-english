@@ -45,8 +45,13 @@ import { MemoUpdateController } from "./controller/memo/update"
 import { PassageDetailController } from "./controller/passage/detail"
 import { PassageListController } from "./controller/passage/list"
 import { PassageRandomController } from "./controller/passage/random"
+import { UserAttemptsController } from "./controller/user/attempts"
+import { UserCalendarController } from "./controller/user/calendar"
 import { UserDeleteController } from "./controller/user/delete"
 import { UserGetController } from "./controller/user/get"
+import { UserGetGoalController } from "./controller/user/get-goal"
+import { UserPutGoalController } from "./controller/user/put-goal"
+import { UserStatsController } from "./controller/user/stats"
 import { UserUpdateController } from "./controller/user/update"
 import { env } from "./env"
 import { authMiddleware } from "./middleware/auth"
@@ -59,10 +64,12 @@ import {
   DrizzleContentSourceRepository,
   DrizzleDatabaseHealthRepository,
   DrizzleDictionaryRepository,
+  DrizzleLearningRecordRepository,
   DrizzleMemoRepository,
   DrizzlePassageRepository,
   DrizzleReadingAttemptRepository,
   DrizzleTransactionRunner,
+  DrizzleUserGoalRepository,
   DrizzleUserRepository,
 } from "./repository/drizzle"
 import { IoRedisHealthRepository, IoRedisRefreshTokenRepository } from "./repository/redis"
@@ -109,6 +116,11 @@ const contentSourceRepository = new DrizzleContentSourceRepository(db)
 const passageRepository = new DrizzlePassageRepository(db)
 const readingAttemptRepository = new DrizzleReadingAttemptRepository(db)
 const dictionaryRepository = new DrizzleDictionaryRepository(db)
+/**
+ * 学習記録（learning-record）の集計と目標
+ */
+const learningRecordRepository = new DrizzleLearningRecordRepository(db)
+const userGoalRepository = new DrizzleUserGoalRepository(db)
 const databaseHealthRepository = new DrizzleDatabaseHealthRepository(db)
 const redisHealthRepository = new IoRedisHealthRepository(redis)
 const refreshTokenRepository = new IoRedisRefreshTokenRepository(redis)
@@ -152,6 +164,19 @@ const authLogoutController = new AuthLogoutController(refreshTokenRepository)
 const userDeleteController = new UserDeleteController(userRepository, refreshTokenRepository)
 const userGetController = new UserGetController(userRepository)
 const userUpdateController = new UserUpdateController(userRepository)
+
+/**
+ * 学習記録（マイページの統計・学習カレンダー・提出した挑戦の一覧）Controller のインスタンス化
+ */
+const userAttemptsController = new UserAttemptsController(learningRecordRepository, userRepository)
+const userCalendarController = new UserCalendarController(learningRecordRepository, userRepository)
+const userStatsController = new UserStatsController(learningRecordRepository, userGoalRepository, userRepository)
+
+/**
+ * 目標（取得・保存）Controller のインスタンス化
+ */
+const userGetGoalController = new UserGetGoalController(userGoalRepository)
+const userPutGoalController = new UserPutGoalController(userGoalRepository, userRepository)
 
 /**
  * dev-login Controller は production 以外でのみ生成する
@@ -329,8 +354,13 @@ app.use(
 app.use(
   "/api/user",
   userRouter({
+    attempts: userAttemptsController,
+    calendar: userCalendarController,
     delete: userDeleteController,
     get: userGetController,
+    getGoal: userGetGoalController,
+    putGoal: userPutGoalController,
+    stats: userStatsController,
     update: userUpdateController,
   })
 )

@@ -408,7 +408,8 @@ export const ModelName = {
   Question: 'Question',
   ReadingAttempt: 'ReadingAttempt',
   SourceDocument: 'SourceDocument',
-  User: 'User'
+  User: 'User',
+  UserGoal: 'UserGoal'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -424,7 +425,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "attemptAnswer" | "attemptWordLookup" | "authAccount" | "contentSource" | "dictionaryEntry" | "memo" | "passage" | "passageGlossaryEntry" | "question" | "readingAttempt" | "sourceDocument" | "user"
+    modelProps: "attemptAnswer" | "attemptWordLookup" | "authAccount" | "contentSource" | "dictionaryEntry" | "memo" | "passage" | "passageGlossaryEntry" | "question" | "readingAttempt" | "sourceDocument" | "user" | "userGoal"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -1316,6 +1317,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    UserGoal: {
+      payload: Prisma.$UserGoalPayload<ExtArgs>
+      fields: Prisma.UserGoalFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.UserGoalFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserGoalPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.UserGoalFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserGoalPayload>
+        }
+        findFirst: {
+          args: Prisma.UserGoalFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserGoalPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.UserGoalFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserGoalPayload>
+        }
+        findMany: {
+          args: Prisma.UserGoalFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserGoalPayload>[]
+        }
+        create: {
+          args: Prisma.UserGoalCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserGoalPayload>
+        }
+        createMany: {
+          args: Prisma.UserGoalCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.UserGoalCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserGoalPayload>[]
+        }
+        delete: {
+          args: Prisma.UserGoalDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserGoalPayload>
+        }
+        update: {
+          args: Prisma.UserGoalUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserGoalPayload>
+        }
+        deleteMany: {
+          args: Prisma.UserGoalDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.UserGoalUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.UserGoalUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserGoalPayload>[]
+        }
+        upsert: {
+          args: Prisma.UserGoalUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserGoalPayload>
+        }
+        aggregate: {
+          args: Prisma.UserGoalAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateUserGoal>
+        }
+        groupBy: {
+          args: Prisma.UserGoalGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.UserGoalGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.UserGoalCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.UserGoalCountAggregateOutputType> | number
+        }
+      }
+    }
   }
 } & {
   other: {
@@ -1569,6 +1644,20 @@ export const UserScalarFieldEnum = {
 } as const
 
 export type UserScalarFieldEnum = (typeof UserScalarFieldEnum)[keyof typeof UserScalarFieldEnum]
+
+
+export const UserGoalScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  goalText: 'goalText',
+  targetDate: 'targetDate',
+  weeklyMetric: 'weeklyMetric',
+  weeklyTarget: 'weeklyTarget',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type UserGoalScalarFieldEnum = (typeof UserGoalScalarFieldEnum)[keyof typeof UserGoalScalarFieldEnum]
 
 
 export const SortOrder = {
@@ -1856,6 +1945,7 @@ export type GlobalOmitConfig = {
   readingAttempt?: Prisma.ReadingAttemptOmit
   sourceDocument?: Prisma.SourceDocumentOmit
   user?: Prisma.UserOmit
+  userGoal?: Prisma.UserGoalOmit
 }
 
 /* Types for Logging */

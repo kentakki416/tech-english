@@ -1,68 +1,59 @@
-import type { GetUserResponse } from "@repo/api-schema"
-
-import { RefreshButton } from "@/components/features/user/refresh-button"
-import { UserBotAnimation } from "@/components/features/user/user-bot-animation"
+import { FirstStepGuide } from "@/components/features/learning-record/FirstStepGuide"
+import { GoalPanel } from "@/components/features/learning-record/GoalPanel"
+import { PrimaryActions } from "@/components/features/learning-record/PrimaryActions"
+import { RecentAttempts } from "@/components/features/learning-record/RecentAttempts"
+import { StreakPanel } from "@/components/features/learning-record/StreakPanel"
+import { StudyCalendar } from "@/components/features/learning-record/StudyCalendar"
+import { StudyTotals } from "@/components/features/learning-record/StudyTotals"
+import { TypeAccuracy } from "@/components/features/learning-record/TypeAccuracy"
+import { AppHeader } from "@/components/ui/AppHeader"
+import { UserAvatar } from "@/components/ui/UserAvatar"
+import { learningRecordApi } from "@/features/learning-record/learning-record.api"
 import { getUser } from "@/features/user/get-user"
 
 /**
- * トップページ（認証ユーザー情報サンプル）。
- *
- * 初期データ取得は Server Component 内で server-only な apiClient 経由で行う。
- * ブラウザから Express API を直接叩かないことで、cookie 認証・401 リフレッシュ・
- * origin のサーバ側解決を一貫させる。
+ * マイページ（ログイン後の最初の画面）。PC は左に学習カレンダーと統計、右に囲みのパネル。
+ * 1024px 未満ではパネルを先に並べる（続ける動機になる連続日数と目標を先に見せる）
  */
-export default async function Home() {
-  let user: GetUserResponse | null = null
-  let hasError = false
-
-  try {
-    user = await getUser()
-  } catch {
-    hasError = true
-  }
+export default async function HomePage() {
+  const [user, stats, calendar] = await Promise.all([getUser(), learningRecordApi.getStats(), learningRecordApi.getCalendar()])
+  const isEmpty = stats.totals.attempt_count === 0
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <UserBotAnimation />
+    <>
+      <AppHeader current="home" />
+      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <UserAvatar avatarUrl={user.avatar_url} className="size-11 text-lg" name={user.name} size={44} />
+            <h1 className="text-xl font-semibold text-fg">{user.name ?? "ユーザー"}</h1>
+          </div>
+          {!isEmpty && <PrimaryActions />}
+        </div>
 
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            ユーザー情報取得サンプル
-          </h1>
+        {isEmpty && <FirstStepGuide />}
 
-          {hasError && (
-            <div className="rounded-lg bg-red-100 p-4 text-red-800 dark:bg-red-900 dark:text-red-200">
-              <p className="font-semibold">エラー</p>
-              <p>ユーザー情報の取得に失敗しました</p>
-            </div>
-          )}
+        <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="min-w-0 space-y-10">
+            <section>
+              <StudyCalendar initialCalendar={calendar} />
+            </section>
 
-          {user && (
-            <div className="rounded-lg bg-zinc-100 p-6 dark:bg-zinc-800">
-              <h2 className="mb-4 text-xl font-semibold text-black dark:text-zinc-50">
-                ユーザー情報
-              </h2>
-              <div className="space-y-2 text-left">
-                <p className="text-zinc-700 dark:text-zinc-300">
-                  <span className="font-medium">ID:</span> {user.id}
-                </p>
-                <p className="text-zinc-700 dark:text-zinc-300">
-                  <span className="font-medium">名前:</span> {user.name ?? "-"}
-                </p>
-                <p className="text-zinc-700 dark:text-zinc-300">
-                  <span className="font-medium">メール:</span> {user.email ?? "-"}
-                </p>
-                <p className="text-zinc-700 dark:text-zinc-300">
-                  <span className="font-medium">作成日時:</span> {user.created_at}
-                </p>
-              </div>
-            </div>
-          )}
+            {!isEmpty && (
+              <section className="grid gap-8 border-t border-line pt-8 sm:grid-cols-2">
+                <StudyTotals noAssist={stats.no_assist} totals={stats.totals} />
+                <TypeAccuracy typeAccuracy={stats.type_accuracy} weakestQuestionType={stats.weakest_question_type} />
+              </section>
+            )}
+          </div>
 
-          <RefreshButton />
+          <aside className="order-first divide-y divide-line self-start rounded-xl border border-line bg-surface lg:order-none">
+            <StreakPanel isEmpty={isEmpty} streak={stats.streak} />
+            <GoalPanel goal={stats.goal} />
+            {!isEmpty && <RecentAttempts attempts={stats.recent_attempts} />}
+          </aside>
         </div>
       </main>
-    </div>
+    </>
   )
 }
