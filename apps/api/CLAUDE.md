@@ -106,6 +106,15 @@ pnpm exec dotenvx set KEY "value" -f .env.local
 
 **`/media/*` は開発環境だけ**の配信（cron が書いた mp3。本番は S3 + CloudFront）。dev-login と同じくガードを 1 か所に集めない：`src/index.ts` は `production` で `mediaRouter` を登録せず、`DEV_ONLY_PUBLIC_PATHS`（`<audio>` は Authorization ヘッダを付けられないので認証の対象外にする）も `production` では `/media` を含めず、`src/routes/media-router.ts` も先頭で `production` なら 404 にする。Range のリクエストが続くので `apiRateLimiter` より前に登録し、helmet の `Cross-Origin-Resource-Policy` はこの router だけ `cross-origin` に上書きする（別オリジンの web の `<audio>` が読めるように）。
 
+## レート制限
+
+`apiRateLimiter`（`src/middleware/rate-limit.ts`）が API 全体に 1 分 300 回の上限をかける（in-memory でインスタンス単位）。`/api/health` と開発用の `/media` は limiter より前に登録して対象外にする。
+
+- **数え方**: Authorization の Bearer の access token を検証できれば `user:<userId>`、`POST /api/auth/refresh` は body の refresh token を検証できればそのユーザー、どちらも無い・検証できなければ `ip:<IP>`（`trust proxy` を反映した `req.ip`）。検証は `lib/jwt.ts` で署名と期限を見るだけで、DB / Redis は引かない
+- **理由**: web の Server Component・Route Handler・proxy からの呼び出しはすべて web サーバーの IP から来るため、IP だけで数えると全ユーザーで上限を分け合ってしまう。token の無い・検証できないリクエストは IP で数え、総当たりへの備えは弱めない
+- refresh の body を読むので **`express.json()` より後に登録する**
+- IPv6 はアドレスごとに数える（express-rate-limit 7.x の既定と同じ。サブネットでまとめる `ipKeyGenerator` は 8.x から）
+
 ## 新エンドポイント追加の手順
 
 1. `@repo/api-schema` にスキーマを定義（命名規則は `packages/schema/CLAUDE.md`）

@@ -296,7 +296,7 @@ const app = express()
 
 /**
  * ALB 越しの X-Forwarded-For から実 IP を取る。設定しないと全ユーザーが
- * プロキシの内部 IP として扱われ、IP 単位のレート制限が機能しない。
+ * プロキシの内部 IP として扱われ、トークンの無いリクエストを IP で数えるレート制限が機能しない。
  * 値はプロキシの段数（プロキシが無い環境では false）。
  */
 app.set("trust proxy", 1)
@@ -357,7 +357,8 @@ if (env.NODE_ENV !== "production") {
   app.use("/media", mediaRouter({ audioDir: resolve(env.AUDIO_STORAGE_LOCAL_DIR) }))
 }
 /**
- * レート制限を API 全体に適用する。
+ * レート制限を API 全体に適用する（検証できたトークンのユーザー単位、無ければ IP 単位）。
+ * refresh の body の refresh token でユーザーを見分けるため、express.json() より後に登録する。
  * ヘルスチェック（/api/health）はロードバランサの死活監視で高頻度に叩かれるため、本ミドル
  * ウェアより前に登録して対象外にしている（制限に巻き込むと target が unhealthy 判定される恐れ）。
  */

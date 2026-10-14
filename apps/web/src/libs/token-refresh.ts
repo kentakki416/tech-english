@@ -65,7 +65,7 @@ export const isAccessTokenUsable = (accessToken: string | undefined, now: number
 /**
  * refresh API が token を使えないと返したとき（401: 失効・削除済みユーザー・署名の不一致、400: body が不正）だけ rejected。
  * 429（レート制限）・5xx・timeout・通信の失敗は unavailable（ログアウトさせず、次のリクエストで再試行する）。
- * api のレート制限は IP 単位で、web からの呼び出しは web サーバーの IP に集まるため、429 でログアウトさせない
+ * 429 は一時的なもので token が使えないわけではないため、ログアウトさせない（api は body の refresh token が検証できればそのユーザー単位、できなければ IP 単位で数える）
  */
 const requestRefresh = async (refreshToken: string): Promise<RefreshResult> => {
   try {
