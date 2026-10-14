@@ -222,7 +222,6 @@ const styles = StyleSheet.create({
     zIndex: 30,
   },
   screen: {
-    backgroundColor: THEME_COLORS.canvas,
     flex: 1,
   },
   wordCardWrapper: {

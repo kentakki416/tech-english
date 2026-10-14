@@ -20,8 +20,10 @@ export const appStyles = StyleSheet.create({
     backgroundColor: THEME_COLORS.line,
     height: StyleSheet.hairlineWidth,
   },
+  /**
+   * 画面の一番外側。背景はルートレイアウトに敷いた AppBackdrop を透かすので塗らない
+   */
   screen: {
-    backgroundColor: THEME_COLORS.canvas,
     flex: 1,
   },
   sectionTitle: {
