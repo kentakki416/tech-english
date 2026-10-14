@@ -100,7 +100,7 @@
 | **見出し語ごとに Polly で作る** | ✅ 単語だけをはっきり読む | ― | 1 万語で約 $1.6（[費用](#費用)） | **単語に採用**。辞書のような単体の発音が覚えやすい。cron のタスクと表が増える |
 | **段落の音声から区間を切り出す** | △ 文の流れの中の発音。前後の音につながって聞こえることがある | ✅ 本文と同じ声・同じ読み | 0（作り置きの音声を使う） | **1 文に採用**。読み上げのマニフェストの単語の時刻で区間が求まる |
 | 端末の音声合成（Web Speech API / `expo-speech`） | △ | △ | 0 | 不採用。声の品質が端末で変わる（read-aloud と同じ理由） |
-| カードを出すときに api が Polly を呼ぶ | ✅ | ― | 同上 | 不採用。api に Polly と S3 の書き込みの権限が要り、1 回分の取得が遅くなる |
+| カードを出すときに api が Polly を呼ぶ | ✅ | ― | 見出し語ごとに作るのと同じ（作った音声を保存して使い回すなら） | 不採用。api に Polly と S3 の書き込みの権限が要り、1 回分の取得が遅くなる |
 
 ### 費用
 
@@ -169,7 +169,8 @@ cron に `generate:word-audio` タスクを足す。EventBridge Scheduler で **
 
 ### 失敗時の扱い
 
-- Polly・保存の一時的なエラーは `generate:audio` と同じく `attempt_count` を増やして次の実行に回す。3 回で `failed`。`failed` の語は自動では作り直さない（admin の画面は MVP では持たない。作り直すときは SQL で `status = 'pending'`・`attempt_count = 0` に戻す）
+- Polly・保存の一時的なエラーは `generate:audio` と同じく `attempt_count` を増やして次の実行に回す。3 回で `failed`。`failed` の語は自動では作り直さない（admin の画面は MVP では持たない。作り直すときは SQL で `status = 'pending'`・`attempt_count = 0`・`last_error = NULL` に戻す）
+- voice の変更で `ready` のまま確保した行の失敗は、`ready` のまま `attempt_count` を増やして `last_error` を残す（前の voice の音声を出し続ける。`failed` にしない。read-aloud と同じ）。3 回に達した行は生成タスクが取らなくなる。作り直すときは SQL で `attempt_count = 0`・`last_error = NULL` に戻す（`status` は `ready` のまま。`pending` にすると作り直しが終わるまで「準備中」になる）
 - 資格情報・権限・保存先の設定の誤りは、失敗の回数を増やさずに確保を外してタスクを止める（全語が `failed` にならないように。`generate:audio` と同じ）
 - 月の上限で止めたとき・1 語でも失敗したときはタスクを exit 1 にする（ECS のタスクの終了コードとログに残す）
 - 再生の失敗（mp3 を読み込めない）は、ボタンを押す前の状態に戻すだけにする（もう一度押すと読み込み直す）。単語帳の答えには影響しない
