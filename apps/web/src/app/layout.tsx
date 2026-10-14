@@ -47,7 +47,7 @@ export default function RootLayout({
   return (
     <html lang="ja">
       <body
-        className={`${literata.variable} ${plexSansJp.variable} ${plexMono.variable} min-h-dvh bg-canvas font-ui text-fg antialiased [color-scheme:dark] selection:bg-amber/30`}
+        className={`${literata.variable} ${plexSansJp.variable} ${plexMono.variable} app-backdrop min-h-dvh bg-canvas font-ui text-fg antialiased [color-scheme:dark] selection:bg-amber/30`}
       >
         <EventFlushOnHide />
         {children}

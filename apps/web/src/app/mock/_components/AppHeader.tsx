@@ -19,7 +19,7 @@ const NAV_ITEMS: { href: string, key: NavKey, label: string }[] = [
  */
 export function AppHeader({ current }: { current: NavKey }) {
   return (
-    <header className="sticky top-0 z-30 border-b border-line bg-canvas/90 backdrop-blur">
+    <header className="sticky top-0 z-30 border-b border-line bg-canvas/60 backdrop-blur-md">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 px-4 sm:h-14 sm:flex-nowrap sm:px-6">
         <div className="flex h-14 items-center"><Wordmark /></div>
         <nav
