@@ -2,7 +2,7 @@
 
 import type { GetAdminPassageResponse } from "@repo/api-schema"
 
-import { numberParagraphs, type PassageFormGlossaryEntry } from "@/features/passage/passage.form"
+import { numberParagraphs, type PassageFormGlossaryEntry, type SurfaceRange } from "@/features/passage/passage.form"
 
 /**
  * プレビューの 1 ブロック（種類・言語は詳細、英文・和訳はフォームの未保存の修正を含む値）
@@ -14,7 +14,12 @@ export type PreviewBlock = {
   type: GetAdminPassageResponse["blocks"][number]["type"]
 }
 
-export type PreviewGlossaryEntry = Pick<PassageFormGlossaryEntry, "block_index" | "clientKey" | "lemma" | "meaning_ja" | "surface">
+/**
+ * 下線を引く語句。range は生の本文（バッククォートを含む）上の位置で、本文に見つからなければ null（locateGlossaryEntry で求める）
+ */
+export type PreviewGlossaryEntry = Pick<PassageFormGlossaryEntry, "block_index" | "clientKey" | "lemma" | "meaning_ja" | "surface"> & {
+  range: SurfaceRange | null
+}
 
 type Run = {
   glossaryKey: string | null
@@ -26,27 +31,32 @@ type Run = {
 /**
  * ブロックの本文を、インラインコード・用語集の語句・根拠のハイライトごとの連続区間に分ける
  *
- * 用語集の語句と根拠の引用は重なりうる（引用の中に語句がある）ため、1 文字ずつ属性を付けてからまとめる。
+ * 用語集の語句と根拠の引用は重なりうる（引用の中に語句がある）ため、1 文字（UTF-16 の 1 単位）ずつ属性を付けてからまとめる。
+ * 用語集の位置は保存される位置と同じく生の本文（バッククォートを含む）上で付けてからバッククォートを除き、
+ * 根拠の引用は API の hasQuote と同じくバッククォートを除いた本文で探す。
  */
 const buildRuns = (text: string, entries: PreviewGlossaryEntry[], quote: string | null): Run[] => {
+  const rawGlossaryKeys: (string | null)[] = Array.from({ length: text.length }, () => null)
+  for (const entry of entries) {
+    if (!entry.range) continue
+    for (let index = entry.range.startOffset; index < entry.range.endOffset && index < text.length; index++) {
+      rawGlossaryKeys[index] = entry.clientKey
+    }
+  }
+
   let plain = ""
   const codeFlags: boolean[] = []
+  const glossaryKeys: (string | null)[] = []
   let isInCode = false
-  for (const char of text) {
+  for (let index = 0; index < text.length; index++) {
+    const char = text.charAt(index)
     if (char === "`") {
       isInCode = !isInCode
       continue
     }
     plain += char
     codeFlags.push(isInCode)
-  }
-
-  const glossaryKeys: (string | null)[] = Array.from({ length: plain.length }, () => null)
-  for (const entry of entries) {
-    if (entry.surface.length === 0) continue
-    const start = plain.indexOf(entry.surface)
-    if (start < 0) continue
-    for (let index = start; index < start + entry.surface.length; index++) glossaryKeys[index] = entry.clientKey
+    glossaryKeys.push(rawGlossaryKeys[index] ?? null)
   }
 
   const highlightFlags: boolean[] = Array.from({ length: plain.length }, () => false)

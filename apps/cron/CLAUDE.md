@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | `cleanup:old-memos` | `pnpm cleanup:old-memos` | `CLEANUP_MEMO_OLDER_THAN_DAYS`（既定 90）日より前の memo を一括削除 |
 | `collect:passages` | `pnpm collect:passages [--source-id=N] [--dry-run]` | 有効なソースから英文を取得して本文候補（`passages`、`status = collected`）を作る（[content-collection](../../docs/spec/content-collection/README.md)）。`--source-id` で 1 ソースに絞り、`--dry-run`（`--source-id` 必須）は最大 5 件を取得して抽出結果を表示する（DB に書かない・無効のソースも可）。`github_repository`（GitHub API）と `website`（公式ドキュメントのサイトのクロール）の両方を扱う |
-| `generate:questions` | `pnpm generate:questions [--passage-id=N]` | `collected` の本文候補から Claude API で設問・和訳・用語集を生成し、解答キーを見ない検証をして `draft` にする（[question-generation](../../docs/spec/question-generation/README.md#生成タスクの動き)）。`ANTHROPIC_API_KEY` が必須。`--passage-id` で 1 件だけ（`collected` でなければ throw。下書きの上限を見ない）。1 件でも `failed` になれば exit 1 |
+| `generate:questions` | `pnpm generate:questions [--passage-id=N]` | `collected` の本文候補から Claude API で設問・和訳・用語集を生成し、解答キーを見ない検証をして `draft` にする（[question-generation](../../docs/spec/question-generation/README.md#生成タスクの動き)）。`ANTHROPIC_API_KEY` が必須。`--passage-id` で 1 件だけ（`collected` でなければ throw。下書きの上限を見ない）。1 件でも `failed` になる、または取得した全件が一時的な失敗で `collected` に戻る（下書き・却下が 0 件）と exit 1 |
 | `generate:audio` | `pnpm generate:audio` | 公開済みの問題の読み上げの音声（mp3 と単語の時刻のマニフェスト）を Amazon Polly で作り、`passage_audios` を `ready` にする（[read-aloud](../../docs/spec/read-aloud/README.md#音声の生成タスク)）。本番は 1 時間ごと。`production` 以外の既定は `TTS_PROVIDER=fake`（無音の mp3 と等間隔の単語の時刻。ローカルの確認用）。`polly` で AWS の資格情報を解決できなければ、`production` 以外は warn を出して何もせず exit 0。`production` で `AUDIO_STORAGE_TYPE=local` なら起動時に throw（exit 1）。1 件でも失敗（`failed`・次の実行に回した失敗）があれば exit 1 |
 
 ## Commands
@@ -61,23 +61,25 @@ Markdown / MDX / HTML から本文を抽出し、200〜600 語の本文候補に
 | `lib/parse-collect-args.ts` / `lib/format-dry-run.ts` | 引数の解釈と試し実行の表示（純関数） |
 | `service/collection/list-github-target-files.ts` | コミットのツリーから対象の `.md` / `.mdx` を列挙する。trees API が切り詰められたら glob の固定部分のディレクトリごとに取り直す |
 | `service/collection/collect-github-source.ts` | 1 ソース分。blob SHA が変わったファイルだけ取得し、本文候補を挿入 → `markFetched` の順で保存する |
-| `service/collection/collect-website-source.ts` | サイトの 1 ソース分。robots.txt → sitemap / 開始ページから URL を発見（`upsertDiscovered`）→ 取得待ちの行（`findFetchQueue`）を条件付きリクエストで取得 → 200 はリンクを発見し、本文のハッシュが変わっていれば本文候補を挿入 → `markFetched`。304 / エラーは `markResponse` |
+| `service/collection/collect-website-source.ts` | サイトの 1 ソース分。robots.txt → sitemap / 開始ページから URL を発見（`upsertDiscovered`）→ 取得待ちの行（`findFetchQueue`）を条件付きリクエストで取得 → 200 はリンクを発見し、本文のハッシュが変わっていれば本文候補を挿入 → `markFetched`。304 / エラー / 取得できなかったページ / 抽出に失敗したページは `markResponse` |
 | `service/collection/website-pages.ts` | 取得してよいページの判定（同じオリジン・ページの拡張子・対象パス・robots.txt）、開始ページの path、HTML の抽出（収集と試し実行で共有） |
 | `service/collection/collect-passages.ts` | 全ソース。ソースごとに try-catch し、失敗は `failedSourceIds` に集めて次へ（task が最後に exit 1） |
 | `service/collection/preview-source.ts` | 試し実行。Repository の書き込みメソッドを呼ばない。サイトは sitemap があればその先頭から、無ければ開始ページからリンクを幅優先でたどって取得する（開始ページを含めて 5 ページまで。条件付きヘッダは付けない） |
 | `repository/{content-source,source-document,passage}-repository.ts` | cron 用の Repository（api の CRUD 用とは別） |
 
 - **冪等**：`markFetched`（blob SHA の記録）は本文候補の挿入の後。途中で落ちても次回同じファイルをやり直し、挿入済みの本文候補は `passages.content_hash` の unique で弾く（`insertIgnoringDuplicates`）
-- **`last_collected_commit_sha` は `completed` のときだけ更新**する。文書数・本文候補数の上限、rate limit、停止指示、ツリーの切り詰めで打ち切った場合は更新せず、次回は未処理（blob SHA が違う）ファイルだけを続きから処理する。上限は文書単位で判定し、1 文書の本文候補は途中で切らない
+- **`last_collected_commit_sha` は `completed` のときだけ更新**する。文書数・本文候補数の上限、rate limit、停止指示、ツリーの切り詰めで打ち切った場合は更新せず、次回は未処理（blob SHA が違う）ファイルだけを続きから処理する。上限は文書単位で判定し、1 文書の本文候補は途中で切らない。更新は収集を始めたときに読んだ値のままのときだけ行う（`markCollected` の楽観ロック）。収集の途中で admin が収集の範囲を変えて api が null に戻していたら書き戻さず、warn を出す
 - **rate limit**：`x-ratelimit-remaining` が閾値（token ありは 100、token なしは 10。`const/collection.ts`）を切ったらそのソースを `rate_limited` で打ち切り、以降の GitHub のソースも飛ばす（rate limit は token 単位）。`GitHubRateLimitError` も失敗にしない
 - 取得元から消えたファイルの `source_documents` / `passages` は何もしない（公開済みの問題は残す）
 
 **サイトのクロール（website）**：`source_documents` をクロールの待ち行列として使う（[content-collection のサイトのクロール](../../docs/spec/content-collection/README.md#サイトのクロール)）。
 
 - **待ち行列**：見つけた URL（sitemap の取得してよい URL・開始ページ・200 のページのリンク）を未取得の行として入れ、毎回「未取得 → `sitemap_lastmod` が前回の取得より新しい → `COLLECT_WEB_REFETCH_DAYS` 日より前に取得」の順に `COLLECT_MAX_DOCUMENTS_PER_SOURCE` 件まで取る。`path` は URL の pathname で、取得する URL は `site_url` のオリジン + path
-- **304 / 同じハッシュ**：前回の `ETag` / `Last-Modified` で条件付きリクエストし、304 は `fetched_at` だけ更新する。200 でも本文のハッシュ（`source_documents.content_hash`）が前回と同じなら本文候補を作らない。対象パス外の開始ページはリンクだけ使う
+- **304 / 同じハッシュ**：前回の `ETag` / `Last-Modified` で条件付きリクエストし、304 は `fetched_at` だけ更新する。200 でも本文のハッシュ（`source_documents.content_hash`）が前回と同じなら本文候補を作らない。対象パス外の開始ページと、リダイレクトの行き先が対象パス外・除外パス・ページでない拡張子のページはリンクだけ使う
+- **抽出の失敗**：本文の抽出が throw したページ（不正な CSS セレクタなど）は `ETag` / `Last-Modified` / ハッシュを保存せず `markResponse` する（保存すると 304 で止まり、セレクタを直しても抽出し直されない）。api はセレクタが変わったソースの `etag` / `last_modified` / `content_hash` を消す
 - **404 / 410** は `http_status` に記録して待ち行列から外す。sitemap の lastmod が新しくなるか、200 のページのリンクで再び見つかったら `http_status` を NULL に戻す
-- **429 / 503**（`WebSourceThrottledError`）はそのソースを `throttled` で打ち切る（失敗にしない）。ネットワークエラーは行を更新せず、`MAX_CONSECUTIVE_NETWORK_ERRORS`（3）回続いたらソースの失敗にする
+- **429 / 503**（`WebSourceThrottledError`）はそのソースを `throttled` で打ち切る（失敗にしない。`Retry-After` は待たずに次回の実行で再開する）。**取得できなかった行**（429 / 503 とネットワークエラー）も `fetched_at` に試した時刻を入れて待ち行列から外す（`COLLECT_WEB_REFETCH_DAYS` 日後に取り直す。入れないと同じ行が毎回先頭に来て、取得できないページがソース全体を止める）。ネットワークエラーが `MAX_CONSECUTIVE_NETWORK_ERRORS`（3）回続いたらソースの失敗にする
+- **`last_collected_at`**：サイトは `completed` / `limit_reached` のときだけ進める（`throttled` / `crawl_delay_too_long` / `interrupted` では進めない）
 - **礼儀正しさ**：robots.txt を毎回読んで守る（照合名は `TechEnglishBot`。4xx は全許可、5xx・ネットワークエラーは throw、429 / 503 は throttled）。同じオリジンへのリクエストは直列で、前回の開始から `max(COLLECT_WEB_REQUEST_INTERVAL_MS, Crawl-delay)` 空ける。`Crawl-delay` が `MAX_CRAWL_DELAY_SECONDS`（30 秒。`const/collection.ts`）を超えるサイトは、従うと処理が長時間止まるので warn を出してそのソースを `crawl_delay_too_long` で打ち切る（失敗にしない。`CrawlDelayTooLongError`。試し実行では throw してエラーを表示する）。タイムアウト 10 秒、`text/html` かつ 2MB 以下だけ受け取る。User-Agent は `TechEnglishBot/1.0 (+COLLECT_WEB_CONTACT_URL)`（未設定なら `TechEnglishBot/1.0`。GitHub API も同じ）
 - **取得先の制限（SSRF 対策）**：① リクエストの前（リダイレクト先も）に https かつ `site_url` と同じオリジンかを確かめる（IP アドレスのホストはここで範囲も確かめる。net.connect は IP アドレスに lookup を呼ばないため）② undici の `Agent` の `connect.lookup` に `createSafeLookup` を渡し、接続のときに名前解決した全アドレスがプライベート・ループバック・リンクローカルでないかを確かめる（DNS rebinding 対策）③ リダイレクトは `redirect: "manual"` で自分でたどり、同じオリジンの中で最大 3 回。違反は `BlockedUrlError` でソースの失敗にする
 - fetch はグローバルではなく undici のもの（npm の undici の `Agent` をグローバルの fetch に渡すと版の違いで動かないことがあるため）。undici は Node 20 で動く v7 に固定している（v8 は Node 22.19 以上が必要）
@@ -108,14 +110,15 @@ Markdown / MDX / HTML から本文を抽出し、200〜600 語の本文候補に
 | ファイル | 役割 |
 | --- | --- |
 | `lib/question-generation/validate-generated-output.ts` | `validateGeneratedOutput`：不合格なら再生成させる検査（Zod・設問数が `calculateQuestionCount` と一致・選択肢が前後の空白と大文字小文字を除いて重複しない・根拠と `vocabularyTarget` のブロック番号が範囲内で code でない）。理由は英語で、そのまま再生成の user message に入る。`isSuitable = false` は以降を見ずに合格 |
-| `lib/question-generation/build-draft-content.ts` | `buildDraftContent`：保存する形への加工と要確認の理由（和訳の欠け・根拠の引用が本文に無い・語義設問の対象の追加 / 不在）。用語集の位置は `findSurfaceRange` で本文から求め、見つからない語句は捨てて `droppedGlossary` に入れる（task のログに出る）。語義設問の対象が用語集に無ければ意味が空の項目を足して紐づける。選択肢のシャッフル（`shuffle-choices.ts`、Fisher–Yates、`random` を DI）と制限時間の計算もここ。要確認の段落の表記は `numberParagraphs`（番号の無いブロックは「見出し」） |
+| `lib/question-generation/build-draft-content.ts` | `buildDraftContent`：保存する形への加工と要確認の理由（和訳の欠け・根拠の引用が本文に無い・語義設問の対象の追加 / 不在）。用語集の位置は `findSurfaceRange` で本文から求め、見つからない語句は捨てて `droppedGlossary` に入れる（task のログに出る）。語義設問の対象が用語集に無ければ意味が空の項目を足して紐づける。選択肢のシャッフル（`shuffle-choices.ts`、Fisher–Yates、`random` を DI）と制限時間の計算もここ。要確認のブロックの表記は `numberParagraphs` の「段落 N」と `numberHeadings` の「見出し N」（api の公開の条件のメッセージと同じ規則） |
 | `lib/question-generation/find-verification-mismatches.ts` | 検証モデルの回答を正解と突き合わせ、`verificationChoiceIndex` と「Q3：検証モデルは A を選択（正解は B）」を作る |
 | `lib/question-generation/parse-args.ts` | `parseGenerateQuestionsArgs`（`--passage-id` を正の整数に） |
+| `lib/question-generation/describe-run-failure.ts` | `describeRunFailure`：実行の件数から exit 1 にすべき理由を返す（`failed` が 1 件以上、または下書き・却下が 0 件で `collected` に戻した件がある）。task が throw に使う |
 | `service/passage/generate-questions.ts` | 本体。下書きの上限 → 30 分以上 generating の行の回収 → `claimCollected` → 1 件ずつ「生成（不合格なら理由を付けて 1 回だけ再生成）→ `buildDraftContent` → 検証モデル → `saveDraft`」 |
 | `repository/passage-repository.ts` | `claimCollected`（`FOR UPDATE SKIP LOCKED` で選び、同じ UPDATE で generating に）/ `saveDraft`（passages の更新と questions / glossary の入れ直しを 1 トランザクション）/ `recordGenerationFailure` / `markRejectedByLlm` / `releaseClaim` / `releaseStaleGenerating` / `countByStatus` / `findStatusById` |
 
 - **claim のガード**：取得した行の更新（`saveDraft` / `markRejectedByLlm` / `recordGenerationFailure` / `releaseClaim`）は `WHERE id = ? AND status = 'generating' AND generation_started_at = ?`。`generation_started_at` を取得のトークンにして、30 分を超えて別の実行に回収・再取得された行を古い実行が上書きしない（0 行なら warn を出して数えない）
-- **失敗の扱い**：API エラー（SDK のリトライ後）・拒否・2 回目の不合格・想定外の例外は `recordGenerationFailure`（回数 +1、3 回目で `failed`、`generation_error` に「種類: メッセージ」）。途中で切れた出力（`LlmOutputTruncatedError`）と JSON でない出力は「不合格」として再生成する。`isSuitable = false` は `rejected`（理由が無ければ「LLM が題材に不向きと判定」）
+- **失敗の扱い**：API エラー（SDK のリトライ後）・拒否・2 回目の不合格・想定外の例外は `recordGenerationFailure`（回数 +1、3 回目で `failed`、`generation_error` に「種類: メッセージ」）。失敗した件は warn（`passage generation failed`）でログに出す。途中で切れた出力（`LlmOutputTruncatedError`）と JSON でない出力は「不合格」として再生成する。`isSuitable = false` は `rejected`（理由が無ければ「LLM が題材に不向きと判定」）
 - **設定の誤り（`isFatalLlmError`）**：生成で起きたら失敗回数を増やさずに `releaseClaim` して throw（タスクは exit 1。他の取得済みの行は 30 分後に回収される）。検証モデルで起きたら、生成の費用を無駄にしないよう下書きを検証なしで保存してから throw する
 - **検証モデルの失敗**：API エラー・回答の件数が設問数と合わない・設問番号の重複 / 範囲外は、生成を捨てず `verificationChoiceIndex = null` で保存し、要確認に「検証モデルでの確認に失敗しました」を入れる
 - **用語集の id の引き方**：insert の RETURNING の順序に頼らず、`(blockIndex, startOffset, endOffset)` で引く（`buildDraftContent` が同じ位置の項目を 2 つ作らない）

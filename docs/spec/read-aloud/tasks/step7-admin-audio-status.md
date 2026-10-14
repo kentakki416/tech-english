@@ -5,7 +5,7 @@ admin の問題の確認画面（`/passages/[id]`）に、読み上げの音声�
 ## 前提
 
 - [step4-api-attempt-audio](./step4-api-attempt-audio.md)（`GET /api/admin/passage/:id` の `audio`、`POST /api/admin/passage/:id/audio/retry`、`@repo/api-schema` の `retryAdminPassageAudioResponseSchema`）
-- [question-generation step6-admin-passage-review](../../question-generation/tasks/step6-admin-passage-review.md)（`/passages/[id]`、`PassageReview`、`passage.api.ts`、`passage-labels.ts`、`actions.ts` の `PassageActionResult`）
+- [question-generation step6-admin-passage-review](../../question-generation/tasks/step6-admin-passage-review.md)（`/passages/[id]`、`PassageReview`、`passage.api.ts`、`passage.labels.ts`、`actions.ts` の `PassageActionResult`）
 - [question-generation step4-api-admin-auth](../../question-generation/tasks/step4-api-admin-auth.md)（api client の `X-Admin-Token` と `ApiClientError`）
 
 ## 対応内容
@@ -24,7 +24,7 @@ admin の問題の確認画面（`/passages/[id]`）に、読み上げの音声�
 - 日時は一覧と同じく Asia/Tokyo の `YYYY-MM-DD HH:mm`（step6 の整形の関数があれば使う）
 - 下書きに戻した問題（音声の行がある）も同じカードを出す（作成済みの音声は「準備中」になる。再公開すると生成タスクが本文を確かめて「作成済み」に戻す）。再試行は状態を問わず `failed` なら押せる（生成されるのは再公開の後）
 
-### 2. ラベル（`src/features/passage/passage-labels.ts` に足す）
+### 2. ラベル（`src/features/passage/passage.labels.ts` に足す）
 
 `server-only` を付けないファイル（Client Component から使う）。キーは `AdminPassageDetail["audio"]` の `status` から型付けする（`@repo/api-schema` の型を使い、`@repo/domain` は import しない）。
 

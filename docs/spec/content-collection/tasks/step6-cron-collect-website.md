@@ -135,7 +135,10 @@ upsertDiscovered(sourceId: number, inputs: { path: string; sitemapLastmod: Date 
  */
 findFetchQueue(input: { limit: number; refetchBefore: Date; sourceId: number }): Promise<SourceDocument[]>
 
-/** fetched_at と http_status だけを更新する（304 / エラー / 取得しなかったページ） */
+/**
+ * fetched_at と http_status だけを更新する（304 / エラー / 取得しなかったページ / 取得できなかったページ / 本文の抽出に失敗したページ）。
+ * fetched_at は「最後に取得を試みた時刻」で、取得できなかったページも待ち行列から外す
+ */
 markResponse(id: number, input: { fetchedAt: Date; httpStatus: number | null }): Promise<void>
 ```
 
@@ -166,19 +169,19 @@ export const collectWebsiteSource = async (
 | `not_modified` | `markResponse(id, { fetchedAt: now, httpStatus: 304 })` |
 | `http_error` | `markResponse(id, { fetchedAt: now, httpStatus: status })`。404 / 410 は以後キューに出ない |
 | `skipped` | `markResponse(id, { fetchedAt: now, httpStatus: status })`、理由を `logger.info` |
-| `network_error` | 何も更新しない（次回に先頭で取り直す）。**連続 3 回で throw**（サイトの障害で 100 ページ × 10 秒待たないため） |
+| `network_error` | `markResponse(id, { fetchedAt: now, httpStatus: null })`（試した時刻を入れて待ち行列から外し、`refetchDays` 日後に取り直す。入れないと次回も同じ行が先頭に来て、取得できないページが残りのページを塞ぐ）。**連続 3 回で throw**（サイトの障害で 100 ページ × 10 秒待たないため。3 行とも記録してから throw する） |
 | `ok` | 下の手順 |
-| `WebSourceThrottledError` | ループを抜けて `throttled`。`Retry-After` が次回の実行（約 24 時間後）より先なら `logger.warn` |
+| `WebSourceThrottledError` | その行を `markResponse(id, { fetchedAt: now, httpStatus: 429 / 503 })` してから、ループを抜けて `throttled`（記録しないと、429 / 503 を返し続けるページが毎回先頭に来てソース全体が止まる）。`Retry-After` は待たず、次回の実行（約 24 時間後）より先なら `logger.warn` |
 
 `ok` のとき：
 
-- `extractDocument({ content: body, contentSelector, excludeSelectors, fallbackTitle: path, format: "html", url: finalUrl })`。throw したら `logger.warn` して本文候補 0 件
+- `extractDocument({ content: body, contentSelector, excludeSelectors, fallbackTitle: path, format: "html", url: finalUrl })`。throw したら `logger.warn` して `markResponse(id, { fetchedAt: now, httpStatus: status })` で終える（`ETag` / `Last-Modified` / ハッシュを保存しない。保存すると次回から 304 か同じハッシュで止まり、セレクタを直してもページが変わるまで抽出し直されない）
 - `links` を取得してよい URL に絞って `upsertDiscovered(..., { shouldReviveGone: true })`（200 のページのリンクだけを入れる）
-- path が対象パスに合わない（開始ページなど）、または `extracted.contentHash === document.contentHash`（前回と同じ本文）なら本文候補を作らない
+- path が対象パスに合わない（開始ページなど）、リダイレクトの行き先（`new URL(finalUrl).pathname`）が `isFetchablePath` / `isTargetPath` に合わない（除外パスへのリダイレクトなど。`logger.info`）、または `extracted.contentHash === document.contentHash`（前回と同じ本文）なら本文候補を作らない
 - それ以外は本文候補を `{ sourceCommitSha: null, sourcePath: path, sourceRetrievedAt: now, ... }` で `insertIgnoringDuplicates`
 - 最後に `markFetched(id, { blobSha: null, commitSha: null, contentHash, etag, fetchedAt: now, httpStatus: status, lastModified, title })`
 
-6. `markCollected(id, { lastCollectedAt: now })`。`queue.length === maxDocuments` なら `limit_reached`、そうでなければ `completed`
+6. `queue.length === maxDocuments` なら `limit_reached`、そうでなければ `completed`。**`completed` / `limit_reached` のときだけ** `markCollected(id, { lastCollectedAt: now })`（取得を最後まで終えたときだけ最終収集を進める。`throttled` / `crawl_delay_too_long` / `interrupted` は進めない。`findEnabled` は `last_collected_at` の古い順なので次回の実行で先に処理される）
 
 `BlockedUrlError` と robots.txt の読込み失敗は throw のまま（`collectPassages` がソースの失敗として扱い exit 1）。
 
@@ -218,7 +221,10 @@ pnpm lint:fix
   - [ ] `findFetchQueue` が `refetchBefore = now - 7 日` と `limit = maxDocuments` で呼ばれる
   - [ ] 304 は本文を解析せず `markResponse(304)`。200 で本文のハッシュが前回と同じなら本文候補を作らず `markFetched`
   - [ ] 200 の新しい本文は `sourceCommitSha: null` の本文候補になり、`links` が `shouldReviveGone: true` で入る。対象パス外の開始ページはリンクだけ入って本文候補を作らない
-  - [ ] 404 は `markResponse(404)`。throttled で残りの行を取得せずに `throttled` を返す。`network_error` が 3 回続くと throw、間に `ok` を挟むと数え直す
+  - [ ] 本文の抽出が throw したページは `markFetched` せず `markResponse(200)`（`ETag` などを保存しない）
+  - [ ] リダイレクトの行き先が除外パス・対象パスの外・ページでない拡張子なら本文候補を作らず、リンクの発見と `markFetched` は続ける
+  - [ ] 404 は `markResponse(404)`。throttled で残りの行を取得せずに `throttled` を返し、その行を `markResponse(429)` する。`network_error` の行は `markResponse(null)`。3 回続くと throw、間に `ok` を挟むと数え直す
+  - [ ] `completed` / `limit_reached` だけ `markCollected` し、`throttled` / `crawl_delay_too_long` / `interrupted` では呼ばない
   - [ ] `BlockedUrlError` はそのまま throw される
 - [ ] `collectPassages` が website のソースを処理し、`throttled` を失敗に数えない
 - [ ] `previewSource`（website）が Repository の書き込みメソッドを呼ばず、取得するページが 5 件以下

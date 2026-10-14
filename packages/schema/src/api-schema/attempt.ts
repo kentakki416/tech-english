@@ -1,6 +1,7 @@
 import { z } from "zod"
 
 import {
+  MAX_QUESTIONS_PER_PASSAGE,
   PASSAGE_BLOCK_TYPES,
   PASSAGE_SEGMENT_KINDS,
   QUESTION_CHOICE_COUNT,
@@ -261,7 +262,17 @@ export const submitAttemptPathParamSchema = z.object({
 })
 
 /**
- * 提出のリクエストスキーマ。answers に無い設問は未回答として採点する
+ * 提出で受け取る調べた単語の件数の上限。web / mobile はこの件数を超えた分を記録しない
+ */
+export const SUBMIT_ATTEMPT_MAX_WORD_LOOKUPS = 300
+
+/**
+ * 提出で受け取る調べた単語の surface / lemma の長さの上限（前後の空白を除いた文字数）。web / mobile はこれを超える記録を送らない
+ */
+export const SUBMIT_ATTEMPT_MAX_WORD_LENGTH = 100
+
+/**
+ * 提出のリクエストスキーマ。answers に無い設問は未回答として採点する。answers の上限は 1 つの問題の設問数の上限
  */
 export const submitAttemptRequestSchema = z.object({
   /**
@@ -278,7 +289,7 @@ export const submitAttemptRequestSchema = z.object({
         selected_choice_index: z.number().int().min(0).max(QUESTION_CHOICE_COUNT - 1).nullable(),
       }),
     )
-    .max(10),
+    .max(MAX_QUESTIONS_PER_PASSAGE),
   /**
    * 読み上げを 1 秒以上聞いた段落の数。サーバーが code 以外のブロック数で上限をかける。
    * 古いアプリ（送ってこない版）のために省略時は 0
@@ -296,16 +307,16 @@ export const submitAttemptRequestSchema = z.object({
       z
         .object({
           glossary_entry_id: z.number().int().positive().nullable(),
-          lemma: z.string().trim().min(1).max(100),
+          lemma: z.string().trim().min(1).max(SUBMIT_ATTEMPT_MAX_WORD_LENGTH),
           source: z.enum(WORD_LOOKUP_SOURCES),
-          surface: z.string().trim().min(1).max(100),
+          surface: z.string().trim().min(1).max(SUBMIT_ATTEMPT_MAX_WORD_LENGTH),
         })
         .refine((lookup) => (lookup.source === "glossary") === (lookup.glossary_entry_id !== null), {
           message: "glossary_entry_id is required only when source is glossary",
           path: ["glossary_entry_id"],
         }),
     )
-    .max(300),
+    .max(SUBMIT_ATTEMPT_MAX_WORD_LOOKUPS),
 })
 
 /**

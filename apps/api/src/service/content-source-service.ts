@@ -4,6 +4,7 @@ import {
   isAllowedLicense,
   PASSAGE_STATUSES,
   type PassageStatus,
+  type WebsiteSource,
 } from "@repo/domain"
 import { badRequestError, conflictError, err, notFoundError, ok, Result } from "@repo/errors"
 import { logger } from "@repo/logger"
@@ -14,6 +15,10 @@ import { ContentSourceInput, ContentSourceRepository, FailedPage, PassageCountRo
 type ContentSourceRepo = { contentSourceRepository: ContentSourceRepository }
 
 type GitHubRepositoryInput = Extract<ContentSourceInput, { fetchType: "github_repository" }>
+
+type WebsiteInput = Extract<ContentSourceInput, { fetchType: "website" }>
+
+const DUPLICATE_SOURCE_MESSAGE = "Content source already registered"
 
 /**
  * 本文候補の状態ごとの件数
@@ -56,6 +61,25 @@ const hasCollectionScopeChanged = (existing: GitHubRepositorySource, input: GitH
   || existing.branch !== input.branch
   || !isSameStringList(existing.includeGlobs, input.includeGlobs)
   || !isSameStringList(existing.excludeGlobs, input.excludeGlobs)
+
+/**
+ * 取得元（github は repository、website は site_url）が変わったか。
+ * GitHub はリポジトリ名の大文字・小文字を区別しないので、大文字・小文字の違いだけなら変わっていない（リンクは 404 にならない）
+ */
+const hasOriginChanged = (existing: ContentSource, input: ContentSourceInput): boolean => {
+  if (existing.fetchType === "github_repository" && input.fetchType === "github_repository") {
+    return existing.repository.toLowerCase() !== input.repository.toLowerCase()
+  }
+  if (existing.fetchType === "website" && input.fetchType === "website") return existing.siteUrl !== input.siteUrl
+  return false
+}
+
+/**
+ * 本文の抽出の設定（本文の CSS セレクタ / 除外する CSS セレクタ）が変わったか
+ */
+const hasExtractionChanged = (existing: WebsiteSource, input: WebsiteInput): boolean =>
+  existing.contentSelector !== input.contentSelector
+  || !isSameStringList(existing.excludeSelectors, input.excludeSelectors)
 
 /**
  * ソース一覧（状態別の本文候補件数と取得失敗のページ数つき）
@@ -104,20 +128,28 @@ export const createContentSource = async (
 ): Promise<Result<ContentSource>> => {
   if (await findDuplicateSource(input, repo)) {
     logger.debug("ContentSourceService: Content source already registered", { fetchType: input.fetchType })
-    return err(conflictError("Content source already registered"))
+    return err(conflictError(DUPLICATE_SOURCE_MESSAGE))
   }
   /**
    * サイトは試し実行で本文を確かめてから有効にするため、無効で作る
    */
-  const source = await repo.contentSourceRepository.create(
+  const result = await repo.contentSourceRepository.create(
     input.fetchType === "website" ? { ...input, isEnabled: false } : input,
   )
-  logger.info("ContentSourceService: Content source created", { fetchType: source.fetchType, id: source.id })
-  return ok(source)
+  /**
+   * 事前の検査の後に同じ取得元が登録された（同時のリクエスト）。unique 制約で弾かれたので 409 にする
+   */
+  if (result.kind === "duplicate") {
+    logger.debug("ContentSourceService: Content source registered concurrently", { fetchType: input.fetchType })
+    return err(conflictError(DUPLICATE_SOURCE_MESSAGE))
+  }
+  logger.info("ContentSourceService: Content source created", { fetchType: result.source.fetchType, id: result.source.id })
+  return ok(result.source)
 }
 
 /**
- * ソースを更新する（有効 / 無効の切り替えを含む）。取得方法は変えられない
+ * ソースを更新する（有効 / 無効の切り替えを含む）。取得方法は変えられない。
+ * 取得した文書があるソースは取得元（repository / site_url）も変えられない（変えたいときは別のソースとして登録する）
  */
 export const updateContentSource = async (
   id: number,
@@ -131,10 +163,20 @@ export const updateContentSource = async (
   }
   if (existing.fetchType !== input.fetchType) return err(badRequestError("fetch_type cannot be changed"))
 
+  /**
+   * 過去の本文候補の出典は、ソースの今の取得元と passages の source_path（GitHub は source_commit_sha も）で組み立てる。
+   * 取得元を変えると過去の問題の出典が別のリポジトリ・サイトを指して 404 になるため、取得した文書があれば拒否する。
+   * ライセンスの変更は許す（誤登録の訂正は過去の問題の出典にも反映されるのが正しい）
+   */
+  if (hasOriginChanged(existing, input) && await repo.contentSourceRepository.hasSourceDocuments(id)) {
+    logger.debug("ContentSourceService: Origin of a collected content source cannot be changed", { id })
+    return err(badRequestError("repository / site_url cannot be changed after documents are collected"))
+  }
+
   const duplicate = await findDuplicateSource(input, repo)
   if (duplicate && duplicate.id !== id) {
     logger.debug("ContentSourceService: Content source already registered", { fetchType: input.fetchType, id })
-    return err(conflictError("Content source already registered"))
+    return err(conflictError(DUPLICATE_SOURCE_MESSAGE))
   }
 
   /**
@@ -144,9 +186,20 @@ export const updateContentSource = async (
   const shouldResetCollectedCommit = existing.fetchType === "github_repository"
     && input.fetchType === "github_repository"
     && hasCollectionScopeChanged(existing, input)
-  const source = await repo.contentSourceRepository.update(id, input, { shouldResetCollectedCommit })
-  logger.info("ContentSourceService: Content source updated", { id, shouldResetCollectedCommit })
-  return ok(source)
+  /**
+   * 本文の抽出の設定が変わったら、取得済みの文書の ETag / Last-Modified / 本文のハッシュを消す。
+   * 消さないと、ページが変わっていない間は 304 か同じハッシュで止まり、新しいセレクタで抽出し直されない
+   */
+  const shouldResetDocumentCache = existing.fetchType === "website"
+    && input.fetchType === "website"
+    && hasExtractionChanged(existing, input)
+  const result = await repo.contentSourceRepository.update(id, input, { shouldResetCollectedCommit, shouldResetDocumentCache })
+  if (result.kind === "duplicate") {
+    logger.debug("ContentSourceService: Content source registered concurrently", { fetchType: input.fetchType, id })
+    return err(conflictError(DUPLICATE_SOURCE_MESSAGE))
+  }
+  logger.info("ContentSourceService: Content source updated", { id, shouldResetCollectedCommit, shouldResetDocumentCache })
+  return ok(result.source)
 }
 
 /**

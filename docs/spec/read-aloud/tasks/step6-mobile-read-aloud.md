@@ -89,6 +89,7 @@ useEventListener(player, "playbackStatusUpdate", (status) => {
 - **isPlaying**：`status.playing` に合わせる（電話・ほかのアプリの音声で OS が止めたときも表示を合わせる）
 - **読み込みの失敗**：`AudioStatus` にはエラーが無いので、`replace` してから 10 秒たっても `status.isLoaded` にならなければ止めて `availability = "error"` にする。web と同じく時刻表も捨て、次の再生ボタンでマニフェストを取り直す（取り直したら待機に戻り、もう一度押すと再生する）
 - **アプリが前面でなくなったとき**：`AppState` が `active` 以外になったら `pause()`
+- **上に画面を積んだとき**：`@react-navigation/native` の `useIsFocused()` が false になったら（結果画面から「もう一度解く」「次の問題を解く」で画面を積んで見えなくなった）`pause()`。effect の cleanup では `pause()` しない（アンマウントの後片付けに任せる。解放した player を触らないため）
 - **速度**：`cycleRate()` で `findNextReadAloudRate`、`writeReadAloudRate`、再生中なら `player.setPlaybackRate`
 - アンマウントで `pause()`（player の解放は `useAudioPlayer` が行う）
 - 次のパートの先読みはしない（[再生の実装](../README.md#再生の実装)）
@@ -151,6 +152,7 @@ web の解答画面（[step5 §9](./step5-web-read-aloud.md#9-解答画面srccom
 - `useReadAloud({ attemptId: result.id, blocks })`（`onBlockListened` は渡さない）、`useReadingAutoScroll(readerRef, ...)`（`readerRef` は今の「本文の根拠を見る」のもの）
 - ミニプレーヤーは `body` の中で `bottom: 12`（`body` は下端の `ResultBottomBar` の上で終わるので、その上に浮かぶ）。単語のカードの `bottom` を `12 + 52 + 12` に、本文の下の余白に 76px を足す
 - `ResultHeader` のアシストの使用に `<Text style={styles.metricSmall}>読み上げ {result.listened_block_count} 段落</Text>`（単語の回数の後ろ）
+- 本文の上の注記は「本文（根拠の箇所をハイライトしています）」のまま変えない（web は読み上げも使えることを書き足す。[README の mobile の画面](../README.md#mobile-の画面)）
 
 ### 12. CLAUDE.md
 
@@ -178,6 +180,7 @@ Expo web（port 8085、`apps/mobile/CLAUDE.md` の手順で Dev Login）で、we
 - [ ] 聞いた段落が提出後の結果画面の「読み上げ n 段落」と `reading_attempts.listened_block_count` に出る。アプリを開き直して再開しても数が残る
 - [ ] 準備中・失敗・api の停止（取り直し）の表示が web と同じ
 - [ ] 結果画面：ミニプレーヤーが下端の操作の上に浮かび、読み上げが動く。聞いても `listened_block_count` は変わらない
+- [ ] 結果画面で読み上げ中に「もう一度解く」・「次の問題を解く」で上に画面を積むと、結果画面の読み上げが一時停止する
 - [ ] コンソールにエラーが無い
 
 **実機（iOS / Android の development build）でだけ確かめられること**（PR に未確認として書く）

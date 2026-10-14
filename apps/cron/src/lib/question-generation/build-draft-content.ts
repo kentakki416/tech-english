@@ -1,4 +1,11 @@
-import { calculateTimeLimitSeconds, findSurfaceRange, hasQuote, numberParagraphs, type PassageBlock } from "@repo/domain"
+import {
+  calculateTimeLimitSeconds,
+  findSurfaceRange,
+  hasQuote,
+  numberHeadings,
+  numberParagraphs,
+  type PassageBlock,
+} from "@repo/domain"
 
 import type { GenerateQuestionsOutput } from "../../prompt"
 import type { DraftContent, DraftGlossaryEntry, DraftQuestion } from "../../repository"
@@ -37,9 +44,25 @@ export type BuildDraftContentResult = {
 }
 
 /**
- * 末尾が数字の表記（「段落 2」）の後ろには空白を入れて続ける（「段落 2 の本文」「見出しの本文」）
+ * 末尾が数字の表記（「段落 2」「見出し 1」）の後ろには空白を入れて続ける（「段落 2 の本文」「コードの本文」）
  */
 const joinLabel = (label: string, rest: string): string => (/\d$/.test(label) ? `${label} ${rest}` : `${label}${rest}`)
+
+/**
+ * 要確認の理由でのブロックの表記（「段落 2」「見出し 1」「コード」、範囲外は「ブロック n」）。
+ * api の formatBlockLabel（公開の条件のメッセージ）と同じ規則。見出しにも番号を付け、和訳の無い見出しが複数あっても理由を区別できるようにする
+ */
+const createBlockLabeler = (blocks: PassageBlock[]): ((blockIndex: number) => string) => {
+  const headingNumbers = numberHeadings(blocks)
+  const paragraphNumbers = numberParagraphs(blocks)
+  return (blockIndex) => {
+    const block: PassageBlock | undefined = blocks[blockIndex]
+    if (!block) return `ブロック ${blockIndex + 1}`
+    if (block.type === "heading") return `見出し ${headingNumbers[blockIndex]}`
+    if (block.type === "code") return "コード"
+    return `段落 ${paragraphNumbers[blockIndex]}`
+  }
+}
 
 /**
  * code 以外のブロックから surface を探して位置を返す。ブロックが無い・code・見つからないときは null
@@ -127,15 +150,11 @@ const locateGlossary = (
  * 5. 選択肢をシャッフルして正解の位置を無作為にする
  * 6. 制限時間を計算式で求める
  *
- * 要確認の理由の段落の表記は `numberParagraphs`（番号の無いブロックは「見出し」）。用語集は位置の順に並べ、設問は glossary の index で指す
+ * 要確認の理由のブロックの表記は `numberParagraphs` の「段落 N」と `numberHeadings` の「見出し N」。用語集は位置の順に並べ、設問は glossary の index で指す
  */
 export const buildDraftContent = (input: BuildDraftContentInput): BuildDraftContentResult => {
   const { output } = input
-  const paragraphNumbers = numberParagraphs(input.blocks)
-  const labelBlock = (blockIndex: number): string => {
-    const paragraphNumber = paragraphNumbers[blockIndex]
-    return paragraphNumber === null || paragraphNumber === undefined ? "見出し" : `段落 ${paragraphNumber}`
-  }
+  const labelBlock = createBlockLabeler(input.blocks)
   const attentionReasons: string[] = []
 
   const blocks = applyTranslations(input.blocks, output.translations)

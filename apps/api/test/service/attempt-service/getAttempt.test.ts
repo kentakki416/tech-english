@@ -19,6 +19,8 @@ const repo = { passageRepository, readingAttemptRepository }
 
 const INPUT = { attemptId: 301, now: FIXED_NOW, userId: 7 }
 
+const PRIMARY = { fromPrimary: true }
+
 const EXPECTED_PASSAGE = { id: 1, difficulty: 2, title: "Synchronizing with Effects", wordCount: 60 }
 
 describe("getAttempt", () => {
@@ -29,7 +31,7 @@ describe("getAttempt", () => {
   })
 
   describe("正常系", () => {
-    it("期限内の挑戦中は解答中の形を返す。期限切れの更新を自分の挑戦を読むより先に呼ぶ", async () => {
+    it("期限内の挑戦中は解答中の形を返す。期限切れの更新を自分の挑戦を読むより先に呼び、挑戦は primary から読む", async () => {
       readingAttemptRepository.findByIdForUser.mockResolvedValue(buildAttempt({ passageId: 1 }))
 
       const result = await getAttempt(INPUT, repo)
@@ -49,7 +51,7 @@ describe("getAttempt", () => {
       })
       expect(result.ok && result.value.status === "in_progress" && result.value.glossary.map((entry) => entry.id)).toEqual([101, 103])
       expect(readingAttemptRepository.expireStale).toHaveBeenCalledWith(7, ALIVE_SINCE)
-      expect(readingAttemptRepository.findByIdForUser).toHaveBeenCalledWith(301, 7)
+      expect(readingAttemptRepository.findByIdForUser).toHaveBeenCalledWith(301, 7, PRIMARY)
       expect(passageRepository.findAttemptContentById).toHaveBeenCalledWith(1)
       const [expireOrder] = readingAttemptRepository.expireStale.mock.invocationCallOrder
       const [findOrder] = readingAttemptRepository.findByIdForUser.mock.invocationCallOrder
@@ -78,7 +80,7 @@ describe("getAttempt", () => {
       })
     })
 
-    it("提出済みの挑戦は保存済みの回答と調べた単語から結果の形を返す（read replica から読む）", async () => {
+    it("提出済みの挑戦は保存済みの回答と調べた単語から結果の形を返す（提出の直後を見失わないよう primary から読む）", async () => {
       readingAttemptRepository.findByIdForUser.mockResolvedValue(buildSubmittedAttempt())
       readingAttemptRepository.findAnswersByAttemptId.mockResolvedValue(buildStoredAnswers())
       readingAttemptRepository.findWordLookupsWithMeaning.mockResolvedValue(buildStoredWordLookups())
@@ -86,14 +88,15 @@ describe("getAttempt", () => {
       const result = await getAttempt(INPUT, repo)
 
       expect(result).toEqual({ ok: true, value: buildExpectedSubmittedView() })
-      expect(readingAttemptRepository.findAnswersByAttemptId).toHaveBeenCalledWith(301, undefined)
-      expect(readingAttemptRepository.findWordLookupsWithMeaning).toHaveBeenCalledWith(301, undefined)
+      expect(readingAttemptRepository.findByIdForUser).toHaveBeenCalledWith(301, 7, PRIMARY)
+      expect(readingAttemptRepository.findAnswersByAttemptId).toHaveBeenCalledWith(301, PRIMARY)
+      expect(readingAttemptRepository.findWordLookupsWithMeaning).toHaveBeenCalledWith(301, PRIMARY)
     })
 
     it.each([
       ["開始から 23:59:59.999（境界値）", "2026-10-12T00:00:00.001Z", "in_progress"],
       ["開始からちょうど 24 時間（境界値）", "2026-10-12T00:00:00.000Z", "expired"],
-    ])("read replica の遅れで in_progress のまま読めても、%sなら %s の形を返す", async (_label, startedAt, status) => {
+    ])("in_progress のまま読めても、%sなら %s の形を返す", async (_label, startedAt, status) => {
       readingAttemptRepository.findByIdForUser.mockResolvedValue(buildAttempt({ startedAt: new Date(startedAt) }))
 
       const result = await getAttempt(INPUT, repo)

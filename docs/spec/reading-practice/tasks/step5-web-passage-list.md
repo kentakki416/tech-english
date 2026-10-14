@@ -97,6 +97,8 @@ export const startAttemptAction = async (passageId: number, _prev: StartAttemptS
   } catch {
     return { message: "開始できませんでした。時間をおいて再度お試しください。" }
   }
+  /** 前に開いた同じ挑戦の解答画面のキャッシュ（古い途中の状態）を使わず、取り直させる */
+  revalidatePath(`/attempts/${attemptId}`)
   redirect(`/attempts/${attemptId}`)
 }
 ```

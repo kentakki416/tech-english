@@ -107,6 +107,7 @@ describe("GET /api/admin/passage/:id", () => {
           type: item.type,
           verification_choice_index: item.verificationChoiceIndex,
         })),
+        recommended_question_count: 3,
         reject_reason: null,
         reviewed_at: null,
         source: {

@@ -1,6 +1,8 @@
 import request from "supertest"
 
+import { SUBMIT_ATTEMPT_MAX_WORD_LENGTH, SUBMIT_ATTEMPT_MAX_WORD_LOOKUPS } from "@repo/api-schema"
 import { attemptAnswers, attemptWordLookups, dictionaryEntries, eq, readingAttempts, users } from "@repo/db"
+import { MAX_QUESTIONS_PER_PASSAGE } from "@repo/domain"
 
 import { AttemptSubmitController } from "../../../src/controller/attempt/submit"
 import { DrizzlePassageRepository } from "../../../src/repository/drizzle/passage-repository"
@@ -424,7 +426,20 @@ describe("POST /api/attempt/:id/submit", () => {
         word_lookups: [{ glossary_entry_id: 1, lemma: "x", source: "dictionary", surface: "x" }],
       }],
       ["lemma が空白だけ", { word_lookups: [{ glossary_entry_id: null, lemma: "  ", source: "dictionary", surface: "x" }] }],
-      ["answers が 11 件", { answers: Array.from({ length: 11 }, (_, index) => ({ question_id: index + 1, selected_choice_index: 0 })) }],
+      ["answers が設問数の上限より多い", {
+        answers: Array.from({ length: MAX_QUESTIONS_PER_PASSAGE + 1 }, (_, index) => ({ question_id: index + 1, selected_choice_index: 0 })),
+      }],
+      ["word_lookups が上限より多い", {
+        word_lookups: Array.from({ length: SUBMIT_ATTEMPT_MAX_WORD_LOOKUPS + 1 }, () => ({
+          glossary_entry_id: null,
+          lemma: "x",
+          source: "dictionary",
+          surface: "x",
+        })),
+      }],
+      ["surface が長さの上限より長い", {
+        word_lookups: [{ glossary_entry_id: null, lemma: "x", source: "dictionary", surface: "x".repeat(SUBMIT_ATTEMPT_MAX_WORD_LENGTH + 1) }],
+      }],
     ])("%sなら 400 を返す", async (_label, overrides) => {
       const { attempt, token } = await setupAttempt()
 

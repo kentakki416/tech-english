@@ -2,10 +2,16 @@ import { isAxiosError } from "axios"
 import * as Haptics from "expo-haptics"
 import { useRouter } from "expo-router"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { Alert, AppState, BackHandler, type FlatList, Platform, StyleSheet, Text, View } from "react-native"
+import { AppState, BackHandler, type FlatList, Platform, StyleSheet, Text, View } from "react-native"
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 
-import type { AttemptBlock, InProgressAttempt, SubmitAttemptRequest } from "@repo/api-schema"
+import {
+  type AttemptBlock,
+  type InProgressAttempt,
+  SUBMIT_ATTEMPT_MAX_WORD_LENGTH,
+  SUBMIT_ATTEMPT_MAX_WORD_LOOKUPS,
+  type SubmitAttemptRequest,
+} from "@repo/api-schema"
 
 import { PassageReader, type ReaderReadAloud } from "@/components/features/passage/PassageReader"
 import { useWordCard, WordCard } from "@/components/features/passage/WordCard"
@@ -19,6 +25,7 @@ import { THEME_COLORS } from "@/const/design-theme"
 import {
   type AttemptProgress,
   readAttemptProgress,
+  removeAttemptProgress,
   type WordLookupRecord,
   writeAttemptProgress,
 } from "@/features/attempt/attempt-progress"
@@ -48,22 +55,14 @@ const EXPIRY_CHECK_INTERVAL_MS = 60 * 1000
  */
 const SAVE_INTERVAL_SECONDS = 5
 
-/**
- * 提出の word_lookups の上限（submitAttemptRequestSchema の max と同じ）。超えた分は記録しない
- */
-const MAX_WORD_LOOKUPS = 300
-
-/**
- * 提出の surface / lemma の長さの上限（submitAttemptRequestSchema と同じ）
- */
-const MAX_WORD_LENGTH = 100
+const SUBMIT_FAILED_MESSAGE = "提出できませんでした。時間をおいて再度お試しください。"
 
 /**
  * 本文の下端の余白（閉じた設問シートと読み上げのミニプレーヤーの上に、最後の段落と出典を出し切るため）
  */
 const CONTENT_BOTTOM_SPACE = 60
 
-const isValidWordText = (text: unknown): boolean => typeof text === "string" && text.trim().length > 0 && text.trim().length <= MAX_WORD_LENGTH
+const isValidWordText = (text: unknown): boolean => typeof text === "string" && text.trim().length > 0 && text.trim().length <= SUBMIT_ATTEMPT_MAX_WORD_LENGTH
 
 /**
  * 提出の検証（source が glossary のときだけ glossary_entry_id を持つ）を通る形か
@@ -98,7 +97,7 @@ const restoreProgress = async (
     elapsedSeconds: Number.isFinite(saved.elapsedSeconds) ? Math.max(0, Math.floor(saved.elapsedSeconds)) : 0,
     listenedBlockIndexes: [...new Set(saved.listenedBlockIndexes)].filter(index => blockIndexes.readable.has(index)),
     translatedBlockIndexes: [...new Set(saved.translatedBlockIndexes)].filter(index => blockIndexes.translatable.has(index)),
-    wordLookups: saved.wordLookups.filter(isValidWordLookup).slice(0, MAX_WORD_LOOKUPS),
+    wordLookups: saved.wordLookups.filter(isValidWordLookup).slice(0, SUBMIT_ATTEMPT_MAX_WORD_LOOKUPS),
   }
 }
 
@@ -108,7 +107,7 @@ const restoreProgress = async (
  * - タイマーはアプリが前面にあり、端末の途中経過を戻し終え、一時停止・期限切れ・提出中でない間だけ進む
  * - 途中経過（回答・経過秒数・和訳を見た段落・調べた単語・読み上げを聞いた段落）は AsyncStorage に保存する。
  *   回答・アシストが変わったとき、経過秒数が 5 秒進むごと、アプリが前面でなくなったとき、画面を離れるときに書く。
- *   消すのは結果画面（提出に失敗しても回答が残るように）
+ *   消すのは結果画面（提出に失敗しても回答が残るように）と、期限切れになったとき（もう提出できないので）
  * - 読み上げのミニプレーヤーは閉じた設問シートの上に浮かべる（設問シートを開いている間は出さない）。
  *   上部バーの一時停止・期限切れ・提出で読み上げも止める（再開しても読み上げは自動で再開しない）
  */
@@ -150,6 +149,7 @@ export function SolvingScreen({ attempt }: { attempt: InProgressAttempt }) {
   const [isSheetOpen, setIsSheetOpen] = useState(false)
   const [isConfirmOpen, setIsConfirmOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
   const [isExpired, setIsExpired] = useState(false)
   const [showAllTranslations, setShowAllTranslations] = useState(false)
   /**
@@ -187,7 +187,7 @@ export function SolvingScreen({ attempt }: { attempt: InProgressAttempt }) {
   const closedSheetHeight = calculateClosedSheetHeight(insets.bottom)
 
   /**
-   * 保存に使う最新の途中経過（AppState の変化・画面を離れるときにも書くため ref に持つ）。戻し終えるまでは null
+   * 保存に使う最新の途中経過（AppState の変化・画面を離れるときにも書くため ref に持つ）。戻し終えるまでと期限切れの後は null
    */
   const progressRef = useRef<RestoredProgress | null>(null)
   /**
@@ -223,7 +223,7 @@ export function SolvingScreen({ attempt }: { attempt: InProgressAttempt }) {
   }, [attempt, readableBlockIndexes, translatableBlockIndexes])
 
   useEffect(() => {
-    progressRef.current = isHydrated
+    progressRef.current = isHydrated && !isExpired
       ? { answers, elapsedSeconds, listenedBlockIndexes: [...listenedBlocks], translatedBlockIndexes: [...viewedTranslationBlocks], wordLookups }
       : null
   })
@@ -260,6 +260,14 @@ export function SolvingScreen({ attempt }: { attempt: InProgressAttempt }) {
       saveProgress()
     }
   }, [saveProgress])
+
+  /**
+   * 期限切れになったら（期限の確認・提出の 409）途中経過を消す。もう提出できないので残しても使わない
+   * （それ以降は progressRef が null なので、画面を離れるときにも書き戻さない）
+   */
+  useEffect(() => {
+    if (isExpired) void removeAttemptProgress(attempt.id)
+  }, [attempt.id, isExpired])
 
   /**
    * 期限（開始から 24 時間）を開いたとき・1 分ごと・アプリに戻ったときに確かめる。端末の時計のずれは server_now で補正する
@@ -353,7 +361,7 @@ export function SolvingScreen({ attempt }: { attempt: InProgressAttempt }) {
    */
   const recordWordLookup = useCallback((lookup: WordLookupRecord) => {
     if (!isValidWordLookup(lookup)) return
-    setWordLookups(current => (current.length >= MAX_WORD_LOOKUPS ? current : [...current, lookup]))
+    setWordLookups(current => (current.length >= SUBMIT_ATTEMPT_MAX_WORD_LOOKUPS ? current : [...current, lookup]))
   }, [])
 
   /**
@@ -380,7 +388,10 @@ export function SolvingScreen({ attempt }: { attempt: InProgressAttempt }) {
     setIsPaused(value => !value)
   }
 
-  const openSubmitConfirm = useCallback(() => setIsConfirmOpen(true), [])
+  const openSubmitConfirm = useCallback(() => {
+    setSubmitError(null)
+    setIsConfirmOpen(true)
+  }, [])
 
   const buildSubmitInput = (): SubmitAttemptRequest => ({
     active_seconds: elapsedSeconds,
@@ -397,12 +408,14 @@ export function SolvingScreen({ attempt }: { attempt: InProgressAttempt }) {
 
   /**
    * 提出する。成功したら結果画面に置き換える（途中経過は結果画面が消す）。期限切れ（409）は期限切れの表示、
-   * それ以外の失敗は回答を残したまま知らせる（提出 API は冪等なので再送してよい）
+   * それ以外の失敗は確認のダイアログを閉じずに中へ理由を出す（web と同じ。回答は残り、提出 API は冪等なので再送してよい）。
+   * ダイアログを閉じて Alert を出すと、iOS では Modal を閉じている途中の Alert が出ないことがある
    */
   const submit = async () => {
     if (isSubmitting) return
     setIsSubmitting(true)
     stopReadAloud()
+    setSubmitError(null)
     try {
       const result = await attemptApi.submit(attempt.id, buildSubmitInput())
       isSubmittedRef.current = true
@@ -411,13 +424,13 @@ export function SolvingScreen({ attempt }: { attempt: InProgressAttempt }) {
       router.replace(`/attempts/${attempt.id}/result`)
     } catch (error) {
       setIsSubmitting(false)
-      setIsConfirmOpen(false)
       if (isAxiosError(error) && error.response?.status === 409) {
+        setIsConfirmOpen(false)
         setIsExpired(true)
         return
       }
       console.warn("Failed to submit attempt:", error)
-      Alert.alert("提出できませんでした", "時間をおいて再度お試しください。")
+      setSubmitError(SUBMIT_FAILED_MESSAGE)
     }
   }
 
@@ -526,6 +539,7 @@ export function SolvingScreen({ attempt }: { attempt: InProgressAttempt }) {
       </View>
 
       <SubmitConfirmModal
+        errorMessage={submitError}
         isSubmitting={isSubmitting}
         isVisible={isConfirmOpen}
         unansweredCount={questions.length - answeredCount}

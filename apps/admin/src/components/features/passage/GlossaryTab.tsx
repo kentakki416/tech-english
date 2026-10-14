@@ -9,7 +9,9 @@ import { Modal } from "@/components/ui/modal"
 import { type Column, DataTable } from "@/components/ui/table"
 import {
   createNewClientKey,
+  findSurfaceRange,
   formatBlockLabel,
+  joinBlockLabel,
   type PassageErrorMarks,
   type PassageForm,
   type PassageFormGlossaryEntry,
@@ -84,7 +86,10 @@ function GlossaryEntryModal({
   const defaultBlockIndex = blockOptions.find((index) => blocks[index]?.type !== "heading") ?? blockOptions[0] ?? 0
   const [draft, setDraft] = useState<GlossaryDraft>(() => convertEntryToDraft(editing.entry, defaultBlockIndex))
   const blockText = form.blocks[draft.blockIndex]?.text ?? ""
-  const isSurfaceMissing = draft.surface.length > 0 && !blockText.includes(draft.surface)
+  /**
+   * 保存時の API と同じ規則（findSurfaceRange。単語の途中の出現は数えない）で探す。"cached" しか無い本文に "cache" は見つからない
+   */
+  const isSurfaceMissing = draft.surface.length > 0 && findSurfaceRange(blockText, draft.surface) === null
 
   const updateDraft = (patch: Partial<GlossaryDraft>) => setDraft((current) => ({ ...current, ...patch }))
 
@@ -111,7 +116,7 @@ function GlossaryEntryModal({
           </div>
           {isSurfaceMissing && (
             <p className="text-theme-xs text-warning-600 sm:col-span-2 dark:text-orange-400">
-              {formatBlockLabel(blocks, draft.blockIndex)}の本文に見つかりません。このまま保存するとエラーになります。
+              {joinBlockLabel(formatBlockLabel(blocks, draft.blockIndex), "の本文に見つかりません（単語の一部としての出現は数えません）。このまま保存するとエラーになります。")}
             </p>
           )}
           <div>
@@ -142,7 +147,7 @@ function GlossaryEntryModal({
 }
 
 /**
- * 用語集タブ。DataTable の行はフォームの語句。保存の 400 の details（["glossary", i, "surface"] など）は該当の語句の行に出す。
+ * 用語集タブ。DataTable の行はフォームの語句。保存・公開の 400 の details（["glossary", i, "surface"]、["glossary", i, "meaning_ja"] など）は該当の語句の行に出す。
  * 下書き以外では親の fieldset が操作のボタンを無効にする
  */
 export function GlossaryTab({
@@ -188,13 +193,19 @@ export function GlossaryTab({
         surface: draft.surface,
       }
       if (editingEntry) {
+        /**
+         * 語句か段落を変えたら、保存済みの位置はもう指していないので捨てる（プレビューは保存時と同じ規則で探し直す）
+         */
+        const isMoved = values.surface !== editingEntry.surface || values.block_index !== editingEntry.block_index
         return {
           ...current,
-          glossary: current.glossary.map((entry) => (entry.clientKey === editingEntry.clientKey ? { ...entry, ...values } : entry)),
+          glossary: current.glossary.map((entry) => (entry.clientKey === editingEntry.clientKey
+            ? { ...entry, ...values, ...(isMoved ? { end_offset: null, start_offset: null } : {}) }
+            : entry)),
         }
       }
       const clientKey = createNewClientKey(current.glossary.map((entry) => entry.clientKey))
-      return { ...current, glossary: [...current.glossary, { id: null, ...values, clientKey }] }
+      return { ...current, glossary: [...current.glossary, { id: null, ...values, clientKey, end_offset: null, start_offset: null }] }
     })
     setEditing(null)
   }

@@ -48,7 +48,7 @@ export const getAttemptAudioResponseSchema = z.discriminatedUnion("status", [
  * - 問題が公開中でない（非公開に戻した）：published_at は残り、下書きのまま本文を直せるので、updated_at と published_at の比較だけでは
  *   直した後の本文に古いマニフェストが重なる。再公開すると cron が本文の hash を確かめて ready に戻す（本文が同じなら Polly を呼ばない）
  * - 音声を作った（または cron が本文の同一を確かめた）後に公開し直された：cron が次の実行で作り直すか確かめる
- * generating はそのまま返す（admin 向け）。利用者向けには toUserAudioStatus で pending にする
+ * generating はそのまま返す（admin 向け）。利用者向けには convertToUserAudioStatus で pending にする
  */
 export const resolveAudioStatus = (
   audio: Pick<PassageAudio, "manifest" | "status" | "updatedAt"> | null,
@@ -61,7 +61,7 @@ export const resolveAudioStatus = (
 }
 
 /** 利用者には generating も「準備中」と見せる */
-export const toUserAudioStatus = (status: AudioStatus): Exclude<AudioStatus, "generating"> =>
+export const convertToUserAudioStatus = (status: AudioStatus): Exclude<AudioStatus, "generating"> =>
   status === "generating" ? "pending" : status
 
 /** 末尾のスラッシュを除いた base とキーをつなぐ */
@@ -106,7 +106,7 @@ export const getAttemptAudio = async (
 
 1. `findByIdForUser(attemptId, userId)` が null なら `err(notFoundError(...))`（他人の挑戦も 404。状態は問わない）
 2. `findByPassageId(attempt.passageId)` が null なら 404
-3. `toUserAudioStatus(resolveAudioStatus(found.audio, found.passage))` が `ready` でなければその状態だけ返す（`generating`・非公開に戻された問題の `ready` は `pending`）。`audioPublicUrlBase` が null（本番で未設定。[step8](./step8-infra-audio.md) の前）なら `pending`
+3. `convertToUserAudioStatus(resolveAudioStatus(found.audio, found.passage))` が `ready` でなければその状態だけ返す（`generating`・非公開に戻された問題の `ready` は `pending`）。`audioPublicUrlBase` が null（本番で未設定。[step8](./step8-infra-audio.md) の前）なら `pending`
 4. マニフェストの各パートの `key` を `buildAudioUrl` で URL にして返す（単語の時刻はそのまま）
 
 `submitAttempt`：入力に `listenedBlockCount` を足す。`translatedBlockCount` と同じく **code 以外のブロック数で上限をかけて** 保存する（超えても 400 にしない。提出を失敗させないため）。`SubmittedAttemptView` と `buildSubmittedView` に `listenedBlockCount` を足し、保存済みの結果を返す経路（冪等・`getAttempt`）も同じ値を返す。
@@ -128,7 +128,7 @@ export const retryAdminPassageAudio = async (
 
 ### 5. Controller・Router・DI
 
-- `controller/attempt/audio.ts`（`AttemptAudioController`。コンストラクタで 2 つの Repository と `audioPublicUrlBase`）。`mapper.ts` に `toAttemptAudioResponse(view)` を足し、提出の変換に `listened_block_count` を足す。`controller/attempt/submit.ts` は `listened_block_count` を Service に渡す
+- `controller/attempt/audio.ts`（`AttemptAudioController`。コンストラクタで 2 つの Repository と `audioPublicUrlBase`）。`mapper.ts` に `convertAttemptAudioToResponse(view)` を足し、提出の変換に `listened_block_count` を足す。`controller/attempt/submit.ts` は `listened_block_count` を Service に渡す
 - `attempt-router.ts` に `audio` を足して `GET /:id/audio`
 - `controller/admin/passage/retry-audio.ts`（`AdminPassageRetryAudioController`）、`admin-router.ts` の `controllers.passage` に `retryAudio` を足して `POST /passage/:id/audio/retry`
 - `src/index.ts`：`DrizzlePassageAudioRepository` を作り、2 つの Controller に渡す。`audioPublicUrlBase` は §7
@@ -166,7 +166,7 @@ pnpm lint:fix
 lib（`test/lib/passage-audio.test.ts`）：
 
 - [ ] `resolveAudioStatus`：行が無い → pending / pending・generating・failed はそのまま（非公開の問題でも）/ 公開中の ready で `updatedAt >= publishedAt` → ready、`updatedAt < publishedAt`・`publishedAt` が null → pending / 問題が `published` でない（draft・rejected）ready → pending
-- [ ] `toUserAudioStatus`：generating → pending、他はそのまま
+- [ ] `convertToUserAudioStatus`：generating → pending、他はそのまま
 - [ ] `buildAudioUrl`：base の末尾のスラッシュの有無で同じ URL
 
 Service（ユニット）：

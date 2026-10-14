@@ -34,15 +34,18 @@ const buildRow = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 })
 
-const createFakePrisma = (rows: ReturnType<typeof buildRow>[]) => {
+/**
+ * updateMany は条件に合った行数（updatedCount）を返す
+ */
+const createFakePrisma = (rows: ReturnType<typeof buildRow>[], updatedCount = 1) => {
   const findMany = vi.fn(async (_args: unknown) => rows)
   const findUnique = vi.fn(async (_args: unknown) => rows[0] ?? null)
-  const update = vi.fn(async (_args: unknown) => rows[0])
+  const updateMany = vi.fn(async (_args: unknown) => ({ count: updatedCount }))
   return {
     findMany,
     findUnique,
-    prisma: { contentSource: { findMany, findUnique, update } } as unknown as PrismaClient,
-    update,
+    prisma: { contentSource: { findMany, findUnique, updateMany } } as unknown as PrismaClient,
+    updateMany,
   }
 }
 
@@ -81,25 +84,46 @@ describe("PrismaContentSourceRepository", () => {
 
   describe("markCollected", () => {
     describe("正常系", () => {
-      it("lastCollectedCommitSha を省略したら last_collected_at だけを更新する", async () => {
+      it("lastCollectedCommitSha を省略したら id だけを条件に last_collected_at だけを更新し、true を返す", async () => {
         const fake = createFakePrisma([buildRow()])
         const lastCollectedAt = new Date("2026-10-10T03:00:00.000Z")
 
-        await new PrismaContentSourceRepository(fake.prisma).markCollected(1, { lastCollectedAt })
+        const isUpdated = await new PrismaContentSourceRepository(fake.prisma).markCollected(1, { lastCollectedAt })
 
-        expect(fake.update).toHaveBeenCalledWith({ data: { lastCollectedAt }, where: { id: 1 } })
+        expect(isUpdated).toBe(true)
+        expect(fake.updateMany).toHaveBeenCalledWith({ data: { lastCollectedAt }, where: { id: 1 } })
       })
 
-      it("lastCollectedCommitSha を渡したら一緒に更新する", async () => {
+      it.each([
+        ["前回の SHA", "old-sha"],
+        ["null（未収集）", null],
+      ])("lastCollectedCommitSha を渡したら、収集を始めたときの値（%s）を条件に一緒に更新する", async (_label, expected) => {
         const fake = createFakePrisma([buildRow()])
         const lastCollectedAt = new Date("2026-10-10T03:00:00.000Z")
 
-        await new PrismaContentSourceRepository(fake.prisma).markCollected(1, { lastCollectedAt, lastCollectedCommitSha: "abc" })
-
-        expect(fake.update).toHaveBeenCalledWith({
-          data: { lastCollectedAt, lastCollectedCommitSha: "abc" },
-          where: { id: 1 },
+        const isUpdated = await new PrismaContentSourceRepository(fake.prisma).markCollected(1, {
+          lastCollectedAt,
+          lastCollectedCommitSha: { expected, next: "new-sha" },
         })
+
+        expect(isUpdated).toBe(true)
+        expect(fake.updateMany).toHaveBeenCalledWith({
+          data: { lastCollectedAt, lastCollectedCommitSha: "new-sha" },
+          where: { id: 1, lastCollectedCommitSha: expected },
+        })
+      })
+    })
+
+    describe("異常系", () => {
+      it("収集の途中で last_collected_commit_sha が変わって条件に合わなければ false を返す（throw しない）", async () => {
+        const fake = createFakePrisma([buildRow()], 0)
+
+        const isUpdated = await new PrismaContentSourceRepository(fake.prisma).markCollected(1, {
+          lastCollectedAt: new Date("2026-10-10T03:00:00.000Z"),
+          lastCollectedCommitSha: { expected: "old-sha", next: "new-sha" },
+        })
+
+        expect(isUpdated).toBe(false)
       })
     })
   })

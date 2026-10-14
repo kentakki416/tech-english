@@ -172,7 +172,7 @@ describe("buildDraftContent", () => {
   })
 
   describe("異常系", () => {
-    it("和訳の無いブロックは要確認（見出しは「見出し」、他は numberParagraphs の段落番号）。code・範囲外の和訳は無視する", () => {
+    it("和訳の無いブロックは要確認（見出しは numberHeadings の「見出し N」、他は numberParagraphs の段落番号）。code・範囲外の和訳は無視する", () => {
       const output = buildGeneratedOutput()
       const { content } = buildDraftContent(buildInput({
         output: {
@@ -186,8 +186,22 @@ describe("buildDraftContent", () => {
       }))
 
       expect(content.blocks[5].translationJa).toBeUndefined()
-      expect(content.attentionReasons).toEqual(["見出しの和訳がありません", "段落 4 の和訳がありません"])
+      expect(content.attentionReasons).toEqual(["見出し 1 の和訳がありません", "段落 4 の和訳がありません"])
       expect(PROSE_BLOCK_INDEXES.filter((index) => content.blocks[index].translationJa === undefined)).toEqual([0, 4])
+    })
+
+    it("和訳の無い見出しが複数あっても、見出しの番号で理由を区別できる", () => {
+      const output = buildGeneratedOutput()
+      const blocks = PASSAGE.blocks.map((block, index) => (index === 3 ? { text: "How retries work", type: "heading" as const } : block))
+      const { content } = buildDraftContent(buildInput({
+        blocks,
+        output: {
+          ...output,
+          translations: output.translations.filter((translation) => translation.blockIndex !== 0 && translation.blockIndex !== 3),
+        },
+      }))
+
+      expect(content.attentionReasons).toEqual(["見出し 1 の和訳がありません", "見出し 2 の和訳がありません"])
     })
 
     it("根拠の引用が該当ブロックの本文に無ければ要確認（保存はする）", () => {
@@ -205,7 +219,7 @@ describe("buildDraftContent", () => {
 
       expect(content.attentionReasons).toEqual([
         "Q1：根拠の引用が段落 2 の本文に見つかりません",
-        "Q3：根拠の引用が見出しの本文に見つかりません",
+        "Q3：根拠の引用が見出し 1 の本文に見つかりません",
       ])
       expect(content.questions[0].evidenceQuote).toBe("Retries are always safe")
     })

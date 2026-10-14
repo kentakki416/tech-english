@@ -91,6 +91,18 @@ describe("POST /api/admin/content-source", () => {
       })
     })
 
+    it("github の repository は小文字にそろえて保存する", async () => {
+      const res = await request(app)
+        .post("/api/admin/content-source")
+        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .send({ ...GITHUB_REQUEST, repository: "ReactJS/React.dev" })
+
+      expect(res.status).toBe(201)
+      expect(res.body).toMatchObject({ repository: "reactjs/react.dev" })
+      const [row] = await testDb.select().from(contentSources).where(eq(contentSources.id, res.body.id))
+      expect(row).toMatchObject({ repository: "reactjs/react.dev" })
+    })
+
     it("website は start_url だけでも登録できる", async () => {
       const res = await request(app)
         .post("/api/admin/content-source")
@@ -137,6 +149,19 @@ describe("POST /api/admin/content-source", () => {
         .post("/api/admin/content-source")
         .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
         .send({ ...GITHUB_REQUEST, name: "dup" })
+
+      expect(res.status).toBe(409)
+      expect(res.body).toEqual({ error: expect.any(String), status_code: 409 })
+      expect(await testDb.$count(contentSources)).toBe(1)
+    })
+
+    it("大文字・小文字だけが違う登録済みの repository なら 409 を返し、DB に保存しない", async () => {
+      await insertGitHubSource()
+
+      const res = await request(app)
+        .post("/api/admin/content-source")
+        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .send({ ...GITHUB_REQUEST, name: "dup", repository: "ReactJS/react.dev" })
 
       expect(res.status).toBe(409)
       expect(res.body).toEqual({ error: expect.any(String), status_code: 409 })

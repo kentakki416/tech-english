@@ -1,6 +1,7 @@
 import * as Localization from "expo-localization"
 
-import { clearStudyReminders } from "@/features/study-reminder/study-reminder.sync"
+import { useAttemptStore } from "@/features/attempt/attempt.store"
+import { cancelStudyRemindersOnSignIn, clearStudyReminders } from "@/features/study-reminder/study-reminder.sync"
 
 import { authApi } from "./auth.api"
 import { clearStoredTokens, getStoredTokens, saveTokens } from "./auth.storage"
@@ -24,7 +25,7 @@ export const restoreSession = async (): Promise<void> => {
 }
 
 /**
- * GitHub でログインする。成功するとトークンを保存してログイン中にする（Stack.Protected がタブへ移す）
+ * GitHub でログインする。成功するとトークンを保存し、リマインダーの予約を取り消してからログイン中にする（Stack.Protected がタブへ移す）
  */
 export const signInWithGitHub = async (): Promise<SignInResult> => {
   try {
@@ -43,13 +44,14 @@ export const signInWithGitHub = async (): Promise<SignInResult> => {
     return "failed"
   }
 
+  await cancelStudyRemindersBeforeSync()
   useAuthStore.getState().setStatus("signedIn")
   return "signedIn"
 }
 
 /**
  * 開発用のログイン（ログイン画面の「Dev Login」）。api の dev-login で seed 済みの dev ユーザーのトークンを受け取り、
- * GitHub でログインしたときと同じく保存してログイン中にする。`__DEV__` でなければ何もしない
+ * GitHub でログインしたときと同じく保存し、リマインダーの予約を取り消してからログイン中にする。`__DEV__` でなければ何もしない
  */
 export const signInAsDevUser = async (email: string): Promise<SignInResult> => {
   if (!__DEV__) return "failed"
@@ -61,30 +63,47 @@ export const signInAsDevUser = async (email: string): Promise<SignInResult> => {
     return "failed"
   }
 
+  await cancelStudyRemindersBeforeSync()
   useAuthStore.getState().setStatus("signedIn")
   return "signedIn"
 }
 
 /**
- * ユーザーが押したログアウト。この端末のログイン状態とリマインダーの予約を消す（他の端末はログインしたまま）
+ * ユーザーが押したログアウト。この端末のログイン状態と、リマインダーの予約・通知センターに届き済みのリマインダーを消す（他の端末はログインしたまま）
  *
  * refresh の失敗による強制ログアウト（`src/libs/api-client.ts` の `expireSession`）はここを通らない。
- * 強制ログアウトでは予約を取り消さない（ログインが切れても通知は届き、タップでログイン画面に進む仕様。study-reminder）
+ * 強制ログアウトでは予約も届き済みの通知も消さない（ログインが切れても通知は届き、タップでログイン画面に進む仕様。study-reminder）。
+ * 予約は次にログインしたときに取り消す（cancelStudyRemindersBeforeSync）。
+ * メモリに持つ挑戦（attempt.store）は強制ログアウトと同じく空にする
  */
 export const signOut = async (): Promise<void> => {
   await revokeRefreshToken()
   await cancelStudyReminders()
   await clearStoredTokens()
+  useAttemptStore.getState().clearStoreAttempts()
   useAuthStore.getState().setStatus("signedOut")
 }
 
 /**
- * この端末のリマインダーの予約を取り消し、設定の store を空にする。失敗してもログアウトは続ける
+ * この端末のリマインダーの予約と届き済みの通知を消し、設定の store を空にする。失敗してもログアウトは続ける
  * （次にログインしたときの同期で、そのユーザーの設定に作り直される）
  */
 const cancelStudyReminders = async (): Promise<void> => {
   try {
     await clearStudyReminders()
+  } catch (error) {
+    console.warn("Failed to cancel study reminders:", error)
+  }
+}
+
+/**
+ * ログインの成功時、ログイン中にする前に（リマインダーの同期より先に）この端末の予約を取り消す。失敗してもログインは続ける。
+ * 強制ログアウトでは予約を残すので、別のユーザーがログインして最初の同期の取得に失敗したときに前のユーザーの予約を残さないため
+ * （同じユーザーでも次の同期で作り直される）
+ */
+const cancelStudyRemindersBeforeSync = async (): Promise<void> => {
+  try {
+    await cancelStudyRemindersOnSignIn()
   } catch (error) {
     console.warn("Failed to cancel study reminders:", error)
   }

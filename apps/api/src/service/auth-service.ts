@@ -259,12 +259,54 @@ export type RefreshTokensSuccess = {
 type RefreshVerifier = (token: string) => { jti: string; userId: number } | null
 
 /**
+ * ローテーションした旧 refresh token に、発行済みの同じペアを返し続ける時間（秒）
+ */
+const ROTATION_GRACE_SECONDS = 30
+
+/**
+ * 猶予の間に、ローテーション済みの旧 refresh token がもう一度来たときの処理。新しく発行せず、発行済みの同じペアを返す。
+ *
+ * 次の場合に、2 回目の更新が 401 になってログアウトさせないため:
+ * - 応答を受け取れなかったクライアント（web の timeout・通信断）。api はローテーションを終えているが、クライアントには旧 token が残る
+ * - 同じ token での同時の更新（ページと prefetch など）
+ * - web を複数台にしたとき（web のプロセス内のまとめ役は台をまたがない）
+ *
+ * 猶予の記録が無い（猶予を過ぎた・ローテーションしていない）、発行したペアが失効した（ログアウト）、ユーザーが削除済みはすべて 401。
+ */
+const reuseRotatedTokens = async (
+  payload: { jti: string; userId: number },
+  repo: { refreshTokenRepository: RefreshTokenRepository; userRepository: UserRepository },
+  verifier: RefreshVerifier
+): Promise<Result<RefreshTokensSuccess>> => {
+  const rotated = await repo.refreshTokenRepository.findRotatedTokens(payload.jti)
+  if (!rotated) {
+    return err(unauthorizedError("Refresh token has been revoked"))
+  }
+
+  const rotatedPayload = verifier(rotated.refreshToken)
+  const rotatedUserId = rotatedPayload ? await repo.refreshTokenRepository.findUserId(rotatedPayload.jti) : null
+  if (rotatedUserId === null || rotatedUserId !== payload.userId) {
+    return err(unauthorizedError("Refresh token has been revoked"))
+  }
+
+  const user = await repo.userRepository.findById(payload.userId)
+  if (!user) {
+    return err(unauthorizedError("User not found"))
+  }
+
+  logger.debug("AuthService: Rotated tokens reused within grace period", { userId: payload.userId })
+
+  return ok({ accessToken: rotated.accessToken, refreshToken: rotated.refreshToken })
+}
+
+/**
  * Refresh Token のローテーション
  *
  * 受け取った Refresh Token を検証し、Redis 上の jti と一致する場合は旧 jti を破棄して
  * 新しい Access Token + Refresh Token を発行する（1 回使用で無効化）。
+ * ローテーション後 ROTATION_GRACE_SECONDS の間は、同じ旧 Refresh Token に発行済みの同じペアを返す（reuseRotatedTokens）。
  *
- * 検証失敗・既に無効化済み・userId 不一致・ユーザーが削除済みはすべて 401 で返す。
+ * 検証失敗・既に無効化済み（猶予の外）・userId 不一致・ユーザーが削除済みはすべて 401 で返す。
  */
 export const refreshTokens = async (
   input: { refreshToken: string },
@@ -280,7 +322,10 @@ export const refreshTokens = async (
   }
 
   const userId = await repo.refreshTokenRepository.findUserId(payload.jti)
-  if (userId === null || userId !== payload.userId) {
+  if (userId === null) {
+    return reuseRotatedTokens(payload, repo, verifier)
+  }
+  if (userId !== payload.userId) {
     return err(unauthorizedError("Refresh token has been revoked"))
   }
 
@@ -294,12 +339,16 @@ export const refreshTokens = async (
     return err(unauthorizedError("User not found"))
   }
 
-  /** ローテーション: 旧 jti を破棄して新しい jti を発行 */
-  await repo.refreshTokenRepository.delete(payload.jti)
-
   const accessToken = generators.generateAccessToken(userId)
   const { jti, token: refreshToken } = generators.generateRefreshToken(userId)
   await repo.refreshTokenRepository.save(jti, userId, REFRESH_TTL_SECONDS)
+
+  /**
+   * ローテーション: 旧 jti → 発行したペアを猶予の間だけ残してから、旧 jti を破棄する。
+   * 先に残すので、旧 jti が消えて見えるリクエストは（猶予の間なら）必ず猶予の記録を見つける
+   */
+  await repo.refreshTokenRepository.saveRotatedTokens(payload.jti, { accessToken, refreshToken }, ROTATION_GRACE_SECONDS)
+  await repo.refreshTokenRepository.delete(payload.jti)
 
   logger.debug("AuthService: Tokens rotated", { userId })
 

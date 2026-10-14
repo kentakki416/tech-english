@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { unstable_rethrow } from "next/navigation"
 
 import { getUser } from "@/features/user/get-user"
 
@@ -19,9 +20,13 @@ const NAV_ITEMS: { href: string, key: NavKey, label: string }[] = [
  */
 export async function AppHeader({ current }: { current: NavKey }) {
   /**
-   * ヘッダーの取得失敗でページ全体を落とさない（アバターの代わりに空の丸を出す）
+   * ヘッダーの取得失敗でページ全体を落とさない（アバターの代わりに空の丸を出す）。
+   * ただし getUser のセッション切れの redirect（api が期限内の access token を拒んだ）は握りつぶさずに投げ直し、ログイン画面へ移す
    */
-  const user = await getUser().catch(() => null)
+  const user = await getUser().catch((error: unknown) => {
+    unstable_rethrow(error)
+    return null
+  })
 
   return (
     <header className="sticky top-0 z-30 border-b border-line bg-canvas/90 backdrop-blur">

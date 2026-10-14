@@ -10,6 +10,12 @@ import {
 
 import { apiClient } from "@/libs/api-client"
 
+/**
+ * ログアウトの打ち切り（study-reminder の取得・保存と同じ 15 秒）。axios の既定（0）と Android の通信の既定は無制限で、
+ * 応答が無いとログアウト（signOut は失効を待ってからリマインダーの予約を取り消す）がいつまでも終わらないため
+ */
+const LOGOUT_TIMEOUT_MS = 15_000
+
 export const authApi = {
   /**
    * POST /api/auth/dev-login。seed 済みの dev ユーザー（alice / bob）のトークンを発行する。
@@ -21,11 +27,12 @@ export const authApi = {
   },
 
   /**
-   * POST /api/auth/logout。この端末の refresh token を api 側で失効させる（access token が必要）
+   * POST /api/auth/logout。この端末の refresh token を api 側で失効させる（access token が必要）。
+   * 失敗・timeout しても signOut はログアウトを続ける
    */
   logout: async (refreshToken: string): Promise<void> => {
     const body: AuthLogoutRequest = { refresh_token: refreshToken }
-    await apiClient.post("/api/auth/logout", body)
+    await apiClient.post("/api/auth/logout", body, { timeout: LOGOUT_TIMEOUT_MS })
   },
 
   /**

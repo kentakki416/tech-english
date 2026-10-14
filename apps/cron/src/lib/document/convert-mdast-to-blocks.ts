@@ -16,15 +16,34 @@ export type DocumentBlock = PassageBlock & { headingDepth?: number }
 const HUGO_SHORTCODE_PATTERN = /\{\{[<%].*?[%>]\}\}/g
 
 /**
+ * Kubernetes の用語のツールチップ（`{{< glossary_tooltip text="nodes" term_id="node" >}}`）。文の一部なので消さずに語に置き換える
+ */
+const GLOSSARY_TOOLTIP_PATTERN = /\{\{[<%]\s*glossary_tooltip\b(.*?)[%>]\}\}/g
+
+/**
+ * ショートコードの引数（`name="value"`）の値
+ */
+const findShortcodeArgument = (args: string, name: string): string | null =>
+  new RegExp(`\\b${name}="([^"]*)"`).exec(args)?.[1] ?? null
+
+/**
+ * glossary_tooltip を表示される語に置き換える。text が無ければ term_id（用語集の見出しの代わり）にする
+ */
+const replaceGlossaryTooltips = (text: string): string =>
+  text.replace(GLOSSARY_TOOLTIP_PATTERN, (_match, args: string) =>
+    findShortcodeArgument(args, "text") ?? findShortcodeArgument(args, "term_id") ?? "")
+
+/**
  * GitHub の注記（`> [!NOTE]` / `> [!WARNING]` など）の先頭のマーカー
  */
 const GITHUB_ALERT_MARKER_PATTERN = /^\[![A-Za-z]+\]\s*/
 
 /**
- * コード以外のテキストを整える。ショートコードが改行をまたぐこともあるので、空白をまとめてから消す
+ * コード以外のテキストを整える。ショートコードが改行をまたぐこともあるので、空白をまとめてから処理する。
+ * glossary_tooltip は語に置き換え、それ以外のショートコードは消す
  */
 const normalizeProseText = (text: string): string =>
-  text.replace(/\s+/g, " ").replace(HUGO_SHORTCODE_PATTERN, "").replace(/\s+/g, " ").trim()
+  replaceGlossaryTooltips(text.replace(/\s+/g, " ")).replace(HUGO_SHORTCODE_PATTERN, "").replace(/\s+/g, " ").trim()
 
 /**
  * インラインのノードをテキストにする。インラインコードはバッククォートつきで残し、リンクはテキストだけ残す
