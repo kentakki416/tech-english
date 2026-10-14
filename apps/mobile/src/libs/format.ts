@@ -13,15 +13,29 @@ export const formatSeconds = (totalSeconds: number): string => {
   return `${sign}${Math.floor(abs / 60)}:${String(abs % 60).padStart(2, "0")}`
 }
 
-/**
- * 学習秒数を分にする。学習した日が「0 分」にならないように切り上げる
- */
-export const convertStudySecondsToMinutes = (studySeconds: number): number => Math.ceil(studySeconds / 60)
+const SECONDS_PER_MINUTE = 60
 
 /**
- * 学習秒数を `9時間12分` にする（1 時間未満は `12分`）
+ * 学習秒数を分にする。学習時間の分の表示はすべてここを通し、端数は切り捨てる（api の週の目標の進捗と同じ）
+ */
+const convertStudySecondsToMinutes = (studySeconds: number): number => Math.floor(studySeconds / SECONDS_PER_MINUTE)
+
+/**
+ * 学習はしているが切り捨てると 0 分になる（0 秒より多く 60 秒未満）か。このときは「1 分未満」と出す
+ */
+const isUnderOneMinute = (studySeconds: number): boolean => studySeconds > 0 && studySeconds < SECONDS_PER_MINUTE
+
+/**
+ * 学習秒数を `12 分` にする（カレンダーのマス・選んだ日）。0 秒より多く 60 秒未満は `1 分未満`
+ */
+export const formatStudyMinutes = (studySeconds: number): string =>
+  isUnderOneMinute(studySeconds) ? "1 分未満" : `${convertStudySecondsToMinutes(studySeconds)} 分`
+
+/**
+ * 学習秒数を `9時間12分` にする（1 時間未満は `12分`、0 秒より多く 60 秒未満は `1分未満`）
  */
 export const formatStudyTime = (studySeconds: number): string => {
+  if (isUnderOneMinute(studySeconds)) return "1分未満"
   const minutes = convertStudySecondsToMinutes(studySeconds)
   const hours = Math.floor(minutes / 60)
   return hours > 0 ? `${hours}時間${minutes % 60}分` : `${minutes}分`

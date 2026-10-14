@@ -99,6 +99,7 @@ export const removeAttemptProgress = async (attemptId: number): Promise<void> =>
 - 開いたら `passageApi.getDetail(id)`。読み込み中は `ActivityIndicator`、404 は「この問題は表示できません。」と「閉じる」
 - 2 × 2 の表（難易度・英単語数・制限時間・設問）、説明（「・タイマーは「開始する」で動きます」「・アプリを閉じている間は止まります」）、出典の 1 行（`出典：{source_name}（{license_spdx}）。一部を抜粋・改変しています。`）
 - `in_progress_attempt` があれば説明の代わりに再開の囲み（琥珀の枠と淡い琥珀の背景）とボタン「再開する」。中身は web の step5 の `ResumeNotice` と同じ計算で、途中経過は `await readAttemptProgress(id)`、期限は `server_now` で補正した現在時刻から求める
+- `can_start` が false（公開を終了した問題）なら、web と同じく再開の囲みの最後に「この問題は公開を終了しています。この挑戦は再開して提出できますが、新しく始めることはできません。」を足し、下端のボタンは「再開する」だけにする（`can_start || in_progress_attempt` のときだけ下端のボタンを出す）
 
 ```ts
 const startAttempt = async () => {
@@ -133,5 +134,6 @@ iOS シミュレーターと Android エミュレーターの両方で、公開�
 - [ ] 「ランダムに 1 問」で条件に合う問題の開始確認が下から出る
 - [ ] `npx uri-scheme open "techenglish://passages/random" --ios`（`--android`）で開始確認が開く。公開中の問題が無ければ問題タブに戻る
 - [ ] 開始確認：新規は「開始する」、挑戦中は再開の囲み（残り時間・回答数・期限）と「再開する」。「閉じる」と下へのスワイプで一覧に戻る
+- [ ] 挑戦中に問題を非公開に戻すと、一覧からは消えるが、結果画面の「もう一度解く」（過去に提出していれば）やディープリンク（`techenglish://passages/{id}`）の開始確認は公開終了の 1 行つきの再開の囲みと「再開する」だけになり、再開・提出できる
 - [ ] 「開始する」で解答画面（step9）に置き換わる。戻るとモーダルではなく一覧に戻る
 - [ ] access token の期限（15 分）が切れた後も一覧を取り直せる（401 → refresh → 再試行）

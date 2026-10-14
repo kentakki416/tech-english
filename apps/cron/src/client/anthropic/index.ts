@@ -8,6 +8,7 @@ export type {
   AnthropicMessagesApi,
   CreateAnthropicClientOptions,
   ILlmClient,
+  LlmEffort,
   LlmUsage,
   StructuredMessageRequest,
   StructuredMessageResponse,

@@ -21,6 +21,8 @@ import { AdminPassageListController } from "./controller/admin/passage/list"
 import { AdminPassagePublishController } from "./controller/admin/passage/publish"
 import { AdminPassageRegenerateController } from "./controller/admin/passage/regenerate"
 import { AdminPassageRejectController } from "./controller/admin/passage/reject"
+import { AdminPassageResolveAttentionController } from "./controller/admin/passage/resolve-attention"
+import { AdminPassageRestoreController } from "./controller/admin/passage/restore"
 import { AdminPassageUnpublishController } from "./controller/admin/passage/unpublish"
 import { AdminPassageUpdateController } from "./controller/admin/passage/update"
 import { AttemptDetailController } from "./controller/attempt/detail"
@@ -220,6 +222,8 @@ const adminPassageListController = new AdminPassageListController(passageReposit
 const adminPassagePublishController = new AdminPassagePublishController(passageRepository)
 const adminPassageRegenerateController = new AdminPassageRegenerateController(passageRepository)
 const adminPassageRejectController = new AdminPassageRejectController(passageRepository)
+const adminPassageResolveAttentionController = new AdminPassageResolveAttentionController(passageRepository)
+const adminPassageRestoreController = new AdminPassageRestoreController(passageRepository)
 const adminPassageUnpublishController = new AdminPassageUnpublishController(passageRepository)
 const adminPassageUpdateController = new AdminPassageUpdateController(passageRepository)
 
@@ -330,6 +334,8 @@ app.use(
       publish: adminPassagePublishController,
       regenerate: adminPassageRegenerateController,
       reject: adminPassageRejectController,
+      resolveAttention: adminPassageResolveAttentionController,
+      restore: adminPassageRestoreController,
       unpublish: adminPassageUnpublishController,
       update: adminPassageUpdateController,
     },

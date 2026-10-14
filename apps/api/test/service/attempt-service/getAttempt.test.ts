@@ -93,6 +93,39 @@ describe("getAttempt", () => {
       expect(readingAttemptRepository.findWordLookupsWithMeaning).toHaveBeenCalledWith(301, PRIMARY)
     })
 
+    it("提出後に正解が直された設問は、正誤を保存値のまま isAnswerKeyChanged を true にする", async () => {
+      const content = buildAttemptContent()
+      /**
+       * 保存した回答は 201 が 1 を選んで正解、202 が 0 を選んで不正解、203 が未回答。
+       * 201 の正解を 2 に、202 の正解を 0 に、203 の正解を 0 に直す
+       */
+      const correctedChoiceIndexes = new Map([[201, 2], [202, 0], [203, 0]])
+      passageRepository.findAttemptContentById.mockResolvedValue({
+        ...content,
+        questions: content.questions.map((question) => ({
+          ...question,
+          correctChoiceIndex: correctedChoiceIndexes.get(question.id) ?? question.correctChoiceIndex,
+        })),
+      })
+      readingAttemptRepository.findByIdForUser.mockResolvedValue(buildSubmittedAttempt())
+      readingAttemptRepository.findAnswersByAttemptId.mockResolvedValue(buildStoredAnswers())
+      readingAttemptRepository.findWordLookupsWithMeaning.mockResolvedValue([])
+
+      const result = await getAttempt(INPUT, repo)
+
+      expect(result.ok && result.value.status === "submitted" && result.value.correctCount).toBe(1)
+      expect(
+        result.ok && result.value.status === "submitted" && result.value.questions.map(
+          ({ correctChoiceIndex, id, isAnswerKeyChanged, isCorrect, selectedChoiceIndex }) =>
+            ({ correctChoiceIndex, id, isAnswerKeyChanged, isCorrect, selectedChoiceIndex }),
+        ),
+      ).toEqual([
+        { correctChoiceIndex: 2, id: 201, isAnswerKeyChanged: true, isCorrect: true, selectedChoiceIndex: 1 },
+        { correctChoiceIndex: 0, id: 202, isAnswerKeyChanged: true, isCorrect: false, selectedChoiceIndex: 0 },
+        { correctChoiceIndex: 0, id: 203, isAnswerKeyChanged: false, isCorrect: false, selectedChoiceIndex: null },
+      ])
+    })
+
     it.each([
       ["開始から 23:59:59.999（境界値）", "2026-10-12T00:00:00.001Z", "in_progress"],
       ["開始からちょうど 24 時間（境界値）", "2026-10-12T00:00:00.000Z", "expired"],

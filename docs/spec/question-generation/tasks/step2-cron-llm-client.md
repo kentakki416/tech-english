@@ -32,8 +32,11 @@ env を import せず、SDK のインスタンスをコンストラクタで受�
 import Anthropic from "@anthropic-ai/sdk"
 
 export type StructuredMessageRequest = {
+  /** 指定すると thinking: adaptive と output_config.effort を明示して送る（生成だけ。検証は省略してモデルの既定に任せる） */
+  adaptiveThinking?: { effort: "low" | "medium" | "high" | "xhigh" | "max" }
   /** 出力の JSON Schema（Zod スキーマから作る） */
   jsonSchema: Record<string, unknown>
+  /** 思考（thinking）のトークンも含む出力の上限 */
   maxTokens: number
   model: string
   /** 全件共通の指示。キャッシュする */
@@ -66,13 +69,18 @@ export class AnthropicClient implements LlmClient {
       max_tokens: request.maxTokens,
       messages: [{ content: request.userContent, role: "user" }],
       model: request.model,
-      /** structured output。形は実装時にドキュメントで確認する */
-      output_config: { format: { schema: request.jsonSchema, type: "json_schema" } },
+      /** structured output。adaptiveThinking があれば effort も入れる */
+      output_config: {
+        ...(request.adaptiveThinking ? { effort: request.adaptiveThinking.effort } : {}),
+        format: { schema: request.jsonSchema, type: "json_schema" },
+      },
       /** system prompt をキャッシュする。最小キャッシュ長未満だとエラーにならずキャッシュされないだけ */
       system: [{ cache_control: { type: "ephemeral" }, text: request.system, type: "text" }],
+      ...(request.adaptiveThinking ? { thinking: { type: "adaptive" } } : {}),
     })
     if (message.stop_reason === "refusal") throw new LlmRefusalError(message.stop_details?.category ?? null)
-    if (message.stop_reason === "max_tokens") throw new LlmOutputTruncatedError()
+    /** text が JSON として読めても完結していないので使わない。output_tokens をログに出せるように持たせる */
+    if (message.stop_reason === "max_tokens") throw new LlmOutputTruncatedError(message.stop_reason, message.usage.output_tokens)
     /** adaptive thinking のモデルは thinking ブロックも返すので text ブロックを探す */
     const text = message.content.find((block) => block.type === "text")?.text
     return {
@@ -88,15 +96,16 @@ export class AnthropicClient implements LlmClient {
 }
 ```
 
-- `temperature` などのサンプリングの引数は渡さない（新しいモデルでは既定値以外を受け付けないものがある）。thinking / effort もモデルの既定のままにする
-- `maxTokens` は生成で `16000` 程度（非ストリーミングで HTTP のタイムアウトにかからない目安）。足りずに `max_tokens` で止まったら `LlmOutputTruncatedError` にし、step3 で「検証に不合格」と同じ扱いにする。ストリーミングにするかは実装時に判断する
+- `temperature` などのサンプリングの引数は渡さない（新しいモデルでは既定値以外を受け付けないものがある）
+- **thinking と effort**：思考のトークンは内容が返らなくても `max_tokens` に数えられる。`claude-sonnet-5-5` は `thinking` を省略すると adaptive thinking で、effort の既定は `high`。structured output では low / medium のときに思考が `max_tokens` まで続くことがあり、high 以上ではほぼ起きないので、生成は `adaptiveThinking: { effort: "high" }` を明示する（README の [LLM の呼び出し](../README.md#llm-の呼び出し)）。検証の Claude Haiku 4.5 は adaptive thinking を 400 で拒否するので渡さない
+- `maxTokens` は生成で `16000`（非ストリーミングで SDK のタイムアウトにかからない上限に近い）。足りずに `max_tokens` で止まったら `LlmOutputTruncatedError`（`stopReason` と `outputTokens`）にし、step3 で一時的な失敗として次の実行に回す（その場では作り直さない）
 - 拒否（`refusal`）時のサーバー側フォールバック（beta）は使わない。拒否は 1 件の失敗として step3 で扱う
 
 `apps/cron/src/client/anthropic/errors.ts`：
 
 ```typescript
 export class LlmRefusalError extends Error { /** stop_details の category を持つ */ }
-export class LlmOutputTruncatedError extends Error {}
+export class LlmOutputTruncatedError extends Error { /** stopReason と outputTokens（usage.output_tokens）を持つ */ }
 export class LlmInvalidJsonError extends Error {}
 
 /**
@@ -214,7 +223,8 @@ pnpm --filter cron lint
 
 - [ ] 正常系：`model` / `max_tokens` / `output_config` が渡り、system の text ブロックに `cache_control` が付く
 - [ ] 正常系：thinking ブロックの後ろの text ブロックの JSON を返し、`usage` と `model` を詰め替える
-- [ ] 異常系：`stop_reason` が `refusal` → `LlmRefusalError`、`max_tokens` → `LlmOutputTruncatedError`
+- [ ] 正常系：`adaptiveThinking` を渡すと `thinking: { type: "adaptive" }` と `output_config.effort` が渡り、渡さなければどちらも渡らない
+- [ ] 異常系：`stop_reason` が `refusal` → `LlmRefusalError`、`max_tokens` → `outputTokens` を持つ `LlmOutputTruncatedError`（text が JSON として読めても）
 - [ ] 異常系：text が JSON でない → `LlmInvalidJsonError`。SDK が throw したらそのまま伝播する
 - [ ] `isFatalLlmError`：認証・権限のエラーだけ true（`RateLimitError` / `InternalServerError` は false）
 
