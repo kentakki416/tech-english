@@ -15,8 +15,8 @@ export type MockPronunciation = {
    * 単語の音声ができているか（できていなければ「準備中」で押せない）
    */
   isWordReady: boolean
-  playing: PronunciationTarget | null
   onToggle: (target: PronunciationTarget) => void
+  playing: PronunciationTarget | null
 }
 
 /**
@@ -31,6 +31,11 @@ function SpeakerIcon({ className = "", isPlaying }: { className?: string, isPlay
     </svg>
   )
 }
+
+/**
+ * マウスで押したときにボタンへフォーカスを移さない（次の Space でカードをめくれるように）
+ */
+const preventMouseFocus = (event: React.MouseEvent) => event.preventDefault()
 
 /**
  * 語句のすぐ右の、単語の発音のボタン（見出し語を読む）。カードのクリック（めくる）と重ならないよう伝播を止める
@@ -56,6 +61,7 @@ export function WordSoundButton({ lemma, pronunciation, size }: { lemma: string,
         event.stopPropagation()
         pronunciation.onToggle("word")
       }}
+      onMouseDown={preventMouseFocus}
       title={pronunciation.isWordReady ? "発音を聞く" : "発音を準備中です"}
       type="button"
     >
@@ -65,7 +71,7 @@ export function WordSoundButton({ lemma, pronunciation, size }: { lemma: string,
 }
 
 /**
- * 1 文のすぐ下の、1 文の読み上げのボタン。1 文の音声が無ければ何も出さない
+ * 1 文のすぐ下の、1 文の読み上げのボタン。1 文の音声が無ければ何も出さない。文字は再生中も「この文を聞く」のまま
  */
 export function SentenceSoundButton({ align, pronunciation }: { align: "center" | "start", pronunciation: MockPronunciation }) {
   if (!pronunciation.hasSentence) return null
@@ -81,16 +87,17 @@ export function SentenceSoundButton({ align, pronunciation }: { align: "center" 
           event.stopPropagation()
           pronunciation.onToggle("sentence")
         }}
+        onMouseDown={preventMouseFocus}
         type="button"
       >
         {isPlaying ? (
-          <SpeakerIcon className="size-3.5" isPlaying />
+          <SpeakerIcon isPlaying className="size-3.5" />
         ) : (
           <svg aria-hidden className="size-3" fill="currentColor" viewBox="0 0 12 12">
             <path d="M3 1.8v8.4L10 6 3 1.8Z" />
           </svg>
         )}
-        {isPlaying ? "この文を再生中" : "この文を聞く"}
+        この文を聞く
       </button>
     </div>
   )

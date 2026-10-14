@@ -20,8 +20,8 @@ export type MockPronunciation = {
    * 単語の音声ができているか（できていなければ「準備中」で押せない）
    */
   isWordReady: boolean
-  playing: PronunciationTarget | null
   onToggle: (target: PronunciationTarget) => void
+  playing: PronunciationTarget | null
 }
 
 /**
@@ -44,7 +44,7 @@ const PRESSED_BACKGROUND = "rgba(216, 201, 172, 0.6)"
 /**
  * 音の波 1 本。再生中は明滅させる（視差効果を減らす設定では動かさず、色だけ変える）
  */
-function SoundWave({ color, delay, d, isAnimated, size }: { color: string, delay: number, d: string, isAnimated: boolean, size: number }) {
+function SoundWave({ color, d, delay, isAnimated, size }: { color: string, d: string, delay: number, isAnimated: boolean, size: number }) {
   const opacity = useRef(new Animated.Value(1)).current
 
   useEffect(() => {
@@ -91,26 +91,26 @@ function SpeakerIcon({ color, isPlaying, size }: { color: string, isPlaying: boo
 }
 
 /**
- * 語句のすぐ右の、単語の発音のボタン（見出し語を読む）。押せる範囲は hitSlop で 44pt にする
+ * 語句のすぐ右の、単語の発音のボタン（見出し語を読む）。押せる範囲は hitSlop で 44pt にする。
+ * 準備中も disabled にはしない（disabled の Pressable はタッチを引き受けず、外のカードがめくれるため）。onPress を外して押せなくする
  */
 export function WordSoundButton({ lemma, pronunciation, size }: { lemma: string, pronunciation: MockPronunciation, size: "lg" | "sm" }) {
   const isPlaying = pronunciation.playing === "word"
   const dimension = size === "lg" ? 36 : 28
-  const color = isPlaying ? MOCK_COLORS.inkAmber : pronunciation.isWordReady ? MOCK_COLORS.inkMuted : "rgba(153, 140, 118, 0.55)"
+  const color = isPlaying ? MOCK_COLORS.inkAmber : pronunciation.isWordReady ? MOCK_COLORS.inkMuted : "rgba(153, 140, 118, 0.6)"
   return (
     <Pressable
       accessibilityLabel={pronunciation.isWordReady ? `${lemma} の発音を聞く` : `${lemma} の発音は準備中です`}
       accessibilityRole="button"
       accessibilityState={{ disabled: !pronunciation.isWordReady, selected: isPlaying }}
-      disabled={!pronunciation.isWordReady}
       hitSlop={(44 - dimension) / 2}
-      onPress={() => pronunciation.onToggle("word")}
       style={({ pressed }) => [
         styles.wordButton,
         { borderRadius: dimension / 2, height: dimension, width: dimension },
-        isPlaying && styles.playing,
-        pressed && !isPlaying && { backgroundColor: PRESSED_BACKGROUND },
+        isPlaying && styles.wordButtonPlaying,
+        pressed && pronunciation.isWordReady && !isPlaying && { backgroundColor: PRESSED_BACKGROUND },
       ]}
+      onPress={pronunciation.isWordReady ? () => pronunciation.onToggle("word") : undefined}
     >
       <SpeakerIcon color={color} isPlaying={isPlaying} size={size === "lg" ? 20 : 16} />
     </Pressable>
@@ -118,43 +118,38 @@ export function WordSoundButton({ lemma, pronunciation, size }: { lemma: string,
 }
 
 /**
- * 1 文のすぐ下の、1 文の読み上げのボタン。1 文の音声が無ければ何も出さない
+ * 1 文のすぐ下の、1 文の読み上げのボタン。1 文の音声が無ければ何も出さない。文字は再生中も「この文を聞く」のまま
  */
 export function SentenceSoundButton({ align, pronunciation }: { align: "center" | "start", pronunciation: MockPronunciation }) {
   if (!pronunciation.hasSentence) return null
   const isPlaying = pronunciation.playing === "sentence"
   return (
     <Pressable
-      accessibilityLabel={isPlaying ? "この文の再生を止める" : "この文を聞く"}
+      accessibilityLabel="この文を聞く"
       accessibilityRole="button"
       accessibilityState={{ selected: isPlaying }}
       hitSlop={8}
-      onPress={() => pronunciation.onToggle("sentence")}
       style={({ pressed }) => [
         styles.sentenceButton,
         align === "center" ? styles.sentenceButtonCenter : styles.sentenceButtonStart,
-        isPlaying && styles.playing,
+        isPlaying && styles.sentenceButtonPlaying,
         pressed && !isPlaying && { backgroundColor: PRESSED_BACKGROUND },
       ]}
+      onPress={() => pronunciation.onToggle("sentence")}
     >
       {isPlaying ? (
-        <SpeakerIcon color={MOCK_COLORS.inkAmber} isPlaying size={14} />
+        <SpeakerIcon isPlaying color={MOCK_COLORS.inkAmber} size={14} />
       ) : (
         <Svg height={11} viewBox="0 0 12 12" width={11}>
           <Path d="M3 1.8v8.4L10 6 3 1.8Z" fill={MOCK_COLORS.inkMuted} />
         </Svg>
       )}
-      <Text style={[styles.sentenceLabel, isPlaying && styles.sentenceLabelPlaying]}>{isPlaying ? "この文を再生中" : "この文を聞く"}</Text>
+      <Text style={[styles.sentenceLabel, isPlaying && styles.sentenceLabelPlaying]}>この文を聞く</Text>
     </Pressable>
   )
 }
 
 const styles = StyleSheet.create({
-  playing: {
-    backgroundColor: "rgba(243, 178, 76, 0.2)",
-    borderColor: "rgba(148, 96, 15, 0.35)",
-    borderWidth: StyleSheet.hairlineWidth,
-  },
   sentenceButton: {
     alignItems: "center",
     borderRadius: 999,
@@ -165,6 +160,12 @@ const styles = StyleSheet.create({
   },
   sentenceButtonCenter: {
     alignSelf: "center",
+  },
+  /**
+   * 1 文の再生中は琥珀の地だけ（縁は単語のボタンだけ。UI 設計）
+   */
+  sentenceButtonPlaying: {
+    backgroundColor: "rgba(243, 178, 76, 0.2)",
   },
   sentenceButtonStart: {
     alignSelf: "flex-start",
@@ -180,5 +181,10 @@ const styles = StyleSheet.create({
   wordButton: {
     alignItems: "center",
     justifyContent: "center",
+  },
+  wordButtonPlaying: {
+    backgroundColor: "rgba(243, 178, 76, 0.2)",
+    borderColor: "rgba(148, 96, 15, 0.35)",
+    borderWidth: StyleSheet.hairlineWidth,
   },
 })

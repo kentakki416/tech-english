@@ -29,14 +29,16 @@ function InkText({ text }: { text: string }) {
 }
 
 /**
- * 本文の 1 文。単語に蛍光ペンのような琥珀の線を引く。1 文を再生している間は線をゆっくり光らせる
+ * 本文の 1 文。単語に蛍光ペンのような琥珀の線を引く。1 文を再生している間は線をゆっくり光らせる（行数で切るところは isGlowInset で内側に）
  */
 export function SentenceText({
   className = "",
+  isGlowInset = false,
   isPlaying = false,
   sentence,
 }: {
   className?: string
+  isGlowInset?: boolean
   isPlaying?: boolean
   sentence: NonNullable<MockVocabularyCard["sentence"]>
 }) {
@@ -45,7 +47,7 @@ export function SentenceText({
       <InkText text={sentence.text.slice(0, sentence.highlightStart)} />
       <mark
         className={`rounded-[2px] bg-transparent bg-[linear-gradient(transparent_52%,rgb(243_178_76/0.55)_52%)] px-0.5 text-ink ${
-          isPlaying ? "motion-safe:animate-highlight-glow" : ""
+          isPlaying ? (isGlowInset ? "motion-safe:animate-highlight-glow-inset" : "motion-safe:animate-highlight-glow") : ""
         }`}
       >
         <InkText text={sentence.text.slice(sentence.highlightStart, sentence.highlightEnd)} />
@@ -99,7 +101,7 @@ function WordHeading({ card, pronunciation, size }: { card: MockVocabularyCard, 
         {size === "lg" ? (
           <span className="flex items-center justify-center gap-2">
             {pronunciation && <span aria-hidden className="w-9 shrink-0" />}
-            <span>{card.surface}</span>
+            <span className="min-w-0 [overflow-wrap:anywhere]">{card.surface}</span>
             {pronunciation && <WordSoundButton lemma={card.lemma} pronunciation={pronunciation} size="lg" />}
           </span>
         ) : (
@@ -157,9 +159,14 @@ export function PaperCardBack({ card, pronunciation }: { card: MockVocabularyCar
     <div className="flex h-full flex-col px-6 pt-12 pb-5 sm:px-10 sm:pt-12">
       <WordHeading card={card} pronunciation={pronunciation} size="sm" />
       {card.sentence && (
-        <SentenceText className="mt-1.5 line-clamp-2 text-[13px] text-ink-faint" isPlaying={pronunciation?.playing === "sentence"} sentence={card.sentence} />
+        <SentenceText
+          isGlowInset
+          className="mt-1.5 line-clamp-2 text-[13px] text-ink-faint"
+          isPlaying={pronunciation?.playing === "sentence"}
+          sentence={card.sentence}
+        />
       )}
-      {card.sentence && pronunciation && <div className="mt-1 -ml-2.5"><SentenceSoundButton align="start" pronunciation={pronunciation} /></div>}
+      {card.sentence && pronunciation?.hasSentence && <div className="mt-1 -ml-2.5"><SentenceSoundButton align="start" pronunciation={pronunciation} /></div>}
       <div className="my-4 border-t border-dashed border-ink-faint/50" />
       <div className="flex-1">
         <div aria-live="polite" className="space-y-1">

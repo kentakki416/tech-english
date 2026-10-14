@@ -81,7 +81,6 @@ export function FlashCard({
   }, [preload, wordUrl])
 
   const pronunciationControls: PronunciationControls = {
-    playing: pronunciation.playing,
     /**
      * 答えて飛んでいく間は鳴らさない（次のカードに前のカードの再生中の表示が残らないように）
      */
@@ -91,6 +90,7 @@ export function FlashCard({
       if (target === "word" && wordUrl) pronunciation.toggle("word", { url: wordUrl })
       if (target === "sentence" && sentence) pronunciation.toggle("sentence", { endMs: sentence.end_ms, startMs: sentence.start_ms, url: sentence.url })
     },
+    playing: pronunciation.playing,
   }
 
   const flip = () => {

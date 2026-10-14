@@ -384,15 +384,15 @@ const styles = StyleSheet.create({
     gap: 8,
     justifyContent: "center",
   },
+  surfaceSmall: {
+    color: MOCK_COLORS.ink,
+    fontFamily: MOCK_FONTS.readingSemiBold,
+    fontSize: 17,
+  },
   /**
    * 発音のボタン（36）と同じ幅。語句を中央に保つ
    */
   surfaceSpacer: {
     width: 36,
-  },
-  surfaceSmall: {
-    color: MOCK_COLORS.ink,
-    fontFamily: MOCK_FONTS.readingSemiBold,
-    fontSize: 17,
   },
 })
