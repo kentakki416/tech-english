@@ -11,6 +11,12 @@ export type PronunciationControls = {
 }
 
 /**
+ * マウスで押したときにボタンへフォーカスを移さない（Chrome などはクリックでボタンにフォーカスが残り、次の Space がめくりではなくボタンの操作になるため）。
+ * Tab で移ったときはボタンの操作のまま
+ */
+const preventMouseFocus = (event: React.MouseEvent) => event.preventDefault()
+
+/**
  * スピーカーと音の波。再生中は波を内側から順に明滅させる（視差効果を減らす設定では色だけ）
  */
 function SpeakerIcon({ className, isPlaying }: { className: string, isPlaying: boolean }) {
@@ -57,6 +63,7 @@ export function WordSoundButton({
         event.stopPropagation()
         controls.onToggle("word")
       }}
+      onMouseDown={preventMouseFocus}
       title={isReady ? "発音を聞く" : "発音を準備中です"}
       type="button"
     >
@@ -72,7 +79,11 @@ export function SentenceSoundButton({ align, controls }: { align: "center" | "st
   const isPlaying = controls.playing === "sentence"
   return (
     <div className={align === "center" ? "flex justify-center" : "-ml-2.5 flex"}>
+      {/**
+        * 名前は「この文を聞く」に固定し、再生中かは aria-pressed で伝える（見た目の文字だけ「この文を再生中」に変える）
+        */}
       <button
+        aria-label="この文を聞く"
         aria-pressed={isPlaying}
         className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] transition-colors outline-none focus-visible:ring-2 focus-visible:ring-amber/70 ${
           isPlaying ? "bg-amber/20 text-ink-amber" : "text-ink-muted hover:bg-paper-edge/60 hover:text-ink"
@@ -81,6 +92,7 @@ export function SentenceSoundButton({ align, controls }: { align: "center" | "st
           event.stopPropagation()
           controls.onToggle("sentence")
         }}
+        onMouseDown={preventMouseFocus}
         type="button"
       >
         {isPlaying ? (

@@ -31,9 +31,9 @@ export type Pronunciation = {
 type ActivePlayback = {
   audio: HTMLAudioElement
   cleanup: () => void
+  source: PronunciationSource
   target: PronunciationTarget
   token: symbol
-  url: string
 }
 
 /**
@@ -86,7 +86,11 @@ export function usePronunciation(): Pronunciation {
   }, [])
 
   const toggle = useCallback((target: PronunciationTarget, source: PronunciationSource) => {
-    const isSame = activeRef.current?.target === target && activeRef.current.url === source.url
+    /**
+     * 同じ段落の mp3 を別のカードの 1 文で鳴らすこともあるので、URL に加えて始めの位置でも比べる
+     */
+    const current = activeRef.current
+    const isSame = current?.target === target && current.source.url === source.url && current.source.startMs === source.startMs
     stop()
     if (isSame) return
 
@@ -99,6 +103,10 @@ export function usePronunciation(): Pronunciation {
       audio = sentenceAudioRef.current
       if (audio.getAttribute("src") !== source.url) audio.src = source.url
     }
+    /**
+     * 読み込みに失敗した audio は play() しても読み込み直さないので、押すたびに読み込み直す（回線が戻った後に鳴るように）
+     */
+    if (audio.error !== null) audio.load()
 
     const token = Symbol(target)
     const startSeconds = (source.startMs ?? 0) / 1000
@@ -126,13 +134,18 @@ export function usePronunciation(): Pronunciation {
       if (frameId !== null) window.cancelAnimationFrame(frameId)
       audio.removeEventListener("ended", finish)
       audio.removeEventListener("error", finish)
+      audio.removeEventListener("pause", finish)
       audio.removeEventListener("loadedmetadata", seekToStart)
     }
 
     audio.addEventListener("ended", finish)
     audio.addEventListener("error", finish)
+    /**
+     * イヤホンが外れた・メディアキーなど、ブラウザや OS が止めたときも表示を戻す（自分で止めるときは cleanup の後に pause するので届かない）
+     */
+    audio.addEventListener("pause", finish)
     if (audio.readyState < HTMLMediaElement.HAVE_METADATA) audio.addEventListener("loadedmetadata", seekToStart, { once: true })
-    activeRef.current = { audio, cleanup, target, token, url: source.url }
+    activeRef.current = { audio, cleanup, source, target, token }
     setPlaying(target)
 
     audio.currentTime = startSeconds

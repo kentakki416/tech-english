@@ -68,7 +68,7 @@ function WordHeading({ card, pronunciation, size }: { card: VocabularyCard, pron
       {size === "lg" ? (
         <div className="flex items-center justify-center gap-2">
           {pronunciation && <span aria-hidden className="w-9 shrink-0" />}
-          <p className="font-reading text-[30px] leading-tight font-semibold text-ink sm:text-[34px]">{card.surface}</p>
+          <p className="min-w-0 font-reading text-[30px] leading-tight font-semibold text-ink [overflow-wrap:anywhere] sm:text-[34px]">{card.surface}</p>
           {wordButton}
         </div>
       ) : (
@@ -128,7 +128,12 @@ export function PaperCardBack({ card, pronunciation }: { card: VocabularyCard, p
     <div className="flex h-full flex-col px-6 pt-12 pb-5 sm:px-10">
       <WordHeading card={card} pronunciation={pronunciation} size="sm" />
       {card.sentence && (
-        <SentenceText className="mt-1.5 line-clamp-2 text-[13px] text-ink-faint" isPlaying={pronunciation?.playing === "sentence"} sentence={card.sentence} />
+        <SentenceText
+          className="mt-1.5 line-clamp-2 text-[13px] text-ink-faint"
+          isGlowInset
+          isPlaying={pronunciation?.playing === "sentence"}
+          sentence={card.sentence}
+        />
       )}
       {pronunciation && card.sentence && card.pronunciation.sentence && (
         <div className="mt-1"><SentenceSoundButton align="start" controls={pronunciation} /></div>

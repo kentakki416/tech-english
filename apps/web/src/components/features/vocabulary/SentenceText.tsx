@@ -27,15 +27,26 @@ function InkText({ text }: { text: string }) {
 }
 
 /**
- * 本文の 1 文。単語に蛍光ペンのような琥珀の線を引く。1 文を再生している間は線のまわりをゆっくり光らせる（vocabulary-pronunciation README「UI 設計 > 動き」）
+ * 本文の 1 文。単語に蛍光ペンのような琥珀の線を引く。1 文を再生している間は線のまわりをゆっくり光らせる（vocabulary-pronunciation README「UI 設計 > 動き」）。
+ * 行数で切る（overflow: hidden の）ところでは外側の光が切れるので、isGlowInset で光を内側に出す
  */
-export function SentenceText({ className = "", isPlaying = false, sentence }: { className?: string, isPlaying?: boolean, sentence: VocabularySentence }) {
+export function SentenceText({
+  className = "",
+  isGlowInset = false,
+  isPlaying = false,
+  sentence,
+}: {
+  className?: string
+  isGlowInset?: boolean
+  isPlaying?: boolean
+  sentence: VocabularySentence
+}) {
   return (
     <p className={`font-reading leading-relaxed ${className}`}>
       <InkText text={sentence.text.slice(0, sentence.highlight_start)} />
       <mark
         className={`rounded-[2px] bg-transparent bg-[linear-gradient(transparent_52%,rgb(243_178_76/0.55)_52%)] px-0.5 text-ink ${
-          isPlaying ? "motion-safe:animate-highlight-glow" : ""
+          isPlaying ? (isGlowInset ? "motion-safe:animate-highlight-glow-inset" : "motion-safe:animate-highlight-glow") : ""
         }`}
       >
         <InkText text={sentence.text.slice(sentence.highlight_start, sentence.highlight_end)} />

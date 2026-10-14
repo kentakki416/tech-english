@@ -165,7 +165,7 @@ cron に `generate:word-audio` タスクを足す。EventBridge Scheduler で **
 
 | | web | mobile |
 | --- | --- | --- |
-| 再生 | `HTMLAudioElement` を 1 つ使い回し、押すたびに `src` を差し替える | `expo-audio` の `useAudioPlayer` を 1 つ使い回し、押すたびに `replace` |
+| 再生 | 1 文は `HTMLAudioElement` を 1 つ使い回し、押すたびに `src` を差し替える。単語は先読みした `Audio`（単語ごと）を鳴らす | `expo-audio` の `useAudioPlayer` を 1 つ使い回し、押すたびに `replace` |
 | 1 文の区間 | `currentTime` を始めに合わせて再生し、`requestAnimationFrame` で終わりを過ぎたら止める | `seekTo` で始めに合わせて再生し、終わりまでの時間でタイマーを置いて止める |
 | 先読み | カードが出たときに単語の mp3 を `preload` する（数 KB）。1 文の mp3（段落の音声）は押したときに読む | 先読みしない |
 | 音声のモード | ― | 消音モードでも鳴らし、ほかのアプリの音楽は小さくする（`playsInSilentMode: true`・`interruptionMode: "duckOthers"`） |
@@ -288,7 +288,7 @@ mobile のモックは `apps/mobile/src/app/mock/vocabulary/session.tsx`（同�
 | 動き | 時間 | 内容 |
 | --- | --- | --- |
 | 音の波 | 900ms で繰り返す | 2 本の波を不透明度 0.25 ↔ 1 で明滅させる。外側の波は 200ms 遅らせて、内側から広がって見せる |
-| 1 文の強調（web） | 1.6s で繰り返す | 1 文の再生中、強調の線のまわりに琥珀の光（`box-shadow` 0 → `0 0 12px 2px rgb(243 178 76 / 0.55)`）を出し入れする |
+| 1 文の強調（web） | 1.6s で繰り返す | 1 文の再生中、強調の線のまわりに琥珀の光（`box-shadow` 0 → `0 0 12px 2px rgb(243 178 76 / 0.55)`）を出し入れする。裏は 1 文を 2 行で切る（はみ出しを隠す）ので外側の光が切れるため、内側に光らせる（`inset 0 0 6px 2px rgb(243 178 76 / 0.75)`） |
 | 1 文の強調（mobile） | ― | 1 文の再生中、強調の地を琥珀 45% → 80% に濃くする（文の中の入れ子の `Text` には影を付けられず、ネイティブで動かせないため、動かさない） |
 
 - 視差効果を減らす設定（web は `prefers-reduced-motion`、mobile は `useReducedMotion`）のときは波と光を止め、色だけを変える
@@ -299,7 +299,9 @@ mobile のモックは `apps/mobile/src/app/mock/vocabulary/session.tsx`（同�
 
 - カードは今のまま `role="group"`（`aria-roledescription="単語カード"`）。ボタンをカードの中に置いても `<button>` の入れ子にならない
 - ボタンは Tab で移れる。ボタンにフォーカスがあるときの `Space` / `Enter` はボタンの操作になり、カードはめくれない（`use-vocabulary-shortcuts` はボタンへのキー入力を無視する）
-- 単語のボタンのラベルは「{見出し語} の発音を聞く」（準備中は「{見出し語} の発音は準備中です」）、1 文は「この文を聞く」。再生中は `aria-pressed="true"`
+- マウスで押したときはボタンにフォーカスを移さない（ブラウザによってはクリックでボタンにフォーカスが残り、次の `Space` がめくりではなくボタンの操作になるため）
+- 単語のボタンのラベルは「{見出し語} の発音を聞く」（準備中は「{見出し語} の発音は準備中です」）、1 文は「この文を聞く」（見た目の文字だけ再生中は「この文を再生中」）。再生中は `aria-pressed="true"`
+- 答えて次のカードへ飛んでいく間は、ボタンを押しても鳴らさない
 
 **mobile**
 

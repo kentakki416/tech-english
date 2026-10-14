@@ -47,7 +47,9 @@ export function usePronunciation(): {
 }
 ```
 
-- `toggle`：`src` が違えば差し替え、`loadedmetadata` の後に `currentTime = startMs / 1000`（単語は 0）にして `play()`。1 文は `requestAnimationFrame` で `currentTime * 1000 >= endMs + SENTENCE_TAIL_MS` になったら `pause()`。単語は `ended` で終わる
+- `toggle`：`src` が違えば差し替え、`currentTime = startMs / 1000`（単語は 0）にしてすぐ `play()` する（Safari は利用者の操作の中で `play()` を呼ばないと鳴らさないので、読み込みを待たない。読み込み前に入れた `currentTime` は再生の開始位置になり、使わないブラウザのために `loadedmetadata` で合わせ直す）。1 文は `requestAnimationFrame` で `currentTime * 1000 >= endMs + SENTENCE_TAIL_MS` になったら `pause()`。単語は `ended` で終わる
+- ブラウザや OS が止めたとき（`pause` イベント。イヤホンが外れた・メディアキー）も `playing` を `null` に戻す
+- 読み込みに失敗した audio（`error` がある）は、押したときに `load()` で読み込み直す（`play()` だけでは読み込み直さない）
 - `play()` の Promise の失敗（自動再生の制限・読み込めない）は `playing` を `null` に戻すだけにする（エラー画面にしない）
 - `preload`：単語の URL ごとに `Audio`（`preload = "auto"`）を作って持つ（1 回分は最大 10 語なので上限は置かない）。`toggle` で単語を鳴らすときはそれを使う
 - 画面を離れたとき（`visibilitychange` で隠れた）・アンマウントで `stop`
