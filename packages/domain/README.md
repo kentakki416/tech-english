@@ -23,7 +23,7 @@ Repository 実装が「DB row → domain」を変換し、Controller が「domai
 
 | 層 | 定義場所 | 例（`Memo.createdAt`） |
 | --- | --- | --- |
-| DB row | `packages/db/src/drizzle/schema/`（`typeof memos.$inferSelect`。Prisma 実装は `packages/db/generated/`） | `createdAt: Date`（列は `created_at`） |
+| DB row | `packages/db/src/drizzle/schema/`（`typeof memos.$inferSelect`） | `createdAt: Date`（列は `created_at`） |
 | **domain** | **`packages/domain`（このパッケージ）** | `createdAt: Date` |
 | API 契約 | `packages/schema/src/api-schema/` | `created_at: string`（JSON 直列化 + snake_case） |
 
@@ -51,12 +51,11 @@ export const canShareMemo = (tier: MembershipTier): boolean => tier === "silver"
 | 参照する側 | 参照方法 |
 | --- | --- |
 | API 契約（`@repo/api-schema`） | `z.enum(MEMBERSHIP_TIERS)` のように domain の定数から作る。値を直接書かない |
-| DB（`packages/db`） | Drizzle のスキーマで domain の定数から列の型と `CHECK` 制約を作る（`text(..., { enum: MEMBERSHIP_TIERS })` + `check()`。詳細は `packages/db/README.md`）。併存している Prisma 実装は `schema.prisma` が TS の定数を参照できず `String` 列になるため、`_toDomain()` で `isMembershipTier` により検証してから domain 型に変換する |
+| DB（`packages/db`） | Drizzle のスキーマで domain の定数から列の型と `CHECK` 制約を作る（`text(..., { enum: MEMBERSHIP_TIERS })` + `check()`。詳細は `docs/tech-stack/drizzle.md`） |
 | フロント | domain は import せず、api-schema のスキーマから取る（例: 選択肢一覧は `membershipTierSchema.options`） |
 
 - TS の `enum` ではなく `as const` の配列 + union 型で定義する（`z.enum` にそのまま渡せる）
 - 値の追加・削除は `db:generate` で `CHECK` の差し替えマイグレーションを作る（drizzle-kit が自動生成する）
-- Prisma 実装は型で値を保証できないため、未知の値を `as` でキャストせずエラーにする
 - **domain に値を足すと API 契約も変わる。** 値の追加は API 契約の変更としてレビューする（ストア配布済みの古い mobile アプリは新しい値に追従できない）
 
 ## フロントからは使わない
@@ -75,7 +74,7 @@ domain の純粋関数や定数がフロントで必要になった場合も、d
 | 置く | 置かない |
 | --- | --- |
 | ドメイン型（`Memo` / `User` / `AuthAccount`） | ❌ Repository interface |
-| ドメインの不変条件を表す純粋関数（例: `canShareMemo(tier)`） | ❌ Prisma / Drizzle の型・client・テーブル定義 |
+| ドメインの不変条件を表す純粋関数（例: `canShareMemo(tier)`） | ❌ Drizzle の型・client・テーブル定義 |
 | ドメインエラー | ❌ logger / env / I/O / 外部通信 |
 | 値の集合を表す定数（例: `MEMBERSHIP_TIERS`） | ❌ Node 専用 API（`fs` / `Buffer` など） |
 

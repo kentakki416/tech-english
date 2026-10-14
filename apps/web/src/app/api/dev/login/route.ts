@@ -9,7 +9,7 @@ const API_BASE_URL = env.API_URL
 
 /**
  * dev-login で使えるショートネーム → email のマッピング
- * apps/api/src/prisma/seed.ts の dev ユーザーと一致させる
+ * packages/db/drizzle/seed.ts の dev ユーザーと一致させる
  */
 const DEV_USERS: Record<string, string> = {
   alice: "alice@dev.local",

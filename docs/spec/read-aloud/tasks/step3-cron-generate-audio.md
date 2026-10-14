@@ -101,7 +101,7 @@ export interface PassageAudioRepository {
 export interface AudioSynthesisUsageRepository {
   /** 1 回のリクエストで課金された文字数を 1 行書く */
   record(input: { characters: number; now: Date; passageId: number }): Promise<void>
-  /** since 以降の文字数の合計。直前に書いた記録を数え落とさないよう primary から読む（Drizzle は $primary、Prisma は $transaction の中） */
+  /** since 以降の文字数の合計。直前に書いた記録を数え落とさないよう primary（$primary）から読む */
   sumCharactersSinceFromPrimary(since: Date): Promise<number>
 }
 ```
@@ -110,7 +110,7 @@ Drizzle 実装の要点：
 
 - **`claimTargets`**（`this._db.transaction` の短いトランザクション）
   1. `passages` に `passage_audios` を left join し、§1 の条件、`orderBy(asc(passages.publishedAt), asc(passages.id))`、`limit`、`.for("update", { of: passages, skipLocked: true })`。left join の nullable 側はロックできないので `of` で `passages` だけにする。`passage_audios.updated_at`・`regenerate_requested_at` と `passages.published_at` も読む
-  2. 取れた行を、`ready` で公開し直されていない（`published_at` が null か `updated_at >= published_at`）ものは `ready` のまま、それ以外は `generating` で確保すると決める（Drizzle / Prisma の両実装で同じ判定）
+  2. 取れた行を、`ready` で公開し直されていない（`published_at` が null か `updated_at >= published_at`）ものは `ready` のまま、それ以外は `generating` で確保すると決める
   3. `generating` の行を `insert(passageAudios).values([{ generationStartedAt: now, passageId, status: "generating", textHash: calculateTextHash(blocks), voiceId }])` し、`onConflictDoUpdate` で既存の行は `status = 'generating'`・`generation_started_at`・`updated_at` だけを更新する（`manifest` と `text_hash` は前の成功のまま）。conflict の更新に「`status = 'pending'`、または確保中でない（`generation_started_at` が null か `staleBefore` より前）`ready`」の条件（`setWhere`）を付け、`returning` で返った行だけを確保できたものとして返す。ロックするのは `passages` で、更新するのは `passage_audios` なので、同時に動いた別の実行がほんの少し前に確保した行を、古いスナップショットで取り直さないため
   4. `ready` のまま確保する行は ``update(passageAudios).set({ generationStartedAt: now, updatedAt: sql`${passageAudios.updatedAt}` })``（`updated_at` を明示しないと `$onUpdate` が今の時刻を入れる）を `status = 'ready'`・確保中でない・`voice_id <> voiceId OR regenerate_requested_at IS NOT NULL`・`attempt_count < maxAttempts` の条件で行い、`returning` で返った行だけを確保できたものとする
   5. RETURNING の順序は保証されないので `published_at`, `id` の順に並べ直す。`previous` と `isRegenerationRequested` は 1 の select の `passage_audios` の値
@@ -125,8 +125,7 @@ Drizzle 実装の要点：
 - **`releaseClaim`**：1 と同じガード付きで、`generating` は `status = 'pending'`・`generation_started_at = null`、`ready` は `generation_started_at = null` だけ（`updated_at` は今の値のまま）。**`releaseStaleGenerating`**：`status = 'pending'`・`generation_started_at = null`
 - **`findRejected`**：`passage_audios` に `passages` を inner join し、`passages.status = 'rejected'` かつ確保中でない（`generation_started_at` が null か `staleBefore` より前）行の `passage_id`・`manifest` を `passage_id` の順に返す。**`deleteByPassageId`**：`passage_id` で行を消す
 - `.for(...)` と `onConflictDoUpdate` の `setWhere` の書き方は実装時に Drizzle のドキュメントで確かめ、書けなければ `sql` で同じ SQL を書く（question-generation step3 と同じ）。不足する演算子は `@repo/db` の re-export に足す
-- Prisma 実装は `$transaction` の中で `$queryRaw` / `$executeRaw` を使い、同じ SQL・同じガードにする。`status` は `isAudioStatus` で検証する。`ready` のまま確保した行の更新（確保・失敗・`releaseClaim`）は、`@updatedAt` が `updated_at` を進める `updateMany` を使わず `$queryRaw` / `$executeRaw` で書く
-- `AudioSynthesisUsageRepository` の Drizzle 実装は `insert(audioSynthesisUsages)`（`createdAt` と `updatedAt` に `now`）と ``this._db.$primary.select({ total: sql`COALESCE(SUM(characters), 0)` })``（`created_at >= since`。SUM は文字列で返るので数値にする）、Prisma 実装は `audioSynthesisUsage.create` と `$transaction` の中の `aggregate({ _sum: { characters: true } })`
+- `AudioSynthesisUsageRepository` の Drizzle 実装は `insert(audioSynthesisUsages)`（`createdAt` と `updatedAt` に `now`）と ``this._db.$primary.select({ total: sql`COALESCE(SUM(characters), 0)` })``（`created_at >= since`。SUM は文字列で返るので数値にする）
 
 ### 4. Service（`apps/cron/src/service/audio/generate-audio.ts`、`service/index.ts` に `audio` として足す）
 
@@ -241,7 +240,7 @@ pnpm --filter cron lint
 
 - [ ] `claimTargets`：取得の条件（published・行が無い / pending / 確保中でない ready のうち、公開し直された・`voice_id` が今の voice と違う・作り直しの依頼があり失敗が上限未満、failed と generating は対象外）、`SKIP LOCKED`、conflict の更新の条件（pending か確保中でない ready）、公開し直されていない ready は `update` で `generation_started_at` だけを入れて `updated_at` を今の値のままにする、返す確保の `claimedStatus`・`isRegenerationRequested`
 - [ ] `completeClaim`：ガード（`status = <claimedStatus> AND generation_started_at = ?`）に当たらなければ `lost_claim` / hash が違えば `text_changed` で `pending` / `failed` が `manifest` と `text_hash` を更新しない、3 回目で `failed` / `ready` のまま確保した行の失敗は状態と `updated_at` を変えずに回数だけ増やす / 確保の時刻までの作り直しの依頼は消し、後の依頼は残す
-- [ ] `releaseClaim`（ready のまま確保した行）・`findRejected`・`deleteByPassageId`、`AudioSynthesisUsageRepository`（`record`・primary から読む `sumCharactersSinceFromPrimary`）。Prisma 実装も同じ（`test/repository/prisma/`）
+- [ ] `releaseClaim`（ready のまま確保した行）・`findRejected`・`deleteByPassageId`、`AudioSynthesisUsageRepository`（`record`・primary から読む `sumCharactersSinceFromPrimary`）
 
 手動確認（ローカル DB。`published` の問題を用意する。admin で公開するか、`UPDATE passages SET status = 'published', published_at = now() WHERE id = <id>`）：
 

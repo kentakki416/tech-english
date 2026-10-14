@@ -37,7 +37,7 @@ type AudioClaimCandidate = {
 
 /**
  * 候補をどの状態で確保するか。ready で、音声を作った後に公開し直されていない行（voice の変更・作り直しの依頼で選ばれた行）は ready のまま、
- * それ以外（行が無い・pending・公開し直された ready）は generating にする。Prisma 実装と同じ判定
+ * それ以外（行が無い・pending・公開し直された ready）は generating にする
  */
 const resolveClaimStatus = (candidate: AudioClaimCandidate): AudioClaimStatus => {
   if (candidate.previousStatus !== "ready" || candidate.previousUpdatedAt === null) return "generating"

@@ -70,8 +70,6 @@ docker compose ps           # postgres / redis が healthy か確認
 スキーマとマイグレーションは `packages/db` にあり（Drizzle）、`apps/api` 側のスクリプトから `.env.local` を読み込んで委譲する。詳細は [`packages/db/README.md`](../../packages/db/README.md)。
 
 ```bash
-pnpm --filter @repo/db prisma:generate   # 併存している Prisma の Client を生成（build に必要）
-
 cd apps/api
 pnpm db:migrate             # 未適用の migration を適用
 pnpm db:seed                # シードデータ投入 (任意)
@@ -81,7 +79,7 @@ pnpm db:studio              # Drizzle Studio で DB を見る (任意)
 
 スキーマを変えたときは `pnpm db:generate` で migration を作ってから `pnpm db:migrate` で適用する。
 
-Prisma で migration していた頃から使っているローカル DB は、一度だけ作り直しが要る（[`packages/db/README.md`](../../packages/db/README.md#prisma-で作ったローカル-db-の作り直し一度だけ)）。
+ローカル DB を空から作り直す手順は [`packages/db/README.md`](../../packages/db/README.md#ローカル-db-の作り直し) を参照。
 
 ## 6. 開発サーバー起動
 

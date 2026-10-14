@@ -70,7 +70,7 @@ export type DictionaryEntry = { id: number; headword: string; meaningJa: string;
 export type PassageSegmentKind = (typeof PASSAGE_SEGMENT_KINDS)[number]
 ```
 
-- `src/rules/attempt.ts` に Prisma 実装の `_toDomain()` で使う type guard `isAttemptStatus` / `isWordLookupSource` を置く（`isMembershipTier` と同じ書き方）
+- `src/rules/attempt.ts` に type guard `isAttemptStatus` / `isWordLookupSource` を置く（`isMembershipTier` と同じ書き方）
 - `src/index.ts` に re-export を足す（ファイル名順）
 
 ### 2. Drizzle のスキーマ
@@ -145,45 +145,7 @@ pnpm --filter api db:generate
 
 生成された SQL を目で確認する：部分 unique index に `WHERE "status" = 'in_progress'` が付いている、CHECK 制約の値が定数どおり、FK の `ON DELETE` が上の表どおり。
 
-### 4. `schema.prisma`
-
-Drizzle に合わせて 4 モデルを足し、`User` / `Passage` / `Question` / `PassageGlossaryEntry` に逆方向のリレーションを足す（`prisma:generate` する）。
-
-```prisma
-// 挑戦（部分 unique index は Drizzle のマイグレーションが正本。Prisma では表現しない）
-model ReadingAttempt {
-    id                   Int       @id @default(autoincrement())
-    userId               Int       @map("user_id")
-    passageId            Int       @map("passage_id")
-    status               String    @default("in_progress")
-    startedAt            DateTime  @map("started_at")
-    submittedAt          DateTime? @map("submitted_at")
-    timeLimitSeconds     Int       @map("time_limit_seconds")
-    elapsedSeconds       Int?      @map("elapsed_seconds")
-    isOvertime           Boolean?  @map("is_overtime")
-    questionCount        Int?      @map("question_count") @db.SmallInt
-    correctCount         Int?      @map("correct_count") @db.SmallInt
-    translatedBlockCount Int       @default(0) @map("translated_block_count") @db.SmallInt
-    wordLookupCount      Int       @default(0) @map("word_lookup_count") @db.SmallInt
-    studyDate            DateTime? @map("study_date") @db.Date
-    createdAt            DateTime  @default(now()) @map("created_at")
-    updatedAt            DateTime  @updatedAt @map("updated_at")
-
-    user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-    passage     Passage             @relation(fields: [passageId], references: [id], onDelete: Restrict)
-    answers     AttemptAnswer[]
-    wordLookups AttemptWordLookup[]
-
-    @@index([userId, studyDate])
-    @@index([userId, passageId])
-    @@map("reading_attempts")
-}
-```
-
-- `AttemptAnswer`（`@@unique([attemptId, questionId])`、`question` は `onDelete: Restrict`）、`AttemptWordLookup`（`glossaryEntry` は `onDelete: SetNull`、`@@index([userId, lemma])`）、`DictionaryEntry`（`headword String @unique`）も同様に書く
-- `study_date` は Prisma では `Date`（UTC の 0 時）で返るので、Prisma 実装の Repository は `toISOString().slice(0, 10)` で文字列にする。`status` / `source` は `isAttemptStatus` / `isWordLookupSource` で検証してから domain 型にする
-
-### 5. 辞書の seed
+### 4. 辞書の seed
 
 `packages/db/drizzle/seed-dictionary.ts` を作り、`packages/db/package.json` に `"db:seed:dictionary": "tsx drizzle/seed-dictionary.ts"`、`apps/api/package.json` に `db:seed` と同じ形の委譲（`dotenvx run -f .env.local -- pnpm --filter @repo/db db:seed:dictionary`）を足す。
 
@@ -222,7 +184,6 @@ const main = async () => {
 pnpm --filter @repo/domain build
 pnpm --filter api db:generate      # 生成された SQL を確認
 pnpm --filter api db:migrate
-pnpm --filter @repo/db prisma:generate
 pnpm build && pnpm lint:fix
 pnpm --filter @repo/db exec tsx --test drizzle/ejdict.test.ts
 pnpm --filter api db:seed:dictionary

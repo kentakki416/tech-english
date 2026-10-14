@@ -141,7 +141,7 @@ const [row] = await this._db.update(passages)
 - **1 件ずつ取る**：最初にまとめて取ると全件に同じ `generation_started_at` が入り、1 回の実行が 30 分を超えたときに後半の（まだ処理していない）行が別の実行に回収・再取得され、LLM の費用が二重にかかる。`claimNextCollected` で 1 件ずつ取り、取った行を処理し終えてから次を取る
 - `saveDraft`：トランザクション内で ① passages をガード付きで更新（`status = 'draft'`、和訳入りの `blocks`、`difficulty`、`time_limit_seconds`、生成の記録、`generated_at = now`、`needs_attention = attentionReasons.length > 0`、`attention_reasons`、`generation_error = null`）、0 行なら false で終える ② 残っている questions / glossary を消す ③ glossary を insert し、`(blockIndex, startOffset)` で id を引けるようにする ④ questions を insert（`targetGlossaryIndex` → id）
 - `recordGenerationFailure`：`generation_attempt_count = generation_attempt_count + 1`、`status = CASE WHEN generation_attempt_count + 1 >= maxAttempts THEN 'failed' ELSE 'collected' END`、`generation_error = error` を 1 文で
-- `.for("update", { skipLocked: true })` の書き方は実装時に Drizzle のドキュメントで確認する。書けなければ `sql` で同じ SQL を書く。Prisma 実装は `$queryRaw` と `$transaction` で同じ SQL・同じガードにする
+- `.for("update", { skipLocked: true })` の書き方は実装時に Drizzle のドキュメントで確認する。書けなければ `sql` で同じ SQL を書く
 
 ### 5. Service（`apps/cron/src/service/passage/generate-questions.ts`）
 

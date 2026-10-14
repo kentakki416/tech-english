@@ -5,7 +5,7 @@ import { testDb } from "../controller/setup"
 import { insertReadingAttempt } from "./passage"
 
 /**
- * 学習記録（learning-record）のテスト用のヘルパー。Repository の契約テストと Controller のインテグレーションテストで使う。
+ * 学習記録（learning-record）のテスト用のヘルパー。Repository のテストと Controller のインテグレーションテストで使う。
  * 問題（passages・設問）は test/fixture/passage.ts の insertGeneratedPassage などで先に入れる
  */
 

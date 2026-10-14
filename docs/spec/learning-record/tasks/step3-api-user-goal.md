@@ -123,8 +123,6 @@ public async upsertByUserId(userId: number, data: UpsertUserGoalInput): Promise<
 }
 ```
 
-Prisma 実装は `this._prisma.userGoal.upsert({ create: { ...data, userId }, update: data, where: { userId } })`。`targetDate` は `@db.Date` なので書くときは `new Date(\`${targetDate}T00:00:00.000Z\`)`、読むときは `toISOString().slice(0, 10)` に変換する。
-
 ### Service（`src/service/goal-service.ts`）
 
 ```typescript
@@ -171,7 +169,7 @@ pnpm --filter api test
 pnpm lint:fix
 ```
 
-Repository の契約テスト（`test/repository/user-goal-repository.test.ts` に足す。Drizzle / Prisma の `describe.each`）:
+Repository のテスト（`test/repository/user-goal-repository.test.ts` に足す。実 DB）:
 
 - [ ] 行が無いとき `upsertByUserId` が作成し、`findByUserId` で同じ値が取れる（`targetDate` は `YYYY-MM-DD` の文字列）
 - [ ] 2 回目の `upsertByUserId` は同じ行を上書きし、行は 1 つのまま。`null` を渡した項目は `null` になる

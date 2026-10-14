@@ -1,6 +1,6 @@
 # step1-db-reminder-settings
 
-`reminder_settings` テーブル（Drizzle のスキーマ・マイグレーション・`schema.prisma`）と、`@repo/domain` の `ReminderSetting` 型を作る。API はまだ作らない（[step2](./step2-api-user-reminder.md)）。
+`reminder_settings` テーブル（Drizzle のスキーマ・マイグレーション）と、`@repo/domain` の `ReminderSetting` 型を作る。API はまだ作らない（[step2](./step2-api-user-reminder.md)）。
 
 ## 前提
 
@@ -90,37 +90,10 @@ export const reminderSettings = pgTable(
 
 - `users` の削除で cascade する（[github-auth のアカウント削除の処理](../../github-auth/README.md#アカウント削除の処理)）
 - `user_id` の unique index が upsert（step2 の `ON CONFLICT (user_id)`）の対象になる。別に通常の index は作らない
-- index 名・制約名は Prisma の命名（`{table}_{column}_key` / `_fkey`）に合わせる（Prisma の `@unique` と同じ名前になり、両者の定義がずれない）
+- index 名・制約名は `{table}_{column}_key` / `_fkey` の命名にそろえる（既存のテーブルと同じ）
 - `packages/db/src/drizzle/schema/index.ts` に `export * from "./reminder-setting"` を足す（ファイル名順。`./memo` と `./user` の間）
 
-### 3. `schema.prisma`
-
-Drizzle と同じ形に合わせる（`packages/db/README.md` の「併存の方針」）。
-
-```prisma
-// 学習リマインダーの設定（1 ユーザー 1 行。docs/spec/study-reminder）
-model ReminderSetting {
-    id        Int      @id @default(autoincrement())
-    userId    Int      @unique @map("user_id")
-    isEnabled Boolean  @map("is_enabled")
-    /// ISO の曜日番号（1 = 月曜 〜 7 = 日曜）の配列
-    weekdays  Json
-    /// 端末の時刻（15 分刻み）。Prisma では 1970-01-01 の DateTime として読み書きされる
-    time      DateTime @db.Time(0)
-    createdAt DateTime @default(now()) @map("created_at")
-    updatedAt DateTime @updatedAt @map("updated_at")
-
-    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-    @@map("reminder_settings")
-}
-```
-
-- `model User` に `reminderSetting ReminderSetting?` を足す（`accounts AuthAccount[]` の下）
-- PostgreSQL の `Json` は `jsonb` になる。`time` 列は Prisma では `DateTime`（日付部分は 1970-01-01）になるので、`"HH:mm"` との変換は step2 の Prisma 実装で行う
-- `packages/db/src/index.ts` の Prisma の型の re-export に `ReminderSetting` を足す（アルファベット順。`PrismaClient` と `User` の間）
-
-### 4. マイグレーション
+### 3. マイグレーション
 
 ```bash
 pnpm --filter api db:generate --name reminder_settings
@@ -133,10 +106,9 @@ pnpm --filter api db:generate --name reminder_settings
 - `FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE cascade ON UPDATE cascade`
 - `reminder_settings` 以外のテーブルへの差分が混ざっていない（混ざっていたら前の step のマイグレーションの取り込み漏れ）
 
-### 5. Prisma Client の生成とビルド
+### 4. ビルド
 
 ```bash
-pnpm --filter @repo/db prisma:generate
 pnpm --filter @repo/domain build && pnpm --filter @repo/db build
 ```
 
@@ -174,4 +146,4 @@ SELECT count(*) FROM reminder_settings WHERE user_id = :id;                     
 ```
 
 - [ ] 上のコメントどおりの結果になる
-- [ ] Repository の契約テスト（Drizzle / Prisma の両実装、`time` の変換、cascade）は [step2](./step2-api-user-reminder.md) で書く
+- [ ] Repository のテスト（`time` の変換、cascade）は [step2](./step2-api-user-reminder.md) で書く

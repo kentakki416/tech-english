@@ -108,7 +108,6 @@ findByIdForUser(id: number, userId: number, options?: ReadOptions): Promise<Read
 - 読み取りのメソッドは `options?: ReadOptions`（`{ fromPrimary?: boolean }`）を受け取る。`fromPrimary: true` なら read replica ではなく primary から読む。書き込み API の前提の確認・書き込みの直後の読み直しで使う（Service では `PRIMARY_READ` という定数で渡す）
 
 - Drizzle の `createInProgress`：`onConflictDoNothing({ target: [userId, passageId], where: sql\`status = 'in_progress'\` }).returning()`（部分 index を対象にするため条件が要る。引数名は使っている drizzle-orm の版で確認する）
-- Prisma の `createInProgress`：`create` の例外が `code === "P2002"` なら null（`Prisma` は型だけの export なので `instanceof` は使わない）
 
 ### 4. Service（`apps/api/src/service/attempt-service.ts`）
 
@@ -207,7 +206,7 @@ Controller（インテグレーション）:
 - [ ] レスポンスを `JSON.stringify` して `correct_choice_index` / `explanation_ja` / `evidence` を含まない。`server_now` と `expires_at` がある
 - [ ] `GET /api/attempt/:id`：他人の ID・存在しない ID は 404 / 挑戦中は開始時と同じ形 / 24 時間たった挑戦は `status: "expired"` が返り、DB も `expired`
 
-Repository（Drizzle / Prisma の両方）:
+Repository のテスト（実 DB）:
 
 - [ ] `createInProgress` は同じ問題の in_progress があると null、`expired` / `submitted` しか無ければ作れる
 - [ ] `expireStale` は対象ユーザーの古い in_progress だけを更新する（新しい in_progress・submitted・他人の行は変えない）

@@ -46,30 +46,9 @@ ALTER TABLE "users" ADD COLUMN "timezone" text DEFAULT 'Asia/Tokyo' NOT NULL;
 ```
 
 - 既存の行には既定値の `Asia/Tokyo` が入る（`NOT NULL` と `DEFAULT` が同じ文なので失敗しない）
-- ローカルの ClickHouse の CDC（`pg_cdc.users`）は列の追加で同期が止まることがある。止まったら `packages/db/README.md` の「Prisma で作ったローカル DB の作り直し」の手順 1・4（CDC を外して張り直す）だけを行う（ローカル専用。prd は ClickPipes）
+- ローカルの ClickHouse の CDC（`pg_cdc.users`）は列の追加で同期が止まることがある。止まったら `packages/db/README.md` の「ローカル DB の作り直し」の手順 1・4（CDC を外して張り直す）だけを行う（ローカル専用。prd は ClickPipes）
 
-### 3. Prisma スキーマ（併存実装の追従）
-
-```prisma
-/** packages/db/prisma/schema.prisma の model User */
-model User {
-    id        Int      @id @default(autoincrement())
-    email     String?  @unique
-    name      String?
-    avatarUrl String?  @map("avatar_url")
-    timezone  String   @default("Asia/Tokyo")
-    createdAt DateTime @default(now()) @map("created_at")
-    updatedAt DateTime @updatedAt @map("updated_at")
-
-    accounts AuthAccount[]
-
-    @@map("users")
-}
-```
-
-`prisma/migrations/` は履歴なので触らない。`pnpm --filter @repo/db prisma:generate` で Client を作り直す。
-
-### 4. `@repo/domain` の `User`
+### 3. `@repo/domain` の `User`
 
 ```typescript
 /** packages/domain/src/types/user.ts */
@@ -87,7 +66,7 @@ export type User = {
 }
 ```
 
-### 5. `User` を組み立てている箇所の追従
+### 4. `User` を組み立てている箇所の追従
 
 `User` に必須の項目が増えるので、次の箇所が型エラーになる。すべてに `timezone` を足す。
 
@@ -95,16 +74,13 @@ export type User = {
 | --- | --- |
 | `apps/api/src/repository/drizzle/user-repository.ts` | `_toDomainUser` に `timezone: row.timezone` |
 | `apps/api/src/repository/drizzle/auth-account-repository.ts` | 同上（`findByProvider` の `user`） |
-| `apps/api/src/repository/prisma/user-repository.ts` | `_toDomainUser` に `timezone: prismaUser.timezone` |
-| `apps/api/src/repository/prisma/auth-account-repository.ts` | 同上 |
 | `apps/api/test/controller/helper.ts` | `createTestUser` が返す `User` に `timezone: row.timezone` |
 | `apps/api/test/service/auth-service/authenticateWithGoogle.test.ts`、`test/service/user-service/getUserById.test.ts` | テスト用の `User` に `timezone: "Asia/Tokyo"` |
 
 - `CreateUserInput` はこの step では変えない（insert で省略すれば DB の既定値が入る）。`timezone` を受け取るのは step2
 - seed（`packages/db/drizzle/seed.ts`）も変えない。dev ユーザーは既定値の `Asia/Tokyo` になる
-- `timezone` は enum 的な列ではないので、Prisma 実装の `_toDomainUser` で値の検証はしない
 
-### 6. Repository の契約テスト
+### 5. Repository のテスト
 
 ```typescript
 /** apps/api/test/repository/user-repository.test.ts の「正常系」に追加 */
@@ -122,7 +98,6 @@ it("timezone を省略して作ると Asia/Tokyo になる", async () => {
 
 ```bash
 pnpm --filter @repo/domain build
-pnpm --filter @repo/db prisma:generate
 pnpm --filter api db:migrate
 pnpm --filter api test
 pnpm build
@@ -131,6 +106,6 @@ pnpm lint:fix
 
 - [ ] `migration.sql` が `ALTER TABLE "users" ADD COLUMN "timezone" ...` の 1 文だけ
 - [ ] dev DB に migrate した後、既存ユーザーに `Asia/Tokyo` が入っている（`docker exec tech-english-postgres psql -U postgres -d tech-english_dev -c 'SELECT id, timezone FROM users'`）
-- [ ] Drizzle / Prisma の両実装で「timezone を省略して作ると Asia/Tokyo になる」が通る
+- [ ] 「timezone を省略して作ると Asia/Tokyo になる」が通る
 - [ ] 既存のテスト（auth / user / memo / repository）がすべて通る
 - [ ] `pnpm build` が通る（api 以外に `User` を組み立てている箇所が無いことの確認）

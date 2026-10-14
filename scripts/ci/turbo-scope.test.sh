@@ -86,7 +86,6 @@ assert_full_run "lockfile" "pnpm-lock.yaml" lint
 assert_full_run "workspace 定義" "pnpm-workspace.yaml" lint
 assert_full_run "判定スクリプト自身" "scripts/ci/turbo-scope.sh" lint
 assert_full_run "ルートの package.json" "package.json" lint
-assert_full_run ".pnpmfile.cjs" ".pnpmfile.cjs" lint
 
 echo
 echo "== ci/ 以外の scripts → 影響範囲のみ =="

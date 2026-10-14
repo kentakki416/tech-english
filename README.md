@@ -103,8 +103,7 @@ pnpm install
 # 3. Postgres / Redis / ClickHouse を起動する
 docker compose up -d
 
-# 4. Prisma Client を生成し、Drizzle の migration を適用する
-pnpm --filter @repo/db prisma:generate
+# 4. Drizzle の migration を適用する
 pnpm --filter api db:migrate
 
 # 5. ClickHouse に CDC の view を作る（テーブルが migrate で作られた後にしか作れないため）
@@ -155,7 +154,7 @@ graph TB
     subgraph Packages
         Schema["schema<br/>Zod スキーマ"]
         Domain["domain<br/>共有ドメイン型"]
-        DB["db<br/>Drizzle / Prisma"]
+        DB["db<br/>Drizzle"]
         Logger["logger"]
         Errors["errors<br/>Result&lt;T&gt;"]
         RedisPkg["redis"]
@@ -205,7 +204,7 @@ graph TB
 |---|---|
 | [packages/schema](packages/schema/README.md) | API のリクエスト / レスポンスの Zod スキーマ（`@repo/api-schema`）。フロントと API で共有する |
 | [packages/domain](packages/domain/README.md) | api / cron / worker が共有するドメイン型と純粋関数 |
-| [packages/db](packages/db/README.md) | DB スキーマ / migration / client factory。Drizzle を使い、Prisma は repository 実装の切り替え先として併存 |
+| [packages/db](packages/db/README.md) | DB スキーマ / migration / client factory（Drizzle） |
 | [packages/logger](packages/logger/README.md) | `ILogger` と pino / winston / console / silent 実装 |
 | [packages/errors](packages/errors/README.md) | `Result<T>` / `ApiError` / 業務エラー生成ヘルパ |
 | [packages/redis](packages/redis/README.md) | `createRedisClient` |
@@ -225,7 +224,6 @@ graph TB
 ![Express](https://img.shields.io/badge/Express%205-000000?style=for-the-badge&logo=express&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
 ![Drizzle](https://img.shields.io/badge/Drizzle%201.0-C5F74F?style=for-the-badge&logo=drizzle&logoColor=black)
-![Prisma](https://img.shields.io/badge/Prisma%207-2D3748?style=for-the-badge&logo=prisma&logoColor=white)
 ![Zod](https://img.shields.io/badge/Zod-3E67B1?style=for-the-badge&logo=zod&logoColor=white)
 ![BullMQ](https://img.shields.io/badge/BullMQ-DC382D?style=for-the-badge&logo=redis&logoColor=white)
 

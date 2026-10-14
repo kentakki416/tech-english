@@ -14,7 +14,6 @@ import * as service from "../service"
  * 起動する想定。
  *
  * task 自身は DB client / Repository を組み立てて service に DI するだけ。
- * DB は Drizzle 実装を使う（Prisma 実装も repository/prisma に残してあり、ここを差し替えれば切り替えられる）。
  * 削除ロジック（閾値計算 / 件数取得）は `service.memo.cleanupOldMemos` に集約してある。
  * 失敗時は throw でプロセスを exit code 1 で終わらせ、外側のスケジューラに通知する。
  */

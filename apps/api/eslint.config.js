@@ -37,10 +37,10 @@ module.exports = defineConfig([
     },
   },
   {
-    ignores: ["dist/**", "node_modules/**", "src/prisma/generated/**"],
+    ignores: ["dist/**", "node_modules/**"],
   },
   /**
-   * @repo/db（Prisma / Drizzle）の import 境界。詳細と限界は
+   * @repo/db（Drizzle）の import 境界。詳細と限界は
    * packages/eslint-config/db-boundary.js を参照。
    */
   ...dbBoundary,

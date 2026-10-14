@@ -1,8 +1,6 @@
 export { createDrizzleClient } from "./drizzle/client"
 export type { CreateDrizzleClientOptions, DrizzleClient, DrizzleTransaction } from "./drizzle/client"
 export * from "./drizzle/schema"
-export { createPrismaClient } from "./prisma/client"
-export type { CreatePrismaClientOptions } from "./prisma/client"
 
 /**
  * Drizzle の Repository が使うクエリ演算子。
@@ -33,33 +31,3 @@ export {
   or,
   sql,
 } from "drizzle-orm"
-
-/**
- * Prisma が生成するドメイン型 / 型ユーティリティを「型としてのみ」re-export する。
- *
- * `export *` だと PrismaClient クラス本体（runtime の値）まで公開され、app 側で
- * `new PrismaClient()` と書けて factory（createPrismaClient）を迂回できてしまう。
- * これは「factory のみ export」という共通パッケージの設計境界を壊すため、値は
- * 出さず型だけを明示 re-export する。利用側は
- * `import type { User, Memo, PrismaClient } from "@repo/db"` で参照する。
- */
-export type {
-  AttemptAnswer,
-  AttemptWordLookup,
-  AudioSynthesisUsage,
-  AuthAccount,
-  ContentSource,
-  DictionaryEntry,
-  Memo,
-  Passage,
-  PassageAudio,
-  PassageGlossaryEntry,
-  Prisma,
-  PrismaClient,
-  Question,
-  ReadingAttempt,
-  ReminderSetting,
-  SourceDocument,
-  User,
-  UserGoal,
-} from "../generated/client"
