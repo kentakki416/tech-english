@@ -6,9 +6,11 @@ import type { ReviewVocabularyCardRequest } from "@repo/api-schema"
 
 import { splitDictionarySenses } from "@/components/features/passage/passage-text"
 import { THEME_COLORS } from "@/const/design-theme"
+import type { Pronunciation, PronunciationTarget } from "@/features/vocabulary/use-pronunciation"
 import { useActiveSeconds } from "@/libs/use-active-seconds"
 
 import { CardStackBehind, PaperCardBack, PaperCardFront, PaperSheet, type VocabularyCard } from "./PaperCard"
+import type { PronunciationControls } from "./PronunciationButtons"
 
 type Grade = ReviewVocabularyCardRequest["grade"]
 
@@ -46,6 +48,13 @@ const CARD_MAX_HEIGHT = 420
 const CARD_HEIGHT_RATIO = 0.55
 
 /**
+ * カードの読み上げのカスタムアクション（発音を鳴らす）。新アーキテクチャ（Fabric）の iOS は VoiceOver に label ではなく name を読ませるので、
+ * name も日本語にする（Android の TalkBack は label を読む）
+ */
+const PLAY_WORD_ACTION = "発音を聞く"
+const PLAY_SENTENCE_ACTION = "この文を聞く"
+
+/**
  * 2 枚目から、カードが出たときに読み上げのフォーカスを移すまでの時間（作り直した画面の要素が読み上げに登録されるのを待つ）
  */
 const FOCUS_DELAY_MS = 100
@@ -77,13 +86,17 @@ const buildMeaningLabel = (card: VocabularyCard): string =>
  *
  * タップでめくり（横に回って真横で面を差し替える）、めくった後はボタンか左右のスワイプ（右が覚えた、左がまだ）で答える。
  * 答えると軽く振動し、カードが横に飛んでから onAnswer を呼ぶ。視差効果を減らす設定では動きを省いて切り替えだけにする。
- * 2 枚目からは、出たときに読み上げのフォーカスをカードへ移し、何枚目かを読み上げる
+ * 2 枚目からは、出たときに読み上げのフォーカスをカードへ移し、何枚目かを読み上げる。
+ *
+ * 発音（pronunciation）は 1 回分の画面で 1 つだけ持つものを受け取り、めくる・答えると止める。読み上げではカードが 1 つのボタンなので
+ * （中のボタンは読み上げの要素にならない）、発音はカスタムアクション「発音を聞く」「この文を聞く」で鳴らす
  */
 export function FlashCard({
   card,
   isFirst,
   isReducedMotion,
   position,
+  pronunciation,
   remainingCount,
   total,
   onAnswer,
@@ -99,6 +112,7 @@ export function FlashCard({
    * 何枚目か（1 から）
    */
   position: number
+  pronunciation: Pronunciation
   /**
    * このカードの後ろに残っている枚数（束の厚み）
    */
@@ -119,9 +133,30 @@ export function FlashCard({
   const cardRef = useRef<View>(null)
   const cardHeight = Math.min(CARD_MAX_HEIGHT, Math.round(height * CARD_HEIGHT_RATIO))
   const positionLabel = `${total} 枚中 ${position} 枚目`
+  const { sentence: sentenceAudio, word_url: wordUrl } = card.pronunciation
+
+  /**
+   * 答えて飛んでいく間は鳴らさない（次のカードに前のカードの再生が続かないように）
+   */
+  const togglePronunciation = (target: PronunciationTarget) => {
+    if (isLeaving) return
+    if (target === "word" && wordUrl) pronunciation.toggle("word", { url: wordUrl })
+    if (target === "sentence" && sentenceAudio) {
+      pronunciation.toggle("sentence", { endMs: sentenceAudio.end_ms, startMs: sentenceAudio.start_ms, url: sentenceAudio.url })
+    }
+  }
+  const pronunciationControls: PronunciationControls = { onToggle: togglePronunciation, playing: pronunciation.playing }
+  /**
+   * 読み上げのカスタムアクション。音声が無いもの（単語が準備中・1 文の音声が無い）は出さない
+   */
+  const accessibilityActions = [
+    ...(wordUrl ? [{ label: PLAY_WORD_ACTION, name: PLAY_WORD_ACTION }] : []),
+    ...(card.sentence && sentenceAudio ? [{ label: PLAY_SENTENCE_ACTION, name: PLAY_SENTENCE_ACTION }] : []),
+  ]
 
   const answer = (grade: Grade) => {
     if (!isFlipped || isLeaving) return
+    pronunciation.stop()
     if (Platform.OS !== "web") void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
     const seconds = activeSeconds
     if (isReducedMotion) {
@@ -142,6 +177,7 @@ export function FlashCard({
    */
   const flip = () => {
     if (isLeaving) return
+    pronunciation.stop()
     const next = !isFlipped
     setIsFlipped(next)
     onFlip()
@@ -231,17 +267,27 @@ export function FlashCard({
             {...panResponder.panHandlers}
             style={{ transform: [{ translateY: riseY }, { scale: riseScale }, { translateX: drag }, { rotate: tilt }] }}
           >
+            {/**
+              * web 表示では react-native-web が button の役割を <button> にし、中の発音のボタンと入れ子になるので役割を付けない
+              */}
             <Pressable
               ref={cardRef}
+              accessibilityActions={accessibilityActions}
               accessibilityHint={isFlipped ? "表に戻します" : "めくって意味を表示します"}
               accessibilityLabel={isFlipped ? `${card.surface}。${buildMeaningLabel(card)}` : buildFrontLabel(card, positionLabel)}
               accessibilityLiveRegion="polite"
-              accessibilityRole="button"
+              accessibilityRole={Platform.OS === "web" ? undefined : "button"}
+              onAccessibilityAction={(event) => {
+                if (event.nativeEvent.actionName === PLAY_WORD_ACTION) togglePronunciation("word")
+                if (event.nativeEvent.actionName === PLAY_SENTENCE_ACTION) togglePronunciation("sentence")
+              }}
               onPress={flip}
             >
               <Animated.View style={{ transform: [{ perspective: 1600 }, { rotateY }] }}>
                 <PaperSheet style={{ height: cardHeight }} tone={shownFlipped ? "back" : "front"}>
-                  {shownFlipped ? <PaperCardBack card={card} /> : <PaperCardFront card={card} />}
+                  {shownFlipped
+                    ? <PaperCardBack card={card} pronunciation={pronunciationControls} />
+                    : <PaperCardFront card={card} pronunciation={pronunciationControls} />}
                 </PaperSheet>
               </Animated.View>
             </Pressable>

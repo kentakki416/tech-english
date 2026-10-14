@@ -7,6 +7,7 @@ import type { GetVocabularySessionResponse } from "@repo/api-schema"
 import { splitDictionarySenses } from "@/components/features/passage/passage-text"
 import { THEME_COLORS, THEME_FONTS } from "@/const/design-theme"
 
+import { type PronunciationControls, SentenceSoundButton, WordSoundButton } from "./PronunciationButtons"
 import { PAPER_MAX_FONT_SCALE, SentenceText } from "./SentenceText"
 
 export type VocabularyCard = GetVocabularySessionResponse["cards"][number]
@@ -63,13 +64,28 @@ export function PaperSheet({ children, style, tone = "front" }: { children: Reac
 }
 
 /**
- * 語句と、見出し語が違うときの見出し語・品詞
+ * 語句と、見出し語が違うときの見出し語・品詞。発音の操作を渡されたら、語句のすぐ右に単語の発音のボタンを置く。
+ * 表は左にボタンと同じ幅の空きを置いて語句を中央に保つ（長い語句はボタンの左で折り返す）
  */
-function WordHeading({ card, size }: { card: VocabularyCard, size: "lg" | "sm" }) {
+function WordHeading({ card, pronunciation, size }: { card: VocabularyCard, pronunciation?: PronunciationControls, size: "lg" | "sm" }) {
   const hasLemma = card.lemma !== card.surface.toLowerCase()
+  const wordButton = pronunciation && (
+    <WordSoundButton controls={pronunciation} isReady={card.pronunciation.word_url !== null} lemma={card.lemma} size={size} />
+  )
   return (
-    <View style={size === "lg" ? styles.headingLarge : styles.headingSmall}>
-      <Text maxFontSizeMultiplier={PAPER_MAX_FONT_SCALE} style={size === "lg" ? styles.surfaceLarge : styles.surfaceSmall}>{card.surface}</Text>
+    <View style={size === "lg" ? styles.headingLarge : [styles.headingSmall, pronunciation && styles.headingSmallWithSound]}>
+      {size === "lg" ? (
+        <View style={styles.surfaceRow}>
+          {pronunciation && <View style={styles.surfaceSpacer} />}
+          <Text maxFontSizeMultiplier={PAPER_MAX_FONT_SCALE} style={styles.surfaceLarge}>{card.surface}</Text>
+          {wordButton}
+        </View>
+      ) : (
+        <>
+          <Text maxFontSizeMultiplier={PAPER_MAX_FONT_SCALE} style={styles.surfaceSmall}>{card.surface}</Text>
+          {wordButton}
+        </>
+      )}
       {(hasLemma || card.part_of_speech) && (
         <View style={styles.headingMeta}>
           {hasLemma && <Text maxFontSizeMultiplier={PAPER_MAX_FONT_SCALE} style={styles.lemma}>{card.lemma}</Text>}
@@ -81,15 +97,21 @@ function WordHeading({ card, size }: { card: VocabularyCard, size: "lg" | "sm" }
 }
 
 /**
- * カードの表。語句・本文の 1 文・出典。新しい単語には印を付ける
+ * カードの表。語句・本文の 1 文・出典。新しい単語には印を付ける。
+ * 発音の操作を渡されたら、語句の右に単語のボタン、1 文の下に 1 文のボタン（1 文の音声があるときだけ）を置く
  */
-export function PaperCardFront({ card }: { card: VocabularyCard }) {
+export function PaperCardFront({ card, pronunciation }: { card: VocabularyCard, pronunciation?: PronunciationControls }) {
   return (
     <View style={styles.face}>
       {card.stage === null && <Text maxFontSizeMultiplier={PAPER_MAX_FONT_SCALE} style={styles.newStamp}>新しい単語</Text>}
       <View style={styles.frontBody}>
-        <WordHeading card={card} size="lg" />
-        {card.sentence && <SentenceText sentence={card.sentence} style={styles.frontSentence} />}
+        <WordHeading card={card} pronunciation={pronunciation} size="lg" />
+        {card.sentence && (
+          <View style={styles.frontSentenceBlock}>
+            <SentenceText isPlaying={pronunciation?.playing === "sentence"} sentence={card.sentence} style={styles.frontSentence} />
+            {pronunciation && card.pronunciation.sentence && <SentenceSoundButton align="center" controls={pronunciation} />}
+          </View>
+        )}
       </View>
       <Text maxFontSizeMultiplier={PAPER_MAX_FONT_SCALE} numberOfLines={1} style={styles.source}>— {card.passage.title} より</Text>
     </View>
@@ -97,15 +119,21 @@ export function PaperCardFront({ card }: { card: VocabularyCard }) {
 }
 
 /**
- * カードの裏。表の語句と 1 文を小さく残し、意味・補足・出どころを出す。辞書の意味は語義ごとに行を分ける
+ * カードの裏。表の語句と 1 文を小さく残し、意味・補足・出どころを出す。辞書の意味は語義ごとに行を分ける。
+ * 発音のボタンは表と同じく語句の右と 1 文の下（1 文のボタンは左寄せ）
  */
-export function PaperCardBack({ card }: { card: VocabularyCard }) {
+export function PaperCardBack({ card, pronunciation }: { card: VocabularyCard, pronunciation?: PronunciationControls }) {
   const allSenses = card.meaning_source === "dictionary" ? splitDictionarySenses(card.meaning_ja) : [card.meaning_ja]
   const senses = allSenses.length > MAX_SENSES ? [...allSenses.slice(0, MAX_SENSES), "…"] : allSenses
   return (
     <View style={styles.face}>
-      <WordHeading card={card} size="sm" />
-      {card.sentence && <SentenceText numberOfLines={2} sentence={card.sentence} style={styles.backSentence} />}
+      <WordHeading card={card} pronunciation={pronunciation} size="sm" />
+      {card.sentence && (
+        <SentenceText isPlaying={pronunciation?.playing === "sentence"} numberOfLines={2} sentence={card.sentence} style={styles.backSentence} />
+      )}
+      {pronunciation && card.sentence && card.pronunciation.sentence && (
+        <View style={styles.backSentenceSound}><SentenceSoundButton align="start" controls={pronunciation} /></View>
+      )}
       <View style={styles.fold} />
       <View style={styles.meanings}>
         {senses.map((sense, index) => <Text key={index} maxFontSizeMultiplier={PAPER_MAX_FONT_SCALE} numberOfLines={2} style={styles.meaning}>{sense}</Text>)}
@@ -140,6 +168,9 @@ const styles = StyleSheet.create({
     marginTop: 6,
     textAlign: "left",
   },
+  backSentenceSound: {
+    marginTop: 4,
+  },
   face: {
     flex: 1,
     paddingBottom: 18,
@@ -162,6 +193,9 @@ const styles = StyleSheet.create({
     fontSize: 15,
     textAlign: "center",
   },
+  frontSentenceBlock: {
+    gap: 8,
+  },
   headingLarge: {
     alignItems: "center",
   },
@@ -175,6 +209,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 8,
+  },
+  /**
+   * 発音のボタンと並べるときは縦の中央でそろえ、語句とボタンの間を詰める
+   */
+  headingSmallWithSound: {
+    alignItems: "center",
+    columnGap: 4,
   },
   hole: {
     alignItems: "center",
@@ -298,14 +339,27 @@ const styles = StyleSheet.create({
   },
   surfaceLarge: {
     color: THEME_COLORS.ink,
+    flexShrink: 1,
     fontFamily: THEME_FONTS.readingSemiBold,
     fontSize: 30,
     lineHeight: 38,
     textAlign: "center",
   },
+  surfaceRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 8,
+    justifyContent: "center",
+  },
   surfaceSmall: {
     color: THEME_COLORS.ink,
     fontFamily: THEME_FONTS.readingSemiBold,
     fontSize: 17,
+  },
+  /**
+   * 発音のボタン（36）と同じ幅。語句を中央に保つ
+   */
+  surfaceSpacer: {
+    width: 36,
   },
 })

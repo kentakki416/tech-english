@@ -11,6 +11,7 @@ import { PrimaryButton } from "@/components/ui/PrimaryButton"
 import { SecondaryButton } from "@/components/ui/SecondaryButton"
 import { THEME_COLORS } from "@/const/design-theme"
 import { useFlipSound } from "@/features/vocabulary/use-flip-sound"
+import { usePronunciation } from "@/features/vocabulary/use-pronunciation"
 import { vocabularyApi } from "@/features/vocabulary/vocabulary.api"
 import { formatDayLabel } from "@/libs/format"
 
@@ -112,6 +113,7 @@ export function VocabularySession({
   const [answers, setAnswers] = useState<CardAnswer[]>([])
   const isReducedMotion = useReducedMotion()
   const sound = useFlipSound()
+  const pronunciation = usePronunciation()
   const current = cards[answers.length]
 
   const save = async (target: CardAnswer) => {
@@ -160,6 +162,7 @@ export function VocabularySession({
               isFirst={answers.length === 0}
               isReducedMotion={isReducedMotion}
               position={answers.length + 1}
+              pronunciation={pronunciation}
               remainingCount={cards.length - answers.length - 1}
               total={cards.length}
               onAnswer={answer}
