@@ -5,6 +5,7 @@ import { FlatList, Modal, Pressable, StyleSheet, Text, TextInput, View } from "r
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context"
 
 import { appStyles } from "@/components/ui/app-styles"
+import { AppBackdrop } from "@/components/ui/AppBackdrop"
 import { THEME_COLORS } from "@/const/design-theme"
 
 /**
@@ -62,7 +63,11 @@ export function TimezonePickerModal({
         * Modal は別のウィンドウに描かれるので、セーフエリアを測り直す
         */}
       <SafeAreaProvider>
-        <SafeAreaView edges={["top", "bottom"]} style={appStyles.screen}>
+        {/**
+          * Modal は別のウィンドウに描かれ、ルートに敷いた背景が届かないので、ここにも敷く（下地の色は canvas）
+          */}
+        <SafeAreaView edges={["top", "bottom"]} style={[appStyles.screen, styles.modalScreen]}>
+          <AppBackdrop />
           <View style={styles.header}>
             <Text accessibilityRole="header" style={styles.title}>タイムゾーン</Text>
             <Pressable accessibilityRole="button" disabled={isSaving} hitSlop={8} onPress={close}>
@@ -134,6 +139,9 @@ const styles = StyleSheet.create({
   list: {
     paddingBottom: 40,
     paddingHorizontal: 16,
+  },
+  modalScreen: {
+    backgroundColor: THEME_COLORS.canvas,
   },
   row: {
     alignItems: "center",
