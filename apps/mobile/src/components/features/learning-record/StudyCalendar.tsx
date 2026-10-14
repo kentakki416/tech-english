@@ -8,7 +8,7 @@ import { appStyles } from "@/components/ui/app-styles"
 import { Segment } from "@/components/ui/Segment"
 import { HEAT_COLORS, THEME_COLORS, THEME_FONTS } from "@/const/design-theme"
 import { learningRecordApi } from "@/features/learning-record/learning-record.api"
-import { convertStudySecondsToMinutes, formatDayLabel, formatSeconds } from "@/libs/format"
+import { formatDayLabel, formatSeconds, formatStudyMinutes } from "@/libs/format"
 
 type CalendarDay = GetUserCalendarResponse["days"][number]
 
@@ -229,7 +229,7 @@ export function StudyCalendar({
                   ) : (
                     <Pressable
                       key={day.date}
-                      accessibilityLabel={`${formatDayLabel(day.date)} ${day.attempt_count} 問 ${convertStudySecondsToMinutes(day.study_seconds)} 分`}
+                      accessibilityLabel={`${formatDayLabel(day.date)} ${day.attempt_count} 問 ${formatStudyMinutes(day.study_seconds)}`}
                       accessibilityRole="button"
                       accessibilityState={{ selected: day.date === selectedDate }}
                       hitSlop={2}
@@ -316,7 +316,7 @@ export function StudyCalendar({
           <Text style={styles.dayTitle}>{formatDayLabel(selectedDate)}</Text>
           {selectedDay !== undefined && selectedDay.attempt_count > 0 && (
             <Text style={appStyles.caption}>
-              {selectedDay.attempt_count} 問、{convertStudySecondsToMinutes(selectedDay.study_seconds)} 分
+              {selectedDay.attempt_count} 問、{formatStudyMinutes(selectedDay.study_seconds)}
             </Text>
           )}
         </View>

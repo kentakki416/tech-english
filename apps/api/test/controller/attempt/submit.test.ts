@@ -149,6 +149,7 @@ describe("POST /api/attempt/:id/submit", () => {
           correct_choice_index: QUESTION_ITEMS[index]?.correctChoiceIndex,
           evidence: EXPECTED_EVIDENCES[index],
           explanation_ja: QUESTION_ITEMS[index]?.explanationJa,
+          is_answer_key_changed: false,
           is_correct: index === 0,
           order_index: index,
           prompt: QUESTION_ITEMS[index]?.prompt,

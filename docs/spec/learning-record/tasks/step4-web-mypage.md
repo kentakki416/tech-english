@@ -64,7 +64,7 @@ export const learningRecordApi = {
 
 - `buildSearchParams` は値が `undefined` の項目を除いて `URLSearchParams` にする小さな関数（同じファイルに置く）
 - タイムゾーンの変更は `src/features/user/user.api.ts` に `updateTimezone(timezone)` を作り、`PATCH /api/user` を呼ぶ。`src/libs/api-client.ts` に `patch` が無ければ `put` と同じ形で足す（キーはアルファベット順）
-- `src/libs/format.ts`（`server-only` なし。Client Component からも使う）: `formatSeconds`（`m:ss`。reading-practice のタイマーも使う）、`formatStudyTime`（秒 → `9時間12分`）、`formatDayLabel`（`10月10日（土）`）、`formatDateHeading`（`2026年10月10日（土）`）、分の表示 `Math.ceil(study_seconds / 60)`（学習した日が「0 分」にならないように切り上げ）
+- `src/libs/format.ts`（`server-only` なし。Client Component からも使う）: `formatSeconds`（`m:ss`。reading-practice のタイマーも使う）、`formatStudyMinutes`（秒 → `12 分`。カレンダーのマスのツールチップ・選んだ日）、`formatStudyTime`（秒 → `9時間12分`。累計）、`formatDayLabel`（`10月10日（土）`）、`formatDateHeading`（`2026年10月10日（土）`）。学習時間の分は内部の `convertStudySecondsToMinutes`（`Math.floor(study_seconds / 60)`、切り捨て）1 か所で求め、0 秒より多く 60 秒未満は `1 分未満` / `1分未満` と出す（学習した日が「0 分」に見えないように。[README の「学習した日と学習時間」](../README.md#学習した日と学習時間)）
 - `src/components/features/passage/labels.ts` の `QUESTION_TYPE_LABELS`（reading-practice step5 が作成済み）を使う
 
 ### Route Handler（Client Component からの取得）
@@ -108,7 +108,7 @@ export default async function HomePage() {
 | `createMockCalendar()` | `calendar` |
 
 - 目標のパネル: `goal_text` / `target_date` / 週の目標は、値のある項目だけ出す。残り日数は `days_left >= 0` なら「あと N 日」、負なら「目標日を過ぎています」
-- 今週の進捗: `{weekly_progress} / {weekly_target} 問`（`minutes` は `分`）。線は問題数で目標値が 10 以下ならモックどおり目標値の数だけ並べ、それ以外は 1 本の線を進捗の割合で塗る。`is_weekly_achieved` なら「今週の目標を達成しました。」、未達なら「あと N 問で今週の目標を達成します。」
+- 今週の進捗: `{weekly_progress} / {weekly_target} 問`（`minutes` は `分`。分は api が切り捨てて返すのでそのまま出し、「1 分未満」にはしない）。線は問題数で目標値が 10 以下ならモックどおり目標値の数だけ並べ、それ以外は 1 本の線を進捗の割合で塗る。`is_weekly_achieved` なら「今週の目標を達成しました。」、未達なら「あと N 問で今週の目標を達成します。」
 - 正答率が 70% 未満の種類は `bg-amber/50`（モックどおり）
 - 導線: 「問題一覧」→ `/passages`、「ランダムに 1 問解く」→ `/passages/random`（study-reminder の通知と同じ「ランダムに 1 問」の入口。reading-practice が受ける）
 - まだ 1 問も解いていないとき（`isEmpty`）: モックの `state=empty` と同じ表示（`FirstStepGuide` にボタンを移す、統計と最近の挑戦を出さない、カレンダーは api が全日 level 0 で返す）
@@ -119,7 +119,7 @@ props は `initialCalendar: GetUserCalendarResponse`。見た目はモックの�
 
 - **年表示**: `initialCalendar.days` を `from` の曜日（月曜 0）の数だけ空のマスで前を埋めて 7 日ずつの列にする（api が 53 列に収まる範囲を返す）。今日は `initialCalendar.today`
 - **月表示**: state の `month`（`YYYY-MM`、初期値は今日の月）。月初が `initialCalendar.from` 以降なら年表示のデータから切り出し、それより前は `/api/user/calendar?from={月初}&to={月末}` で取得する（月ごとに state に保持）。モックで省略している前後の月への移動ボタン（`‹` `›`）を見出しの横に足し、`›` は今月で無効。今日より後の日は薄くして押せない
-- **選んだ日の挑戦**: `selectedDate`（初期値は今日）が変わるたびに `/api/user/attempts?date=` を取得する（`AbortController` で古いリクエストを捨てる）。見出しの「N 問、M 分」は選んだ日の `attempt_count` と `study_seconds`。行は提出時刻（`submitted_time`）・タイトル・正答数・`formatSeconds(elapsed_seconds)`、`/attempts/{id}/result` へのリンク
+- **選んだ日の挑戦**: `selectedDate`（初期値は今日）が変わるたびに `/api/user/attempts?date=` を取得する（`AbortController` で古いリクエストを捨てる）。見出しの「N 問、M 分」は選んだ日の `attempt_count` と `formatStudyMinutes(study_seconds)`（マスの `title` / `aria-label` も同じ）。行は提出時刻（`submitted_time`）・タイトル・正答数・`formatSeconds(elapsed_seconds)`、`/attempts/{id}/result` へのリンク
 
 ### 学習履歴（`src/app/history/page.tsx`）
 
@@ -186,6 +186,7 @@ pnpm lint:fix
 - [ ] 挑戦 0 件のユーザーで「最初の 1 問を解いてみましょう」が出て、統計と最近の挑戦が出ない
 - [ ] 年表示が右端（今日）までスクロールされ、今日のマスが光る。月表示で前の月に移動でき、1 年より前の月は取得して表示される。`›` は今月で無効
 - [ ] 日付を選ぶとその日の挑戦が出る。学習していない日は「この日の学習はありません。」
+- [ ] 学習時間が 60 秒未満の日は、マスのツールチップと選んだ日に「1 分未満」、累計がそれだけなら「1分未満」と出る。60 秒以上は切り捨てた分（例：119 秒は「1 分」）。週の目標（分）は切り捨てた分（30 秒だけなら「0 / 60 分」）
 - [ ] `/history` が日付ごとにまとまり、21 件以上あるとき「さらに表示」で続きが足される
 - [ ] `/settings` で目標を保存すると「目標を保存しました」が出て、`/` の目標のパネルに反映される。指標だけ選んで値を空にするとエラーが出る
 - [ ] タイムゾーンを変えると保存され、再読み込みしても選んだ値のまま

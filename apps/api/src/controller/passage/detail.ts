@@ -11,7 +11,8 @@ import * as service from "../../service"
 import { convertAttributionToResponse } from "./mapper"
 
 /**
- * 開始確認の概要API（公開中の問題だけ。本文は含まず、出典と期限内の挑戦中、サーバーの現在時刻を返す）
+ * 開始確認の概要API（本文は含まず、出典と期限内の挑戦中、サーバーの現在時刻を返す）。
+ * 公開中でない問題は自分の期限内の挑戦中があるときだけ返し（can_start: false）、無ければ 404
  */
 export class PassageDetailController {
   constructor(
@@ -31,10 +32,11 @@ export class PassageDetailController {
       return sendError(req, res, result.error)
     }
 
-    const { attribution, inProgressAttempt, passage, questionCount, serverNow } = result.value
+    const { attribution, canStart, inProgressAttempt, passage, questionCount, serverNow } = result.value
     const response = parseResponse(getPassageResponseSchema, {
       id: passage.id,
       attribution: convertAttributionToResponse(attribution),
+      can_start: canStart,
       difficulty: passage.difficulty,
       in_progress_attempt: inProgressAttempt
         ? {

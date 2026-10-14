@@ -158,11 +158,16 @@ export const getPassagePathParamSchema = z.object({
 
 /**
  * 開始確認の概要のレスポンススキーマ（本文は含まない）。in_progress_attempt は期限内の挑戦中（無ければ null）、
- * server_now はクライアントが端末時計とのずれを補正するためのサーバーの現在時刻
+ * server_now はクライアントが端末時計とのずれを補正するためのサーバーの現在時刻。
+ * 公開中でない問題（非公開に戻された問題）は、自分の期限内の挑戦中があるときだけ返す（can_start: false。無ければ 404）
  */
 export const getPassageResponseSchema = z.object({
   id: z.number().int(),
   attribution: passageAttributionSchema,
+  /**
+   * 新しく挑戦を始められるか（公開中の問題だけ true）。false のときは in_progress_attempt が必ずあり、再開だけできる
+   */
+  can_start: z.boolean(),
   difficulty: passageDifficultySchema,
   in_progress_attempt: z
     .object({
@@ -173,6 +178,9 @@ export const getPassageResponseSchema = z.object({
     .nullable(),
   question_count: z.number().int(),
   server_now: z.string(),
+  /**
+   * 公開中の問題は問題の制限時間、公開中でない問題は挑戦中の挑戦の開始時点の制限時間（非公開の間に直されていることがあるため）
+   */
   time_limit_seconds: z.number().int(),
   title: z.string(),
   word_count: z.number().int(),

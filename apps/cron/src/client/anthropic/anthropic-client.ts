@@ -1,18 +1,28 @@
 import { Anthropic } from "@anthropic-ai/sdk"
-import type { Message, MessageCreateParamsNonStreaming } from "@anthropic-ai/sdk/resources/messages"
+import type { Message, MessageCreateParamsNonStreaming, OutputConfig } from "@anthropic-ai/sdk/resources/messages"
 
 import { LlmInvalidJsonError, LlmOutputTruncatedError, LlmRefusalError } from "./errors"
+
+/**
+ * effort の段階（`output_config.effort`）。low / medium / high / xhigh / max
+ */
+export type LlmEffort = NonNullable<OutputConfig["effort"]>
 
 /**
  * structured output で JSON を 1 つ返させるリクエスト。生成と、解答キーを見ない検証の両方がこの形で呼ぶ
  */
 export type StructuredMessageRequest = {
   /**
+   * 指定すると `thinking: { type: "adaptive" }` と `output_config.effort` を明示して送る（生成）。
+   * 省略すると thinking も effort も送らずモデルの既定に任せる（検証の Claude Haiku 4.5 は adaptive thinking を 400 で拒否し、effort も受け付けない）
+   */
+  adaptiveThinking?: { effort: LlmEffort }
+  /**
    * 出力の JSON Schema（`convertZodToStructuredOutputSchema` で Zod から作った定数）
    */
   jsonSchema: Record<string, unknown>
   /**
-   * 思考（adaptive thinking）のトークンも含む出力の上限。足りずに止まると `LlmOutputTruncatedError`
+   * 思考（thinking）のトークンも含む出力の上限（thinking の内容が返らなくても数えられる）。足りずに止まると `LlmOutputTruncatedError`
    */
   maxTokens: number
   model: string
@@ -110,7 +120,8 @@ const parseTextBlocksAsJson = (content: Message["content"]): unknown => {
  *
  * - structured output（`output_config.format` に JSON Schema）で JSON を 1 つ返させる
  * - system prompt に `cache_control` を付けてキャッシュする（最小キャッシュ長未満ならエラーにならずキャッシュされないだけ）
- * - temperature などのサンプリングの引数・thinking・effort は渡さず、モデルの既定に任せる（新しいモデルは既定以外を受け付けないものがある）
+ * - temperature などのサンプリングの引数は渡さない（新しいモデルは既定以外を受け付けないものがある）。thinking と effort は
+ *   `adaptiveThinking` を指定したときだけ送る（生成は明示し、検証はモデルの既定に任せる）
  * - リトライは SDK に任せる（`createAnthropicClient`）
  */
 export class AnthropicClient implements ILlmClient {
@@ -121,16 +132,21 @@ export class AnthropicClient implements ILlmClient {
   }
 
   public async createStructuredMessage(request: StructuredMessageRequest): Promise<StructuredMessageResponse> {
+    const { adaptiveThinking } = request
     const message = await this._sdk.messages.create({
       max_tokens: request.maxTokens,
       messages: [{ content: request.userContent, role: "user" }],
       model: request.model,
-      output_config: { format: { schema: request.jsonSchema, type: "json_schema" } },
+      output_config: {
+        ...(adaptiveThinking ? { effort: adaptiveThinking.effort } : {}),
+        format: { schema: request.jsonSchema, type: "json_schema" },
+      },
       system: [{ cache_control: { type: "ephemeral" }, text: request.system, type: "text" }],
+      ...(adaptiveThinking ? { thinking: { type: "adaptive" } } : {}),
     })
     if (message.stop_reason === "refusal") throw new LlmRefusalError(message.stop_details?.category ?? null)
     if (message.stop_reason !== null && TRUNCATED_STOP_REASONS.has(message.stop_reason)) {
-      throw new LlmOutputTruncatedError(message.stop_reason)
+      throw new LlmOutputTruncatedError(message.stop_reason, message.usage.output_tokens)
     }
     return {
       json: parseTextBlocksAsJson(message.content),

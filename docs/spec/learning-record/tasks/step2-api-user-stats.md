@@ -217,7 +217,7 @@ export const getUserStats = async (
 `UserStats` などの戻り値の型は service に camelCase で定義する（domain には置かない）。Controller が snake_case に詰め替える。
 
 
-- 週の進捗: `passages` は `weekDays` の `attemptCount` の合計、`minutes` は `studySeconds` の合計 ÷ 60 の切り捨て。`is_weekly_achieved` は `progress >= weekly_target`（週の目標が無ければ `weekly_progress: null`・`false`）
+- 週の進捗: `passages` は `weekDays` の `attemptCount` の合計、`minutes` は `studySeconds` の合計 ÷ 60 の切り捨て（web / mobile の分の表示と同じ切り捨て。30 秒だけなら 0）。`is_weekly_achieved` は `passages` なら `progress >= weekly_target`、`minutes` なら表示の丸めに左右されないよう秒で `studySeconds の合計 >= weekly_target × 60`（週の目標が無ければ `weekly_progress: null`・`false`）
 - 正答率は `Math.round(correct / question * 100)`、`question === 0` なら `null`
 - `weakest_question_type`（一番苦手な種類）は、設問のある種類だけを丸める前の比で比べて一番低い種類。一番低い比の種類が複数あれば `QUESTION_TYPES` の順で先のもの。ただし次のときは「他の種類より低い」と言えないので `null`（web / mobile は文を出さない）
   - 設問のある種類が 2 つ未満（1 種類だけでは比べられない）
@@ -258,7 +258,7 @@ Service のユニットテスト（Repository は `vi.fn()`、`now` を固定）
 
 - [ ] `now = 2026-10-10T15:30:00Z`・`Asia/Tokyo` のとき今日は `2026-10-11`（日曜）、週は `2026-10-05`〜`2026-10-11`
 - [ ] 挑戦が 0 件なら累計 0・正答率 null・`weakest_question_type` null・`goal` null
-- [ ] 週の目標が minutes のとき `weekly_progress` は秒の合計 ÷ 60 の切り捨て、目標値ちょうどで `is_weekly_achieved` が true
+- [ ] 週の目標が minutes のとき `weekly_progress` は秒の合計 ÷ 60 の切り捨て（30 秒なら 0）。`is_weekly_achieved` は秒の合計が目標値 × 60 ちょうどで true、1 秒足りなければ false
 - [ ] `type_accuracy` は 5 種類を `QUESTION_TYPES` の順で返し、設問の無い種類は null
 - [ ] 一番苦手な種類は丸める前の比で比べ、一番低い比の種類が複数あれば `QUESTION_TYPES` の順で先のもの
 - [ ] 設問のある種類がすべて 100%・1 種類だけ・すべて同率なら、一番苦手な種類は null
