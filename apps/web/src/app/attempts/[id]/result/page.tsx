@@ -8,6 +8,7 @@ import { ClearAttemptProgress } from "@/components/features/attempt/ClearAttempt
 import { ResultScreen } from "@/components/features/attempt/ResultScreen"
 import { attemptApi } from "@/features/attempt/attempt.api"
 import { ApiClientError } from "@/libs/api-client"
+import { redirectIfSessionRejected } from "@/libs/session"
 
 type Props = {
   params: Promise<{ id: string }>
@@ -38,7 +39,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
  * 共通ヘッダーは出さず、結果画面の上部バーを出す（ResultScreen）。まだ提出していない挑戦は解答画面へ、期限切れは開始確認へ戻す
  */
 export default async function AttemptResultPage({ params }: Props) {
-  const attempt = await loadAttempt((await params).id)
+  const attempt = await loadAttempt((await params).id).catch(redirectIfSessionRejected)
   if (attempt === null) notFound()
 
   switch (attempt.status) {

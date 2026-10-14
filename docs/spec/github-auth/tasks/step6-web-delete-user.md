@@ -139,6 +139,7 @@ sequenceDiagram
 | `src/features/user/get-user.ts` | `apiClient.get("/api/user").catch(redirectIfSessionRejected)` |
 | `src/components/ui/AppHeader.tsx` | `getUser().catch` で `unstable_rethrow(error)` してから `null` にする（redirect を握りつぶさない） |
 | `src/app/page.tsx` / `src/app/settings/page.tsx` / `src/app/history/page.tsx` | ページのデータ取得にも `.catch(redirectIfSessionRejected)` を付ける（学習記録の API は削除済みユーザーで 401 になり、`getUser` より先に返る・共通ヘッダーまで描画が進まないため） |
+| `src/app/passages/page.tsx` / `src/app/passages/[id]/page.tsx` / `src/app/passages/random/page.tsx` / `src/app/attempts/[id]/page.tsx` / `src/app/attempts/[id]/result/page.tsx` | ページのデータ取得にも `.catch(redirectIfSessionRejected)` を付ける（共通ヘッダーより先に取得するので、JWT の secret の差し替えなどですべての API が 401 になるとエラー画面になるため。`generateMetadata` の取得は今までどおり null にする） |
 | `src/proxy.ts` | `PUBLIC_PATHS` に `"/api/auth/session-expired"` を足し、public なパスでの token 更新の対象から外す（cookie を消すレスポンスと食い違わないように） |
 
 ## 動作確認

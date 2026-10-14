@@ -10,6 +10,7 @@ import { SolvingScreen } from "@/components/features/attempt/SolvingScreen"
 import { AppHeader } from "@/components/ui/AppHeader"
 import { attemptApi } from "@/features/attempt/attempt.api"
 import { ApiClientError } from "@/libs/api-client"
+import { redirectIfSessionRejected } from "@/libs/session"
 
 import { submitAttemptAction } from "./actions"
 
@@ -71,7 +72,7 @@ function ExpiredAttemptNotice({ attempt }: { attempt: ExpiredAttempt }) {
  * 提出済みなら結果画面へ、期限切れなら案内を出す
  */
 export default async function AttemptPage({ params }: Props) {
-  const attempt = await loadAttempt((await params).id)
+  const attempt = await loadAttempt((await params).id).catch(redirectIfSessionRejected)
   if (attempt === null) notFound()
 
   switch (attempt.status) {
