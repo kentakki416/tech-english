@@ -38,6 +38,8 @@
 
 ## 単語ごとの発音
 
+単語帳のカードの発音は [vocabulary-pronunciation](../vocabulary-pronunciation/README.md) で設計した（見出し語ごとに作り置き）。解答画面の単語のカードの発音は、その spec の [deferred](../vocabulary-pronunciation/deferred-pronunciation-extensions.md#解答画面結果画面の単語のカードの発音) で、英和辞書の全見出し語の音声を作る案として続きを検討する。下の設計案（段落の音声から区間を切り出す）は、単語帳の 1 文の読み上げで使った。
+
 ### 着手トリガー
 
 - 単語のカードを開いたユーザーのうち、読み上げも使う割合が高いとき（発音を確かめたい需要がある）
