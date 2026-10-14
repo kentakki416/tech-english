@@ -69,10 +69,10 @@ function FlipCard({
 }
 
 /**
- * 単語帳の 1 回分（モック・デザイン 1）。1 枚のカードを横に裏返して覚えた / まだを付け、全部答えるとふりかえり
+ * 単語帳の 1 回分（モック）。1 枚のカードを横に裏返して覚えた / まだを付け、全部答えるとふりかえり
  *
  * Space / Enter でめくり、めくった後は → で覚えた、← でまだ。答えたカードは横に飛んで、次のカードが束から上がってくる。
- * めくるたびに紙の擦れる短い音を鳴らす（上部バーで消せる）
+ * めくるたびに紙をめくる音を鳴らす（上部バーで消せる）
  */
 export function VocabularySessionMock({ initialState }: { initialState: VocabularySessionMockState }) {
   const cards = initialState === "done" ? [] : MOCK_VOCABULARY_CARDS
@@ -89,7 +89,7 @@ export function VocabularySessionMock({ initialState }: { initialState: Vocabula
     if (leaving) return
     const next = !isFlipped
     setIsFlipped(next)
-    sound.play("card")
+    sound.play()
     if (isReducedMotion()) {
       setShownFlipped(next)
       return
@@ -139,7 +139,7 @@ export function VocabularySessionMock({ initialState }: { initialState: Vocabula
         {cards.length === 0 ? (
           <SessionDone />
         ) : !current ? (
-          <SessionReview answers={answers} cards={cards} hasSaveFailure={initialState === "save_failed"} retryHref="/mock/vocabulary/session" />
+          <SessionReview answers={answers} cards={cards} hasSaveFailure={initialState === "save_failed"} />
         ) : (
           <div className="mx-auto w-full max-w-[560px]">
             <div className="relative">

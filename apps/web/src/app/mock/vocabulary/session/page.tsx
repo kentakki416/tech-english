@@ -19,7 +19,7 @@ export default async function MockVocabularySessionPage({ searchParams }: { sear
   return (
     <>
       <VocabularySessionMock initialState={current} key={current} />
-      <MockStatePanel basePath="/mock/vocabulary/session" current={current} links={[{ href: "/mock/vocabulary/session-ring", label: "デザイン 2 へ" }]} states={STATES} />
+      <MockStatePanel basePath="/mock/vocabulary/session" current={current} states={STATES} />
     </>
   )
 }

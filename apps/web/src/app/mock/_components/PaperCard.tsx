@@ -42,13 +42,13 @@ export function SentenceText({ className = "", sentence }: { className?: string,
 }
 
 /**
- * 単語帳のリングを通す穴（パンチで開けた穴から、後ろの暗い画面が見える）。位置は className で決める
+ * 単語帳のリングを通す穴（パンチで開けた穴から、後ろの暗い画面が見える）
  */
-export function PunchHole({ className = "top-4 left-4 sm:top-5 sm:left-5" }: { className?: string }) {
+function PunchHole() {
   return (
     <span
       aria-hidden
-      className={`pointer-events-none absolute z-10 grid size-6 place-items-center rounded-full bg-paper-deep shadow-[inset_0_1px_1px_rgb(255_255_255/0.6),0_0_0_1px_rgb(120_90_40/0.12)] ${className}`}
+      className="pointer-events-none absolute top-4 left-4 grid size-6 place-items-center rounded-full bg-paper-deep shadow-[inset_0_1px_1px_rgb(255_255_255/0.6),0_0_0_1px_rgb(120_90_40/0.12)] sm:top-5 sm:left-5"
     >
       <span className="block size-3.5 rounded-full bg-canvas shadow-[inset_0_2px_3px_rgb(0_0_0/0.8)]" />
     </span>
@@ -59,17 +59,7 @@ export function PunchHole({ className = "top-4 left-4 sm:top-5 sm:left-5" }: { c
  * 紙の 1 枚（表と裏で共通の地）。読書灯が上から当たっているように、上ほど明るくする。
  * position（relative / absolute）は呼び出し側が className で決める
  */
-export function PaperSheet({
-  children,
-  className = "",
-  hasHole = true,
-  tone = "front",
-}: {
-  children: React.ReactNode
-  className?: string
-  hasHole?: boolean
-  tone?: "back" | "front"
-}) {
+export function PaperSheet({ children, className = "", tone = "front" }: { children: React.ReactNode, className?: string, tone?: "back" | "front" }) {
   return (
     <div
       className={`overflow-hidden rounded-xl text-ink shadow-[0_18px_40px_-12px_rgb(0_0_0/0.7),0_2px_0_rgb(0_0_0/0.25)] ${
@@ -79,7 +69,7 @@ export function PaperSheet({
       } ${className}`}
     >
       <span aria-hidden className="pointer-events-none absolute inset-0 rounded-xl shadow-[inset_0_0_0_1px_rgb(255_255_255/0.35),inset_0_-24px_40px_-24px_rgb(120_90_40/0.25)]" />
-      {hasHole && <PunchHole />}
+      <PunchHole />
       {children}
     </div>
   )

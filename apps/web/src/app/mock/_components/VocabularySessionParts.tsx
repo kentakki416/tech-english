@@ -8,7 +8,7 @@ import { CardStackBehind, PaperSheet } from "./PaperCard"
 import { Keycap } from "./parts"
 
 /**
- * 単語帳の 1 回分のモックで、デザイン 1（1 枚を裏返す）とデザイン 2（リングの単語帳）が共有する部品
+ * 単語帳の 1 回分のモックの部品（上部バー・進み具合・答えのボタン・ふりかえり）
  */
 
 export type Grade = "forgot" | "remembered"
@@ -20,7 +20,7 @@ export const REVIEWED_GRADES: Grade[] = ["remembered", "forgot", "remembered", "
 
 const WEEKDAY_LABELS = ["日", "月", "火", "水", "木", "金", "土"]
 
-export const formatDayLabel = (date: string): string => {
+const formatDayLabel = (date: string): string => {
   const value = new Date(`${date}T00:00:00Z`)
   return `${value.getUTCMonth() + 1}月${value.getUTCDate()}日（${WEEKDAY_LABELS[value.getUTCDay()]}）`
 }
@@ -60,11 +60,11 @@ export function ProgressSquares({ answers, total }: { answers: Grade[], total: n
 /**
  * 読書灯の光（カードの上から当たる琥珀の光）
  */
-export function LampGlow({ className = "" }: { className?: string }) {
+export function LampGlow() {
   return (
     <span
       aria-hidden
-      className={`pointer-events-none absolute -top-32 left-1/2 h-80 w-[150%] -translate-x-1/2 bg-[radial-gradient(ellipse_at_center,rgb(243_178_76/0.2),transparent_62%)] ${className}`}
+      className="pointer-events-none absolute -top-32 left-1/2 h-80 w-[150%] -translate-x-1/2 bg-[radial-gradient(ellipse_at_center,rgb(243_178_76/0.2),transparent_62%)]"
     />
   )
 }
@@ -168,17 +168,7 @@ export function FlipButton({ hint, onFlip }: { hint: string, onFlip: () => void 
 /**
  * ふりかえり。覚えた / まだの数と、まだの単語の一覧
  */
-export function SessionReview({
-  answers,
-  cards,
-  hasSaveFailure,
-  retryHref,
-}: {
-  answers: Grade[]
-  cards: MockVocabularyCard[]
-  hasSaveFailure: boolean
-  retryHref: string
-}) {
+export function SessionReview({ answers, cards, hasSaveFailure }: { answers: Grade[], cards: MockVocabularyCard[], hasSaveFailure: boolean }) {
   const rememberedCount = answers.filter(grade => grade === "remembered").length
   const forgotCards = cards.filter((_, index) => answers[index] === "forgot")
 
@@ -217,7 +207,7 @@ export function SessionReview({
       )}
 
       <div className="mt-8 flex flex-wrap justify-center gap-3">
-        <Link className="rounded-lg bg-amber px-5 py-2.5 text-sm font-semibold text-amber-ink hover:bg-amber-bright" href={retryHref}>
+        <Link className="rounded-lg bg-amber px-5 py-2.5 text-sm font-semibold text-amber-ink hover:bg-amber-bright" href="/mock/vocabulary/session">
           もう 1 回
         </Link>
         <Link className="rounded-lg border border-line-strong px-5 py-2.5 text-sm text-fg hover:bg-raised" href="/mock/vocabulary">

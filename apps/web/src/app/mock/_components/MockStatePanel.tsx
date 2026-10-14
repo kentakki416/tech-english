@@ -8,15 +8,10 @@ import Link from "next/link"
 export function MockStatePanel({
   basePath,
   current,
-  links = [],
   states,
 }: {
   basePath: string
   current: string
-  /**
-   * 状態の他に並べるリンク（別のデザイン案など）
-   */
-  links?: { href: string, label: string }[]
   states: { key: string, label: string }[]
 }) {
   const currentLabel = states.find(state => state.key === current)?.label ?? states[0]?.label
@@ -39,11 +34,6 @@ export function MockStatePanel({
             scroll={false}
           >
             {state.label}
-          </Link>
-        ))}
-        {links.map(link => (
-          <Link key={link.href} className="rounded px-2 py-1 text-amber hover:bg-raised hover:text-amber-bright" href={link.href}>
-            {link.label}
           </Link>
         ))}
         <Link className="rounded px-2 py-1 text-fg-faint hover:bg-raised hover:text-fg" href="/mock">
