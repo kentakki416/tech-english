@@ -47,8 +47,8 @@ import { createHash } from "node:crypto"
 /**
  * 単語の発音の text_hash（voice と見出し語の SHA-256 の 16 進）。voice が変わるとキーも変わる
  */
-export const calculateWordTextHash = (voiceId: string, lemma: string): string =>
-  createHash("sha256").update(`${voiceId}\n${lemma}`).digest("hex")
+export const calculateWordTextHash = (input: { lemma: string; voiceId: string }): string =>
+  createHash("sha256").update(`${input.voiceId}\n${input.lemma}`).digest("hex")
 
 /**
  * 単語の発音の mp3 の保存キー。見出し語に空白や記号があっても URL に使えるよう、見出し語ではなくハッシュを使う
@@ -65,48 +65,77 @@ export const buildWordAudioKey = (textHash: string): string => `words/${textHash
 import type { WordAudio } from "@repo/domain"
 
 /**
- * 生成タスクが確保した見出し語。結果の書き込みは `WHERE id = ? AND generation_started_at = ?` で行い、
- * 30 分を超えて別の実行に回収・再確保された行を、古い実行が上書きしないようにする
+ * 確保したときの行の状態。
+ *
+ * - generating: まだ行が無い見出し語（insert）・pending（作り直し待ち）。作る間は api が「準備中」として扱う
+ * - ready: voice が今と違う ready。状態を ready のまま確保し、作り直す間も前の音声を出し続ける
  */
-export type ClaimedWordAudio = Pick<WordAudio, "audioKey" | "id" | "lemma" | "status"> & { generationStartedAt: Date }
+export type WordAudioClaimStatus = Extract<WordAudio["status"], "generating" | "ready">
 
 /**
- * completeClaim の結果。lost_claim は確保が回収・再確保されていた（何も書かない）
+ * 生成タスクが確保した見出し語。結果の書き込みは `WHERE id = ? AND status = claimedStatus AND generation_started_at = ?` で行い、
+ * 処理が 30 分を超えて別の実行に回収・再確保された行を、古い実行が上書きしないようにする
+ */
+export type ClaimedWordAudio = {
+  claimedStatus: WordAudioClaimStatus
+  generationStartedAt: Date
+  id: number
+  lemma: string
+  /**
+   * 前の成功の mp3 のキー。voice の変更で作り直したとき、新しいキーと違えば消す。まだ成功していなければ null
+   */
+  previousAudioKey: string | null
+}
+
+/**
+ * 1 語の生成の結果。ready は音声を作って保存した、failed は音声合成・保存に失敗した（失敗回数を増やす）
+ */
+export type WordAudioClaimOutcome =
+  | { audioKey: string; billedCharacters: number; kind: "ready"; textHash: string; voiceId: string }
+  | { error: string; kind: "failed"; maxAttempts: number }
+
+/**
+ * completeClaim の結果
+ *
+ * - ready: ready にした
+ * - failed: 失敗が上限に達した。generating で確保した行は failed にし、ready のまま確保した行は ready のまま前の音声を出し続ける
+ * - retry_later: 失敗したが上限に達していない。generating で確保した行は pending に戻し、ready のまま確保した行は ready のまま（次の実行でやり直す）
+ * - lost_claim: 確保が 30 分を過ぎて回収・再確保されていた（何も書かない）
  */
 export type WordAudioClaimResult = "failed" | "lost_claim" | "ready" | "retry_later"
 
+/**
+ * cron 側で必要な単語の発音の音声の操作（generate:word-audio。vocabulary-pronunciation README「単語の音声の生成タスク」）
+ */
 export interface WordAudioRepository {
   /**
-   * 次の順に limit 件まで確保して commit する（短いトランザクション、FOR UPDATE SKIP LOCKED）。
-   * ① pending（失敗が 3 回未満の作り直し待ち）② ready で voice_id が今と違う行（ready のまま generation_started_at だけを入れる）
-   * ③ まだ行が無い見出し語（調べた単語のうち英和辞書の見出し語と一致するもの〈新しい順〉→ 公開中の問題の用語集の語句〈公開の新しい順〉）。
-   *    ON CONFLICT (lemma) DO NOTHING で generating の行を作る
+   * 短いトランザクションで次の順に limit 件まで確保して commit する。
+   * ① pending（作り直し待ち。FOR UPDATE SKIP LOCKED）。generating にする
+   * ② まだ行が無い見出し語：調べた単語のうち英和辞書の見出し語と一致するもの（調べたのが新しい順）→ 公開中の問題の用語集の語句（公開の新しい順）。
+   *    generating の行を insert する（ON CONFLICT (lemma) DO NOTHING。実行が重なっても二重に確保しない）。候補の順に返す
+   * ③ voice が今と違う ready（確保中でなく、失敗が maxAttempts 未満。FOR UPDATE SKIP LOCKED）。ready のまま generation_started_at だけを入れる。
+   *    作り直す間も前の音声を出せるので最後にする（voice を変えた直後も、新しく出た見出し語を先に作る）
    */
-  claimTargets(input: { limit: number; now: Date; voiceId: string }): Promise<ClaimedWordAudio[]>
+  claimTargets(input: { limit: number; maxAttempts: number; now: Date; staleBefore: Date; voiceId: string }): Promise<ClaimedWordAudio[]>
   /**
-   * 結果を書く。ready：audio_key・text_hash・voice_id・billed_characters・generated_at を入れ、attempt_count = 0・last_error = null。
-   * failed：attempt_count を増やし、3 回で failed（ready のまま確保した行は ready のまま）。どちらも generation_started_at を null に戻す
+   * 確保した時刻を条件に結果を書く（条件に合わなければ lost_claim で何も書かない）。
+   * ready は audio_key・text_hash・voice_id・billed_characters・generated_at を入れ、attempt_count = 0・last_error = null。
+   * failed は attempt_count を増やして last_error を残し、audio_key・text_hash は前の成功のまま残す（前の mp3 を後で消すため）
    */
-  completeClaim(
-    claim: ClaimedWordAudio,
-    outcome:
-      | { audioKey: string; billedCharacters: number; kind: "ready"; textHash: string; voiceId: string }
-      | { error: string; kind: "failed" },
-    now: Date,
-  ): Promise<WordAudioClaimResult>
+  completeClaim(claim: ClaimedWordAudio, outcome: WordAudioClaimOutcome, now: Date): Promise<WordAudioClaimResult>
   /**
-   * 確保を外す（失敗の回数を増やさない）。generating は pending に戻し、ready のまま確保した行は generation_started_at だけを null に戻す。
+   * 確保を外す（失敗回数を増やさない）。generating は pending に戻し、ready のまま確保した行は generation_started_at だけを null に戻す。
    * 月の上限・設定の誤りで止めるときに使う
    */
   releaseClaim(claim: ClaimedWordAudio): Promise<void>
   /**
-   * generating のまま startedBefore より前に確保された行を pending に戻す（件数を返す）
+   * generating のまま startedBefore より前に確保された行を pending に戻す（件数を返す）。前回の実行が途中で落ちた場合の回収
    */
   releaseStaleGenerating(startedBefore: Date): Promise<number>
 }
 ```
 
-候補の SQL（③）の条件は、単語帳の出題の候補（api の `_buildEncountersCte`）のうち「意味が用意できる」部分にそろえる。ユーザーは区別しない。
+候補の SQL（②）の条件は、単語帳の出題の候補（api の `_buildEncountersCte`）のうち「意味が用意できる」部分にそろえる。ユーザーは区別しない。
 
 - 調べた単語：`attempt_word_lookups` の `lower(btrim(lemma))` のうち、`dictionary_entries.headword` と一致するもの（`MAX(created_at)` の新しい順）
 - 用語集：`passage_glossary_entries` の `lower(btrim(lemma))` のうち、`passages.status = 'published'` のもの（`MAX(passages.published_at)` の新しい順）
@@ -121,28 +150,56 @@ export interface WordAudioRepository {
 ```typescript
 /** apps/cron/src/service/audio/generate-word-audio.ts */
 
+export type GenerateWordAudioInput = {
+  /** 停止指示を受けたか。各語の頭で見て、true なら残りを処理せずに終える（確保済みの残りは 30 分後に回収される） */
+  isShuttingDown: () => boolean
+  /** 1 回の実行で確保する語の上限（WORD_AUDIO_MAX_PER_RUN） */
+  maxWordsPerRun: number
+  /** 今月（UTC の暦月）に Polly で課金してよい文字数（AUDIO_MONTHLY_CHARACTER_LIMIT。読み上げと合算） */
+  monthlyCharacterLimit: number
+  now: () => Date
+  /** word_audios.voice_id と text_hash に入れる voice（fake は `fake:<voice>`） */
+  voiceId: string
+}
+
+export type GenerateWordAudioResult = {
+  failedCount: number
+  isMonthlyLimitReached: boolean
+  lostClaimCount: number
+  readyCount: number
+  retryLaterCount: number
+}
+
 /**
- * generate:word-audio の 1 回の実行（vocabulary-pronunciation README「単語の音声の生成タスク」）。
- * 1 語でも失敗するか、月の上限で止めたら hasFailure を返す（task が exit 1 にする）
+ * generate:word-audio の 1 回の実行（vocabulary-pronunciation README「単語の音声の生成タスク」）
  */
 export const generateWordAudio = async (
-  input: { limit: number; monthlyCharacterLimit: number; now: () => Date; voiceId: string },
+  input: GenerateWordAudioInput,
   repo: { audioSynthesisUsageRepository: AudioSynthesisUsageRepository; wordAudioRepository: WordAudioRepository },
   deps: { audioStorage: Storage; ttsClient: TtsClient },
-): Promise<{ failedCount: number; hasFailure: boolean; readyCount: number; stoppedByLimit: boolean }> => {
+): Promise<GenerateWordAudioResult> => {
   await repo.wordAudioRepository.releaseStaleGenerating(new Date(input.now().getTime() - STALE_CLAIM_MINUTES * MILLIS_PER_MINUTE))
-  const claims = await repo.wordAudioRepository.claimTargets({ limit: input.limit, now: input.now(), voiceId: input.voiceId })
-  /** …1 語ずつ：月の上限の確認 → synthesizeAudio → 保存 → completeClaim。上限・設定の誤りでは残りを releaseClaim して止める */
+  const claims = await repo.wordAudioRepository.claimTargets({
+    limit: input.maxWordsPerRun,
+    maxAttempts: MAX_AUDIO_ATTEMPTS,
+    now: input.now(),
+    staleBefore: new Date(input.now().getTime() - STALE_CLAIM_MINUTES * MILLIS_PER_MINUTE),
+    voiceId: input.voiceId,
+  })
+  /**
+   * …1 語ずつ：月の上限の確認 → synthesizeAudio → 保存 → completeClaim。
+   * 月の上限ではその語と残りを releaseClaim して止める。設定の誤り（isFatalAudioGenerationError）ではその語だけ releaseClaim して throw する（残りは 30 分後に回収）
+   */
 }
 ```
 
 - 月の上限の見込みは見出し語の文字数（`lemma.length`）で求める（Polly は文字数で課金する。SSML は使わない）
 - 保存は `audioStorage.save(buildWordAudioKey(textHash), audio)`（Content-Type は拡張子から `audio/mpeg`。読み上げと同じ）。`completeClaim` が `ready` を返し、前の `audioKey` があって新しいキーと違えば、前の mp3 を消す（消せなくても `warn` で続ける。次の voice の変更まで残るだけ）
-- `lost_claim` のときは保存した mp3 を消す（別の実行が同じキーに書いているかもしれないので、キーが同じなら消さない）
+- `lost_claim` のときは何も消さない（キーは voice と見出し語で決まり、取り直した実行も同じキーに書くため。間で voice を変えたときだけ数 KB の mp3 が残る）
 
 ### 5. Task と env
 
-- `src/task/generate-word-audio.ts`：`generate-audio.ts` と同じく `createTtsClient`・`createAudioStorage`（`production` で保存先が `local` なら throw）を使い、`generateWordAudio` を呼んで、`hasFailure` なら exit 1。`createTtsClient`・`createAudioStorage` は 2 つのタスクで共有するので `src/lib/audio/` か `src/runtime/` に移す
+- `src/task/generate-word-audio.ts`：`generate-audio.ts` と同じく `createTtsClient`・`createAudioStorage`（`production` で保存先が `local` なら throw）を使い、`generateWordAudio` を呼んで、`isMonthlyLimitReached` か `failedCount + retryLaterCount > 0` なら throw して exit 1。`createTtsClient`・`createAudioStorage`・`assertAudioStorageAllowed` は 2 つのタスクで共有するので `src/runtime/audio-clients.ts` に移す
 - `package.json` の scripts に `"generate:word-audio": "dotenvx run -f .env.local -- tsx src/task/generate-word-audio.ts"`（並びは名前順）
 - `src/env.ts` に `WORD_AUDIO_MAX_PER_RUN: z.coerce.number().int().positive().default(300)`（JSDoc に「1 回の実行で作る語の数の上限」）。`TTS_PROVIDER`・`TTS_VOICE_ID`・`AUDIO_STORAGE_*`・`AUDIO_MONTHLY_CHARACTER_LIMIT` は `generate:audio` と共有する
 - `Dockerfile` の起動はタスク名を引数で渡す形なら変更なし（`generate:audio` と同じ）
@@ -158,23 +215,21 @@ pnpm --filter cron test
 
 ### テスト
 
+cron のテストは DB を使わない（[apps/cron/CLAUDE.md のテスト戦略](../../../../apps/cron/CLAUDE.md#テスト戦略)）。Repository は生成される SQL の文字列まで、Service は Repository を `vi.fn()` にして確かめ、SQL の動きはローカル DB で確かめる（次の「手で確かめる」）。
+
 - `test/lib/audio/word-audio.test.ts`：`calculateWordTextHash` が voice と見出し語で変わる・同じ入力で同じ値。`buildWordAudioKey` が `words/{hash}.mp3`
-- `test/client/polly/polly-tts-client.test.ts`：`synthesizeAudio` が `OutputFormat: "mp3"` で 1 回だけ送り、`RequestCharacters` で `recordBilledCharacters` を呼ぶ
+- `test/client/polly/polly-tts-client.test.ts`：`synthesizeAudio` が `OutputFormat: "mp3"` で 1 回だけ送り、`RequestCharacters` で `recordBilledCharacters` を呼ぶ。SDK のエラーは記録せずに伝播する
 - `test/client/polly/fake-tts-client.test.ts`：`synthesizeAudio` が無音の mp3 と `billedCharacters: 0` を返し、`recordBilledCharacters` を呼ばない
-- `test/repository/word-audio-repository.test.ts`（実 DB）
-  - [ ] 調べた単語（辞書に一致）と公開中の問題の用語集の語句を確保し、辞書に無い調べた単語・下書き / 却下の問題の用語集・行がある見出し語は取らない
-  - [ ] 調べた単語が用語集より先、それぞれ新しい順。`limit` で切れる
-  - [ ] `pending` と、`ready` で voice が違う行も取る（`ready` は `ready` のまま `generation_started_at` だけが入る）。`ready` で voice が同じ行・`failed` は取らない
-  - [ ] 2 つの `claimTargets` を同時に呼んでも、同じ見出し語を 2 回確保しない
-  - [ ] `completeClaim` が `generation_started_at` の一致を条件に書き、違えば `lost_claim` で何も変えない
-  - [ ] 失敗 3 回で `failed`、`ready` のまま確保した行は `ready` のまま
-  - [ ] `releaseStaleGenerating` が 30 分より前の確保だけを `pending` に戻す（境界値）
-- `test/service/audio/generate-word-audio.test.ts`（Repository と Storage は実物、`TtsClient` は `FakeTtsClient` か `vi.fn()` の偽物）
-  - [ ] 確保した語ごとに mp3 を保存し、`ready` にして `audio_synthesis_usages` に `word_audio_id` で記録する（fake は記録しない）
-  - [ ] 月の上限：今月の合計 + 見出し語の文字数が上限を超える語の手前で止め、残りの確保を外して `stoppedByLimit`
-  - [ ] 設定の誤り（`isFatalAudioGenerationError`）で、失敗の回数を増やさずに確保を外して止める
-  - [ ] 一時的な失敗で `attempt_count` が増え、`hasFailure`
-  - [ ] voice の変更で作り直したら、前の mp3 を消す
+- `test/repository/drizzle/word-audio-repository.test.ts`（SQL の文字列）
+  - [ ] `claimTargets`：pending と voice が違う確保中でない ready（失敗が上限未満）を `FOR UPDATE SKIP LOCKED` で選ぶ。pending は generating、ready は `generation_started_at` だけ。残りの枠で候補の SQL（調べた単語〈辞書と一致〉→ 用語集〈公開中〉、新しい順）を引き、`ON CONFLICT (lemma) DO NOTHING` で insert して RETURNING の行だけを確保する
+  - [ ] `completeClaim`：ガード（id・状態・確保の時刻）に合わなければ `lost_claim`。ready の値、失敗で pending / failed、ready のまま確保した行は ready のまま
+  - [ ] `releaseClaim`・`releaseStaleGenerating`
+- `test/service/audio/generate-word-audio.test.ts`（Repository は `vi.fn()`、`TtsClient` は `FakeTtsClient` か課金を記録する偽物、`audioStorage` は `vi.fn()`）
+  - [ ] 確保した語ごとに mp3 を保存し、`ready` の outcome を書く。課金文字数を `word_audio_id` で記録する（fake は記録しない）
+  - [ ] 月の上限：超える語の手前で止め、残りの確保を外して `isMonthlyLimitReached`（上限ちょうどは作る）
+  - [ ] 設定の誤り（`isFatalAudioGenerationError`）で、失敗の回数を増やさずに確保を外して throw
+  - [ ] 一時的な失敗で失敗の outcome（上限 3）にし、次の語は続ける
+  - [ ] voice の変更で作り直したら前の mp3 を消す（キーが同じなら消さない）。lost_claim は消さない
 
 ### 手で確かめる
 
@@ -186,3 +241,6 @@ docker exec -i tech-english-postgres psql -U postgres -d "tech-english_dev" -c "
 
 - [ ] 調べた単語と用語集の語句の行が `ready` になり、`.storage/audio/words/` に mp3 がある
 - [ ] もう一度実行しても何も作らない（行がある見出し語は取らない）
+- [ ] 2 つを同時に流しても、同じ見出し語を二重に作らない
+- [ ] `AUDIO_MONTHLY_CHARACTER_LIMIT=1` で、確保を外して exit 1 になる（行は前の状態のまま）
+- [ ] `TTS_VOICE_ID` を変えて流すと、全語を ready のまま作り直し、前の mp3 が消える

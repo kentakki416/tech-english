@@ -1,4 +1,4 @@
-import type { SynthesizeInput, SynthesizeResult, TtsClient } from "./tts-client"
+import type { SynthesizeAudioResult, SynthesizeInput, SynthesizeResult, TtsClient } from "./tts-client"
 
 /**
  * 無音の MPEG-1 Layer III のフレームのヘッダ（同期ビット・MPEG-1・Layer III・CRC なし / 32 kbps・32 kHz・パディングなし / モノラル）。
@@ -32,6 +32,7 @@ const createSilentMp3 = (frameCount: number): Buffer => {
 /**
  * ローカル（TTS_PROVIDER=fake）とテスト用の音声合成。外部に通信せず、同じ入力には同じ結果を返す。
  * 音声は単語の数 × 300 ms の無音の mp3、単語の時刻は音声の長さを単語の数で等分した開始時刻（start / end は Polly と同じく UTF-8 のバイト位置）。
+ * synthesizeAudio（単語の発音）は同じ長さの無音の mp3 だけを返す。
  * 課金されないので recordBilledCharacters は呼ばない（月の上限の集計に数えない）
  */
 export class FakeTtsClient implements TtsClient {
@@ -49,6 +50,11 @@ export class FakeTtsClient implements TtsClient {
       }
     })
     return { audio: createSilentMp3(frameCount), billedCharacters: 0, marks }
+  }
+
+  public async synthesizeAudio(input: SynthesizeInput): Promise<SynthesizeAudioResult> {
+    const { audio } = await this.synthesize(input)
+    return { audio, billedCharacters: 0 }
   }
 }
 

@@ -7,9 +7,11 @@ import { VocabularyReviewController } from "../../../src/controller/vocabulary/r
 import { VocabularySessionController } from "../../../src/controller/vocabulary/session"
 import { VocabularySummaryController } from "../../../src/controller/vocabulary/summary"
 import { generateAccessToken } from "../../../src/lib/jwt"
+import { DrizzlePassageAudioRepository } from "../../../src/repository/drizzle/passage-audio-repository"
 import { DrizzleTransactionRunner } from "../../../src/repository/drizzle/transaction-runner"
 import { DrizzleUserRepository } from "../../../src/repository/drizzle/user-repository"
 import { DrizzleVocabularyRepository } from "../../../src/repository/drizzle/vocabulary-repository"
+import { DrizzleWordAudioRepository } from "../../../src/repository/drizzle/word-audio-repository"
 import { vocabularyRouter } from "../../../src/routes/vocabulary-router"
 import { insertReadPassage, insertVocabularyCard } from "../../fixture/vocabulary"
 import { attachUnhandledExceptionHandler, createTestApp, createTestUser } from "../helper"
@@ -24,7 +26,16 @@ app.use(
   "/api/vocabulary",
   vocabularyRouter({
     review: new VocabularyReviewController(new DrizzleTransactionRunner(testDb), userRepository, vocabularyRepository),
-    session: new VocabularySessionController(userRepository, vocabularyRepository),
+    /**
+     * 発音の音声は使わない（AUDIO_PUBLIC_URL_BASE が無いのと同じ）
+     */
+    session: new VocabularySessionController(
+      userRepository,
+      vocabularyRepository,
+      new DrizzlePassageAudioRepository(testDb),
+      new DrizzleWordAudioRepository(testDb),
+      null,
+    ),
     summary: new VocabularySummaryController(userRepository, vocabularyRepository),
   }),
 )

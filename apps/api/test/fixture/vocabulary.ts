@@ -1,4 +1,4 @@
-import { attemptWordLookups, dictionaryEntries, vocabularyCards, vocabularyReviews } from "@repo/db"
+import { attemptWordLookups, dictionaryEntries, vocabularyCards, vocabularyReviews, wordAudios } from "@repo/db"
 
 import { testDb } from "../controller/setup"
 
@@ -12,6 +12,7 @@ import { insertGeneratedPassage } from "./passage"
 type WordLookupInsert = typeof attemptWordLookups.$inferInsert
 type VocabularyCardInsert = typeof vocabularyCards.$inferInsert
 type VocabularyReviewInsert = typeof vocabularyReviews.$inferInsert
+type WordAudioInsert = typeof wordAudios.$inferInsert
 
 /**
  * 公開中の問題（用語集は stay in sync with / escape hatch / opt out of）と、そのユーザーの提出済みの挑戦を入れる
@@ -77,6 +78,26 @@ export const insertVocabularyReview = async (userId: number, cardId: number, val
       stageBefore: null,
       studyDate: "2026-10-14",
       userId,
+      ...values,
+    })
+    .returning()
+  return row
+}
+
+/**
+ * 見出し語の発音の音声を入れる（vocabulary-pronunciation）。既定は作成済み（ready）で、キーは words/{lemma の空白を - にしたもの}.mp3
+ */
+export const insertWordAudio = async (lemma: string, values: Partial<WordAudioInsert> = {}) => {
+  const [row] = await testDb
+    .insert(wordAudios)
+    .values({
+      audioKey: `words/${lemma.replace(/ /g, "-")}.mp3`,
+      generatedAt: new Date("2026-10-13T03:00:00.000Z"),
+      lemma,
+      status: "ready",
+      textHash: `hash-${lemma}`,
+      updatedAt: new Date("2026-10-13T03:00:00.000Z"),
+      voiceId: "Joanna",
       ...values,
     })
     .returning()

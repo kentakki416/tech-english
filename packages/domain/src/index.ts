@@ -50,7 +50,7 @@ export type {
   ReadingAttempt,
   WordLookupSource,
 } from "./types/attempt"
-export type { AudioStatus, AudioWordTiming, PassageAudio, PassageAudioManifest, PassageAudioPart } from "./types/audio"
+export type { AudioStatus, AudioWordTiming, PassageAudio, PassageAudioManifest, PassageAudioPart, WordAudio } from "./types/audio"
 export type { AuthAccount, AuthAccountWithUser } from "./types/auth-account"
 export type {
   AllowedLicense,

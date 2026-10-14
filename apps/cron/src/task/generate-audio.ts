@@ -1,59 +1,12 @@
-import { resolve } from "node:path"
-
-import { PollyClient } from "@aws-sdk/client-polly"
-
 import { createDrizzleClient } from "@repo/db"
 import { logger } from "@repo/logger"
-import { createStorage, type Storage } from "@repo/storage"
 
-import { FakeTtsClient, isPollyVoiceId, PollyTtsClient, type TtsClient } from "../client/polly"
-import { AUDIO_CACHE_CONTROL, POLLY_MAX_ATTEMPTS } from "../const/audio"
 import { env } from "../env"
-import { buildAudioVoiceId, isAudioStorageAllowed } from "../lib/audio"
+import { buildAudioVoiceId } from "../lib/audio"
 import { DrizzleAudioSynthesisUsageRepository, DrizzlePassageAudioRepository } from "../repository/drizzle"
+import { assertAudioStorageAllowed, createAudioStorage, createTtsClient } from "../runtime/audio-clients"
 import { setupGracefulShutdown } from "../runtime/graceful-shutdown"
 import * as service from "../service"
-
-/**
- * TTS_PROVIDER の音声合成のクライアントを作る。polly で AWS の資格情報を解決できなければ、production では throw、
- * それ以外は null を返す（ローカルに資格情報が無くてもタスクを失敗にしない）
- */
-const createTtsClient = async (): Promise<TtsClient | null> => {
-  if (env.TTS_PROVIDER === "fake") return new FakeTtsClient()
-  if (!isPollyVoiceId(env.TTS_VOICE_ID)) {
-    throw new Error(`TTS_VOICE_ID is not a Polly voice: ${env.TTS_VOICE_ID}`)
-  }
-  const polly = new PollyClient({ maxAttempts: POLLY_MAX_ATTEMPTS, region: env.AWS_REGION })
-  try {
-    await polly.config.credentials()
-  } catch (error) {
-    polly.destroy()
-    if (env.NODE_ENV === "production") throw error
-    logger.warn(
-      "AWS credentials are not available, so generate-audio does nothing (unset TTS_PROVIDER or set it to fake to generate silent audio locally)",
-      { error: error instanceof Error ? error.message : String(error) },
-    )
-    return null
-  }
-  return new PollyTtsClient(polly)
-}
-
-/**
- * 音声の保存先。s3 は長期キャッシュ（キーに本文と voice のハッシュを含む）、local はリポジトリ直下の .storage/audio/（api が開発環境でだけ /media で配信する）
- */
-const createAudioStorage = (): Storage => {
-  if (env.AUDIO_STORAGE_TYPE === "s3" && env.AUDIO_STORAGE_S3_BUCKET) {
-    const bucket = env.AUDIO_STORAGE_S3_BUCKET
-    return createStorage({
-      bucket,
-      cacheControl: AUDIO_CACHE_CONTROL,
-      publicUrlBase: `s3://${bucket}`,
-      region: env.AWS_REGION,
-      type: "s3",
-    })
-  }
-  return createStorage({ baseDir: resolve(env.AUDIO_STORAGE_LOCAL_DIR), publicUrlPrefix: "/media", type: "local" })
-}
 
 /**
  * generate:audio
@@ -70,13 +23,8 @@ const createAudioStorage = (): Storage => {
  * production で AUDIO_STORAGE_TYPE が local なら、何もせずに起動時に throw する（env のスキーマでは検査しない。cron の他のタスクを止めないため）
  */
 const main = async (): Promise<void> => {
-  if (!isAudioStorageAllowed({ nodeEnv: env.NODE_ENV, storageType: env.AUDIO_STORAGE_TYPE })) {
-    throw new Error(
-      "AUDIO_STORAGE_TYPE=local cannot be used in production: the mp3 files would be written to the container's ephemeral storage " +
-        "while passage_audios becomes ready. Set AUDIO_STORAGE_TYPE=s3 and AUDIO_STORAGE_S3_BUCKET",
-    )
-  }
-  const ttsClient = await createTtsClient()
+  assertAudioStorageAllowed("generate-audio")
+  const ttsClient = await createTtsClient("generate-audio")
   if (!ttsClient) return
 
   const db = createDrizzleClient({

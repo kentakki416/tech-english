@@ -69,3 +69,37 @@ export type PassageAudio = {
   createdAt: Date
   updatedAt: Date
 }
+
+/**
+ * 見出し語ごとの発音の音声（1 語 1 行。vocabulary-pronunciation README「必要な DB 設計」）。ユーザーに紐づかない
+ */
+export type WordAudio = {
+  id: number
+  /**
+   * mp3 の保存キー（words/{textHash}.mp3）。ready なら必ずある。失敗しても前の値を残す（voice の変更で前の mp3 を消すため）
+   */
+  audioKey: string | null
+  attemptCount: number
+  /**
+   * 最後に成功した生成の課金文字数（mp3 の 1 リクエスト分）
+   */
+  billedCharacters: number
+  generatedAt: Date | null
+  /**
+   * 生成タスクが確保した時刻（確保のトークン）。generating の行と、ready のまま確保した行（voice の変更）が値を持つ
+   */
+  generationStartedAt: Date | null
+  lastError: string | null
+  /**
+   * 正規化した見出し語（normalizeVocabularyLemma。vocabulary_cards.lemma と同じ）
+   */
+  lemma: string
+  status: AudioStatus
+  /**
+   * voice_id と見出し語のハッシュ（保存キーに使う）。audioKey と同じく最後に成功した生成のもの
+   */
+  textHash: string | null
+  voiceId: string
+  createdAt: Date
+  updatedAt: Date
+}

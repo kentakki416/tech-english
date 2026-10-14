@@ -1,7 +1,17 @@
 /**
  * 切り出した 1 文。highlightStart / highlightEnd は text の中での単語の位置 [start, end)
  */
-export type ExtractedSentence = { highlightEnd: number; highlightStart: number; text: string }
+export type ExtractedSentence = {
+  /**
+   * カードに出す範囲（前後の … を除く）の、ブロックの本文上の位置 [blockStartOffset, blockEndOffset)。
+   * 1 文の読み上げの区間を求めるのに使う（vocabulary-pronunciation）。レスポンスには出さない
+   */
+  blockEndOffset: number
+  blockStartOffset: number
+  highlightEnd: number
+  highlightStart: number
+  text: string
+}
 
 /**
  * これより長い文は単語の前後を残して … で切る
@@ -57,13 +67,17 @@ export const extractSentence = (text: string, range: { end: number; start: numbe
   const sentence = text.slice(sentenceStart, rawEnd).trimEnd()
   const highlightStart = range.start - sentenceStart
   const highlightEnd = range.end - sentenceStart
-  if (sentence.length <= MAX_SENTENCE_LENGTH) return { highlightEnd, highlightStart, text: sentence }
+  if (sentence.length <= MAX_SENTENCE_LENGTH) {
+    return { blockEndOffset: sentenceStart + sentence.length, blockStartOffset: sentenceStart, highlightEnd, highlightStart, text: sentence }
+  }
 
   const cutStart = Math.max(0, Math.min(highlightStart - CONTEXT_BEFORE_LENGTH, sentence.length - MAX_SENTENCE_LENGTH))
   const cutEnd = Math.min(sentence.length, cutStart + MAX_SENTENCE_LENGTH)
   const prefix = cutStart > 0 ? ELLIPSIS : ""
   const suffix = cutEnd < sentence.length ? ELLIPSIS : ""
   return {
+    blockEndOffset: sentenceStart + cutEnd,
+    blockStartOffset: sentenceStart + cutStart,
     highlightEnd: highlightEnd - cutStart + prefix.length,
     highlightStart: highlightStart - cutStart + prefix.length,
     text: `${prefix}${sentence.slice(cutStart, cutEnd)}${suffix}`,

@@ -4,19 +4,32 @@ import { vocabularyCards, vocabularyReviews } from "@repo/db"
 
 import { VocabularySessionController } from "../../../src/controller/vocabulary/session"
 import { generateAccessToken } from "../../../src/lib/jwt"
+import { DrizzlePassageAudioRepository } from "../../../src/repository/drizzle/passage-audio-repository"
 import { DrizzleUserRepository } from "../../../src/repository/drizzle/user-repository"
 import { DrizzleVocabularyRepository } from "../../../src/repository/drizzle/vocabulary-repository"
+import { DrizzleWordAudioRepository } from "../../../src/repository/drizzle/word-audio-repository"
 import { vocabularyRouter } from "../../../src/routes/vocabulary-router"
+import { insertPassageAudio } from "../../fixture/passage"
 import { PASSAGE_BLOCKS } from "../../fixture/passage-content"
-import { insertDictionaryEntry, insertReadPassage, insertVocabularyCard, insertWordLookup } from "../../fixture/vocabulary"
+import { insertDictionaryEntry, insertReadPassage, insertVocabularyCard, insertWordAudio, insertWordLookup } from "../../fixture/vocabulary"
 import { attachUnhandledExceptionHandler, createTestApp, createTestUser } from "../helper"
 import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb } from "../setup"
 
 const app = createTestApp()
 
+const AUDIO_BASE = "https://cdn.example.com"
+
 app.use(
   "/api/vocabulary",
-  vocabularyRouter({ session: new VocabularySessionController(new DrizzleUserRepository(testDb), new DrizzleVocabularyRepository(testDb)) }),
+  vocabularyRouter({
+    session: new VocabularySessionController(
+      new DrizzleUserRepository(testDb),
+      new DrizzleVocabularyRepository(testDb),
+      new DrizzlePassageAudioRepository(testDb),
+      new DrizzleWordAudioRepository(testDb),
+      AUDIO_BASE,
+    ),
+  }),
 )
 attachUnhandledExceptionHandler(app)
 
@@ -65,6 +78,7 @@ describe("GET /api/vocabulary/session", () => {
         note_ja: null,
         part_of_speech: null,
         passage: { id: read.passage.id, title: read.passage.title },
+        pronunciation: { sentence: null, word_url: null },
         sentence: { highlight_end: logicText.indexOf("logic") + 5, highlight_start: logicText.indexOf("logic"), text: logicText },
         stage: null,
         surface: "logic",
@@ -76,9 +90,48 @@ describe("GET /api/vocabulary/session", () => {
         note_ja: null,
         part_of_speech: "熟語",
         passage: { id: read.passage.id, title: read.passage.title },
+        pronunciation: { sentence: null, word_url: null },
         sentence: { highlight_end: optOutText.indexOf("opt out of") + 10, highlight_start: optOutText.indexOf("opt out of"), text: optOutText },
         stage: null,
         surface: "opt out of",
+      })
+    })
+
+    it("見出し語の発音が ready なら単語の URL、元の問題の読み上げの音声が ready なら 1 文の区間を返す（できていないカードは null）", async () => {
+      const { token, user } = await createTestUser()
+      const read = await insertReadPassage(user.id, "2026-10-10T03:00:00.000Z")
+      const logicText = PASSAGE_BLOCKS[2].text
+      await insertDictionaryEntry("logic", "論理 / 理屈")
+      await insertWordLookup(read.attempt, { lemma: "logic", source: "dictionary", surface: "logic" })
+      await insertWordAudio("logic")
+      await insertWordAudio("escape hatch", { audioKey: null, generatedAt: null, status: "pending", textHash: null })
+      await insertPassageAudio(read.passage.id, {
+        manifest: {
+          blocks: [{
+            blockIndex: 2,
+            parts: [{
+              durationMs: 6000,
+              key: `passages/${read.passage.id}/h/2-0.mp3`,
+              words: [[120, 300, 0, 2], [5200, 5800, logicText.length - 7, logicText.length - 1]],
+            }],
+          }],
+        },
+      })
+
+      const res = await request(app).get("/api/vocabulary/session").set("Authorization", `Bearer ${token}`)
+
+      expect(res.status).toBe(200)
+      const pronunciations = Object.fromEntries(
+        res.body.cards.map((card: { lemma: string, pronunciation: unknown }) => [card.lemma, card.pronunciation]),
+      )
+      expect(pronunciations).toEqual({
+        "escape hatch": { sentence: null, word_url: null },
+        "logic": {
+          sentence: { end_ms: 5800, start_ms: 120, url: `${AUDIO_BASE}/passages/${read.passage.id}/h/2-0.mp3` },
+          word_url: `${AUDIO_BASE}/words/logic.mp3`,
+        },
+        "opt out of": { sentence: null, word_url: null },
+        "stay in sync with": { sentence: null, word_url: null },
       })
     })
 

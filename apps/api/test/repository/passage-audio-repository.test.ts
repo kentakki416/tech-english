@@ -108,6 +108,32 @@ describe("PassageAudioRepository", () => {
     })
   })
 
+  describe("findByPassageIds", () => {
+    describe("正常系", () => {
+      it("複数の問題の音声と問題の状態・公開日時を passage_id ごとに返す（音声の行が無い問題は audio: null）", async () => {
+        const withAudio = await insertPublishedPassage()
+        const withoutAudio = await insertPublishedPassage()
+        const audio = await insertPassageAudio(withAudio.id)
+
+        const found = await passageAudioRepository.findByPassageIds([withAudio.id, withoutAudio.id])
+
+        expect([...found.keys()].sort()).toEqual([withAudio.id, withoutAudio.id].sort())
+        expect(found.get(withAudio.id)).toEqual({
+          audio: expect.objectContaining({ id: audio.id, manifest: buildAudioManifest(withAudio.id), status: "ready" }),
+          passage: { publishedAt: PUBLISHED_AT, status: "published" },
+        })
+        expect(found.get(withoutAudio.id)).toEqual({ audio: null, passage: { publishedAt: PUBLISHED_AT, status: "published" } })
+      })
+    })
+
+    describe("異常系", () => {
+      it("空の配列なら DB を引かずに空、存在しない問題は含まない", async () => {
+        expect(await passageAudioRepository.findByPassageIds([])).toEqual(new Map())
+        expect(await passageAudioRepository.findByPassageIds([999_999])).toEqual(new Map())
+      })
+    })
+  })
+
   describe("resetFailed", () => {
     describe("正常系", () => {
       it("failed の行を pending に戻し、attempt_count = 0・last_error = null にして true を返す。マニフェストは残す", async () => {

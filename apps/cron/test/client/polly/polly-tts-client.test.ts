@@ -147,6 +147,45 @@ describe("PollyTtsClient", () => {
   })
 })
 
+describe("PollyTtsClient.synthesizeAudio", () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  describe("正常系", () => {
+    it("mp3 だけを Neural・text・指定の voice で 1 回呼び、課金文字数を記録して mp3 を返す", async () => {
+      const send = createFakeSend({ audio: { RequestCharacters: 6 } })
+
+      const result = await createClient(send).synthesizeAudio({ recordBilledCharacters, text: "resilient", voiceId: "Joanna" })
+
+      expect(send).toHaveBeenCalledTimes(1)
+      expect(send.mock.calls[0]?.[0].input).toEqual({ Engine: "neural", OutputFormat: "mp3", Text: "resilient", TextType: "text", VoiceId: "Joanna" })
+      expect(recordBilledCharacters.mock.calls).toEqual([[6]])
+      expect(result).toEqual({ audio: Buffer.from(MP3_BYTES), billedCharacters: 6 })
+    })
+  })
+
+  describe("異常系", () => {
+    it("SDK のエラーはそのまま伝播し、課金を記録しない", async () => {
+      const send = vi.fn(async () => {
+        throw Object.assign(new Error("Rate exceeded"), { name: "ThrottlingException" })
+      })
+
+      await expect(new PollyTtsClient({ send }).synthesizeAudio({ recordBilledCharacters, text: "a", voiceId: "Joanna" }))
+        .rejects.toThrow("Rate exceeded")
+      expect(recordBilledCharacters).not.toHaveBeenCalled()
+    })
+
+    it("AudioStream が無ければ、課金を記録してから throw する（リクエストは課金されている）", async () => {
+      const send = createFakeSend({ audio: { AudioStream: undefined, RequestCharacters: 6 } })
+
+      await expect(createClient(send).synthesizeAudio({ recordBilledCharacters, text: "resilient", voiceId: "Joanna" }))
+        .rejects.toThrow("Polly returned no AudioStream")
+      expect(recordBilledCharacters.mock.calls).toEqual([[6]])
+    })
+  })
+})
+
 describe("isPollyVoiceId", () => {
   describe("正常系", () => {
     it.each(["Joanna", "Matthew", "Ruth"])("%s は Polly の voice", (value) => {

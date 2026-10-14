@@ -10,14 +10,35 @@ import {
 } from "@repo/domain"
 import { err, notFoundError, ok, Result, unauthorizedError } from "@repo/errors"
 
+import { buildSentenceClip } from "../lib/build-sentence-clip"
 import { buildVocabularyCard, type VocabularyCardView } from "../lib/build-vocabulary-card"
+import { buildAudioUrl, resolveAudioStatus } from "../lib/passage-audio"
 import { formatDateInTimeZone } from "../lib/time-zone"
-import type { TransactionRunner, UserRepository, VocabularyCounts, VocabularyRepository } from "../repository"
+import type {
+  PassageAudioRepository,
+  PassageAudioWithPassage,
+  TransactionRunner,
+  UserRepository,
+  VocabularyCounts,
+  VocabularyRepository,
+  WordAudioRepository,
+} from "../repository"
+
+/**
+ * カードの発音の音声（vocabulary-pronunciation）。wordUrl は見出し語の mp3、sentence は元の問題の読み上げの音声の 1 文の区間。
+ * 音声ができていない・区間が求まらなければ null
+ */
+export type VocabularyCardPronunciation = {
+  sentence: { endMs: number; startMs: number; url: string } | null
+  wordUrl: string | null
+}
+
+export type VocabularySessionCard = VocabularyCardView & { pronunciation: VocabularyCardPronunciation }
 
 /**
  * 1 回分のカード
  */
-export type VocabularySession = { cards: VocabularyCardView[]; today: string }
+export type VocabularySession = { cards: VocabularySessionCard[]; today: string }
 
 type VocabularyReadRepo = { userRepository: UserRepository; vocabularyRepository: VocabularyRepository }
 
@@ -45,12 +66,59 @@ export const getVocabularySummary = async (
 }
 
 /**
- * 1 回分のカード（最大 VOCABULARY_SESSION_SIZE 枚）。今日の復習を先に入れ、余った枠を新しい単語で埋める。何も書き込まない
+ * 1 文の区間を求める。元の問題の音声が ready のとき（resolveAudioStatus。非公開に戻した・公開し直した直後は使わない）だけ
+ */
+const buildSentencePronunciation = (
+  card: VocabularyCardView,
+  audio: PassageAudioWithPassage | undefined,
+  audioPublicUrlBase: string,
+): VocabularyCardPronunciation["sentence"] => {
+  if (!card.sentence || card.sentenceBlockIndex === null || !audio?.audio?.manifest) return null
+  if (resolveAudioStatus(audio.audio, audio.passage) !== "ready") return null
+  const clip = buildSentenceClip(audio.audio.manifest, {
+    blockIndex: card.sentenceBlockIndex,
+    endOffset: card.sentence.blockEndOffset,
+    startOffset: card.sentence.blockStartOffset,
+  })
+  return clip ? { endMs: clip.endMs, startMs: clip.startMs, url: buildAudioUrl(audioPublicUrlBase, clip.key) } : null
+}
+
+/**
+ * カードに発音の音声を付ける。見出し語の音声と元の問題の音声は、カードの数だけ引かずにまとめて 1 回ずつ引く。
+ * audioPublicUrlBase が null（production で AUDIO_PUBLIC_URL_BASE が未設定）なら、音声を引かずに単語も 1 文も null にする
+ */
+const attachPronunciations = async (
+  cards: VocabularyCardView[],
+  repo: { passageAudioRepository: PassageAudioRepository; wordAudioRepository: WordAudioRepository },
+  audioPublicUrlBase: string | null,
+): Promise<VocabularySessionCard[]> => {
+  if (audioPublicUrlBase === null || cards.length === 0) {
+    return cards.map((card) => ({ ...card, pronunciation: { sentence: null, wordUrl: null } }))
+  }
+  const [wordKeys, passageAudios] = await Promise.all([
+    repo.wordAudioRepository.findReadyKeysByLemmas(cards.map((card) => card.lemma)),
+    repo.passageAudioRepository.findByPassageIds([...new Set(cards.map((card) => card.passage.id))]),
+  ])
+  return cards.map((card) => {
+    const wordKey = wordKeys.get(card.lemma)
+    return {
+      ...card,
+      pronunciation: {
+        sentence: buildSentencePronunciation(card, passageAudios.get(card.passage.id), audioPublicUrlBase),
+        wordUrl: wordKey === undefined ? null : buildAudioUrl(audioPublicUrlBase, wordKey),
+      },
+    }
+  })
+}
+
+/**
+ * 1 回分のカード（最大 VOCABULARY_SESSION_SIZE 枚）。今日の復習を先に入れ、余った枠を新しい単語で埋める。何も書き込まない。
+ * カードには発音の音声（単語の mp3 の URL と、1 文の読み上げの区間）を付ける
  */
 export const getVocabularySession = async (
   userId: number,
-  repo: VocabularyReadRepo,
-  deps: { now: Date },
+  repo: VocabularyReadRepo & { passageAudioRepository: PassageAudioRepository; wordAudioRepository: WordAudioRepository },
+  deps: { audioPublicUrlBase: string | null; now: Date },
 ): Promise<Result<VocabularySession>> => {
   const userResult = await findUser(userId, repo)
   if (!userResult.ok) return userResult
@@ -64,7 +132,7 @@ export const getVocabularySession = async (
     ...dueCards.map(({ card, encounter }) => buildVocabularyCard(encounter, card.stage)),
     ...newEncounters.map((encounter) => buildVocabularyCard(encounter, null)),
   ].filter((card): card is VocabularyCardView => card !== null)
-  return ok({ cards, today })
+  return ok({ cards: await attachPronunciations(cards, repo, deps.audioPublicUrlBase), today })
 }
 
 /**
