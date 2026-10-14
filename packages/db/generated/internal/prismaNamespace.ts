@@ -405,6 +405,7 @@ export const ModelName = {
   Memo: 'Memo',
   Passage: 'Passage',
   PassageAudio: 'PassageAudio',
+  AudioSynthesisUsage: 'AudioSynthesisUsage',
   PassageGlossaryEntry: 'PassageGlossaryEntry',
   Question: 'Question',
   ReadingAttempt: 'ReadingAttempt',
@@ -427,7 +428,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "attemptAnswer" | "attemptWordLookup" | "authAccount" | "contentSource" | "dictionaryEntry" | "memo" | "passage" | "passageAudio" | "passageGlossaryEntry" | "question" | "readingAttempt" | "reminderSetting" | "sourceDocument" | "user" | "userGoal"
+    modelProps: "attemptAnswer" | "attemptWordLookup" | "authAccount" | "contentSource" | "dictionaryEntry" | "memo" | "passage" | "passageAudio" | "audioSynthesisUsage" | "passageGlossaryEntry" | "question" | "readingAttempt" | "reminderSetting" | "sourceDocument" | "user" | "userGoal"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -1020,6 +1021,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.PassageAudioCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.PassageAudioCountAggregateOutputType> | number
+        }
+      }
+    }
+    AudioSynthesisUsage: {
+      payload: Prisma.$AudioSynthesisUsagePayload<ExtArgs>
+      fields: Prisma.AudioSynthesisUsageFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.AudioSynthesisUsageFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AudioSynthesisUsagePayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.AudioSynthesisUsageFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AudioSynthesisUsagePayload>
+        }
+        findFirst: {
+          args: Prisma.AudioSynthesisUsageFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AudioSynthesisUsagePayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.AudioSynthesisUsageFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AudioSynthesisUsagePayload>
+        }
+        findMany: {
+          args: Prisma.AudioSynthesisUsageFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AudioSynthesisUsagePayload>[]
+        }
+        create: {
+          args: Prisma.AudioSynthesisUsageCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AudioSynthesisUsagePayload>
+        }
+        createMany: {
+          args: Prisma.AudioSynthesisUsageCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.AudioSynthesisUsageCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AudioSynthesisUsagePayload>[]
+        }
+        delete: {
+          args: Prisma.AudioSynthesisUsageDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AudioSynthesisUsagePayload>
+        }
+        update: {
+          args: Prisma.AudioSynthesisUsageUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AudioSynthesisUsagePayload>
+        }
+        deleteMany: {
+          args: Prisma.AudioSynthesisUsageDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.AudioSynthesisUsageUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.AudioSynthesisUsageUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AudioSynthesisUsagePayload>[]
+        }
+        upsert: {
+          args: Prisma.AudioSynthesisUsageUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AudioSynthesisUsagePayload>
+        }
+        aggregate: {
+          args: Prisma.AudioSynthesisUsageAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateAudioSynthesisUsage>
+        }
+        groupBy: {
+          args: Prisma.AudioSynthesisUsageGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AudioSynthesisUsageGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.AudioSynthesisUsageCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AudioSynthesisUsageCountAggregateOutputType> | number
         }
       }
     }
@@ -1715,11 +1790,23 @@ export const PassageAudioScalarFieldEnum = {
   lastError: 'lastError',
   generationStartedAt: 'generationStartedAt',
   generatedAt: 'generatedAt',
+  regenerateRequestedAt: 'regenerateRequestedAt',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
 
 export type PassageAudioScalarFieldEnum = (typeof PassageAudioScalarFieldEnum)[keyof typeof PassageAudioScalarFieldEnum]
+
+
+export const AudioSynthesisUsageScalarFieldEnum = {
+  id: 'id',
+  passageId: 'passageId',
+  characters: 'characters',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type AudioSynthesisUsageScalarFieldEnum = (typeof AudioSynthesisUsageScalarFieldEnum)[keyof typeof AudioSynthesisUsageScalarFieldEnum]
 
 
 export const PassageGlossaryEntryScalarFieldEnum = {
@@ -2132,6 +2219,7 @@ export type GlobalOmitConfig = {
   memo?: Prisma.MemoOmit
   passage?: Prisma.PassageOmit
   passageAudio?: Prisma.PassageAudioOmit
+  audioSynthesisUsage?: Prisma.AudioSynthesisUsageOmit
   passageGlossaryEntry?: Prisma.PassageGlossaryEntryOmit
   question?: Prisma.QuestionOmit
   readingAttempt?: Prisma.ReadingAttemptOmit

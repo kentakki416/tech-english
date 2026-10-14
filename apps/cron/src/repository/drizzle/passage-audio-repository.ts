@@ -4,6 +4,7 @@ import {
   DrizzleClient,
   eq,
   inArray,
+  isNotNull,
   isNull,
   lt,
   ne,
@@ -18,16 +19,31 @@ import type {
   AudioClaim,
   AudioClaimOutcome,
   AudioClaimResult,
+  AudioClaimStatus,
   CalculateTextHash,
   ClaimedAudioTarget,
   PassageAudioRepository,
+  RejectedPassageAudio,
 } from "../passage-audio-repository"
 
 /**
- * 確保した行を作り直すときに上書きしてよい状態。確保の select と insert の間に別の実行が確保した行（generating）や、
- * 管理者の再試行を待つ行（failed）は取り直さない
+ * 確保の候補の行（passage_audios の列は行が無ければ null）
  */
-const RECLAIMABLE_STATUSES = ["pending", "ready"] as const
+type AudioClaimCandidate = {
+  previousStatus: string | null
+  previousUpdatedAt: Date | null
+  publishedAt: Date | null
+}
+
+/**
+ * 候補をどの状態で確保するか。ready で、音声を作った後に公開し直されていない行（voice の変更・作り直しの依頼で選ばれた行）は ready のまま、
+ * それ以外（行が無い・pending・公開し直された ready）は generating にする。Prisma 実装と同じ判定
+ */
+const resolveClaimStatus = (candidate: AudioClaimCandidate): AudioClaimStatus => {
+  if (candidate.previousStatus !== "ready" || candidate.previousUpdatedAt === null) return "generating"
+  const isRepublished = candidate.publishedAt !== null && candidate.previousUpdatedAt < candidate.publishedAt
+  return isRepublished ? "generating" : "ready"
+}
 
 /**
  * Drizzle 実装の PassageAudioRepository
@@ -41,24 +57,35 @@ export class DrizzlePassageAudioRepository implements PassageAudioRepository {
 
   /**
    * 短いトランザクションで ① passages に passage_audios を left join して対象を選び、passages の行をロックする（FOR UPDATE OF passages SKIP LOCKED。
-   * left join の nullable 側はロックできない。ready は公開し直されたものと、voice_id が今の voice と違うもの）② 行を insert し、既にある行は ON CONFLICT で generating にする。
+   * left join の nullable 側はロックできない）② generating で確保する行は insert し、既にある行は ON CONFLICT で generating にする
+   * ③ ready のまま確保する行は generation_started_at だけを更新する（updated_at は今の値のまま）。
    * ロックするのは passages で更新するのは passage_audios なので、別の実行がほんの少し前に確保した行を古いスナップショットで取り直さないよう、
-   * conflict の更新は status が pending / ready の行だけにし、RETURNING で返った行だけを確保できたものとする
+   * ②③ の更新にも確保の条件（pending か、確保中でない ready）を付け、RETURNING で返った行だけを確保できたものとする
    */
   public async claimTargets(input: {
     calculateTextHash: CalculateTextHash
     limit: number
+    maxAttempts: number
     now: Date
+    staleBefore: Date
     voiceId: string
   }): Promise<ClaimedAudioTarget[]> {
+    const isNotClaimedRecently = or(isNull(passageAudios.generationStartedAt), lt(passageAudios.generationStartedAt, input.staleBefore))
+    const needsRebuildInPlace = and(
+      or(ne(passageAudios.voiceId, input.voiceId), isNotNull(passageAudios.regenerateRequestedAt)),
+      lt(passageAudios.attemptCount, input.maxAttempts),
+    )
     return this._db.transaction(async (tx) => {
       const candidates = await tx
         .select({
           blocks: passages.blocks,
           passageId: passages.id,
           previousManifest: passageAudios.manifest,
+          previousRegenerateRequestedAt: passageAudios.regenerateRequestedAt,
           previousStatus: passageAudios.status,
           previousTextHash: passageAudios.textHash,
+          previousUpdatedAt: passageAudios.updatedAt,
+          publishedAt: passages.publishedAt,
         })
         .from(passages)
         .leftJoin(passageAudios, eq(passageAudios.passageId, passages.id))
@@ -68,8 +95,11 @@ export class DrizzlePassageAudioRepository implements PassageAudioRepository {
             or(
               isNull(passageAudios.id),
               eq(passageAudios.status, "pending"),
-              and(eq(passageAudios.status, "ready"), lt(passageAudios.updatedAt, passages.publishedAt)),
-              and(eq(passageAudios.status, "ready"), ne(passageAudios.voiceId, input.voiceId)),
+              and(
+                eq(passageAudios.status, "ready"),
+                isNotClaimedRecently,
+                or(lt(passageAudios.updatedAt, passages.publishedAt), needsRebuildInPlace),
+              ),
             ),
           ),
         )
@@ -78,34 +108,61 @@ export class DrizzlePassageAudioRepository implements PassageAudioRepository {
         .for("update", { of: passages, skipLocked: true })
       if (candidates.length === 0) return []
 
-      const claimedRows = await tx
-        .insert(passageAudios)
-        .values(
-          candidates.map((candidate) => ({
-            generationStartedAt: input.now,
-            passageId: candidate.passageId,
-            status: "generating" as const,
-            textHash: input.calculateTextHash(candidate.blocks),
-            updatedAt: input.now,
-            voiceId: input.voiceId,
-          })),
-        )
-        .onConflictDoUpdate({
-          set: { generationStartedAt: input.now, status: "generating", updatedAt: input.now },
-          setWhere: inArray(passageAudios.status, RECLAIMABLE_STATUSES),
-          target: passageAudios.passageId,
-        })
-        .returning({ passageId: passageAudios.passageId })
-      const claimedIds = new Set(claimedRows.map((row) => row.passageId))
+      const claimedStatuses = new Map<number, AudioClaimStatus>()
+      const generatingCandidates = candidates.filter((candidate) => resolveClaimStatus(candidate) === "generating")
+      if (generatingCandidates.length > 0) {
+        const rows = await tx
+          .insert(passageAudios)
+          .values(
+            generatingCandidates.map((candidate) => ({
+              generationStartedAt: input.now,
+              passageId: candidate.passageId,
+              status: "generating" as const,
+              textHash: input.calculateTextHash(candidate.blocks),
+              updatedAt: input.now,
+              voiceId: input.voiceId,
+            })),
+          )
+          .onConflictDoUpdate({
+            set: { generationStartedAt: input.now, status: "generating", updatedAt: input.now },
+            setWhere: or(eq(passageAudios.status, "pending"), and(eq(passageAudios.status, "ready"), isNotClaimedRecently)),
+            target: passageAudios.passageId,
+          })
+          .returning({ passageId: passageAudios.passageId })
+        for (const row of rows) claimedStatuses.set(row.passageId, "generating")
+      }
+
+      const readyCandidates = candidates.filter((candidate) => resolveClaimStatus(candidate) === "ready")
+      if (readyCandidates.length > 0) {
+        const rows = await tx
+          .update(passageAudios)
+          /**
+           * updated_at を明示しないと $onUpdate が今の時刻を入れ、公開し直しの判定（updated_at < published_at）が崩れる
+           */
+          .set({ generationStartedAt: input.now, updatedAt: sql`${passageAudios.updatedAt}` })
+          .where(
+            and(
+              inArray(passageAudios.passageId, readyCandidates.map((candidate) => candidate.passageId)),
+              eq(passageAudios.status, "ready"),
+              isNotClaimedRecently,
+              needsRebuildInPlace,
+            ),
+          )
+          .returning({ passageId: passageAudios.passageId })
+        for (const row of rows) claimedStatuses.set(row.passageId, "ready")
+      }
 
       /**
        * RETURNING の順序は保証されないので、select の順（published_at → id）のまま確保できた行だけを返す
        */
-      return candidates
-        .filter((candidate) => claimedIds.has(candidate.passageId))
-        .map((candidate) => ({
+      return candidates.flatMap((candidate) => {
+        const claimedStatus = claimedStatuses.get(candidate.passageId)
+        if (!claimedStatus) return []
+        return [{
           blocks: candidate.blocks,
+          claimedStatus,
           generationStartedAt: input.now,
+          isRegenerationRequested: candidate.previousRegenerateRequestedAt !== null,
           passageId: candidate.passageId,
           previous:
             candidate.previousStatus !== null && candidate.previousTextHash !== null && isAudioStatus(candidate.previousStatus)
@@ -115,7 +172,8 @@ export class DrizzlePassageAudioRepository implements PassageAudioRepository {
                 textHash: candidate.previousTextHash,
               }
               : null,
-        }))
+        }]
+      })
     })
   }
 
@@ -130,7 +188,7 @@ export class DrizzlePassageAudioRepository implements PassageAudioRepository {
   ): Promise<AudioClaimResult> {
     return this._db.transaction(async (tx) => {
       const [claimed] = await tx
-        .select({ id: passageAudios.id })
+        .select({ regenerateRequestedAt: passageAudios.regenerateRequestedAt })
         .from(passageAudios)
         .where(this._buildClaimCondition(claim))
         .for("update")
@@ -147,6 +205,13 @@ export class DrizzlePassageAudioRepository implements PassageAudioRepository {
         }
       }
 
+      /**
+       * 確保の時刻までに出された作り直しの依頼はこの生成で応えたので消す。確保の後に出された依頼は残し、次の実行で作り直す
+       */
+      const regenerateRequestedAt = claimed.regenerateRequestedAt !== null && claimed.regenerateRequestedAt > claim.generationStartedAt
+        ? claimed.regenerateRequestedAt
+        : null
+
       if (outcome.kind === "ready") {
         await tx
           .update(passageAudios)
@@ -157,6 +222,7 @@ export class DrizzlePassageAudioRepository implements PassageAudioRepository {
             generationStartedAt: null,
             lastError: null,
             manifest: outcome.manifest,
+            regenerateRequestedAt,
             status: "ready",
             textHash: outcome.textHash,
             updatedAt: options.now,
@@ -174,9 +240,33 @@ export class DrizzlePassageAudioRepository implements PassageAudioRepository {
          */
         await tx
           .update(passageAudios)
-          .set({ attemptCount: 0, generationStartedAt: null, lastError: null, status: "ready", updatedAt: options.now })
+          .set({
+            attemptCount: 0,
+            generationStartedAt: null,
+            lastError: null,
+            regenerateRequestedAt,
+            status: "ready",
+            updatedAt: options.now,
+          })
           .where(this._buildClaimCondition(claim))
         return "unchanged"
+      }
+
+      if (claim.claimedStatus === "ready") {
+        /**
+         * ready のまま確保した行は failed にせず、前の音声を出し続ける（updated_at も進めない）。失敗が上限に達した行は claimTargets が取らない
+         */
+        const [failed] = await tx
+          .update(passageAudios)
+          .set({
+            attemptCount: sql`${passageAudios.attemptCount} + 1`,
+            generationStartedAt: null,
+            lastError: outcome.error,
+            updatedAt: sql`${passageAudios.updatedAt}`,
+          })
+          .where(this._buildClaimCondition(claim))
+          .returning({ attemptCount: passageAudios.attemptCount })
+        return (failed?.attemptCount ?? 0) >= outcome.maxAttempts ? "failed" : "retry_later"
       }
 
       /**
@@ -197,7 +287,32 @@ export class DrizzlePassageAudioRepository implements PassageAudioRepository {
     })
   }
 
+  public async deleteByPassageId(passageId: number): Promise<void> {
+    await this._db.delete(passageAudios).where(eq(passageAudios.passageId, passageId))
+  }
+
+  public async findRejected(staleBefore: Date): Promise<RejectedPassageAudio[]> {
+    return this._db
+      .select({ manifest: passageAudios.manifest, passageId: passageAudios.passageId })
+      .from(passageAudios)
+      .innerJoin(passages, eq(passages.id, passageAudios.passageId))
+      .where(
+        and(
+          eq(passages.status, "rejected"),
+          or(isNull(passageAudios.generationStartedAt), lt(passageAudios.generationStartedAt, staleBefore)),
+        ),
+      )
+      .orderBy(asc(passageAudios.passageId))
+  }
+
   public async releaseClaim(claim: AudioClaim): Promise<void> {
+    if (claim.claimedStatus === "ready") {
+      await this._db
+        .update(passageAudios)
+        .set({ generationStartedAt: null, updatedAt: sql`${passageAudios.updatedAt}` })
+        .where(this._buildClaimCondition(claim))
+      return
+    }
     await this._db
       .update(passageAudios)
       .set({ generationStartedAt: null, status: "pending" })
@@ -214,12 +329,12 @@ export class DrizzlePassageAudioRepository implements PassageAudioRepository {
   }
 
   /**
-   * 確保した実行だけが更新できる条件（generation_started_at を確保のトークンとして使う）
+   * 確保した実行だけが更新できる条件（確保したときの状態と、generation_started_at を確保のトークンとして使う）
    */
   private _buildClaimCondition(claim: AudioClaim) {
     return and(
       eq(passageAudios.passageId, claim.passageId),
-      eq(passageAudios.status, "generating"),
+      eq(passageAudios.status, claim.claimedStatus),
       eq(passageAudios.generationStartedAt, claim.generationStartedAt),
     )
   }

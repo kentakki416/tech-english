@@ -42,12 +42,18 @@ const createFakeSend = (overrides: { audio?: Partial<SynthesizeSpeechCommandOutp
 
 const createClient = (send: ReturnType<typeof createFakeSend>) => new PollyTtsClient({ send })
 
+const recordBilledCharacters = vi.fn(async (_characters: number) => undefined)
+
 describe("PollyTtsClient", () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
   describe("正常系", () => {
     it("音声（mp3）と単語の時刻（json・word）を別々に、Neural・text・指定の voice で 2 回呼ぶ", async () => {
       const send = createFakeSend()
 
-      await createClient(send).synthesize({ text: "Effects run", voiceId: "Joanna" })
+      await createClient(send).synthesize({ recordBilledCharacters, text: "Effects run", voiceId: "Joanna" })
 
       expect(send).toHaveBeenCalledTimes(2)
       const inputs = send.mock.calls.map(([command]) => command.input)
@@ -71,7 +77,7 @@ describe("PollyTtsClient", () => {
     it("mp3 のバイト列・parse した単語の時刻・2 つの RequestCharacters の合計を返す", async () => {
       const send = createFakeSend({ marks: { RequestCharacters: 20 } })
 
-      const result = await createClient(send).synthesize({ text: "Effects run", voiceId: "Joanna" })
+      const result = await createClient(send).synthesize({ recordBilledCharacters, text: "Effects run", voiceId: "Joanna" })
 
       expect(result.audio).toEqual(Buffer.from(MP3_BYTES))
       expect(result.marks).toEqual([
@@ -81,10 +87,18 @@ describe("PollyTtsClient", () => {
       expect(result.billedCharacters).toBe(37)
     })
 
+    it("2 つのリクエストの課金文字数を 1 つずつ recordBilledCharacters で記録する", async () => {
+      const send = createFakeSend({ marks: { RequestCharacters: 20 } })
+
+      await createClient(send).synthesize({ recordBilledCharacters, text: "Effects run", voiceId: "Joanna" })
+
+      expect(recordBilledCharacters.mock.calls.map(([characters]) => characters)).toEqual([17, 20])
+    })
+
     it("RequestCharacters が無ければ 0 として足す", async () => {
       const send = createFakeSend({ audio: { RequestCharacters: undefined }, marks: { RequestCharacters: undefined } })
 
-      const result = await createClient(send).synthesize({ text: "Effects run", voiceId: "Joanna" })
+      const result = await createClient(send).synthesize({ recordBilledCharacters, text: "Effects run", voiceId: "Joanna" })
 
       expect(result.billedCharacters).toBe(0)
     })
@@ -94,9 +108,32 @@ describe("PollyTtsClient", () => {
     it("AudioStream が無ければ throw", async () => {
       const send = createFakeSend({ audio: { AudioStream: undefined } })
 
-      await expect(createClient(send).synthesize({ text: "Effects run", voiceId: "Joanna" })).rejects.toThrow(
+      await expect(createClient(send).synthesize({ recordBilledCharacters, text: "Effects run", voiceId: "Joanna" })).rejects.toThrow(
         "Polly returned no AudioStream",
       )
+    })
+
+    it("単語の時刻のリクエストだけが失敗したら、成功した音声の分を記録してから単語の時刻のエラーを throw する", async () => {
+      const throttling = Object.assign(new Error("Rate exceeded"), { name: "ThrottlingException" })
+      const send = vi.fn(async (command: SynthesizeSpeechCommand): Promise<SynthesizeSpeechCommandOutput> => {
+        if (command.input.OutputFormat === "mp3") {
+          return { $metadata: {}, AudioStream: createAudioStream(MP3_BYTES), RequestCharacters: 17 }
+        }
+        throw throttling
+      })
+
+      await expect(new PollyTtsClient({ send }).synthesize({ recordBilledCharacters, text: "Effects run", voiceId: "Joanna" }))
+        .rejects.toBe(throttling)
+
+      expect(recordBilledCharacters.mock.calls.map(([characters]) => characters)).toEqual([17])
+    })
+
+    it("recordBilledCharacters が throw したらそのまま伝播する", async () => {
+      const dbError = new Error("connection terminated")
+      recordBilledCharacters.mockRejectedValueOnce(dbError)
+
+      await expect(createClient(createFakeSend()).synthesize({ recordBilledCharacters, text: "Effects run", voiceId: "Joanna" }))
+        .rejects.toBe(dbError)
     })
 
     it("SDK のエラーはそのまま伝播する", async () => {
@@ -104,7 +141,7 @@ describe("PollyTtsClient", () => {
         throw Object.assign(new Error("Rate exceeded"), { name: "ThrottlingException" })
       })
 
-      await expect(new PollyTtsClient({ send }).synthesize({ text: "a", voiceId: "Joanna" }))
+      await expect(new PollyTtsClient({ send }).synthesize({ recordBilledCharacters, text: "a", voiceId: "Joanna" }))
         .rejects.toThrow("Rate exceeded")
     })
   })

@@ -58,6 +58,11 @@ export type Passage = Prisma.PassageModel
  */
 export type PassageAudio = Prisma.PassageAudioModel
 /**
+ * Model AudioSynthesisUsage
+ * 
+ */
+export type AudioSynthesisUsage = Prisma.AudioSynthesisUsageModel
+/**
  * Model PassageGlossaryEntry
  * 
  */

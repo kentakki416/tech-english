@@ -46,6 +46,7 @@ export {
 export type {
   AttemptAnswer,
   AttemptWordLookup,
+  AudioSynthesisUsage,
   AuthAccount,
   ContentSource,
   DictionaryEntry,

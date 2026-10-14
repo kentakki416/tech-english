@@ -48,6 +48,7 @@ const convertAudioToResponse = ({ audio, passage }: AdminPassageDetail): AdminPa
   return {
     generated_at: audio?.generatedAt?.toISOString() ?? null,
     last_error: audio?.lastError ?? null,
+    regenerate_requested_at: audio?.regenerateRequestedAt?.toISOString() ?? null,
     status: resolveAudioStatus(audio, passage),
   }
 }

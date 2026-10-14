@@ -37,8 +37,10 @@ import type {
   PublishedPassageFilter,
   PublishedPassageSummary,
 } from "../passage-repository"
+import type { TransactionContext } from "../transaction"
 
 import { convertPassageAudioRowToDomain } from "./passage-audio-row"
+import { resolveDrizzleClient } from "./transaction-runner"
 
 /**
  * Drizzleの型
@@ -462,8 +464,8 @@ export class DrizzlePassageRepository implements PassageRepository {
     })
   }
 
-  public async transitionStatus(id: number, transition: PassageTransition): Promise<boolean> {
-    const rows = await this._db
+  public async transitionStatus(id: number, transition: PassageTransition, tx?: TransactionContext): Promise<boolean> {
+    const rows = await resolveDrizzleClient(this._db, tx)
       .update(passages)
       .set({
         ...(transition.publishedAt === undefined ? {} : { publishedAt: transition.publishedAt }),

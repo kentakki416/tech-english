@@ -2,6 +2,11 @@ import type { SpeechMark } from "../../lib/audio"
 
 export type SynthesizeInput = {
   /**
+   * 課金された文字数を記録する（月の上限の集計用）。課金されるリクエスト（Polly の音声と単語の時刻）が成功するたびに、その文字数で呼ぶ。
+   * 片方だけが成功して失敗に終わるときも、成功した方の分を記録してから throw する。課金されない FakeTtsClient は呼ばない
+   */
+  recordBilledCharacters: (characters: number) => Promise<void>
+  /**
    * 読み上げ用テキスト（POLLY_MAX_BILLED_CHARACTERS 以下）
    */
   text: string
@@ -28,7 +33,7 @@ export type SynthesizeResult = {
  */
 export interface TtsClient {
   /**
-   * SDK が throw したエラー（リトライ後の throttling / 5xx、資格情報・権限の誤りなど）はそのまま伝播する
+   * SDK が throw したエラー（リトライ後の throttling / 5xx、資格情報・権限の誤りなど）と、recordBilledCharacters のエラーはそのまま伝播する
    */
   synthesize(input: SynthesizeInput): Promise<SynthesizeResult>
 }

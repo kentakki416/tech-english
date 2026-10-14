@@ -11,6 +11,8 @@ import type {
   WebsiteSource,
 } from "@repo/domain"
 
+import type { TransactionContext } from "./transaction"
+
 /**
  * admin の問題一覧のカーソル（並びのキー）。draft は needsAttention DESC, updatedAt ASC, id ASC、
  * それ以外は updatedAt DESC, id DESC の並びで、この行より後ろを返す（それ以外の状態では needsAttention を使わない）
@@ -199,9 +201,9 @@ export interface PassageRepository {
    */
   resetForRegeneration(id: number, from: PassageStatus[]): Promise<boolean>
   /**
-   * 状態を遷移させる。状態が from に無ければ何もせず false（同時操作の保護）
+   * 状態を遷移させる。状態が from に無ければ何もせず false（同時操作の保護）。tx を渡すとそのトランザクションで書く
    */
-  transitionStatus(id: number, transition: PassageTransition): Promise<boolean>
+  transitionStatus(id: number, transition: PassageTransition, tx?: TransactionContext): Promise<boolean>
   /**
    * 下書きの内容（passages の列・用語集・設問）を 1 トランザクションで置き換える。
    * リクエストに無い用語集・設問は削除し、id のあるものは更新、id が null のものは追加する。draft でなければ何もせず false

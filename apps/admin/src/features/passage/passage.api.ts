@@ -8,6 +8,8 @@ import {
   getAdminPassageResponseSchema,
   type PublishAdminPassageResponse,
   publishAdminPassageResponseSchema,
+  type RegenerateAdminPassageAudioResponse,
+  regenerateAdminPassageAudioResponseSchema,
   type RegenerateAdminPassageResponse,
   regenerateAdminPassageResponseSchema,
   type RejectAdminPassageResponse,
@@ -98,6 +100,14 @@ export const passageApi = {
   regenerate: async (id: number): Promise<RegenerateAdminPassageResponse> => {
     const raw = await apiClient.post<unknown>(`${BASE_PATH}/${id}/regenerate`, {})
     return regenerateAdminPassageResponseSchema.parse(raw)
+  },
+
+  /**
+   * 作成済みの読み上げの音声の作り直しを依頼する（ready のときだけ。それ以外の状態・音声の行が無ければ 409）
+   */
+  regenerateAudio: async (id: number): Promise<RegenerateAdminPassageAudioResponse> => {
+    const raw = await apiClient.post<unknown>(`${BASE_PATH}/${id}/audio/regenerate`, {})
+    return regenerateAdminPassageAudioResponseSchema.parse(raw)
   },
 
   reject: async (id: number, reason: string): Promise<RejectAdminPassageResponse> => {

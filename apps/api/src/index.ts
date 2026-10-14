@@ -22,6 +22,7 @@ import { AdminPassageDetailController } from "./controller/admin/passage/detail"
 import { AdminPassageListController } from "./controller/admin/passage/list"
 import { AdminPassagePublishController } from "./controller/admin/passage/publish"
 import { AdminPassageRegenerateController } from "./controller/admin/passage/regenerate"
+import { AdminPassageRegenerateAudioController } from "./controller/admin/passage/regenerate-audio"
 import { AdminPassageRejectController } from "./controller/admin/passage/reject"
 import { AdminPassageRetryAudioController } from "./controller/admin/passage/retry-audio"
 import { AdminPassageUnpublishController } from "./controller/admin/passage/unpublish"
@@ -124,7 +125,7 @@ const contentSourceRepository = new DrizzleContentSourceRepository(db)
 const passageRepository = new DrizzlePassageRepository(db)
 const readingAttemptRepository = new DrizzleReadingAttemptRepository(db)
 /**
- * 読み上げ（read-aloud）の音声。挑戦の音声 API と admin の再試行で共有する
+ * 読み上げ（read-aloud）の音声。挑戦の音声 API と admin の公開・再試行・作り直しで共有する
  */
 const passageAudioRepository = new DrizzlePassageAudioRepository(db)
 const dictionaryRepository = new DrizzleDictionaryRepository(db)
@@ -254,8 +255,9 @@ const adminContentSourceUpdateController = new AdminContentSourceUpdateControlle
  */
 const adminPassageDetailController = new AdminPassageDetailController(passageRepository)
 const adminPassageListController = new AdminPassageListController(passageRepository)
-const adminPassagePublishController = new AdminPassagePublishController(passageRepository)
+const adminPassagePublishController = new AdminPassagePublishController(passageRepository, passageAudioRepository, transactionRunner)
 const adminPassageRegenerateController = new AdminPassageRegenerateController(passageRepository)
+const adminPassageRegenerateAudioController = new AdminPassageRegenerateAudioController(passageAudioRepository)
 const adminPassageRejectController = new AdminPassageRejectController(passageRepository)
 const adminPassageRetryAudioController = new AdminPassageRetryAudioController(passageAudioRepository)
 const adminPassageUnpublishController = new AdminPassageUnpublishController(passageRepository)
@@ -375,6 +377,7 @@ app.use(
       list: adminPassageListController,
       publish: adminPassagePublishController,
       regenerate: adminPassageRegenerateController,
+      regenerateAudio: adminPassageRegenerateAudioController,
       reject: adminPassageRejectController,
       retryAudio: adminPassageRetryAudioController,
       unpublish: adminPassageUnpublishController,

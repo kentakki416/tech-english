@@ -1,6 +1,7 @@
 import { asc, eq, passageGlossaryEntries, passages, questions } from "@repo/db"
 
 import { DrizzlePassageRepository } from "../../src/repository/drizzle/passage-repository"
+import { DrizzleTransactionRunner } from "../../src/repository/drizzle/transaction-runner"
 import type {
   AdminPassageListQuery,
   DraftEditContent,
@@ -8,6 +9,8 @@ import type {
   PublishedPassageFilter,
 } from "../../src/repository/passage-repository"
 import { PrismaPassageRepository } from "../../src/repository/prisma/passage-repository"
+import { PrismaTransactionRunner } from "../../src/repository/prisma/transaction-runner"
+import type { TransactionRunner } from "../../src/repository/transaction"
 import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb, testPrisma } from "../controller/setup"
 import {
   buildWebsiteSourceValues,
@@ -29,9 +32,9 @@ import { PASSAGE_BLOCKS } from "../fixture/passage-content"
  * Prisma / Drizzle の両実装が PassageRepository として同じ振る舞いをすることを確かめる。
  * DI で使うのは Drizzle 実装だが、Prisma 実装へ戻せる状態を保つために両方を検証する。
  */
-const implementations: [string, PassageRepository][] = [
-  ["Drizzle", new DrizzlePassageRepository(testDb)],
-  ["Prisma", new PrismaPassageRepository(testPrisma)],
+const implementations: [string, PassageRepository, TransactionRunner][] = [
+  ["Drizzle", new DrizzlePassageRepository(testDb), new DrizzleTransactionRunner(testDb)],
+  ["Prisma", new PrismaPassageRepository(testPrisma), new PrismaTransactionRunner(testPrisma)],
 ]
 
 type GlossaryRow = typeof passageGlossaryEntries.$inferSelect
@@ -167,7 +170,7 @@ afterAll(async () => {
   await disconnectTestRedis()
 })
 
-describe.each(implementations)("%s PassageRepository", (_name, passageRepository) => {
+describe.each(implementations)("%s PassageRepository", (_name, passageRepository, transactionRunner) => {
   describe("findAdminDetail", () => {
     describe("正常系", () => {
       it("問題・ソース・用語集（位置の順）・設問（order_index の順）・挑戦の件数を返す", async () => {
@@ -211,6 +214,7 @@ describe.each(implementations)("%s PassageRepository", (_name, passageRepository
           lastError: "ServiceFailureException: Polly is unavailable",
           manifest: buildAudioManifest(passage.id),
           passageId: passage.id,
+          regenerateRequestedAt: null,
           status: "failed",
           textHash: AUDIO_TEXT_HASH,
           voiceId: "Joanna",
@@ -366,6 +370,18 @@ describe.each(implementations)("%s PassageRepository", (_name, passageRepository
 
         expect(await passageRepository.transitionStatus(passage.id, { from: ["published"], to: "draft" })).toBe(true)
         expect(await selectPassage(passage.id)).toMatchObject({ publishedAt: now, reviewedAt: now, status: "draft" })
+      })
+
+      it("tx を渡すとそのトランザクションで書き、ロールバックすると戻らない（公開と音声の再試行を 1 つのトランザクションにするため）", async () => {
+        const { passage } = await insertGeneratedPassage()
+        const now = at("2026-10-13T09:00:00.000Z")
+
+        await expect(transactionRunner.run(async (tx) => {
+          expect(await passageRepository.transitionStatus(passage.id, { from: ["draft"], publishedAt: now, to: "published" }, tx)).toBe(true)
+          throw new Error("rollback")
+        })).rejects.toThrow("rollback")
+
+        expect(await selectPassage(passage.id)).toMatchObject({ publishedAt: null, status: "draft" })
       })
     })
 

@@ -30,8 +30,10 @@ import type {
   PublishedPassageFilter,
   PublishedPassageSummary,
 } from "../passage-repository"
+import type { TransactionContext } from "../transaction"
 
 import { convertPassageAudioRowToDomain } from "./passage-audio-row"
+import { resolvePrismaClient } from "./transaction-runner"
 
 /**
  * Prismaの型
@@ -467,8 +469,8 @@ export class PrismaPassageRepository implements PassageRepository {
     })
   }
 
-  public async transitionStatus(id: number, transition: PassageTransition): Promise<boolean> {
-    const result = await this._prisma.passage.updateMany({
+  public async transitionStatus(id: number, transition: PassageTransition, tx?: TransactionContext): Promise<boolean> {
+    const result = await resolvePrismaClient(this._prisma, tx).passage.updateMany({
       data: {
         ...(transition.publishedAt === undefined ? {} : { publishedAt: transition.publishedAt }),
         ...(transition.rejectReason === undefined ? {} : { rejectReason: transition.rejectReason }),

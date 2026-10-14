@@ -34,7 +34,8 @@ export const passageAudios = pgTable(
     billedCharacters: integer("billed_characters").notNull().default(0),
     generatedAt: timestamp("generated_at", { mode: "date", precision: 3 }),
     /**
-     * generating にした時刻（確保のトークン）。結果の書き込みの条件と、30 分以上止まった generating の回収に使う
+     * 生成タスクが確保した時刻（確保のトークン）。結果の書き込みの条件と、30 分以上止まった確保の回収に使う。
+     * generating の行と、ready のまま確保した行（voice の変更・admin の作り直し）が値を持つ
      */
     generationStartedAt: timestamp("generation_started_at", { mode: "date", precision: 3 }),
     lastError: text("last_error"),
@@ -43,6 +44,10 @@ export const passageAudios = pgTable(
      */
     manifest: jsonb("manifest").$type<PassageAudioManifest>(),
     passageId: integer("passage_id").notNull(),
+    /**
+     * admin が「作り直す」を押した時刻（作り直しの依頼）。生成タスクは本文の hash が同じでも Polly で作り直し、成功したら null に戻す
+     */
+    regenerateRequestedAt: timestamp("regenerate_requested_at", { mode: "date", precision: 3 }),
     status: text("status", { enum: AUDIO_STATUSES }).notNull().default("pending"),
     /**
      * 読み上げ対象の本文と voice のハッシュ。manifest と同じく最後に成功した生成のもの

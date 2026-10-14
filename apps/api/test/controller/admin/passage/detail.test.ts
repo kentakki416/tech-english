@@ -146,7 +146,7 @@ describe("GET /api/admin/passage/:id", () => {
       it("音声の行が無い公開中の問題は pending（作成日時・エラーは null）", async () => {
         const { passage } = await insertGeneratedPassage({ publishedAt: PUBLISHED_AT, status: "published" })
 
-        expect(await requestAudio(passage.id)).toEqual({ generated_at: null, last_error: null, status: "pending" })
+        expect(await requestAudio(passage.id)).toEqual({ generated_at: null, last_error: null, regenerate_requested_at: null, status: "pending" })
       })
 
       it("音声の行が無い下書きは null", async () => {
@@ -159,14 +159,31 @@ describe("GET /api/admin/passage/:id", () => {
         const { passage } = await insertGeneratedPassage({ publishedAt: PUBLISHED_AT, status: "published" })
         await insertPassageAudio(passage.id)
 
-        expect(await requestAudio(passage.id)).toEqual({ generated_at: "2026-10-12T04:00:00.000Z", last_error: null, status: "ready" })
+        expect(await requestAudio(passage.id)).toEqual({ generated_at: "2026-10-12T04:00:00.000Z", last_error: null, regenerate_requested_at: null, status: "ready" })
+      })
+
+      it("作り直しの依頼中・ready のまま作り直している（確保中の）行は ready のまま、依頼の日時と前の失敗のエラーを返す", async () => {
+        const { passage } = await insertGeneratedPassage({ publishedAt: PUBLISHED_AT, status: "published" })
+        await insertPassageAudio(passage.id, {
+          attemptCount: 1,
+          generationStartedAt: new Date("2026-10-13T02:50:00.000Z"),
+          lastError: "ServiceFailureException: Polly is unavailable",
+          regenerateRequestedAt: new Date("2026-10-13T02:00:00.000Z"),
+        })
+
+        expect(await requestAudio(passage.id)).toEqual({
+          generated_at: "2026-10-12T04:00:00.000Z",
+          last_error: "ServiceFailureException: Polly is unavailable",
+          regenerate_requested_at: "2026-10-13T02:00:00.000Z",
+          status: "ready",
+        })
       })
 
       it("generating の行は generating をそのまま返す", async () => {
         const { passage } = await insertGeneratedPassage({ publishedAt: PUBLISHED_AT, status: "published" })
         await insertPassageAudio(passage.id, { generationStartedAt: new Date(), status: "generating" })
 
-        expect(await requestAudio(passage.id)).toEqual({ generated_at: "2026-10-12T04:00:00.000Z", last_error: null, status: "generating" })
+        expect(await requestAudio(passage.id)).toEqual({ generated_at: "2026-10-12T04:00:00.000Z", last_error: null, regenerate_requested_at: null, status: "generating" })
       })
 
       it("failed の行は last_error を返す", async () => {
@@ -182,6 +199,7 @@ describe("GET /api/admin/passage/:id", () => {
         expect(await requestAudio(passage.id)).toEqual({
           generated_at: null,
           last_error: "ServiceFailureException: Polly is unavailable",
+          regenerate_requested_at: null,
           status: "failed",
         })
       })
@@ -190,14 +208,14 @@ describe("GET /api/admin/passage/:id", () => {
         const { passage } = await insertGeneratedPassage({ publishedAt: new Date("2026-10-12T05:00:00.000Z"), status: "published" })
         await insertPassageAudio(passage.id)
 
-        expect(await requestAudio(passage.id)).toEqual({ generated_at: "2026-10-12T04:00:00.000Z", last_error: null, status: "pending" })
+        expect(await requestAudio(passage.id)).toEqual({ generated_at: "2026-10-12T04:00:00.000Z", last_error: null, regenerate_requested_at: null, status: "pending" })
       })
 
       it("非公開に戻した問題の ready の行は、本文を直したかもしれないので pending（前回の作成日時は返す）", async () => {
         const { passage } = await insertGeneratedPassage({ publishedAt: PUBLISHED_AT, status: "draft" })
         await insertPassageAudio(passage.id)
 
-        expect(await requestAudio(passage.id)).toEqual({ generated_at: "2026-10-12T04:00:00.000Z", last_error: null, status: "pending" })
+        expect(await requestAudio(passage.id)).toEqual({ generated_at: "2026-10-12T04:00:00.000Z", last_error: null, regenerate_requested_at: null, status: "pending" })
       })
 
       it("非公開に戻した問題の failed の行は failed のまま返す（再試行できる）", async () => {
@@ -207,6 +225,7 @@ describe("GET /api/admin/passage/:id", () => {
         expect(await requestAudio(passage.id)).toEqual({
           generated_at: "2026-10-12T04:00:00.000Z",
           last_error: "ServiceFailureException",
+          regenerate_requested_at: null,
           status: "failed",
         })
       })
