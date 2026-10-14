@@ -69,14 +69,17 @@ try/catch を許容するのは次の 2 つだけ。
 - **オブジェクトは一括 assertion にする**。API レスポンス（外部契約）は `toEqual` + `expect.any(...)`（フィールド増減で落ちる方が望ましい）、DB 行（内部状態）は `toMatchObject`
 - **境界値テストは必須**（日付フィルタの境界、条件分岐の境界）
 
-## Admin API 設計方針（未実装）
+## Admin API 設計方針
 
-Admin 向けエンドポイントはまだ 1 つも実装されていない（`src/routes/` には auth / health / memo / user のみ）。追加するときの方針:
+admin（`apps/admin`）のサーバー側だけが呼ぶ API。
 
-- すべて `/api/admin/` 配下に置き、ユーザー向け API と分離する
-- Controller / Service は共通のものを使い、`admin-router.ts` を新設してマッピングする
+- すべて `/api/admin/` 配下に置き、`src/routes/admin-router.ts` にマッピングする（`src/index.ts` で `app.use("/api/admin", adminRouter(...))`）。コントローラーはリソースごとに `controllers.contentSource` / `controllers.passage` のようにネストして渡し、既存の router と同じく渡されたものだけを登録する
+- **認証は `X-Admin-Token` ヘッダ**。`adminAuthMiddleware`（`src/middleware/admin-auth.ts`）が `ADMIN_API_TOKEN` と定数時間で比較する（`src/lib/admin-token.ts`。SHA-256 にしてから `timingSafeEqual`）。ヘッダが無い・違う・空文字はすべて同じ 401 で、トークンの値はログに出さない
+- ユーザーの JWT 認証の対象外にするため `/api/admin` を `PUBLIC_PATHS` に入れている。**`/api/admin` 配下のルートは必ず admin-router に足す**（別の router に足すと無認証で公開される）
+- Controller は `src/controller/admin/{resource}/{action}.ts`、Service は `src/service/{content-source,admin-passage}-service.ts`。ユーザー向けと同じ Repository を使う
 - スキーマは `@repo/api-schema` の `admin/` に集約。既存と同一なら re-export し、Admin 固有のレスポンスが必要になった時点で新規定義する
-- 認証は当面無し（`PUBLIC_PATHS`）。`ADMIN_USE_DUMMY=true` で DB 不要のダミーモードになる
+- `ADMIN_USE_DUMMY=true` で DB 不要のダミーモードになる
+- 管理者が増えたら GitHub ログイン + 権限管理に移行する（[question-generation の 管理画面のアクセス制御](../../docs/spec/question-generation/README.md#管理画面のアクセス制御)）
 
 ## 環境変数
 
@@ -86,6 +89,10 @@ Admin 向けエンドポイントはまだ 1 つも実装されていない（`s
 # 値の追加・変更は手書きせず dotenvx を使う
 pnpm exec dotenvx set KEY "value" -f .env.local
 ```
+
+`ADMIN_API_TOKEN`（必須・32 文字以上）は `/api/admin/*` の `X-Admin-Token` と比べる共有シークレットで、`apps/admin` の `ADMIN_API_TOKEN` と同じ値にする。`openssl rand -hex 32` などで作る。
+
+`GITHUB_LICENSE_TOKEN`（任意）は admin のソース登録で GitHub のライセンスを検出するときに使う。未設定でも動くが、GitHub の rate limit（60 回 / 時）が低くなる。
 
 ## 新エンドポイント追加の手順
 

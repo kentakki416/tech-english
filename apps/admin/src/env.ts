@@ -13,6 +13,20 @@ import { z } from "zod"
  */
 const adminEnvSchema = z.object({
   /**
+   * api の /api/admin/* に X-Admin-Token として付ける。api の ADMIN_API_TOKEN と同じ値。
+   * api client（server-only）の外に出さない
+   */
+  ADMIN_API_TOKEN: z.string().min(32),
+
+  /**
+   * 画面全体を守る Basic 認証の資格情報（src/proxy.ts で検査する）。
+   * proxy は server-only のこのモジュールを import できないため process.env を直接読む。ここでは必須の検査だけを行う
+   */
+  ADMIN_BASIC_AUTH_PASSWORD: z.string().min(12),
+
+  ADMIN_BASIC_AUTH_USER: z.string().min(1),
+
+  /**
    * Express API の origin（Server Component / Route Handler から API を叩く際に使用）
    */
   API_URL: z.string().url().default("http://localhost:8080"),

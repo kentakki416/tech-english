@@ -398,7 +398,10 @@ type FieldRefInputType<Model, FieldType> = Model extends never ? never : FieldRe
 
 export const ModelName = {
   AuthAccount: 'AuthAccount',
+  ContentSource: 'ContentSource',
   Memo: 'Memo',
+  Passage: 'Passage',
+  SourceDocument: 'SourceDocument',
   User: 'User'
 } as const
 
@@ -415,7 +418,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "authAccount" | "memo" | "user"
+    modelProps: "authAccount" | "contentSource" | "memo" | "passage" | "sourceDocument" | "user"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -493,6 +496,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    ContentSource: {
+      payload: Prisma.$ContentSourcePayload<ExtArgs>
+      fields: Prisma.ContentSourceFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.ContentSourceFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ContentSourcePayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.ContentSourceFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ContentSourcePayload>
+        }
+        findFirst: {
+          args: Prisma.ContentSourceFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ContentSourcePayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.ContentSourceFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ContentSourcePayload>
+        }
+        findMany: {
+          args: Prisma.ContentSourceFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ContentSourcePayload>[]
+        }
+        create: {
+          args: Prisma.ContentSourceCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ContentSourcePayload>
+        }
+        createMany: {
+          args: Prisma.ContentSourceCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.ContentSourceCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ContentSourcePayload>[]
+        }
+        delete: {
+          args: Prisma.ContentSourceDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ContentSourcePayload>
+        }
+        update: {
+          args: Prisma.ContentSourceUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ContentSourcePayload>
+        }
+        deleteMany: {
+          args: Prisma.ContentSourceDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.ContentSourceUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.ContentSourceUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ContentSourcePayload>[]
+        }
+        upsert: {
+          args: Prisma.ContentSourceUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ContentSourcePayload>
+        }
+        aggregate: {
+          args: Prisma.ContentSourceAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateContentSource>
+        }
+        groupBy: {
+          args: Prisma.ContentSourceGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ContentSourceGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.ContentSourceCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ContentSourceCountAggregateOutputType> | number
+        }
+      }
+    }
     Memo: {
       payload: Prisma.$MemoPayload<ExtArgs>
       fields: Prisma.MemoFieldRefs
@@ -564,6 +641,154 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.MemoCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.MemoCountAggregateOutputType> | number
+        }
+      }
+    }
+    Passage: {
+      payload: Prisma.$PassagePayload<ExtArgs>
+      fields: Prisma.PassageFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.PassageFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PassagePayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.PassageFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PassagePayload>
+        }
+        findFirst: {
+          args: Prisma.PassageFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PassagePayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.PassageFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PassagePayload>
+        }
+        findMany: {
+          args: Prisma.PassageFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PassagePayload>[]
+        }
+        create: {
+          args: Prisma.PassageCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PassagePayload>
+        }
+        createMany: {
+          args: Prisma.PassageCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.PassageCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PassagePayload>[]
+        }
+        delete: {
+          args: Prisma.PassageDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PassagePayload>
+        }
+        update: {
+          args: Prisma.PassageUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PassagePayload>
+        }
+        deleteMany: {
+          args: Prisma.PassageDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.PassageUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.PassageUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PassagePayload>[]
+        }
+        upsert: {
+          args: Prisma.PassageUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PassagePayload>
+        }
+        aggregate: {
+          args: Prisma.PassageAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregatePassage>
+        }
+        groupBy: {
+          args: Prisma.PassageGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.PassageGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.PassageCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.PassageCountAggregateOutputType> | number
+        }
+      }
+    }
+    SourceDocument: {
+      payload: Prisma.$SourceDocumentPayload<ExtArgs>
+      fields: Prisma.SourceDocumentFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.SourceDocumentFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SourceDocumentPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.SourceDocumentFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SourceDocumentPayload>
+        }
+        findFirst: {
+          args: Prisma.SourceDocumentFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SourceDocumentPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.SourceDocumentFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SourceDocumentPayload>
+        }
+        findMany: {
+          args: Prisma.SourceDocumentFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SourceDocumentPayload>[]
+        }
+        create: {
+          args: Prisma.SourceDocumentCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SourceDocumentPayload>
+        }
+        createMany: {
+          args: Prisma.SourceDocumentCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.SourceDocumentCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SourceDocumentPayload>[]
+        }
+        delete: {
+          args: Prisma.SourceDocumentDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SourceDocumentPayload>
+        }
+        update: {
+          args: Prisma.SourceDocumentUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SourceDocumentPayload>
+        }
+        deleteMany: {
+          args: Prisma.SourceDocumentDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.SourceDocumentUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.SourceDocumentUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SourceDocumentPayload>[]
+        }
+        upsert: {
+          args: Prisma.SourceDocumentUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SourceDocumentPayload>
+        }
+        aggregate: {
+          args: Prisma.SourceDocumentAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateSourceDocument>
+        }
+        groupBy: {
+          args: Prisma.SourceDocumentGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.SourceDocumentGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.SourceDocumentCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.SourceDocumentCountAggregateOutputType> | number
         }
       }
     }
@@ -692,6 +917,35 @@ export const AuthAccountScalarFieldEnum = {
 export type AuthAccountScalarFieldEnum = (typeof AuthAccountScalarFieldEnum)[keyof typeof AuthAccountScalarFieldEnum]
 
 
+export const ContentSourceScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  kind: 'kind',
+  fetchType: 'fetchType',
+  includeGlobs: 'includeGlobs',
+  excludeGlobs: 'excludeGlobs',
+  licenseSpdx: 'licenseSpdx',
+  licenseUrl: 'licenseUrl',
+  tags: 'tags',
+  isEnabled: 'isEnabled',
+  lastCollectedAt: 'lastCollectedAt',
+  repository: 'repository',
+  branch: 'branch',
+  publicUrlTemplate: 'publicUrlTemplate',
+  publicUrlStripPrefix: 'publicUrlStripPrefix',
+  lastCollectedCommitSha: 'lastCollectedCommitSha',
+  siteUrl: 'siteUrl',
+  sitemapUrl: 'sitemapUrl',
+  startUrl: 'startUrl',
+  contentSelector: 'contentSelector',
+  excludeSelectors: 'excludeSelectors',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type ContentSourceScalarFieldEnum = (typeof ContentSourceScalarFieldEnum)[keyof typeof ContentSourceScalarFieldEnum]
+
+
 export const MemoScalarFieldEnum = {
   id: 'id',
   title: 'title',
@@ -701,6 +955,57 @@ export const MemoScalarFieldEnum = {
 } as const
 
 export type MemoScalarFieldEnum = (typeof MemoScalarFieldEnum)[keyof typeof MemoScalarFieldEnum]
+
+
+export const PassageScalarFieldEnum = {
+  id: 'id',
+  sourceDocumentId: 'sourceDocumentId',
+  sourcePath: 'sourcePath',
+  sourceCommitSha: 'sourceCommitSha',
+  sourceRetrievedAt: 'sourceRetrievedAt',
+  status: 'status',
+  title: 'title',
+  blocks: 'blocks',
+  wordCount: 'wordCount',
+  contentHash: 'contentHash',
+  difficulty: 'difficulty',
+  timeLimitSeconds: 'timeLimitSeconds',
+  generationAttemptCount: 'generationAttemptCount',
+  generationStartedAt: 'generationStartedAt',
+  generationError: 'generationError',
+  generationModel: 'generationModel',
+  generationPromptVersion: 'generationPromptVersion',
+  generatedAt: 'generatedAt',
+  needsAttention: 'needsAttention',
+  attentionReasons: 'attentionReasons',
+  rejectReason: 'rejectReason',
+  reviewedAt: 'reviewedAt',
+  publishedAt: 'publishedAt',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type PassageScalarFieldEnum = (typeof PassageScalarFieldEnum)[keyof typeof PassageScalarFieldEnum]
+
+
+export const SourceDocumentScalarFieldEnum = {
+  id: 'id',
+  sourceId: 'sourceId',
+  path: 'path',
+  title: 'title',
+  fetchedAt: 'fetchedAt',
+  contentHash: 'contentHash',
+  blobSha: 'blobSha',
+  commitSha: 'commitSha',
+  etag: 'etag',
+  lastModified: 'lastModified',
+  sitemapLastmod: 'sitemapLastmod',
+  httpStatus: 'httpStatus',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type SourceDocumentScalarFieldEnum = (typeof SourceDocumentScalarFieldEnum)[keyof typeof SourceDocumentScalarFieldEnum]
 
 
 export const UserScalarFieldEnum = {
@@ -724,12 +1029,28 @@ export const SortOrder = {
 export type SortOrder = (typeof SortOrder)[keyof typeof SortOrder]
 
 
+export const JsonNullValueInput = {
+  JsonNull: JsonNull
+} as const
+
+export type JsonNullValueInput = (typeof JsonNullValueInput)[keyof typeof JsonNullValueInput]
+
+
 export const QueryMode = {
   default: 'default',
   insensitive: 'insensitive'
 } as const
 
 export type QueryMode = (typeof QueryMode)[keyof typeof QueryMode]
+
+
+export const JsonNullValueFilter = {
+  DbNull: DbNull,
+  JsonNull: JsonNull,
+  AnyNull: AnyNull
+} as const
+
+export type JsonNullValueFilter = (typeof JsonNullValueFilter)[keyof typeof JsonNullValueFilter]
 
 
 export const NullsOrder = {
@@ -785,6 +1106,27 @@ export type DateTimeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel
  * Reference to a field of type 'DateTime[]'
  */
 export type ListDateTimeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'DateTime[]'>
+    
+
+
+/**
+ * Reference to a field of type 'Json'
+ */
+export type JsonFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Json'>
+    
+
+
+/**
+ * Reference to a field of type 'QueryMode'
+ */
+export type EnumQueryModeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'QueryMode'>
+    
+
+
+/**
+ * Reference to a field of type 'Boolean'
+ */
+export type BooleanFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Boolean'>
     
 
 
@@ -953,7 +1295,10 @@ export interface PrismaClientOptionsWithAdapter extends PrismaClientBaseOptions 
 export type PrismaClientOptions = PrismaClientOptionsWithAccelerateUrl | PrismaClientOptionsWithAdapter
 export type GlobalOmitConfig = {
   authAccount?: Prisma.AuthAccountOmit
+  contentSource?: Prisma.ContentSourceOmit
   memo?: Prisma.MemoOmit
+  passage?: Prisma.PassageOmit
+  sourceDocument?: Prisma.SourceDocumentOmit
   user?: Prisma.UserOmit
 }
 

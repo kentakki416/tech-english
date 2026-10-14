@@ -93,6 +93,7 @@ domain の純粋関数や定数がフロントで必要になった場合も、d
 | `src/types/` | ドメイン型。**型だけ**を置き、実行時のコードを持たない | `membership-tier.ts`（`MembershipTier`） / `memo.ts` / `user.ts` |
 | `src/rules/` | 純粋関数。業務ルールと type guard | `memo.ts`（`canShareMemo`） / `membership-tier.ts`（`isMembershipTier`） |
 | `src/index.ts` | バレル。re-export はファイル名順に並べる | |
+| `test/` | `rules/` のユニットテスト（Vitest。`pnpm --filter @repo/domain test`）。vitest は devDependencies なので `dependencies` は空のまま | `rules/passage.test.ts` |
 
 ```mermaid
 graph LR

@@ -8,8 +8,14 @@ import { logger } from "@repo/logger"
 import { BullMQJobQueue, TRACK_EVENT_QUEUE_NAME } from "@repo/queue"
 import { createRedisClient } from "@repo/redis"
 
+import { GitHubLicenseClient } from "./client/github-license"
 import { GitHubOAuthClient } from "./client/github-oauth"
 import { GoogleOAuthClient } from "./client/google-oauth"
+import { AdminContentSourceCreateController } from "./controller/admin/content-source/create"
+import { AdminContentSourceDetailController } from "./controller/admin/content-source/detail"
+import { AdminContentSourceDetectLicenseController } from "./controller/admin/content-source/detect-license"
+import { AdminContentSourceListController } from "./controller/admin/content-source/list"
+import { AdminContentSourceUpdateController } from "./controller/admin/content-source/update"
 import { AuthDevLoginController } from "./controller/auth/dev-login"
 import { AuthGitHubController } from "./controller/auth/github"
 import { AuthGoogleController } from "./controller/auth/google"
@@ -34,12 +40,14 @@ import { requestLogger } from "./middleware/request-logger"
 import { unhandledExceptionHandler } from "./middleware/unhandled-exception-handler"
 import {
   DrizzleAuthAccountRepository,
+  DrizzleContentSourceRepository,
   DrizzleDatabaseHealthRepository,
   DrizzleMemoRepository,
   DrizzleTransactionRunner,
   DrizzleUserRepository,
 } from "./repository/drizzle"
 import { IoRedisHealthRepository, IoRedisRefreshTokenRepository } from "./repository/redis"
+import { adminRouter } from "./routes/admin-router"
 import { authRouter } from "./routes/auth-router"
 import { eventRouter } from "./routes/event-router"
 import { healthRouter } from "./routes/health-router"
@@ -72,6 +80,7 @@ const userRepository = new DrizzleUserRepository(db)
 const authAccountRepository = new DrizzleAuthAccountRepository(db)
 const transactionRunner = new DrizzleTransactionRunner(db)
 const memoRepository = new DrizzleMemoRepository(db)
+const contentSourceRepository = new DrizzleContentSourceRepository(db)
 const databaseHealthRepository = new DrizzleDatabaseHealthRepository(db)
 const redisHealthRepository = new IoRedisHealthRepository(redis)
 const refreshTokenRepository = new IoRedisRefreshTokenRepository(redis)
@@ -81,6 +90,7 @@ const refreshTokenRepository = new IoRedisRefreshTokenRepository(redis)
  */
 const gitHubOAuthClient = new GitHubOAuthClient(env.GITHUB_OAUTH_CLIENT_ID, env.GITHUB_OAUTH_CLIENT_SECRET)
 const googleOAuthClient = new GoogleOAuthClient(env.GOOGLE_CLIENT_ID, env.GOOGLE_CLIENT_SECRET)
+const gitHubLicenseClient = new GitHubLicenseClient(env.GITHUB_LICENSE_TOKEN)
 
 /**
  * Health Controller のインスタンス化
@@ -141,6 +151,15 @@ const eventCreateController = new EventCreateController(eventTracker)
 const memoCreateController = new MemoCreateController(memoRepository, eventTracker)
 const memoUpdateController = new MemoUpdateController(memoRepository, eventTracker)
 const memoDeleteController = new MemoDeleteController(memoRepository, eventTracker)
+
+/**
+ * Admin のソース管理 Controller のインスタンス化
+ */
+const adminContentSourceCreateController = new AdminContentSourceCreateController(contentSourceRepository)
+const adminContentSourceDetailController = new AdminContentSourceDetailController(contentSourceRepository)
+const adminContentSourceDetectLicenseController = new AdminContentSourceDetectLicenseController(gitHubLicenseClient)
+const adminContentSourceListController = new AdminContentSourceListController(contentSourceRepository)
+const adminContentSourceUpdateController = new AdminContentSourceUpdateController(contentSourceRepository)
 
 const app = express()
 
@@ -205,6 +224,22 @@ app.use(
  * ウェアより前に登録して対象外にしている（制限に巻き込むと target が unhealthy 判定される恐れ）。
  */
 app.use(apiRateLimiter)
+/**
+ * admin 向け API。/api/admin は PUBLIC_PATHS に入っているので、admin-router 側の
+ * adminAuthMiddleware（X-Admin-Token）で保護する
+ */
+app.use(
+  "/api/admin",
+  adminRouter({
+    contentSource: {
+      create: adminContentSourceCreateController,
+      detail: adminContentSourceDetailController,
+      detectLicense: adminContentSourceDetectLicenseController,
+      list: adminContentSourceListController,
+      update: adminContentSourceUpdateController,
+    },
+  })
+)
 app.use(
   "/api/auth",
   authRouter({

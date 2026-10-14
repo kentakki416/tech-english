@@ -1,3 +1,6 @@
 export * from "./auth-account"
+export * from "./content-source"
 export * from "./memo"
+export * from "./passage"
+export * from "./source-document"
 export * from "./user"

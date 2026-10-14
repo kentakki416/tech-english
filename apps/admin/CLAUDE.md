@@ -23,6 +23,9 @@ pnpm start        # 本番サーバー起動
 
 | 変数 | 必須 | デフォルト | 説明 |
 | --- | --- | --- | --- |
+| `ADMIN_API_TOKEN` | yes | - | api の `/api/admin/*` に `X-Admin-Token` として付ける共有シークレット（32 文字以上）。api の `ADMIN_API_TOKEN` と同じ値。`src/libs/api-client.ts` の外に出さない |
+| `ADMIN_BASIC_AUTH_PASSWORD` | yes | - | 画面全体の Basic 認証のパスワード（12 文字以上） |
+| `ADMIN_BASIC_AUTH_USER` | yes | - | 画面全体の Basic 認証のユーザー名 |
 | `API_URL` | no | `http://localhost:8080` | Express API の origin |
 | `NODE_ENV` | no | `development` | `development` / `test` / `production` |
 
@@ -35,23 +38,39 @@ pnpm start        # 本番サーバー起動
 cd apps/admin && pnpm exec dotenvx set API_URL "http://localhost:8080" -f .env.local
 ```
 
+## アクセス制御
+
+MVP の管理者は 1〜2 人なので、共有シークレットで保護する（設計は [question-generation の 管理画面のアクセス制御](../../docs/spec/question-generation/README.md#管理画面のアクセス制御)）。
+
+- **画面**: `src/proxy.ts` が Basic 認証をかける（`_next/static`・`_next/image`・`favicon.ico`・`images/` 以外のすべて。モックの `/mock` も対象）。`images/`（`public/images` のテンプレートの静的画像）を除くのは、秘密を含まないうえ、next/image の最適化（`/_next/image`）がサーバーの内部から元の画像を認証なしで取得するため（Basic 認証をかけると最適化した画像が 401 で表示されない）。`ADMIN_BASIC_AUTH_USER` / `ADMIN_BASIC_AUTH_PASSWORD` が未設定なら誰も通さない（fail closed）。`src/env.ts` は `server-only` なので proxy からは使わず `process.env` を直接読む。比較は `src/libs/basic-auth.ts`（`node:crypto` を使わない定数時間比較）
+- **api**: `src/libs/api-client.ts` がすべてのリクエストに `X-Admin-Token: ADMIN_API_TOKEN` を付ける。トークンはブラウザに渡らない（Client Component の props やエラーに含めない）
+- ローカルの資格情報は `.env.local`（dotenvx で暗号化済み）に入っている。値は `pnpm exec dotenvx get ADMIN_BASIC_AUTH_PASSWORD -f .env.local` で確認する
+
 ## API 接続の下地
 
-admin は DB を直接触らず、必ず Express API を経由する。現状は TailAdmin テンプレートの画面がそのまま入っており **API には未接続**だが、繋ぐための足場は用意してある。
+admin は DB を直接触らず、必ず Express API を経由する。tech-english の画面（サイドバーの「tech-english」）は API に接続済みで、それ以外は TailAdmin テンプレートの画面がそのまま入っている（API 未接続）。
 
-| ファイル | 状態 | 役割 |
+| ファイル | 役割 |
+| --- | --- |
+| `src/env.ts` | `API_URL` / `ADMIN_API_TOKEN` / Basic 認証の資格情報を Zod で検証。`server-only`。`api-client.ts` から import され、API を呼ぶ画面の読み込み時に検証が走る |
+| `src/libs/api-client.ts` | `env.API_URL` を叩く `get` / `post` / `put` / `delete`。`X-Admin-Token` を付け、`!res.ok` なら `ApiClientError`（`status` / `body`）を投げる。`server-only` |
+| `src/features/{feature}/{feature}.api.ts` | 機能ごとの API 呼び出し層（`server-only`）。レスポンスを `@repo/api-schema` のスキーマで parse して返す |
+| `src/libs/ui-classes.ts` | 入力欄・カード・ボタンの共通クラス（テンプレートと同じ見た目）。デザインモックの `mock/_components/ui.ts` と同じ値で、本番の画面はこちらを使う（`mock/` を import しない） |
+| `src/libs/format-date.ts` | `formatDateTime`：日時を日本時間の `2026-10-10 03:00` にする（Server Component は UTC で動くためタイムゾーンを明示） |
+
+接続済みの画面：
+
+| パス | 画面 | 実装 |
 | --- | --- | --- |
-| `src/env.ts` | 配線済み（ただし未 import） | `API_URL` を Zod で検証。`server-only` |
-| `src/libs/api-client.ts` | **未使用** | `env.API_URL` を叩く `get` / `post` / `put` / `delete`。`server-only` |
-| `@repo/api-schema` | **未使用**（依存宣言のみ） | API のリクエスト / レスポンス Zod スキーマ |
+| `/content-sources` | ソース一覧 | `app/(dashboard)/content-sources/page.tsx` + `components/features/content-source/SourceTable.tsx` |
+| `/content-sources/new`・`/content-sources/[id]` | ソースの登録・編集 | `SourceForm.tsx` + `app/(dashboard)/content-sources/actions.ts`（Server Action）+ `app/api/content-sources/license/route.ts`（ライセンス検出の中継） |
 
 画面を API に繋ぐときは:
 
-1. Server Component か Route Handler から `apiClient` を呼ぶ（`server-only` なので client component からは import できない）
+1. Server Component か Route Handler から `features/*.api.ts` 経由で `apiClient` を呼ぶ（`server-only` なので client component からは import できない）。一覧のように build 時に静的生成されると困るページは `await connection()` で動的にする
 2. レスポンスは `@repo/api-schema` のスキーマで parse する。**独自に型を書かない**
-3. client component にデータが必要な場合は Server Component で取得して props で渡す
-
-`src/env.ts` はどこからも import されていないため **現状 env 検証は実行されない**（`api-client.ts` が未使用のため）。API に繋いだ時点で初めて検証が走る。
+3. client component にデータが必要な場合は Server Component で取得して props で渡す。Zod のスキーマ（値）を client component で import すると bundle に入るので、選択肢などの値も Server Component から props で渡す
+4. 登録・更新は Server Action（`actions.ts`。先頭に `"use server"` と `import "server-only"`）。404 / 409 は `ApiClientError` の `status` で見分ける。フォームは `useActionState` を使い、`<form action>` ではなく `onSubmit` から `startTransition(() => formAction(formData))` で呼ぶ（`<form action>` だと React が送信後にフォームをリセットし、入力エラーのときに値が消える）
 
 `@repo/*` のうち admin が import できるのは `@repo/api-schema` だけで、これは lint で強制している（`@repo/eslint-config/frontend-boundary`）。
 

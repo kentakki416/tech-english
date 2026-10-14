@@ -10,6 +10,7 @@ import {
   CalenderIcon,
   ChevronDownIcon,
   DocsIcon,
+  FolderIcon,
   GridIcon,
   HorizontaLDots,
   ListIcon,
@@ -28,6 +29,16 @@ type NavItem = {
 }
 
 const navItems: NavItem[] = [
+  /**
+   * tech-english の管理画面
+   */
+  {
+    icon: <FolderIcon />,
+    name: "tech-english",
+    subItems: [
+      { name: "ソース", path: "/content-sources", pro: false },
+    ],
+  },
   /**
    * tech-english のデザインモック（design-mock skill）。本実装の画面ができたら削除する
    */
@@ -110,7 +121,24 @@ const othersItems: NavItem[] = [
 
 type SubmenuState = { type: "main" | "others"; index: number } | null
 
+/**
+ * メニューのすべてのリンク先
+ */
+const MENU_PATHS = [...navItems, ...othersItems].flatMap((nav) => [
+  ...(nav.path ? [nav.path] : []),
+  ...(nav.subItems?.map((subItem) => subItem.path) ?? []),
+])
+
+/**
+ * 今のページに対応するメニューのリンク先。下の階層のページ（/content-sources/new など）は、前方一致するうち最も長いものにする
+ */
+const findActiveMenuPath = (pathname: string): string | null =>
+  MENU_PATHS
+    .filter((path) => pathname === path || pathname.startsWith(`${path}/`))
+    .reduce<string | null>((longest, path) => (longest === null || path.length > longest.length ? path : longest), null)
+
 const findSubmenuByPathname = (pathname: string): SubmenuState => {
+  const activePath = findActiveMenuPath(pathname)
   const menuTypes = [
     { items: navItems, type: "main" as const },
     { items: othersItems, type: "others" as const },
@@ -118,7 +146,7 @@ const findSubmenuByPathname = (pathname: string): SubmenuState => {
   for (const { items, type } of menuTypes) {
     for (let index = 0; index < items.length; index++) {
       const nav = items[index]
-      if (nav.subItems?.some((subItem) => subItem.path === pathname)) {
+      if (nav.subItems?.some((subItem) => subItem.path === activePath)) {
         return { type, index }
       }
     }
@@ -256,7 +284,8 @@ export default function AppSidebar() {
     </ul>
   )
 
-  const isActive = useCallback((path: string) => path === pathname, [pathname])
+  const activePath = findActiveMenuPath(pathname)
+  const isActive = useCallback((path: string) => path === activePath, [activePath])
 
   const [openSubmenu, setOpenSubmenu] = useState<SubmenuState>(() =>
     findSubmenuByPathname(pathname)

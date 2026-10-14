@@ -109,7 +109,7 @@ GitHub に Markdown のソースがあるドキュメントは GitHub から取�
 
 | 項目 | 必須 | 例 | 説明 |
 | --- | --- | --- | --- |
-| リポジトリ | ✅ | `reactjs/react.dev` | `owner/name` |
+| リポジトリ | ✅ | `reactjs/react.dev` | `owner/name`。GitHub はリポジトリ名の大文字・小文字を区別しないので、小文字にそろえて保存する（大文字・小文字だけが違うリポジトリを別のソースとして登録できない） |
 | ブランチ | ✅ | `main` | 既定はリポジトリの default branch |
 | 公開ページの URL 規則 | | `https://react.dev/{path}`（`src/content/` を除き拡張子を外す） | 公式サイトのどのページか。未設定なら GitHub のファイルへのリンクを出す |
 
@@ -122,6 +122,10 @@ GitHub に Markdown のソースがあるドキュメントは GitHub から取�
 | 開始ページの URL | どちらか一方 | `https://go.dev/doc/` | sitemap が無いサイトは、ここからリンクをたどって対象パスのページを見つける |
 | 本文の CSS セレクタ | | `main article` | 本文が入っている要素。未設定なら自動で本文を推定する |
 | 除外する CSS セレクタ | | `.feedback`, `nav.toc` | 本文の中から取り除く要素（「このページは役に立ちましたか？」など） |
+
+本文の CSS セレクタ・除外する CSS セレクタを変えると、そのソースの取得済みのページの `ETag` / `Last-Modified` / 本文のハッシュを消す。次回の収集では 304 や同じハッシュで止まらずに全ページを取り直し、新しいセレクタで抽出して切り分け直す。
+
+**取得元（リポジトリ / サイトの URL）は、文書を 1 件でも取得したソースでは変えられない。** 過去の問題の出典は、ソースの今の取得元と、問題に記録したパス（GitHub はコミットも）を組み合わせて作るため、取得元を変えると過去の問題の出典が別のリポジトリ・サイトを指して 404 になる。取得元を変えたいときは別のソースとして登録する。ライセンスとライセンスの記載がある URL は変えられる（誤登録の訂正は過去の問題の出典にも反映されるのが正しい、という扱い）。
 
 登録例（実際に登録するかは、管理者が各ソースのライセンスと利用規約を確認して決める）：
 
@@ -147,7 +151,7 @@ GitHub に Markdown のソースがあるドキュメントは GitHub から取�
 | 文章であること | 箇条書き・表・リンクだけの塊ではない | 目次やリンク集を除外する |
 
 - コードブロックとインラインコードは本文に残す（エンジニアが読む文書はコードを含むのが自然なため）が、英単語数には数えない
-- 表・画像・埋め込みコンポーネント（MDX の `<Sandpack>` など）・サイトのナビゲーションやフッターは本文から除く
+- 表・画像・埋め込みコンポーネント（MDX の `<Sandpack>` など）・サイトのナビゲーションやフッターは本文から除く。文章を包むコンポーネント（`<Intro>` / `<Note>` / `<Pitfall>` / `<DeepDive>` / `<Recap>` / `<YouWillLearn>`）はタグだけ除いて中の文章を残す
 
 ### 出典表示
 
@@ -162,6 +166,8 @@ GitHub に Markdown のソースがあるドキュメントは GitHub から取�
 | 改変の表示 | 「一部を抜粋・改変しています」 | 同左 |
 
 改変の表示は、CC-BY が改変の有無の表示を求めるため。
+
+出典のリンクは、問題に記録したパス（`passages.source_path`。GitHub は `source_commit_sha` も）と **ソースの今の取得元**（`repository` / `site_url`）から組み立てる。そのため取得元は、文書を取得したあとは変えられない（[ソースの登録](#ソースの登録)）。ライセンスはソースの今の値を出す。
 
 ### 取得元の文書が更新されたとき
 
@@ -208,12 +214,12 @@ flowchart LR
 
 **ファイルの blob SHA で変更を検出し、変わったファイルだけ本文を取得する。** 毎回全ファイルを取り直すと rate limit と処理時間を無駄にするため。
 
-1. `GET /repos/{owner}/{repo}/commits/{branch}` で最新コミットの SHA を得る。`content_sources.last_collected_commit_sha` と同じならそのソースは処理を終える
+1. `GET /repos/{owner}/{repo}/commits/{branch}` で最新コミットの SHA を得る（`Accept: application/vnd.github.sha` で SHA の文字列だけを受け取る。JSON はコミットの差分まで含んで大きいため）。`content_sources.last_collected_commit_sha` と同じならそのソースは処理を終える
 2. `GET /repos/{owner}/{repo}/git/trees/{commit_sha}?recursive=1` でファイル一覧と各ファイルの blob SHA を 1 回で得る
 3. 対象パス / 除外パスの glob で絞り込む
 4. `source_documents` の `blob_sha` と比べ、新規・変更されたファイルだけ `GET /repos/{owner}/{repo}/contents/{path}?ref={commit_sha}` で本文を取得する
 5. ファイルごとに解析・切り分けして本文候補を保存し、`source_documents` を upsert する
-6. 全ファイル処理後に `last_collected_commit_sha` を更新する（途中で失敗した、または件数の上限で打ち切った場合は更新しない。次回、未処理のファイルだけを続きから処理する）
+6. 全ファイル処理後に `last_collected_commit_sha` を更新する（途中で失敗した、または件数の上限で打ち切った場合は更新しない。次回、未処理のファイルだけを続きから処理する）。収集を始めたときに読んだ値のままのときだけ更新する（楽観ロック）。収集の途中で管理者が取得範囲を変えて api が `null` に戻していたら古い SHA を書き戻さず、次回の実行で新しい範囲を収集する
 
 `trees` API は巨大なリポジトリで結果が切り詰められる（`truncated: true`）ことがある。その場合は対象パスの最上位ディレクトリごとに trees を取り直す。
 
@@ -225,19 +231,21 @@ flowchart LR
 | --- | --- |
 | URL を見つける（sitemap） | 毎回 sitemap（sitemap index も可）を読み、対象パスに合う URL を `source_documents` に upsert する。`<lastmod>` が前回の取得より新しければ取得待ちにする |
 | URL を見つける（リンク） | 初回は開始ページを未取得の行として入れる。ページを取得して **200 が返ったら、ページ内のリンクのうち同じオリジン・対象パスに合うものを未取得の行として入れる** |
-| 取得する順番 | `fetched_at IS NULL` を先に、次に `fetched_at` が `COLLECT_WEB_REFETCH_DAYS`（既定 7 日）より古いものを古い順に |
+| 取得する順番 | `fetched_at IS NULL` を先に、次に `fetched_at` が `COLLECT_WEB_REFETCH_DAYS`（既定 7 日）より古いものを古い順に。取得できなかったページ（ネットワークエラー・429 / 503）も `fetched_at` に試した時刻を入れて待ち行列から外し、`COLLECT_WEB_REFETCH_DAYS` 日後に取り直す（入れないと次回も同じページが先頭に来て、取得できないページが残りのページを塞ぐため） |
 | 条件付きリクエスト | 前回の `ETag` / `Last-Modified` を `If-None-Match` / `If-Modified-Since` で送り、304 なら本文を取らずに `fetched_at` だけ更新する |
-| 内容の比較 | 200 でも、抽出した本文のハッシュ（`source_documents.content_hash`）が前回と同じなら切り分けをしない（`ETag` を返さないサイト向け） |
+| 内容の比較 | 200 でも、抽出した本文のハッシュ（`source_documents.content_hash`）が前回と同じなら切り分けをしない（`ETag` を返さないサイト向け）。本文の抽出に失敗したページ（不正な CSS セレクタなど）は `ETag` / `Last-Modified` / ハッシュを保存しない（保存すると、セレクタを直してもページが変わるまで 304 で止まるため） |
 
 304 のページからはリンクを読めないが、ページが変わっていなければリンクも変わっていないので、初回の取得で見つけた URL がすでに行として入っている。したがって 2 回目以降も取りこぼしは出ない。
 
 URL の正規化：クエリ文字列とフラグメント（`#...`）を除く。`.pdf` / `.zip` / 画像などのファイルは対象にしない。
 
+リダイレクトされたページは、行き先の URL のパスでも対象パス・除外パスと拡張子を確かめ、外れたら本文候補を作らない（ページ内のリンクの発見には使う）。除外パスへリダイレクトされたページの本文を、元のパスの出典で保存しないため。
+
 **礼儀正しいクロール**：
 
 | 項目 | 値 |
 | --- | --- |
-| `robots.txt` | 実行ごとに取得して守る。禁止されている URL は取得しない。`Crawl-delay` があればそれに従う |
+| `robots.txt` | 実行ごとに取得して守る。禁止されている URL は取得しない。`Crawl-delay` があればそれに従う。ただし 30 秒を超える `Crawl-delay` のサイトは、従うと処理が長時間止まるので今回の実行では打ち切る（失敗にしない） |
 | リクエストの間隔 | 同じホストに `COLLECT_WEB_REQUEST_INTERVAL_MS`（既定 1,000ms）以上空ける。並列にしない |
 | `User-Agent` | `TechEnglishBot/1.0 (+{サービスのトップの URL})`。サイトの管理者がどのサービスのボットか分かるようにする。止めたいときは robots.txt で `TechEnglishBot` を指定してもらう（守る）。ボットの説明ページは作らない |
 | タイムアウト | 1 リクエスト 10 秒 |
@@ -253,12 +261,12 @@ cron は AWS の VPC 内で動くため、登録された URL を経由して内
 
 ### 本文の抽出と解析
 
-**Markdown**：`unified` + `remark-parse` + `remark-frontmatter` + `remark-gfm`（`.mdx` は `remark-mdx`）で mdast にする。frontmatter の `title` があれば文書タイトルにする。
+**Markdown**：`unified` + `remark-parse` + `remark-frontmatter` + `remark-gfm`（`.mdx` は `remark-mdx`）で mdast にする。frontmatter の `title` があれば文書タイトルにする。`.md` に MDX の書き方が混ざっている場合（react.dev の `.md` など）に備え、`.md` でも MDX のコメント（`{/* ... */}`。見出しのアンカーなど）をコードの外で消し、HTML ブロックで書かれたコンポーネントは `.mdx` の JSX と同じ規則で扱う。
 
 **HTML**：
 
 1. `jsdom` で DOM にする
-2. 本文の CSS セレクタがあればその要素を、無ければ `@mozilla/readability` で推定した本文を取り出す
+2. 本文の CSS セレクタがあればその要素を、無ければ `@mozilla/readability` で推定した本文を取り出す（`keepClasses` を指定する。Readability は既定で `class` を消し、コードの言語が分からなくなるため）
 3. 除外する CSS セレクタに合う要素と、`nav` / `header` / `footer` / `aside` / `script` / `style` / `button` / `[aria-hidden="true"]` を取り除く
 4. `rehype-parse` + `rehype-remark` で mdast にする（`<pre><code class="language-go">` は `lang` つきのコードになる）
 5. `<title>` か最初の `h1` を文書タイトルにする
@@ -274,7 +282,8 @@ cron は AWS の VPC 内で動くため、登録された URL を経由して内
 | `blockquote` | `quote` ブロック |
 | `inlineCode` | ブロック内のテキストにバッククォートつきで残す（表示時にコードとして描画） |
 | `link` | テキストだけ残し URL は捨てる |
-| `table` / `image` / `html` / `mdxJsxFlowElement` / `yaml`（frontmatter） | 捨てる |
+| `mdxJsxFlowElement`（`.md` の HTML ブロックのコンポーネントを含む） | 文章を包むコンポーネント（許可リスト）はタグを除いて中身を変換する。それ以外は中身ごと捨てる |
+| `table` / `image` / `html` / `yaml`（frontmatter） | 捨てる |
 
 **JavaScript で本文を描画するサイトには対応しない**（ヘッドレスブラウザを cron に載せない）。取得した HTML に本文が入っていないサイトは、試し実行で英単語数がほぼ 0 になるので登録時に分かる（[deferred](./deferred-more-sources.md#javascript-で描画するサイト)）。
 
@@ -307,8 +316,9 @@ cron は AWS の VPC 内で動くため、登録された URL を経由して内
 
 - 1 ソースの失敗（リポジトリ削除、rate limit、サイトの障害など）は、そのソースだけスキップしてログに出し、他のソースは続ける。タスク全体は最後に 1 件でも失敗があれば exit code 1 で終える（ECS のタスクの終了コードとログに失敗を残すため。EventBridge Scheduler は RunTask の成否しか見ないので、exit code での通知〈ECS の Task State Change → SNS など〉は MVP では持たない）
 - GitHub の rate limit の残り（`x-ratelimit-remaining`）が 100 を切ったら、そのソースの処理を打ち切って次回に回す
-- サイトが 429 / 503 を返したら、そのソースの処理を打ち切って次回に回す（`Retry-After` より前に再開しない）
+- サイトが 429 / 503 を返したら、そのソースの処理をその回の実行では打ち切り、次回の実行（約 24 時間後）で再開する（失敗にはしない）。`Retry-After` は待たない。`Retry-After` が次回の実行より先を指していたら warn に出す
 - ページの 404 / 410 は `http_status` に記録し、そのページは取り直しの対象から外す（sitemap やリンクで再び見つかったら対象に戻す）
+- サイトの `last_collected_at`（最終収集）は、取得待ちのページを最後まで処理したとき（上限で打ち切ったときを含む）だけ進める。429 / 503・`Crawl-delay` が長すぎる・停止指示で途中で終えたときは進めない（最終収集の表示が実際より新しくならないように。収集はソースを `last_collected_at` の古い順に処理するので、次回の実行で先に処理される）
 - 冪等：何度実行しても、`content_hash` の unique 制約と `source_documents` の upsert により結果は変わらない
 
 ### ソース登録時の確認
@@ -449,7 +459,7 @@ admin 向け。アクセス制御は [question-generation](../question-generatio
 | GET | `/api/admin/content-source` | ソース一覧（状態別の本文候補件数つき） |
 | GET | `/api/admin/content-source/:id` | ソース詳細 |
 | POST | `/api/admin/content-source` | ソースの登録。取得方法ごとの必須項目を Zod の discriminated union で検証する。許可リスト外のライセンスは 400。`website` は無効の状態で作る |
-| PUT | `/api/admin/content-source/:id` | ソースの更新（有効 / 無効の切り替えを含む）。取得方法は変更できない |
+| PUT | `/api/admin/content-source/:id` | ソースの更新（有効 / 無効の切り替えを含む）。取得方法は変更できない。文書を取得したソースの取得元（`repository` / `site_url`）の変更は 400。本文の CSS セレクタ・除外する CSS セレクタを変えると、そのソースの `source_documents` の `etag` / `last_modified` / `content_hash` を消す |
 | GET | `/api/admin/content-source/license?repository=owner/name` | GitHub が検出したライセンスを返す（`github_repository` の登録フォームの初期値用） |
 
 cron タスク：
@@ -500,7 +510,7 @@ erDiagram
         int source_id FK
         text path "ファイルパス or URL のパス"
         text title "nullable"
-        timestamp fetched_at "nullable = 未取得"
+        timestamp fetched_at "最後に取得を試みた時刻（失敗を含む）, nullable = 未取得"
         text content_hash "抽出した本文のハッシュ, nullable"
         text blob_sha "GitHub のみ"
         text commit_sha "GitHub のみ。取得したときのコミット"

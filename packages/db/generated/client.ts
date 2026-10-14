@@ -45,10 +45,25 @@ export { Prisma }
  */
 export type AuthAccount = Prisma.AuthAccountModel
 /**
+ * Model ContentSource
+ * 
+ */
+export type ContentSource = Prisma.ContentSourceModel
+/**
  * Model Memo
  * 
  */
 export type Memo = Prisma.MemoModel
+/**
+ * Model Passage
+ * 
+ */
+export type Passage = Prisma.PassageModel
+/**
+ * Model SourceDocument
+ * 
+ */
+export type SourceDocument = Prisma.SourceDocumentModel
 /**
  * Model User
  * 

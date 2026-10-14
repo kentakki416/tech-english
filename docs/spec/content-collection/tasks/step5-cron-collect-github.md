@@ -72,11 +72,11 @@ export class GitHubContentClient implements IGitHubContentClient {
 
 | メソッド | リクエスト | 戻り値 |
 | --- | --- | --- |
-| `getLatestCommitSha` | `GET /repos/{owner}/{repo}/commits/{branch}`（JSON） | `sha` |
+| `getLatestCommitSha` | `GET /repos/{owner}/{repo}/commits/{branch}`、`Accept: application/vnd.github.sha`（SHA の文字列だけを返す。JSON はコミットの差分まで含んで大きいため） | 本文を trim した SHA（16 進数の 40 桁か 64 桁を Zod で検証） |
 | `getTree` | `GET /repos/{owner}/{repo}/git/trees/{sha}`（`isRecursive` なら `?recursive=1`） | `tree[]` と `truncated` |
 | `getFileContent` | `GET /repos/{owner}/{repo}/contents/{path}?ref={sha}`、`Accept: application/vnd.github.raw+json` | 本文の文字列 |
 
-- JSON は Zod で検証する（`apps/api/src/client/google-oauth.ts` と同じ）
+- JSON と SHA の文字列は Zod で検証する（`apps/api/src/client/google-oauth.ts` と同じ）
 - `path` はセグメントごとに `encodeURIComponent`、`branch` も encode する
 - `fetch` はテストで差し替えるためにコンストラクタで受ける（既定はグローバルの `fetch`）
 
@@ -100,8 +100,12 @@ export interface ContentSourceRepository {
   findById(id: number): Promise<ContentSource | null>
   /** is_enabled = true を last_collected_at の古い順（未収集が先）。上限で後ろのソースが毎回あふれないように */
   findEnabled(): Promise<ContentSource[]>
-  /** lastCollectedCommitSha を省略したら変えない */
-  markCollected(id: number, input: { lastCollectedAt: Date; lastCollectedCommitSha?: string }): Promise<void>
+  /**
+   * 行を更新できたら true。lastCollectedCommitSha を省略したら変えない。
+   * 渡したら、last_collected_commit_sha が expected（収集を始めたときに読んだ値。null も含む）のままのときだけ next に書き換える（楽観ロック）。
+   * 合わなければ last_collected_at も含めて何も書かずに false
+   */
+  markCollected(id: number, input: { lastCollectedAt: Date; lastCollectedCommitSha?: { expected: string | null; next: string } }): Promise<boolean>
 }
 
 export type MarkFetchedInput = {
@@ -132,6 +136,7 @@ export interface PassageRepository {
 
 - Drizzle：`insert(passages).values(inputs).onConflictDoNothing({ target: passages.contentHash }).returning({ id: passages.id })` の件数。空配列ならクエリを投げず 0。`upsertByPath` は `onConflictDoUpdate({ set: { title }, target: [sourceDocuments.sourceId, sourceDocuments.path] }).returning()`
 - Prisma：`createMany({ data, skipDuplicates: true })` の `count`、`upsert({ where: { sourceId_path: { ... } } })`。`_toDomain` は `isSourceKind` などで検証する
+- `markCollected`：Drizzle は `where` に `eq(id)` と、SHA を渡したときは `expected === null ? isNull(lastCollectedCommitSha) : eq(lastCollectedCommitSha, expected)` を `and` でつなぎ、結果の `rowCount > 0` を返す。Prisma は条件に合わなくても throw しないよう `updateMany({ where: { id, lastCollectedCommitSha: expected } })` の `count > 0`
 - `PassageRepository` は question-generation step3 も cron に作る。先に作られていればメソッドを足す
 
 ### 6. 1 ソース分の収集（`collectGitHubSource`）
@@ -178,7 +183,7 @@ flowchart TD
 - `extractDocument` が throw した文書（壊れた `.mdx` など）は `logger.warn` し、本文候補 0 件として `markFetched`（blob SHA を記録し、ファイルが変わるまで再試行しない）
 - `markFetched` は passages の挿入の **後** に呼ぶ（`blobSha` / `commitSha` / `contentHash` / `fetchedAt: now` / `title`。サイトの列は null）。途中で落ちても blob SHA が古いままなので次回やり直され、挿入済みの本文候補は `content_hash` の unique で弾かれる（冪等）
 - 本文候補は `{ blocks, contentHash, sourceCommitSha: commitSha, sourceDocumentId, sourcePath: file.path, sourceRetrievedAt: now, title, wordCount }`
-- 終了時は必ず `markCollected(id, { lastCollectedAt: now })`。`completed` のときだけ `lastCollectedCommitSha: commitSha` も渡す
+- 終了時は必ず `markCollected(id, { lastCollectedAt: now })`。`completed` のときだけ `lastCollectedCommitSha: { expected: source.lastCollectedCommitSha, next: commitSha }` も渡す（楽観ロック）。収集の途中で admin が収集の範囲を変えて api が SHA を null に戻していると `false` が返るので、`logger.warn` を出して SHA は書かない（古い SHA を書き戻すと、変えた範囲が次のコミットまで収集されないため）
 - 取得元から消えたファイルの `source_documents` / `passages` は何もしない（公開済みの問題は残す）
 
 ### 7. 全ソースの実行（`collectPassages`）
@@ -242,13 +247,14 @@ pnpm lint:fix
   - [ ] `parseCollectArgs`：引数なし / `--source-id=3` / `--source-id=3 --dry-run` を読める。`--source-id=abc`・未知のフラグ・`--dry-run` 単独は throw
 - `GitHubContentClient`
   - [ ] token があるときだけ `Authorization` が付き、`User-Agent` と raw の `Accept` が付く。path のセグメントが encode される
+  - [ ] `getLatestCommitSha` は `application/vnd.github.sha` で取得し、SHA でない本文（JSON・空・短い）は throw
   - [ ] `x-ratelimit-remaining` が `getRateLimitRemaining()` に反映される
   - [ ] 404 は `GitHubNotFoundError`、残り 0 の 403 は `GitHubRateLimitError`、500 と形の違う JSON は throw
 - `collectGitHubSource`（Repository は `vi.fn()`、client は fake）
   - [ ] 最新コミットが前回と同じなら `up_to_date` で、ツリーを取らず commit SHA を渡さずに `markCollected` する
   - [ ] blob SHA が変わった・新しいファイルだけ本文を取り、変わっていないファイル・対象外のパス・`.md` / `.mdx` 以外は取らない
   - [ ] 本文候補が `sourceCommitSha` / `sourcePath` / `sourceRetrievedAt` つきで挿入され、その後に `markFetched` が呼ばれる
-  - [ ] 全件処理すると `completed` で commit SHA が更新される
+  - [ ] 全件処理すると `completed` で、収集を始めたときの SHA（null を含む）を `expected` に commit SHA が更新される。`markCollected` が `false` を返したら warn を出す
   - [ ] `maxDocuments` / `maxPassages` に達すると `limit_reached`、残り 100 未満で `rate_limited`。どちらも commit SHA を更新しない。本文候補は文書の途中で切られない
   - [ ] truncated のツリーで、glob の base ごとにサブツリーを取り直してパスを前置する。base が空なら `isComplete: false` で commit SHA を更新しない
   - [ ] `extractDocument` が throw する文書は本文候補 0 件で `markFetched` され、次の文書へ進む
@@ -260,6 +266,7 @@ pnpm lint:fix
   - [ ] `--source-id` が存在しない・無効（`--dry-run` なし）なら throw
 - [ ] `previewSource` が Repository の書き込みメソッドを 1 回も呼ばない
 - [ ] Repository（Drizzle / Prisma）：`insertIgnoringDuplicates([])` はクエリを投げない。重複スキップの指定（`onConflictDoNothing` / `skipDuplicates`）と戻り値の件数
+- [ ] Repository（Drizzle / Prisma）：`markCollected` が SHA を渡したときだけ収集を始めたときの SHA（null は IS NULL）を条件に足し、条件に合わなければ `false` を返す
 
 手動確認（ローカル DB、`GITHUB_CONTENT_TOKEN` を dotenvx で設定）：
 

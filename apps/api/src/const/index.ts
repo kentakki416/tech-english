@@ -14,6 +14,11 @@ const DEV_ONLY_PUBLIC_PATHS = process.env.NODE_ENV !== "production"
  * これらのパスではauthMiddlewareが認証チェックをスキップします
  */
 export const PUBLIC_PATHS: readonly string[] = [
+  /**
+   * admin 向け API はユーザーの JWT 認証の対象外にする。
+   * 代わりに admin-router の adminAuthMiddleware（X-Admin-Token）で保護する
+   */
+  "/api/admin",
   "/api/auth/github",
   "/api/auth/google",
   "/api/auth/refresh",

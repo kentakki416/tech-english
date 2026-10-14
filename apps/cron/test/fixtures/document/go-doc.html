@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Writing Tidy Go Programs</title>
+  <style>body { color: #222; } .feedback { margin: 1rem; }</style>
+</head>
+<body>
+  <header>
+    <nav>
+      <a href="/">Home</a>
+      <a href="/doc/">Documentation</a>
+    </nav>
+  </header>
+  <main>
+    <aside class="toc">
+      <a href="#packages">Packages</a>
+    </aside>
+    <article>
+      <h1>Writing Tidy Go Programs</h1>
+      <p>This page explains how to organize a small Go program. Read <a href="/doc/modules">the modules guide</a> first.</p>
+      <h2 id="packages">Packages <a class="anchor" href="#packages" aria-hidden="true">#</a></h2>
+      <p>Every Go file starts with a <code>package</code> clause.</p>
+      <pre><code class="language-go">package main
+
+import "fmt"
+
+func main() {
+	fmt.Println("hello")
+}
+</code></pre>
+      <ul>
+        <li>Keep package names short.</li>
+        <li>Avoid repeating the package name in exported names.</li>
+      </ul>
+      <div class="feedback">Was this page helpful? <button>Yes</button> <button>No</button></div>
+      <p>See also <a href="https://style.example.org/guide">an external style guide</a>, <a href="mailto:docs@example.org">email us</a>, <a href="javascript:void(0)">open the menu</a>, and <a href="../blog/tidy">the blog post</a>.</p>
+    </article>
+  </main>
+  <footer>
+    <a href="/privacy">Privacy</a>
+    <a href="/doc/">Documentation</a>
+  </footer>
+  <script>
+    document.querySelector("article").innerHTML = "<p>Injected by a script.</p>"
+  </script>
+</body>
+</html>

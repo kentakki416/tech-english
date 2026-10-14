@@ -46,7 +46,7 @@ export const contentSourceApi = {
 }
 ```
 
-404（編集画面）と 409（重複）は、question-generation step4 が `src/libs/api-client.ts` に入れた `ApiClientError`（`status` / `body`）で見分ける。
+404（編集画面）と 409（重複）と 400（更新時の取得元の変更）は、question-generation step4 が `src/libs/api-client.ts` に入れた `ApiClientError`（`status` / `body`）で見分ける。
 
 ### 3. ソース一覧（`/content-sources`）
 
@@ -154,7 +154,7 @@ export const createContentSourceAction = async (_prev: ContentSourceFormState, f
 }
 ```
 
-- `updateContentSourceAction(id, prev, formData)` も同じ形で `updateContentSourceRequestSchema` を使い、成功したら `revalidatePath("/content-sources")` と `revalidatePath(`/content-sources/${id}`)` をして一覧へ `redirect`
+- `updateContentSourceAction(id, prev, formData)` も同じ形で `updateContentSourceRequestSchema` を使い、成功したら `revalidatePath("/content-sources")` と `revalidatePath(`/content-sources/${id}`)` をして一覧へ `redirect`。404 は「このソースは見つかりませんでした。」、400 は「取得した文書があるソースは、リポジトリ・サイトの URL を変えられません。変えたいときは別のソースとして登録してください。」（フォームの値は action で検証済みなので、API の 400 は取得元の変更）
 - `redirect` は try-catch の外に書く（`apps/web/src/app/memos/actions.ts` と同じ）
 
 `convertFormDataToContentSourceRequest(formData: FormData): unknown`（`features/content-source/content-source.form.ts`。純関数）：
@@ -184,6 +184,7 @@ api（`ADMIN_API_TOKEN` 設定済み）と admin を起動し、`verify-web-page
 - [ ] サイトの登録：登録後の状態が「無効」
 - [ ] 入力エラー（表示名が空、サイトの URL が http、sitemap が別オリジン、対象パスが空）が各欄の下に出る。登録済みのリポジトリは重複の文言が出る
 - [ ] `/content-sources/{id}`：取得方法のカードが変更不可、収集の状況（件数のバッジ・取得失敗のページ）と試し実行のコマンドが出る。スイッチで有効にして保存すると一覧が「有効」になる
+- [ ] 文書を取得したソースのリポジトリ・サイトの URL を変えて保存すると、取得元を変えられない旨の文言が出る（ライセンスは変えて保存できる）
 - [ ] `/content-sources/999999` と `/content-sources/abc` が 404
 - [ ] `browser_console_messages` の error が 0 件
 - [ ] 新規ページなので after のスクリーンショットだけを `docs/screenshots/content-sources/after.png` に撮る

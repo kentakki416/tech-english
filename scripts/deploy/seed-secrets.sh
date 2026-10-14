@@ -18,6 +18,9 @@
 # 環境変数 (どれも未設定なら skip + warn、後で再実行で OK):
 #   GITHUB_OAUTH_CLIENT_ID
 #   GITHUB_OAUTH_CLIENT_SECRET
+#   GITHUB_LICENSE_TOKEN   (任意。admin のライセンス検出 API が使う。未設定でも 60 req/h で動く)
+#   GITHUB_CONTENT_TOKEN   (任意。cron の collect:passages が GitHub から英文を取得するのに使う。
+#                           公開リポジトリの読み取りだけの fine-grained token。未設定でも動くが 60 req/h で 1 回に数十ファイルまで)
 #   GOOGLE_CLIENT_ID
 #   GOOGLE_CLIENT_SECRET
 #   LIVEKIT_HOST
@@ -86,6 +89,8 @@ add_kv() {
 echo "==> External secrets (from environment variables)"
 add_kv "GITHUB_OAUTH_CLIENT_ID"     "${GITHUB_OAUTH_CLIENT_ID:-}"     "env"
 add_kv "GITHUB_OAUTH_CLIENT_SECRET" "${GITHUB_OAUTH_CLIENT_SECRET:-}" "env"
+add_kv "GITHUB_LICENSE_TOKEN"   "${GITHUB_LICENSE_TOKEN:-}"   "env"
+add_kv "GITHUB_CONTENT_TOKEN"   "${GITHUB_CONTENT_TOKEN:-}"   "env"
 add_kv "GOOGLE_CLIENT_ID"       "${GOOGLE_CLIENT_ID:-}"       "env"
 add_kv "GOOGLE_CLIENT_SECRET"   "${GOOGLE_CLIENT_SECRET:-}"   "env"
 add_kv "LIVEKIT_HOST"           "${LIVEKIT_HOST:-}"           "env"

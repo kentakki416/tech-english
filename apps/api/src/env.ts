@@ -11,6 +11,12 @@ import { z } from "zod"
  */
 const apiEnvSchema = z.object({
   /**
+   * admin のサーバー側だけが持つ共有シークレット。/api/admin/* の X-Admin-Token ヘッダと比較する
+   * （JWT の secret と同じく 32 文字以上。apps/admin の ADMIN_API_TOKEN と同じ値にする）
+   */
+  ADMIN_API_TOKEN: z.string().min(32),
+
+  /**
    * Admin API のダミーモード（DB 不要で固定データを返す）
    */
   ADMIN_USE_DUMMY: z
@@ -51,6 +57,12 @@ const apiEnvSchema = z.object({
    * フロントエンドの origin（OAuth callback redirect 等で使用）
    */
   FRONTEND_URL: z.string().url().default("http://localhost:3000"),
+
+  /**
+   * GET /api/admin/content-source/license で GitHub のライセンス検出 API を呼ぶときの token。
+   * 任意（未設定でも認証無しの 60 req/h の範囲で動く）。公開リポジトリを読むだけなので権限は不要
+   */
+  GITHUB_LICENSE_TOKEN: z.string().optional(),
 
   /**
    * GitHub OAuth App の Client ID / Client Secret（POST /api/auth/github で code を token に交換する）
