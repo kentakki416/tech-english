@@ -172,7 +172,7 @@ Markdown / MDX / HTML から本文を抽出し、200〜600 語の本文候補に
 | `lib/audio/word-audio.ts` | `calculateWordTextHash`（voice と見出し語の SHA-256）、`buildWordAudioKey`（`words/{text_hash}.mp3`。見出し語に空白や記号があっても URL に使えるようハッシュにする） |
 | `runtime/audio-clients.ts` | `createTtsClient`・`createAudioStorage`・`assertAudioStorageAllowed`（`generate:audio` と共有） |
 | `service/audio/generate-word-audio.ts` | 本体。30 分以上 generating の行の回収 → `claimTargets` → 1 語ずつ（月の上限の判定 → トランザクションの外で音声合成と保存）→ `completeClaim` → voice の変更なら前の mp3 の削除 |
-| `repository/word-audio-repository.ts` | `claimTargets`（短いトランザクションで ① pending と voice が違う ready を `FOR UPDATE SKIP LOCKED` で選び、pending は generating・ready は ready のまま `generation_started_at` だけ ② まだ行が無い見出し語を調べた単語〈英和辞書と一致〉→ 公開中の問題の用語集の順に新しい順で選び、`ON CONFLICT (lemma) DO NOTHING` で generating の行を insert）/ `completeClaim` / `releaseClaim` / `releaseStaleGenerating` |
+| `repository/word-audio-repository.ts` | `claimTargets`（短いトランザクションで ① pending を `FOR UPDATE SKIP LOCKED` で選んで generating に ② まだ行が無い見出し語を調べた単語〈英和辞書と一致〉→ 公開中の問題の用語集の順に新しい順で選び、`ON CONFLICT (lemma) DO NOTHING` で generating の行を insert して候補の順に返す ③ voice が違う ready を `FOR UPDATE SKIP LOCKED` で選び、ready のまま `generation_started_at` だけを入れる。voice の変更は前の音声を出せるので最後）/ `completeClaim` / `releaseClaim` / `releaseStaleGenerating` |
 
 - **候補**：api の単語帳の出題の候補（`VocabularyRepository` の encounters）のうち、意味が用意できる語句と同じ正規化（`lower(btrim(lemma))`）・英和辞書の一致（`headword = 見出し語`）。ユーザーは区別せず、自分が提出していない問題の用語集の語句も作る（単語帳に出る前に作っておくため）
 - **月の上限**：1 語ごとに、作る前に「今月の合計（読み上げと合算）+ 見出し語の文字数」が `AUDIO_MONTHLY_CHARACTER_LIMIT` を超えるなら、その語と残りの確保を外して exit 1。課金文字数は `audio_synthesis_usages` に `word_audio_id` つきで記録する（fake は記録しない）
@@ -216,13 +216,13 @@ run-once モデルなので、**処理の途中でシグナルを受けて終了
 | `VERIFICATION_MODEL` | no | `claude-haiku-4-5-20251001` | generate:questions の解答キーを見ない検証のモデル |
 | `GENERATE_MAX_PASSAGES_PER_RUN` | no | `10` | generate:questions が 1 回の実行で生成する件数の上限（費用の上限） |
 | `GENERATE_MAX_PENDING_DRAFTS` | no | `50` | 確認待ちの下書き（`draft`）がこの件数以上なら generate:questions は生成しない（`--passage-id` の指定時は見ない） |
-| `TTS_PROVIDER` | no | `production` は `polly`、それ以外は `fake` | generate:audio の音声合成。`polly`（Amazon Polly。AWS の資格情報が要る）/ `fake`（無音の mp3 と等間隔の単語の時刻。ローカルの確認用） |
-| `TTS_VOICE_ID` | no | `Joanna` | generate:audio の Polly の voice（Neural に対応したもの）。変えると `voice_id` が違う `ready` の音声を確保し、次の実行から `AUDIO_MAX_PASSAGES_PER_RUN` 件ずつ作り直す（text_hash にも voice を含むので保存キーも変わる）。`TTS_PROVIDER=fake` のときの `voice_id` は `fake:<TTS_VOICE_ID>` |
-| `AWS_REGION` | no | `ap-northeast-1` | generate:audio が使う Polly と S3 のリージョン |
+| `TTS_PROVIDER` | no | `production` は `polly`、それ以外は `fake` | generate:audio・generate:word-audio の音声合成。`polly`（Amazon Polly。AWS の資格情報が要る）/ `fake`（無音の mp3 と等間隔の単語の時刻。ローカルの確認用） |
+| `TTS_VOICE_ID` | no | `Joanna` | generate:audio・generate:word-audio の Polly の voice（Neural に対応したもの）。変えると `voice_id` が違う `ready` の音声を確保し、次の実行から問題は `AUDIO_MAX_PASSAGES_PER_RUN` 件ずつ、単語は `WORD_AUDIO_MAX_PER_RUN` 語ずつ（作り直し待ち・まだ音声の無い見出し語の後で）作り直す（text_hash にも voice を含むので保存キーも変わる）。`TTS_PROVIDER=fake` のときの `voice_id` は `fake:<TTS_VOICE_ID>` |
+| `AWS_REGION` | no | `ap-northeast-1` | generate:audio・generate:word-audio が使う Polly と S3 のリージョン |
 | `AUDIO_MAX_PASSAGES_PER_RUN` | no | `20` | generate:audio が 1 回の実行で確保する問題の上限（Polly の費用の上限） |
-| `AUDIO_MONTHLY_CHARACTER_LIMIT` | no | `1800000` | generate:audio が今月（UTC の暦月。Polly の請求の月）に Polly で課金してよい文字数（`audio_synthesis_usages` の合計）。各問題を作る前に「今月の合計 + 見込み」が超えるなら確保を外して exit 1。既定は read-aloud の費用の試算の「月 300 問を公開」（144 万文字・約 $23）に、失敗の再試行・admin の作り直しの分として 25% の余裕を持たせ、Polly の Budgets の上限（$30）より手前（約 $29）で止まる値。voice の変更などで公開済みの問題をまとめて作り直す月は一時的に上げる |
+| `AUDIO_MONTHLY_CHARACTER_LIMIT` | no | `1800000` | generate:audio・generate:word-audio が今月（UTC の暦月。Polly の請求の月）に Polly で課金してよい文字数（`audio_synthesis_usages` の合計。読み上げと単語の発音を合算する）。各問題・各語を作る前に「今月の合計 + 見込み」が超えるなら確保を外して exit 1。既定は read-aloud の費用の試算の「月 300 問を公開」（144 万文字・約 $23）に、失敗の再試行・admin の作り直しの分として 25% の余裕を持たせ、Polly の Budgets の上限（$30）より手前（約 $29）で止まる値。voice の変更などで公開済みの問題をまとめて作り直す月は一時的に上げる |
 | `WORD_AUDIO_MAX_PER_RUN` | no | `300` | generate:word-audio が 1 回の実行で確保する見出し語の上限。1 語は mp3 の 1 リクエスト（平均 約 10 文字）で、課金は `AUDIO_MONTHLY_CHARACTER_LIMIT` で読み上げと合算して止める |
-| `AUDIO_STORAGE_TYPE` | no | `local` | generate:audio の mp3 の保存先。`local` / `s3`。`production` で `local` なら generate:audio は起動時に throw する（スキーマでは検査しないので他のタスクは動く） |
+| `AUDIO_STORAGE_TYPE` | no | `local` | generate:audio・generate:word-audio の mp3 の保存先。`local` / `s3`。`production` で `local` なら 2 つのタスクは起動時に throw する（スキーマでは検査しないので他のタスクは動く） |
 | `AUDIO_STORAGE_LOCAL_DIR` | no | `../../.storage/audio` | `local` の保存先（`apps/cron` からの相対。リポジトリ直下の `.storage/audio/` になり、api の `/media` 配信と共有する） |
 | `AUDIO_STORAGE_S3_BUCKET` | `AUDIO_STORAGE_TYPE=s3` で必須 | - | `s3` の保存先の bucket（`superRefine` で検査。空文字は未設定と同じ） |
 | `NODE_ENV` | no | `development` | `development` / `test` / `production` |

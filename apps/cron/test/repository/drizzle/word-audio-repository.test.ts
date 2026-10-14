@@ -103,55 +103,30 @@ describe("DrizzleWordAudioRepository", () => {
 
   describe("claimTargets", () => {
     describe("正常系", () => {
-      it("既にある行は pending と、voice が今と違う確保中でない ready（失敗が上限未満）を id 順に FOR UPDATE SKIP LOCKED で選ぶ", async () => {
-        const fake = createFakeDb([[], { rows: [] }])
+      it("① pending を id 順に FOR UPDATE SKIP LOCKED で選び、generating（今の voice）にして確保する", async () => {
+        const fake = createFakeDb([[{ audioKey: null, id: 1, lemma: "cache" }], [], { rows: [] }, []])
 
         const claims = await new DrizzleWordAudioRepository(fake.db).claimTargets(CLAIM_INPUT)
 
-        expect(claims).toEqual([])
+        expect(claims).toEqual([{ claimedStatus: "generating", generationStartedAt: NOW, id: 1, lemma: "cache", previousAudioKey: null }])
         expect(fake.transaction).toHaveBeenCalledTimes(1)
-        const { params, sql } = renderQuery(fake.queries[0])
-        expect(sql).toContain([
-          "where ((\"word_audios\".\"status\" = $?) or (((\"word_audios\".\"status\" = $?) and (\"word_audios\".\"voice_id\" <> $?)",
-          " and ((((\"word_audios\".\"generation_started_at\" is null)) or (\"word_audios\".\"generation_started_at\" < $?)))",
-          " and (\"word_audios\".\"attempt_count\" < $?))))",
-        ].join(""))
-        expect(sql).toContain("order by \"word_audios\".\"id\" asc limit $? for update skip locked")
-        expect(params).toEqual(["pending", "ready", "Joanna", "2026-10-14T02:30:00.000Z", 3, 3])
-      })
-
-      it("pending は generating（今の voice）に、ready は ready のまま generation_started_at だけを入れて確保する", async () => {
-        const fake = createFakeDb([
-          [
-            { audioKey: null, id: 1, lemma: "cache", status: "pending" },
-            { audioKey: "words/old.mp3", id: 2, lemma: "queue", status: "ready" },
-          ],
-          [],
-          [],
-          { rows: [] },
-        ])
-
-        const claims = await new DrizzleWordAudioRepository(fake.db).claimTargets(CLAIM_INPUT)
-
-        expect(claims).toEqual([
-          { claimedStatus: "generating", generationStartedAt: NOW, id: 1, lemma: "cache", previousAudioKey: null },
-          { claimedStatus: "ready", generationStartedAt: NOW, id: 2, lemma: "queue", previousAudioKey: "words/old.mp3" },
-        ])
+        const pending = renderQuery(fake.queries[0])
+        expect(pending.sql).toContain("where \"word_audios\".\"status\" = $? order by \"word_audios\".\"id\" asc limit $? for update skip locked")
+        expect(pending.params).toEqual(["pending", 3])
         expect(findArgs(fake.queries[1], "set")?.[0]).toEqual({ generationStartedAt: NOW, status: "generating", updatedAt: NOW, voiceId: "Joanna" })
         expect(renderQuery(fake.queries[1]).sql).toContain("where ((\"word_audios\".\"id\" in ($?)) and (\"word_audios\".\"status\" = $?))")
-        expect(findArgs(fake.queries[2], "set")?.[0]).toEqual({ generationStartedAt: NOW, updatedAt: NOW })
-        expect(renderQuery(fake.queries[2]).params.slice(-2)).toEqual([2, "ready"])
         /**
-         * 残りの枠（3 - 2 = 1）で、まだ行が無い見出し語を探す
+         * 残りの枠（3 - 1 = 2）で、まだ行が無い見出し語を探す
          */
-        expect(renderQuery(fake.queries[3]).params).toEqual([1])
+        expect(renderQuery(fake.queries[2]).params).toEqual([2])
       })
 
-      it("まだ行が無い見出し語を、調べた単語（英和辞書と一致）→ 公開中の問題の用語集の順に新しい順で選び、generating で insert する（重なったら作らない）", async () => {
+      it("② まだ行が無い見出し語を、調べた単語（英和辞書と一致）→ 公開中の問題の用語集の順に新しい順で選び、generating で insert して候補の順に確保する（重なったら作らない）", async () => {
         const fake = createFakeDb([
           [],
-          { rows: [{ lemma: "server" }, { lemma: "escape hatch" }] },
-          [{ id: 11, lemma: "server" }],
+          { rows: [{ lemma: "server" }, { lemma: "escape hatch" }, { lemma: "queue" }] },
+          [{ id: 12, lemma: "queue" }, { id: 11, lemma: "server" }],
+          [],
         ])
 
         const claims = await new DrizzleWordAudioRepository(fake.db).claimTargets(CLAIM_INPUT)
@@ -162,7 +137,7 @@ describe("DrizzleWordAudioRepository", () => {
         expect(candidates.sql).toContain("AND NOT EXISTS (SELECT 1 FROM word_audios w WHERE w.lemma = c.lemma)")
         expect(candidates.sql).toContain("ORDER BY min(c.priority), max(c.seen_at) DESC NULLS LAST, c.lemma LIMIT $?")
         expect(candidates.params).toEqual([3])
-        expect(findArgs(fake.queries[2], "values")?.[0]).toEqual(["server", "escape hatch"].map((lemma) => ({
+        expect(findArgs(fake.queries[2], "values")?.[0]).toEqual(["server", "escape hatch", "queue"].map((lemma) => ({
           generationStartedAt: NOW,
           lemma,
           status: "generating",
@@ -171,28 +146,62 @@ describe("DrizzleWordAudioRepository", () => {
         })))
         expect(renderQuery(fake.queries[2]).sql).toContain("on conflict (\"lemma\") do nothing returning \"id\", \"lemma\"")
         /**
-         * 別の実行が先に作った見出し語（escape hatch）は RETURNING に返らないので確保しない
+         * RETURNING の順（queue → server）ではなく候補の順に並べ、別の実行が先に作った見出し語（escape hatch）は確保しない
          */
-        expect(claims).toEqual([{ claimedStatus: "generating", generationStartedAt: NOW, id: 11, lemma: "server", previousAudioKey: null }])
+        expect(claims).toEqual([
+          { claimedStatus: "generating", generationStartedAt: NOW, id: 11, lemma: "server", previousAudioKey: null },
+          { claimedStatus: "generating", generationStartedAt: NOW, id: 12, lemma: "queue", previousAudioKey: null },
+        ])
+      })
+
+      it("③ 残りの枠で、voice が今と違う確保中でない ready（失敗が上限未満）を id 順に FOR UPDATE SKIP LOCKED で選び、ready のまま generation_started_at だけを入れて確保する", async () => {
+        const fake = createFakeDb([[], { rows: [] }, [{ audioKey: "words/old.mp3", id: 2, lemma: "queue" }], []])
+
+        const claims = await new DrizzleWordAudioRepository(fake.db).claimTargets(CLAIM_INPUT)
+
+        expect(claims).toEqual([{ claimedStatus: "ready", generationStartedAt: NOW, id: 2, lemma: "queue", previousAudioKey: "words/old.mp3" }])
+        const voiceChanged = renderQuery(fake.queries[2])
+        expect(voiceChanged.sql).toContain([
+          "where ((\"word_audios\".\"status\" = $?) and (\"word_audios\".\"voice_id\" <> $?)",
+          " and ((((\"word_audios\".\"generation_started_at\" is null)) or (\"word_audios\".\"generation_started_at\" < $?)))",
+          " and (\"word_audios\".\"attempt_count\" < $?))",
+        ].join(""))
+        expect(voiceChanged.sql).toContain("order by \"word_audios\".\"id\" asc limit $? for update skip locked")
+        expect(voiceChanged.params).toEqual(["ready", "Joanna", "2026-10-14T02:30:00.000Z", 3, 3])
+        expect(findArgs(fake.queries[3], "set")?.[0]).toEqual({ generationStartedAt: NOW, updatedAt: NOW })
+        expect(renderQuery(fake.queries[3]).params.slice(-2)).toEqual([2, "ready"])
       })
     })
 
     describe("異常系", () => {
-      it("既にある行で枠が埋まったら、まだ行が無い見出し語は探さない", async () => {
-        const fake = createFakeDb([[1, 2, 3].map((id) => ({ audioKey: null, id, lemma: `w${id}`, status: "pending" })), []])
+      it("pending で枠が埋まったら、まだ行が無い見出し語も voice の変更も探さない", async () => {
+        const fake = createFakeDb([[1, 2, 3].map((id) => ({ audioKey: null, id, lemma: `w${id}` })), []])
 
         const claims = await new DrizzleWordAudioRepository(fake.db).claimTargets(CLAIM_INPUT)
 
         expect(claims).toHaveLength(3)
-        expect(fake.queries).toHaveLength(2)
+        expect(fake.queries.map((calls) => calls[0]?.method)).toEqual(["select", "update"])
+      })
+
+      it("まだ行が無い見出し語で枠が埋まったら、voice の変更は探さない（新しい見出し語を先に作る）", async () => {
+        const fake = createFakeDb([
+          [],
+          { rows: [{ lemma: "a" }, { lemma: "b" }, { lemma: "c" }] },
+          [{ id: 1, lemma: "a" }, { id: 2, lemma: "b" }, { id: 3, lemma: "c" }],
+        ])
+
+        const claims = await new DrizzleWordAudioRepository(fake.db).claimTargets(CLAIM_INPUT)
+
+        expect(claims.map((claim) => claim.lemma)).toEqual(["a", "b", "c"])
+        expect(fake.queries.map((calls) => calls[0]?.method)).toEqual(["select", "execute", "insert"])
       })
 
       it("候補が無ければ insert しない", async () => {
-        const fake = createFakeDb([[], { rows: [] }])
+        const fake = createFakeDb([[], { rows: [] }, []])
 
         await new DrizzleWordAudioRepository(fake.db).claimTargets(CLAIM_INPUT)
 
-        expect(fake.queries.map((calls) => calls[0]?.method)).toEqual(["select", "execute"])
+        expect(fake.queries.map((calls) => calls[0]?.method)).toEqual(["select", "execute", "select"])
       })
     })
   })

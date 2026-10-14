@@ -36,11 +36,6 @@ type ActivePlayback = {
   token: symbol
 }
 
-/**
- * 1 文の区間の終わりに足す余白（区間の終わりは次の単語の始まりなので、最後の音が切れないように）
- */
-const SENTENCE_TAIL_MS = 150
-
 const createAudio = (url?: string): HTMLAudioElement => {
   const audio = new Audio()
   audio.preload = "auto"
@@ -59,11 +54,13 @@ const unloadAudio = (audio: HTMLAudioElement) => {
 
 /**
  * カードの発音の再生（vocabulary-pronunciation README「再生の実装」）。1 回分の画面で 1 つだけ持つ。
- * 1 文は段落の mp3 を鳴らす HTMLAudioElement を 1 つ使い回し、区間の始めに合わせて再生して、requestAnimationFrame で終わりを過ぎたら止める。
+ * 1 文は段落の mp3 を鳴らす HTMLAudioElement を 1 つ使い回し、区間の始めに合わせて再生して、requestAnimationFrame で終わりを過ぎたら止める
+ * （区間の終わりは次の単語の始まりで、文の後の間を含むので、余白は足さない）。
  * 単語は preload で URL ごとに作っておいた Audio を鳴らす（1 回分は最大 10 語なので数に上限は置かない）。
  *
  * Safari は利用者の操作の中で play() を呼ばないと鳴らさないので、読み込みを待たずに play() を呼び、
- * 始める位置は play() の前に currentTime に入れておく（読み込み前に入れた値は再生の開始位置になる）
+ * 始める位置は play() の前に currentTime に入れておく（読み込み前に入れた値は再生の開始位置になる）。
+ * 止めた後にメディアキー・ロック画面などから鳴らし直されたら、すぐ止め直す（表示は止まったまま段落の最後まで鳴らないように）
  */
 export function usePronunciation(): Pronunciation {
   const [playing, setPlaying] = useState<PronunciationTarget | null>(null)
@@ -81,9 +78,32 @@ export function usePronunciation(): Pronunciation {
     setPlaying(null)
   }, [])
 
-  const preload = useCallback((url: string) => {
-    if (!wordAudiosRef.current.has(url)) wordAudiosRef.current.set(url, createAudio(url))
+  /**
+   * 今の再生でない audio が鳴り始めたら止める（止めた後に、メディアキー・ロック画面・メディアの通知から再開されたとき）。
+   * 自分の再生は play() の前に activeRef に入れるので止めない
+   */
+  const createGuardedAudio = useCallback((url?: string): HTMLAudioElement => {
+    const audio = createAudio(url)
+    audio.addEventListener("play", () => {
+      if (activeRef.current?.audio !== audio) audio.pause()
+    })
+    return audio
   }, [])
+
+  /**
+   * 単語の URL の Audio を返す（無ければ作って覚える）
+   */
+  const ensureWordAudio = useCallback((url: string): HTMLAudioElement => {
+    const existing = wordAudiosRef.current.get(url)
+    if (existing) return existing
+    const audio = createGuardedAudio(url)
+    wordAudiosRef.current.set(url, audio)
+    return audio
+  }, [createGuardedAudio])
+
+  const preload = useCallback((url: string) => {
+    ensureWordAudio(url)
+  }, [ensureWordAudio])
 
   const toggle = useCallback((target: PronunciationTarget, source: PronunciationSource) => {
     /**
@@ -96,10 +116,9 @@ export function usePronunciation(): Pronunciation {
 
     let audio: HTMLAudioElement
     if (target === "word") {
-      preload(source.url)
-      audio = wordAudiosRef.current.get(source.url) ?? createAudio(source.url)
+      audio = ensureWordAudio(source.url)
     } else {
-      sentenceAudioRef.current ??= createAudio()
+      sentenceAudioRef.current ??= createGuardedAudio()
       audio = sentenceAudioRef.current
       if (audio.getAttribute("src") !== source.url) audio.src = source.url
     }
@@ -110,7 +129,7 @@ export function usePronunciation(): Pronunciation {
 
     const token = Symbol(target)
     const startSeconds = (source.startMs ?? 0) / 1000
-    const stopAtMs = source.endMs === undefined ? null : source.endMs + SENTENCE_TAIL_MS
+    const stopAtMs = source.endMs ?? null
     let frameId: number | null = null
 
     const finish = () => {
@@ -157,7 +176,7 @@ export function usePronunciation(): Pronunciation {
         if (stopAtMs !== null && activeRef.current?.token === token) frameId = window.requestAnimationFrame(trackEnd)
       })
       .catch(finish)
-  }, [preload, stop])
+  }, [createGuardedAudio, ensureWordAudio, stop])
 
   /**
    * タブを隠したら止める。画面を離れたら止めて、読んでおいた mp3 を手放す

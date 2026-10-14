@@ -46,10 +46,11 @@ export type WordAudioClaimResult = "failed" | "lost_claim" | "ready" | "retry_la
 export interface WordAudioRepository {
   /**
    * 短いトランザクションで次の順に limit 件まで確保して commit する。
-   * ① 既にある行（FOR UPDATE SKIP LOCKED）：pending と、voice が今と違う ready（確保中でなく、失敗が maxAttempts 未満）。pending は generating にし、
-   *    ready は ready のまま generation_started_at だけを入れる
+   * ① pending（作り直し待ち。FOR UPDATE SKIP LOCKED）。generating にする
    * ② まだ行が無い見出し語：調べた単語のうち英和辞書の見出し語と一致するもの（調べたのが新しい順）→ 公開中の問題の用語集の語句（公開の新しい順）。
-   *    generating の行を insert する（ON CONFLICT (lemma) DO NOTHING。実行が重なっても二重に確保しない）
+   *    generating の行を insert する（ON CONFLICT (lemma) DO NOTHING。実行が重なっても二重に確保しない）。候補の順に返す
+   * ③ voice が今と違う ready（確保中でなく、失敗が maxAttempts 未満。FOR UPDATE SKIP LOCKED）。ready のまま generation_started_at だけを入れる。
+   *    作り直す間も前の音声を出せるので最後にする（voice を変えた直後も、新しく出た見出し語を先に作る）
    */
   claimTargets(input: { limit: number; maxAttempts: number; now: Date; staleBefore: Date; voiceId: string }): Promise<ClaimedWordAudio[]>
   /**

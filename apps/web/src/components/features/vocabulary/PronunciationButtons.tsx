@@ -6,8 +6,8 @@ import type { PronunciationTarget } from "./use-pronunciation"
  * カードに渡す発音の操作。鳴らせるか（音声があるか）はカードの pronunciation から決める
  */
 export type PronunciationControls = {
-  playing: PronunciationTarget | null
   onToggle: (target: PronunciationTarget) => void
+  playing: PronunciationTarget | null
 }
 
 /**
@@ -73,17 +73,14 @@ export function WordSoundButton({
 }
 
 /**
- * 1 文のすぐ下の、1 文の読み上げのボタン（1 文の音声があるときだけ置く）。表は中央、裏は左寄せで三角を 1 文の頭にそろえる
+ * 1 文のすぐ下の、1 文の読み上げのボタン（1 文の音声があるときだけ置く）。表は中央、裏は左寄せで三角を 1 文の頭にそろえる。
+ * 文字は再生中も「この文を聞く」のまま（見えている文字と読み上げの名前をそろえる）。再生中は琥珀の地・動く波・aria-pressed で示す
  */
 export function SentenceSoundButton({ align, controls }: { align: "center" | "start", controls: PronunciationControls }) {
   const isPlaying = controls.playing === "sentence"
   return (
     <div className={align === "center" ? "flex justify-center" : "-ml-2.5 flex"}>
-      {/**
-        * 名前は「この文を聞く」に固定し、再生中かは aria-pressed で伝える（見た目の文字だけ「この文を再生中」に変える）
-        */}
       <button
-        aria-label="この文を聞く"
         aria-pressed={isPlaying}
         className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] transition-colors outline-none focus-visible:ring-2 focus-visible:ring-amber/70 ${
           isPlaying ? "bg-amber/20 text-ink-amber" : "text-ink-muted hover:bg-paper-edge/60 hover:text-ink"
@@ -96,13 +93,13 @@ export function SentenceSoundButton({ align, controls }: { align: "center" | "st
         type="button"
       >
         {isPlaying ? (
-          <SpeakerIcon className="size-3.5" isPlaying />
+          <SpeakerIcon isPlaying className="size-3.5" />
         ) : (
           <svg aria-hidden className="size-3" fill="currentColor" viewBox="0 0 12 12">
             <path d="M3 1.8v8.4L10 6 3 1.8Z" />
           </svg>
         )}
-        {isPlaying ? "この文を再生中" : "この文を聞く"}
+        この文を聞く
       </button>
     </div>
   )

@@ -56,6 +56,12 @@ const CARD_HEIGHT = 420
 const WEEKDAY_LABELS = ["日", "月", "火", "水", "木", "金", "土"]
 
 /**
+ * カードの読み上げのカスタムアクション。新アーキテクチャの iOS は label ではなく name を読むので、name も日本語にする
+ */
+const PLAY_WORD_ACTION = "発音を聞く"
+const PLAY_SENTENCE_ACTION = "この文を聞く"
+
+/**
  * モックの再生の長さ（単語 / 1 文）。本番は mp3 の再生が終わるまで
  */
 const MOCK_PLAY_MS: Record<PronunciationTarget, number> = { sentence: 3200, word: 900 }
@@ -197,15 +203,15 @@ function FlipCard({
     >
       <Pressable
         accessibilityActions={[
-          ...(pronunciation.isWordReady ? [{ label: "発音を聞く", name: "playWord" }] : []),
-          ...(pronunciation.hasSentence && card.sentence ? [{ label: "この文を聞く", name: "playSentence" }] : []),
+          ...(pronunciation.isWordReady ? [{ label: PLAY_WORD_ACTION, name: PLAY_WORD_ACTION }] : []),
+          ...(pronunciation.hasSentence && card.sentence ? [{ label: PLAY_SENTENCE_ACTION, name: PLAY_SENTENCE_ACTION }] : []),
         ]}
         accessibilityHint={isFlipped ? "表に戻します" : "意味を表示します"}
         accessibilityLabel="カード"
         accessibilityRole={Platform.OS === "web" ? undefined : "button"}
         onAccessibilityAction={(event) => {
-          if (event.nativeEvent.actionName === "playWord") pronunciation.onToggle("word")
-          if (event.nativeEvent.actionName === "playSentence") pronunciation.onToggle("sentence")
+          if (event.nativeEvent.actionName === PLAY_WORD_ACTION) pronunciation.onToggle("word")
+          if (event.nativeEvent.actionName === PLAY_SENTENCE_ACTION) pronunciation.onToggle("sentence")
         }}
         onPress={flip}
       >
@@ -317,8 +323,8 @@ export default function MockVocabularySessionScreen() {
   const pronunciation: MockPronunciation = {
     hasSentence: state !== "no_sentence",
     isWordReady: state !== "word_pending",
-    playing: speech.playing,
     onToggle: speech.toggle,
+    playing: speech.playing,
   }
 
   const flip = () => {

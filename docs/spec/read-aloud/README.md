@@ -183,7 +183,7 @@ Polly の Neural は **単語の時刻（Speech Marks）を返せる最も安い
 - 費用は **公開した問題の数に比例** し、ユーザー数や再生回数にはほぼ比例しない（音声を作り置きして使い回すため）
 - 本文を直して再公開したとき（本文のハッシュで判定）、voice を変えたとき、管理者が「作り直す」を押したときだけ作り直す。読み上げ用テキストの作り方の版（`AUDIO_TEXT_VERSION`）を上げても自動では作り直さない（[音声の生成タスク](#音声の生成タスク)）
 - 1 回の実行で作る件数に上限を置く（`AUDIO_MAX_PASSAGES_PER_RUN`、既定 20）。AWS の Budgets で Polly の利用額にアラートを付ける
-- **月の上限で止める**：件数の上限だけでは、作り直しや不具合の繰り返しで 1 日に最大 480 問（20 問 × 24 回。約 $37/日）課金されうる。Polly の `SynthesizeSpeech`（音声と単語の時刻）のリクエストごとに課金された文字数を `audio_synthesis_usages` に記録し、各問題を作る前に「今月（UTC の暦月。AWS の請求の月）の合計 + その問題の見込みの文字数」が `AUDIO_MONTHLY_CHARACTER_LIMIT` を超えるなら、作らずに止める（[失敗時の扱い](#失敗時の扱い)）。既定の **180 万文字（約 $29）** は、上の表の月 300 問（144 万文字・約 $23）に失敗の再試行・作り直しの分として 25% の余裕を持たせ、Budgets の上限（$30）の手前で止まる値。`TTS_PROVIDER=fake`（無音の mp3）は課金されないので記録しない
+- **月の上限で止める**：件数の上限だけでは、作り直しや不具合の繰り返しで 1 日に最大 480 問（20 問 × 24 回。約 $37/日）課金されうる。Polly の `SynthesizeSpeech`（音声と単語の時刻）のリクエストごとに課金された文字数を `audio_synthesis_usages` に記録し、各問題を作る前に「今月（UTC の暦月。AWS の請求の月）の合計 + その問題の見込みの文字数」が `AUDIO_MONTHLY_CHARACTER_LIMIT` を超えるなら、作らずに止める（[失敗時の扱い](#失敗時の扱い)）。既定の **180 万文字（約 $29）** は、上の表の月 300 問（144 万文字・約 $23）に失敗の再試行・作り直しの分として 25% の余裕を持たせ、Budgets の上限（$30）の手前で止まる値。`TTS_PROVIDER=fake`（無音の mp3）は課金されないので記録しない。単語の発音（[vocabulary-pronunciation](../vocabulary-pronunciation/README.md#費用)）の課金も同じ表に記録し、月の上限は読み上げと合算して数える（Polly の請求は 1 つのため）
 - voice の変更・読み上げ用テキストの版の更新では、公開済みの問題数 × 約 $0.077 が 1 度にかかる（1 時間に最大 20 問ずつ作り直す。公開済みが 300 問なら約 $23）。月の上限を超えるときは、その月だけ `AUDIO_MONTHLY_CHARACTER_LIMIT` を上げる
 
 参考：[Amazon Polly の料金](https://aws.amazon.com/polly/pricing/)、[Polly の Speech Marks](https://docs.aws.amazon.com/polly/latest/dg/speechmarks.html)、[Polly の Generative の制約](https://docs.aws.amazon.com/polly/latest/dg/generative-voices.html)、[CloudFront の料金](https://aws.amazon.com/cloudfront/pricing/pay-as-you-go/)、[Google Cloud TTS の料金（調査サイト）](https://texttolab.com/blog/google-cloud-tts-pricing)、[Azure TTS の料金（調査サイト）](https://texttolab.com/blog/azure-text-to-speech-pricing)、[OpenAI TTS の料金（調査サイト）](https://texttolab.com/blog/openai-tts-pricing)、[ElevenLabs の料金](https://elevenlabs.io/pricing)
@@ -591,7 +591,7 @@ erDiagram
 | テーブル | 列 | 説明 |
 | --- | --- | --- |
 | `passage_audios`（新規） | `id`, `passage_id`（unique、`passages` の削除で cascade）, `status`, `voice_id`, `text_hash`, `manifest`, `billed_characters`, `attempt_count`, `last_error`, `generation_started_at`, `generated_at`, `regenerate_requested_at`, timestamps | 問題ごとの読み上げの音声。1 問 1 行 |
-| `audio_synthesis_usages`（新規） | `id`, `passage_id`（`passages` の削除は restrict）, `characters`（CHECK `> 0`）, timestamps。index `(created_at)` | Polly の `SynthesizeSpeech` のリクエストごとの課金文字数。追記だけで、更新・削除しない。今月の合計で `AUDIO_MONTHLY_CHARACTER_LIMIT` を見る |
+| `audio_synthesis_usages`（新規） | `id`, `passage_id`（`passages` の削除は restrict）, `characters`（CHECK `> 0`）, timestamps。index `(created_at)` | Polly の `SynthesizeSpeech` のリクエストごとの課金文字数。追記だけで、更新・削除しない。今月の合計で `AUDIO_MONTHLY_CHARACTER_LIMIT` を見る。`passage_id` は nullable（単語の発音の課金では null。`word_audio_id` とどちらか一方だけが値を持つ CHECK。`word_audio_id` は [vocabulary-pronunciation](../vocabulary-pronunciation/README.md#必要な-db-設計) が正本） |
 | `reading_attempts`（列を追加） | `listened_block_count smallint NOT NULL DEFAULT 0` | 解答中に読み上げを聞いた段落の数 |
 
 - `AUDIO_STATUSES = ["pending", "generating", "ready", "failed"]` は `@repo/domain` の `const/audio.ts`。DB の CHECK 制約はここから作る

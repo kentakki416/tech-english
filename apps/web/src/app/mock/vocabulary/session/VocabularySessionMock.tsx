@@ -51,11 +51,14 @@ const isInteractiveTarget = (target: EventTarget | null): boolean =>
   target instanceof HTMLElement && ["A", "BUTTON", "INPUT", "SELECT", "TEXTAREA"].includes(target.tagName)
 
 /**
- * モック：発音の再生。本番は mp3（単語は見出し語ごとの音声、1 文は読み上げの音声の区間）を鳴らすが、モックはブラウザの音声合成で代わりに読む。
- * 同じボタンをもう一度押すと止め、もう一方を押すと切り替える
+ * ブラウザの音声合成（無い環境では null）
  */
 const getSpeechSynthesis = (): SpeechSynthesis | null => (typeof window.speechSynthesis === "undefined" ? null : window.speechSynthesis)
 
+/**
+ * モック：発音の再生。本番は mp3（単語は見出し語ごとの音声、1 文は読み上げの音声の区間）を鳴らすが、モックはブラウザの音声合成で代わりに読む。
+ * 同じボタンをもう一度押すと止め、もう一方を押すと切り替える
+ */
 function usePronunciationMock(initialPlaying: PronunciationTarget | null) {
   const [playing, setPlaying] = useState<PronunciationTarget | null>(initialPlaying)
 
@@ -140,8 +143,8 @@ export function VocabularySessionMock({ initialState }: { initialState: Vocabula
   const pronunciation: MockPronunciation = {
     hasSentence: initialState !== "no_sentence",
     isWordReady: initialState !== "word_pending",
-    playing: speech.playing,
     onToggle: target => current && speech.toggle(target, target === "word" ? current.lemma : current.sentence?.text.replace(/`/g, "") ?? ""),
+    playing: speech.playing,
   }
 
   const flip = () => {

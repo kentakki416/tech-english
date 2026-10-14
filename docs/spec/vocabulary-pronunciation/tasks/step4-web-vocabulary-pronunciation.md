@@ -1,6 +1,6 @@
 # step4-web-vocabulary-pronunciation
 
-web の単語帳の 1 回分のカードに、単語の発音と 1 文の読み上げのボタンを足す。再生は `HTMLAudioElement` を 1 つ使い回す hook（`usePronunciation`）にまとめる。
+web の単語帳の 1 回分のカードに、単語の発音と 1 文の読み上げのボタンを足す。再生は hook（`usePronunciation`）にまとめる（1 文は `HTMLAudioElement` を 1 つ使い回し、単語は URL ごとに先読みした `Audio` を鳴らす）。
 
 ## 前提
 
@@ -25,12 +25,7 @@ web の単語帳の 1 回分のカードに、単語の発音と 1 文の読み�
 export type PronunciationTarget = "sentence" | "word"
 
 /**
- * 1 文の区間の終わりに足す余白（区間の終わりは次の単語の始まりなので、最後の音が切れないように）
- */
-const SENTENCE_TAIL_MS = 150
-
-/**
- * カードの発音の再生（vocabulary-pronunciation README「再生の実装」）。1 回分の画面で 1 つだけ持ち、HTMLAudioElement を 1 つ使い回す。
+ * カードの発音の再生（vocabulary-pronunciation README「再生の実装」）。1 回分の画面で 1 つだけ持つ。1 文は HTMLAudioElement を 1 つ使い回し、単語は URL ごとに先読みした Audio を鳴らす。
  * 1 文は区間の始めに合わせて再生し、requestAnimationFrame で終わりを過ぎたら止める
  */
 export function usePronunciation(): {
@@ -47,7 +42,8 @@ export function usePronunciation(): {
 }
 ```
 
-- `toggle`：`src` が違えば差し替え、`currentTime = startMs / 1000`（単語は 0）にしてすぐ `play()` する（Safari は利用者の操作の中で `play()` を呼ばないと鳴らさないので、読み込みを待たない。読み込み前に入れた `currentTime` は再生の開始位置になり、使わないブラウザのために `loadedmetadata` で合わせ直す）。1 文は `requestAnimationFrame` で `currentTime * 1000 >= endMs + SENTENCE_TAIL_MS` になったら `pause()`。単語は `ended` で終わる
+- `toggle`：`src` が違えば差し替え、`currentTime = startMs / 1000`（単語は 0）にしてすぐ `play()` する（Safari は利用者の操作の中で `play()` を呼ばないと鳴らさないので、読み込みを待たない。読み込み前に入れた `currentTime` は再生の開始位置になり、使わないブラウザのために `loadedmetadata` で合わせ直す）。1 文は `requestAnimationFrame` で `currentTime * 1000 >= endMs` になったら `pause()`（区間の終わりは次の単語の始まりで、文の後の間を含むので余白は足さない）。単語は `ended` で終わる
+- 単語と 1 文の audio には常設の `play` の listener を付け、今の再生でない audio が鳴り始めたら（止めた後にメディアキー・ロック画面から再開された）`pause()` し直す
 - ブラウザや OS が止めたとき（`pause` イベント。イヤホンが外れた・メディアキー）も `playing` を `null` に戻す
 - 読み込みに失敗した audio（`error` がある）は、押したときに `load()` で読み込み直す（`play()` だけでは読み込み直さない）
 - `play()` の Promise の失敗（自動再生の制限・読み込めない）は `playing` を `null` に戻すだけにする（エラー画面にしない）
@@ -57,7 +53,8 @@ export function usePronunciation(): {
 ### 2. カードにボタン
 
 - `PaperCardFront`・`PaperCardBack`（`PaperCard.tsx`）に `pronunciation` の props（`onToggle`・`playing`・`pronunciation`）を足し、語句のすぐ右に単語のボタン、1 文のすぐ下に 1 文のボタンを置く（位置は UI 設計）。ボタンは `PronunciationButtons.tsx` に分ける
-- 1 文の再生中は `SentenceText` の強調を光らせる（`globals.css` に `--animate-sound-wave`・`--animate-highlight-glow`）
+- 1 文の再生中は `SentenceText` の強調を光らせる（`globals.css` に `--animate-sound-wave`・`--animate-highlight-glow`。裏の 1 文は行数で切るので、`--animate-highlight-glow-inset` で内側に光らせる）
+- 1 文のボタンの文字は再生中も「この文を聞く」のまま（再生中は琥珀の地・動く波・`aria-pressed`）
 - `word_url` が null の単語のボタンは `disabled` にして「準備中」の `title` / `aria-label` を付ける。`sentence` が null の 1 文のボタンは出さない
 - ボタンはカードのクリック（めくる）と重なるので、`onClick` で `event.stopPropagation()` する。`Space` / `Enter` はボタンの操作になる（`use-vocabulary-shortcuts` はボタンにフォーカスがあると無視する）
 - 読み上げのラベルは「{見出し語} の発音を聞く」「この文を聞く」。再生中は `aria-pressed`
@@ -80,7 +77,7 @@ Playwright MCP で確かめる（認証は `verify-web-page` skill の手順）�
 
 - [ ] `/vocabulary/session` に着地し、コンソールのエラーが 0 件
 - [ ] 表と裏の両方に単語のボタンが出る。押すとカードはめくれず、`audio` 要素が単語の mp3 を再生する（`paused` が false になる）。もう一度押すと止まる
-- [ ] 1 文のボタンを押すと、段落の mp3 を区間の始めから再生し、区間の終わり + 150ms で止まる（`currentTime` で確かめる）
+- [ ] 1 文のボタンを押すと、段落の mp3 を区間の始めから再生し、区間の終わりで止まる（`currentTime` で確かめる）
 - [ ] 再生中にもう一方のボタンを押すと切り替わる。めくる・答えると止まる
 - [ ] `word_audios` の行を消した見出し語は単語のボタンが「準備中」で押せない。`passage_audios` が無い問題のカードは 1 文のボタンが無い
 - [ ] `Space` でボタンを押してもカードはめくれない（ボタンの操作になる）

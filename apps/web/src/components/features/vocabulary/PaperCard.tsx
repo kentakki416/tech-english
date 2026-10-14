@@ -129,8 +129,8 @@ export function PaperCardBack({ card, pronunciation }: { card: VocabularyCard, p
       <WordHeading card={card} pronunciation={pronunciation} size="sm" />
       {card.sentence && (
         <SentenceText
-          className="mt-1.5 line-clamp-2 text-[13px] text-ink-faint"
           isGlowInset
+          className="mt-1.5 line-clamp-2 text-[13px] text-ink-faint"
           isPlaying={pronunciation?.playing === "sentence"}
           sentence={card.sentence}
         />
