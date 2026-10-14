@@ -7,7 +7,7 @@ import { useState, useTransition } from "react"
 import type { GetPassageListResponse, PassageListItemResponse } from "@repo/api-schema"
 
 import { ScoreSquares } from "@/components/ui/ScoreSquares"
-import { buildPassageSearchParams, type PassageFilterQuery } from "@/features/passage/passage-query"
+import { buildPassageSearchParams, isPassageFilterActive, type PassageFilterQuery } from "@/features/passage/passage-query"
 import { formatSeconds } from "@/libs/format"
 
 import { DifficultyMeter } from "./DifficultyMeter"
@@ -66,17 +66,25 @@ export function PassageList({ initialPage, query }: { initialPage: GetPassageLis
   }
 
   if (passages.length === 0) {
+    /**
+     * 絞り込みが無いのに空なら、公開中の問題がまだ無い（絞り込みを解除しても変わらないので、解除のボタンは出さない）
+     */
+    const isFiltered = isPassageFilterActive(query)
     return (
       <div className={`mt-6 rounded-xl border border-dashed border-line-strong px-6 py-12 text-center transition-opacity ${isClearing ? "opacity-60" : ""}`}>
-        <p className="text-base font-medium text-fg">条件に合う問題がありません</p>
-        <p className="mt-2 text-sm text-fg-muted">絞り込みの条件を減らすと、ほかの問題が表示されます。</p>
-        <button
-          className="mt-5 h-9 rounded-lg border border-line-strong px-4 text-sm text-fg outline-none hover:bg-raised focus-visible:ring-2 focus-visible:ring-amber/60"
-          onClick={() => startClearing(() => router.replace("/passages", { scroll: false }))}
-          type="button"
-        >
-          絞り込みを解除する
-        </button>
+        <p className="text-base font-medium text-fg">{isFiltered ? "条件に合う問題がありません" : "公開中の問題はまだありません"}</p>
+        <p className="mt-2 text-sm text-fg-muted">
+          {isFiltered ? "絞り込みの条件を減らすと、ほかの問題が表示されます。" : "問題が公開されると、ここに表示されます。"}
+        </p>
+        {isFiltered && (
+          <button
+            className="mt-5 h-9 rounded-lg border border-line-strong px-4 text-sm text-fg outline-none hover:bg-raised focus-visible:ring-2 focus-visible:ring-amber/60"
+            onClick={() => startClearing(() => router.replace("/passages", { scroll: false }))}
+            type="button"
+          >
+            絞り込みを解除する
+          </button>
+        )}
       </div>
     )
   }
