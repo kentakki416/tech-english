@@ -3,8 +3,10 @@ name: Deploy to AWS min
 # =============================================================================
 # Job 構成
 # =============================================================================
-# detect → build → migrate → ┬→ deploy-api    (Lambda: env 注入 → version 発行 → alias live 切り替え → smoke test)
-#                            ├→ deploy-worker (worker の ECS Service があるときだけ。rolling 完走)
+# detect-dwh (ClickHouse の有無。build は待たない)
+# detect → build → migrate → ┬→ migrate-dwh   (ClickHouse の migration。enable_data_warehouse の環境だけ)
+#                            ├→ deploy-api    (Lambda: env 注入 → version 発行 → alias live 切り替え → smoke test)
+#                            ├→ deploy-worker (worker の ECS Service があるときだけ。rolling 完走。migrate-dwh の成功 / skip を待つ)
 #                            └→ deploy-cron   (task definition revision を register するのみ)
 #
 # minimal 構成 (env/min) のデプロイ。prd と違い Blue/Green と承認ゲートは持たず、api は
@@ -15,6 +17,8 @@ name: Deploy to AWS min
 #
 # worker を作るかどうかの正本は Terraform の enable_worker (env/min/variables.tf) だけ。
 # detect が Service の有無を見て、api の EVENT_TRACKER_TYPE (queue / none) と worker の build / deploy を切り替える。
+# ClickHouse も同じく、正本は Terraform の enable_data_warehouse だけ。detect-dwh が接続情報の secret の有無を見て
+# migrate-dwh を切り替える (設計: docs/spec/clickhouse-migration/README.md)。
 #
 # 設計: docs/spec/minimal-deploy/README.md / docs/spec/minimal-deploy/tasks/step4-ci-deploy-min.md
 # =============================================================================
@@ -58,6 +62,10 @@ env:
   ECS_WORKER_SERVICE: tech-english-min-worker
   ECS_MIGRATION_TASK_DEF: tech-english-min-migration
   ECS_CRON_TASK_DEF: tech-english-min-cron
+  ECS_DWH_MIGRATION_TASK_DEF: tech-english-min-dwh-migration
+
+  # ClickHouse の接続情報の secret。Terraform の enable_data_warehouse = true の環境にだけある
+  DATA_WAREHOUSE_SECRET_ID: /tech-english-min/data-warehouse
 
   # VPC リソース解決用 (Terraform 側 modules/vpc の Name タグと一致)
   ECS_SECURITY_GROUP_NAME: tech-english-min-ecs
@@ -101,6 +109,39 @@ jobs:
             echo "worker_enabled=false" >> "$GITHUB_OUTPUT"
           fi
           echo "worker service status: ${STATUS}"
+
+  # =========================================================================
+  # ClickHouse の有無 (= Terraform の enable_data_warehouse) を調べる
+  # =========================================================================
+  # dev / prd と同じく build はこの job を待たない (ClickHouse の判定の失敗で api の deploy を止めない)。
+  # dwh-migration のタスク定義では判定しない (deploy が register した revision が、フラグを
+  # false にしても ACTIVE のまま残るため)
+  detect-dwh:
+    name: Detect data warehouse
+    if: ${{ !inputs.push_only }}
+    runs-on: ubuntu-latest
+    environment: min
+    outputs:
+      dwh_enabled: ${{ steps.dwh.outputs.dwh_enabled }}
+    steps:
+      - name: Configure AWS credentials with OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # secret が無い以外のエラー (権限不足など) で false にすると migration が黙って飛ばされるので、失敗させる
+      - name: Check data warehouse secret
+        id: dwh
+        run: |
+          if OUTPUT=$(aws secretsmanager describe-secret --secret-id "${DATA_WAREHOUSE_SECRET_ID}" --query Name --output text 2>&1); then
+            echo "dwh_enabled=true" >> "$GITHUB_OUTPUT"
+          elif grep -q ResourceNotFoundException <<< "${OUTPUT}"; then
+            echo "dwh_enabled=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "${OUTPUT}" >&2
+            exit 1
+          fi
 
   build:
     name: Build & Push Docker Images
@@ -197,33 +238,13 @@ jobs:
     runs-on: ubuntu-latest
     environment: min
     steps:
+      - uses: actions/checkout@v4 # composite action を使うため
+
       - name: Configure AWS credentials with OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
-
-      # 現行 migration task definition の image を build job の SHA タグに書き換えて新リビジョンを register する
-      - name: Register migration task definition with new image
-        id: register
-        env:
-          IMAGE: ${{ needs.build.outputs.registry }}/${{ env.ECR_MIGRATION_REPO }}:${{ needs.build.outputs.image_tag }}
-        run: |
-          TASK_DEF_FILE=$(mktemp)
-          aws ecs describe-task-definition \
-            --task-definition "${ECS_MIGRATION_TASK_DEF}" \
-            --query taskDefinition \
-            | jq --arg IMAGE "${IMAGE}" '
-                .containerDefinitions[0].image = $IMAGE
-                | del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)
-              ' > "${TASK_DEF_FILE}"
-
-          REVISION_ARN=$(aws ecs register-task-definition \
-            --cli-input-json "file://${TASK_DEF_FILE}" \
-            --query 'taskDefinition.taskDefinitionArn' --output text)
-
-          echo "Registered migration task definition: ${REVISION_ARN}"
-          echo "revision_arn=${REVISION_ARN}" >> "$GITHUB_OUTPUT"
 
       # prd と同じく AWS リソースのタグから動的に解決する。min の VPC には public subnet しか無い
       - name: Resolve network configuration from tags
@@ -257,49 +278,80 @@ jobs:
           echo "public_subnets=${PUBLIC_SUBNETS}" >> "$GITHUB_OUTPUT"
           echo "ecs_security_group=${ECS_SG}" >> "$GITHUB_OUTPUT"
 
+      # migration task definition の image を build job の SHA タグに書き換えた revision で起動する。
       # NAT が無いので assignPublicIp=ENABLED で ECR / Secrets Manager / PlanetScale に出る
       - name: Run DB migration
-        env:
-          PUBLIC_SUBNETS: ${{ steps.network.outputs.public_subnets }}
-          ECS_SECURITY_GROUP: ${{ steps.network.outputs.ecs_security_group }}
-          REVISION_ARN: ${{ steps.register.outputs.revision_arn }}
+        uses: ./.github/actions/run-one-shot-task
+        with:
+          cluster: ${{ env.ECS_CLUSTER }}
+          task-definition: ${{ env.ECS_MIGRATION_TASK_DEF }}
+          image: ${{ needs.build.outputs.registry }}/${{ env.ECR_MIGRATION_REPO }}:${{ needs.build.outputs.image_tag }}
+          subnets: ${{ steps.network.outputs.public_subnets }}
+          security-group: ${{ steps.network.outputs.ecs_security_group }}
+          assign-public-ip: ENABLED
+
+  # =========================================================================
+  # ClickHouse migration (enable_data_warehouse の環境だけ)
+  # =========================================================================
+  # Drizzle の migrate の後に流す。失敗しても api / cron の deploy は止めない (分析用のため)。
+  # worker は ClickHouse に書くので待たせる。
+  migrate-dwh:
+    name: Run ClickHouse Migration
+    needs: [detect-dwh, build, migrate]
+    if: ${{ !inputs.push_only && needs.detect-dwh.outputs.dwh_enabled == 'true' }}
+    runs-on: ubuntu-latest
+    environment: min
+    steps:
+      - uses: actions/checkout@v4 # composite action を使うため
+
+      - name: Configure AWS credentials with OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # prd と同じく AWS リソースのタグから動的に解決する。min の VPC には public subnet しか無い
+      - name: Resolve network configuration from tags
+        id: network
         run: |
-          TASK_ARN=$(aws ecs run-task \
-            --cluster "${ECS_CLUSTER}" \
-            --task-definition "${REVISION_ARN}" \
-            --launch-type FARGATE \
-            --network-configuration "awsvpcConfiguration={subnets=[${PUBLIC_SUBNETS}],securityGroups=[${ECS_SECURITY_GROUP}],assignPublicIp=ENABLED}" \
-            --query 'tasks[0].taskArn' \
-            --output text)
+          set -euo pipefail
 
-          echo "Migration task ARN: ${TASK_ARN}"
+          VPC_ID=$(aws ec2 describe-vpcs \
+            --filters "Name=tag:Project,Values=${PROJECT_NAME}" "Name=tag:Environment,Values=${ENVIRONMENT}" \
+            --query 'Vpcs[0].VpcId' --output text)
 
-          aws ecs wait tasks-stopped \
-            --cluster "${ECS_CLUSTER}" \
-            --tasks "${TASK_ARN}"
-
-          echo "=== Task details ==="
-          aws ecs describe-tasks \
-            --cluster "${ECS_CLUSTER}" \
-            --tasks "${TASK_ARN}" \
-            --query 'tasks[0].{stopCode:stopCode,stoppedReason:stoppedReason,containers:containers[*].{name:name,exitCode:exitCode,reason:reason,lastStatus:lastStatus}}' \
-            --output yaml
-
-          EXIT_CODE=$(aws ecs describe-tasks \
-            --cluster "${ECS_CLUSTER}" \
-            --tasks "${TASK_ARN}" \
-            --query 'tasks[0].containers[0].exitCode' \
-            --output text)
-
-          if [ "${EXIT_CODE}" != "0" ]; then
-            echo "Migration failed with exit code ${EXIT_CODE}"
-            aws logs filter-log-events \
-              --log-group-name "/ecs/${ECS_MIGRATION_TASK_DEF}" \
-              --limit 200 \
-              --query 'events[*].message' \
-              --output text || true
+          if [ -z "${VPC_ID}" ] || [ "${VPC_ID}" = "None" ]; then
+            echo "::error::VPC not found (tag:Project=${PROJECT_NAME} tag:Environment=${ENVIRONMENT})"
             exit 1
           fi
+
+          PUBLIC_SUBNETS=$(aws ec2 describe-subnets \
+            --filters "Name=vpc-id,Values=${VPC_ID}" "Name=tag:Name,Values=${PUBLIC_SUBNET_NAME_PREFIX}*" \
+            --query 'Subnets[*].SubnetId' --output text | tr '\t' ',')
+
+          ECS_SG=$(aws ec2 describe-security-groups \
+            --filters "Name=vpc-id,Values=${VPC_ID}" "Name=tag:Name,Values=${ECS_SECURITY_GROUP_NAME}" \
+            --query 'SecurityGroups[0].GroupId' --output text)
+
+          if [ -z "${PUBLIC_SUBNETS}" ] || [ -z "${ECS_SG}" ] || [ "${ECS_SG}" = "None" ]; then
+            echo "::error::Failed to resolve subnets or security group (VPC=${VPC_ID} subnets='${PUBLIC_SUBNETS}' sg='${ECS_SG}')"
+            exit 1
+          fi
+
+          echo "Resolved: VPC=${VPC_ID} subnets=${PUBLIC_SUBNETS} ecs_sg=${ECS_SG}"
+          echo "public_subnets=${PUBLIC_SUBNETS}" >> "$GITHUB_OUTPUT"
+          echo "ecs_security_group=${ECS_SG}" >> "$GITHUB_OUTPUT"
+
+      # Drizzle と同じ migration イメージを、タスク定義の command で ClickHouse の migration として起動する
+      - name: Run ClickHouse migration
+        uses: ./.github/actions/run-one-shot-task
+        with:
+          cluster: ${{ env.ECS_CLUSTER }}
+          task-definition: ${{ env.ECS_DWH_MIGRATION_TASK_DEF }}
+          image: ${{ needs.build.outputs.registry }}/${{ env.ECR_MIGRATION_REPO }}:${{ needs.build.outputs.image_tag }}
+          subnets: ${{ steps.network.outputs.public_subnets }}
+          security-group: ${{ steps.network.outputs.ecs_security_group }}
+          assign-public-ip: ENABLED
 
   # =========================================================================
   # API (Lambda): env 注入 → version 発行 → alias live 切り替え → smoke test
@@ -426,10 +478,19 @@ jobs:
   # =========================================================================
   # worker service (rolling)。worker の ECS Service があるときだけ
   # =========================================================================
+  # migrate-dwh が skip (ClickHouse の無い環境) でも進めるため、needs の結果で条件を書く。
+  # detect-dwh の失敗で migrate-dwh が skip になったときは進めない
   deploy-worker:
     name: Deploy worker service
-    needs: [build, migrate, detect]
-    if: ${{ !inputs.push_only && needs.detect.outputs.worker_enabled == 'true' }}
+    needs: [build, migrate, detect, detect-dwh, migrate-dwh]
+    if: >-
+      ${{ !cancelled()
+        && !inputs.push_only
+        && needs.detect.result == 'success'
+        && needs.detect-dwh.result == 'success'
+        && needs.detect.outputs.worker_enabled == 'true'
+        && needs.migrate.result == 'success'
+        && (needs.migrate-dwh.result == 'success' || needs.migrate-dwh.result == 'skipped') }}
     runs-on: ubuntu-latest
     environment: min
     steps:

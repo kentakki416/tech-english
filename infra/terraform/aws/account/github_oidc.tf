@@ -221,11 +221,23 @@ data "aws_iam_policy_document" "ecs_deploy" {
       "ecs:DescribeServices",
       "ecs:DescribeTaskDefinition",
       "ecs:DescribeTasks",
+      "ecs:ListTaskDefinitions",
       "ecs:RegisterTaskDefinition",
       "ecs:RunTask",
       "ecs:UpdateService",
     ]
     resources = ["*"]
+  }
+
+  /**
+   * deploy の detect が、ClickHouse の接続情報の secret の有無で migrate-dwh を流すかを判定する
+   * (Terraform の enable_data_warehouse = true の環境にだけある)。値は読めない
+   */
+  statement {
+    sid       = "DescribeDataWarehouseSecret"
+    effect    = "Allow"
+    actions   = ["secretsmanager:DescribeSecret"]
+    resources = ["arn:aws:secretsmanager:*:${data.aws_caller_identity.current.account_id}:secret:/${var.project_name}-*/data-warehouse*"]
   }
 
   statement {
