@@ -76,10 +76,12 @@ export type DraftContent = {
  */
 export interface PassageRepository {
   /**
-   * collected を古い順（created_at → id）に最大 limit 件、generating にしながら取る（FOR UPDATE SKIP LOCKED。実行が重なっても同じ行を二重に取らない）。
-   * passageId があればその行だけを対象にする
+   * collected のうち最も古い（created_at → id）1 行を、generating にしながら取る（FOR UPDATE SKIP LOCKED。実行が重なっても同じ行を二重に取らない）。
+   * generation_started_at は now（取った時刻）になる。生成タスクは 1 件ずつ「取得 → 生成 → 保存」を繰り返す
+   * （まとめて取ると全件に同じ時刻が入り、実行が 30 分を超えたときに後半の行が回収・再取得されて二重に生成されるため）。
+   * passageId があればその行だけを対象にする。取れる行が無ければ null
    */
-  claimCollected(input: { limit: number; now: Date; passageId?: number }): Promise<ClaimedPassage[]>
+  claimNextCollected(input: { now: Date; passageId?: number }): Promise<ClaimedPassage | null>
   countByStatus(status: PassageStatus): Promise<number>
   /**
    * 行が無ければ null（`--passage-id` の行を取れなかったときのメッセージに使う）

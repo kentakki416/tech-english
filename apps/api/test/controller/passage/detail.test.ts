@@ -38,7 +38,7 @@ afterAll(async () => {
 
 describe("GET /api/passage/:id", () => {
   describe("正常系", () => {
-    it("本文を含まない概要と出典を返し、挑戦中が無ければ in_progress_attempt は null", async () => {
+    it("公開中の問題は本文を含まない概要と出典を can_start: true で返し、挑戦中が無ければ in_progress_attempt は null", async () => {
       const { passage } = await insertGeneratedPassage({ publishedAt: new Date("2026-10-12T03:00:00.000Z"), status: "published" })
       const { token } = await createTestUser()
 
@@ -59,6 +59,7 @@ describe("GET /api/passage/:id", () => {
           source_kind: "docs",
           source_name: "React 公式ドキュメント",
         },
+        can_start: true,
         difficulty: 2,
         in_progress_attempt: null,
         question_count: 3,
@@ -99,6 +100,36 @@ describe("GET /api/passage/:id", () => {
       expect(res.body.in_progress_attempt).toBeNull()
     })
 
+    it("非公開に戻された問題でも期限内の自分の挑戦中があれば、can_start: false と挑戦の開始時点の制限時間で返す", async () => {
+      const { passage } = await insertGeneratedPassage({
+        publishedAt: new Date("2026-10-12T03:00:00.000Z"),
+        status: "draft",
+        timeLimitSeconds: 240,
+      })
+      const { token, user } = await createTestUser()
+      const startedAt = new Date(Date.now() - 60 * 60 * 1000)
+      const attempt = await insertReadingAttempt(passage.id, { startedAt, timeLimitSeconds: 180, userId: user.id })
+
+      const res = await request(app).get(`/api/passage/${passage.id}`).set("Authorization", `Bearer ${token}`)
+
+      expect(res.status).toBe(200)
+      expect(res.body).toMatchObject({
+        id: passage.id,
+        attribution: { page_url: "https://react.dev/learn/synchronizing-with-effects", source_name: "React 公式ドキュメント" },
+        can_start: false,
+        difficulty: 2,
+        in_progress_attempt: {
+          id: attempt.id,
+          expires_at: new Date(startedAt.getTime() + 24 * 60 * 60 * 1000).toISOString(),
+          started_at: startedAt.toISOString(),
+        },
+        question_count: 3,
+        time_limit_seconds: 180,
+        title: "Synchronizing with Effects",
+        word_count: 60,
+      })
+    })
+
     it("サイトの問題は出典のページの URL をサイトの URL から作り、permalink は null", async () => {
       const source = await insertPassageSource(buildWebsiteSourceValues({ siteUrl: "https://go.dev" }))
       const document = await insertPassageDocument(source.id, "/doc/effective_go")
@@ -131,7 +162,7 @@ describe("GET /api/passage/:id", () => {
     it.each([
       ["draft"],
       ["rejected"],
-    ] as const)("%s の問題なら 404 を返す", async (status) => {
+    ] as const)("%s の問題で自分の期限内の挑戦中が無ければ 404 を返す", async (status) => {
       const { passage } = await insertGeneratedPassage({ status })
       const { token } = await createTestUser()
 
@@ -139,6 +170,18 @@ describe("GET /api/passage/:id", () => {
 
       expect(res.status).toBe(404)
       expect(res.body).toEqual({ error: expect.any(String), status_code: 404 })
+    })
+
+    it("非公開に戻された問題は、24 時間たった自分の挑戦中・提出済みの挑戦・他人の挑戦中があっても 404 を返す", async () => {
+      const { passage } = await insertGeneratedPassage({ publishedAt: new Date("2026-10-12T03:00:00.000Z"), status: "draft" })
+      const { token, user } = await createTestUser()
+      await insertReadingAttempt(passage.id, { startedAt: new Date(Date.now() - 24 * 60 * 60 * 1000 - 1000), userId: user.id })
+      await insertSubmittedAttempt(passage.id, user.id, 3)
+      await insertReadingAttempt(passage.id)
+
+      const res = await request(app).get(`/api/passage/${passage.id}`).set("Authorization", `Bearer ${token}`)
+
+      expect(res.status).toBe(404)
     })
 
     it("存在しない id なら 404 を返す", async () => {

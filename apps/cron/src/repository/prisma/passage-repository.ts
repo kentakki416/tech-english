@@ -11,12 +11,11 @@ import type {
 } from "../passage-repository"
 
 /**
- * claimCollected の $queryRaw の結果（列名は snake_case のまま）
+ * claimNextCollected の $queryRaw の結果（列名は snake_case のまま）
  */
 type ClaimedPassageQueryRow = {
   id: number
   blocks: PassageBlock[]
-  created_at: Date
   generation_attempt_count: number
   generation_started_at: Date
   title: string
@@ -52,31 +51,30 @@ export class PrismaPassageRepository implements PassageRepository {
    * Prisma には行ロックつきの select が無いので、Drizzle 実装と同じ SQL を $queryRaw で書く。
    * 日時は ISO 文字列を timestamp にキャストして UTC のまま入れる（Prisma のセッションのタイムゾーンに依存させない）
    */
-  public async claimCollected(input: { limit: number; now: Date; passageId?: number }): Promise<ClaimedPassage[]> {
+  public async claimNextCollected(input: { now: Date; passageId?: number }): Promise<ClaimedPassage | null> {
     const now = input.now.toISOString()
     const passageId = input.passageId ?? null
-    const rows = await this._prisma.$queryRaw<ClaimedPassageQueryRow[]>`
+    const [row] = await this._prisma.$queryRaw<ClaimedPassageQueryRow[]>`
       UPDATE passages
       SET status = 'generating', generation_started_at = ${now}::timestamp(3), updated_at = ${now}::timestamp(3)
       WHERE id IN (
         SELECT id FROM passages
         WHERE status = 'collected' AND (${passageId}::integer IS NULL OR id = ${passageId}::integer)
         ORDER BY created_at ASC, id ASC
-        LIMIT ${input.limit}::integer
+        LIMIT 1
         FOR UPDATE SKIP LOCKED
       )
-      RETURNING id, blocks, created_at, generation_attempt_count, generation_started_at, title, word_count
+      RETURNING id, blocks, generation_attempt_count, generation_started_at, title, word_count
     `
-    return rows
-      .sort((left, right) => left.created_at.getTime() - right.created_at.getTime() || left.id - right.id)
-      .map((row) => ({
-        id: row.id,
-        blocks: row.blocks,
-        generationAttemptCount: row.generation_attempt_count,
-        generationStartedAt: row.generation_started_at,
-        title: row.title,
-        wordCount: row.word_count,
-      }))
+    if (!row) return null
+    return {
+      id: row.id,
+      blocks: row.blocks,
+      generationAttemptCount: row.generation_attempt_count,
+      generationStartedAt: row.generation_started_at,
+      title: row.title,
+      wordCount: row.word_count,
+    }
   }
 
   public async countByStatus(status: PassageStatus): Promise<number> {

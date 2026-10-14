@@ -5,6 +5,7 @@ import type { PassageRepository, ReadingAttemptRepository } from "../../src/repo
  */
 
 export const createMockPassageRepository = () => ({
+  clearAttention: vi.fn<PassageRepository["clearAttention"]>(),
   countByStatus: vi.fn<PassageRepository["countByStatus"]>(),
   countPublished: vi.fn<PassageRepository["countPublished"]>(),
   findAdminDetail: vi.fn<PassageRepository["findAdminDetail"]>(),
@@ -15,6 +16,7 @@ export const createMockPassageRepository = () => ({
   findPublishedTags: vi.fn<PassageRepository["findPublishedTags"]>(),
   findRandomPublishedId: vi.fn<PassageRepository["findRandomPublishedId"]>(),
   resetForRegeneration: vi.fn<PassageRepository["resetForRegeneration"]>(),
+  restoreRejected: vi.fn<PassageRepository["restoreRejected"]>(),
   transitionStatus: vi.fn<PassageRepository["transitionStatus"]>(),
   updateDraftContent: vi.fn<PassageRepository["updateDraftContent"]>(),
 })

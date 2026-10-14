@@ -4,9 +4,15 @@ import { Pressable, StyleSheet, Text, View } from "react-native"
 import type { ResultQuestion } from "@repo/api-schema"
 
 import { QUESTION_TYPE_LABELS } from "@/components/features/passage/labels"
+import { appStyles } from "@/components/ui/app-styles"
 import { THEME_COLORS, THEME_FONTS } from "@/const/design-theme"
 
 const CHOICE_LETTERS = ["A", "B", "C", "D"]
+
+/**
+ * 提出後に正解が直された設問の注記
+ */
+const ANSWER_KEY_CHANGED_NOTE = "提出後にこの設問の正解が修正されました（正誤は提出したときの採点のままです）"
 
 type ResultQuestionItemProps = {
   /**
@@ -54,7 +60,8 @@ function ChoiceRow({
 
 /**
  * 設問ごとの結果の 1 件。番号・種類のバッジ・正誤の行を押すと開閉し、開くと設問文・選択肢・解説・「本文の根拠を見る」を出す。
- * 根拠が本文に見つからなかった設問（evidence が null）はボタンを出さない
+ * 根拠が本文に見つからなかった設問（evidence が null）はボタンを出さない。
+ * 正解はいまの値、正誤は提出時の値なので、提出後に正解が直された設問（is_answer_key_changed）は選択肢の下に注記する
  */
 export function ResultQuestionItem({ isHighlighted, isOpen, number, question, onShowEvidence, onToggle }: ResultQuestionItemProps) {
   const isUnanswered = question.selected_choice_index === null
@@ -87,6 +94,7 @@ export function ResultQuestionItem({ isHighlighted, isOpen, number, question, on
               isUserChoice={choiceIndex === question.selected_choice_index}
             />
           ))}
+          {question.is_answer_key_changed && <Text style={[appStyles.caption, styles.answerKeyNote]}>{ANSWER_KEY_CHANGED_NOTE}</Text>}
           <Text style={styles.explanation}>{question.explanation_ja}</Text>
           {question.evidence !== null && (
             <Pressable
@@ -107,6 +115,10 @@ export function ResultQuestionItem({ isHighlighted, isOpen, number, question, on
 }
 
 const styles = StyleSheet.create({
+  answerKeyNote: {
+    lineHeight: 18,
+    marginTop: 8,
+  },
   body: {
     marginTop: 10,
   },

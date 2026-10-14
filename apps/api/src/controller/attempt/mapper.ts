@@ -111,6 +111,7 @@ export const convertSubmittedAttemptToResponse = (view: SubmittedAttemptView): S
         segment_start: question.evidence.segmentStart,
       },
     explanation_ja: question.explanationJa,
+    is_answer_key_changed: question.isAnswerKeyChanged,
     is_correct: question.isCorrect,
     selected_choice_index: question.selectedChoiceIndex,
   })),
