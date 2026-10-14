@@ -11,7 +11,6 @@ import {
   FlipButton,
   type Grade,
   isReducedMotion,
-  LampGlow,
   REVIEWED_GRADES,
   SessionDone,
   SessionReview,
@@ -143,7 +142,6 @@ export function VocabularySessionMock({ initialState }: { initialState: Vocabula
         ) : (
           <div className="mx-auto w-full max-w-[560px]">
             <div className="relative">
-              <LampGlow />
               <CardStackBehind count={cards.length - answers.length - 1} />
               <div key={answers.length} className="relative motion-safe:animate-card-rise">
                 <div

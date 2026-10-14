@@ -58,18 +58,6 @@ export function ProgressSquares({ answers, total }: { answers: Grade[], total: n
 }
 
 /**
- * 読書灯の光（カードの上から当たる琥珀の光）
- */
-export function LampGlow() {
-  return (
-    <span
-      aria-hidden
-      className="pointer-events-none absolute -top-32 left-1/2 h-80 w-[150%] -translate-x-1/2 bg-[radial-gradient(ellipse_at_center,rgb(243_178_76/0.2),transparent_62%)]"
-    />
-  )
-}
-
-/**
  * 効果音のオン / オフ
  */
 function SoundToggle({ isEnabled, onToggle }: { isEnabled: boolean, onToggle: () => void }) {
@@ -105,7 +93,7 @@ export function SessionTopBar({
   onToggleSound: () => void
 }) {
   return (
-    <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-3 border-b border-line bg-canvas/80 px-3 backdrop-blur sm:px-4">
+    <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-3 border-b border-line bg-canvas/60 px-3 backdrop-blur-md sm:px-4">
       <Link className="inline-flex w-24 items-center gap-1 rounded-md px-2 py-1.5 text-sm text-fg-muted hover:bg-raised hover:text-fg" href="/mock/vocabulary">
         <span aria-hidden>‹</span>単語帳
       </Link>

@@ -30,7 +30,6 @@ const INTERVAL_STEPS = ["翌日", "3 日後", "7 日後", "30 日後"]
 function DeckPreview({ isDimmed = false }: { isDimmed?: boolean }) {
   return (
     <div aria-hidden className={`relative mx-auto w-full max-w-[260px] pt-2 pb-7 sm:max-w-[320px] ${isDimmed ? "opacity-45 saturate-50" : ""}`}>
-      <span className="pointer-events-none absolute -top-16 left-1/2 h-48 w-[160%] -translate-x-1/2 bg-[radial-gradient(ellipse_at_center,rgb(243_178_76/0.18),transparent_62%)]" />
       <div className="relative h-[164px] rotate-[-2deg] sm:h-[200px]">
         <CardStackBehind count={2} />
         <PaperSheet className="absolute inset-0">
