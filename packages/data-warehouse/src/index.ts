@@ -1,5 +1,5 @@
-export { ClickHouseDataWarehouse } from "./clickhouse-data-warehouse"
-export type { ClickHouseConfig } from "./clickhouse-data-warehouse"
+export { ClickHouseDataWarehouse } from "./clickhouse/clickhouse-data-warehouse"
+export type { ClickHouseConfig } from "./clickhouse/clickhouse-data-warehouse"
 
 export { createDataWarehouse } from "./create-data-warehouse"
 export type { DataWarehouseConfig } from "./create-data-warehouse"

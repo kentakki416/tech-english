@@ -55,3 +55,5 @@ docs/
 
 # Terraform
 infra/
+# CDC の対象一覧は ClickHouse の migration（packages/db/Dockerfile.migration）が読む
+!infra/clickhouse/cdc-tables.json

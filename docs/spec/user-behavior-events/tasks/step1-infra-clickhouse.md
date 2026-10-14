@@ -23,7 +23,6 @@ ClickHouse をローカル環境に追加し、`events` テーブルとデータ
       - '${CLICKHOUSE_NATIVE_PORT:-9003}:9000'
     volumes:
       - clickhouse-data:/var/lib/clickhouse
-      - ./infra/clickhouse/init:/docker-entrypoint-initdb.d
     ulimits:
       nofile:
         soft: 262144
@@ -43,10 +42,12 @@ ClickHouse をローカル環境に追加し、`events` テーブルとデータ
 
 ### テーブル定義
 
-`infra/clickhouse/init/01-events.sql` を作成する。`/docker-entrypoint-initdb.d` に置くと初回起動時に実行される。
+`packages/data-warehouse/clickhouse/migrations/1_create_events.sql` を作成し、ClickHouse の migration コマンド（`pnpm --filter @repo/data-warehouse dwh:migrate`）で適用する。
+
+> 当初は `infra/clickhouse/init/01-events.sql` に置き、docker の初回起動時（`/docker-entrypoint-initdb.d`）に実行していた。適用の履歴が無く既存の環境に変更が届かないため、[`clickhouse-migration`](../../clickhouse-migration/README.md) で版管理する migration に移した。migration は接続先の database で実行されるため、テーブル名を database で修飾しない。
 
 ```sql
-CREATE TABLE IF NOT EXISTS tech_english.events
+CREATE TABLE IF NOT EXISTS events
 (
     event_id       UUID,
     event_name     LowCardinality(String),
@@ -74,7 +75,8 @@ TTL toDateTime(occurred_at) + INTERVAL 2 YEAR;
 ```
 packages/data-warehouse/src/
 ├── data-warehouse.ts              # DataWarehouse interface
-├── clickhouse-data-warehouse.ts   # ClickHouse 実装
+├── clickhouse/
+│   └── clickhouse-data-warehouse.ts   # ClickHouse 実装
 ├── create-data-warehouse.ts       # factory
 └── index.ts
 ```
@@ -100,10 +102,10 @@ export interface DataWarehouse {
 ```
 
 ```typescript
-/** packages/data-warehouse/src/clickhouse-data-warehouse.ts */
+/** packages/data-warehouse/src/clickhouse/clickhouse-data-warehouse.ts */
 import { createClient, type ClickHouseClient } from "@clickhouse/client"
 
-import type { DataWarehouse } from "./data-warehouse"
+import type { DataWarehouse } from "../data-warehouse"
 
 export class ClickHouseDataWarehouse implements DataWarehouse {
   private readonly _client: ClickHouseClient
@@ -163,7 +165,7 @@ export const createDataWarehouse = (config: DataWarehouseConfig): DataWarehouse 
 }
 ```
 
-**DDL は抽象化の対象外。** `events` テーブルの定義はバックエンドごとに `infra/clickhouse/init/` のような場所へ置き、パッケージには持ち込まない。
+**DDL は抽象化の対象外。** `events` テーブルの定義は `DataWarehouse` の interface には持ち込まず、バックエンドごとの migration（ClickHouse は `packages/data-warehouse/clickhouse/`。ライブラリの build には含めない）に置く。
 
 ### 依存の追加
 
@@ -177,6 +179,9 @@ docker compose up -d clickhouse
 
 # 起動確認
 curl -s http://localhost:8124/ping   # → Ok.
+
+# events テーブルを作る（Postgres の migration の後に流す）
+pnpm --filter @repo/data-warehouse dwh:migrate
 
 # テーブルが作られているか
 docker exec tech-english-clickhouse \

@@ -94,9 +94,9 @@ assert_scoped_run "setup 用スクリプト" "scripts/setup/copy-template.sh" li
 
 echo
 echo "== タスク固有のグローバルパス =="
-assert_full_run "infra/ は test:ci では全実行" "infra/clickhouse/init/01-events.sql" \
+assert_full_run "infra/ は test:ci では全実行" "infra/clickhouse/cdc-tables.json" \
   "test:ci" 'docker-compose\.yaml' 'infra/'
-assert_scoped_run "infra/ は lint では影響範囲のみ" "infra/clickhouse/init/01-events.sql" lint
+assert_scoped_run "infra/ は lint では影響範囲のみ" "infra/clickhouse/cdc-tables.json" lint
 assert_full_run "docker-compose は test:ci では全実行" "docker-compose.yaml" \
   "test:ci" 'docker-compose\.yaml' 'infra/'
 

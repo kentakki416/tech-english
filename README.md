@@ -23,6 +23,7 @@ Web / Admin / Mobile のフロントエンド、Express の API、定期実行�
   - [技術スタック](#技術スタック)
 - [ドキュメント案内](#ドキュメント案内)
   - [アーキテクチャと規約（まずここから）](#アーキテクチャと規約まずここから)
+  - [技術スタックの採用理由と挙動](#技術スタックの採用理由と挙動)
   - [セットアップ・運用](#セットアップ運用)
   - [各 app](#各-app)
   - [仕様・設計](#仕様設計)
@@ -106,8 +107,9 @@ docker compose up -d
 # 4. Drizzle の migration を適用する
 pnpm --filter api db:migrate
 
-# 5. ClickHouse に CDC の view を作る（テーブルが migrate で作られた後にしか作れないため）
-docker exec tech-english-clickhouse bash /docker-entrypoint-initdb.d/03-postgres-cdc-views.sh
+# 5. ClickHouse の migration を適用する（events テーブル / Postgres からの CDC / view）
+#    CDC は Postgres のテーブルを取り込むため、4 の後に流す
+pnpm --filter @repo/data-warehouse dwh:migrate
 
 # 6. 全アプリを起動する
 pnpm dev
@@ -210,11 +212,13 @@ graph TB
 | [packages/redis](packages/redis/README.md) | `createRedisClient` |
 | [packages/queue](packages/queue/README.md) | `JobQueue` / `JobConsumer` の抽象と BullMQ 実装 |
 | [packages/events](packages/events/README.md) | 行動イベントの型と `EventTracker`（fire-and-forget で送出） |
-| [packages/data-warehouse](packages/data-warehouse/README.md) | `DataWarehouse` 抽象と ClickHouse 実装 |
+| [packages/data-warehouse](packages/data-warehouse/README.md) | `DataWarehouse` 抽象と ClickHouse 実装。ClickHouse のテーブル・view の migration |
 | [packages/storage](packages/storage/README.md) | `createStorage` と local / S3 実装 |
 | [packages/eslint-config](packages/eslint-config/README.md) / [packages/typescript-config](packages/typescript-config/README.md) | 共有 lint / tsconfig |
 
 ### 技術スタック
+
+採用した理由と、使うときに知っておくべき挙動は [docs/tech-stack/](docs/tech-stack/README.md) にまとめています（今は ClickHouse）。
 
 #### モノレポ・ビルド
 ![Turborepo](https://img.shields.io/badge/Turborepo-EF4444?style=for-the-badge&logo=turborepo&logoColor=white)
@@ -273,6 +277,14 @@ graph TB
 | [error-handling.md](docs/onboarding/error-handling.md) | エラーハンドリング（`Result<T>` / 業務エラーと想定外エラー） |
 | [testing.md](docs/onboarding/testing.md) | テスト戦略 / 正常系・異常系の分類 / モック方針 |
 | [auth.md](docs/onboarding/auth.md) | 認証（JWT / httpOnly cookie / middleware ガード） |
+
+### 技術スタックの採用理由と挙動
+
+技術ごとに、採用した理由と使うときに知っておくべき挙動をまとめています。入口は [docs/tech-stack/README.md](docs/tech-stack/README.md) です。
+
+| ドキュメント | 内容 |
+|---|---|
+| [clickhouse/](docs/tech-stack/clickhouse/README.md) | 行動イベントの分析先（採用理由 / 方式の選択 / ホスティング / 集計クエリの注意 / CDC / migration） |
 
 ### セットアップ・運用
 

@@ -44,7 +44,7 @@ export interface EventTracker {
 
 ## 重複排除は eventId の採番場所で決まる
 
-配送は BullMQ 経由で **at-least-once** なので、worker が insert 後にクラッシュすると同じイベントが 2 回届く。ClickHouse 側は `ReplacingMergeTree` で `event_id` をキーに畳むが、**それが効くかは採番場所で決まる**。
+配送は BullMQ 経由で **at-least-once** なので、worker が insert 後にクラッシュすると同じイベントが 2 回届く。ClickHouse 側は `event_id` をキーに畳むが（[`docs/tech-stack/clickhouse/query.md`](../../docs/tech-stack/clickhouse/query.md#events-テーブル)）、**それが効くかは採番場所で決まる**。
 
 | 採番場所 | 再配信時 | 結果 |
 | --- | --- | --- |
