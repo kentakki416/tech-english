@@ -85,6 +85,7 @@ import {
   DrizzleUserGoalRepository,
   DrizzleUserRepository,
   DrizzleVocabularyRepository,
+  DrizzleWordAudioRepository,
 } from "./repository/drizzle"
 import { IoRedisHealthRepository, IoRedisRefreshTokenRepository } from "./repository/redis"
 import { adminRouter } from "./routes/admin-router"
@@ -131,7 +132,7 @@ const contentSourceRepository = new DrizzleContentSourceRepository(db)
 const passageRepository = new DrizzlePassageRepository(db)
 const readingAttemptRepository = new DrizzleReadingAttemptRepository(db)
 /**
- * 読み上げ（read-aloud）の音声。挑戦の音声 API と admin の公開・再試行・作り直しで共有する
+ * 読み上げ（read-aloud）の音声。挑戦の音声 API・admin の公開・再試行・作り直しと、単語帳のカードの 1 文の読み上げで共有する
  */
 const passageAudioRepository = new DrizzlePassageAudioRepository(db)
 const dictionaryRepository = new DrizzleDictionaryRepository(db)
@@ -148,6 +149,10 @@ const reminderSettingRepository = new DrizzleReminderSettingRepository(db)
  * 単語帳（vocabulary-cards）のカードと答え、出題の候補
  */
 const vocabularyRepository = new DrizzleVocabularyRepository(db)
+/**
+ * 単語帳のカードの発音の音声（vocabulary-pronunciation。読み取りだけ）
+ */
+const wordAudioRepository = new DrizzleWordAudioRepository(db)
 const databaseHealthRepository = new DrizzleDatabaseHealthRepository(db)
 const redisHealthRepository = new IoRedisHealthRepository(redis)
 const refreshTokenRepository = new IoRedisRefreshTokenRepository(redis)
@@ -304,7 +309,13 @@ const dictionaryLookupController = new DictionaryLookupController(dictionaryRepo
  * 単語帳（1 回分のカード・トップの数・答えの保存）Controller のインスタンス化
  */
 const vocabularyReviewController = new VocabularyReviewController(transactionRunner, userRepository, vocabularyRepository)
-const vocabularySessionController = new VocabularySessionController(userRepository, vocabularyRepository)
+const vocabularySessionController = new VocabularySessionController(
+  userRepository,
+  vocabularyRepository,
+  passageAudioRepository,
+  wordAudioRepository,
+  audioPublicUrlBase,
+)
 const vocabularySummaryController = new VocabularySummaryController(userRepository, vocabularyRepository)
 
 const app = express()

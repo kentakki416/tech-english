@@ -40,7 +40,14 @@ describe("buildVocabularyCard", () => {
         noteJa: "対になるのは opt in",
         partOfSpeech: "熟語",
         passage: { id: 5, title: "Synchronizing with Effects" },
-        sentence: { highlightEnd: OPT_OUT_START + 10, highlightStart: OPT_OUT_START, text: OPT_OUT_TEXT },
+        sentence: {
+          blockEndOffset: OPT_OUT_TEXT.length,
+          blockStartOffset: 0,
+          highlightEnd: OPT_OUT_START + 10,
+          highlightStart: OPT_OUT_START,
+          text: OPT_OUT_TEXT,
+        },
+        sentenceBlockIndex: 4,
         stage: 2,
         surface: "opt out of",
       })
@@ -51,19 +58,21 @@ describe("buildVocabularyCard", () => {
 
       expect(card).toMatchObject({ meaningJa: "論理 / 理屈", meaningSource: "dictionary", noteJa: null, partOfSpeech: null, stage: null, surface: "logic" })
       expect(card?.sentence?.text).toBe("If a piece of logic runs because the user clicked a button, it belongs in an event handler, not in an Effect.")
+      expect(card?.sentenceBlockIndex).toBe(2)
     })
 
     it("code のブロックにしか無い語句は 1 文を作らない", () => {
       const card = buildVocabularyCard({ ...DICTIONARY_ENCOUNTER, lemma: "connect", surface: "connect" }, null)
       expect(card?.sentence).toBeNull()
+      expect(card?.sentenceBlockIndex).toBeNull()
     })
   })
 
   describe("異常系", () => {
     it("本文が null（問題が公開中でない）なら 1 文は null", () => {
       const passage = { ...GLOSSARY_ENCOUNTER.passage, blocks: null }
-      expect(buildVocabularyCard({ ...GLOSSARY_ENCOUNTER, passage }, 0)?.sentence).toBeNull()
-      expect(buildVocabularyCard({ ...DICTIONARY_ENCOUNTER, passage }, 0)?.sentence).toBeNull()
+      expect(buildVocabularyCard({ ...GLOSSARY_ENCOUNTER, passage }, 0)).toMatchObject({ sentence: null, sentenceBlockIndex: null })
+      expect(buildVocabularyCard({ ...DICTIONARY_ENCOUNTER, passage }, 0)).toMatchObject({ sentence: null, sentenceBlockIndex: null })
     })
 
     it("語句が本文に見つからなければ 1 文は null", () => {

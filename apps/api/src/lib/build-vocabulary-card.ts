@@ -16,6 +16,10 @@ export type VocabularyCardView = {
   passage: { id: number; title: string }
   sentence: ExtractedSentence | null
   /**
+   * 1 文を切り出したブロックの index（1 文の読み上げの区間を求めるのに使う。レスポンスには出さない）。1 文が無ければ null
+   */
+  sentenceBlockIndex: number | null
+  /**
    * 答える前の段階。新しい単語は null
    */
   stage: number | null
@@ -23,13 +27,13 @@ export type VocabularyCardView = {
 }
 
 /**
- * 用語集の行が無いとき、本文のブロック（code 以外）を前から探して、語句が最初に見つかった位置の 1 文
+ * 用語集の行が無いとき、本文のブロック（code 以外）を前から探して、語句が最初に見つかった位置の 1 文とそのブロックの index
  */
-const findSentenceBySurface = (encounter: VocabularyEncounter): ExtractedSentence | null => {
-  for (const block of encounter.passage.blocks ?? []) {
+const findSentenceBySurface = (encounter: VocabularyEncounter): { blockIndex: number; sentence: ExtractedSentence } | null => {
+  for (const [blockIndex, block] of (encounter.passage.blocks ?? []).entries()) {
     if (block.type === "code") continue
     const range = findSurfaceRange(block.text, encounter.surface)
-    if (range) return extractSentence(block.text, { end: range.endOffset, start: range.startOffset })
+    if (range) return { blockIndex, sentence: extractSentence(block.text, { end: range.endOffset, start: range.startOffset }) }
   }
   return null
 }
@@ -51,17 +55,20 @@ export const buildVocabularyCard = (encounter: VocabularyEncounter, stage: numbe
       noteJa: glossary.noteJa,
       partOfSpeech: glossary.partOfSpeech,
       sentence: block ? extractSentence(block.text, { end: glossary.endOffset, start: glossary.startOffset }) : null,
+      sentenceBlockIndex: block ? glossary.blockIndex : null,
       surface: glossary.surface,
     }
   }
   if (encounter.dictionaryMeaningJa === null) return null
+  const found = findSentenceBySurface(encounter)
   return {
     ...base,
     meaningJa: encounter.dictionaryMeaningJa,
     meaningSource: "dictionary",
     noteJa: null,
     partOfSpeech: null,
-    sentence: findSentenceBySurface(encounter),
+    sentence: found?.sentence ?? null,
+    sentenceBlockIndex: found?.blockIndex ?? null,
     surface: encounter.surface,
   }
 }

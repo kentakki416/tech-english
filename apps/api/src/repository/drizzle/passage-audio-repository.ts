@@ -1,4 +1,4 @@
-import { and, DrizzleClient, eq, passageAudios, passages, sql } from "@repo/db"
+import { and, DrizzleClient, eq, inArray, passageAudios, passages, sql } from "@repo/db"
 
 import type { PassageAudioRepository, PassageAudioWithPassage } from "../passage-audio-repository"
 import type { TransactionContext } from "../transaction"
@@ -27,6 +27,22 @@ export class DrizzlePassageAudioRepository implements PassageAudioRepository {
       audio: row.audio ? convertPassageAudioRowToDomain(row.audio) : null,
       passage: { publishedAt: row.passagePublishedAt, status: row.passageStatus },
     }
+  }
+
+  public async findByPassageIds(passageIds: number[]): Promise<Map<number, PassageAudioWithPassage>> {
+    if (passageIds.length === 0) return new Map()
+    const rows = await this._db
+      .select({ audio: passageAudios, passageId: passages.id, passagePublishedAt: passages.publishedAt, passageStatus: passages.status })
+      .from(passages)
+      .leftJoin(passageAudios, eq(passageAudios.passageId, passages.id))
+      .where(inArray(passages.id, passageIds))
+    return new Map(rows.map((row) => [
+      row.passageId,
+      {
+        audio: row.audio ? convertPassageAudioRowToDomain(row.audio) : null,
+        passage: { publishedAt: row.passagePublishedAt, status: row.passageStatus },
+      },
+    ]))
   }
 
   /**

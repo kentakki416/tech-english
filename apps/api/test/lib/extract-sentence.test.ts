@@ -20,7 +20,8 @@ describe("extractSentence", () => {
     it("3 文のブロックで 2 文目の単語を渡すと 2 文目だけが返り、強調の位置が文の中を指す", () => {
       const result = extract(BLOCK, "opt out of")
 
-      expect(result).toEqual({ highlightEnd: 18, highlightStart: 8, text: "You can opt out of re-running them." })
+      expect(result).toEqual({ blockEndOffset: 64, blockStartOffset: 29, highlightEnd: 18, highlightStart: 8, text: "You can opt out of re-running them." })
+      expect(BLOCK.slice(result.blockStartOffset, result.blockEndOffset)).toBe(result.text)
       expect(highlighted(result)).toBe("opt out of")
     })
 
@@ -43,10 +44,12 @@ describe("extractSentence", () => {
       expect(extract(text, "linter").text).toBe(`Use a tool, ${abbreviation} a linter, to check it.`)
     })
 
-    it("文の前後の空白（改行を含む）を除く", () => {
-      const result = extract("First line.\n  Second line is here.  \n", "Second")
+    it("文の前後の空白（改行を含む）を除く。ブロック上の位置も除いた後の文を指す", () => {
+      const block = "First line.\n  Second line is here.  \n"
+      const result = extract(block, "Second")
       expect(result.text).toBe("Second line is here.")
       expect(highlighted(result)).toBe("Second")
+      expect(block.slice(result.blockStartOffset, result.blockEndOffset)).toBe("Second line is here.")
     })
   })
 
@@ -77,6 +80,14 @@ describe("extractSentence", () => {
       expect(result.text.endsWith("…")).toBe(true)
       expect(result.text).toHaveLength(242)
       expect(highlighted(result)).toBe("word")
+    })
+
+    it("切った文のブロック上の位置は、… を除いた出す部分を指す（1 文の読み上げの区間に使う）", () => {
+      const text = `Intro sentence. ${buildSentence(600, "word", 300)}`
+      const result = extract(text, "word")
+
+      expect(result.blockEndOffset - result.blockStartOffset).toBe(240)
+      expect(`…${text.slice(result.blockStartOffset, result.blockEndOffset)}…`).toBe(result.text)
     })
 
     it("単語が長い文の先頭にあれば後ろにだけ、末尾にあれば前にだけ … が付く", () => {

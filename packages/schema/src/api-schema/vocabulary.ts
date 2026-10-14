@@ -42,6 +42,14 @@ export const getVocabularySessionResponseSchema = z.object({
       part_of_speech: z.string().nullable(),
       passage: z.object({ id: z.number().int(), title: z.string() }),
       /**
+       * 発音の音声（vocabulary-pronunciation）。word_url は見出し語の mp3（まだ作っていなければ null）。
+       * sentence は元の問題の読み上げの音声の、カードの 1 文の区間 [start_ms, end_ms]（音声ができていない・区間が求まらなければ null）
+       */
+      pronunciation: z.object({
+        sentence: z.object({ end_ms: z.number().int().min(0), start_ms: z.number().int().min(0), url: z.string().url() }).nullable(),
+        word_url: z.string().url().nullable(),
+      }),
+      /**
        * 単語を含む本文の 1 文（インラインコードのバッククォートは残す）。highlight_* は文の中での単語の位置 [start, end)。見つからなければ null
        */
       sentence: z

@@ -6,6 +6,7 @@ import type { PassageAudioRepository, PassageRepository, ReadingAttemptRepositor
 
 export const createMockPassageAudioRepository = () => ({
   findByPassageId: vi.fn<PassageAudioRepository["findByPassageId"]>(),
+  findByPassageIds: vi.fn<PassageAudioRepository["findByPassageIds"]>(),
   requestRegeneration: vi.fn<PassageAudioRepository["requestRegeneration"]>(),
   resetFailed: vi.fn<PassageAudioRepository["resetFailed"]>(),
 })

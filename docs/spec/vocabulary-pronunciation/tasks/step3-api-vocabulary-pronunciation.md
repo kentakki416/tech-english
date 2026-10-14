@@ -87,12 +87,12 @@ export interface WordAudioRepository {
 }
 ```
 
-- `PassageAudioRepository` に `findByPassageIds(passageIds: number[]): Promise<PassageAudioWithPassage[]>` を足す（`findByPassageId` を複数にしたもの。`passages` に left join し、状態と公開日時も読む）
-- どちらも `test/repository/` に実 DB のテストを足す（`ready` だけ・空の配列・存在しない id）
+- `PassageAudioRepository` に `findByPassageIds(passageIds: number[]): Promise<Map<number, PassageAudioWithPassage>>` を足す（`findByPassageId` を複数にしたもの。`passages` に left join し、状態と公開日時も読む。passage_id → 結果。空の配列なら DB を引かない）
+- どちらも `test/repository/` に実 DB のテストを足す（`ready` だけ・空の配列・存在しない id）。`word_audios` の行は `test/fixture/vocabulary.ts` の `insertWordAudio` で入れる
 
 ### 5. Service
 
-`getVocabularySession` の `repo` に `passageAudioRepository`・`wordAudioRepository`、`deps` に `audioPublicUrlBase` を足す。カードを組み立てた後に、カードの見出し語と元の問題をまとめて 2 回だけ引く（カードごとに引かない）。
+`getVocabularySession` の `repo` に `passageAudioRepository`・`wordAudioRepository`、`deps` に `audioPublicUrlBase` を足す。カードの型は `VocabularySessionCard`（`VocabularyCardView` に `pronunciation` を足したもの）。カードを組み立てた後に、カードの見出し語と元の問題をまとめて 2 回だけ引く（カードごとに引かない）。
 
 ```typescript
 /** apps/api/src/service/vocabulary-service.ts */
