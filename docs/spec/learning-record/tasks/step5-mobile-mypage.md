@@ -63,7 +63,7 @@ export const learningRecordApi = {
 ```
 
 - タイムゾーンの変更は `src/features/user/user.api.ts` の `updateTimezone(timezone)`（`PATCH /api/user`）。github-auth step4 で作られていなければ足す
-- `src/libs/format.ts` と `labels.ts` は web の step4 と同じ関数・定数（`formatSeconds`・`formatStudyTime`・`formatDayLabel`・`formatDateHeading`・分の切り上げ、`QUESTION_TYPE_LABELS`）を mobile 側に置く（フロント間でコードを共有するパッケージは無い）
+- `src/libs/format.ts` と `labels.ts` は web の step4 と同じ関数・定数（`formatSeconds`・`formatStudyMinutes`・`formatStudyTime`・`formatDayLabel`・`formatDateHeading`〈分は切り捨て、0 秒より多く 60 秒未満は「1 分未満」〉、`QUESTION_TYPE_LABELS`）を mobile 側に置く（フロント間でコードを共有するパッケージは無い）
 
 ### マイページ（`(tabs)/index.tsx`）
 
@@ -123,6 +123,7 @@ pnpm --filter mobile ios   # development build で確認する
 - [ ] マイページを開いたままバックグラウンドにし、日付をまたいでから前面に戻すと、今日のマスと選んだ日が新しい今日になる（`AppState`）
 - [ ] 年表示が右端（今日）から始まり、曜日の列はスクロールしても動かない。月表示で前後の月に移動でき、1 年より前の月も表示される
 - [ ] 日付を選ぶとその日の挑戦が出る。素早く切り替えても最後に選んだ日の内容になる
+- [ ] 学習時間が 60 秒未満の日は、選んだ日に「1 分未満」、累計がそれだけなら「1分未満」と出る。60 秒以上は切り捨てた分。週の目標（分）は切り捨てた分（30 秒だけなら「0 / 60 分」）
 - [ ] 「すべて見る」で学習履歴が開き、下までスクロールすると続きが読み込まれる。「‹ マイページ」で戻れる
 - [ ] 設定で目標を保存すると「目標を保存しました」が出て、マイページの目標のパネルに反映される。目標日を消して保存すると `null` になる
 - [ ] タイムゾーンを選び直すと保存され、アプリを再起動しても選んだ値のまま
