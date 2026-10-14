@@ -174,7 +174,7 @@ api の認証は既存の Bearer トークン（`authMiddleware`）のままで�
 | --- | --- |
 | refresh API が 401 / 400（token が使えない） | cookie を消してログイン画面へ（Route Handler は 401）。ログイン不要のパスでは cookie を消すだけ |
 | refresh API が 429（api のレート制限）・5xx・timeout | cookie を残して通し、次のリクエストで再試行する（レート制限は IP 単位で、web からの呼び出しは web サーバーの IP に集まるため、429 でログアウトさせない） |
-| 期限内の access token を api が 401 で拒む（別の端末でアカウントを削除した・JWT の secret を差し替えた） | ユーザーを取得するページ（共通ヘッダー・マイページ・設定・学習履歴）が `/api/auth/session-expired` へ redirect し、その Route Handler が cookie を消してからログイン画面へ移す（Server Component は cookie を書き換えられず、cookie を残したままでは同じ 401 を繰り返すため）。問題・挑戦の画面はページのデータ取得が共通ヘッダーより先に行われるので、そのデータ取得まで 401 になる場合（JWT の secret の差し替え）はエラー画面になる。access token の期限（最長 15 分）が切れると proxy が更新し、更新できれば元どおり、refresh token も使えなければログイン画面へ移る |
+| 期限内の access token を api が 401 で拒む（別の端末でアカウントを削除した・JWT の secret を差し替えた） | ページのデータ取得（共通ヘッダーのユーザー取得、マイページ・設定・学習履歴・問題一覧・開始確認・ランダム・解答・結果のデータ取得）が `/api/auth/session-expired` へ redirect し、その Route Handler が cookie を消してからログイン画面へ移す（Server Component は cookie を書き換えられず、cookie を残したままでは同じ 401 を繰り返すため）。access token の期限（最長 15 分）が切れると proxy が更新し、更新できれば元どおり、refresh token も使えなければログイン画面へ移る |
 
 ### 既存の Google OAuth の扱い
 
@@ -444,7 +444,7 @@ sequenceDiagram
     Api-->>Other: 401 → ログイン画面
 ```
 
-別の端末が web の場合は、access token の期限内でも、ユーザーを取得するページ（共通ヘッダー・マイページ・設定・学習履歴）を開いた時点で `GET /api/user` などが 401 になり、`/api/auth/session-expired` が cookie を消してログイン画面へ移す。
+別の端末が web の場合は、access token の期限内でも、ログイン後のページ（共通ヘッダー・マイページ・設定・学習履歴・問題・挑戦）を開いた時点で `GET /api/user` などが 401 になり、`/api/auth/session-expired` が cookie を消してログイン画面へ移す。
 
 ## 実装ステップ
 
