@@ -10,7 +10,7 @@ import { appStyles } from "@/components/ui/app-styles"
 import { Chip } from "@/components/ui/Chip"
 import { Segment } from "@/components/ui/Segment"
 import { THEME_COLORS } from "@/const/design-theme"
-import { EMPTY_PASSAGE_FILTER, type PassageFilterQuery } from "@/features/passage/passage-query"
+import { EMPTY_PASSAGE_FILTER, isPassageFilterActive, type PassageFilterQuery } from "@/features/passage/passage-query"
 import { passageApi } from "@/features/passage/passage.api"
 import { usePassageList } from "@/features/passage/use-passage-list"
 
@@ -42,6 +42,10 @@ export default function PassagesScreen() {
   const [isRandomUnavailable, setIsRandomUnavailable] = useState(false)
   const [isPickingRandom, setIsPickingRandom] = useState(false)
   const { hasError, isLoading, isLoadingMore, isRefreshing, items, loadMore, refresh, tags, totalCount } = usePassageList(filter)
+  /**
+   * 絞り込みが無いのに空なら、公開中の問題がまだ無い（解除のボタンは出さない）
+   */
+  const isFiltered = isPassageFilterActive(filter)
 
   /**
    * 解いて戻ったときに挑戦状況を更新する。最初のフォーカスは初回の取得と重なるので取り直さない
@@ -161,15 +165,19 @@ export default function PassagesScreen() {
             </View>
           ) : (
             <View style={styles.empty}>
-              <Text style={styles.emptyTitle}>条件に合う問題がありません</Text>
-              <Text style={styles.emptyText}>絞り込みの条件を減らすと、ほかの問題が表示されます。</Text>
-              <Pressable
-                accessibilityRole="button"
-                onPress={clearFilter}
-                style={({ pressed }) => [styles.clearButton, pressed && styles.clearButtonPressed]}
-              >
-                <Text style={styles.clearText}>絞り込みを解除する</Text>
-              </Pressable>
+              <Text style={styles.emptyTitle}>{isFiltered ? "条件に合う問題がありません" : "公開中の問題はまだありません"}</Text>
+              <Text style={styles.emptyText}>
+                {isFiltered ? "絞り込みの条件を減らすと、ほかの問題が表示されます。" : "問題が公開されると、ここに表示されます。"}
+              </Text>
+              {isFiltered && (
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={clearFilter}
+                  style={({ pressed }) => [styles.clearButton, pressed && styles.clearButtonPressed]}
+                >
+                  <Text style={styles.clearText}>絞り込みを解除する</Text>
+                </Pressable>
+              )}
             </View>
           )
         }
