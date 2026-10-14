@@ -1,3 +1,4 @@
+export * as adminPassage from "./admin-passage-service"
 export * as auth from "./auth-service"
 export * as contentSource from "./content-source-service"
 export * as health from "./health-service"

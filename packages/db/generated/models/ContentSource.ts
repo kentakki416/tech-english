@@ -730,10 +730,6 @@ export type ContentSourceScalarRelationFilter = {
   isNot?: Prisma.ContentSourceWhereInput
 }
 
-export type BoolFieldUpdateOperationsInput = {
-  set?: boolean
-}
-
 export type NullableDateTimeFieldUpdateOperationsInput = {
   set?: Date | string | null
 }

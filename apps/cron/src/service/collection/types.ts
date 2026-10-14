@@ -7,7 +7,10 @@ import type { ContentSourceRepository, PassageRepository, SourceDocumentReposito
  */
 export type CollectionRepo = {
   contentSourceRepository: ContentSourceRepository
-  passageRepository: PassageRepository
+  /**
+   * 収集は本文候補の挿入だけを使う（問題生成のメソッドに依存させない）
+   */
+  passageRepository: Pick<PassageRepository, "insertIgnoringDuplicates">
   sourceDocumentRepository: SourceDocumentRepository
 }
 

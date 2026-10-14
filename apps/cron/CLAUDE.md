@@ -8,6 +8,7 @@
 | --- | --- | --- |
 | `cleanup:old-memos` | `pnpm cleanup:old-memos` | `CLEANUP_MEMO_OLDER_THAN_DAYS`（既定 90）日より前の memo を一括削除 |
 | `collect:passages` | `pnpm collect:passages [--source-id=N] [--dry-run]` | 有効なソースから英文を取得して本文候補（`passages`、`status = collected`）を作る（[content-collection](../../docs/spec/content-collection/README.md)）。`--source-id` で 1 ソースに絞り、`--dry-run`（`--source-id` 必須）は最大 5 件を取得して抽出結果を表示する（DB に書かない・無効のソースも可）。`github_repository`（GitHub API）と `website`（公式ドキュメントのサイトのクロール）の両方を扱う |
+| `generate:questions` | `pnpm generate:questions [--passage-id=N]` | `collected` の本文候補から Claude API で設問・和訳・用語集を生成し、解答キーを見ない検証をして `draft` にする（[question-generation](../../docs/spec/question-generation/README.md#生成タスクの動き)）。`ANTHROPIC_API_KEY` が必須。`--passage-id` で 1 件だけ（`collected` でなければ throw。下書きの上限を見ない）。1 件でも `failed` になる、または取得した全件が一時的な失敗で `collected` に戻る（下書き・却下が 0 件）と exit 1 |
 
 ## Commands
 
@@ -15,6 +16,7 @@
 pnpm dev               # tsx watch で起動
 pnpm cleanup:old-memos # タスクを 1 回実行
 pnpm collect:passages --source-id=3 --dry-run  # 1 ソースの試し実行（DB に書かない）
+pnpm generate:questions --passage-id=42        # 1 件だけ生成（ANTHROPIC_API_KEY が必要）
 pnpm test              # Vitest（DB client を mock するので DB 不要）
 ```
 
@@ -80,6 +82,47 @@ Markdown / MDX / HTML から本文を抽出し、200〜600 語の本文候補に
 - **取得先の制限（SSRF 対策）**：① リクエストの前（リダイレクト先も）に https かつ `site_url` と同じオリジンかを確かめる（IP アドレスのホストはここで範囲も確かめる。net.connect は IP アドレスに lookup を呼ばないため）② undici の `Agent` の `connect.lookup` に `createSafeLookup` を渡し、接続のときに名前解決した全アドレスがプライベート・ループバック・リンクローカルでないかを確かめる（DNS rebinding 対策）③ リダイレクトは `redirect: "manual"` で自分でたどり、同じオリジンの中で最大 3 回。違反は `BlockedUrlError` でソースの失敗にする
 - fetch はグローバルではなく undici のもの（npm の undici の `Agent` をグローバルの fetch に渡すと版の違いで動かないことがあるため）。undici は Node 20 で動く v7 に固定している（v8 は Node 22.19 以上が必要）
 
+### 問題の生成（LLM のクライアントとプロンプト）
+
+`generate:questions`（[question-generation](../../docs/spec/question-generation/README.md#llm-の呼び出し)）が使う Claude API のクライアントとプロンプト。タスクの動きは次の「generate:questions（問題の生成のタスク）」。
+
+| ファイル | 役割 |
+| --- | --- |
+| `client/anthropic/anthropic-client.ts` | `AnthropicClient`（`@anthropic-ai/sdk` を包む。SDK の `messages` をコンストラクタで受ける）と `ILlmClient`。`createStructuredMessage` 1 つで、生成（`GENERATION_MODEL`）と解答キーを見ない検証（`VERIFICATION_MODEL`）の両方を呼ぶ。`adaptiveThinking: { effort }` を渡したときだけ `thinking: { type: "adaptive" }` と `output_config.effort` を送る（生成だけが渡す）。`createAnthropicClient({ apiKey })` が SDK を `maxRetries: 2`・タイムアウト 10 分で生成して包む（task が 1 回だけ呼ぶ） |
+| `client/anthropic/errors.ts` | `LlmRefusalError`（`stop_reason: "refusal"`。`stop_details.category` を持つ）/ `LlmOutputTruncatedError`（`max_tokens` などで途中で切れた。`stopReason` と `usage.output_tokens` の `outputTokens` を持つ）/ `LlmInvalidJsonError`、`isFatalLlmError`（401 / 403 / 404 / `billing_error` だけ true。タスク全体を止める判定） |
+| `client/anthropic/structured-output-schema.ts` | `convertZodToStructuredOutputSchema`：Zod（`zod/v4`）→ structured output に渡す JSON Schema。API が受け付けない制約（文字数・数値の範囲・`minItems` の 0 / 1 以外・`$schema`）を落とし、全オブジェクトに `additionalProperties: false`。`allOf` / `$ref` などは throw |
+| `prompt/generate-questions.ts` | `PROMPT_VERSION`、`GENERATE_QUESTIONS_SYSTEM_PROMPT`（README の設問・和訳・用語集のルール。英語）、`buildGenerateQuestionsUserContent`（番号つきブロック + 設問数の指示 + 再生成のときは前回の不合格の理由） |
+| `prompt/generate-questions-schema.ts` | 出力の Zod スキーマ `generateQuestionsOutputSchema`（vocabulary の設問だけが `vocabularyTarget` を持つ superRefine つき）と、API に渡す `GENERATE_QUESTIONS_OUTPUT_JSON_SCHEMA`（refine の前のオブジェクトから読み込み時に 1 回だけ作る定数） |
+| `prompt/passage.ts` | `buildPassagePrompt`：本文を `<passage>` / `<block index paragraph type lang translate>` の XML にする（生成と検証で共有）。段落番号は `numberParagraphs`、code には `translate="no"`。本文はエスケープせず属性値だけエスケープ、和訳は渡さない |
+| `prompt/verify-questions.ts` / `prompt/verify-questions-schema.ts` | 解答キーを見ない検証の `VERIFY_QUESTIONS_SYSTEM_PROMPT`（推測でも必ず 1 つ選ぶ）、`buildVerifyQuestionsUserContent`（番号つきブロック + シャッフル後の設問と A〜D の選択肢。**正解・解説・根拠は渡さない**）、出力の `verifyQuestionsOutputSchema`（`answers: { choiceIndex, questionNumber }[]`）と `VERIFY_QUESTIONS_OUTPUT_JSON_SCHEMA` |
+
+- **SDK の呼び方**：非ストリーミングの `messages.create` に `output_config: { format: { type: "json_schema", schema } }` と、`cache_control: { type: "ephemeral" }` を付けた system の text ブロックを渡す。temperature などのサンプリングの引数は渡さない（新しいモデルは既定以外を受け付けないものがある）。拒否時のサーバー側フォールバック（beta）は使わない
+- **thinking と max_tokens**：思考（thinking）のトークンは、内容が返らなくても `max_tokens` に数えられる（[Steering thinking の Cost control](https://platform.claude.com/docs/en/build-with-claude/thinking-steering-and-cost)）。`claude-sonnet-5-5` は `thinking` を省略すると adaptive thinking で動き、effort の既定は `high`（`budget_tokens` は 400、思考を止めるのは `between_tools`。[Effort](https://platform.claude.com/docs/en/build-with-claude/effort)・[Troubleshooting thinking](https://platform.claude.com/docs/en/build-with-claude/thinking-troubleshooting)）。structured output では effort が low / medium のときに思考が `max_tokens` まで続くことがあり、high 以上ではほぼ起きない（[Prompting Claude Sonnet 5.5 の Reasoning tasks with JSON output](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-sonnet-5-5)）。そこで生成は `thinking: { type: "adaptive" }` と `effort: "high"`（`GENERATION_EFFORT`）を明示する（既定と同じ値なのでキャッシュは変わらない。`GENERATION_MODEL` を既定が medium のモデルに変えても下がらない）。`max_tokens`（16000）は SDK の非ストリーミングの上限に近いので上げない。`between_tools`（思考なし）は読解の正解の質が下がるので使わない。検証（Claude Haiku 4.5）は adaptive thinking を 400 で拒否し effort も受け付けないので、thinking も effort も送らない
+- **リトライは SDK に任せる**：429 / 408 / 409 / 5xx / タイムアウト / 接続エラーを retry-after か指数バックオフで最大 2 回。自前でリトライを書かない
+- **出力の正しさは Zod で確かめる**：structured output は JSON の形（型・enum・必須のキー）までしか強制しない。文字数・配列の長さ・数値の範囲は JSON Schema から落としているので、`createStructuredMessage` は JSON.parse しただけの値を返し、呼び出し側が `generateQuestionsOutputSchema` で検証する（エラーを再生成の指示に使う）
+- **`zod/v4`**：cron の zod は 3.25 で、`z.toJSONSchema` は v4 にしか無いため、structured output のスキーマ（`prompt/*-schema.ts`・`structured-output-schema.ts`）だけ `import { z } from "zod/v4"` で書く。SDK の `zodOutputFormat` は `enum` を description に移して制約から外すので使わない
+- **プロンプトキャッシュ**：system prompt に日時・件数・本文などの可変値を入れない（可変値は user message）。`usage.cacheReadInputTokens` が 2 回目以降も 0 なら、最小キャッシュ長未満か可変値が混ざっている
+- **`PROMPT_VERSION`**：system prompt・user message の形・出力のスキーマを変えたら必ず上げる（`passages.generation_prompt_version` に入る）。`test/prompt/__snapshots__/generate-questions.prompt.txt` に fixture で組み立てた送信内容（system / user / 再生成の user / JSON Schema）を書き出しているので、変えたら `pnpm test -u` で更新して差分をレビューする。検証のプロンプトは `verify-questions.prompt.txt`（検証のプロンプトは生成した内容を変えないので `PROMPT_VERSION` には含めない）
+
+### generate:questions（問題の生成のタスク）
+
+| ファイル | 役割 |
+| --- | --- |
+| `lib/question-generation/validate-generated-output.ts` | `validateGeneratedOutput`：不合格なら再生成させる検査（Zod・設問数が `calculateQuestionCount` と一致・選択肢が前後の空白と大文字小文字を除いて重複しない・根拠と `vocabularyTarget` のブロック番号が範囲内で code でない）。理由は英語で、そのまま再生成の user message に入る。`isSuitable = false` は以降を見ずに合格 |
+| `lib/question-generation/build-draft-content.ts` | `buildDraftContent`：保存する形への加工と要確認の理由（和訳の欠け・根拠の引用が本文に無い・語義設問の対象の追加 / 不在）。用語集の位置は `findSurfaceRange` で本文から求め、見つからない語句は捨てて `droppedGlossary` に入れる（task のログに出る）。語義設問の対象が用語集に無ければ意味が空の項目を足して紐づける。選択肢のシャッフル（`shuffle-choices.ts`、Fisher–Yates、`random` を DI）と制限時間の計算もここ。要確認のブロックの表記は `numberParagraphs` の「段落 N」と `numberHeadings` の「見出し N」（api の公開の条件のメッセージと同じ規則） |
+| `lib/question-generation/find-verification-mismatches.ts` | 検証モデルの回答を正解と突き合わせ、`verificationChoiceIndex` と「Q3：検証モデルは A を選択（正解は B）」を作る |
+| `lib/question-generation/parse-args.ts` | `parseGenerateQuestionsArgs`（`--passage-id` を正の整数に） |
+| `lib/question-generation/describe-run-failure.ts` | `describeRunFailure`：実行の件数から exit 1 にすべき理由を返す（`failed` が 1 件以上、または下書き・却下が 0 件で `collected` に戻した件がある）。task が throw に使う |
+| `service/passage/generate-questions.ts` | 本体。下書きの上限 → 30 分以上 generating の行の回収 → 上限の件数まで 1 件ずつ「`claimNextCollected` → 生成（不合格なら理由を付けて 1 回だけ再生成）→ `buildDraftContent` → 検証モデル → `saveDraft`」 |
+| `repository/passage-repository.ts` | `claimNextCollected`（collected の最も古い 1 行を `FOR UPDATE SKIP LOCKED` で選び、同じ UPDATE で generating に）/ `saveDraft`（passages の更新と questions / glossary の入れ直しを 1 トランザクション）/ `recordGenerationFailure` / `markRejectedByLlm` / `releaseClaim` / `releaseStaleGenerating` / `countByStatus` / `findStatusById` |
+
+- **claim のガード**：取得した行の更新（`saveDraft` / `markRejectedByLlm` / `recordGenerationFailure` / `releaseClaim`）は `WHERE id = ? AND status = 'generating' AND generation_started_at = ?`。`generation_started_at` を取得のトークンにして、30 分を超えて別の実行に回収・再取得された行を古い実行が上書きしない（0 行なら warn を出して数えない）
+- **1 件ずつ取る**：最初にまとめて取らず、1 件ごとに `claimNextCollected` で取ってから処理する。まとめて取ると全件に同じ `generation_started_at` が入り、1 回の実行が 30 分を超えたときに後半の行（まだ処理していない行）が別の実行に回収・再取得され、LLM の費用が二重にかかるため。各行の `generation_started_at` はその行を取った時刻になる。停止指示は次の行を取る前に見るので、取ったまま処理していない行は残らない
+- **失敗の扱い**：API エラー（SDK のリトライ後）・拒否・2 回目の不合格・想定外の例外は `recordGenerationFailure`（回数 +1、3 回目で `failed`、`generation_error` に「種類: メッセージ」）。失敗した件は warn（`passage generation failed`）でログに出す。JSON でない出力は「不合格」として再生成する。出力が `max_tokens` で切れた（`LlmOutputTruncatedError`）ら、同じ上限ですぐに作り直しても切れやすいので再生成せず、一時的な失敗として `recordGenerationFailure` する（次の実行に回す。3 回目で `failed`）。warn に `outputTokens`（`usage.output_tokens`）・`maxTokens`・`stopReason` を出す。`isSuitable = false` は `rejected`（理由が無ければ「LLM が題材に不向きと判定」）
+- **設定の誤り（`isFatalLlmError`）**：生成で起きたら失敗回数を増やさずに `releaseClaim` して throw（タスクは exit 1。まだ取っていない行は collected のまま残る）。検証モデルで起きたら、生成の費用を無駄にしないよう下書きを検証なしで保存してから throw する
+- **検証モデルの失敗**：API エラー・回答の件数が設問数と合わない・設問番号の重複 / 範囲外は、生成を捨てず `verificationChoiceIndex = null` で保存し、要確認に「検証モデルでの確認に失敗しました」を入れる
+- **用語集の id の引き方**：insert の RETURNING の順序に頼らず、`(blockIndex, startOffset, endOffset)` で引く（`buildDraftContent` が同じ位置の項目を 2 つ作らない）
+
 ## ESM 専用の依存（require(esm)）
 
 cron は CommonJS でビルドするが、unified / remark / rehype は ESM 専用で配布されている。そのため:
@@ -111,14 +154,22 @@ run-once モデルなので、**処理の途中でシグナルを受けて終了
 | `COLLECT_WEB_REQUEST_INTERVAL_MS` | no | `1000` | collect:passages がサイトをクロールするときの、同じオリジンへのリクエストの間隔（ミリ秒。1000 未満は不可）。robots.txt の `Crawl-delay` の方が長ければそちらに従う（30 秒を超える `Crawl-delay` のサイトは打ち切る） |
 | `COLLECT_WEB_REFETCH_DAYS` | no | `7` | collect:passages がサイトのページを取り直す間隔（日） |
 | `COLLECT_WEB_CONTACT_URL` | no | - | 収集のリクエストの User-Agent に入れるサービスのトップの URL（`TechEnglishBot/1.0 (+{url})`）。サイトの管理者がどのサービスのボットか分かるようにする。未設定なら `TechEnglishBot/1.0` だけを送る（他のタスクのため必須にしない） |
+| `ANTHROPIC_API_KEY` | `generate:questions` で必須 | - | Claude API のキー。他のタスクでは不要なのでスキーマでは任意にし、`generate:questions` の起動時に検査する（空文字は未設定と同じ） |
+| `GENERATION_MODEL` | no | `claude-sonnet-5-5` | generate:questions の生成モデル。adaptive thinking と effort を受け付けるモデル（Claude 4.6 以降）にする（生成は両方を明示して送る） |
+| `VERIFICATION_MODEL` | no | `claude-haiku-4-5-20251001` | generate:questions の解答キーを見ない検証のモデル |
+| `GENERATE_MAX_PASSAGES_PER_RUN` | no | `10` | generate:questions が 1 回の実行で生成する件数の上限（費用の上限） |
+| `GENERATE_MAX_PENDING_DRAFTS` | no | `50` | 確認待ちの下書き（`draft`）がこの件数以上なら generate:questions は生成しない（`--passage-id` の指定時は見ない） |
 | `NODE_ENV` | no | `development` | `development` / `test` / `production` |
 | `LOGGER_TYPE` | no | `pino` | `pino` / `winston` / `console` / `silent` |
 | `LOG_LEVEL` | no | `info` | `debug` / `info` / `warn` / `error` |
 
 ## テスト戦略
 
-- **Repository / Service / lib / client の unit test のみ**。DB client は `vi.fn()` で mock するので DB 不要。GitHub API とサイトは `fetch`（client のテスト。`WebPageClient` は `sleep` / `now` も）か client の偽物（service のテスト。`test/service/collection/helpers.ts`）に差し替える。**実在のサイトにリクエストを送るテストは書かない**（`localhost` を名前解決で弾くテストだけは実物の undici を使う。外部には接続しない）
+- **Repository / Service / lib / client / prompt の unit test のみ**。DB client は `vi.fn()` で mock するので DB 不要。GitHub API とサイトは `fetch`（client のテスト。`WebPageClient` は `sleep` / `now` も）か client の偽物（service のテスト。`test/service/collection/helpers.ts`）に差し替える。**実在のサイトにリクエストを送るテストは書かない**（`localhost` を名前解決で弾くテストだけは実物の undici を使う。外部には接続しない）
 - 待ち行列の SQL（`findFetchQueue` / `upsertDiscovered`）は unit test では生成される SQL の文字列までしか確かめないので、変えたらローカル DB で並び順・404 の扱い・戻しを確かめる
-- `lib/document` のテストは `test/fixtures/document/` の fixture を使う。**fixture の英文は自作する**（実在のドキュメントをコピーしない。ライセンスのため）
+- 問題生成の取得・保存の SQL（`claimNextCollected` の `FOR UPDATE SKIP LOCKED`、`recordGenerationFailure` の `CASE`、`saveDraft` のトランザクション、claim のガード）も同じく SQL の文字列までなので、変えたらローカル DB で Drizzle / Prisma の両方の実装を確かめる（別のトランザクションで行をロックしたまま取得して飛ばされること、31 分前の generating が戻ること、3 回目で failed になること、古い claim で更新されないこと）
+- `generate:questions` の service のテストは Repository を `vi.fn()`、`ILlmClient` を偽物（モデル名で生成と検証の応答を分ける）にする。生成の出力の例は `test/lib/question-generation/helpers.ts`
+- **Claude API は呼ばない**（キーも費用も要るため）。`AnthropicClient` のテストは `messages.create` を `vi.fn()` にした SDK の偽物を渡し、リトライの設定は実物の SDK に `fetch` の偽物を渡して確かめる（`createAnthropicClient({ apiKey, fetch })`。レスポンスの `retry-after-ms: 1` で待ち時間を縮める）。プロンプトのテストは `test/fixtures/prompt/` の本文で組み立てた文字列を確かめる
+- `lib/document` のテストは `test/fixtures/document/`、プロンプトのテストは `test/fixtures/prompt/` の fixture を使う。**fixture の英文は自作する**（実在のドキュメントをコピーしない。ライセンスのため）
 - 統合テストは無い（task はエントリポイントから直接 service を呼ぶフラットな構造のため）
 - テストケースは `describe` を「正常系」「異常系」で分類する（`apps/api` と同じ）

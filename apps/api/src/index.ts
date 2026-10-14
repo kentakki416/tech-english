@@ -16,6 +16,15 @@ import { AdminContentSourceDetailController } from "./controller/admin/content-s
 import { AdminContentSourceDetectLicenseController } from "./controller/admin/content-source/detect-license"
 import { AdminContentSourceListController } from "./controller/admin/content-source/list"
 import { AdminContentSourceUpdateController } from "./controller/admin/content-source/update"
+import { AdminPassageDetailController } from "./controller/admin/passage/detail"
+import { AdminPassageListController } from "./controller/admin/passage/list"
+import { AdminPassagePublishController } from "./controller/admin/passage/publish"
+import { AdminPassageRegenerateController } from "./controller/admin/passage/regenerate"
+import { AdminPassageRejectController } from "./controller/admin/passage/reject"
+import { AdminPassageResolveAttentionController } from "./controller/admin/passage/resolve-attention"
+import { AdminPassageRestoreController } from "./controller/admin/passage/restore"
+import { AdminPassageUnpublishController } from "./controller/admin/passage/unpublish"
+import { AdminPassageUpdateController } from "./controller/admin/passage/update"
 import { AuthDevLoginController } from "./controller/auth/dev-login"
 import { AuthGitHubController } from "./controller/auth/github"
 import { AuthGoogleController } from "./controller/auth/google"
@@ -43,6 +52,7 @@ import {
   DrizzleContentSourceRepository,
   DrizzleDatabaseHealthRepository,
   DrizzleMemoRepository,
+  DrizzlePassageRepository,
   DrizzleTransactionRunner,
   DrizzleUserRepository,
 } from "./repository/drizzle"
@@ -81,6 +91,10 @@ const authAccountRepository = new DrizzleAuthAccountRepository(db)
 const transactionRunner = new DrizzleTransactionRunner(db)
 const memoRepository = new DrizzleMemoRepository(db)
 const contentSourceRepository = new DrizzleContentSourceRepository(db)
+/**
+ * reading-practice のユーザー向け API と共有する
+ */
+const passageRepository = new DrizzlePassageRepository(db)
 const databaseHealthRepository = new DrizzleDatabaseHealthRepository(db)
 const redisHealthRepository = new IoRedisHealthRepository(redis)
 const refreshTokenRepository = new IoRedisRefreshTokenRepository(redis)
@@ -161,6 +175,19 @@ const adminContentSourceDetectLicenseController = new AdminContentSourceDetectLi
 const adminContentSourceListController = new AdminContentSourceListController(contentSourceRepository)
 const adminContentSourceUpdateController = new AdminContentSourceUpdateController(contentSourceRepository)
 
+/**
+ * Admin の問題の確認・公開 Controller のインスタンス化
+ */
+const adminPassageDetailController = new AdminPassageDetailController(passageRepository)
+const adminPassageListController = new AdminPassageListController(passageRepository)
+const adminPassagePublishController = new AdminPassagePublishController(passageRepository)
+const adminPassageRegenerateController = new AdminPassageRegenerateController(passageRepository)
+const adminPassageRejectController = new AdminPassageRejectController(passageRepository)
+const adminPassageResolveAttentionController = new AdminPassageResolveAttentionController(passageRepository)
+const adminPassageRestoreController = new AdminPassageRestoreController(passageRepository)
+const adminPassageUnpublishController = new AdminPassageUnpublishController(passageRepository)
+const adminPassageUpdateController = new AdminPassageUpdateController(passageRepository)
+
 const app = express()
 
 /**
@@ -237,6 +264,17 @@ app.use(
       detectLicense: adminContentSourceDetectLicenseController,
       list: adminContentSourceListController,
       update: adminContentSourceUpdateController,
+    },
+    passage: {
+      detail: adminPassageDetailController,
+      list: adminPassageListController,
+      publish: adminPassagePublishController,
+      regenerate: adminPassageRegenerateController,
+      reject: adminPassageRejectController,
+      resolveAttention: adminPassageResolveAttentionController,
+      restore: adminPassageRestoreController,
+      unpublish: adminPassageUnpublishController,
+      update: adminPassageUpdateController,
     },
   })
 )

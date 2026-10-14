@@ -37,6 +37,7 @@ const navItems: NavItem[] = [
     name: "tech-english",
     subItems: [
       { name: "ソース", path: "/content-sources", pro: false },
+      { name: "問題", path: "/passages", pro: false },
     ],
   },
   /**

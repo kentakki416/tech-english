@@ -68,7 +68,13 @@ describe("users の削除の cascade", () => {
        * テーブルを足したらこの一覧と github-auth README の「アカウント削除の処理」の表、
        * test/controller/user-owned-data.ts の USER_OWNED_TABLES を更新する
        */
-      expect(result.rows.map((row) => row.table_name)).toEqual(["auth_accounts", "users"])
+      expect(result.rows.map((row) => row.table_name)).toEqual([
+        "attempt_answers",
+        "attempt_word_lookups",
+        "auth_accounts",
+        "reading_attempts",
+        "users",
+      ])
     })
 
     it("test/controller/user-owned-data.ts の USER_OWNED_TABLES が、users から cascade でたどれるテーブルを網羅している", async () => {

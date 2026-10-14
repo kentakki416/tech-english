@@ -8,6 +8,7 @@
     "cleanup:old-memos": "dotenvx run -f .env.local -- tsx src/task/cleanup-old-memos.ts",
     "collect:passages": "dotenvx run -f .env.local -- tsx src/task/collect-passages.ts",
     "dev": "dotenvx run -f .env.local -- tsx watch src/index.ts",
+    "generate:questions": "dotenvx run -f .env.local -- tsx src/task/generate-questions.ts",
     "lint": "eslint 'src/**/*.ts' 'test/**/*.ts'",
     "lint:fix": "eslint 'src/**/*.ts' 'test/**/*.ts' --fix",
     "start": "dotenvx run -f .env.local -- node dist/index.js",
@@ -16,6 +17,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.133.0",
     "@mozilla/readability": "^0.6.0",
     "@repo/db": "workspace:^",
     "@repo/domain": "workspace:^",

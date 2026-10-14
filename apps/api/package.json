@@ -8,6 +8,8 @@
     "db:migrate": "dotenvx run -f .env.local -- pnpm --filter @repo/db db:migrate",
     "db:push": "dotenvx run -f .env.local -- pnpm --filter @repo/db db:push",
     "db:seed": "dotenvx run -f .env.local -- pnpm --filter @repo/db db:seed",
+    "db:seed:dictionary": "dotenvx run -f .env.local -- pnpm --filter @repo/db db:seed:dictionary",
+    "db:seed:sample-passages": "dotenvx run -f .env.local -- pnpm --filter @repo/db db:seed:sample-passages",
     "db:studio": "dotenvx run -f .env.local -- pnpm --filter @repo/db db:studio",
     "dev": "PORT=${PORT_API:-8080} dotenvx run -f .env.local -- tsx watch src/index.ts",
     "issue-test-token": "dotenvx run -f .env.local -- tsx scripts/issue-test-token.ts",

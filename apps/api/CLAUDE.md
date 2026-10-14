@@ -10,6 +10,7 @@ pnpm test          # ローカル用（dotenvx で .env.local を復号して vi
 pnpm test:ci       # CI 用（env は外部から渡す前提。generate + migrate + vitest run）
 pnpm test:watch    # 変更ファイルだけ再実行
 pnpm test:coverage # カバレッジ計測（coverage/ に出力）
+pnpm db:seed:sample-passages # 開発用のサンプル問題（公開 1・下書き 2）を dev DB に入れる。何度流してもよい（状態と内容が初期値に戻る）
 ```
 
 テストランナーは Vitest。`describe` / `it` / `expect` / `vi` は `globals: true` で展開済みなので import 不要。
@@ -50,6 +51,7 @@ pnpm test:coverage # カバレッジ計測（coverage/ に出力）
 - **Service**: 業務エラーは `return err(conflictError(...))`。想定外エラーは **catch せずそのまま伝播させる**
 - **Controller**: **try-catch を書かない**。`if (!result.ok)` は必ず `sendError`（`src/lib/send-error.ts`）経由で返す。`res.status().json()` を直接書くとログを書き忘れるため
 - Service から別 Service を呼ぶときも `ok` 判定し、そのまま re-return するか再解釈する（例: pre-condition の 404 を 400 に変換）
+- 原因が複数ある 400 は `badRequestError(message, details)` で `ApiErrorDetail[]`（`{ code, message, path }`）を付ける。`sendError` がレスポンスの `details` に含める（admin の問題の公開の条件の検査など。テストは `code` と `path` を検証し、`message` は検証しない）
 - 想定外の throw / スキーマ違反は `src/middleware/unhandled-exception-handler.ts` が処理する（リクエストスキーマ違反 → 400 + `warn`、レスポンススキーマ違反とその他 → 500 + `error`）
 
 try/catch を許容するのは次の 2 つだけ。

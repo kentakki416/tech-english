@@ -14,7 +14,9 @@ LLM の出力の検証と後処理（純関数）、解答キーを見ない検�
 
 ```mermaid
 flowchart TD
-    A[生成を呼ぶ] --> B{validateGeneratedOutput}
+    CL[claimNextCollected<br/>最も古い collected を 1 行 generating に] --> A[生成を呼ぶ]
+    A --> B{validateGeneratedOutput}
+    A -- stop_reason が max_tokens --> T[warn に output_tokens を出す<br/>その場では作り直さない] --> F
     B -- 不合格 1 回目 --> A2[不合格の理由を付けて再生成] --> B
     B -- 不合格 2 回目 / API エラー / 拒否 --> F[recordGenerationFailure<br/>3 回目なら failed]
     B -- isSuitable=false --> R[markRejectedByLlm]
@@ -25,7 +27,7 @@ flowchart TD
 
 ### 2. 純関数（`apps/cron/src/lib/question-generation/`）
 
-env も DB も知らない。メッセージ中の段落の表記は `numberParagraphs` で求め、番号が無いブロックは「見出し」とする。
+env も DB も知らない。メッセージ中のブロックの表記は、段落は `numberParagraphs` の「段落 N」、見出しは `numberHeadings` の「見出し N」とする（api の公開の条件のメッセージと同じ規則。和訳の無い見出しが複数あっても理由を区別できるように）。
 
 ```typescript
 /** validate-generated-output.ts：不合格なら再生成させる検査 */
@@ -53,7 +55,7 @@ export const buildDraftContent = (input: {
 }): { content: GeneratedDraft, droppedGlossary: { blockIndex: number, surface: string }[] }
 ```
 
-1. **和訳**：`translations` を code 以外のブロックの `translationJa` に入れる（code・範囲外は無視）。和訳の無いブロックごとに要確認「段落 4 の和訳がありません」
+1. **和訳**：`translations` を code 以外のブロックの `translationJa` に入れる（code・範囲外は無視）。和訳の無いブロックごとに要確認「段落 4 の和訳がありません」「見出し 1 の和訳がありません」
 2. **用語集**：code・範囲外のブロックを指すものと、`findSurfaceRange` で見つからないものは捨てて `droppedGlossary` に入れる（task がログに出す）。同じ位置の重複は 1 つにする
 3. **根拠**：`hasQuote` が false なら要確認「Q2：根拠の引用が段落 2 の本文に見つかりません」
 4. **語義設問の対象**：同じ `blockIndex` と `surface` の用語集の項目があれば紐づける。無ければ `findSurfaceRange` で探し、見つかれば `meaningJa: ""` の項目を足して紐づけ、要確認「Q3：対象の語句「opt in」を用語集に追加しました。意味を入力してください」。見つからなければ紐づけず要確認「Q3：対象の語句「opt in」が段落 2 に見つかりません」
@@ -102,8 +104,11 @@ export type DraftContent = {
 }
 
 export interface PassageRepository {
-  /** collected を古い順に最大 limit 件、generating にしながら取る（FOR UPDATE SKIP LOCKED） */
-  claimCollected(input: { limit: number, now: Date, passageId?: number }): Promise<ClaimedPassage[]>
+  /**
+   * collected のうち最も古い 1 行を generating にしながら取る（FOR UPDATE SKIP LOCKED）。generation_started_at は now（取った時刻）。
+   * 取れる行が無ければ null
+   */
+  claimNextCollected(input: { now: Date, passageId?: number }): Promise<ClaimedPassage | null>
   countByStatus(status: PassageStatus): Promise<number>
   markRejectedByLlm(claim: PassageClaim, input: { generationModel: string, generationPromptVersion: string, reason: string }, now: Date): Promise<boolean>
   /** attempt_count +1。maxAttempts に達したら failed、それ以外は collected。戻り値は更新後の状態 */
@@ -120,20 +125,20 @@ export interface PassageRepository {
 Drizzle 実装の要点（不足する演算子 `asc` / `inArray` 等は `@repo/db` の re-export に足す）：
 
 ```typescript
-/** claimCollected：候補の select に行ロックを付け、同じ文で generating にする */
-const candidates = this._db.select({ id: passages.id }).from(passages)
+/** claimNextCollected：候補の select に行ロックを付け、同じ文で generating にする */
+const candidate = this._db.select({ id: passages.id }).from(passages)
   .where(and(eq(passages.status, "collected"), input.passageId ? eq(passages.id, input.passageId) : undefined))
   .orderBy(asc(passages.createdAt), asc(passages.id))
-  .limit(input.limit)
+  .limit(1)
   .for("update", { skipLocked: true })
-const rows = await this._db.update(passages)
+const [row] = await this._db.update(passages)
   .set({ generationStartedAt: input.now, status: "generating" })
-  .where(inArray(passages.id, candidates))
+  .where(inArray(passages.id, candidate))
   .returning()
-/** RETURNING の順序は保証されないので createdAt, id で並べ直す */
 ```
 
 - **claim のガード**：`saveDraft` / `markRejectedByLlm` / `recordGenerationFailure` / `releaseClaim` は `WHERE id = ? AND status = 'generating' AND generation_started_at = ?` で更新する。処理が 30 分を超えて別の実行に回収・再取得された行を、古い実行が上書きしないため（`generation_started_at` を取得のトークンとして使う）
+- **1 件ずつ取る**：最初にまとめて取ると全件に同じ `generation_started_at` が入り、1 回の実行が 30 分を超えたときに後半の（まだ処理していない）行が別の実行に回収・再取得され、LLM の費用が二重にかかる。`claimNextCollected` で 1 件ずつ取り、取った行を処理し終えてから次を取る
 - `saveDraft`：トランザクション内で ① passages をガード付きで更新（`status = 'draft'`、和訳入りの `blocks`、`difficulty`、`time_limit_seconds`、生成の記録、`generated_at = now`、`needs_attention = attentionReasons.length > 0`、`attention_reasons`、`generation_error = null`）、0 行なら false で終える ② 残っている questions / glossary を消す ③ glossary を insert し、`(blockIndex, startOffset)` で id を引けるようにする ④ questions を insert（`targetGlossaryIndex` → id）
 - `recordGenerationFailure`：`generation_attempt_count = generation_attempt_count + 1`、`status = CASE WHEN generation_attempt_count + 1 >= maxAttempts THEN 'failed' ELSE 'collected' END`、`generation_error = error` を 1 文で
 - `.for("update", { skipLocked: true })` の書き方は実装時に Drizzle のドキュメントで確認する。書けなければ `sql` で同じ SQL を書く。Prisma 実装は `$queryRaw` と `$transaction` で同じ SQL・同じガードにする
@@ -172,17 +177,17 @@ export const generateQuestions = async (
 ): Promise<GenerateQuestionsResult>
 ```
 
-1. `passageId` が無いとき：下書きの件数が `maxPendingDrafts` 以上なら `skippedReason: "pending_drafts_limit"` で何もせず返す。取る件数は `min(maxPassagesPerRun, maxPendingDrafts - 下書きの件数)`。`--passage-id` の手動実行では上限を見ない
+1. `passageId` が無いとき：下書きの件数が `maxPendingDrafts` 以上なら `skippedReason: "pending_drafts_limit"` で何もせず返す。取る件数は `min(maxPassagesPerRun, maxPendingDrafts - 下書きの件数)`。`--passage-id` の手動実行では上限を見ない（1 件）
 2. `releaseStaleGenerating(now - 30 分)`
-3. `claimCollected`。`passageId` 指定で 0 件なら throw（collected でない。状態をメッセージに含める）
-4. 1 件ずつ（各回の頭で `isShuttingDown()` なら break。残りは次回に回収される）。**1 件の失敗で他の件は止めない**
-   - 生成：`buildGenerateQuestionsUserContent` → `createStructuredMessage` → `validateGeneratedOutput`。不合格（`LlmOutputTruncatedError` / `LlmInvalidJsonError` を含む）なら `retryErrors` を付けて 1 回だけ再生成。2 回目も不合格 → `recordGenerationFailure`
+3. 取る件数まで、1 件ずつ「`claimNextCollected({ now: input.now(), passageId })` → 処理」を繰り返す。取る前に `isShuttingDown()` なら break（取ったまま処理していない行は残らない）。`null` なら終える（`passageId` 指定で `null` なら throw。collected でない。状態をメッセージに含める）。**1 件の失敗で他の件は止めない**
+   - 生成：`buildGenerateQuestionsUserContent` → `createStructuredMessage`（`adaptiveThinking: { effort: "high" }`）→ `validateGeneratedOutput`。不合格（`LlmInvalidJsonError` を含む）なら `retryErrors` を付けて 1 回だけ再生成。2 回目も不合格 → `recordGenerationFailure`
+   - 出力が `max_tokens` で切れた（`LlmOutputTruncatedError`）→ 再生成せず `recordGenerationFailure`（一時的な失敗。次の実行に回す）。warn（`passage generation failed`）に `outputTokens`・`maxTokens`・`stopReason` を出す
    - `isSuitable = false` → `markRejectedByLlm`（理由が null なら「LLM が題材に不向きと判定」）
    - 合格 → `buildDraftContent` → 検証モデル → `findVerificationMismatches` の理由を要確認に足し、`verificationChoiceIndex` を入れる → `saveDraft`（生成の記録は `response.model` と `PROMPT_VERSION`）
    - API エラー（SDK のリトライ後）・`LlmRefusalError` → `recordGenerationFailure`（`error` は種類とメッセージ）。戻り値が `failed` なら `failedCount` を +1、`collected` なら `retryLaterCount` を +1
-   - `isFatalLlmError` → `releaseClaim` して throw（設定の誤りで全件の失敗回数を増やさない）。他の取得済みの行は 30 分後に回収される
+   - `isFatalLlmError` → `releaseClaim` して throw（設定の誤りで全件の失敗回数を増やさない）。まだ取っていない行は collected のまま残る
    - claim が古く保存が false → warn ログだけ出して数えない
-5. 1 件ごとに `logger.info`（passageId、結果、`usage` のトークン数とキャッシュの読み込み数、捨てた用語集）
+4. 1 件ごとにログを出す（取ったとき `passage claimed`、passageId、結果、`usage` のトークン数とキャッシュの読み込み数、捨てた用語集）。下書き・却下は `logger.info`（`passage processed`）、`recordGenerationFailure` にした失敗は `logger.warn`（`passage generation failed`。エラーの内容を含める）
 
 ### 6. Task（`apps/cron/src/task/generate-questions.ts`）
 
@@ -191,7 +196,7 @@ export const generateQuestions = async (
 - `env.ts` に `GENERATE_MAX_PASSAGES_PER_RUN`（既定 10）・`GENERATE_MAX_PENDING_DRAFTS`（既定 50）を `z.coerce.number().int().positive()` で足す。`ANTHROPIC_API_KEY` が無ければ throw
 - `parseGenerateQuestionsArgs(process.argv.slice(2))`、`setupGracefulShutdown(db)` の `isShuttingDown` を渡す。`now: () => new Date()`、`random: Math.random`
 - `DrizzlePassageRepository(db)`、`new AnthropicClient(new Anthropic({ apiKey, maxRetries: 2, timeout }))`
-- 結果をログに出し、**`failedCount > 0` なら throw して exit code 1**。`finally` で `db.$disconnect()`
+- 結果をログに出し、**`describeRunFailure(result)` が理由を返したら throw して exit code 1**（`failedCount > 0`、または `draftCount + rejectedCount === 0 && retryLaterCount > 0`＝取得した全件が一時的な失敗。判定は `lib/question-generation/describe-run-failure.ts` の純関数に置き、task に件数の判定を書かない）。`finally` で `db.$disconnect()`
 - `package.json` に `"generate:questions": "dotenvx run -f .env.local -- tsx src/task/generate-questions.ts"`、`CLAUDE.md` のタスクと環境変数の表に追記。スケジュール（`collect:passages` の 1 時間後）の登録は [step7-infra-cron-schedules](./step7-infra-cron-schedules.md)
 
 ## 動作確認
@@ -205,22 +210,26 @@ pnpm --filter cron generate:questions --passage-id=42   # ローカル DB と AP
 `test/lib/question-generation/`（純関数。モック不要）：
 
 - [ ] `validateGeneratedOutput`：設問数が語数（300 / 301 語の境界）に合わない / 選択肢が大文字小文字違いで重複 / 根拠が範囲外・code ブロック → 不合格。`isSuitable = false` は配列が空でも合格
-- [ ] `buildDraftContent`：用語集の位置が本文から求まる / 見つからない語句が `droppedGlossary` に入る / 和訳の無いブロック・見つからない根拠が要確認になる
+- [ ] `buildDraftContent`：用語集の位置が本文から求まる / 見つからない語句が `droppedGlossary` に入る / 和訳の無いブロック・見つからない根拠が要確認になる / 和訳の無い見出しが 2 つあれば「見出し 1」「見出し 2」で区別される
 - [ ] `buildDraftContent`：語義設問の対象が既存の項目に紐づく / 用語集に無ければ項目が足されて紐づく / 本文に無ければ紐づかず要確認
 - [ ] `shuffleChoices`：固定した `random` で並びが変わり、正解の選択肢の **文字列** が `correctChoiceIndex` の位置にある
 - [ ] `findVerificationMismatches`：一致は理由なし、食い違いだけ理由と `verificationChoiceIndex` が入る
 - [ ] `parseGenerateQuestionsArgs`：`--passage-id=42` → 42、`abc` / `0` → throw、指定なし → undefined
+- [ ] `describeRunFailure`：`failed` が 1 件 → 理由を返す / 下書き・却下が 0 件で `retryLaterCount` が 1 以上 → 理由を返す / 下書きか却下が 1 件でもあれば（他が失敗しても）null
 
 `test/service/passage/generate-questions.test.ts`（Repository は `vi.fn()`、`LlmClient` は偽物）：
 
-- [ ] 下書きが上限ちょうど → LLM も `claimCollected` も呼ばない。上限 - 1 → `limit` が 1
-- [ ] `releaseStaleGenerating` が `now - 30 分` で呼ばれる
+- [ ] 下書きが上限ちょうど → LLM も `claimNextCollected` も呼ばない。上限 - 1 → 1 件だけ取る。余裕があれば `maxPassagesPerRun` 件まで取る
+- [ ] `releaseStaleGenerating` が `now - 30 分` で呼ばれる（`claimNextCollected` より前）
+- [ ] 1 件目を保存してから 2 件目を取り、各行の claim の `generationStartedAt` はその行を取った時刻。取れる行が無くなったら上限の前でも終える
+- [ ] 出力が `max_tokens` で切れる → 再生成せず `recordGenerationFailure`、warn に `outputTokens` と `maxTokens`。2 件目の処理は続く
+- [ ] 生成の呼び出しに `adaptiveThinking: { effort: "high" }` が渡り、検証の呼び出しには渡らない
 - [ ] 合格 → `saveDraft` に和訳・用語集・シャッフル後の設問・制限時間・要確認の理由が渡り、`draftCount` が 1
 - [ ] 1 回目不合格・2 回目合格 → 2 回目の user message に不合格の理由が入る。2 回とも不合格 → `recordGenerationFailure`
 - [ ] `isSuitable = false` → `markRejectedByLlm`、検証モデルは呼ばない
-- [ ] API エラーで `recordGenerationFailure` が `failed` を返す → `failedCount` が 1。2 件目の処理は続く
+- [ ] API エラーで `recordGenerationFailure` が `failed` を返す → `failedCount` が 1。2 件目の処理は続く。失敗は warn でログに出る
 - [ ] 検証モデルが失敗 → 検証なしで保存され、要確認に理由が入る
-- [ ] `isFatalLlmError` → `releaseClaim` して throw
+- [ ] `isFatalLlmError` → `releaseClaim` して throw。2 件目は取らない
 - [ ] `passageId` 指定で 0 件 → throw。指定時は下書きの上限を見ない
 
 `test/repository/drizzle/passage-repository.test.ts`（既存と同じく偽の DB で、ガード条件と更新値を確認）。
