@@ -184,7 +184,12 @@ export default function MockResultScreen() {
         })}
 
         <View style={styles.section}>
-          <Text style={mockStyles.sectionTitle}>調べた単語</Text>
+          <View style={styles.lookupHeader}>
+            <Text style={mockStyles.sectionTitle}>調べた単語</Text>
+            <Pressable accessibilityRole="link" hitSlop={8} onPress={() => router.dismissTo("/mock/vocabulary")}>
+              <Text style={styles.lookupLink}>単語帳で復習する</Text>
+            </Pressable>
+          </View>
           {MOCK_RESULT.wordLookups.map(lookup => (
             <View key={lookup.surface} style={styles.lookupRow}>
               <Text style={styles.lookupSurface}>{lookup.surface}</Text>
@@ -368,6 +373,16 @@ const styles = StyleSheet.create({
     color: MOCK_COLORS.fgFaint,
     fontSize: 11,
     marginTop: 4,
+  },
+  lookupHeader: {
+    alignItems: "baseline",
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  lookupLink: {
+    color: MOCK_COLORS.amber,
+    fontSize: 13,
+    textDecorationLine: "underline",
   },
   lookupMeaning: {
     color: MOCK_COLORS.fgMuted,

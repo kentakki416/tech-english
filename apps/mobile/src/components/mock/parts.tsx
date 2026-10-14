@@ -154,8 +154,10 @@ export const mockStyles = StyleSheet.create({
     backgroundColor: MOCK_COLORS.line,
     height: StyleSheet.hairlineWidth,
   },
+  /**
+   * 画面の一番外側。背景はルートレイアウトの AppBackdrop を透かすので塗らない
+   */
   screen: {
-    backgroundColor: MOCK_COLORS.canvas,
     flex: 1,
   },
   sectionTitle: {

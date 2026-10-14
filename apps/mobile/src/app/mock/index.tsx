@@ -23,6 +23,26 @@ const SCREENS: { href: Href, spec: string, states?: { href: Href, label: string 
     title: "問題を解く",
   },
   { href: "/mock/attempts/42/result", spec: "reading-practice", states: [{ href: "/mock/attempts/42/result?state=overtime", label: "時間超過" }], title: "結果・解説" },
+  {
+    href: "/mock/vocabulary",
+    spec: "vocabulary-cards",
+    states: [
+      { href: "/mock/vocabulary?state=done", label: "今日の分が終わった" },
+      { href: "/mock/vocabulary?state=empty", label: "まだ単語が無い" },
+    ],
+    title: "単語帳（タブ）",
+  },
+  {
+    href: "/mock/vocabulary/session",
+    spec: "vocabulary-cards",
+    states: [
+      { href: "/mock/vocabulary/session?state=back", label: "めくった後" },
+      { href: "/mock/vocabulary/session?state=review", label: "ふりかえり" },
+      { href: "/mock/vocabulary/session?state=save_failed", label: "保存できなかった" },
+      { href: "/mock/vocabulary/session?state=done", label: "今日の分が終わった" },
+    ],
+    title: "単語帳（1 回分）",
+  },
   { href: "/mock/history", spec: "learning-record", title: "学習履歴" },
   { href: "/mock/settings", spec: "learning-record / study-reminder", states: [{ href: "/mock/settings?state=denied", label: "通知が許可されていない" }], title: "設定（タブ）" },
   { href: "/mock/delete-account", spec: "github-auth", states: [{ href: "/mock/delete-account?state=done", label: "削除完了" }], title: "アカウント削除" },

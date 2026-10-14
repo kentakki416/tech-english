@@ -23,6 +23,17 @@ const formatDayLabel = (date: string): string => {
 }
 
 /**
+ * 1 日の要約（「1 問、単語 12 枚、7 分」）。0 の項目は出さず、学習していない日は空文字（web のモックと同じ）
+ */
+const formatDaySummary = (day: MockCalendarDay): string => {
+  const items = [
+    day.attemptCount > 0 ? `${day.attemptCount} 問` : null,
+    day.cardCount > 0 ? `単語 ${day.cardCount} 枚` : null,
+  ].filter((item): item is string => item !== null)
+  return items.length === 0 ? "" : [...items, `${day.studyMinutes} 分`].join("、")
+}
+
+/**
  * 学習カレンダー。年表示（草）と今月の表示を切り替え、日付を選ぶとその日の挑戦を出す
  */
 export function StudyCalendar({ days, isEmpty = false }: { days: MockCalendarDay[], isEmpty?: boolean }) {
@@ -32,7 +43,7 @@ export function StudyCalendar({ days, isEmpty = false }: { days: MockCalendarDay
   const [selectedDate, setSelectedDate] = useState(MOCK_TODAY)
 
   const calendarDays = useMemo(
-    () => (isEmpty ? days.map((day): MockCalendarDay => ({ ...day, attemptCount: 0, level: 0, studyMinutes: 0 })) : days),
+    () => (isEmpty ? days.map((day): MockCalendarDay => ({ ...day, attemptCount: 0, cardCount: 0, level: 0, rememberedCount: 0, studyMinutes: 0 })) : days),
     [days, isEmpty],
   )
   const weeks = useMemo(() => {
@@ -76,7 +87,7 @@ export function StudyCalendar({ days, isEmpty = false }: { days: MockCalendarDay
                   {week.map(day => (
                     <Pressable
                       key={day.date}
-                      accessibilityLabel={`${formatDayLabel(day.date)} ${day.attemptCount} 問`}
+                      accessibilityLabel={`${formatDayLabel(day.date)} ${formatDaySummary(day)}`.trim()}
                       hitSlop={2}
                       onPress={() => setSelectedDate(day.date)}
                       style={[
@@ -103,6 +114,7 @@ export function StudyCalendar({ days, isEmpty = false }: { days: MockCalendarDay
               return (
                 <Pressable
                   key={index}
+                  accessibilityLabel={day ? `${formatDayLabel(day.date)} ${formatDaySummary(day)}`.trim() : undefined}
                   disabled={!day}
                   onPress={() => day && setSelectedDate(day.date)}
                   style={[styles.monthCell, styles.monthCellBox, day?.date === selectedDate && styles.monthCellSelected, !day && { opacity: 0.35 }]}
@@ -126,9 +138,9 @@ export function StudyCalendar({ days, isEmpty = false }: { days: MockCalendarDay
       <View style={styles.dayDetail}>
         <View style={styles.dayHeader}>
           <Text style={styles.dayTitle}>{formatDayLabel(selectedDay.date)}</Text>
-          {selectedDay.attemptCount > 0 && <Text style={mockStyles.caption}>{selectedDay.attemptCount} 問、{selectedDay.studyMinutes} 分</Text>}
+          {formatDaySummary(selectedDay) !== "" && <Text style={mockStyles.caption}>{formatDaySummary(selectedDay)}</Text>}
         </View>
-        {selectedAttempts.length === 0 ? (
+        {selectedAttempts.length === 0 && selectedDay.cardCount === 0 ? (
           <Text style={styles.empty}>{selectedDay.attemptCount > 0 ? "（モックではこの日の内訳を省略）" : "この日の学習はありません。"}</Text>
         ) : (
           selectedAttempts.map(attempt => (
@@ -139,6 +151,13 @@ export function StudyCalendar({ days, isEmpty = false }: { days: MockCalendarDay
               <Text style={[mockStyles.caption, { width: 36, textAlign: "right" }]}>{formatSeconds(attempt.elapsedSeconds)}</Text>
             </Pressable>
           ))
+        )}
+        {selectedDay.cardCount > 0 && (
+          <Pressable accessibilityRole="button" onPress={() => router.navigate("/mock/vocabulary")} style={styles.attemptRow}>
+            <View style={styles.vocabularyIcon} />
+            <Text numberOfLines={1} style={styles.vocabularyTitle}>単語帳</Text>
+            <Text style={mockStyles.caption}>{selectedDay.cardCount} 枚（覚えた {selectedDay.rememberedCount}）</Text>
+          </Pressable>
         )}
       </View>
     </View>
@@ -270,5 +289,16 @@ const styles = StyleSheet.create({
   yearRow: {
     flexDirection: "row",
     marginTop: 14,
+  },
+  vocabularyIcon: {
+    backgroundColor: "#efe4cf",
+    borderRadius: 2,
+    height: 12,
+    width: 16,
+  },
+  vocabularyTitle: {
+    color: MOCK_COLORS.fg,
+    flex: 1,
+    fontSize: 14,
   },
 })
