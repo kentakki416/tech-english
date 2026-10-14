@@ -13,6 +13,7 @@ import { AppHeader } from "@/components/ui/AppHeader"
 import { passageApi } from "@/features/passage/passage.api"
 import { ApiClientError } from "@/libs/api-client"
 import { formatSeconds } from "@/libs/format"
+import { redirectIfSessionRejected } from "@/libs/session"
 
 import { startAttemptAction } from "./actions"
 
@@ -44,7 +45,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
  * 開始確認。本文はまだ見せない。期限内の挑戦中があれば再開の表示にする
  */
 export default async function PassageStartPage({ params }: Props) {
-  const passage = await loadPassage((await params).id)
+  const passage = await loadPassage((await params).id).catch(redirectIfSessionRejected)
   if (passage === null) notFound()
 
   const { attribution, in_progress_attempt: inProgressAttempt } = passage
