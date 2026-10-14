@@ -2,6 +2,7 @@ import { useRouter } from "expo-router"
 import { useEffect } from "react"
 import { ActivityIndicator, StyleSheet, View } from "react-native"
 
+import { AppBackdrop } from "@/components/ui/AppBackdrop"
 import { THEME_COLORS } from "@/const/design-theme"
 import { useAuthStore } from "@/features/auth/auth.store"
 import { EMPTY_PASSAGE_FILTER } from "@/features/passage/passage-query"
@@ -53,6 +54,7 @@ export default function RandomPassageScreen() {
 
   return (
     <View style={styles.screen}>
+      <AppBackdrop />
       <ActivityIndicator color={THEME_COLORS.amber} />
     </View>
   )
@@ -61,7 +63,6 @@ export default function RandomPassageScreen() {
 const styles = StyleSheet.create({
   screen: {
     alignItems: "center",
-    backgroundColor: THEME_COLORS.canvas,
     flex: 1,
     justifyContent: "center",
   },

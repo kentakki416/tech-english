@@ -10,6 +10,7 @@ import { DifficultyMeter } from "@/components/features/passage/DifficultyMeter"
 import { ResumeNotice } from "@/components/features/passage/ResumeNotice"
 import { SourceMeta } from "@/components/features/passage/SourceMeta"
 import { appStyles } from "@/components/ui/app-styles"
+import { AppBackdrop } from "@/components/ui/AppBackdrop"
 import { PrimaryButton } from "@/components/ui/PrimaryButton"
 import { SecondaryButton } from "@/components/ui/SecondaryButton"
 import { THEME_COLORS, THEME_FONTS } from "@/const/design-theme"
@@ -125,6 +126,7 @@ export default function PassageStartScreen() {
 
   return (
     <SafeAreaView edges={["top", "bottom"]} style={appStyles.screen}>
+      <AppBackdrop />
       <View style={styles.grabber} />
       <View style={styles.header}>
         <Pressable accessibilityRole="button" hitSlop={8} onPress={close}>

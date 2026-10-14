@@ -496,6 +496,7 @@ mobile（`apps/mobile`、Expo）は **web と同じデザイン**（上のカラ
 | 押した反応 | `Pressable` の押下中に `raised` の塗り（主要ボタンは `amber-bright`）。段落の長押しが成立したら軽い振動（`expo-haptics`。web では鳴らさない） |
 | 単語の選択 | 単語ごとの入れ子の `<Text onPress>`（RN の Text は選択範囲を取得できないため）。カードは画面の下端に全幅で出す |
 | スイッチ | OS 標準の `Switch`（オンの色は琥珀） |
+| 背景 | web の背景（`globals.css` の `.app-backdrop`：上ほど明るい下地・周辺減光・右下の青と左下の紫・上の中央の琥珀の光・ドットの方眼・星）と同じ構成を `react-native-svg` で描く（`components/ui/AppBackdrop.tsx`）。ルートのレイアウトの後ろに 1 枚敷き、ナビゲーション・タブ・各画面の一番外側は塗らずに透かす。下から出るモーダルと `Modal`（タイムゾーンの選択）は、下の画面が透けないよう `canvas` で塗った上に AppBackdrop を敷く |
 
 mobile の画面のモックは `apps/mobile/src/app/mock/**`（`/mock` で画面一覧）、部品は `src/components/mock/`、ダミーデータは `src/libs/mock-data.ts`（web と同じ内容）。
 

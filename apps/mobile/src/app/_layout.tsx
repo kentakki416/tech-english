@@ -4,20 +4,21 @@ import { IBMPlexMono_400Regular } from "@expo-google-fonts/ibm-plex-mono/400Regu
 import { IBMPlexMono_500Medium } from "@expo-google-fonts/ibm-plex-mono/500Medium"
 import { Literata_400Regular } from "@expo-google-fonts/literata/400Regular"
 import { Literata_600SemiBold } from "@expo-google-fonts/literata/600SemiBold"
-import { DarkTheme, DefaultTheme, ThemeProvider } from "@react-navigation/native"
+import { DarkTheme, ThemeProvider } from "@react-navigation/native"
 import { useFonts } from "expo-font"
 import * as Notifications from "expo-notifications"
 import { Stack } from "expo-router"
 import * as SplashScreen from "expo-splash-screen"
 import { StatusBar } from "expo-status-bar"
 import { useEffect } from "react"
+import { StyleSheet } from "react-native"
 import { GestureHandlerRootView } from "react-native-gesture-handler"
 
 import Header from "@/components/layout/Header"
-import { COLORS } from "@/const/color"
+import { AppBackdrop } from "@/components/ui/AppBackdrop"
+import { THEME_COLORS } from "@/const/design-theme"
 import { restoreSession } from "@/features/auth/auth.session"
 import { useAuthStore } from "@/features/auth/auth.store"
-import { useColorScheme } from "@/hooks/use-color-scheme"
 import { useNotificationRedirect } from "@/hooks/use-notification-redirect"
 import { useStudyReminderSync } from "@/hooks/use-study-reminder-sync"
 
@@ -33,6 +34,16 @@ Notifications.setNotificationHandler({
     shouldShowList: true,
   }),
 })
+
+/**
+ * ナビゲーションの背景を透明にして、後ろに敷いた共通の背景（AppBackdrop）を見せる。MVP はダークテーマのみ
+ */
+const NAVIGATION_THEME = { ...DarkTheme, colors: { ...DarkTheme.colors, background: "transparent" } }
+
+/**
+ * 下から出るモーダルは下の画面が透けないよう塗る（中に AppBackdrop を敷く）
+ */
+const MODAL_CONTENT_STYLE = { backgroundColor: THEME_COLORS.canvas }
 
 /**
  * フォントとログイン状態が揃うまでスプラッシュを出したままにする
@@ -54,7 +65,6 @@ function StudyReminderEffects() {
 }
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme()
   const status = useAuthStore((state) => state.status)
   const [isFontLoaded, fontError] = useFonts({
     IBMPlexMono_400Regular,
@@ -79,14 +89,15 @@ export default function RootLayout() {
   if (!isReady) return null
 
   return (
-    <GestureHandlerRootView>
-      <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
+    <GestureHandlerRootView style={styles.root}>
+      <AppBackdrop />
+      <ThemeProvider value={NAVIGATION_THEME}>
         <Stack
           screenOptions={{
             header: ({ navigation, options, back }) => (
               <Header navigation={navigation} options={options} back={back} />
             ),
-            contentStyle: { backgroundColor: COLORS.background }
+            contentStyle: { backgroundColor: "transparent" }
           }}
         >
           {/**
@@ -96,12 +107,12 @@ export default function RootLayout() {
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
             <Stack.Screen name="memo/new" options={{ title: "新規作成" }} />
             <Stack.Screen name="memo/[id]" options={{ title: "編集" }} />
-            <Stack.Screen name="modal" />
+            <Stack.Screen name="modal" options={{ contentStyle: MODAL_CONTENT_STYLE }} />
             {/**
               * 開始確認は下から出るモーダル（閉じるボタンを画面が持つ）。解答・結果は上部バーを画面が持つ
               */}
-            <Stack.Screen name="passages/[id]" options={{ headerShown: false, presentation: "modal" }} />
-            <Stack.Screen name="passages/random" options={{ headerShown: false, presentation: "modal" }} />
+            <Stack.Screen name="passages/[id]" options={{ contentStyle: MODAL_CONTENT_STYLE, headerShown: false, presentation: "modal" }} />
+            <Stack.Screen name="passages/random" options={{ contentStyle: MODAL_CONTENT_STYLE, headerShown: false, presentation: "modal" }} />
             <Stack.Screen name="attempts/[id]/index" options={{ headerShown: false }} />
             <Stack.Screen name="attempts/[id]/result" options={{ headerShown: false }} />
             {/**
@@ -127,3 +138,10 @@ export default function RootLayout() {
     </GestureHandlerRootView>
   )
 }
+
+const styles = StyleSheet.create({
+  root: {
+    backgroundColor: THEME_COLORS.canvas,
+    flex: 1,
+  },
+})
