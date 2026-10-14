@@ -3,9 +3,12 @@ import { z } from "zod"
 import { Prisma as PrismaTypes, PrismaClient } from "@repo/db"
 import {
   type GlossaryEntry,
+  isAllowedLicense,
   isPassageDifficulty,
   isPassageStatus,
   isQuestionType,
+  isSourceFetchType,
+  isSourceKind,
   type Passage,
   PASSAGE_BLOCK_TYPES,
   PASSAGE_STATUSES,
@@ -18,9 +21,14 @@ import type {
   AdminPassageDetail,
   AdminPassageListItem,
   AdminPassageListQuery,
+  AttemptContent,
   DraftEditContent,
+  PassageCursor,
   PassageRepository,
+  PassageSource,
   PassageTransition,
+  PublishedPassageFilter,
+  PublishedPassageSummary,
   RestoredPassageStatus,
 } from "../passage-repository"
 
@@ -80,6 +88,43 @@ const LIST_INCLUDE = {
   _count: { select: { questions: true, readingAttempts: true } },
   sourceDocument: { select: { source: { select: { id: true, name: true } } } },
 } satisfies PrismaTypes.PassageInclude
+
+/**
+ * 出典と一覧の表示に使うソースの列
+ */
+const PASSAGE_SOURCE_SELECT = {
+  branch: true,
+  fetchType: true,
+  kind: true,
+  licenseSpdx: true,
+  licenseUrl: true,
+  name: true,
+  publicUrlStripPrefix: true,
+  publicUrlTemplate: true,
+  repository: true,
+  siteUrl: true,
+  tags: true,
+} satisfies PrismaTypes.ContentSourceSelect
+
+/**
+ * ユーザー向けの一覧・概要で読む列（blocks は読まない）
+ */
+const PUBLISHED_SUMMARY_SELECT = {
+  _count: { select: { questions: true } },
+  id: true,
+  difficulty: true,
+  publishedAt: true,
+  sourceCommitSha: true,
+  sourceDocument: { select: { source: { select: PASSAGE_SOURCE_SELECT } } },
+  sourcePath: true,
+  sourceRetrievedAt: true,
+  timeLimitSeconds: true,
+  title: true,
+  wordCount: true,
+} satisfies PrismaTypes.PassageSelect
+
+type PublishedSummaryRow = PrismaTypes.PassageGetPayload<{ select: typeof PUBLISHED_SUMMARY_SELECT }>
+type PassageSourceRow = PublishedSummaryRow["sourceDocument"]["source"]
 
 /**
  * Prismaの型 → ドメインの型。Prisma は CHECK 制約の値の集合を型に持たないので、domain の判定関数で検証する。jsonb は配列に戻す
@@ -155,6 +200,90 @@ const convertQuestionRowToDomain = (row: QuestionRow): Question => {
 }
 
 /**
+ * ソースの列 → ドメインの型。Prisma は CHECK 制約の値の集合を型に持たないので、domain の判定関数で検証する
+ */
+const convertPassageSourceRowToDomain = (row: PassageSourceRow): PassageSource => {
+  if (!isSourceKind(row.kind)) throw new Error(`Invalid source kind: name=${row.name}, kind=${row.kind}`)
+  if (!isAllowedLicense(row.licenseSpdx)) throw new Error(`Invalid license: name=${row.name}, licenseSpdx=${row.licenseSpdx}`)
+  if (!isSourceFetchType(row.fetchType)) throw new Error(`Invalid fetch type: name=${row.name}, fetchType=${row.fetchType}`)
+  const base = {
+    kind: row.kind,
+    licenseSpdx: row.licenseSpdx,
+    licenseUrl: row.licenseUrl,
+    name: row.name,
+    tags: stringListSchema.parse(row.tags),
+  }
+  if (row.fetchType === "github_repository") {
+    if (row.repository === null || row.branch === null) throw new Error(`Invalid github_repository source: name=${row.name}`)
+    return {
+      ...base,
+      branch: row.branch,
+      fetchType: row.fetchType,
+      publicUrlStripPrefix: row.publicUrlStripPrefix,
+      publicUrlTemplate: row.publicUrlTemplate,
+      repository: row.repository,
+    }
+  }
+  if (row.siteUrl === null) throw new Error(`Invalid website source: name=${row.name}`)
+  return { ...base, fetchType: row.fetchType, siteUrl: row.siteUrl }
+}
+
+/**
+ * 公開中の問題の行 → ドメインの型。公開中なら必ずある列が NULL なら throw する
+ */
+const convertPublishedSummaryRowToDomain = (row: PublishedSummaryRow): PublishedPassageSummary => {
+  const { difficulty, publishedAt, timeLimitSeconds } = row
+  if (difficulty === null || !isPassageDifficulty(difficulty) || publishedAt === null || timeLimitSeconds === null) {
+    throw new Error(`Invalid published passage: id=${row.id}`)
+  }
+  return {
+    passage: {
+      id: row.id,
+      difficulty,
+      publishedAt,
+      sourceCommitSha: row.sourceCommitSha,
+      sourcePath: row.sourcePath,
+      sourceRetrievedAt: row.sourceRetrievedAt,
+      timeLimitSeconds,
+      title: row.title,
+      wordCount: row.wordCount,
+    },
+    questionCount: row._count.questions,
+    source: convertPassageSourceRowToDomain(row.sourceDocument.source),
+  }
+}
+
+/**
+ * 公開中の問題の絞り込みの条件。Drizzle 実装の _buildPublishedCondition と同じ
+ */
+const buildPublishedWhere = (filter: PublishedPassageFilter): PrismaTypes.PassageWhereInput => ({
+  AND: [
+    { status: "published" },
+    filter.kind === null ? {} : { sourceDocument: { source: { kind: filter.kind } } },
+    filter.difficulties.length === 0 ? {} : { difficulty: { in: filter.difficulties } },
+    filter.tags.length === 0
+      ? {}
+      : { OR: filter.tags.map((tag) => ({ sourceDocument: { source: { tags: { array_contains: [tag] } } } })) },
+    filter.unattemptedByUserId === null
+      ? {}
+      : { readingAttempts: { none: { status: "submitted", userId: filter.unattemptedByUserId } } },
+  ],
+})
+
+/**
+ * ユーザー向けの一覧のカーソルの行より後ろの条件（published_at DESC, id DESC の並び）
+ */
+const buildPublishedCursorWhere = (cursor: PassageCursor | null): PrismaTypes.PassageWhereInput => {
+  if (!cursor) return {}
+  return {
+    OR: [
+      { publishedAt: { lt: cursor.publishedAt } },
+      { id: { lt: cursor.id }, publishedAt: cursor.publishedAt },
+    ],
+  }
+}
+
+/**
  * カーソルの行より後ろの条件。Drizzle 実装の _buildCursorCondition と同じ（Prisma の boolean は lt を持たないので場合分けする）
  */
 const buildCursorWhere = (query: AdminPassageListQuery): PrismaTypes.PassageWhereInput => {
@@ -202,6 +331,10 @@ export class PrismaPassageRepository implements PassageRepository {
       counts[group.status] = group._count._all
     }
     return counts
+  }
+
+  public async countPublished(filter: PublishedPassageFilter): Promise<number> {
+    return this._prisma.passage.count({ where: buildPublishedWhere(filter) })
   }
 
   /**
@@ -254,6 +387,69 @@ export class PrismaPassageRepository implements PassageRepository {
       questionCount: relationCounts.questions,
       source: sourceDocument.source,
     }))
+  }
+
+  public async findAttemptContentById(passageId: number): Promise<AttemptContent | null> {
+    const row = await this._prisma.passage.findUnique({
+      include: {
+        glossaryEntries: { orderBy: [{ blockIndex: "asc" }, { startOffset: "asc" }, { id: "asc" }] },
+        questions: { orderBy: { orderIndex: "asc" } },
+        sourceDocument: { select: { source: { select: PASSAGE_SOURCE_SELECT } } },
+      },
+      where: { id: passageId },
+    })
+    if (!row) return null
+    const { glossaryEntries, questions, sourceDocument, ...passage } = row
+    return {
+      glossary: glossaryEntries.map(convertGlossaryEntryRowToDomain),
+      passage: convertPassageRowToDomain(passage),
+      questions: questions.map(convertQuestionRowToDomain),
+      source: convertPassageSourceRowToDomain(sourceDocument.source),
+    }
+  }
+
+  public async findPublishedById(id: number): Promise<PublishedPassageSummary | null> {
+    const row = await this._prisma.passage.findFirst({ select: PUBLISHED_SUMMARY_SELECT, where: { id, status: "published" } })
+    return row ? convertPublishedSummaryRowToDomain(row) : null
+  }
+
+  public async findPublishedPage(
+    filter: PublishedPassageFilter,
+    page: { cursor: PassageCursor | null; limit: number },
+  ): Promise<PublishedPassageSummary[]> {
+    const rows = await this._prisma.passage.findMany({
+      orderBy: [{ publishedAt: "desc" }, { id: "desc" }],
+      select: PUBLISHED_SUMMARY_SELECT,
+      take: page.limit,
+      where: { AND: [buildPublishedWhere(filter), buildPublishedCursorWhere(page.cursor)] },
+    })
+    return rows.map(convertPublishedSummaryRowToDomain)
+  }
+
+  /**
+   * Prisma には jsonb の配列を行に展開する API が無いので、Drizzle 実装と同じ SQL を $queryRaw で書く（並びの照合順序も揃う）
+   */
+  public async findPublishedTags(): Promise<string[]> {
+    const rows = await this._prisma.$queryRaw<{ tag: string }[]>`
+      SELECT DISTINCT jsonb_array_elements_text(content_sources.tags) AS tag
+      FROM content_sources
+      WHERE EXISTS (
+        SELECT 1 FROM passages
+        INNER JOIN source_documents ON passages.source_document_id = source_documents.id
+        WHERE source_documents.source_id = content_sources.id AND passages.status = 'published'
+      )
+      ORDER BY tag
+    `
+    return rows.map((row) => row.tag)
+  }
+
+  /**
+   * 当てはまる問題の id をすべて読んで JS で選ぶ（公開中の問題が少ないうちはこれでよい）
+   */
+  public async findRandomPublishedId(filter: PublishedPassageFilter): Promise<number | null> {
+    const rows = await this._prisma.passage.findMany({ select: { id: true }, where: buildPublishedWhere(filter) })
+    if (rows.length === 0) return null
+    return rows[Math.floor(Math.random() * rows.length)]?.id ?? null
   }
 
   /**

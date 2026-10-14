@@ -7,7 +7,7 @@ mobile のマイページ（タブ `(tabs)/index`）・設定（タブ `(tabs)/s
 - [step2-api-user-stats](./step2-api-user-stats.md)・[step3-api-user-goal](./step3-api-user-goal.md)
 - [github-auth step2-api-auth-github](../../github-auth/tasks/step2-api-auth-github.md)（`GET /api/user` の `timezone`、`PATCH /api/user`）
 - [github-auth step4-mobile-github-login](../../github-auth/tasks/step4-mobile-github-login.md)（Bearer と 401 時の refresh を行う API クライアント、ログイン中のユーザー、ログアウト、`expo-localization`）
-- 問題タブの中身は [reading-practice step8-mobile-passage-list](../../reading-practice/tasks/step8-mobile-passage-list.md)、結果画面は [step10-mobile-result](../../reading-practice/tasks/step10-mobile-result.md) が作る
+- [reading-practice step8〜10](../../reading-practice/tasks/step8-mobile-passage-list.md)（問題タブ・タブのレイアウト・共通部品・`passages/random`・結果画面）
 - この step の後に [study-reminder step3-mobile-reminder](../../study-reminder/tasks/step3-mobile-reminder.md) が設定画面のリマインダーの区画を、[github-auth step7-mobile-delete-user](../../github-auth/tasks/step7-mobile-delete-user.md) が `settings/delete-account` を作る
 
 ## 対応内容
@@ -29,12 +29,12 @@ mobile のマイページ（タブ `(tabs)/index`）・設定（タブ `(tabs)/s
 | `src/libs/format.ts` | `src/libs/mock-data.ts` の `formatSeconds` など |
 | `src/components/features/passage/labels.ts`（`QUESTION_TYPE_LABELS`） | `src/libs/mock-data.ts` の設問の種類のラベル |
 
-トークン（`src/const/design-theme.ts` の `THEME_COLORS` / `HEAT_COLORS` / `THEME_FONTS`）・フォントの読み込み・`Wordmark`・`appStyles`・本文リーダーは github-auth step4 が本番に移してある。上の表の共通部品・`format.ts`・`labels.ts`・タブのレイアウトは **この step が移し**、reading-practice step8〜10・github-auth step7・study-reminder step3 が使う（[実装の順番](../../product-overview/README.md#実装の順番)）。
+トークン（`src/const/design-theme.ts` の `THEME_COLORS` / `HEAT_COLORS` / `THEME_FONTS`）・フォントの読み込み・`Wordmark`・`appStyles`・本文リーダーは github-auth step4 が本番に移してある。上の表の共通部品・`format.ts`・`labels.ts`・タブのレイアウトは reading-practice step8 が本番に移してある（[実装の順番](../../product-overview/README.md#実装の順番)）。この step はそれを使い、マイページ・設定のタブの中身を作り、`format.ts` に足りない関数を足す。上の表の行のうち既にあるものは作らない。
 
 ### タブとルート
 
 - `(tabs)/_layout.tsx`: モックのタブをそのまま移す（`index` = マイページ・`passages` = 問題・`settings` = 設定、`headerShown: false`、色は `THEME_COLORS`）
-- `(tabs)/passages.tsx` は reading-practice step8 が作る。この step を先に進める場合は画面名だけの仮の画面を置き、step8 で置き換える
+- `(tabs)/passages.tsx` とタブのレイアウトは reading-practice step8 が作成済み。この step は `(tabs)/index.tsx`（マイページ）と `(tabs)/settings.tsx`（設定）の仮の画面を置き換える
 - 旧 `(tabs)/setting.tsx`（端末内だけのリマインダー）は削除する。`src/hooks/use-notification.ts` は study-reminder step3 が作り直すので残す
 - ルートの `_layout.tsx` の Stack に `<Stack.Screen name="history" options={{ headerShown: false }} />` を足す（上部バーは画面が持つ）。メモのタブは無くなるが、`src/app/memo/` と `features/memo/` は消さない（product-overview の「削除するかは別途判断」）
 

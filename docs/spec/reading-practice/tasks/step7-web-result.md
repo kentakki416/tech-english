@@ -35,14 +35,16 @@ Server Component。`getAttemptPathParamSchema` で検証し、失敗・404 は `
 | かかった時間 | `elapsed_seconds` ／ 制限 `time_limit_seconds`。バーの幅は `Math.min(elapsed / limit, 1.25) / 1.25`、縦線は `1 / 1.25` の位置。`is_overtime` なら「{elapsed − limit} 超過」のバッジとローズのバー |
 | 読む速さ | `words_per_minute`（null なら「―」）と「設問を解く時間を含む」 |
 | アシストの使用 | 「和訳 `translated_block_count` 段落」「単語 `word_lookup_count` 回」 |
-| 設問ごとの結果 | 番号・種類のバッジ（`QUESTION_TYPE_LABELS`）・正誤。開くと設問文・選択肢（`correct_choice_index` がミントの枠と「正解」、`selected_choice_index` が「あなたの回答」、誤りならローズ）・解説・根拠のボタン |
+| 設問ごとの結果 | 番号・種類のバッジ（`QUESTION_TYPE_LABELS`）・正誤。開くと設問文・選択肢（`correct_choice_index` がミントの枠と「正解」、`selected_choice_index` が「あなたの回答」、誤りならローズ）・正解の修正の注記（`is_answer_key_changed` のときだけ）・解説・根拠のボタン |
 | 調べた単語 | `word_lookups`：語句（Literata）・意味（`meaning_ja`。null なら「―」）・出どころ（`glossary` は「文脈」、`dictionary` は「辞書」）。0 件なら「この挑戦では単語を調べていません。」 |
 | 出典 | 種別バッジとソース名、「ページ」（`page_url`）、「取得時点」（GitHub は `permalink_url` へのリンクで「コミット {commit_sha の先頭 7 文字}」、サイトは「{retrieved_at の日付} 時点の内容」）、「ライセンス」（`license_spdx` を `license_url` へのリンクに）、「一部を抜粋・改変しています。」 |
 
-- `QUESTION_TYPE_LABELS`（`要旨` / `詳細` / `語義` / `推論` / `意図`）は learning-record step4 が作った `src/components/features/passage/labels.ts` のものを使う
+- `QUESTION_TYPE_LABELS`（`要旨` / `詳細` / `語義` / `推論` / `意図`）は step5 が作った `src/components/features/passage/labels.ts` のものを使う
 - 日付はサーバー描画とずれないよう、`retrieved_at.slice(0, 10)` をそのまま出す
 
 **設問の開閉**：不正解の設問は最初から開き、正解の設問は閉じる（`useState` の初期値）。行を押すと開閉。
+
+**正解の修正の注記**：正誤（`is_correct`）は提出時の保存値、正解（`correct_choice_index`）はいまの値なので、提出後に管理者が正解を直すと「あなたの回答 B・正解 B・不正解」のように食い違う。`is_answer_key_changed` が true の設問は、選択肢の下に「提出後にこの設問の正解が修正されました（正誤は提出したときの採点のままです）」を補足の文字（`text-xs text-fg-muted`。本文の列の上の説明と同じ形）で出す。正誤のマス・スコア・行の「正解 / 不正解」は提出時の値のまま変えない。
 
 **根拠のハイライトとスクロール**
 
@@ -95,6 +97,7 @@ pnpm lint:fix
 - [ ] 正誤のマスが順に灯る（OS の「視差効果を減らす」をオンにすると灯らない）
 - [ ] スコア・かかった時間・制限時間・WPM・アシストの使用が DB の値と合う。超過した挑戦は超過のバッジとローズのバー
 - [ ] 不正解の設問だけが最初から開いていて、最初の不正解の設問の根拠が本文でハイライトされている
+- [ ] 提出後に admin で（非公開に戻して）設問の正解を直すと、食い違う設問だけに「提出後にこの設問の正解が修正されました（正誤は提出したときの採点のままです）」が出て、スコアと正誤は提出時のまま
 - [ ] 「本文の根拠を見る」で該当箇所がハイライトされ、その段落が中央までスクロールする。ボタンが「本文で根拠を表示中」になる
 - [ ] 本文の単語のカードと段落の和訳が使える。語義設問の対象語句を押すと用語集の意味（「この文での意味」）が出る
 - [ ] 調べた単語の一覧に、解答中に調べた単語が重複なしで出る（用語集は「文脈」、辞書は「辞書」）

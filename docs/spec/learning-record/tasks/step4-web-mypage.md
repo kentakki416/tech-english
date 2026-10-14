@@ -7,7 +7,7 @@ web のマイページ `/`・学習履歴 `/history`・設定 `/settings` を、
 - [step2-api-user-stats](./step2-api-user-stats.md)・[step3-api-user-goal](./step3-api-user-goal.md)
 - [github-auth step2-api-auth-github](../../github-auth/tasks/step2-api-auth-github.md)（`GET /api/user` の `timezone`、`PATCH /api/user`）
 - [github-auth step3-web-github-login](../../github-auth/tasks/step3-web-github-login.md)（本番のログイン画面。フォントとダークの背景をルートのレイアウトに当てる）
-- 遷移先は [reading-practice step5](../../reading-practice/tasks/step5-web-passage-list.md)（`/passages`）・[step7](../../reading-practice/tasks/step7-web-result.md)（`/attempts/[id]/result`）が作る。未実装でもこの step は進められる
+- [reading-practice step5〜7](../../reading-practice/tasks/step5-web-passage-list.md)（`/passages`・`/passages/random`・`/attempts/[id]/result`、共通ヘッダーと共通部品）
 - この step の後に [github-auth step6-web-delete-user](../../github-auth/tasks/step6-web-delete-user.md) が `/settings/delete-account` を作る
 
 ## 対応内容
@@ -31,7 +31,7 @@ web のマイページ `/`・学習履歴 `/history`・設定 `/settings` を、
 | `src/components/features/passage/labels.ts`（`QUESTION_TYPE_LABELS`） | `libs/mock-data.ts` の設問の種類のラベル |
 | `src/app/api/user/calendar/route.ts`・`src/app/api/user/attempts/route.ts` | ― |
 
-ルートのレイアウト（フォント・ダークの背景）・`Wordmark`・本文リーダーは github-auth step3 が本番に移してある。`AppHeader`・`ScoreSquares`・`format.ts`・`labels.ts` は **この step が移し**、reading-practice step5〜7 と github-auth step6 が使う（[実装の順番](../../product-overview/README.md#実装の順番)）。
+ルートのレイアウト（フォント・ダークの背景）・`Wordmark`・本文リーダーは github-auth step3 が、`AppHeader`・`ScoreSquares`・`format.ts`・`labels.ts` は reading-practice step5 が本番に移してある（[実装の順番](../../product-overview/README.md#実装の順番)）。この step はそれを使い、`format.ts` に足りない関数（`formatStudyTime` など）を足す。上の表の `AppHeader` / `ScoreSquares` / `format.ts` / `labels.ts` の行は、既にあれば作らない。
 
 ### 共通の土台
 
@@ -65,7 +65,7 @@ export const learningRecordApi = {
 - `buildSearchParams` は値が `undefined` の項目を除いて `URLSearchParams` にする小さな関数（同じファイルに置く）
 - タイムゾーンの変更は `src/features/user/user.api.ts` に `updateTimezone(timezone)` を作り、`PATCH /api/user` を呼ぶ。`src/libs/api-client.ts` に `patch` が無ければ `put` と同じ形で足す（キーはアルファベット順）
 - `src/libs/format.ts`（`server-only` なし。Client Component からも使う）: `formatSeconds`（`m:ss`。reading-practice のタイマーも使う）、`formatStudyTime`（秒 → `9時間12分`）、`formatDayLabel`（`10月10日（土）`）、`formatDateHeading`（`2026年10月10日（土）`）、分の表示 `Math.ceil(study_seconds / 60)`（学習した日が「0 分」にならないように切り上げ）
-- `src/components/features/passage/labels.ts`: `QUESTION_TYPE_LABELS`（`要旨` / `詳細` / `語義` / `推論` / `意図`。キーの型は api-schema の設問の種類）。reading-practice step5・step7 が種別・難易度のラベルを同じファイルに足す
+- `src/components/features/passage/labels.ts` の `QUESTION_TYPE_LABELS`（reading-practice step5 が作成済み）を使う
 
 ### Route Handler（Client Component からの取得）
 

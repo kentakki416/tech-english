@@ -1,5 +1,7 @@
 import "server-only"
 
+import { cache } from "react"
+
 import type { GetUserResponse } from "@repo/api-schema"
 
 import { apiClient } from "@/libs/api-client"
@@ -9,6 +11,7 @@ import { apiClient } from "@/libs/api-client"
  *
  * ブラウザから Express API を直接 fetch せず、server-only な apiClient 経由で
  * 取得する。apiClient が cookie の access token を付与し、401 時は refresh を試みる。
+ * React の cache で包み、同じリクエスト内のページと共通ヘッダー（AppHeader）で 1 回の取得にする。
  */
-export const getUser = async (): Promise<GetUserResponse> =>
-  apiClient.get<GetUserResponse>("/api/user")
+export const getUser = cache(async (): Promise<GetUserResponse> =>
+  apiClient.get<GetUserResponse>("/api/user"))

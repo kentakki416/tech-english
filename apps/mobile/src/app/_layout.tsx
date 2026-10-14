@@ -81,6 +81,13 @@ export default function RootLayout() {
             <Stack.Screen name="memo/new" options={{ title: "新規作成" }} />
             <Stack.Screen name="memo/[id]" options={{ title: "編集" }} />
             <Stack.Screen name="modal" />
+            {/**
+              * 開始確認は下から出るモーダル（閉じるボタンを画面が持つ）。解答・結果は上部バーを画面が持つ
+              */}
+            <Stack.Screen name="passages/[id]" options={{ headerShown: false, presentation: "modal" }} />
+            <Stack.Screen name="passages/random" options={{ headerShown: false, presentation: "modal" }} />
+            <Stack.Screen name="attempts/[id]/index" options={{ headerShown: false }} />
+            <Stack.Screen name="attempts/[id]/result" options={{ headerShown: false }} />
           </Stack.Protected>
           <Stack.Protected guard={status === "signedOut"}>
             <Stack.Screen name="sign-in" options={{ headerShown: false }} />

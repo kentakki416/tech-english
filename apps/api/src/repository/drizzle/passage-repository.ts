@@ -6,6 +6,7 @@ import {
   desc,
   DrizzleClient,
   eq,
+  exists,
   gt,
   inArray,
   lt,
@@ -25,9 +26,15 @@ import type {
   AdminPassageDetail,
   AdminPassageListItem,
   AdminPassageListQuery,
+  AttemptContent,
   DraftEditContent,
+  PassageCursor,
+  PassageOverview,
   PassageRepository,
+  PassageSource,
   PassageTransition,
+  PublishedPassageFilter,
+  PublishedPassageSummary,
   RestoredPassageStatus,
 } from "../passage-repository"
 
@@ -37,6 +44,15 @@ import type {
 type PassageRow = typeof passages.$inferSelect
 type GlossaryEntryRow = typeof passageGlossaryEntries.$inferSelect
 type QuestionRow = typeof questions.$inferSelect
+type ContentSourceRow = typeof contentSources.$inferSelect
+type PassageOverviewRow = Pick<
+  PassageRow,
+  "id" | "difficulty" | "publishedAt" | "sourceCommitSha" | "sourcePath" | "sourceRetrievedAt" | "timeLimitSeconds" | "title" | "wordCount"
+>
+type PassageSourceRow = Pick<
+  ContentSourceRow,
+  "branch" | "fetchType" | "kind" | "licenseSpdx" | "licenseUrl" | "name" | "publicUrlStripPrefix" | "publicUrlTemplate" | "repository" | "siteUrl" | "tags"
+>
 
 /**
  * 挑戦の件数（状態を問わない）。passages を FROM に持つクエリの select で使う
@@ -47,6 +63,42 @@ const ATTEMPT_COUNT_SQL = sql<number>`(SELECT count(*) FROM ${readingAttempts} W
  * 設問の数。passages を FROM に持つクエリの select で使う
  */
 const QUESTION_COUNT_SQL = sql<number>`(SELECT count(*) FROM ${questions} WHERE ${questions.passageId} = ${passages.id})`.mapWith(Number)
+
+/**
+ * 出典と一覧の表示に使うソースの列。passages → source_documents → content_sources を結合したクエリで使う
+ */
+const PASSAGE_SOURCE_COLUMNS = {
+  branch: contentSources.branch,
+  fetchType: contentSources.fetchType,
+  kind: contentSources.kind,
+  licenseSpdx: contentSources.licenseSpdx,
+  licenseUrl: contentSources.licenseUrl,
+  name: contentSources.name,
+  publicUrlStripPrefix: contentSources.publicUrlStripPrefix,
+  publicUrlTemplate: contentSources.publicUrlTemplate,
+  repository: contentSources.repository,
+  siteUrl: contentSources.siteUrl,
+  tags: contentSources.tags,
+}
+
+/**
+ * ユーザー向けの一覧・概要で読む列（blocks は読まない）。passages → source_documents → content_sources を結合したクエリで使う
+ */
+const PUBLISHED_SUMMARY_COLUMNS = {
+  passage: {
+    id: passages.id,
+    difficulty: passages.difficulty,
+    publishedAt: passages.publishedAt,
+    sourceCommitSha: passages.sourceCommitSha,
+    sourcePath: passages.sourcePath,
+    sourceRetrievedAt: passages.sourceRetrievedAt,
+    timeLimitSeconds: passages.timeLimitSeconds,
+    title: passages.title,
+    wordCount: passages.wordCount,
+  },
+  questionCount: QUESTION_COUNT_SQL,
+  source: PASSAGE_SOURCE_COLUMNS,
+}
 
 /**
  * 生成待ち（collected）に戻すときに書く値。生成の記録・却下の理由・確認の記録・要確認を空にし、失敗の回数を 0 に戻す
@@ -138,6 +190,65 @@ const convertQuestionRowToDomain = (row: QuestionRow): Question => ({
 })
 
 /**
+ * 公開中の問題の列 → ドメインの型。公開中なら必ずある列が NULL なら throw する
+ */
+const convertPassageOverviewRowToDomain = (row: PassageOverviewRow): PassageOverview => {
+  if (row.difficulty === null || row.publishedAt === null || row.timeLimitSeconds === null) {
+    throw new Error(`Invalid published passage: id=${row.id}`)
+  }
+  return {
+    id: row.id,
+    difficulty: row.difficulty,
+    publishedAt: row.publishedAt,
+    sourceCommitSha: row.sourceCommitSha,
+    sourcePath: row.sourcePath,
+    sourceRetrievedAt: row.sourceRetrievedAt,
+    timeLimitSeconds: row.timeLimitSeconds,
+    title: row.title,
+    wordCount: row.wordCount,
+  }
+}
+
+/**
+ * ソースの列 → ドメインの型。取得方法ごとの必須の列が NULL なら throw する（CHECK 制約で保証している）
+ */
+const convertPassageSourceRowToDomain = (row: PassageSourceRow): PassageSource => {
+  const base = {
+    kind: row.kind,
+    licenseSpdx: row.licenseSpdx,
+    licenseUrl: row.licenseUrl,
+    name: row.name,
+    tags: row.tags,
+  }
+  if (row.fetchType === "github_repository") {
+    if (row.repository === null || row.branch === null) throw new Error(`Invalid github_repository source: name=${row.name}`)
+    return {
+      ...base,
+      branch: row.branch,
+      fetchType: row.fetchType,
+      publicUrlStripPrefix: row.publicUrlStripPrefix,
+      publicUrlTemplate: row.publicUrlTemplate,
+      repository: row.repository,
+    }
+  }
+  if (row.siteUrl === null) throw new Error(`Invalid website source: name=${row.name}`)
+  return { ...base, fetchType: row.fetchType, siteUrl: row.siteUrl }
+}
+
+/**
+ * PUBLISHED_SUMMARY_COLUMNS で読んだ行 → ドメインの型
+ */
+const convertPublishedSummaryRowToDomain = (row: {
+  passage: PassageOverviewRow
+  questionCount: number
+  source: PassageSourceRow
+}): PublishedPassageSummary => ({
+  passage: convertPassageOverviewRowToDomain(row.passage),
+  questionCount: row.questionCount,
+  source: convertPassageSourceRowToDomain(row.source),
+})
+
+/**
  * Drizzle 実装の PassageRepository
  */
 export class DrizzlePassageRepository implements PassageRepository {
@@ -164,6 +275,16 @@ export class DrizzlePassageRepository implements PassageRepository {
     const counts = Object.fromEntries(PASSAGE_STATUSES.map((status) => [status, 0])) as Record<PassageStatus, number>
     for (const row of rows) counts[row.status] = row.count
     return counts
+  }
+
+  public async countPublished(filter: PublishedPassageFilter): Promise<number> {
+    const [row] = await this._db
+      .select({ count: count() })
+      .from(passages)
+      .innerJoin(sourceDocuments, eq(passages.sourceDocumentId, sourceDocuments.id))
+      .innerJoin(contentSources, eq(sourceDocuments.sourceId, contentSources.id))
+      .where(this._buildPublishedCondition(filter))
+    return row?.count ?? 0
   }
 
   /**
@@ -234,6 +355,97 @@ export class DrizzlePassageRepository implements PassageRepository {
       questionCount: row.questionCount,
       source: { id: row.sourceId, name: row.sourceName },
     }))
+  }
+
+  public async findAttemptContentById(passageId: number): Promise<AttemptContent | null> {
+    const [row] = await this._db
+      .select({ passage: passages, source: PASSAGE_SOURCE_COLUMNS })
+      .from(passages)
+      .innerJoin(sourceDocuments, eq(passages.sourceDocumentId, sourceDocuments.id))
+      .innerJoin(contentSources, eq(sourceDocuments.sourceId, contentSources.id))
+      .where(eq(passages.id, passageId))
+    if (!row) return null
+
+    const [glossaryRows, questionRows] = await Promise.all([
+      this._db
+        .select()
+        .from(passageGlossaryEntries)
+        .where(eq(passageGlossaryEntries.passageId, passageId))
+        .orderBy(asc(passageGlossaryEntries.blockIndex), asc(passageGlossaryEntries.startOffset), asc(passageGlossaryEntries.id)),
+      this._db.select().from(questions).where(eq(questions.passageId, passageId)).orderBy(asc(questions.orderIndex)),
+    ])
+    return {
+      glossary: glossaryRows.map(convertGlossaryEntryRowToDomain),
+      passage: convertPassageRowToDomain(row.passage),
+      questions: questionRows.map(convertQuestionRowToDomain),
+      source: convertPassageSourceRowToDomain(row.source),
+    }
+  }
+
+  public async findPublishedById(id: number): Promise<PublishedPassageSummary | null> {
+    const [row] = await this._db
+      .select(PUBLISHED_SUMMARY_COLUMNS)
+      .from(passages)
+      .innerJoin(sourceDocuments, eq(passages.sourceDocumentId, sourceDocuments.id))
+      .innerJoin(contentSources, eq(sourceDocuments.sourceId, contentSources.id))
+      .where(and(eq(passages.id, id), eq(passages.status, "published")))
+    return row ? convertPublishedSummaryRowToDomain(row) : null
+  }
+
+  public async findPublishedPage(
+    filter: PublishedPassageFilter,
+    page: { cursor: PassageCursor | null; limit: number },
+  ): Promise<PublishedPassageSummary[]> {
+    const { cursor } = page
+    const rows = await this._db
+      .select(PUBLISHED_SUMMARY_COLUMNS)
+      .from(passages)
+      .innerJoin(sourceDocuments, eq(passages.sourceDocumentId, sourceDocuments.id))
+      .innerJoin(contentSources, eq(sourceDocuments.sourceId, contentSources.id))
+      .where(
+        and(
+          this._buildPublishedCondition(filter),
+          cursor
+            ? or(
+              lt(passages.publishedAt, cursor.publishedAt),
+              and(eq(passages.publishedAt, cursor.publishedAt), lt(passages.id, cursor.id)),
+            )
+            : undefined,
+        ),
+      )
+      .orderBy(desc(passages.publishedAt), desc(passages.id))
+      .limit(page.limit)
+    return rows.map(convertPublishedSummaryRowToDomain)
+  }
+
+  public async findPublishedTags(): Promise<string[]> {
+    const tag = sql<string>`jsonb_array_elements_text(${contentSources.tags})`.as("tag")
+    const rows = await this._db
+      .selectDistinct({ tag })
+      .from(contentSources)
+      .where(
+        exists(
+          this._db
+            .select({ id: passages.id })
+            .from(passages)
+            .innerJoin(sourceDocuments, eq(passages.sourceDocumentId, sourceDocuments.id))
+            .where(and(eq(sourceDocuments.sourceId, contentSources.id), eq(passages.status, "published"))),
+        ),
+      )
+      .orderBy(sql`tag`)
+    return rows.map((row) => row.tag)
+  }
+
+  public async findRandomPublishedId(filter: PublishedPassageFilter): Promise<number | null> {
+    const [row] = await this._db
+      .select({ id: passages.id })
+      .from(passages)
+      .innerJoin(sourceDocuments, eq(passages.sourceDocumentId, sourceDocuments.id))
+      .innerJoin(contentSources, eq(sourceDocuments.sourceId, contentSources.id))
+      .where(this._buildPublishedCondition(filter))
+      .orderBy(sql`random()`)
+      .limit(1)
+    return row?.id ?? null
   }
 
   /**
@@ -374,6 +586,38 @@ export class DrizzlePassageRepository implements PassageRepository {
       }
       return true
     })
+  }
+
+  /**
+   * 公開中の問題の絞り込みの条件。passages → source_documents → content_sources を結合したクエリで使う
+   */
+  private _buildPublishedCondition(filter: PublishedPassageFilter) {
+    const { unattemptedByUserId } = filter
+    return and(
+      eq(passages.status, "published"),
+      filter.kind === null ? undefined : eq(contentSources.kind, filter.kind),
+      filter.difficulties.length === 0 ? undefined : inArray(passages.difficulty, filter.difficulties),
+      /**
+       * jsonb の ?| は、配列のどれかの文字列がトップレベルの要素にあれば true
+       */
+      filter.tags.length === 0
+        ? undefined
+        : sql`${contentSources.tags} ?| array[${sql.join(filter.tags.map((tag) => sql`${tag}`), sql`, `)}]::text[]`,
+      unattemptedByUserId === null
+        ? undefined
+        : notExists(
+          this._db
+            .select({ id: readingAttempts.id })
+            .from(readingAttempts)
+            .where(
+              and(
+                eq(readingAttempts.passageId, passages.id),
+                eq(readingAttempts.userId, unattemptedByUserId),
+                eq(readingAttempts.status, "submitted"),
+              ),
+            ),
+        ),
+    )
   }
 
   /**

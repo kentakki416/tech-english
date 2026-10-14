@@ -3,8 +3,15 @@
 import type { ReactNode } from "react"
 import { useFormStatus } from "react-dom"
 
+const DEFAULT_CLASS_NAME = "rounded-lg bg-blue-600 px-4 py-2 text-sm text-white disabled:opacity-50"
+
 type SubmitButtonProps = {
   children: ReactNode
+  /**
+   * 見た目を差し替える（省略時はメモのサンプルの青いボタン）。送信中は disabled になるので `disabled:` で表す
+   */
+  className?: string
+  pendingLabel?: ReactNode
 }
 
 /**
@@ -16,15 +23,15 @@ type SubmitButtonProps = {
  * ラベルはドメイン非依存にするため props で受け取る:
  *   <SubmitButton pendingLabel="作成中…">作成する</SubmitButton>
  */
-export function SubmitButton({ children }: SubmitButtonProps) {
+export function SubmitButton({ children, className = DEFAULT_CLASS_NAME, pendingLabel = "送信中..." }: SubmitButtonProps) {
   const { pending } = useFormStatus()
   return (
     <button
       type="submit"
       disabled={pending}
-      className="rounded-lg bg-blue-600 px-4 py-2 text-sm text-white disabled:opacity-50"
+      className={className}
     >
-      {pending ? "送信中..." : children}
+      {pending ? pendingLabel : children}
     </button>
   )
 }

@@ -25,11 +25,15 @@ import { AdminPassageResolveAttentionController } from "./controller/admin/passa
 import { AdminPassageRestoreController } from "./controller/admin/passage/restore"
 import { AdminPassageUnpublishController } from "./controller/admin/passage/unpublish"
 import { AdminPassageUpdateController } from "./controller/admin/passage/update"
+import { AttemptDetailController } from "./controller/attempt/detail"
+import { AttemptStartController } from "./controller/attempt/start"
+import { AttemptSubmitController } from "./controller/attempt/submit"
 import { AuthDevLoginController } from "./controller/auth/dev-login"
 import { AuthGitHubController } from "./controller/auth/github"
 import { AuthGoogleController } from "./controller/auth/google"
 import { AuthLogoutController } from "./controller/auth/logout"
 import { AuthRefreshController } from "./controller/auth/refresh"
+import { DictionaryLookupController } from "./controller/dictionary/lookup"
 import { EventCreateController } from "./controller/event/create"
 import { HealthLivenessController } from "./controller/health/liveness"
 import { HealthReadinessController } from "./controller/health/readiness"
@@ -38,6 +42,9 @@ import { MemoDeleteController } from "./controller/memo/delete"
 import { MemoDetailController } from "./controller/memo/detail"
 import { MemoListController } from "./controller/memo/list"
 import { MemoUpdateController } from "./controller/memo/update"
+import { PassageDetailController } from "./controller/passage/detail"
+import { PassageListController } from "./controller/passage/list"
+import { PassageRandomController } from "./controller/passage/random"
 import { UserDeleteController } from "./controller/user/delete"
 import { UserGetController } from "./controller/user/get"
 import { UserUpdateController } from "./controller/user/update"
@@ -51,17 +58,22 @@ import {
   DrizzleAuthAccountRepository,
   DrizzleContentSourceRepository,
   DrizzleDatabaseHealthRepository,
+  DrizzleDictionaryRepository,
   DrizzleMemoRepository,
   DrizzlePassageRepository,
+  DrizzleReadingAttemptRepository,
   DrizzleTransactionRunner,
   DrizzleUserRepository,
 } from "./repository/drizzle"
 import { IoRedisHealthRepository, IoRedisRefreshTokenRepository } from "./repository/redis"
 import { adminRouter } from "./routes/admin-router"
+import { attemptRouter } from "./routes/attempt-router"
 import { authRouter } from "./routes/auth-router"
+import { dictionaryRouter } from "./routes/dictionary-router"
 import { eventRouter } from "./routes/event-router"
 import { healthRouter } from "./routes/health-router"
 import { memoRouter } from "./routes/memo-router"
+import { passageRouter } from "./routes/passage-router"
 import { userRouter } from "./routes/user-router"
 
 /**
@@ -95,6 +107,8 @@ const contentSourceRepository = new DrizzleContentSourceRepository(db)
  * reading-practice のユーザー向け API と共有する
  */
 const passageRepository = new DrizzlePassageRepository(db)
+const readingAttemptRepository = new DrizzleReadingAttemptRepository(db)
+const dictionaryRepository = new DrizzleDictionaryRepository(db)
 const databaseHealthRepository = new DrizzleDatabaseHealthRepository(db)
 const redisHealthRepository = new IoRedisHealthRepository(redis)
 const refreshTokenRepository = new IoRedisRefreshTokenRepository(redis)
@@ -187,6 +201,30 @@ const adminPassageResolveAttentionController = new AdminPassageResolveAttentionC
 const adminPassageRestoreController = new AdminPassageRestoreController(passageRepository)
 const adminPassageUnpublishController = new AdminPassageUnpublishController(passageRepository)
 const adminPassageUpdateController = new AdminPassageUpdateController(passageRepository)
+
+/**
+ * ユーザー向けの問題（一覧・ランダムに 1 問・開始確認の概要）Controller のインスタンス化
+ */
+const passageDetailController = new PassageDetailController(passageRepository, readingAttemptRepository)
+const passageListController = new PassageListController(passageRepository, readingAttemptRepository)
+const passageRandomController = new PassageRandomController(passageRepository, readingAttemptRepository)
+
+/**
+ * ユーザー向けの挑戦（開始・取得・提出）Controller のインスタンス化
+ */
+const attemptDetailController = new AttemptDetailController(passageRepository, readingAttemptRepository)
+const attemptStartController = new AttemptStartController(passageRepository, readingAttemptRepository, userRepository)
+const attemptSubmitController = new AttemptSubmitController(
+  passageRepository,
+  readingAttemptRepository,
+  transactionRunner,
+  userRepository,
+)
+
+/**
+ * 英和辞書（解答中の単語の意味）Controller のインスタンス化
+ */
+const dictionaryLookupController = new DictionaryLookupController(dictionaryRepository)
 
 const app = express()
 
@@ -310,6 +348,28 @@ app.use(
     detail: memoDetailController,
     list: memoListController,
     update: memoUpdateController,
+  })
+)
+app.use(
+  "/api/passage",
+  passageRouter({
+    detail: passageDetailController,
+    list: passageListController,
+    random: passageRandomController,
+    start: attemptStartController,
+  })
+)
+app.use(
+  "/api/attempt",
+  attemptRouter({
+    detail: attemptDetailController,
+    submit: attemptSubmitController,
+  })
+)
+app.use(
+  "/api/dictionary",
+  dictionaryRouter({
+    lookup: dictionaryLookupController,
   })
 )
 

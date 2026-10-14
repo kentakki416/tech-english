@@ -1,15 +1,24 @@
 import { Ionicons } from "@expo/vector-icons"
 import { StatusBar } from "expo-status-bar"
-import { useState } from "react"
+import { useCallback, useState } from "react"
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 
-import { DEMO_BLOCKS, DEMO_DICTIONARY, DEMO_GLOSSARY } from "@/components/features/auth/sign-in-demo-data"
-import { PassageReader, WordCard, type WordCardContent } from "@/components/features/passage/PassageReader"
+import { DEMO_BLOCKS, DEMO_GLOSSARY, lookUpDemoDictionary } from "@/components/features/auth/sign-in-demo-data"
+import { PassageReader } from "@/components/features/passage/PassageReader"
+import { useWordCard, WordCard } from "@/components/features/passage/WordCard"
 import { appStyles } from "@/components/ui/app-styles"
 import { Wordmark } from "@/components/ui/Wordmark"
-import { THEME_COLORS } from "@/const/design-theme"
-import { signInWithGitHub } from "@/features/auth/auth.session"
+import { THEME_COLORS, THEME_FONTS } from "@/const/design-theme"
+import { signInAsDevUser, signInWithGitHub } from "@/features/auth/auth.session"
+
+/**
+ * 開発用のログインで使う seed 済みのユーザー（apps/web の `/api/dev/login` と同じ）
+ */
+const DEV_LOGIN_USERS = [
+  { email: "alice@dev.local", name: "alice" },
+  { email: "bob@dev.local", name: "bob" },
+] as const
 
 /**
  * ログイン。最初の画面で、単語の意味が出る体験をそのまま試せるようにする
@@ -19,9 +28,15 @@ import { signInWithGitHub } from "@/features/auth/auth.session"
 export default function SignInScreen() {
   const [translatedBlocks, setTranslatedBlocks] = useState<Set<number>>(new Set())
   const [peekBlock, setPeekBlock] = useState<number | null>(null)
-  const [wordCard, setWordCard] = useState<WordCardContent | null>(null)
+  const { closeWordCard, showWordCard, wordCard } = useWordCard()
   const [isSigningIn, setIsSigningIn] = useState(false)
   const [isFailed, setIsFailed] = useState(false)
+
+  const endPeek = useCallback(() => setPeekBlock(null), [])
+
+  const toggleTranslation = useCallback((blockIndex: number) => {
+    setTranslatedBlocks(value => (value.has(blockIndex) ? new Set() : new Set([blockIndex])))
+  }, [])
 
   const pressSignIn = async () => {
     setIsSigningIn(true)
@@ -30,6 +45,18 @@ export default function SignInScreen() {
     /** 成功したときはこの画面が外れるので、状態を戻すのは失敗・取り消しのときだけ */
     if (result === "signedIn") return
     setIsFailed(result === "failed")
+    setIsSigningIn(false)
+  }
+
+  /**
+   * 開発用のログイン（`__DEV__` のときだけ出す）。成功したときの扱いは GitHub と同じ
+   */
+  const pressDevSignIn = async (email: string) => {
+    setIsSigningIn(true)
+    setIsFailed(false)
+    const result = await signInAsDevUser(email)
+    if (result === "signedIn") return
+    setIsFailed(true)
     setIsSigningIn(false)
   }
 
@@ -47,17 +74,21 @@ export default function SignInScreen() {
             <Text style={appStyles.caption}>React 公式ドキュメント</Text>
           </View>
           <View style={{ paddingRight: 14, paddingTop: 14 }}>
+            {/**
+              * 画面全体の ScrollView の中に置くので、本文の FlatList はスクロールさせない（1 段落だけ）
+              */}
             <PassageReader
               blocks={DEMO_BLOCKS}
-              dictionary={DEMO_DICTIONARY}
               fontSize={15}
               glossary={DEMO_GLOSSARY}
               peekBlock={peekBlock}
+              scrollEnabled={false}
               translatedBlocks={translatedBlocks}
-              onPeekEnd={() => setPeekBlock(null)}
+              onLookupDictionary={lookUpDemoDictionary}
+              onPeekEnd={endPeek}
               onPeekStart={setPeekBlock}
-              onToggleTranslation={blockIndex => setTranslatedBlocks(value => (value.has(blockIndex) ? new Set() : new Set([blockIndex])))}
-              onWordPress={setWordCard}
+              onToggleTranslation={toggleTranslation}
+              onWordCard={showWordCard}
             />
           </View>
           <Text style={styles.demoNote}>単語をタップすると意味が出ます。段落を長押しすると、押している間だけ和訳になります。</Text>
@@ -66,7 +97,7 @@ export default function SignInScreen() {
 
       {wordCard && (
         <View style={styles.wordCardWrapper}>
-          <WordCard content={wordCard} onClose={() => setWordCard(null)} />
+          <WordCard content={wordCard} onClose={closeWordCard} />
         </View>
       )}
 
@@ -85,6 +116,24 @@ export default function SignInScreen() {
           <Text accessibilityRole="alert" style={styles.error}>ログインに失敗しました。もう一度お試しください。</Text>
         )}
         <Text style={styles.footnote}>初回はアカウントが自動で作られます。GitHub のリポジトリにはアクセスしません。</Text>
+        {__DEV__ && (
+          <Text style={styles.devLogin}>
+            Dev Login:{" "}
+            {DEV_LOGIN_USERS.map((user, index) => (
+              <Text key={user.email}>
+                {index > 0 && " / "}
+                <Text
+                  accessibilityRole="link"
+                  disabled={isSigningIn}
+                  onPress={async () => pressDevSignIn(user.email)}
+                  style={styles.devLoginLink}
+                >
+                  {user.name}
+                </Text>
+              </Text>
+            ))}
+          </Text>
+        )}
       </View>
     </SafeAreaView>
   )
@@ -115,6 +164,17 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 18,
     padding: 12,
+  },
+  devLogin: {
+    color: THEME_COLORS.fgFaint,
+    fontFamily: THEME_FONTS.code,
+    fontSize: 11,
+    marginTop: 8,
+    textAlign: "center",
+  },
+  devLoginLink: {
+    color: THEME_COLORS.fgMuted,
+    textDecorationLine: "underline",
   },
   docsBadge: {
     borderColor: "rgba(243, 178, 76, 0.4)",

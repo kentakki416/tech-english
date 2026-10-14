@@ -69,7 +69,7 @@ export function PassageReader({ blocks, ref, ... }: PassageReaderProps) { ... }
 
 モックの `MockAttemptScreen` を部品に分けて移植する（`src/components/features/attempt/` に `SolvingTopBar` / `QuestionSheet` / `PauseOverlay` / `SubmitConfirmModal` / `ExpiredNotice`）。
 
-**読み込み**：`useAttemptStore` に挑戦があればそれで描画し、無ければ `attemptApi.getDetail(id)`。`submitted` なら `router.replace(\`/attempts/${id}/result\`)`、`expired` なら `ExpiredNotice`（「この挑戦は期限切れです」と「問題一覧へ」）。
+**読み込み**：`useAttemptStore` に挑戦があればそれで描画し、無ければ `attemptApi.getDetail(id)`。`submitted` なら `router.replace(\`/attempts/${id}/result\`)`、`expired` なら `ExpiredNotice`（「この挑戦は期限切れです」と「問題一覧へ」）を出し、`removeAttemptProgress(id)` で端末の途中経過を消す（もう提出できないので）。
 
 **状態**：web の step6 と同じ（`answers`・`currentIndex`・`elapsedSeconds`・`isPaused`・`isSheetOpen`・`isConfirmOpen`・`showAllTranslations`・`translatedBlocks`・`viewedTranslationBlocks`・`peekBlock`・`wordCard`・`wordLookups`・`isHydrated`・`isExpired`）。
 
@@ -82,7 +82,7 @@ export function useActiveSeconds({ initialSeconds, isRunning }: { initialSeconds
 
 - `src/features/attempt/use-active-seconds.ts`。`isRunning = isHydrated && !isPaused && !isExpired && !isSubmitting`
 - 表示はモックの上部バー（残り / 超過、20% 以下で琥珀、超過で `wrong` の全幅の進捗線）。0 になっても止めない
-- 期限（24 時間）は web の step6 と同じく `server_now` で補正して 1 分ごとに確かめ、過ぎたら `ExpiredNotice`
+- 期限（24 時間）は web の step6 と同じく `server_now` で補正して 1 分ごとに確かめ、過ぎたら `ExpiredNotice`。期限切れになったら（期限の確認・提出の 409 のどちらでも）`removeAttemptProgress(attempt.id)` で途中経過を消し、それ以降は書かない（保存に使う ref を null にして、画面を離れるときにも書き戻さない）
 
 **端末への保存**（step8 の `attempt-progress.ts`）
 
@@ -107,28 +107,33 @@ export function useActiveSeconds({ initialSeconds, isRunning }: { initialSeconds
 
 **提出**
 
-- `SubmitConfirmModal`：RN の `Modal`（`transparent`）の上のダイアログ。「提出する」を上、「戻って回答する」（全問回答済みなら「戻る」）を下に縦に並べる。未回答があれば「未回答の設問が n 問あります」
+- `SubmitConfirmModal`：RN の `Modal`（`transparent`）の上のダイアログ。「提出する」を上、「戻って回答する」（全問回答済みなら「戻る」）を下に縦に並べる。未回答があれば「未回答の設問が n 問あります」。`errorMessage` があればダイアログの中に `wrong` の色で出す（web の `SubmitConfirmDialog` と同じ）
 - 提出の入力は web の step6 と同じ組み立て（全設問の回答、`active_seconds`、`translated_block_count`、`word_lookups`）
 
 ```ts
 const submit = async () => {
   setIsSubmitting(true)
+  setSubmitError(null)
   try {
     const result = await attemptApi.submit(attempt.id, buildSubmitInput())
     setStoreAttempt(result)
     router.replace(`/attempts/${attempt.id}/result`)
   } catch (error) {
-    if (isAxiosError(error) && error.response?.status === 409) setIsExpired(true)
-    else Alert.alert("提出できませんでした", "時間をおいて再度お試しください。")
-  } finally {
     setIsSubmitting(false)
+    if (isAxiosError(error) && error.response?.status === 409) {
+      setIsConfirmOpen(false)
+      setIsExpired(true)
+      return
+    }
+    /** 確認のダイアログは閉じずに中へ理由を出す。閉じると同時に Alert を出すと、iOS では Modal を閉じている途中の Alert が出ないことがある */
+    setSubmitError("提出できませんでした。時間をおいて再度お試しください。")
   }
 }
 ```
 
-- 途中経過は結果画面（step10）が消す（提出に失敗しても回答が残るように。提出 API は冪等なので再送してよい）
+- 途中経過は結果画面（step10）が消す（提出に失敗しても回答が残るように。提出 API は冪等なので再送してよい）。期限切れになったときは解答画面が消す（上の「タイマー」）
 
-**中断**：上部バーの「‹ 中断」で `router.replace("/passages")`。Android の戻るボタンも同じ扱い（途中経過は unmount で保存済み）。
+**中断**：上部バーの「‹ 中断」で `router.dismissTo("/passages")`（スタックにあるタブまで戻して問題タブを開く）。Android の戻るボタンも同じ扱い（途中経過は unmount で保存済み）。
 
 ## 動作確認
 
@@ -148,5 +153,6 @@ iOS（実機かシミュレーター）と Android（中級機の実機）で確
 - [ ] 設問シートが 300ms で開閉し、選んだ回答に琥珀の印が付く
 - [ ] 回答を選んでアプリを終了（タスクキル）し、開き直して同じ問題を再開すると、回答と経過秒数（5 秒以内のずれ）が戻る
 - [ ] 提出すると結果画面（step10）に置き換わる。DB の `elapsed_seconds`・`translated_block_count`・`attempt_word_lookups` が操作どおり
-- [ ] 機内モードで提出すると「提出できませんでした」が出て、回答は残り、機内モードを解除して再送できる
+- [ ] 機内モードで提出すると、確認のダイアログが閉じずに中に「提出できませんでした。…」が出る（iOS でも出る）。回答は残り、機内モードを解除してそのまま再送できる
+- [ ] `started_at` を 24 時間前にした挑戦を開くと期限切れの表示になり、AsyncStorage の `attempt-progress:{id}` が消える
 - [ ] 600 語の本文で、スクロール中に和訳の切り替え・長押しをしてもカクつかない（Perf Monitor）

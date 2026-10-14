@@ -1,16 +1,25 @@
 import { asc, eq, passageGlossaryEntries, passages, questions } from "@repo/db"
 
 import { DrizzlePassageRepository } from "../../src/repository/drizzle/passage-repository"
-import type { AdminPassageListQuery, DraftEditContent, PassageRepository } from "../../src/repository/passage-repository"
+import type {
+  AdminPassageListQuery,
+  DraftEditContent,
+  PassageRepository,
+  PublishedPassageFilter,
+} from "../../src/repository/passage-repository"
 import { PrismaPassageRepository } from "../../src/repository/prisma/passage-repository"
 import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb, testPrisma } from "../controller/setup"
 import {
+  buildWebsiteSourceValues,
+  insertAttemptUser,
   insertGeneratedPassage,
   insertPassage,
   insertPassageContent,
   insertPassageDocument,
   insertPassageSource,
+  insertPublishedPassage,
   insertReadingAttempt,
+  insertSubmittedAttempt,
 } from "../fixture/passage"
 import { PASSAGE_BLOCKS } from "../fixture/passage-content"
 
@@ -95,6 +104,55 @@ const readAllPages = async (
     if (rows.length <= query.limit || !last) return pages
     cursor = { id: last.passage.id, needsAttention: last.passage.needsAttention, updatedAt: last.passage.updatedAt }
   }
+}
+
+/**
+ * 絞り込みなし
+ */
+const NO_FILTER: PublishedPassageFilter = { difficulties: [], kind: null, tags: [], unattemptedByUserId: null }
+
+/**
+ * ユーザー向けの API の確認に使う問題。公開中 3 件（ソース・種別・タグ・難易度・公開日時がすべて違う）と、下書き・却下を 1 件ずつ入れる
+ *
+ * - react：React 公式ドキュメント（GitHub・docs・react / frontend）、難易度 1、10/10 公開、設問 3 問
+ * - rust：Rust RFCs（GitHub・github・rust）、難易度 3、10/11 公開
+ * - go：Go 公式ドキュメント（サイト・docs・go）、難易度 2、10/12 公開
+ */
+const insertPublishedSet = async () => {
+  const reactSource = await insertPassageSource({ tags: ["react", "frontend"] })
+  const rustSource = await insertPassageSource({
+    kind: "github",
+    licenseSpdx: "Apache-2.0",
+    licenseUrl: "https://github.com/rust-lang/rfcs/blob/master/LICENSE-APACHE",
+    name: "Rust RFCs",
+    publicUrlStripPrefix: null,
+    publicUrlTemplate: null,
+    tags: ["rust"],
+  })
+  const goSource = await insertPassageSource(buildWebsiteSourceValues())
+  const draftOnlySource = await insertPassageSource({ tags: ["kubernetes"] })
+  const reactDocument = await insertPassageDocument(reactSource.id)
+  const rustDocument = await insertPassageDocument(rustSource.id, "text/2094-nll.md")
+  const goDocument = await insertPassageDocument(goSource.id, "/doc/effective_go")
+  const draftOnlyDocument = await insertPassageDocument(draftOnlySource.id)
+
+  const react = await insertPublishedPassage(reactDocument.id, { difficulty: 1, publishedAt: at("2026-10-10T00:00:00.000Z") })
+  await insertPassageContent(react.id)
+  const rust = await insertPublishedPassage(rustDocument.id, {
+    difficulty: 3,
+    publishedAt: at("2026-10-11T00:00:00.000Z"),
+    sourcePath: "text/2094-nll.md",
+  })
+  const go = await insertPublishedPassage(goDocument.id, {
+    difficulty: 2,
+    publishedAt: at("2026-10-12T00:00:00.000Z"),
+    sourceCommitSha: null,
+    sourcePath: "/doc/effective_go",
+  })
+  await insertPassage(reactDocument.id, { status: "draft" })
+  await insertPassage(rustDocument.id, { rejectReason: "題材に不向き", status: "rejected" })
+  await insertPassage(draftOnlyDocument.id, { status: "draft" })
+  return { go, goSource, react, reactSource, rust, rustSource }
 }
 
 beforeEach(async () => {
@@ -449,6 +507,281 @@ describe.each(implementations)("%s PassageRepository", (_name, passageRepository
         expect(await passageRepository.resetForRegeneration(passage.id, ["draft"])).toBe(false)
         expect(await selectPassage(passage.id)).toMatchObject({ status: "draft" })
         expect(await selectGlossary(passage.id)).toHaveLength(3)
+      })
+    })
+  })
+
+  describe("findPublishedPage", () => {
+    describe("正常系", () => {
+      it("公開中の問題だけを公開日時の新しい順に返し、ソース（取得方法ごとの列）と設問数を付ける", async () => {
+        const { go, goSource, react, reactSource, rust } = await insertPublishedSet()
+
+        const rows = await passageRepository.findPublishedPage(NO_FILTER, { cursor: null, limit: 10 })
+
+        expect(rows.map((row) => row.passage.id)).toEqual([go.id, rust.id, react.id])
+        expect(rows[0]).toEqual({
+          passage: {
+            id: go.id,
+            difficulty: 2,
+            publishedAt: at("2026-10-12T00:00:00.000Z"),
+            sourceCommitSha: null,
+            sourcePath: "/doc/effective_go",
+            sourceRetrievedAt: at("2026-10-10T03:00:00.000Z"),
+            timeLimitSeconds: 180,
+            title: "Synchronizing with Effects",
+            wordCount: 60,
+          },
+          questionCount: 0,
+          source: {
+            fetchType: "website",
+            kind: "docs",
+            licenseSpdx: "BSD-3-Clause",
+            licenseUrl: "https://go.dev/LICENSE",
+            name: "Go 公式ドキュメント",
+            siteUrl: goSource.siteUrl,
+            tags: ["go"],
+          },
+        })
+        expect(rows[2]).toEqual({
+          passage: expect.objectContaining({ id: react.id, difficulty: 1, sourceCommitSha: "3f9c2a1b4d5e6f708192a3b4c5d6e7f809102a3b" }),
+          questionCount: 3,
+          source: {
+            branch: "main",
+            fetchType: "github_repository",
+            kind: "docs",
+            licenseSpdx: "CC-BY-4.0",
+            licenseUrl: "https://github.com/reactjs/react.dev/blob/main/LICENSE-DOCS.md",
+            name: "React 公式ドキュメント",
+            publicUrlStripPrefix: "src/content/",
+            publicUrlTemplate: "https://react.dev/{path}",
+            repository: reactSource.repository,
+            tags: ["react", "frontend"],
+          },
+        })
+      })
+
+      it.each([
+        ["kind", { kind: "github" as const }, ["rust"]],
+        ["tags（どれかに当てはまる）", { tags: ["go", "rust"] }, ["go", "rust"]],
+        ["tags（ソースの 2 つ目のタグ）", { tags: ["frontend"] }, ["react"]],
+        ["difficulties（どれかに当てはまる）", { difficulties: [1, 3] as (1 | 3)[] }, ["rust", "react"]],
+        ["kind と tags の組み合わせ", { kind: "docs" as const, tags: ["react", "rust"] }, ["react"]],
+        ["当てはまらない tags", { tags: ["kubernetes"] }, []],
+      ])("%sで絞り込める", async (_label, filter, expected) => {
+        const set = await insertPublishedSet()
+        const idByName: Record<string, number> = { go: set.go.id, react: set.react.id, rust: set.rust.id }
+
+        const rows = await passageRepository.findPublishedPage({ ...NO_FILTER, ...filter }, { cursor: null, limit: 10 })
+
+        expect(rows.map((row) => row.passage.id)).toEqual(expected.map((name) => idByName[name]))
+      })
+
+      it("unattemptedByUserId を指定すると、そのユーザーが提出済みの問題だけを除く（挑戦中・期限切れ・他人の提出は除かない）", async () => {
+        const { go, react, rust } = await insertPublishedSet()
+        const user = await insertAttemptUser()
+        const other = await insertAttemptUser()
+        await insertSubmittedAttempt(rust.id, user.id, 2)
+        await insertReadingAttempt(react.id, { userId: user.id })
+        await insertReadingAttempt(go.id, { startedAt: at("2026-10-01T00:00:00.000Z"), status: "expired", userId: user.id })
+        await insertSubmittedAttempt(go.id, other.id, 3)
+
+        const rows = await passageRepository.findPublishedPage(
+          { ...NO_FILTER, unattemptedByUserId: user.id },
+          { cursor: null, limit: 10 },
+        )
+
+        expect(rows.map((row) => row.passage.id)).toEqual([go.id, react.id])
+      })
+
+      it("limit 件まで返し、cursor の行より後ろ（公開日時が同じなら id の小さい方）から続きを返す", async () => {
+        const source = await insertPassageSource()
+        const document = await insertPassageDocument(source.id)
+        const sameTime = at("2026-10-12T00:00:00.000Z")
+        const first = await insertPublishedPassage(document.id, { publishedAt: sameTime })
+        const second = await insertPublishedPassage(document.id, { publishedAt: sameTime })
+        const oldest = await insertPublishedPassage(document.id, { publishedAt: at("2026-10-11T00:00:00.000Z") })
+
+        const page1 = await passageRepository.findPublishedPage(NO_FILTER, { cursor: null, limit: 2 })
+        const page2 = await passageRepository.findPublishedPage(NO_FILTER, {
+          cursor: { id: second.id, publishedAt: sameTime },
+          limit: 2,
+        })
+
+        expect(page1.map((row) => row.passage.id)).toEqual([second.id, first.id])
+        expect(page2.map((row) => row.passage.id)).toEqual([first.id, oldest.id])
+      })
+    })
+  })
+
+  describe("countPublished", () => {
+    describe("正常系", () => {
+      it("絞り込みに当てはまる公開中の問題の件数を返す（下書き・却下は数えない）", async () => {
+        const { rust } = await insertPublishedSet()
+        const user = await insertAttemptUser()
+        await insertSubmittedAttempt(rust.id, user.id, 2)
+
+        expect(await passageRepository.countPublished(NO_FILTER)).toBe(3)
+        expect(await passageRepository.countPublished({ ...NO_FILTER, kind: "docs" })).toBe(2)
+        expect(await passageRepository.countPublished({ ...NO_FILTER, tags: ["rust", "react"] })).toBe(2)
+        expect(await passageRepository.countPublished({ ...NO_FILTER, unattemptedByUserId: user.id })).toBe(2)
+        expect(await passageRepository.countPublished({ ...NO_FILTER, difficulties: [2], kind: "github" })).toBe(0)
+      })
+    })
+  })
+
+  describe("findPublishedById", () => {
+    describe("正常系", () => {
+      it("公開中の問題の概要を返す", async () => {
+        const { rust, rustSource } = await insertPublishedSet()
+
+        const summary = await passageRepository.findPublishedById(rust.id)
+
+        expect(summary).toEqual({
+          passage: {
+            id: rust.id,
+            difficulty: 3,
+            publishedAt: at("2026-10-11T00:00:00.000Z"),
+            sourceCommitSha: "3f9c2a1b4d5e6f708192a3b4c5d6e7f809102a3b",
+            sourcePath: "text/2094-nll.md",
+            sourceRetrievedAt: at("2026-10-10T03:00:00.000Z"),
+            timeLimitSeconds: 180,
+            title: "Synchronizing with Effects",
+            wordCount: 60,
+          },
+          questionCount: 0,
+          source: {
+            branch: "main",
+            fetchType: "github_repository",
+            kind: "github",
+            licenseSpdx: "Apache-2.0",
+            licenseUrl: "https://github.com/rust-lang/rfcs/blob/master/LICENSE-APACHE",
+            name: "Rust RFCs",
+            publicUrlStripPrefix: null,
+            publicUrlTemplate: null,
+            repository: rustSource.repository,
+            tags: ["rust"],
+          },
+        })
+      })
+    })
+
+    describe("異常系", () => {
+      it.each([
+        ["draft"],
+        ["rejected"],
+        ["collected"],
+      ] as const)("%s なら null を返す", async (status) => {
+        const { document } = await insertGeneratedPassage()
+        const passage = await insertPassage(document.id, { status })
+
+        expect(await passageRepository.findPublishedById(passage.id)).toBeNull()
+      })
+
+      it("存在しなければ null を返す", async () => {
+        expect(await passageRepository.findPublishedById(999999)).toBeNull()
+      })
+    })
+  })
+
+  describe("findAttemptContentById", () => {
+    describe("正常系", () => {
+      it("状態を問わず（下書きでも）問題・出典に使うソースの列・用語集（block_index, start_offset の順）・設問（order_index の順）を返す", async () => {
+        const { glossary, passage, questions: questionRows, source } = await insertGeneratedPassage()
+        /**
+         * id は大きいが位置は前にある用語集と、order_index を最後にした設問で、並びが id の順でないことを確かめる
+         */
+        const [earlierEntry] = await testDb
+          .insert(passageGlossaryEntries)
+          .values({
+            blockIndex: 1,
+            endOffset: 15,
+            lemma: "component",
+            meaningJa: "部品",
+            partOfSpeech: "名詞",
+            passageId: passage.id,
+            startOffset: 5,
+            surface: "components",
+          })
+          .returning()
+        await testDb.update(questions).set({ orderIndex: 10 }).where(eq(questions.id, questionRows[0]?.id ?? 0))
+
+        const content = await passageRepository.findAttemptContentById(passage.id)
+
+        expect(content).toEqual({
+          glossary: await selectGlossary(passage.id),
+          passage: { ...passage, attentionReasons: [], blocks: PASSAGE_BLOCKS },
+          questions: await selectQuestions(passage.id),
+          source: {
+            branch: "main",
+            fetchType: "github_repository",
+            kind: "docs",
+            licenseSpdx: "CC-BY-4.0",
+            licenseUrl: "https://github.com/reactjs/react.dev/blob/main/LICENSE-DOCS.md",
+            name: "React 公式ドキュメント",
+            publicUrlStripPrefix: "src/content/",
+            publicUrlTemplate: "https://react.dev/{path}",
+            repository: source.repository,
+            tags: ["react"],
+          },
+        })
+        expect(content?.glossary.map((entry) => entry.id)).toEqual([earlierEntry?.id, ...glossary.map((entry) => entry.id)])
+        expect(content?.questions.map((question) => question.id)).toEqual([
+          questionRows[1]?.id,
+          questionRows[2]?.id,
+          questionRows[0]?.id,
+        ])
+      })
+    })
+
+    describe("異常系", () => {
+      it("存在しなければ null を返す", async () => {
+        expect(await passageRepository.findAttemptContentById(999999)).toBeNull()
+      })
+    })
+  })
+
+  describe("findPublishedTags", () => {
+    describe("正常系", () => {
+      it("公開中の問題があるソースのタグを重複なしで昇順に返す（下書きだけのソースのタグは含めない）", async () => {
+        await insertPublishedSet()
+        const otherReactSource = await insertPassageSource({ tags: ["react", "hooks"] })
+        await insertPublishedPassage((await insertPassageDocument(otherReactSource.id)).id)
+
+        expect(await passageRepository.findPublishedTags()).toEqual(["frontend", "go", "hooks", "react", "rust"])
+      })
+
+      it("公開中の問題が無ければ空配列を返す", async () => {
+        await insertGeneratedPassage()
+
+        expect(await passageRepository.findPublishedTags()).toEqual([])
+      })
+    })
+  })
+
+  describe("findRandomPublishedId", () => {
+    describe("正常系", () => {
+      it("絞り込みに当てはまる公開中の問題の id を返す", async () => {
+        const { go, react, rust } = await insertPublishedSet()
+
+        expect(await passageRepository.findRandomPublishedId({ ...NO_FILTER, kind: "github" })).toBe(rust.id)
+        expect([go.id, react.id, rust.id]).toContain(await passageRepository.findRandomPublishedId(NO_FILTER))
+      })
+
+      it("unattemptedByUserId を指定すると提出済みの問題を選ばない", async () => {
+        const { go, react, rust } = await insertPublishedSet()
+        const user = await insertAttemptUser()
+        await insertSubmittedAttempt(go.id, user.id, 3)
+        await insertSubmittedAttempt(rust.id, user.id, 1)
+
+        expect(await passageRepository.findRandomPublishedId({ ...NO_FILTER, unattemptedByUserId: user.id })).toBe(react.id)
+      })
+    })
+
+    describe("異常系", () => {
+      it("当てはまる問題が無ければ null を返す", async () => {
+        await insertPublishedSet()
+
+        expect(await passageRepository.findRandomPublishedId({ ...NO_FILTER, tags: ["kubernetes"] })).toBeNull()
       })
     })
   })

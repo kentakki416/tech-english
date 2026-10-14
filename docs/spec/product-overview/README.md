@@ -233,8 +233,8 @@ flowchart TD
     C --> G["content-collection step4-6 / question-generation step2-3<br/>cron（収集・生成）"]
     G --> L["question-generation step7<br/>cron の定期実行の登録"]
     D --> H["reading-practice step2-4 → learning-record step2-3<br/>study-reminder step2 / github-auth step5<br/>ユーザー向け API"]
-    H --> I["web: github-auth step3 → learning-record step4<br/>→ reading-practice step5-7 → github-auth step6"]
-    H --> J["mobile: github-auth step4 → learning-record step5<br/>→ reading-practice step8-10 → github-auth step7 → study-reminder step3"]
+    H --> I["web: github-auth step3 → reading-practice step5-7<br/>→ learning-record step4 → github-auth step6"]
+    H --> J["mobile: github-auth step4 → reading-practice step8-10<br/>→ learning-record step5 → github-auth step7 → study-reminder step3"]
     F --> K["後片付け<br/>モックの削除"]
     L --> K
     I --> K
@@ -248,8 +248,7 @@ flowchart TD
 | 移す step | web | mobile |
 | --- | --- | --- |
 | github-auth step3・step4（ログイン） | フォントとダークの背景（root layout）、`components/ui/Wordmark.tsx`、本文リーダー（`components/features/passage/PassageReader.tsx`・`passage-text.ts`・`types.ts`） | テーマ（`src/const/design-theme.ts`）、フォントの読み込み、`components/ui/Wordmark.tsx`・`app-styles.ts`、本文リーダー（同上）、API クライアント（`src/libs/api-client.ts`） |
-| learning-record step4・step5（マイページ・設定） | `components/ui/AppHeader.tsx`・`ScoreSquares.tsx`、`src/libs/format.ts`、`components/features/passage/labels.ts` | タブのレイアウト、`components/ui/` のボタン・`Segment`・`Chip`・`ScoreSquares`、`src/libs/format.ts`、`labels.ts` |
-| reading-practice step5・step8（問題一覧） | `components/features/passage/` の `SourceMeta`・`DifficultyMeter`、`/passages/random` | 同左、`passages/random`（マイページとリマインダーの通知の入口） |
+| reading-practice step5・step8（問題一覧） | `components/ui/AppHeader.tsx`・`ScoreSquares.tsx`、`src/libs/format.ts`、`components/features/passage/labels.ts`・`SourceMeta`・`DifficultyMeter`、`/passages/random` | タブのレイアウト、`components/ui/` のボタン・`Segment`・`Chip`・`ScoreSquares`、`src/libs/format.ts`、`labels.ts`・`SourceMeta`・`DifficultyMeter`、`passages/random`（マイページとリマインダーの通知の入口） |
 
 - 設定画面は learning-record step4（web）・step5（mobile）が作る。アカウント削除の画面（github-auth step6・step7）とリマインダーの区画（study-reminder step3）はその後
 - **後片付け**：全画面の本実装が終わったら、モックの画面とダミーデータを削除する（web の `src/app/mock/**`・`src/libs/mock-data.ts`・`src/proxy.ts` の `/mock`、admin の `src/app/(dashboard)/mock/**`・`src/libs/mock-data.ts`・サイドバーの「tech-english モック」、mobile の `src/app/mock/**`・`src/components/mock/**`・`src/const/mock-theme.ts`・`src/libs/mock-data.ts`・ルートレイアウトの `mock` の画面）。メモの画面は各 step で置き換え済み。`memos` テーブルと api のメモの実装を消すかは別途判断する

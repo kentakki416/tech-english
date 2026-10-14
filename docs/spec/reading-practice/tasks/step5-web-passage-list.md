@@ -6,8 +6,7 @@ web の問題一覧（`/passages`）と開始確認（`/passages/[id]`）を、�
 
 - [step2-api-passage-list](./step2-api-passage-list.md)、[step3-api-attempt-start](./step3-api-attempt-start.md)
 - [github-auth step3-web-github-login](../../github-auth/tasks/step3-web-github-login.md)：ログイン済みで画面を開ける。フォント（Literata / IBM Plex Sans JP / IBM Plex Mono）とダークテーマ（`bg-canvas`）が root layout に入っている。`Wordmark`（`src/components/ui/`）と本文リーダー（`src/components/features/passage/PassageReader.tsx`・`passage-text.ts`・`types.ts`）が移植済み
-- [learning-record step4-web-mypage](../../learning-record/tasks/step4-web-mypage.md)：共通ヘッダー `AppHeader`・`ScoreSquares`（`src/components/ui/`）、`formatSeconds`（`src/libs/format.ts`）、`QUESTION_TYPE_LABELS`（`src/components/features/passage/labels.ts`）が移植済み
-- モックの `_components/parts.tsx` の残り（`SourceMeta` / `DifficultyMeter`）は **この step で** `src/components/features/passage/` に移す。種別・難易度のラベルは `labels.ts` に足す。`Keycap`（キー操作の表示）は step6 で `src/components/ui/Keycap.tsx` に移す
+- 共通ヘッダー `AppHeader`・`ScoreSquares`（`src/components/ui/`）、`formatSeconds` などの書式（`src/libs/format.ts`）、ラベル（`src/components/features/passage/labels.ts`。設問の種類・種別・難易度）、モックの `_components/parts.tsx` の `SourceMeta` / `DifficultyMeter`（`src/components/features/passage/`）は **この step で** 本番に移す（後の learning-record step4 が使う。[実装の順番](../../product-overview/README.md#実装の順番)）。`Keycap`（キー操作の表示）は step6 で `src/components/ui/Keycap.tsx` に移す
 
 ## 対応内容
 
@@ -83,6 +82,7 @@ export default async function RandomPassagePage({ searchParams }: { searchParams
 
 - `src/app/passages/[id]/page.tsx`：Server Component。`params.id` を `getPassagePathParamSchema` で検証し、失敗または API の 404 なら `notFound()`。タイトル・4 項目（難易度・英単語数・制限時間・設問）・説明・ボタン・出典（`出典：{source_name}（{license_spdx}）。一部を抜粋・改変しています。`）
 - `in_progress_attempt` があれば説明の部分を `ResumeNotice` に、ボタンを「再開する」にする
+- `can_start` が false（公開を終了した問題。API は自分の期限内の挑戦中があるときだけ返すので `in_progress_attempt` は必ずある）なら、`ResumeNotice` の最後に「この問題は公開を終了しています。この挑戦は再開して提出できますが、新しく始めることはできません。」を足し、ボタンは「再開する」だけにする（`can_start || in_progress_attempt` のときだけ `StartAttemptForm` を出し、「開始する」は出さない）
 - ボタンは `StartAttemptForm`（`"use client"`）。`useActionState(startAttemptAction.bind(null, passage.id), {})` の `<form>` と既存の `SubmitButton`（送信中は無効）。失敗したらボタンの下に `message` を出す
 
 ```ts
@@ -98,6 +98,8 @@ export const startAttemptAction = async (passageId: number, _prev: StartAttemptS
   } catch {
     return { message: "開始できませんでした。時間をおいて再度お試しください。" }
   }
+  /** 前に開いた同じ挑戦の解答画面のキャッシュ（古い途中の状態）を使わず、取り直させる */
+  revalidatePath(`/attempts/${attemptId}`)
   redirect(`/attempts/${attemptId}`)
 }
 ```
@@ -107,6 +109,7 @@ export const startAttemptAction = async (passageId: number, _prev: StartAttemptS
 - 端末に保存した途中経過（step6 の `readAttemptProgress(attemptId)`）から「残り m:ss」（`time_limit_seconds - elapsedSeconds`。負なら `超過 +m:ss`）と「回答 n / 設問数」を出す。保存が無い（別の端末で始めた）ときは経過 0・回答 0 として出す（[時間の計測](../README.md#時間の計測)）
 - 「あと N 時間で期限切れになります。」は `expires_at` と、`server_now` で補正した現在時刻（`Date.now() + (Date.parse(server_now) - 描画時の Date.now())`）の差を時間に切り上げる。1 時間未満は「あと 1 時間以内に期限切れになります。」
 - `localStorage` はサーバーで読めないので、`useEffect` で読んでから数字を出す（hydration のずれを防ぐ）
+- props の `canStart` が false なら、公開を終了した問題であることの 1 行を足す
 
 ### 4. 端末の途中経過の保存（`src/features/attempt/attempt-progress.ts`）
 
@@ -149,5 +152,6 @@ pnpm lint:fix
 - [ ] 0 件のとき空の状態が出て、「絞り込みを解除する」で全件に戻る
 - [ ] 「ランダムに 1 問解く」で、絞り込み条件に合う問題の開始確認に移る
 - [ ] 開始確認：新規は説明と「開始する」、挑戦中は琥珀の囲み（残り時間・回答数・期限）と「再開する」。下書きの問題の ID や `abc` は 404 の画面
+- [ ] 挑戦中に admin で問題を非公開に戻すと、一覧からは消えるが `/passages/{id}` は琥珀の囲みに公開終了の 1 行が足された表示で「再開する」だけが出て、再開・提出できる。過去にその問題を提出していれば、結果画面の「もう一度解く」からもここに来られる
 - [ ] 「開始する」で `/attempts/{id}` に移る（解答画面は step6）。戻って同じ問題を開くと「再開する」になり、押すと同じ挑戦 ID に移る
 - [ ] スクリーンショットを `docs/screenshots/reading-practice-list/after.png` に撮る（新規ページのため before なし）
