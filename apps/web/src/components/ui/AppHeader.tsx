@@ -6,11 +6,12 @@ import { getUser } from "@/features/user/get-user"
 import { UserAvatar } from "./UserAvatar"
 import { Wordmark } from "./Wordmark"
 
-type NavKey = "history" | "home" | "passages" | "settings"
+type NavKey = "history" | "home" | "passages" | "settings" | "vocabulary"
 
 const NAV_ITEMS: { href: string, key: NavKey, label: string }[] = [
   { href: "/", key: "home", label: "マイページ" },
   { href: "/passages", key: "passages", label: "問題" },
+  { href: "/vocabulary", key: "vocabulary", label: "単語帳" },
   { href: "/history", key: "history", label: "履歴" },
   { href: "/settings", key: "settings", label: "設定" },
 ]

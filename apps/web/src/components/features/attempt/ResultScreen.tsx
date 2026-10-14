@@ -410,7 +410,12 @@ export function ResultScreen({ result }: { result: SubmittedAttempt }) {
           </section>
 
           <section className="border-b border-line px-5 py-5 sm:px-6">
-            <h2 className="text-sm font-semibold text-fg">調べた単語</h2>
+            <div className="flex items-baseline justify-between gap-3">
+              <h2 className="text-sm font-semibold text-fg">調べた単語</h2>
+              {result.word_lookups.length > 0 && (
+                <Link className={`text-xs ${LINK_CLASS}`} href="/vocabulary">単語帳で復習する</Link>
+              )}
+            </div>
             {result.word_lookups.length === 0 ? (
               <p className="mt-3 text-[13px] text-fg-muted">この挑戦では単語を調べていません。</p>
             ) : (

@@ -27,6 +27,7 @@ import {
   type WordLookupRecord,
   writeAttemptProgress,
 } from "@/features/attempt/attempt-progress"
+import { useActiveSeconds } from "@/libs/use-active-seconds"
 import { useIsClient } from "@/libs/use-is-client"
 
 import { AttributionNote } from "./AttributionNote"
@@ -37,7 +38,6 @@ import { QuestionSheet } from "./QuestionSheet"
 import { ShortcutsDialog } from "./ShortcutsDialog"
 import { SubmitConfirmDialog } from "./SubmitConfirmDialog"
 import { determineTimerPhase, type TimerPhase, TimerReadout } from "./TimerReadout"
-import { useActiveSeconds } from "./use-active-seconds"
 import { useAttemptShortcuts } from "./use-attempt-shortcuts"
 
 /**
