@@ -22,9 +22,11 @@ config.resolver.unstable_conditionNames = ['react-native', 'require', 'default']
 // Force singleton packages by returning the exact file path.
 // This ensures ALL require('react') calls resolve to the same physical file,
 // regardless of where the requiring module lives.
+// realpath so that pnpm's isolated layout (node_modules/<pkg> is a symlink into .pnpm) can resolve
+// the package's own dependencies (e.g. @react-native/assets-registry) from its real location.
 const singletonPkgs = {
-  react: path.resolve(projectRoot, 'node_modules/react'),
-  'react-native': path.resolve(projectRoot, 'node_modules/react-native'),
+  react: fs.realpathSync(path.resolve(projectRoot, 'node_modules/react')),
+  'react-native': fs.realpathSync(path.resolve(projectRoot, 'node_modules/react-native')),
 }
 
 config.resolver.resolveRequest = (context, moduleName, platform) => {

@@ -52,18 +52,19 @@ describe("GET /api/user", () => {
       email: "test@example.com",
       id: user.id,
       name: "Test User",
+      timezone: "Asia/Tokyo",
     })
   })
 
-  it("ユーザーが存在しない場合、404 を返す", async () => {
+  it("ユーザーが存在しない場合（削除済みユーザーの access token）、401 を返す", async () => {
     const token = generateAccessToken(999999)
 
     const res = await request(app)
       .get("/api/user")
       .set("Authorization", `Bearer ${token}`)
 
-    expect(res.status).toBe(404)
-    expect(res.body).toEqual({ error: expect.any(String), status_code: 404 })
+    expect(res.status).toBe(401)
+    expect(res.body).toEqual({ error: expect.any(String), status_code: 401 })
   })
 
   it("トークンがない場合、401 を返す", async () => {

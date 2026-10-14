@@ -72,6 +72,7 @@ export class DrizzleAuthAccountRepository implements AuthAccountRepository {
       email: row.email,
       id: row.id,
       name: row.name,
+      timezone: row.timezone,
       updatedAt: row.updatedAt,
     }
   }

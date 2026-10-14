@@ -2,42 +2,25 @@
 
 import { randomBytes } from "node:crypto"
 
-import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 
-import { env } from "@/env"
-import { OAUTH_STATE_COOKIE } from "@/libs/auth"
+import { saveOAuthSession } from "@/libs/auth"
+import { buildGitHubAuthorizeUrl, buildGitHubCallbackUrl, createPkcePair } from "@/libs/github-oauth"
 
-const isProduction = env.NODE_ENV === "production"
-
-const STATE_COOKIE_MAX_AGE = 60 * 5
+const TIMEZONE_MAX_LENGTH = 64
 
 /**
- * Google OAuth 認可フローの開始
- * state を Cookie に保存して CSRF 対策しつつ、Google 認可エンドポイントにリダイレクト
+ * GitHub OAuth の開始。state・code_verifier・ブラウザのタイムゾーンを cookie に保存して認可画面へ送る。
+ * タイムゾーンの妥当性は api が検証する（通らなければ既定値で作られる）
  */
-export const startGoogleOAuth = async () => {
+export const startGitHubOAuth = async (formData: FormData) => {
+  const timezone = formData.get("timezone")
   const state = randomBytes(16).toString("hex")
-  const store = await cookies()
-  store.set(OAUTH_STATE_COOKIE, state, {
-    /**
-     * Google からのトップレベルリダイレクトで Cookie を送信させるため
-     * lax にする（state 照合のみに使うため攻撃対象は限定的）
-     */
-    httpOnly: true,
-    maxAge: STATE_COOKIE_MAX_AGE,
-    path: "/",
-    sameSite: "lax",
-    secure: isProduction,
-  })
-
-  const params = new URLSearchParams({
-    access_type: "offline",
-    client_id: env.GOOGLE_CLIENT_ID,
-    redirect_uri: `${env.NEXT_PUBLIC_APP_URL}/api/auth/callback/google`,
-    response_type: "code",
-    scope: "openid email profile",
+  const { codeChallenge, codeVerifier } = createPkcePair()
+  await saveOAuthSession({
+    codeVerifier,
     state,
+    timezone: typeof timezone === "string" && timezone.length > 0 && timezone.length <= TIMEZONE_MAX_LENGTH ? timezone : null,
   })
-  redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`)
+  redirect(buildGitHubAuthorizeUrl({ codeChallenge, redirectUri: buildGitHubCallbackUrl(), state }))
 }

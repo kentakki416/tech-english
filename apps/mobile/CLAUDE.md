@@ -24,6 +24,8 @@ pnpm ios          # iOS で起動
 | 変数 | 必須 | デフォルト | 説明 |
 | --- | --- | --- | --- |
 | `EXPO_PUBLIC_API_URL` | yes | - | Express API の origin。実機は localhost に到達できないため開発時は LAN IP を指定する（例: `http://192.168.3.13:8080`） |
+| `EXPO_PUBLIC_GITHUB_OAUTH_CLIENT_ID` | yes | - | GitHub OAuth App の Client ID（web と同じ App。Client Secret は api だけが持つ） |
+| `EXPO_PUBLIC_WEB_URL` | yes | - | web の origin。GitHub ログインの `redirect_uri`（`{web}/api/auth/callback/github/mobile`）に使うため、GitHub OAuth App の callback URL と host を揃える（local の iOS シミュレーターは `http://localhost:3000`、Android エミュレーターは `adb reverse tcp:3000 tcp:3000` を通して同じ値） |
 
 値は `.env.local` に置く（Expo が自動で読み込む）。
 

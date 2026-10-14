@@ -2,7 +2,7 @@ import { DrizzleClient, eq, users } from "@repo/db"
 import { User } from "@repo/domain"
 
 import type { TransactionContext } from "../transaction"
-import type { CreateUserInput, UserRepository } from "../user-repository"
+import type { CreateUserInput, UpdateUserProfileInput, UserRepository } from "../user-repository"
 
 import { resolveDrizzleClient } from "./transaction-runner"
 
@@ -41,9 +41,47 @@ export class DrizzleUserRepository implements UserRepository {
         avatarUrl: data.avatarUrl,
         email: data.email,
         name: data.name,
+        timezone: data.timezone,
       })
       .returning()
     return this._toDomainUser(row)
+  }
+
+  /**
+   * 対象が無いときは Prisma 実装（P2025）と同じく throw する
+   */
+  public async updateProfile(id: number, data: UpdateUserProfileInput): Promise<User> {
+    const [row] = await this._db
+      .update(users)
+      .set({
+        avatarUrl: data.avatarUrl,
+        name: data.name,
+      })
+      .where(eq(users.id, id))
+      .returning()
+    if (!row) throw new Error(`User not found: id=${id}`)
+    return this._toDomainUser(row)
+  }
+
+  /**
+   * 対象が無いときは Prisma 実装（P2025）と同じく throw する
+   */
+  public async updateTimezone(id: number, timezone: string): Promise<User> {
+    const [row] = await this._db
+      .update(users)
+      .set({ timezone })
+      .where(eq(users.id, id))
+      .returning()
+    if (!row) throw new Error(`User not found: id=${id}`)
+    return this._toDomainUser(row)
+  }
+
+  /**
+   * 関連テーブル（auth_accounts など）は DB の ON DELETE CASCADE で消える。
+   * 対象が無いときは何もしない（interface の契約。Prisma 実装も deleteMany で同じ）
+   */
+  public async deleteById(id: number): Promise<void> {
+    await this._db.delete(users).where(eq(users.id, id))
   }
 
   /**
@@ -56,6 +94,7 @@ export class DrizzleUserRepository implements UserRepository {
       email: row.email,
       id: row.id,
       name: row.name,
+      timezone: row.timezone,
       updatedAt: row.updatedAt,
     }
   }

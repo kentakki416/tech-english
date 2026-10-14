@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage"
-import { useEffect, useState } from "react"
+import { useFocusEffect } from "@react-navigation/native"
+import { useCallback, useEffect, useState } from "react"
 import {
   ActivityIndicator,
   StyleSheet,
@@ -10,7 +11,11 @@ import {
 } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 
+import type { GetUserResponse } from "@repo/api-schema"
+
 import { COLORS } from "@/const/color"
+import { signOut } from "@/features/auth/auth.session"
+import { userApi } from "@/features/user/user.api"
 import { useNotification } from "@/hooks/use-notification"
 
 const STORAGE_KEY = "notificatoin_settings"
@@ -31,10 +36,40 @@ export default function SettingsScreen() {
   })
 
   const [isLoading, setIsLoading] = useState(false)
+  const [user, setUser] = useState<GetUserResponse | null>(null)
+  const [isSigningOut, setIsSigningOut] = useState(false)
 
   useEffect(() => {
     loadSettings()
   }, [])
+
+  /**
+   * タブを開くたびにログイン中のユーザーを取り直す（access token の期限切れなら api client が refresh して再試行する）
+   */
+  useFocusEffect(
+    useCallback(() => {
+      const fetchUser = async () => {
+        try {
+          setUser(await userApi.get())
+        } catch (err) {
+          console.error("Failed to fetch user:", err)
+        }
+      }
+      fetchUser()
+    }, [])
+  )
+
+  /**
+   * ログアウトするとログイン状態が変わり、ルートレイアウトの Stack.Protected がログイン画面へ移す
+   */
+  const pressSignOut = async () => {
+    setIsSigningOut(true)
+    try {
+      await signOut()
+    } finally {
+      setIsSigningOut(false)
+    }
+  }
 
   const loadSettings = async () => {
     setIsLoading(true)
@@ -146,6 +181,19 @@ export default function SettingsScreen() {
         </View>
       )}
 
+      {/**
+        * アカウント（仮置き。learning-record step5 で設定画面ごと置き換わる）
+        */}
+      <View style={styles.section}>
+        <View style={styles.row}>
+          <Text style={styles.label}>ログイン中</Text>
+          <Text numberOfLines={1} style={styles.value}>{user?.name ?? user?.email ?? "-"}</Text>
+        </View>
+        <View style={styles.separator} />
+        <TouchableOpacity disabled={isSigningOut} onPress={pressSignOut} style={[styles.row, isSigningOut && styles.disabled]}>
+          <Text style={styles.signOutText}>ログアウト</Text>
+        </TouchableOpacity>
+      </View>
     </SafeAreaView>
   )
 }
@@ -182,6 +230,16 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 16,
     color: COLORS.text,
+  },
+  value: {
+    color: COLORS.subText,
+    flexShrink: 1,
+    fontSize: 16,
+    marginLeft: 16,
+  },
+  signOutText: {
+    color: COLORS.danger,
+    fontSize: 16,
   },
   separator: {
     height: StyleSheet.hairlineWidth,

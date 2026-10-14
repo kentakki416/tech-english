@@ -1,5 +1,50 @@
 import { z } from "zod"
 
+import { timezoneSchema } from "./user"
+
+// ========================================================
+// POST /api/auth/github - GitHub OAuth の code を JWT に変換
+// ========================================================
+
+/**
+ * GitHub OAuth 認証リクエストのスキーマ
+ * web / mobile が受け取った Authorization Code と、認可時に使った redirect_uri・PKCE の code_verifier を受け取り、
+ * API が token 交換 + ユーザー情報の取得を行う。
+ */
+export const authGitHubRequestSchema = z.object({
+  code: z.string().min(1),
+  /**
+   * PKCE（RFC 7636）。43〜128 文字
+   */
+  code_verifier: z.string().min(43).max(128),
+  redirect_uri: z.string().url(),
+  /**
+   * 初回作成時だけ使う。検証に通らない値でログインを失敗させないよう、未指定として扱う（DB の既定値になる）
+   */
+  timezone: timezoneSchema.optional().catch(undefined),
+})
+
+export type AuthGitHubRequest = z.infer<typeof authGitHubRequestSchema>
+
+/**
+ * GitHub OAuth 認証レスポンスのスキーマ
+ */
+export const authGitHubResponseSchema = z.object({
+  access_token: z.string(),
+  is_new_user: z.boolean(),
+  refresh_token: z.string(),
+  user: z.object({
+    id: z.number(),
+    avatar_url: z.string().nullable(),
+    email: z.string().nullable(),
+    name: z.string().nullable(),
+    timezone: z.string(),
+    created_at: z.string(),
+  }),
+})
+
+export type AuthGitHubResponse = z.infer<typeof authGitHubResponseSchema>
+
 // ========================================================
 // POST /api/auth/google - Google OAuth 認証コードの検証
 // ========================================================

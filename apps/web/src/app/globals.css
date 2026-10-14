@@ -1,15 +1,9 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
+/**
+ * 書体の変数（`--font-literata` 等）はルートレイアウトの next/font が定義する
+ */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
   --font-reading: var(--font-literata), Georgia, serif;
   --font-ui: var(--font-plex-sans-jp), system-ui, sans-serif;
   --font-code: var(--font-plex-mono), ui-monospace, monospace;
@@ -64,17 +58,4 @@
       transform: scale(1);
     }
   }
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
 }

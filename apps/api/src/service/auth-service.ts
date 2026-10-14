@@ -2,6 +2,7 @@ import { User } from "@repo/domain"
 import { err, notFoundError, ok, Result, unauthorizedError } from "@repo/errors"
 import { logger } from "@repo/logger"
 
+import { type IGitHubOAuthClient } from "../client/github-oauth"
 import { type IGoogleOAuthClient, GoogleUserInfo } from "../client/google-oauth"
 import {
   AuthAccountRepository,
@@ -30,6 +31,23 @@ type TokenGenerators = {
 }
 
 const REFRESH_TTL_SECONDS = 60 * 60 * 24 * 7
+
+/**
+ * Access Token / Refresh Token を発行し、Refresh Token の jti を保存する
+ */
+const issueTokens = async (
+  userId: number,
+  repo: { refreshTokenRepository: RefreshTokenRepository },
+  tokenGenerators: TokenGenerators
+): Promise<{ accessToken: string; refreshToken: string }> => {
+  const accessToken = tokenGenerators.generateAccessToken(userId)
+  const { jti, token: refreshToken } = tokenGenerators.generateRefreshToken(userId)
+  await repo.refreshTokenRepository.save(jti, userId, REFRESH_TTL_SECONDS)
+
+  logger.debug("AuthService: Tokens issued", { userId })
+
+  return { accessToken, refreshToken }
+}
 
 /**
  * Google アカウントでの認証
@@ -91,11 +109,7 @@ export const authenticateWithGoogle = async (
     logger.info("AuthService: New user created", { userId: user.id })
   }
 
-  const accessToken = tokenGenerators.generateAccessToken(user.id)
-  const { jti, token: refreshToken } = tokenGenerators.generateRefreshToken(user.id)
-  await repo.refreshTokenRepository.save(jti, user.id, REFRESH_TTL_SECONDS)
-
-  logger.debug("AuthService: Tokens issued", { userId: user.id })
+  const { accessToken, refreshToken } = await issueTokens(user.id, repo, tokenGenerators)
 
   return ok({
     accessToken,
@@ -103,6 +117,97 @@ export const authenticateWithGoogle = async (
     refreshToken,
     user,
   })
+}
+
+export type AuthenticateWithGitHubSuccess = {
+  accessToken: string
+  isNewUser: boolean
+  refreshToken: string
+  user: User
+}
+
+/**
+ * GitHub アカウントでの認証
+ *
+ * web / mobile が受け取った Authorization Code（+ PKCE の code_verifier）を GitHub で検証し、ユーザー情報を取得する。
+ * GitHub の id で既存ユーザーが見つかれば表示名とアイコンを最新化し、見つからなければ User + AuthAccount を作成して
+ * Access/Refresh Token を発行する。
+ *
+ * code が使えない（期限切れ・使用済み・verifier 不一致）ときは 401 を Result.err で返し、
+ * 外部サービス障害などの予期しないエラーは throw する。
+ */
+export const authenticateWithGitHub = async (
+  input: { code: string; codeVerifier: string; redirectUri: string; timezone?: string },
+  repo: Repositories,
+  gitHubOAuthClient: IGitHubOAuthClient,
+  tokenGenerators: TokenGenerators
+): Promise<Result<AuthenticateWithGitHubSuccess>> => {
+  logger.info("AuthService: Starting GitHub authentication")
+
+  const gitHubUser = await gitHubOAuthClient.getUserInfo({
+    code: input.code,
+    codeVerifier: input.codeVerifier,
+    redirectUri: input.redirectUri,
+  })
+  if (!gitHubUser) {
+    return err(unauthorizedError("GitHub authorization code is invalid"))
+  }
+  /**
+   * email (PII) はログに残さず、突合に必要な githubId のみ出力する。
+   */
+  logger.debug("AuthService: Retrieved GitHub user info", {
+    githubId: gitHubUser.id,
+  })
+
+  /**
+   * 表示名は name、未設定なら login。ログインのたびに最新化する
+   */
+  const name = gitHubUser.name ?? gitHubUser.login
+  const existingAccount = await repo.authAccountRepository.findByProvider("github", gitHubUser.id)
+
+  if (existingAccount) {
+    logger.info("AuthService: Existing user found", { userId: existingAccount.user.id })
+    const user = await repo.userRepository.updateProfile(existingAccount.user.id, {
+      avatarUrl: gitHubUser.avatarUrl,
+      name,
+    })
+    const { accessToken, refreshToken } = await issueTokens(user.id, repo, tokenGenerators)
+    return ok({ accessToken, isNewUser: false, refreshToken, user })
+  }
+
+  logger.info("AuthService: Creating new user")
+  /**
+   * メールが一致しても既存ユーザーに紐づけない（メール一致での自動統合はアカウント乗っ取りの経路になるため）。
+   * users.email の unique 衝突だけを避け、衝突する場合は email を持たないユーザーとして作る
+   */
+  const emailOwner = gitHubUser.email ? await repo.userRepository.findByEmail(gitHubUser.email) : null
+  /**
+   * User と AuthAccount を 1 トランザクションで作成。どちらか片方だけが残る不整合を防ぐ。
+   */
+  const user = await repo.transactionRunner.run(async (tx) => {
+    const newUser = await repo.userRepository.create(
+      {
+        avatarUrl: gitHubUser.avatarUrl ?? undefined,
+        email: emailOwner ? undefined : gitHubUser.email ?? undefined,
+        name,
+        timezone: input.timezone,
+      },
+      tx,
+    )
+    await repo.authAccountRepository.create(
+      {
+        provider: "github",
+        providerAccountId: gitHubUser.id,
+        userId: newUser.id,
+      },
+      tx,
+    )
+    return newUser
+  })
+  logger.info("AuthService: New user created", { userId: user.id })
+
+  const { accessToken, refreshToken } = await issueTokens(user.id, repo, tokenGenerators)
+  return ok({ accessToken, isNewUser: true, refreshToken, user })
 }
 
 export type LoginAsDevUserSuccess = {
@@ -159,11 +264,11 @@ type RefreshVerifier = (token: string) => { jti: string; userId: number } | null
  * 受け取った Refresh Token を検証し、Redis 上の jti と一致する場合は旧 jti を破棄して
  * 新しい Access Token + Refresh Token を発行する（1 回使用で無効化）。
  *
- * 検証失敗・既に無効化済み・userId 不一致はすべて 401 で返す。
+ * 検証失敗・既に無効化済み・userId 不一致・ユーザーが削除済みはすべて 401 で返す。
  */
 export const refreshTokens = async (
   input: { refreshToken: string },
-  repo: { refreshTokenRepository: RefreshTokenRepository },
+  repo: { refreshTokenRepository: RefreshTokenRepository; userRepository: UserRepository },
   verifier: RefreshVerifier,
   generators: TokenGenerators
 ): Promise<Result<RefreshTokensSuccess>> => {
@@ -177,6 +282,16 @@ export const refreshTokens = async (
   const userId = await repo.refreshTokenRepository.findUserId(payload.jti)
   if (userId === null || userId !== payload.userId) {
     return err(unauthorizedError("Refresh token has been revoked"))
+  }
+
+  /**
+   * 削除済みユーザーの端末に残った refresh token。jti を消してから 401 にする
+   * （jti はユーザー単位で一括削除できないため、使われたときに消す）
+   */
+  const user = await repo.userRepository.findById(userId)
+  if (!user) {
+    await repo.refreshTokenRepository.delete(payload.jti)
+    return err(unauthorizedError("User not found"))
   }
 
   /** ローテーション: 旧 jti を破棄して新しい jti を発行 */

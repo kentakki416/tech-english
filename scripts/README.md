@@ -41,6 +41,7 @@
 |---|---|---|
 | `DATABASE_URL` | `terraform output` + RDS の AWS 管理パスワード | **自動構築** |
 | `REDIS_HOST` | `terraform output` (step5 で activate) | **自動構築** |
+| `GITHUB_OAUTH_CLIENT_ID` / `GITHUB_OAUTH_CLIENT_SECRET` | 環境変数 | **要 export** |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | 環境変数 | **要 export** |
 | `LIVEKIT_HOST` / `LIVEKIT_API_KEY` / `LIVEKIT_API_SECRET` / `LIVEKIT_WEBHOOK_SECRET` | 環境変数 | **要 export** |
 | `FRONTEND_URL` | 環境変数 | **要 export** |
@@ -112,6 +113,8 @@ terraform init
 `seed-secrets.sh` は以下の環境変数を読む:
 
 ```
+GITHUB_OAUTH_CLIENT_ID
+GITHUB_OAUTH_CLIENT_SECRET
 GOOGLE_CLIENT_ID
 GOOGLE_CLIENT_SECRET
 LIVEKIT_HOST
