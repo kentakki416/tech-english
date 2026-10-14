@@ -142,7 +142,18 @@ module "cron_task_role" {
 ```
 
 - `polly:SynthesizeSpeech` の `resources` は、Service Authorization Reference でリソースの型（lexicon）を確かめて決める。絞れなければ `*` のまま、trivy の指摘を §7 の扱いにする
-- `module "ecs_cron"` に `task_role_arn = module.cron_task_role.arn` を足し、`environment`（question-generation step7 の `COLLECT_WEB_CONTACT_URL`）に `AUDIO_STORAGE_S3_BUCKET = module.audio_cdn.bucket_name`・`AUDIO_STORAGE_TYPE = "s3"`・`AWS_REGION = var.aws_region`・`TTS_PROVIDER = "polly"` を足す（キーはアルファベット順。`TTS_VOICE_ID`・`AUDIO_MAX_PASSAGES_PER_RUN` は既定値のまま渡さない。`AUDIO_STORAGE_TYPE` の既定は `local` で、`production` の `local` は `generate:audio` が起動時に throw するので、`s3` を必ず渡す）
+- `module "ecs_cron"` に `task_role_arn = module.cron_task_role.arn` を足し、`environment`（question-generation step7 の `COLLECT_WEB_CONTACT_URL`）に `AUDIO_STORAGE_S3_BUCKET = module.audio_cdn.bucket_name`・`AUDIO_STORAGE_TYPE = "s3"`・`AWS_REGION = var.aws_region`・`TTS_PROVIDER = "polly"` を足す（キーはアルファベット順。`TTS_VOICE_ID`・`AUDIO_MAX_PASSAGES_PER_RUN`・`AUDIO_MONTHLY_CHARACTER_LIMIT` は既定値のまま渡さない。`AUDIO_STORAGE_TYPE` の既定は `local` で、`production` の `local` は `generate:audio` が起動時に throw するので、`s3` を必ず渡す）
+
+| cron の env | 渡す値 | 説明 |
+| --- | --- | --- |
+| `AUDIO_STORAGE_S3_BUCKET` | `module.audio_cdn.bucket_name` | mp3 の保存先 |
+| `AUDIO_STORAGE_TYPE` | `"s3"` | `local` は `production` で throw する |
+| `AWS_REGION` | `var.aws_region` | Polly と S3 のリージョン |
+| `TTS_PROVIDER` | `"polly"` | `production` の既定も `polly` だが明示する |
+| `TTS_VOICE_ID` | 渡さない（既定 `Joanna`） | 変えると公開済みの問題をすべて作り直す（[step3 §1](./step3-cron-generate-audio.md#1-対象と流れ)） |
+| `AUDIO_MAX_PASSAGES_PER_RUN` | 渡さない（既定 20） | 1 回の実行で確保する問題の上限 |
+| `AUDIO_MONTHLY_CHARACTER_LIMIT` | 渡さない（既定 1,800,000） | 今月（UTC の暦月）に Polly で課金してよい文字数。超えそうなら generate:audio は確保を外して exit 1。既定は月 300 問（144 万文字・約 $23）に 25% の余裕を持たせ、§6 の Budgets の上限（`polly_monthly_budget_usd` の $30）の手前（約 $29）で止まる値。voice の変更などで公開済みの問題をまとめて作り直す月は、`environment` に足して一時的に上げる（1 回だけなら `aws ecs run-task --overrides` の `environment` で上げて実行してもよい） |
+
 - `module "cron_schedule"` と `module "cron_task_schedules"` に `task_role_arn = module.cron_task_role.arn` を足す（Scheduler の role が RunTask のときに task role を `iam:PassRole` できるようにする。module が `task_role_arn` から policy を作る）
 - `local.cron_task_schedules` に足す
 
@@ -201,7 +212,7 @@ resource "aws_budgets_budget" "polly" {
 | 変数（`account/variables.tf`） | 型 / 既定値 | description |
 | --- | --- | --- |
 | `budget_alert_emails` | `list(string)` / `[]` | Budgets の通知先。空なら作らない。CI の apply は変数を渡さないので、宛先はチームで決めて既定値に書く |
-| `polly_monthly_budget_usd` | `string` / `"30"` | Polly の月の上限（question-generation の生成の上限の月 300 問を公開して約 $23。voice の変更・読み上げ用テキストの版の更新をした月は、公開済みの問題数 × 約 $0.077 が 1 度に上乗せになるので超えることがある。[README の費用](../README.md#費用)） |
+| `polly_monthly_budget_usd` | `string` / `"30"` | Polly の月の上限（question-generation の生成の上限の月 300 問を公開して約 $23。voice の変更・読み上げ用テキストの版の更新をした月は、公開済みの問題数 × 約 $0.077 が 1 度に上乗せになるので超えることがある。[README の費用](../README.md#費用)）。cron の `AUDIO_MONTHLY_CHARACTER_LIMIT`（既定 180 万文字・約 $29）はこの値の手前で止まるようにしてあるので、片方を変えたらもう片方も見直す |
 
 - `cost_filter` の書き方と `Service` の値（`Amazon Polly`）は、使っている AWS provider のドキュメントと Budgets のコンソールの表示名で確かめる
 
@@ -259,3 +270,4 @@ curl -sI "https://${BUCKET}.s3.ap-northeast-1.amazonaws.com/passages/<id>/<hash>
 - [ ] 挑戦の `GET /api/attempt/:id/audio` の `url` が CloudFront の URL で、web と mobile で再生できる
 - [ ] `aws budgets describe-budgets --account-id <id>` に `tech-english-polly-monthly` がある（宛先を設定した場合）。確認のメールが届く
 - [ ] 翌日、CloudWatch Logs の `/ecs/tech-english-min-cron` に毎時 30 分の generate:audio のログがあり、失敗で終わっていない
+- [ ] 音声のある問題を admin で非公開に戻して却下すると、次の generate:audio で `aws s3 ls "s3://${BUCKET}/passages/<id>/" --recursive` が空になる（cron のタスクロールの `s3:DeleteObject`）。CloudFront のキャッシュは `aws cloudfront create-invalidation --distribution-id <id> --paths "/passages/<id>/*"` で消える（取り下げの手順。[README の却下した問題の音声](../README.md#却下した問題の音声)。運用者の権限で実行し、cron には `cloudfront:CreateInvalidation` を付けない）

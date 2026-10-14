@@ -1,6 +1,6 @@
 # step1-db-passage-audios
 
-読み上げの音声を問題ごとに持つ `passage_audios` と、解答中に聞いた段落の数 `reading_attempts.listened_block_count` を作る。あわせて `@repo/domain` に `AUDIO_STATUSES` と音声のマニフェストの型（`PassageAudioManifest`）を置く。列の定義と意味は [README の必要な DB 設計](../README.md#必要な-db-設計)。
+読み上げの音声を問題ごとに持つ `passage_audios` と、解答中に聞いた段落の数 `reading_attempts.listened_block_count` を作る。あわせて `@repo/domain` に `AUDIO_STATUSES` と音声のマニフェストの型（`PassageAudioManifest`）を置く。作り直しの依頼の列（`passage_audios.regenerate_requested_at`）と、Polly の課金文字数の記録（`audio_synthesis_usages`）は後から別のマイグレーションで足した（§6）。列の定義と意味は [README の必要な DB 設計](../README.md#必要な-db-設計)。
 
 ## 前提
 
@@ -52,12 +52,14 @@ export type PassageAudio = {
   /** Polly の課金文字数（音声 + 単語の時刻）。最後に成功した生成の分 */
   billedCharacters: number
   generatedAt: Date | null
-  /** generating にした時刻（確保のトークン）。generating 以外では null */
+  /** 生成タスクが確保した時刻（確保のトークン）。generating の行と、ready のまま確保した行（voice の変更・作り直しの依頼）が値を持つ */
   generationStartedAt: Date | null
   lastError: string | null
   /** 最後に成功した生成のマニフェスト。まだ成功していなければ null */
   manifest: PassageAudioManifest | null
   passageId: number
+  /** admin が「作り直す」を押した時刻（作り直しの依頼。§6） */
+  regenerateRequestedAt: Date | null
   status: AudioStatus
   /** manifest を作った本文のハッシュ（manifest が無い行は作ろうとした本文のハッシュ） */
   textHash: string
@@ -164,6 +166,22 @@ model PassageAudio {
 - api の `ReadingAttemptRepository` の Prisma 実装の `_toDomain()` に `listenedBlockCount` を足す。Drizzle 実装は列を明示して select していれば足す（行をそのまま返していれば不要）
 - テストの fixture（`ReadingAttempt` を組み立てている Service のユニットテスト）に `listenedBlockCount: 0` を足す
 
+### 6. 作り直しの依頼と課金文字数の記録（後から足したマイグレーション）
+
+[README の費用](../README.md#費用)（月の上限）と [音声ができるまで](../README.md#音声ができるまで)（admin の作り直し）のために、1 つのマイグレーション（`20261014021420_add_audio_regeneration_and_usages`）で足す。
+
+- `passage-audio.ts` に `regenerateRequestedAt: timestamp("regenerate_requested_at", { mode: "date", precision: 3 })`（nullable。`passageId` の後）
+- `audio-synthesis-usage.ts`（新規）：`audio_synthesis_usages`（`id` serial、`characters integer NOT NULL`〈CHECK `> 0`〉、`passage_id integer NOT NULL`〈`passages` への FK。passages は物理削除しないので restrict〉、`...timestamps`、index `audio_synthesis_usages_created_at_idx (created_at)`）。追記だけのテーブル。`schema/index.ts` に `export * from "./audio-synthesis-usage"`、`packages/db/src/index.ts` の Prisma 型の re-export に `AudioSynthesisUsage`
+- `schema.prisma`：`PassageAudio` に `regenerateRequestedAt DateTime? @map("regenerate_requested_at")`、`model AudioSynthesisUsage`（`@@index([createdAt])`、`onDelete: Restrict`）、`Passage` に `audioUsages AudioSynthesisUsage[]`。`prisma:generate` する
+- `@repo/domain` の `PassageAudio` に `regenerateRequestedAt: Date | null`。api の Drizzle / Prisma の行 → ドメインの変換に足す
+
+```bash
+pnpm --filter @repo/db db:generate --name add_audio_regeneration_and_usages
+pnpm --filter @repo/db prisma:generate
+```
+
+生成された SQL を目で確認する：`CREATE TABLE "audio_synthesis_usages"`（CHECK `"characters" > 0`）、`ALTER TABLE "passage_audios" ADD COLUMN "regenerate_requested_at" timestamp(3)`、`created_at` の index、`ON DELETE RESTRICT` の FK。
+
 ## 動作確認
 
 ```bash
@@ -188,3 +206,4 @@ psql で制約を確かめる（`published` の問題を 1 件用意する）：
 - [ ] `attempt_count = -1` は CHECK 違反
 - [ ] `passages` の行を消すと `passage_audios` の行も消える（ふだん `passages` は物理削除しないが、FK の動きを確かめる）
 - [ ] 既存の `reading_attempts` の行の `listened_block_count` が 0
+- [ ] §6 の後：既存の `passage_audios` の行の `regenerate_requested_at` が NULL。`audio_synthesis_usages` に `characters = 0` を入れると CHECK 違反、行がある問題の `passages` を消すと FK 違反

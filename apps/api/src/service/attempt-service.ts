@@ -16,7 +16,14 @@ import { logger } from "@repo/logger"
 
 import { calculateAliveSince, calculateExpiresAt, isAttemptExpired } from "../lib/attempt-expiry"
 import { buildAttribution, type PassageAttribution } from "../lib/build-attribution"
-import { type AnswerInput, calculateWordsPerMinute, clampElapsedSeconds, gradeAnswers, isOvertime } from "../lib/grade-attempt"
+import {
+  type AnswerInput,
+  calculateWordsPerMinute,
+  clampElapsedSeconds,
+  gradeAnswers,
+  hasAnswerKeyChanged,
+  isOvertime,
+} from "../lib/grade-attempt"
 import { buildAudioUrl, convertToUserAudioStatus, resolveAudioStatus } from "../lib/passage-audio"
 import { findEvidenceSegmentRange, type PassageSegment, segmentPassage, type SegmentWithRange } from "../lib/segment-passage"
 import { formatDateInTimeZone } from "../lib/time-zone"
@@ -108,6 +115,10 @@ export type ResultQuestionView = AttemptQuestionView &
      * 引用が本文に見つからなければ null
      */
     evidence: EvidenceView | null
+    /**
+     * 提出後に正解が直されて、保存した正誤といまの正解での正誤が食い違うか
+     */
+    isAnswerKeyChanged: boolean
     isCorrect: boolean
     /**
      * null は未回答
@@ -288,7 +299,8 @@ const dedupeWordLookups = (lookups: WordLookupWithMeaning[]): ResultWordLookupVi
 
 /**
  * 結果の形。用語集は全件（語義設問の対象語句も含む）でセグメントに分け、各設問の根拠をセグメントの範囲にする。
- * 正誤と自分の回答は保存値、正解・解説・選択肢はいまの設問（一度挑戦された問題は設問の数が変わらないので、どの設問にも回答がある）
+ * 正誤と自分の回答は保存値、正解・解説・選択肢はいまの設問（一度挑戦された問題は設問の数が変わらないので、どの設問にも回答がある）。
+ * 提出後に正解が直されて両者が食い違う設問は isAnswerKeyChanged を true にする（提出時の採点は変えない）
  */
 const buildSubmittedView = (
   attempt: ReadingAttempt,
@@ -333,6 +345,7 @@ const buildSubmittedView = (
         correctChoiceIndex: question.correctChoiceIndex,
         evidence: locateEvidence(question, blocks, segmentsByBlock),
         explanationJa: question.explanationJa,
+        isAnswerKeyChanged: hasAnswerKeyChanged(answer, question.correctChoiceIndex),
         isCorrect: answer.isCorrect,
         selectedChoiceIndex: answer.selectedChoiceIndex,
       }

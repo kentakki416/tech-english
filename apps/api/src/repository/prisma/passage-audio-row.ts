@@ -22,6 +22,7 @@ export const convertPassageAudioRowToDomain = (row: PassageAudioRow): PassageAud
     lastError: row.lastError,
     manifest: row.manifest as PassageAudioManifest | null,
     passageId: row.passageId,
+    regenerateRequestedAt: row.regenerateRequestedAt,
     status: row.status,
     textHash: row.textHash,
     voiceId: row.voiceId,

@@ -195,10 +195,19 @@ const calculateGoalProgress = (goal: UserGoal, weekDays: DailyStudySummary[], to
   if (goal.weeklyMetric === null || goal.weeklyTarget === null) {
     return { ...base, isWeeklyAchieved: false, weeklyProgress: null }
   }
-  const weeklyProgress = goal.weeklyMetric === "passages"
-    ? weekDays.reduce((sum, day) => sum + day.attemptCount, 0)
-    : Math.floor(weekDays.reduce((sum, day) => sum + day.studySeconds, 0) / SECONDS_PER_MINUTE)
-  return { ...base, isWeeklyAchieved: weeklyProgress >= goal.weeklyTarget, weeklyProgress }
+  if (goal.weeklyMetric === "passages") {
+    const attemptCount = weekDays.reduce((sum, day) => sum + day.attemptCount, 0)
+    return { ...base, isWeeklyAchieved: attemptCount >= goal.weeklyTarget, weeklyProgress: attemptCount }
+  }
+  /**
+   * 表示する分は切り捨て（web / mobile の分の表示と同じ）。達成は表示の丸めに左右されないよう秒で判定する
+   */
+  const studySeconds = weekDays.reduce((sum, day) => sum + day.studySeconds, 0)
+  return {
+    ...base,
+    isWeeklyAchieved: studySeconds >= goal.weeklyTarget * SECONDS_PER_MINUTE,
+    weeklyProgress: Math.floor(studySeconds / SECONDS_PER_MINUTE),
+  }
 }
 
 /**

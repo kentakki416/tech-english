@@ -9,7 +9,10 @@ import { AdminPassageDetailController } from "../controller/admin/passage/detail
 import { AdminPassageListController } from "../controller/admin/passage/list"
 import { AdminPassagePublishController } from "../controller/admin/passage/publish"
 import { AdminPassageRegenerateController } from "../controller/admin/passage/regenerate"
+import { AdminPassageRegenerateAudioController } from "../controller/admin/passage/regenerate-audio"
 import { AdminPassageRejectController } from "../controller/admin/passage/reject"
+import { AdminPassageResolveAttentionController } from "../controller/admin/passage/resolve-attention"
+import { AdminPassageRestoreController } from "../controller/admin/passage/restore"
 import { AdminPassageRetryAudioController } from "../controller/admin/passage/retry-audio"
 import { AdminPassageUnpublishController } from "../controller/admin/passage/unpublish"
 import { AdminPassageUpdateController } from "../controller/admin/passage/update"
@@ -31,7 +34,10 @@ type AdminRouterControllers = {
     list?: AdminPassageListController
     publish?: AdminPassagePublishController
     regenerate?: AdminPassageRegenerateController
+    regenerateAudio?: AdminPassageRegenerateAudioController
     reject?: AdminPassageRejectController
+    resolveAttention?: AdminPassageResolveAttentionController
+    restore?: AdminPassageRestoreController
     retryAudio?: AdminPassageRetryAudioController
     unpublish?: AdminPassageUnpublishController
     update?: AdminPassageUpdateController
@@ -151,11 +157,35 @@ export const adminRouter = (controllers: AdminRouterControllers): Router => {
   }
 
   /**
+   * POST /api/admin/passage/:id/restore
+   */
+  if (passage.restore) {
+    const controller = passage.restore
+    router.post("/passage/:id/restore", async (req, res) => controller.execute(req, res))
+  }
+
+  /**
+   * POST /api/admin/passage/:id/attention/resolve
+   */
+  if (passage.resolveAttention) {
+    const controller = passage.resolveAttention
+    router.post("/passage/:id/attention/resolve", async (req, res) => controller.execute(req, res))
+  }
+
+  /**
    * POST /api/admin/passage/:id/audio/retry
    */
   if (passage.retryAudio) {
     const controller = passage.retryAudio
     router.post("/passage/:id/audio/retry", async (req, res) => controller.execute(req, res))
+  }
+
+  /**
+   * POST /api/admin/passage/:id/audio/regenerate
+   */
+  if (passage.regenerateAudio) {
+    const controller = passage.regenerateAudio
+    router.post("/passage/:id/audio/regenerate", async (req, res) => controller.execute(req, res))
   }
 
   return router

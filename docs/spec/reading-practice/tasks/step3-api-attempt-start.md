@@ -195,7 +195,7 @@ Service（ユニット）:
 - [ ] ユーザーが居なければ 401 で、`expireStale` も `createInProgress` も呼ばない
 - [ ] `expireStale` が `findAliveInProgress` より先に呼ばれる。`findAliveInProgress`（最初の確認・同時開始の読み直し）と `getAttempt` の `findByIdForUser` に `{ fromPrimary: true }` を渡す
 - [ ] 挑戦中があれば `isCreated: false` で、`createInProgress` を呼ばない
-- [ ] 非公開の問題：挑戦中が無ければ 404、あれば再開できる
+- [ ] 非公開の問題：挑戦中が無ければ 404、あれば再開できる（開始確認の概要も、この場合は step2 の `getPassageOverview` が `findAttemptContentById` で読んで `can_start: false` で返す）
 - [ ] `createInProgress` が null（同時開始）なら `findAliveInProgress` の結果を返す
 - [ ] 語義設問の対象語句が `glossary` にもセグメントの `glossaryEntryId` にも無い。設問に正解・解説・根拠が無い
 - [ ] `getAttempt`：他人の挑戦は 404、`expired` は期限切れの形

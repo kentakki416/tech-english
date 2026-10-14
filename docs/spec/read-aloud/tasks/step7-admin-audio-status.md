@@ -1,10 +1,10 @@
 # step7-admin-audio-status
 
-admin の問題の確認画面（`/passages/[id]`）に、読み上げの音声の状態（準備中・生成中・作成済み・失敗）と作成日時、失敗したときの「再試行」を足す。新しい画面は作らず、既存の admin の部品（`ComponentCard`・`Badge`）で組む。仕様は [README の音声ができるまで](../README.md#音声ができるまで)・[必要な画面](../README.md#必要な画面)。
+admin の問題の確認画面（`/passages/[id]`）に、読み上げの音声の状態（準備中・生成中・作成済み・失敗）と作成日時、失敗したときの「再試行」、作成済みのときの「作り直す」を足す。新しい画面は作らず、既存の admin の部品（`ComponentCard`・`Badge`）で組む。仕様は [README の音声ができるまで](../README.md#音声ができるまで)・[必要な画面](../README.md#必要な画面)。
 
 ## 前提
 
-- [step4-api-attempt-audio](./step4-api-attempt-audio.md)（`GET /api/admin/passage/:id` の `audio`、`POST /api/admin/passage/:id/audio/retry`、`@repo/api-schema` の `retryAdminPassageAudioResponseSchema`）
+- [step4-api-attempt-audio](./step4-api-attempt-audio.md)（`GET /api/admin/passage/:id` の `audio`、`POST /api/admin/passage/:id/audio/retry`・`/audio/regenerate`、`@repo/api-schema` の `retryAdminPassageAudioResponseSchema`・`regenerateAdminPassageAudioResponseSchema`）
 - [question-generation step6-admin-passage-review](../../question-generation/tasks/step6-admin-passage-review.md)（`/passages/[id]`、`PassageReview`、`passage.api.ts`、`passage.labels.ts`、`actions.ts` の `PassageActionResult`）
 - [question-generation step4-api-admin-auth](../../question-generation/tasks/step4-api-admin-auth.md)（api client の `X-Admin-Token` と `ApiClientError`）
 
@@ -18,11 +18,12 @@ admin の問題の確認画面（`/passages/[id]`）に、読み上げの音声�
 | --- | --- | --- | --- |
 | `pending` | 準備中（`light`） | 「公開から最大 1 時間で作成されます。」。`generated_at` があれば「前回の作成：YYYY-MM-DD HH:mm」（公開し直した後の確認待ち。非公開に戻した問題の作成済みの音声も、本文を直したかもしれないので API が `pending` を返す） | なし |
 | `generating` | 生成中（`info`） | 「生成タスクが音声を作成しています。」。`generated_at` があれば前回の作成日時 | なし |
-| `ready` | 作成済み（`success`） | 「作成日時：YYYY-MM-DD HH:mm」 | なし |
+| `ready` | 作成済み（`success`） | 「作成日時：YYYY-MM-DD HH:mm」。`regenerate_requested_at` があれば「作り直しを待っています（依頼：YYYY-MM-DD HH:mm）」。`last_error` があれば（voice の変更・作り直しに失敗して前の音声を出し続けている）「作り直しに失敗しています（今の音声を出し続けています）。」と `last_error` | 「作り直す」（確認のダイアログの後に依頼する。依頼中は出さない） |
 | `failed` | 失敗（`error`） | 「音声の作成に 3 回失敗しました。」と `last_error`（等幅・折り返し） | 「再試行」 |
 
 - 日時は一覧と同じく Asia/Tokyo の `YYYY-MM-DD HH:mm`（step6 の整形の関数があれば使う）
-- 下書きに戻した問題（音声の行がある）も同じカードを出す（作成済みの音声は「準備中」になる。再公開すると生成タスクが本文を確かめて「作成済み」に戻す）。再試行は状態を問わず `failed` なら押せる（生成されるのは再公開の後）
+- 下書きに戻した問題（音声の行がある）も同じカードを出す（作成済みの音声は「準備中」になる。再公開すると生成タスクが本文を確かめて「作成済み」に戻す）。再試行は状態を問わず `failed` なら押せる（生成されるのは再公開の後。再公開でも `pending` に戻る）
+- 「作り直す」の確認のダイアログ：見出し「読み上げの音声を作り直す」、本文「次回の生成タスク（最大 1 時間後）で、本文が同じでも Amazon Polly で音声を作り直します（1 問 約 12 円。月の上限に数えます）。作り直すまでは今の音声を出し続けます。」、「キャンセル」「作り直す」。見た目は `PassageReview` の「再生成」のダイアログ（`Modal`）と同じ
 
 ### 2. ラベル（`src/features/passage/passage.labels.ts` に足す）
 
@@ -48,16 +49,25 @@ export const retryAdminPassageAudio = async (id: number): Promise<RetryAdminPass
   const raw = await apiClient.post<unknown>(`/api/admin/passage/${id}/audio/retry`, {})
   return retryAdminPassageAudioResponseSchema.parse(raw)
 }
+
+/** 作成済みの読み上げの音声の作り直しを依頼する（ready のときだけ。それ以外は 409） */
+export const regenerateAdminPassageAudio = async (id: number): Promise<RegenerateAdminPassageAudioResponse> => {
+  const raw = await apiClient.post<unknown>(`/api/admin/passage/${id}/audio/regenerate`, {})
+  return regenerateAdminPassageAudioResponseSchema.parse(raw)
+}
 ```
+
+（実装は `passageApi` のオブジェクトのメソッド `retryAudio` / `regenerateAudio`）
 
 ### 4. Server Action（`src/app/(dashboard)/passages/[id]/actions.ts` に足す）
 
 ```ts
 export async function retryPassageAudioAction(id: number): Promise<PassageActionResult>
+export async function regeneratePassageAudioAction(id: number): Promise<PassageActionResult>
 ```
 
 - 成功したら ``revalidatePath(`/passages/${id}`)`` して `{ ok: true }`
-- `ApiClientError` の 404 / 409 は `{ details: undefined, error, ok: false, status }` で返す（409 は「音声の状態が変わりました。画面を再読み込みしてください。」）。それ以外は throw（`global-error.tsx` に任せる）
+- `ApiClientError` の 404 / 409 は `{ details: undefined, error, ok: false, status }` で返す（409 は「音声の状態が変わりました。画面を再読み込みしてください。」。2 つの操作で共有する）。それ以外は throw（`global-error.tsx` に任せる）
 
 ### 5. カード（`src/components/features/passage/PassageAudioCard.tsx`）
 
@@ -89,7 +99,7 @@ export function PassageAudioCard({ audio, passageId }: Props) {
 
   return (
     <ComponentCard desc="公開した問題の本文を Amazon Polly で読み上げた音声" title="読み上げの音声">
-      {/** バッジ・本文（§1 の表）・失敗時の last_error と「再試行」（isPending の間は無効で「再試行中…」）・errorMessage */}
+      {/** バッジ・本文（§1 の表）・失敗時の last_error と「再試行」（isPending の間は無効で「再試行中…」）・作成済みの「作り直す」と確認の Modal・errorMessage */}
     </ComponentCard>
   )
 }
@@ -115,5 +125,9 @@ admin にはユニットテストが無いので、`verify-web-page` skill の�
 - [ ] `UPDATE passage_audios SET status = 'failed', attempt_count = 3, last_error = 'ServiceFailureException: ...'`：「失敗」のバッジ、エラーの文言、「再試行」が出る。長いエラーでもカードの幅からはみ出さない
 - [ ] 「再試行」を押すと、押している間はボタンが無効になり、終わると「準備中」に変わる。DB が `pending`・`attempt_count = 0`
 - [ ] 別のタブで先に再試行してから押すと、409 の文言が出る（画面は壊れない）
+- [ ] 作成済みの問題で「作り直す」→ 確認のダイアログ →「作り直す」で、「作り直しを待っています（依頼：…）」に変わり、ボタンが消える。DB の `regenerate_requested_at` が入り、`status`・`updated_at` は変わらない。「キャンセル」では何も変わらない
+- [ ] `TTS_PROVIDER=fake pnpm --filter cron generate:audio` の後に再読み込みすると、「作り直しを待っています」が消えて作成日時が新しくなる
+- [ ] `UPDATE passage_audios SET last_error = 'ServiceFailureException: ...', attempt_count = 3 WHERE ...`（ready のまま）：作成済みのバッジのまま「作り直しに失敗しています」とエラーが出て、「作り直す」を押せる
+- [ ] 非公開に戻した問題（作成済みの音声は「準備中」）では「作り直す」が出ない
 - [ ] 収集済み・下書き（音声の行が無い）の問題ではカードが出ない
 - [ ] ブラウザに `ADMIN_API_TOKEN` が渡っていない（開発者ツールで確認）

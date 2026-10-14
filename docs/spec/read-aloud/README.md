@@ -17,7 +17,7 @@
 - [`../product-overview/README.md`](../product-overview/README.md) — 機能一覧・インフラ上の配置
 - [`../minimal-deploy/README.md`](../minimal-deploy/README.md) — cron（ECS RunTask）と S3 の置き場所
 - [`./deferred-voices-and-pronunciation.md`](./deferred-voices-and-pronunciation.md) — MVP 対象外。声の選択、単語の発音、ユーザーの音読の評価
-- **この spec が正本のもの**：`passage_audios` の列定義、`reading_attempts.listened_block_count`（読み上げを聞いた段落の数）、音声のマニフェスト（`PassageAudioManifest`）の型、`AUDIO_STATUSES`
+- **この spec が正本のもの**：`passage_audios`・`audio_synthesis_usages` の列定義、`reading_attempts.listened_block_count`（読み上げを聞いた段落の数）、音声のマニフェスト（`PassageAudioManifest`）の型、`AUDIO_STATUSES`
 
 ## 目次
 
@@ -35,6 +35,7 @@
   - [音声の生成タスク](#音声の生成タスク)
   - [読み上げ用のテキストと文字位置の対応](#読み上げ用のテキストと文字位置の対応)
   - [音声の保存と配信](#音声の保存と配信)
+  - [却下した問題の音声](#却下した問題の音声)
   - [再生の実装](#再生の実装)
   - [失敗時の扱い](#失敗時の扱い)
   - [MVP 対象外（将来検討）](#mvp-対象外将来検討)
@@ -120,17 +121,21 @@ stateDiagram-v2
     [*] --> pending: 問題を公開（行はまだ無い）
     pending --> generating: 生成タスクが確保
     generating --> ready: 音声の生成に成功
-    generating --> pending: 失敗（3 回未満）・生成中に本文が変わった・30 分以上止まった
+    generating --> pending: 失敗（3 回未満）・生成中に本文が変わった・30 分以上止まった・月の上限で止めた
     generating --> failed: 3 回失敗
-    failed --> pending: 管理者が再試行
-    ready --> generating: 公開し直された（本文が変わったか確かめる）・voice を変えた
+    failed --> pending: 管理者が再試行・問題を公開し直した
+    ready --> generating: 公開し直された（本文が変わったか確かめる）
+    ready --> ready: voice を変えた・管理者が作り直しを依頼した（ready のまま作り直し、その間も前の音声を出す）
+    ready --> pending: ready のまま作り直している間に本文が変わった
 ```
 
 - 音声は **問題が公開された後** に作る。生成タスクは 1 時間ごとに動くので、公開から最大 1 時間ほどで聞けるようになる
 - 下書き（未公開）の問題には音声を作らない（却下される問題に費用をかけないため）
 - 公開済みの問題を非公開に戻して本文を直し、再公開すると、音声を作り直す。本文が変わっていなければ作り直さない（非公開の間と、再公開の後に作り直すかを確かめる間は「準備中」になる）
-- 利用者には `pending` と `generating` をどちらも「準備中」と見せる。失敗した問題は、管理者が再試行するまで自動では作り直さない
-- 管理者は admin の問題の確認画面で、音声の状態（準備中・生成中・作成済み・失敗）と作成日時を見られる。失敗したものは「再試行」できる
+- 利用者には `pending` と `generating` をどちらも「準備中」と見せる。失敗した問題は、管理者が再試行するか、問題を公開し直す（本文を直して再公開するなど）まで自動では作り直さない
+- voice を変えたときと、管理者が「作り直す」を押したときは、**作り直す間も前の音声を出し続ける**（`ready` のまま。利用者には「準備中」にならない）。作り直しに 3 回失敗しても前の音声のまま（管理者がもう一度「作り直す」を押すとやり直す）
+- 却下した問題の音声は、次の生成タスクの実行で保存先の mp3 と行を消す（ライセンスなどで取り下げた本文の読み上げを残さないため）。非公開に戻しただけの問題は、再公開で同じ本文なら作り直さずに使うので消さない
+- 管理者は admin の問題の確認画面で、音声の状態（準備中・生成中・作成済み・失敗）と作成日時を見られる。失敗したものは「再試行」、作成済みのものは「作り直す」（Polly の読みの不具合などのとき。確認のダイアログあり。依頼中は「作り直しを待っています」と出る）ができる
 
 ### 読み上げない部分
 
@@ -176,9 +181,10 @@ Polly の Neural は **単語の時刻（Speech Marks）を返せる最も安い
 
 - **無料枠**：Polly の Neural は、AWS アカウントを作ってから 12 か月間、月 100 万文字（約 200 問）まで無料。ただし対象は **2025 年 7 月 15 日より前に作ったアカウント** だけで、それ以降に作ったアカウントは代わりに最大 $200 のクレジット（6 か月）が付く。どちらの期間も過ぎたアカウントは上の表のとおり課金される
 - 費用は **公開した問題の数に比例** し、ユーザー数や再生回数にはほぼ比例しない（音声を作り置きして使い回すため）
-- 本文を直して再公開したとき（本文のハッシュで判定）と、voice を変えたときだけ作り直す。読み上げ用テキストの作り方の版（`AUDIO_TEXT_VERSION`）を上げても自動では作り直さない（[音声の生成タスク](#音声の生成タスク)）
+- 本文を直して再公開したとき（本文のハッシュで判定）、voice を変えたとき、管理者が「作り直す」を押したときだけ作り直す。読み上げ用テキストの作り方の版（`AUDIO_TEXT_VERSION`）を上げても自動では作り直さない（[音声の生成タスク](#音声の生成タスク)）
 - 1 回の実行で作る件数に上限を置く（`AUDIO_MAX_PASSAGES_PER_RUN`、既定 20）。AWS の Budgets で Polly の利用額にアラートを付ける
-- voice の変更・読み上げ用テキストの版の更新では、公開済みの問題数 × 約 $0.077 が 1 度にかかる（1 時間に最大 20 問ずつ作り直す。公開済みが 300 問なら約 $23）
+- **月の上限で止める**：件数の上限だけでは、作り直しや不具合の繰り返しで 1 日に最大 480 問（20 問 × 24 回。約 $37/日）課金されうる。Polly の `SynthesizeSpeech`（音声と単語の時刻）のリクエストごとに課金された文字数を `audio_synthesis_usages` に記録し、各問題を作る前に「今月（UTC の暦月。AWS の請求の月）の合計 + その問題の見込みの文字数」が `AUDIO_MONTHLY_CHARACTER_LIMIT` を超えるなら、作らずに止める（[失敗時の扱い](#失敗時の扱い)）。既定の **180 万文字（約 $29）** は、上の表の月 300 問（144 万文字・約 $23）に失敗の再試行・作り直しの分として 25% の余裕を持たせ、Budgets の上限（$30）の手前で止まる値。`TTS_PROVIDER=fake`（無音の mp3）は課金されないので記録しない
+- voice の変更・読み上げ用テキストの版の更新では、公開済みの問題数 × 約 $0.077 が 1 度にかかる（1 時間に最大 20 問ずつ作り直す。公開済みが 300 問なら約 $23）。月の上限を超えるときは、その月だけ `AUDIO_MONTHLY_CHARACTER_LIMIT` を上げる
 
 参考：[Amazon Polly の料金](https://aws.amazon.com/polly/pricing/)、[Polly の Speech Marks](https://docs.aws.amazon.com/polly/latest/dg/speechmarks.html)、[Polly の Generative の制約](https://docs.aws.amazon.com/polly/latest/dg/generative-voices.html)、[CloudFront の料金](https://aws.amazon.com/cloudfront/pricing/pay-as-you-go/)、[Google Cloud TTS の料金（調査サイト）](https://texttolab.com/blog/google-cloud-tts-pricing)、[Azure TTS の料金（調査サイト）](https://texttolab.com/blog/azure-text-to-speech-pricing)、[OpenAI TTS の料金（調査サイト）](https://texttolab.com/blog/openai-tts-pricing)、[ElevenLabs の料金](https://elevenlabs.io/pricing)
 
@@ -187,20 +193,23 @@ Polly の Neural は **単語の時刻（Speech Marks）を返せる最も安い
 cron に `generate:audio` タスクを足す。EventBridge Scheduler で **1 時間ごと** に起動する（`generate:questions` とは独立）。
 
 1. `generating` のまま 30 分以上たった行を `pending` に戻す（前回の実行が途中で落ちた場合の回収。[question-generation の生成タスク](../question-generation/README.md#生成タスクの動き) と同じ）
-2. 対象を **状態で確保する**。`status = 'published'` の問題のうち、`passage_audios` が無い・`status = 'pending'`・`ready` で音声を作った後に公開し直された（`passage_audios.updated_at < passages.published_at`）・`ready` で `voice_id` が今の voice と違う問題を、古い順に `AUDIO_MAX_PASSAGES_PER_RUN` 件まで、短いトランザクションで `FOR UPDATE SKIP LOCKED` で取り、`status = 'generating'`・`generation_started_at = now()` にして commit する（行が無ければ作る）。実行が重なっても同じ問題を二重に処理しない
-3. 1 件ずつ、**トランザクションの外で** 音声を作る。本文のハッシュ（`text_hash`）を求め、前の成功のマニフェストがあってそのハッシュと同じなら、行の状態を問わず作り直さない（`pending` に戻された行でも Polly を呼ばない。マニフェストの mp3 は別のハッシュの生成が成功して置き換わるまで消さないので、そのまま使える）。違えば、読み上げるブロック（[読み上げない部分](#読み上げない部分) を除く）を順に処理する
+2. 却下（`status = 'rejected'`）の問題の音声（確保中のものを除く）の mp3 をすべて消し、消せたら `passage_audios` の行も消す（[却下した問題の音声](#却下した問題の音声)）
+3. 対象を **状態で確保する**。`status = 'published'` の問題のうち、次の行を古い順に `AUDIO_MAX_PASSAGES_PER_RUN` 件まで、短いトランザクションで `FOR UPDATE SKIP LOCKED` で取って commit する。実行が重なっても同じ問題を二重に処理しない（`ready` は、別の実行が 30 分以内に確保した行〈`generation_started_at` がある〉を取らない）
+   - `passage_audios` が無い・`status = 'pending'`・`ready` で音声を作った後に公開し直された（`passage_audios.updated_at < passages.published_at`）：`status = 'generating'`・`generation_started_at = now()` にする（行が無ければ作る）。公開し直された問題は本文が変わったかもしれないので、前のマニフェストを返さない
+   - `ready` で `voice_id` が今の voice と違う・`ready` で作り直しの依頼（`regenerate_requested_at`）がある（公開し直されていないもの。失敗が 3 回未満のものだけ）：**`ready` のまま** `generation_started_at = now()` だけを入れる（`updated_at` は変えない。api は `updated_at < published_at` で公開し直しを判定するため）。作り直す間も api は前のマニフェストを返し続ける
+4. 1 件ずつ、**トランザクションの外で** 音声を作る。本文のハッシュ（`text_hash`）を求め、前の成功のマニフェストがあってそのハッシュと同じで、作り直しの依頼も無ければ、行の状態を問わず作り直さない（`pending` に戻された行でも Polly を呼ばない。マニフェストの mp3 は別の生成が成功して置き換わるまで消さないので、そのまま使える）。作り直すときは、まず月の上限を確かめ（今月の課金文字数 + その問題の見込みが `AUDIO_MONTHLY_CHARACTER_LIMIT` を超えるなら、その問題と残りの確保を外して止める）、読み上げるブロック（[読み上げない部分](#読み上げない部分) を除く）を順に処理する
    - ブロックから読み上げ用のテキストを作る（[次節](#読み上げ用のテキストと文字位置の対応)）
-   - Polly の `SynthesizeSpeech` を 2 回呼ぶ：mp3（`OutputFormat=mp3`）と単語の時刻（`OutputFormat=json`、`SpeechMarkTypes=["word"]`）
+   - Polly の `SynthesizeSpeech` を 2 回呼ぶ：mp3（`OutputFormat=mp3`）と単語の時刻（`OutputFormat=json`、`SpeechMarkTypes=["word"]`）。成功したリクエストごとに課金された文字数（`RequestCharacters`）を `audio_synthesis_usages` に記録する（その問題が失敗に終わっても記録は残す）
    - 1 リクエストの上限（課金対象 3,000 文字）を超えるブロックは文の区切りで分け、**パート** ごとに音声を作る（まれ）
-   - mp3 を保存する（キー：`passages/{passage_id}/{text_hash}/{block_index}-{part}.mp3`）
-4. 結果を短いトランザクションで書く。条件は `status = 'generating' AND generation_started_at = 確保した時刻`（30 分を過ぎて別の実行に取り直された行を、古い実行が上書きしない）。書くときに今の本文の `text_hash` を求め直し、確保した時と違えば（生成中に非公開 → 修正 → 再公開された）`ready` にせず `pending` に戻し、作った mp3 を消す
-5. 成功したら、マニフェスト（各パートのキー・長さ・単語の時刻）を保存して `status = 'ready'`。前の `text_hash` の mp3 は削除する
-6. 失敗したら `attempt_count` を増やし、3 回で `failed`（[失敗時の扱い](#失敗時の扱い)）
+   - mp3 を保存する（キー：`passages/{passage_id}/{text_hash}/{block_index}-{part}.mp3`。作り直しの依頼で本文のハッシュが前と同じときは `passages/{passage_id}/{text_hash}-r{確保の時刻のミリ秒}/{block_index}-{part}.mp3`。[音声の保存と配信](#音声の保存と配信)）
+5. 結果を短いトランザクションで書く。条件は `status = 確保したときの状態（generating / ready）AND generation_started_at = 確保した時刻`（30 分を過ぎて別の実行に取り直された行を、古い実行が上書きしない）。書くときに今の本文の `text_hash` を求め直し、確保した時と違えば（生成中に非公開 → 修正 → 再公開された）`ready` にせず `pending` に戻し、作った mp3 を消す
+6. 成功したら、マニフェスト（各パートのキー・長さ・単語の時刻）・`voice_id`・`text_hash` を保存して `status = 'ready'`。確保の時刻までに出された作り直しの依頼は消す（確保の後に出された依頼は残し、次の実行でもう一度作り直す）。前のマニフェストの mp3 は削除する
+7. 失敗したら `attempt_count` を増やし、3 回で `failed`。`ready` のまま確保した行は `failed` にせず `ready` のまま（前の音声を出し続ける。[失敗時の扱い](#失敗時の扱い)）
 
 - Polly を呼ぶ間はトランザクションを開かない（本番〈minimal〉の DB は PgBouncer の transaction pooling なので、長いトランザクションを避ける）
 - Polly のクライアントは `apps/cron/src/client/polly/`（`@aws-sdk/client-polly`）。資格情報は ECS のタスクロール（IAM に `polly:SynthesizeSpeech`）。音声合成は `TTS_PROVIDER` で選び、既定は `production` では `polly`、それ以外は `fake`（無音の mp3〈無音の MPEG フレームを並べたもの〉と等間隔の単語の時刻を返す `FakeTtsClient`。手元の AWS の資格情報で意図せず課金しないため。[step3 の env](./tasks/step3-cron-generate-audio.md#5-taskenvスクリプト)）。ローカルで `polly` を選んで AWS の資格情報が無ければ、タスクは「音声合成を使えない」として何もせず終わる
-- 冪等：同じ問題を 2 回処理しても、同じキーに上書きして同じマニフェストになる
-- 読み上げ用テキストの作り方を変えて `AUDIO_TEXT_VERSION` を上げても、`ready` の行は自動では作り直さない。作り直すときはデプロイの後に `UPDATE passage_audios SET status = 'pending' WHERE status = 'ready'` を流す（次の実行から `AUDIO_MAX_PASSAGES_PER_RUN` 件ずつ作り直す。その間は「準備中」になる。ハッシュが変わらない行は Polly を呼ばずに `ready` に戻る）
+- 冪等：同じ問題を 2 回処理しても、同じキーに上書きして同じマニフェストになる（作り直しの依頼で本文も voice も同じときだけは、キャッシュに前の音声を残さないよう別のキーにする）
+- 読み上げ用テキストの作り方を変えて `AUDIO_TEXT_VERSION` を上げても、`ready` の行は自動では作り直さない。作り直すときはデプロイの後に作り直しの依頼を入れる（`UPDATE passage_audios SET regenerate_requested_at = timezone('utc', now()), attempt_count = 0, last_error = NULL WHERE status = 'ready'`。日時の列は UTC なので `timezone('utc', ...)` にする。`updated_at` は変えない）。次の実行から `AUDIO_MAX_PASSAGES_PER_RUN` 件ずつ、前の音声を出しながら作り直す（月の上限を超えるなら、その月だけ上限を上げる）
 
 ### 読み上げ用のテキストと文字位置の対応
 
@@ -215,13 +224,20 @@ cron に `generate:audio` タスクを足す。EventBridge Scheduler で **1 時
 ### 音声の保存と配信
 
 - 保存は `@repo/storage` の `Storage`（本番は S3、ローカルは `LocalStorage`）。音声用に 1 つのインスタンス（`audioStorage`）を作る。S3 の実装に、保存時の `Cache-Control` の指定と mp3 の Content-Type（`audio/mpeg`）を足す
-- 本番は S3 の専用 bucket を CloudFront（OAC）で配信する。音声は公開してよい英文の読み上げなので、署名付き URL にはしない（キーに本文のハッシュを含めるので推測されにくい）。キャッシュは長期（`Cache-Control: public, max-age=31536000, immutable`）。本文や声が変わるとキーが変わるので（`text_hash` に voice も含める）古いキャッシュは問題にならない。CloudFront は独自ドメインにせず既定のドメインを使う（独自ドメインは us-east-1 の証明書が要るため）
+- 本番は S3 の専用 bucket を CloudFront（OAC）で配信する。音声は公開してよい英文の読み上げなので、署名付き URL にはしない（キーに本文のハッシュを含めるので推測されにくい）。キャッシュは長期（`Cache-Control: public, max-age=31536000, immutable`）。本文や声が変わるとキーが変わるので（`text_hash` に voice も含める）古いキャッシュは問題にならない。作り直しの依頼で本文も声も同じときは、キーのディレクトリに確保の時刻を足して（`{text_hash}-r{ミリ秒}`）別のキーにする（同じキーに上書きすると、CloudFront と端末のキャッシュから作り直す前の音声が 1 年間返る）。CloudFront は独自ドメインにせず既定のドメインを使う（独自ドメインは us-east-1 の証明書が要るため）
 - ローカルは cron が `.storage/audio/` に書き、api が開発環境でだけ `/media/*` として配信する（`production` では配信しない）。`production` で保存先が `local`（`AUDIO_STORAGE_TYPE` の既定）のままなら、生成タスクは起動時に throw する（コンテナの一時領域に mp3 を書いて `ready` にしないため。cron の他のタスクを止めないよう env の検証では弾かない）
 - api はマニフェストのキーを `AUDIO_PUBLIC_URL_BASE` と組み合わせて URL にして返す。本番で未設定なら音声は「準備中」を返す（infra より先に api を出しても起動を止めない）
+- voice の変更・作り直しの依頼で生成タスクが `ready` のまま作り直している間は、api は前のマニフェストを返し続ける（生成タスクは `updated_at` を進めないので、下の判定は変わらない）。作り直しが成功するとマニフェストが新しいキーのものに置き換わり、前の mp3 は消える（再生中の端末は、再生の失敗でマニフェストを取り直す。[再生の実装](#再生の実装)）
 - api は `ready` でも、次のときは本文が変わって位置がずれているかもしれないので「準備中」として返す（利用者の API・admin の詳細の両方）
   - 問題が公開中でない（非公開に戻した）。非公開に戻しても `published_at` は残り、下書きのまま本文を直せるので、`updated_at` と `published_at` の比較では直した後の本文に古いマニフェストが重なる。再公開すると生成タスクが本文のハッシュを確かめて `ready` に戻す（本文が同じなら Polly を呼ばない）
   - 音声を作った（または同じ本文だと確かめた）後に問題が公開し直された（`updated_at < published_at`）。生成タスクが本文を確かめると `ready` に戻る
-- infra（AWS の設定後）：cron のタスクロールを execution role から分けて Polly と bucket への書き込みの権限を付ける。min の deploy の role にそのタスクロールの `iam:PassRole` を足す。Polly の費用は環境ごとに分けられないので、Budgets のアラートはアカウントに 1 つ置く（[step8](./tasks/step8-infra-audio.md)）
+- infra（AWS の設定後）：cron のタスクロールを execution role から分けて Polly と bucket への書き込み・削除の権限を付ける。min の deploy の role にそのタスクロールの `iam:PassRole` を足す。Polly の費用は環境ごとに分けられないので、Budgets のアラートはアカウントに 1 つ置く（[step8](./tasks/step8-infra-audio.md)）
+
+### 却下した問題の音声
+
+- 生成タスクは実行のたびに、却下（`rejected`）の問題の `passage_audios`（確保中〈`generation_started_at` が 30 分以内〉のものを除く）のマニフェストの mp3 をすべて消し、消せたら行も消す。一時的に消せなかった mp3 があれば行を残して次の実行でやり直す（行のマニフェストが残りのキーを指すため）。保存先の設定の誤り（権限・bucket）はタスクを止める
+- 非公開（`draft`）に戻しただけの問題は消さない（再公開で同じ本文なら作り直さずに使うため。api は非公開の問題の音声を返さない）
+- ライセンスなどで問題の音声を取り下げる手順：① admin で問題を非公開に戻してから却下する ② 次の `generate:audio`（1 時間以内。急ぐなら手動で RunTask）で S3 から mp3 と行が消える ③ CloudFront のキャッシュは 1 年なので、`aws cloudfront create-invalidation --distribution-id <id> --paths "/passages/<passage_id>/*"` でそのパスを無効化する（端末の HTTP キャッシュに残った分は消せない）
 
 ### 再生の実装
 
@@ -250,9 +266,11 @@ cron に `generate:audio` タスクを足す。EventBridge Scheduler で **1 時
 
 - Polly の一時的なエラー（throttling・5xx）は SDK のリトライに任せる。それでも失敗した問題は `attempt_count` を増やして次の実行に回す
 - mp3 の保存の一時的なエラー（S3 の 5xx・throttling、ローカルの保存先の失敗）も、Polly の一時的なエラーと同じく `attempt_count` を増やして次の実行に回す
-- 3 回失敗したら `failed` にして `last_error` を残す。管理者が admin で「再試行」すると `pending` に戻る（`attempt_count = 0`）
-- 資格情報・権限・voice の設定の誤りのように、どの問題でも同じく失敗するエラーでは、失敗の回数を増やさずに確保を `pending` に戻してタスクを止める（全件が `failed` にならないように）。Polly だけでなく mp3 の保存先（S3 の権限が無い・bucket が無い・資格情報が無効・bucket のリージョンが違う）の誤りも同じ（保存は音声合成の後なので、1 件の失敗にすると Polly の料金をかけて全件が `failed` に進む）。前の mp3 の削除でこの誤りが起きたときも、その問題の結果は書き終えたままタスクを止める
-- 1 件でも失敗があればタスクは exit 1（ECS のタスクの終了コードとログに残す。通知は MVP では持たない。[content-collection](../content-collection/README.md#実行の上限と失敗時の扱い) と同じ）
+- 3 回失敗したら `failed` にして `last_error` を残す。管理者が admin で「再試行」するか、問題を公開し直すと `pending` に戻る（`attempt_count = 0`・`last_error = null`。公開の API が公開と同じトランザクションで戻す。本文を直して再公開したのに `failed` のまま、ということが無いように）
+- `ready` のまま確保した行（voice の変更・作り直しの依頼）の失敗は、`ready` のまま `attempt_count` を増やして `last_error` を残す（前の音声を出し続ける。`failed` にしない）。3 回に達した行は生成タスクが取らなくなり、管理者が「作り直す」を押すと `attempt_count = 0` に戻ってやり直す。admin のカードは作成済みのままエラーを出す
+- **月の上限**（`AUDIO_MONTHLY_CHARACTER_LIMIT`）に達しそうなら、その問題と残りの確保を外し（失敗の回数は増やさない。`generating` は `pending` に戻り、`ready` のまま確保した行は前の音声のまま）、error のログを出して exit 1 で止める。上限を上げるか翌月になれば、次の実行から続きを作る
+- 資格情報・権限・voice の設定の誤りのように、どの問題でも同じく失敗するエラーでは、失敗の回数を増やさずに確保を外して（`generating` は `pending` に戻し、`ready` のまま確保した行はトークンだけを外す）タスクを止める（全件が `failed` にならないように）。Polly だけでなく mp3 の保存先（S3 の権限が無い・bucket が無い・資格情報が無効・bucket のリージョンが違う）の誤りも同じ（保存は音声合成の後なので、1 件の失敗にすると Polly の料金をかけて全件が `failed` に進む）。前の mp3 の削除でこの誤りが起きたときも、その問題の結果は書き終えたままタスクを止める
+- 1 件でも失敗があるか、月の上限で止めたらタスクは exit 1（ECS のタスクの終了コードとログに残す。通知は MVP では持たない。[content-collection](../content-collection/README.md#実行の上限と失敗時の扱い) と同じ）
 - 音声が無い・失敗した問題でも、解答は普段どおりできる（読み上げのボタンが無効になるだけ）
 
 ### MVP 対象外（将来検討）
@@ -276,7 +294,7 @@ cron に `generate:audio` タスクを足す。EventBridge Scheduler で **1 時
 | 問題を解く（web・mobile） | 本文の列の下端にミニプレーヤー（再生・停止・速度）、段落番号の列に段落の再生ボタン、単語のハイライト、ステータスバーに「読み上げ n 段落」と `R` キー | この spec / [reading-practice](../reading-practice/README.md#問題を解く) |
 | 結果・解説（web・mobile） | 本文に同じミニプレーヤーと段落の再生ボタン。アシストの表示に「読み上げ n 段落」 | この spec / [reading-practice](../reading-practice/README.md#結果解説) |
 | マイページ・学習履歴 | 「アシストなし」の判定に読み上げを含める（見た目は変えない） | [learning-record](../learning-record/README.md) |
-| （admin）問題の確認・修正 | 音声の状態・作成日時・「再試行」 | [question-generation](../question-generation/README.md#問題の確認修正) |
+| （admin）問題の確認・修正 | 音声の状態・作成日時・「再試行」・「作り直す」 | [question-generation](../question-generation/README.md#問題の確認修正) |
 
 ## UI 設計
 
@@ -527,8 +545,10 @@ cron に `generate:audio` タスクを足す。EventBridge Scheduler で **1 時
 | --- | --- | --- | --- |
 | GET | `/api/attempt/:id/audio` | 必要 | 自分の挑戦の問題の音声マニフェスト。`status`（`pending` / `ready` / `failed`。`generating`・非公開に戻された問題の `ready`・公開し直された後の確認待ちは `pending` として返す）と、`ready` のときブロックごとのパート（`url`・`duration_ms`・単語の時刻 `[start_ms, end_ms, start_offset, end_offset][]`）。他人の挑戦は 404 |
 | POST | `/api/attempt/:id/submit` | 必要 | 既存。リクエストに `listened_block_count`（0〜ブロック数。省略時は 0、ブロック数を超えたら切り詰める）を足す。結果のレスポンスにも返す |
-| GET | `/api/admin/passage/:id` | admin | 既存。`audio`（`status`・`generated_at`・`last_error`）を足す。`status` は `generating` もそのまま返す。非公開に戻された問題の `ready`・公開し直された後の確認待ちは `pending` |
+| GET | `/api/admin/passage/:id` | admin | 既存。`audio`（`status`・`generated_at`・`last_error`・`regenerate_requested_at`）を足す。`status` は `generating` もそのまま返す。非公開に戻された問題の `ready`・公開し直された後の確認待ちは `pending`。`ready` のまま作り直している間は `ready`（作り直しに失敗していれば `last_error` を返す） |
+| POST | `/api/admin/passage/:id/publish` | admin | 既存。音声が `failed` なら、公開と同じトランザクションで `pending` に戻す（`attempt_count = 0`・`last_error = null`。再試行と同じ処理） |
 | POST | `/api/admin/passage/:id/audio/retry` | admin | 失敗した音声を `pending` に戻す（`failed` のときだけ。それ以外は 409） |
+| POST | `/api/admin/passage/:id/audio/regenerate` | admin | 作成済みの音声の作り直しを依頼する（表示上 `ready` のときだけ `regenerate_requested_at = now`・`attempt_count = 0`・`last_error = null`。`updated_at` は変えない。それ以外は 409）。レスポンスは `passage_id`・`regenerate_requested_at` |
 
 学習記録の API（`/api/user/stats`・`/api/user/attempts`）は、アシストの判定に `listened_block_count > 0` を含める（レスポンスの形は変えない）。
 
@@ -538,6 +558,7 @@ cron に `generate:audio` タスクを足す。EventBridge Scheduler で **1 時
 erDiagram
     passages ||--o| passage_audios : "音声"
     passages ||--o{ reading_attempts : "挑戦"
+    passages ||--o{ audio_synthesis_usages : "課金の記録"
 
     passage_audios {
         int id PK
@@ -549,28 +570,40 @@ erDiagram
         int billed_characters "Polly の課金文字数（音声 + 単語の時刻）"
         smallint attempt_count "default 0"
         text last_error "nullable"
-        timestamp generation_started_at "generating にした時刻（確保のトークン）, nullable"
+        timestamp generation_started_at "確保した時刻（確保のトークン）, nullable"
         timestamp generated_at "nullable"
+        timestamp regenerate_requested_at "作り直しの依頼, nullable"
         timestamp created_at
         timestamp updated_at
     }
     reading_attempts {
         smallint listened_block_count "追加。default 0"
     }
+    audio_synthesis_usages {
+        int id PK
+        int passage_id FK
+        int characters "課金された文字数（> 0）"
+        timestamp created_at "index"
+        timestamp updated_at
+    }
 ```
 
 | テーブル | 列 | 説明 |
 | --- | --- | --- |
-| `passage_audios`（新規） | `id`, `passage_id`（unique、`passages` の削除で cascade）, `status`, `voice_id`, `text_hash`, `manifest`, `billed_characters`, `attempt_count`, `last_error`, `generation_started_at`, `generated_at`, timestamps | 問題ごとの読み上げの音声。1 問 1 行 |
+| `passage_audios`（新規） | `id`, `passage_id`（unique、`passages` の削除で cascade）, `status`, `voice_id`, `text_hash`, `manifest`, `billed_characters`, `attempt_count`, `last_error`, `generation_started_at`, `generated_at`, `regenerate_requested_at`, timestamps | 問題ごとの読み上げの音声。1 問 1 行 |
+| `audio_synthesis_usages`（新規） | `id`, `passage_id`（`passages` の削除は restrict）, `characters`（CHECK `> 0`）, timestamps。index `(created_at)` | Polly の `SynthesizeSpeech` のリクエストごとの課金文字数。追記だけで、更新・削除しない。今月の合計で `AUDIO_MONTHLY_CHARACTER_LIMIT` を見る |
 | `reading_attempts`（列を追加） | `listened_block_count smallint NOT NULL DEFAULT 0` | 解答中に読み上げを聞いた段落の数 |
 
 - `AUDIO_STATUSES = ["pending", "generating", "ready", "failed"]` は `@repo/domain` の `const/audio.ts`。DB の CHECK 制約はここから作る
 - `PassageAudioManifest`（`@repo/domain` の `types/audio.ts`）：`{ blocks: { blockIndex: number; parts: { durationMs: number; key: string; words: [startMs, endMs, startOffset, endOffset][] }[] }[] }`。単語の時刻は容量を抑えるため配列のタプルにする（600 語で約 20KB）
-- `generation_started_at` は生成タスクが確保したときの時刻。結果を書くときの条件（確保のトークン）と、30 分以上止まった `generating` の回収に使う。`generating` の行は必ず値を持つ（CHECK 制約）
+- `generation_started_at` は生成タスクが確保したときの時刻。結果を書くときの条件（確保のトークン）と、30 分以上止まった確保の回収に使う。`generating` の行は必ず値を持つ（CHECK 制約）。`ready` のまま確保した行（voice の変更・作り直しの依頼）も作り直す間だけ値を持つ（`ready` の CHECK 制約〈`manifest` と `generated_at` がある〉は前の成功の値で満たす）
+- `regenerate_requested_at` は admin の「作り直す」の時刻。生成タスクは本文のハッシュが同じでも作り直し、成功したら確保の時刻までに出された依頼を消す。依頼を入れても `updated_at` は変えない
+- `updated_at` は「音声を作った（または本文の同一を確かめた）時刻」として api が公開し直しの判定（`updated_at < published_at`）に使うので、`ready` のまま確保・失敗・確保を外す更新と、作り直しの依頼では進めない
 - `voice_id` は生成に使った voice。`TTS_PROVIDER=fake`（無音の mp3）は `fake:<voice>` にして `text_hash` にも入れる（fake で作った問題を Polly に切り替えたときに、voice が違う行として作り直し、保存キーも変える。同じ値だと CloudFront の長期キャッシュに無音の mp3 が残る）
 - `manifest` / `text_hash` は最後に成功した生成のもの。失敗しても前の値を残す（前の mp3 のキーを後で消すため。利用者には `ready` のときしかマニフェストを返さない）
 - index：`(status)`（生成タスクの取得用）
-- ユーザーに紐づかないテーブルなので、アカウント削除の cascade の対象外
+- ユーザーに紐づかないテーブルなので、アカウント削除の cascade の対象外（`audio_synthesis_usages` も同じ）
+- `passage_audios.regenerate_requested_at` と `audio_synthesis_usages` は、`passage_audios` の作成（`20261013170951_add_passage_audios`）とは別のマイグレーション（`20261014021420_add_audio_regeneration_and_usages`）で足す
 
 ## フロー図
 
@@ -587,10 +620,14 @@ sequenceDiagram
     Admin->>API: 問題を公開
     API->>DB: passages.status = published
     Note over Cron: 1 時間ごと
-    Cron->>DB: 対象を確保（generating。短いトランザクション）
+    Cron->>S3: 却下した問題の mp3 を消す
+    Cron->>DB: 却下した問題の音声の行を消す
+    Cron->>DB: 対象を確保（generating。voice の変更・作り直しの依頼は ready のまま。短いトランザクション）
+    Cron->>DB: 今月の課金文字数（+ 見込みが月の上限を超えるなら止める）
     loop 読み上げるブロックごと
         Cron->>Polly: SynthesizeSpeech（mp3）
         Cron->>Polly: SynthesizeSpeech（単語の時刻）
+        Cron->>DB: 課金文字数を記録
         Cron->>S3: mp3 を保存
     end
     Cron->>DB: 確保した時刻を条件に結果を書く<br/>（本文の hash が変わっていなければ ready）
@@ -609,9 +646,9 @@ reading-practice（解答画面・結果画面）と learning-record の実装�
 | --- | --- |
 | [step1-db-passage-audios](./tasks/step1-db-passage-audios.md) | `passage_audios` と `reading_attempts.listened_block_count`、`@repo/domain` の `AUDIO_STATUSES` と `PassageAudioManifest` |
 | [step2-cron-tts-client](./tasks/step2-cron-tts-client.md) | Polly のクライアント（`FakeTtsClient` を含む）、読み上げ用テキストと文字位置の変換（純関数 + テスト） |
-| [step3-cron-generate-audio](./tasks/step3-cron-generate-audio.md) | `generate:audio` タスク（状態での確保・生成・保存・古い音声の削除・失敗の扱い）、`audioStorage` |
-| [step4-api-attempt-audio](./tasks/step4-api-attempt-audio.md) | `GET /api/attempt/:id/audio`、提出の `listened_block_count`、学習記録のアシストの判定、admin の音声の状態と再試行の API、ローカルの `/media` 配信 |
+| [step3-cron-generate-audio](./tasks/step3-cron-generate-audio.md) | `generate:audio` タスク（状態での確保・ready のままの作り直し・生成・保存・古い音声の削除・却下の問題の音声の削除・月の上限・失敗の扱い）、`audioStorage` |
+| [step4-api-attempt-audio](./tasks/step4-api-attempt-audio.md) | `GET /api/attempt/:id/audio`、提出の `listened_block_count`、学習記録のアシストの判定、admin の音声の状態・再試行・作り直しの API と公開での再試行、ローカルの `/media` 配信 |
 | [step5-web-read-aloud](./tasks/step5-web-read-aloud.md) | web の解答画面・結果画面の読み上げ（`useReadAloud`、ミニプレーヤー、段落の再生ボタン、ハイライト、速度、自動スクロール、聞いた段落の記録） |
 | [step6-mobile-read-aloud](./tasks/step6-mobile-read-aloud.md) | mobile の解答画面・結果画面の読み上げ（`expo-audio`） |
-| [step7-admin-audio-status](./tasks/step7-admin-audio-status.md) | admin の問題の確認画面に音声の状態と「再試行」 |
+| [step7-admin-audio-status](./tasks/step7-admin-audio-status.md) | admin の問題の確認画面に音声の状態と「再試行」「作り直す」 |
 | [step8-infra-audio](./tasks/step8-infra-audio.md) | S3 の bucket と CloudFront、cron のタスクロールに Polly と S3 の権限、`generate:audio` のスケジュール（1 時間ごと）。AWS の設定後に infra の PR にまとめる |

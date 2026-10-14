@@ -17,7 +17,8 @@ export type AudioWordTiming = [startMs: number, endMs: number, startOffset: numb
 export type PassageAudioPart = {
   durationMs: number
   /**
-   * Storage のキー（passages/{passage_id}/{text_hash}/{block_index}-{part}.mp3）。URL は api が組み立てる
+   * Storage のキー（passages/{passage_id}/{text_hash}/{block_index}-{part}.mp3。作り直しの依頼で本文の hash が前と同じときは
+   * passages/{passage_id}/{text_hash}-r{確保の時刻のミリ秒}/{block_index}-{part}.mp3）。URL は api が組み立てる
    */
   key: string
   words: AudioWordTiming[]
@@ -45,7 +46,8 @@ export type PassageAudio = {
   billedCharacters: number
   generatedAt: Date | null
   /**
-   * generating にした時刻（確保のトークン）。generating 以外では null
+   * 生成タスクが確保した時刻（確保のトークン）。generating の行と、ready のまま確保した行（voice の変更・admin の作り直し。
+   * 作り直す間も前のマニフェストを返し続ける）が値を持つ。それ以外は null
    */
   generationStartedAt: Date | null
   lastError: string | null
@@ -54,6 +56,10 @@ export type PassageAudio = {
    */
   manifest: PassageAudioManifest | null
   passageId: number
+  /**
+   * admin が「作り直す」を押した時刻（作り直しの依頼）。生成タスクが作り直しに成功すると null に戻る
+   */
+  regenerateRequestedAt: Date | null
   status: AudioStatus
   /**
    * manifest を作った本文のハッシュ（manifest が無い行は作ろうとした本文のハッシュ）

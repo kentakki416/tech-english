@@ -20,7 +20,7 @@ pnpm --filter cron add @aws-sdk/client-polly
 
 | ファイル | 中身 |
 | --- | --- |
-| `src/const/audio.ts` | `POLLY_MAX_BILLED_CHARACTERS = 3000`、`AUDIO_TEXT_VERSION = 1`（読み上げ用テキストの作り方を変えたら上げる。ハッシュは変わるが、`ready` の行は自動では作り直さない。作り直すときはデプロイの後に `UPDATE passage_audios SET status = 'pending' WHERE status = 'ready'` を流す。[step3 §1](./step3-cron-generate-audio.md#1-対象と流れ)） |
+| `src/const/audio.ts` | `POLLY_MAX_BILLED_CHARACTERS = 3000`、`AUDIO_TEXT_VERSION = 1`（読み上げ用テキストの作り方を変えたら上げる。ハッシュは変わるが、`ready` の行は自動では作り直さない。作り直すときはデプロイの後に作り直しの依頼〈`regenerate_requested_at`〉を入れる。[step3 §1](./step3-cron-generate-audio.md#1-対象と流れ)） |
 | `src/client/polly/tts-client.ts` | `TtsClient` interface と入出力の型 |
 | `src/client/polly/polly-tts-client.ts` | `PollyTtsClient` |
 | `src/client/polly/parse-speech-marks.ts` | Speech Marks（1 行 1 JSON）の parse |
@@ -31,7 +31,12 @@ pnpm --filter cron add @aws-sdk/client-polly
 
 ```ts
 /** src/client/polly/tts-client.ts */
-export type SynthesizeInput = { text: string; voiceId: string }
+export type SynthesizeInput = {
+  /** 課金されたリクエスト（音声・単語の時刻）が成功するたびに、その文字数で呼ぶ（月の上限の集計。step3 の service が audio_synthesis_usages に書く） */
+  recordBilledCharacters: (characters: number) => Promise<void>
+  text: string
+  voiceId: string
+}
 export type SynthesizeResult = {
   /** mp3 */
   audio: Buffer
@@ -53,11 +58,18 @@ export class PollyTtsClient implements TtsClient {
 
   public async synthesize(input: SynthesizeInput): Promise<SynthesizeResult> {
     const base = { Engine: "neural", Text: input.text, TextType: "text", VoiceId: input.voiceId } as const
-    /** 音声と単語の時刻は別々のリクエスト（どちらも課金される。README「費用」） */
-    const [audioResponse, marksResponse] = await Promise.all([
+    /** 音声と単語の時刻は別々のリクエスト（どちらも課金される。README「費用」）。片方が失敗しても成功した方は課金されるので、allSettled で記録してから throw する */
+    const [audioResult, marksResult] = await Promise.allSettled([
       this._polly.send(new SynthesizeSpeechCommand({ ...base, OutputFormat: "mp3" })),
       this._polly.send(new SynthesizeSpeechCommand({ ...base, OutputFormat: "json", SpeechMarkTypes: ["word"] })),
     ])
+    for (const result of [audioResult, marksResult]) {
+      if (result.status === "fulfilled") await input.recordBilledCharacters(result.value.RequestCharacters ?? 0)
+    }
+    if (audioResult.status === "rejected") throw audioResult.reason
+    if (marksResult.status === "rejected") throw marksResult.reason
+    const audioResponse = audioResult.value
+    const marksResponse = marksResult.value
     const audio = Buffer.from(await readAudioStream(audioResponse.AudioStream))
     const marks = parseSpeechMarks(new TextDecoder().decode(await readAudioStream(marksResponse.AudioStream)))
     return { audio, billedCharacters: (audioResponse.RequestCharacters ?? 0) + (marksResponse.RequestCharacters ?? 0), marks }
@@ -83,7 +95,7 @@ const SILENT_FRAME_MS = 36
 const FAKE_MS_PER_WORD = 300
 const FAKE_WORD_PATTERN = /[A-Za-z0-9]+(?:['’-][A-Za-z0-9]+)*/g
 
-/** ローカル（TTS_PROVIDER=fake）とテスト用。外部に通信せず、同じ入力には同じ結果を返す */
+/** ローカル（TTS_PROVIDER=fake）とテスト用。外部に通信せず、同じ入力には同じ結果を返す。課金されないので recordBilledCharacters は呼ばない */
 export class FakeTtsClient implements TtsClient {
   public async synthesize(input: SynthesizeInput): Promise<SynthesizeResult> {
     const words = [...input.text.matchAll(FAKE_WORD_PATTERN)]
@@ -175,6 +187,6 @@ pnpm --filter cron lint
 `test/client/polly/`：
 
 - [ ] `parseSpeechMarks`：複数行を parse / 空行を飛ばす / `sentence` は捨てる / 壊れた JSON は throw
-- [ ] `PollyTtsClient`：偽の `send`（`vi.fn`）に 2 回呼ばれ、片方が `OutputFormat: "mp3"`、もう片方が `OutputFormat: "json"` と `SpeechMarkTypes: ["word"]`。どちらも `Engine: "neural"`・`TextType: "text"`・指定の `VoiceId`。`billedCharacters` が 2 つの `RequestCharacters` の合計（`AudioStream` の偽物は SDK の型に合わせて作る）
+- [ ] `PollyTtsClient`：偽の `send`（`vi.fn`）に 2 回呼ばれ、片方が `OutputFormat: "mp3"`、もう片方が `OutputFormat: "json"` と `SpeechMarkTypes: ["word"]`。どちらも `Engine: "neural"`・`TextType: "text"`・指定の `VoiceId`。`billedCharacters` が 2 つの `RequestCharacters` の合計（`AudioStream` の偽物は SDK の型に合わせて作る）。`recordBilledCharacters` が 2 つの `RequestCharacters` で 1 回ずつ呼ばれ、単語の時刻のリクエストだけが失敗したら音声の分だけ記録してから throw する。`FakeTtsClient` は `recordBilledCharacters` を呼ばない
 - [ ] `FakeTtsClient`：同じ入力に同じ結果 / 単語の数だけ時刻があり等間隔で `durationMs` 未満 / 絵文字を含むテキストでも `start` / `end` が UTF-8 のバイト位置になっている / `measureMp3DurationMs(audio)` が `frameCount × 36`
 - [ ] 設定の誤りの判定（`isFatalAudioGenerationError`）のテストは step3（`test/lib/audio/fatal-error.test.ts`）

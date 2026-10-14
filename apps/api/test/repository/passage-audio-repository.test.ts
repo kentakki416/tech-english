@@ -2,8 +2,11 @@ import { eq, passageAudios } from "@repo/db"
 import type { AudioStatus } from "@repo/domain"
 
 import { DrizzlePassageAudioRepository } from "../../src/repository/drizzle/passage-audio-repository"
+import { DrizzleTransactionRunner } from "../../src/repository/drizzle/transaction-runner"
 import type { PassageAudioRepository } from "../../src/repository/passage-audio-repository"
 import { PrismaPassageAudioRepository } from "../../src/repository/prisma/passage-audio-repository"
+import { PrismaTransactionRunner } from "../../src/repository/prisma/transaction-runner"
+import type { TransactionRunner } from "../../src/repository/transaction"
 import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb, testPrisma } from "../controller/setup"
 import { insertGeneratedPassage, insertPassageAudio } from "../fixture/passage"
 import { AUDIO_TEXT_HASH, buildAudioManifest } from "../fixture/passage-audio"
@@ -12,10 +15,15 @@ import { AUDIO_TEXT_HASH, buildAudioManifest } from "../fixture/passage-audio"
  * Prisma / Drizzle の両実装が PassageAudioRepository として同じ振る舞いをすることを確かめる。
  * DI で使うのは Drizzle 実装だが、Prisma 実装へ戻せる状態を保つために両方を検証する
  */
-const implementations: [string, PassageAudioRepository][] = [
-  ["Drizzle", new DrizzlePassageAudioRepository(testDb)],
-  ["Prisma", new PrismaPassageAudioRepository(testPrisma)],
+const implementations: [string, PassageAudioRepository, TransactionRunner][] = [
+  ["Drizzle", new DrizzlePassageAudioRepository(testDb), new DrizzleTransactionRunner(testDb)],
+  ["Prisma", new PrismaPassageAudioRepository(testPrisma), new PrismaTransactionRunner(testPrisma)],
 ]
+
+/**
+ * insertPassageAudio の updated_at（音声を作った時刻）
+ */
+const AUDIO_UPDATED_AT = new Date("2026-10-12T04:00:00.000Z")
 
 const PUBLISHED_AT = new Date("2026-10-12T03:00:00.000Z")
 
@@ -47,7 +55,7 @@ afterAll(async () => {
   await disconnectTestRedis()
 })
 
-describe.each(implementations)("%s PassageAudioRepository", (_name, passageAudioRepository) => {
+describe.each(implementations)("%s PassageAudioRepository", (_name, passageAudioRepository, transactionRunner) => {
   describe("findByPassageId", () => {
     describe("正常系", () => {
       it("音声の行と問題の状態・公開日時を返し、マニフェストは書いたとおりに読める", async () => {
@@ -66,6 +74,7 @@ describe.each(implementations)("%s PassageAudioRepository", (_name, passageAudio
             lastError: null,
             manifest: buildAudioManifest(passage.id),
             passageId: passage.id,
+            regenerateRequestedAt: null,
             status: "ready",
             textHash: AUDIO_TEXT_HASH,
             voiceId: "Joanna",
@@ -142,6 +151,18 @@ describe.each(implementations)("%s PassageAudioRepository", (_name, passageAudio
 
         expect(await selectAudio(other.id)).toMatchObject({ attemptCount: 3, lastError: "error", status: "failed" })
       })
+
+      it("tx を渡すとそのトランザクションで書き、ロールバックすると戻らない（公開と同じトランザクションで使う）", async () => {
+        const passage = await insertPublishedPassage()
+        await insertPassageAudio(passage.id, { attemptCount: 3, lastError: "error", status: "failed" })
+
+        await expect(transactionRunner.run(async (tx) => {
+          expect(await passageAudioRepository.resetFailed(passage.id, tx)).toBe(true)
+          throw new Error("rollback")
+        })).rejects.toThrow("rollback")
+
+        expect(await selectAudio(passage.id)).toMatchObject({ attemptCount: 3, status: "failed" })
+      })
     })
 
     describe("異常系", () => {
@@ -159,6 +180,47 @@ describe.each(implementations)("%s PassageAudioRepository", (_name, passageAudio
 
         expect(await passageAudioRepository.resetFailed(passage.id)).toBe(false)
         expect(await passageAudioRepository.resetFailed(999999)).toBe(false)
+        expect(await selectAudio(passage.id)).toBeUndefined()
+      })
+    })
+  })
+
+  describe("requestRegeneration", () => {
+    const REQUESTED_AT = new Date("2026-10-13T09:00:00.000Z")
+
+    describe("正常系", () => {
+      it("ready の行に作り直しの依頼を入れ、失敗の回数とエラーを消して true を返す。状態・マニフェスト・updated_at は変えない", async () => {
+        const passage = await insertPublishedPassage()
+        await insertPassageAudio(passage.id, { attemptCount: 3, lastError: "ServiceFailureException" })
+
+        expect(await passageAudioRepository.requestRegeneration(passage.id, REQUESTED_AT)).toBe(true)
+
+        expect(await selectAudio(passage.id)).toMatchObject({
+          attemptCount: 0,
+          lastError: null,
+          manifest: buildAudioManifest(passage.id),
+          regenerateRequestedAt: REQUESTED_AT,
+          status: "ready",
+          updatedAt: AUDIO_UPDATED_AT,
+        })
+      })
+    })
+
+    describe("異常系", () => {
+      it.each<AudioStatus>(["pending", "generating", "failed"])("%s の行は変えずに false を返す", async (status) => {
+        const passage = await insertPublishedPassage()
+        await insertPassageAudio(passage.id, { attemptCount: 2, lastError: "error", ...buildStatusValues(status) })
+
+        expect(await passageAudioRepository.requestRegeneration(passage.id, REQUESTED_AT)).toBe(false)
+
+        expect(await selectAudio(passage.id)).toMatchObject({ attemptCount: 2, lastError: "error", regenerateRequestedAt: null, status })
+      })
+
+      it("音声の行が無い問題・存在しない問題は false を返す", async () => {
+        const passage = await insertPublishedPassage()
+
+        expect(await passageAudioRepository.requestRegeneration(passage.id, REQUESTED_AT)).toBe(false)
+        expect(await passageAudioRepository.requestRegeneration(999999, REQUESTED_AT)).toBe(false)
         expect(await selectAudio(passage.id)).toBeUndefined()
       })
     })

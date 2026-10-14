@@ -1,3 +1,4 @@
+export * from "./audio-synthesis-usage-repository"
 export * from "./content-source-repository"
 export * from "./memo-repository"
 export * from "./passage-audio-repository"

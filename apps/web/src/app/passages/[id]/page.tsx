@@ -22,7 +22,7 @@ type Props = {
 }
 
 /**
- * URL の id を検証して問題の概要を取る。不正な id と API の 404（下書き・存在しない）は null。
+ * URL の id を検証して問題の概要を取る。不正な id と API の 404（公開中でなく自分の挑戦中も無い・存在しない）は null。
  * cache で包み、generateMetadata とページで 1 回の取得にする
  */
 const loadPassage = cache(async (rawId: string): Promise<GetPassageResponse | null> => {
@@ -42,13 +42,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 /**
- * 開始確認。本文はまだ見せない。期限内の挑戦中があれば再開の表示にする
+ * 開始確認。本文はまだ見せない。期限内の挑戦中があれば再開の表示にする。
+ * 公開を終了した問題（can_start が false。API は自分の挑戦中があるときだけ返す）は「再開する」だけを出し、開始のボタンは出さない
  */
 export default async function PassageStartPage({ params }: Props) {
   const passage = await loadPassage((await params).id).catch(redirectIfSessionRejected)
   if (passage === null) notFound()
 
-  const { attribution, in_progress_attempt: inProgressAttempt } = passage
+  const { attribution, can_start: canStart, in_progress_attempt: inProgressAttempt } = passage
 
   return (
     <>
@@ -85,6 +86,7 @@ export default async function PassageStartPage({ params }: Props) {
             {inProgressAttempt ? (
               <ResumeNotice
                 attemptId={inProgressAttempt.id}
+                canStart={canStart}
                 expiresAt={inProgressAttempt.expires_at}
                 questionCount={passage.question_count}
                 serverNow={passage.server_now}
@@ -97,7 +99,9 @@ export default async function PassageStartPage({ params }: Props) {
                 <li>時間が過ぎても解き続けられます（超過時間が記録されます）。</li>
               </ul>
             )}
-            <StartAttemptForm action={startAttemptAction.bind(null, passage.id)} isResume={inProgressAttempt !== null} />
+            {(canStart || inProgressAttempt !== null) && (
+              <StartAttemptForm action={startAttemptAction.bind(null, passage.id)} isResume={inProgressAttempt !== null} />
+            )}
           </div>
         </div>
 

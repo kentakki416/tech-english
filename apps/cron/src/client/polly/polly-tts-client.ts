@@ -29,7 +29,8 @@ const readAudioStream = async (stream: SynthesizeSpeechCommandOutput["AudioStrea
 /**
  * Amazon Polly（Neural）のクライアント。env は読まず、SDK のクライアントをコンストラクタで受ける（region・リトライは task が決める）
  *
- * - 音声（mp3）と単語の時刻（Speech Marks の word）は別々のリクエストで、どちらも課金される（README「費用」）
+ * - 音声（mp3）と単語の時刻（Speech Marks の word）は別々のリクエストで、どちらも課金される（README「費用」）。
+ *   成功したリクエストごとに課金文字数（RequestCharacters）を recordBilledCharacters で記録する
  * - SampleRate は指定しない（Neural の mp3 の既定は 24000 Hz）
  * - 一時的なエラー（throttling・5xx）は SDK の既定のリトライに任せ、ここでは再試行しない
  */
@@ -46,10 +47,21 @@ export class PollyTtsClient implements TtsClient {
      */
     const voiceId = input.voiceId as VoiceId
     const base = { Engine: "neural", Text: input.text, TextType: "text", VoiceId: voiceId } as const
-    const [audioResponse, marksResponse] = await Promise.all([
+    /**
+     * 片方が失敗しても、成功した方は課金されているので記録してから throw する（Promise.all だと成功した方の文字数を取れない）
+     */
+    const responses = await Promise.allSettled([
       this._polly.send(new SynthesizeSpeechCommand({ ...base, OutputFormat: "mp3" })),
       this._polly.send(new SynthesizeSpeechCommand({ ...base, OutputFormat: "json", SpeechMarkTypes: ["word"] })),
     ])
+    for (const response of responses) {
+      if (response.status === "fulfilled") await input.recordBilledCharacters(response.value.RequestCharacters ?? 0)
+    }
+    const [audioResult, marksResult] = responses
+    if (audioResult.status === "rejected") throw audioResult.reason
+    if (marksResult.status === "rejected") throw marksResult.reason
+    const audioResponse = audioResult.value
+    const marksResponse = marksResult.value
     const [audio, marks] = await Promise.all([
       readAudioStream(audioResponse.AudioStream),
       readAudioStream(marksResponse.AudioStream),

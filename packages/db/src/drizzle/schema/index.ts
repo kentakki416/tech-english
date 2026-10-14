@@ -1,5 +1,6 @@
 export * from "./attempt-answer"
 export * from "./attempt-word-lookup"
+export * from "./audio-synthesis-usage"
 export * from "./auth-account"
 export * from "./content-source"
 export * from "./dictionary-entry"

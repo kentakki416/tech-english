@@ -1,6 +1,7 @@
 import { asc, eq, passageGlossaryEntries, passages, questions } from "@repo/db"
 
 import { DrizzlePassageRepository } from "../../src/repository/drizzle/passage-repository"
+import { DrizzleTransactionRunner } from "../../src/repository/drizzle/transaction-runner"
 import type {
   AdminPassageListQuery,
   DraftEditContent,
@@ -8,6 +9,8 @@ import type {
   PublishedPassageFilter,
 } from "../../src/repository/passage-repository"
 import { PrismaPassageRepository } from "../../src/repository/prisma/passage-repository"
+import { PrismaTransactionRunner } from "../../src/repository/prisma/transaction-runner"
+import type { TransactionRunner } from "../../src/repository/transaction"
 import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb, testPrisma } from "../controller/setup"
 import {
   buildWebsiteSourceValues,
@@ -29,9 +32,9 @@ import { PASSAGE_BLOCKS } from "../fixture/passage-content"
  * Prisma / Drizzle の両実装が PassageRepository として同じ振る舞いをすることを確かめる。
  * DI で使うのは Drizzle 実装だが、Prisma 実装へ戻せる状態を保つために両方を検証する。
  */
-const implementations: [string, PassageRepository][] = [
-  ["Drizzle", new DrizzlePassageRepository(testDb)],
-  ["Prisma", new PrismaPassageRepository(testPrisma)],
+const implementations: [string, PassageRepository, TransactionRunner][] = [
+  ["Drizzle", new DrizzlePassageRepository(testDb), new DrizzleTransactionRunner(testDb)],
+  ["Prisma", new PrismaPassageRepository(testPrisma), new PrismaTransactionRunner(testPrisma)],
 ]
 
 type GlossaryRow = typeof passageGlossaryEntries.$inferSelect
@@ -167,7 +170,7 @@ afterAll(async () => {
   await disconnectTestRedis()
 })
 
-describe.each(implementations)("%s PassageRepository", (_name, passageRepository) => {
+describe.each(implementations)("%s PassageRepository", (_name, passageRepository, transactionRunner) => {
   describe("findAdminDetail", () => {
     describe("正常系", () => {
       it("問題・ソース・用語集（位置の順）・設問（order_index の順）・挑戦の件数を返す", async () => {
@@ -211,6 +214,7 @@ describe.each(implementations)("%s PassageRepository", (_name, passageRepository
           lastError: "ServiceFailureException: Polly is unavailable",
           manifest: buildAudioManifest(passage.id),
           passageId: passage.id,
+          regenerateRequestedAt: null,
           status: "failed",
           textHash: AUDIO_TEXT_HASH,
           voiceId: "Joanna",
@@ -366,6 +370,18 @@ describe.each(implementations)("%s PassageRepository", (_name, passageRepository
 
         expect(await passageRepository.transitionStatus(passage.id, { from: ["published"], to: "draft" })).toBe(true)
         expect(await selectPassage(passage.id)).toMatchObject({ publishedAt: now, reviewedAt: now, status: "draft" })
+      })
+
+      it("tx を渡すとそのトランザクションで書き、ロールバックすると戻らない（公開と音声の再試行を 1 つのトランザクションにするため）", async () => {
+        const { passage } = await insertGeneratedPassage()
+        const now = at("2026-10-13T09:00:00.000Z")
+
+        await expect(transactionRunner.run(async (tx) => {
+          expect(await passageRepository.transitionStatus(passage.id, { from: ["draft"], publishedAt: now, to: "published" }, tx)).toBe(true)
+          throw new Error("rollback")
+        })).rejects.toThrow("rollback")
+
+        expect(await selectPassage(passage.id)).toMatchObject({ publishedAt: null, status: "draft" })
       })
     })
 
@@ -812,6 +828,114 @@ describe.each(implementations)("%s PassageRepository", (_name, passageRepository
         await insertPublishedSet()
 
         expect(await passageRepository.findRandomPublishedId({ ...NO_FILTER, tags: ["kubernetes"] })).toBeNull()
+      })
+    })
+  })
+
+  describe("restoreRejected", () => {
+    describe("正常系", () => {
+      it("設問があれば draft に戻して却下の理由だけを消し、draft を返す（設問・用語集・和訳・要確認・確認の記録は残す）", async () => {
+        const reviewedAt = at("2026-10-13T05:00:00.000Z")
+        const { passage } = await insertGeneratedPassage({
+          attentionReasons: ["Q3：検証モデルは A を選択（正解は B）"],
+          needsAttention: true,
+          rejectReason: "誤って却下",
+          reviewedAt,
+          status: "rejected",
+        })
+
+        expect(await passageRepository.restoreRejected(passage.id)).toBe("draft")
+        expect(await selectPassage(passage.id)).toMatchObject({
+          attentionReasons: ["Q3：検証モデルは A を選択（正解は B）"],
+          blocks: PASSAGE_BLOCKS,
+          difficulty: 2,
+          generationModel: "claude-sonnet-5-5",
+          needsAttention: true,
+          rejectReason: null,
+          reviewedAt,
+          status: "draft",
+          timeLimitSeconds: 180,
+        })
+        expect(await selectQuestions(passage.id)).toHaveLength(3)
+        expect(await selectGlossary(passage.id)).toHaveLength(3)
+      })
+
+      it("設問が無ければ（LLM が不向きと判定）生成の記録・失敗の回数・却下の理由を空にして collected を返す", async () => {
+        const source = await insertPassageSource()
+        const document = await insertPassageDocument(source.id)
+        const passage = await insertPassage(document.id, {
+          generationAttemptCount: 2,
+          generationStartedAt: at("2026-10-12T02:59:00.000Z"),
+          rejectReason: "目次だけ",
+          status: "rejected",
+        })
+
+        expect(await passageRepository.restoreRejected(passage.id)).toBe("collected")
+        expect(await selectPassage(passage.id)).toMatchObject({
+          attentionReasons: [],
+          blocks: PASSAGE_BLOCKS.map(({ translationJa: _translationJa, ...block }) => block),
+          difficulty: null,
+          generatedAt: null,
+          generationAttemptCount: 0,
+          generationModel: null,
+          generationPromptVersion: null,
+          generationStartedAt: null,
+          needsAttention: false,
+          rejectReason: null,
+          reviewedAt: null,
+          status: "collected",
+          timeLimitSeconds: null,
+          title: "Synchronizing with Effects",
+        })
+      })
+    })
+
+    describe("異常系", () => {
+      it.each(["draft", "published", "failed", "collected", "generating"] as const)(
+        "%s なら null を返し、何も変えない",
+        async (status) => {
+          const { passage } = await insertGeneratedPassage({ rejectReason: "理由", status })
+
+          expect(await passageRepository.restoreRejected(passage.id)).toBeNull()
+          expect(await selectPassage(passage.id)).toMatchObject({ rejectReason: "理由", status })
+        },
+      )
+
+      it("存在しなければ null を返す", async () => {
+        expect(await passageRepository.restoreRejected(999999)).toBeNull()
+      })
+    })
+  })
+
+  describe("clearAttention", () => {
+    describe("正常系", () => {
+      it("要確認の印と理由を消して true を返す（状態は問わず、他の列は変えない）", async () => {
+        const { passage } = await insertGeneratedPassage({
+          attentionReasons: ["Q2 の根拠が本文に見つかりません"],
+          needsAttention: true,
+          status: "published",
+        })
+
+        expect(await passageRepository.clearAttention(passage.id)).toBe(true)
+        expect(await selectPassage(passage.id)).toMatchObject({
+          attentionReasons: [],
+          needsAttention: false,
+          status: "published",
+          title: "Synchronizing with Effects",
+        })
+      })
+
+      it("要確認の無い行でも true を返す（冪等）", async () => {
+        const { passage } = await insertGeneratedPassage()
+
+        expect(await passageRepository.clearAttention(passage.id)).toBe(true)
+        expect(await selectPassage(passage.id)).toMatchObject({ attentionReasons: [], needsAttention: false })
+      })
+    })
+
+    describe("異常系", () => {
+      it("存在しなければ false を返す", async () => {
+        expect(await passageRepository.clearAttention(999999)).toBe(false)
       })
     })
   })

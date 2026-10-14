@@ -102,7 +102,7 @@ describe("AnthropicClient", () => {
 
       expect(create).toHaveBeenCalledTimes(1)
       /**
-       * temperature などのサンプリングの引数・thinking・effort は渡さない（toEqual なので余計なキーがあれば落ちる）
+       * adaptiveThinking を指定しなければ、temperature などのサンプリングの引数・thinking・effort は渡さない（toEqual なので余計なキーがあれば落ちる）
        */
       expect(create.mock.calls[0][0]).toEqual({
         max_tokens: 16000,
@@ -110,6 +110,21 @@ describe("AnthropicClient", () => {
         model: GENERATION_MODEL,
         output_config: { format: { schema: JSON_SCHEMA, type: "json_schema" } },
         system: [{ cache_control: { type: "ephemeral" }, text: "You write reading-comprehension questions.", type: "text" }],
+      })
+    })
+
+    it("adaptiveThinking を指定すると thinking: adaptive と output_config.effort を明示して渡す", async () => {
+      const { create, sdk } = createFakeSdk(buildMessage())
+
+      await new AnthropicClient(sdk).createStructuredMessage(buildRequest({ adaptiveThinking: { effort: "high" } }))
+
+      expect(create.mock.calls[0][0]).toEqual({
+        max_tokens: 16000,
+        messages: [{ content: "<passage title=\"Retries\">...</passage>", role: "user" }],
+        model: GENERATION_MODEL,
+        output_config: { effort: "high", format: { schema: JSON_SCHEMA, type: "json_schema" } },
+        system: [{ cache_control: { type: "ephemeral" }, text: "You write reading-comprehension questions.", type: "text" }],
+        thinking: { type: "adaptive" },
       })
     })
 
@@ -185,19 +200,27 @@ describe("AnthropicClient", () => {
     })
 
     it.each(["max_tokens", "model_context_window_exceeded"] as const)(
-      "stop_reason が %s なら LlmOutputTruncatedError（途中で切れた JSON を読まない）",
+      "stop_reason が %s なら usage.output_tokens を持つ LlmOutputTruncatedError（途中で切れた JSON を読まない）",
       async (stopReason) => {
+        const message = buildMessage()
         const { sdk } = createFakeSdk(buildMessage({
           content: [{ citations: null, text: "{\"answer\":", type: "text" }],
           stop_reason: stopReason,
+          usage: { ...message.usage, output_tokens: 16000 },
         }))
 
         const promise = new AnthropicClient(sdk).createStructuredMessage(buildRequest())
 
         await expect(promise).rejects.toThrow(LlmOutputTruncatedError)
-        await expect(promise).rejects.toMatchObject({ stopReason })
+        await expect(promise).rejects.toMatchObject({ outputTokens: 16000, stopReason })
       },
     )
+
+    it("stop_reason が max_tokens なら、text が JSON として読めても LlmOutputTruncatedError（完結していない出力は使わない）", async () => {
+      const { sdk } = createFakeSdk(buildMessage({ stop_reason: "max_tokens" }))
+
+      await expect(new AnthropicClient(sdk).createStructuredMessage(buildRequest())).rejects.toThrow(LlmOutputTruncatedError)
+    })
 
     it("text が JSON でなければ LlmInvalidJsonError", async () => {
       const { sdk } = createFakeSdk(buildMessage({ content: [{ citations: null, text: "Sure! Here is", type: "text" }] }))
@@ -343,7 +366,7 @@ describe("isFatalLlmError", () => {
     ["BadRequestError", new BadRequestError(400, buildApiErrorBody("invalid_request_error"), "bad request", headers)],
     ["APIConnectionError", new APIConnectionError({ message: "connection reset" })],
     ["LlmRefusalError", new LlmRefusalError("cyber")],
-    ["LlmOutputTruncatedError", new LlmOutputTruncatedError("max_tokens")],
+    ["LlmOutputTruncatedError", new LlmOutputTruncatedError("max_tokens", 16000)],
     ["Error", new Error("unexpected")],
   ])("%s は false", (_label, error) => {
     expect(isFatalLlmError(error)).toBe(false)

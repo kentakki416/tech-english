@@ -8,10 +8,16 @@ import {
   getAdminPassageResponseSchema,
   type PublishAdminPassageResponse,
   publishAdminPassageResponseSchema,
+  type RegenerateAdminPassageAudioResponse,
+  regenerateAdminPassageAudioResponseSchema,
   type RegenerateAdminPassageResponse,
   regenerateAdminPassageResponseSchema,
   type RejectAdminPassageResponse,
   rejectAdminPassageResponseSchema,
+  type ResolveAdminPassageAttentionResponse,
+  resolveAdminPassageAttentionResponseSchema,
+  type RestoreAdminPassageResponse,
+  restoreAdminPassageResponseSchema,
   type RetryAdminPassageAudioResponse,
   retryAdminPassageAudioResponseSchema,
   type UnpublishAdminPassageResponse,
@@ -100,9 +106,33 @@ export const passageApi = {
     return regenerateAdminPassageResponseSchema.parse(raw)
   },
 
+  /**
+   * 作成済みの読み上げの音声の作り直しを依頼する（ready のときだけ。それ以外の状態・音声の行が無ければ 409）
+   */
+  regenerateAudio: async (id: number): Promise<RegenerateAdminPassageAudioResponse> => {
+    const raw = await apiClient.post<unknown>(`${BASE_PATH}/${id}/audio/regenerate`, {})
+    return regenerateAdminPassageAudioResponseSchema.parse(raw)
+  },
+
   reject: async (id: number, reason: string): Promise<RejectAdminPassageResponse> => {
     const raw = await apiClient.post<unknown>(`${BASE_PATH}/${id}/reject`, { reason })
     return rejectAdminPassageResponseSchema.parse(raw)
+  },
+
+  /**
+   * 要確認の印を外す（解除済みでも 200）
+   */
+  resolveAttention: async (id: number): Promise<ResolveAdminPassageAttentionResponse> => {
+    const raw = await apiClient.post<unknown>(`${BASE_PATH}/${id}/attention/resolve`, {})
+    return resolveAdminPassageAttentionResponseSchema.parse(raw)
+  },
+
+  /**
+   * 却下を取り消す（設問があれば下書き、無ければ生成待ちに戻る）
+   */
+  restore: async (id: number): Promise<RestoreAdminPassageResponse> => {
+    const raw = await apiClient.post<unknown>(`${BASE_PATH}/${id}/restore`, {})
+    return restoreAdminPassageResponseSchema.parse(raw)
   },
 
   /**

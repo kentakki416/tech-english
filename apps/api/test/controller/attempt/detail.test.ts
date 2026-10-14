@@ -1,6 +1,6 @@
 import request from "supertest"
 
-import { eq, readingAttempts } from "@repo/db"
+import { eq, questions as questionsTable, readingAttempts } from "@repo/db"
 
 import { AttemptDetailController } from "../../../src/controller/attempt/detail"
 import { AttemptStartController } from "../../../src/controller/attempt/start"
@@ -122,6 +122,46 @@ describe("GET /api/attempt/:id", () => {
       expect(res.body).toMatchObject({ correct_count: 1, listened_block_count: 2, status: "submitted", words_per_minute: null })
       expect(res.body.glossary.map((entry: { id: number }) => entry.id)).toEqual(glossary.map((entry) => entry.id))
       expect(started.body.glossary.map((entry: { id: number }) => entry.id)).not.toContain(glossary[1]?.id)
+    })
+
+    it("提出後に正解が直された設問は、正誤を提出時のまま is_answer_key_changed を true にする", async () => {
+      const { passage, questions } = await insertPublishedGeneratedPassage()
+      const { token } = await createTestUser()
+      const started = await request(app).post(`/api/passage/${passage.id}/attempt`).set("Authorization", `Bearer ${token}`)
+      await request(app)
+        .post(`/api/attempt/${started.body.id}/submit`)
+        .set("Authorization", `Bearer ${token}`)
+        .send({
+          active_seconds: 0,
+          answers: [
+            { question_id: questions[0].id, selected_choice_index: 0 },
+            { question_id: questions[2].id, selected_choice_index: 1 },
+          ],
+          translated_block_count: 0,
+          word_lookups: [],
+        })
+      /**
+       * 不正解だった 1 問目の正解を選んだ 0 に、正解だった 3 問目の正解を 2 に直す（2 問目は未回答のまま）
+       */
+      await testDb.update(questionsTable).set({ correctChoiceIndex: 0 }).where(eq(questionsTable.id, questions[0].id))
+      await testDb.update(questionsTable).set({ correctChoiceIndex: 2 }).where(eq(questionsTable.id, questions[2].id))
+
+      const res = await request(app).get(`/api/attempt/${started.body.id}`).set("Authorization", `Bearer ${token}`)
+
+      expect(res.status).toBe(200)
+      expect(res.body.correct_count).toBe(1)
+      expect(
+        res.body.questions.map((question: Record<string, unknown>) => ({
+          correct_choice_index: question.correct_choice_index,
+          is_answer_key_changed: question.is_answer_key_changed,
+          is_correct: question.is_correct,
+          selected_choice_index: question.selected_choice_index,
+        })),
+      ).toEqual([
+        { correct_choice_index: 0, is_answer_key_changed: true, is_correct: false, selected_choice_index: 0 },
+        { correct_choice_index: 2, is_answer_key_changed: false, is_correct: false, selected_choice_index: null },
+        { correct_choice_index: 2, is_answer_key_changed: true, is_correct: true, selected_choice_index: 1 },
+      ])
     })
 
     it("期限切れの挑戦は期限切れの形を返す", async () => {

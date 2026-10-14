@@ -32,6 +32,11 @@ const LINK_CLASS = "text-fg underline decoration-line-strong underline-offset-2 
 
 const HEADER_LINK_FOCUS_CLASS = "outline-none focus-visible:ring-2 focus-visible:ring-amber/60"
 
+/**
+ * 提出後に正解が直された設問の注記
+ */
+const ANSWER_KEY_CHANGED_NOTE = "提出後にこの設問の正解が修正されました（正誤は提出したときの採点のままです）"
+
 function ChoiceRow({
   choice,
   index,
@@ -377,6 +382,12 @@ export function ResultScreen({ result }: { result: SubmittedAttempt }) {
                           />
                         ))}
                       </ul>
+                      {/**
+                        * 正解はいまの値、正誤は提出時の値なので、提出後に正解が直されると「あなたの回答 B・正解 B・不正解」のように食い違う
+                        */}
+                      {question.is_answer_key_changed && (
+                        <p className="mt-2 text-xs leading-relaxed text-fg-muted">{ANSWER_KEY_CHANGED_NOTE}</p>
+                      )}
                       <p className="mt-4 text-[14px] leading-[1.85] text-fg">{question.explanation_ja}</p>
                       {question.evidence !== null && (
                         <button

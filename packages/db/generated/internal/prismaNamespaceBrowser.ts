@@ -59,6 +59,7 @@ export const ModelName = {
   Memo: 'Memo',
   Passage: 'Passage',
   PassageAudio: 'PassageAudio',
+  AudioSynthesisUsage: 'AudioSynthesisUsage',
   PassageGlossaryEntry: 'PassageGlossaryEntry',
   Question: 'Question',
   ReadingAttempt: 'ReadingAttempt',
@@ -219,11 +220,23 @@ export const PassageAudioScalarFieldEnum = {
   lastError: 'lastError',
   generationStartedAt: 'generationStartedAt',
   generatedAt: 'generatedAt',
+  regenerateRequestedAt: 'regenerateRequestedAt',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
 
 export type PassageAudioScalarFieldEnum = (typeof PassageAudioScalarFieldEnum)[keyof typeof PassageAudioScalarFieldEnum]
+
+
+export const AudioSynthesisUsageScalarFieldEnum = {
+  id: 'id',
+  passageId: 'passageId',
+  characters: 'characters',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type AudioSynthesisUsageScalarFieldEnum = (typeof AudioSynthesisUsageScalarFieldEnum)[keyof typeof AudioSynthesisUsageScalarFieldEnum]
 
 
 export const PassageGlossaryEntryScalarFieldEnum = {

@@ -12,7 +12,8 @@ import type { AudioStatus, Passage, PassageAudio } from "@repo/domain"
  * - 音声を作った（または生成タスクが本文の同一を確かめた）後に公開し直された（updated_at < published_at）：生成タスクが次の実行で作り直すか確かめる。
  *   公開し直した直後は、本文が変わっていなくても生成タスクが確かめるまで（最大 1 時間）pending になる
  *
- * generating はそのまま返す（admin 向け）。利用者向けには convertToUserAudioStatus で pending にする
+ * voice の変更・作り直しの依頼で生成タスクが ready のまま作り直している間（generation_started_at がある）は、生成タスクが updated_at を進めないので
+ * ready のまま前のマニフェストを返す。generating はそのまま返す（admin 向け）。利用者向けには convertToUserAudioStatus で pending にする
  */
 export const resolveAudioStatus = (
   audio: Pick<PassageAudio, "manifest" | "status" | "updatedAt"> | null,

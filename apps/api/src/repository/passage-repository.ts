@@ -11,6 +11,8 @@ import type {
   WebsiteSource,
 } from "@repo/domain"
 
+import type { TransactionContext } from "./transaction"
+
 /**
  * admin の問題一覧のカーソル（並びのキー）。draft は needsAttention DESC, updatedAt ASC, id ASC、
  * それ以外は updatedAt DESC, id DESC の並びで、この行より後ろを返す（それ以外の状態では needsAttention を使わない）
@@ -106,6 +108,11 @@ export type PassageTransition = {
 }
 
 /**
+ * 却下を取り消した後の状態（設問があれば draft、無ければ collected）
+ */
+export type RestoredPassageStatus = Extract<PassageStatus, "collected" | "draft">
+
+/**
  * ユーザー向けの公開中の問題の絞り込み。difficulties / tags は空なら絞り込まず、指定したらどれかに当てはまるもの（OR）
  */
 export type PublishedPassageFilter = {
@@ -157,6 +164,10 @@ export type AttemptContent = { glossary: GlossaryEntry[]; passage: Passage; ques
  */
 export interface PassageRepository {
   /**
+   * 要確認の印を外す（needs_attention = false、attention_reasons = []）。状態は問わず、外れていても書く。行が無ければ false
+   */
+  clearAttention(id: number): Promise<boolean>
+  /**
    * 状態ごとの件数（絞り込みなしの全体）。行が無い状態は 0 で埋める
    */
   countByStatus(): Promise<Record<PassageStatus, number>>
@@ -199,9 +210,15 @@ export interface PassageRepository {
    */
   resetForRegeneration(id: number, from: PassageStatus[]): Promise<boolean>
   /**
-   * 状態を遷移させる。状態が from に無ければ何もせず false（同時操作の保護）
+   * 却下（rejected）を取り消す。設問があれば draft に戻して却下の理由を消す（設問・用語集・和訳・要確認・確認の記録は残す）。
+   * 設問が無ければ（LLM が不向きと判定したもの）resetForRegeneration と同じく生成の記録を空にして collected に戻す。
+   * 戻した状態を返す。rejected でなければ何もせず null（同時操作の保護）
    */
-  transitionStatus(id: number, transition: PassageTransition): Promise<boolean>
+  restoreRejected(id: number): Promise<RestoredPassageStatus | null>
+  /**
+   * 状態を遷移させる。状態が from に無ければ何もせず false（同時操作の保護）。tx を渡すとそのトランザクションで書く
+   */
+  transitionStatus(id: number, transition: PassageTransition, tx?: TransactionContext): Promise<boolean>
   /**
    * 下書きの内容（passages の列・用語集・設問）を 1 トランザクションで置き換える。
    * リクエストに無い用語集・設問は削除し、id のあるものは更新、id が null のものは追加する。draft でなければ何もせず false

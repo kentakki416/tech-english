@@ -113,7 +113,8 @@ export const expiredAttemptSchema = z.object({
 
 /**
  * 結果の設問。解答中の設問に、正解・解説・根拠と自分の回答・正誤を足したもの。
- * 正解・解説・選択肢はいまの設問、selected_choice_index と is_correct は提出時に保存した値
+ * 正解・解説・選択肢はいまの設問、selected_choice_index と is_correct は提出時に保存した値。
+ * 提出後に管理者が正解を直すと両者が食い違うので、is_answer_key_changed で知らせる
  */
 export const resultQuestionSchema = attemptQuestionSchema.extend({
   correct_choice_index: z.number().int(),
@@ -129,6 +130,11 @@ export const resultQuestionSchema = attemptQuestionSchema.extend({
     })
     .nullable(),
   explanation_ja: z.string(),
+  /**
+   * 提出後にこの設問の正解が直されたか。保存した is_correct と「selected_choice_index === いまの correct_choice_index」が
+   * 食い違うとき true（結果画面で「提出後にこの設問の正解が修正されました」と注記する）
+   */
+  is_answer_key_changed: z.boolean(),
   /**
    * 提出時点の正誤（保存値。後から正解が直されても変わらない）
    */

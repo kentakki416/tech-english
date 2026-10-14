@@ -190,6 +190,7 @@ model Passage {
     readingAttempts ReadingAttempt[]
     wordLookups     AttemptWordLookup[]
     audio           PassageAudio?
+    audioUsages     AudioSynthesisUsage[]
 
     @@index([status, createdAt])
     @@index([sourceDocumentId])
@@ -200,29 +201,47 @@ model Passage {
 // status は @repo/domain の AUDIO_STATUSES から作る CHECK 制約があるが、Prisma では表現できないので String にしている
 // （Prisma 実装の Repository は isAudioStatus で検証してから domain 型にする）
 model PassageAudio {
-    id                  Int       @id @default(autoincrement())
-    passageId           Int       @unique @map("passage_id")
+    id                    Int       @id @default(autoincrement())
+    passageId             Int       @unique @map("passage_id")
     /// AUDIO_STATUSES
-    status              String    @default("pending")
-    voiceId             String    @map("voice_id")
+    status                String    @default("pending")
+    voiceId               String    @map("voice_id")
     /// 読み上げ対象の本文と voice のハッシュ
-    textHash            String    @map("text_hash")
+    textHash              String    @map("text_hash")
     /// PassageAudioManifest
-    manifest            Json?
+    manifest              Json?
     /// Polly の課金文字数（音声 + 単語の時刻）
-    billedCharacters    Int       @default(0) @map("billed_characters")
-    attemptCount        Int       @default(0) @map("attempt_count") @db.SmallInt
-    lastError           String?   @map("last_error")
-    /// generating にした時刻（確保のトークン）
-    generationStartedAt DateTime? @map("generation_started_at")
-    generatedAt         DateTime? @map("generated_at")
-    createdAt           DateTime  @default(now()) @map("created_at")
-    updatedAt           DateTime  @updatedAt @map("updated_at")
+    billedCharacters      Int       @default(0) @map("billed_characters")
+    attemptCount          Int       @default(0) @map("attempt_count") @db.SmallInt
+    lastError             String?   @map("last_error")
+    /// 生成タスクが確保した時刻（確保のトークン）。generating の行と、ready のまま確保した行が値を持つ
+    generationStartedAt   DateTime? @map("generation_started_at")
+    generatedAt           DateTime? @map("generated_at")
+    /// admin が「作り直す」を押した時刻（作り直しの依頼）
+    regenerateRequestedAt DateTime? @map("regenerate_requested_at")
+    createdAt             DateTime  @default(now()) @map("created_at")
+    updatedAt             DateTime  @updatedAt @map("updated_at")
 
     passage Passage @relation(fields: [passageId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
     @@index([status])
     @@map("passage_audios")
+}
+
+// 読み上げの音声合成（Amazon Polly の SynthesizeSpeech）で課金された文字数の記録（read-aloud）。追記だけ。
+// generate:audio が今月（UTC の暦月）の合計で AUDIO_MONTHLY_CHARACTER_LIMIT を超えないようにする。CHECK 制約は Drizzle のマイグレーションが正本
+model AudioSynthesisUsage {
+    id         Int      @id @default(autoincrement())
+    passageId  Int      @map("passage_id")
+    /// 課金された文字数（Polly の RequestCharacters）
+    characters Int
+    createdAt  DateTime @default(now()) @map("created_at")
+    updatedAt  DateTime @updatedAt @map("updated_at")
+
+    passage Passage @relation(fields: [passageId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+    @@index([createdAt])
+    @@map("audio_synthesis_usages")
 }
 
 // 用語集（本文中の難しい単語・熟語と、この文脈での意味）

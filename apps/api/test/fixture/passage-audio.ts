@@ -39,6 +39,7 @@ export const buildPassageAudio = (overrides: Partial<PassageAudio> = {}): Passag
   lastError: null,
   manifest: buildAudioManifest(),
   passageId: 1,
+  regenerateRequestedAt: null,
   status: "ready",
   textHash: AUDIO_TEXT_HASH,
   voiceId: "Joanna",

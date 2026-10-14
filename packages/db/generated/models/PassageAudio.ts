@@ -51,6 +51,7 @@ export type PassageAudioMinAggregateOutputType = {
   lastError: string | null
   generationStartedAt: Date | null
   generatedAt: Date | null
+  regenerateRequestedAt: Date | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -66,6 +67,7 @@ export type PassageAudioMaxAggregateOutputType = {
   lastError: string | null
   generationStartedAt: Date | null
   generatedAt: Date | null
+  regenerateRequestedAt: Date | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -82,6 +84,7 @@ export type PassageAudioCountAggregateOutputType = {
   lastError: number
   generationStartedAt: number
   generatedAt: number
+  regenerateRequestedAt: number
   createdAt: number
   updatedAt: number
   _all: number
@@ -113,6 +116,7 @@ export type PassageAudioMinAggregateInputType = {
   lastError?: true
   generationStartedAt?: true
   generatedAt?: true
+  regenerateRequestedAt?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -128,6 +132,7 @@ export type PassageAudioMaxAggregateInputType = {
   lastError?: true
   generationStartedAt?: true
   generatedAt?: true
+  regenerateRequestedAt?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -144,6 +149,7 @@ export type PassageAudioCountAggregateInputType = {
   lastError?: true
   generationStartedAt?: true
   generatedAt?: true
+  regenerateRequestedAt?: true
   createdAt?: true
   updatedAt?: true
   _all?: true
@@ -247,6 +253,7 @@ export type PassageAudioGroupByOutputType = {
   lastError: string | null
   generationStartedAt: Date | null
   generatedAt: Date | null
+  regenerateRequestedAt: Date | null
   createdAt: Date
   updatedAt: Date
   _count: PassageAudioCountAggregateOutputType | null
@@ -286,6 +293,7 @@ export type PassageAudioWhereInput = {
   lastError?: Prisma.StringNullableFilter<"PassageAudio"> | string | null
   generationStartedAt?: Prisma.DateTimeNullableFilter<"PassageAudio"> | Date | string | null
   generatedAt?: Prisma.DateTimeNullableFilter<"PassageAudio"> | Date | string | null
+  regenerateRequestedAt?: Prisma.DateTimeNullableFilter<"PassageAudio"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"PassageAudio"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"PassageAudio"> | Date | string
   passage?: Prisma.XOR<Prisma.PassageScalarRelationFilter, Prisma.PassageWhereInput>
@@ -303,6 +311,7 @@ export type PassageAudioOrderByWithRelationInput = {
   lastError?: Prisma.SortOrderInput | Prisma.SortOrder
   generationStartedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   generatedAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  regenerateRequestedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   passage?: Prisma.PassageOrderByWithRelationInput
@@ -323,6 +332,7 @@ export type PassageAudioWhereUniqueInput = Prisma.AtLeast<{
   lastError?: Prisma.StringNullableFilter<"PassageAudio"> | string | null
   generationStartedAt?: Prisma.DateTimeNullableFilter<"PassageAudio"> | Date | string | null
   generatedAt?: Prisma.DateTimeNullableFilter<"PassageAudio"> | Date | string | null
+  regenerateRequestedAt?: Prisma.DateTimeNullableFilter<"PassageAudio"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"PassageAudio"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"PassageAudio"> | Date | string
   passage?: Prisma.XOR<Prisma.PassageScalarRelationFilter, Prisma.PassageWhereInput>
@@ -340,6 +350,7 @@ export type PassageAudioOrderByWithAggregationInput = {
   lastError?: Prisma.SortOrderInput | Prisma.SortOrder
   generationStartedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   generatedAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  regenerateRequestedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.PassageAudioCountOrderByAggregateInput
@@ -364,6 +375,7 @@ export type PassageAudioScalarWhereWithAggregatesInput = {
   lastError?: Prisma.StringNullableWithAggregatesFilter<"PassageAudio"> | string | null
   generationStartedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"PassageAudio"> | Date | string | null
   generatedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"PassageAudio"> | Date | string | null
+  regenerateRequestedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"PassageAudio"> | Date | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"PassageAudio"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"PassageAudio"> | Date | string
 }
@@ -378,6 +390,7 @@ export type PassageAudioCreateInput = {
   lastError?: string | null
   generationStartedAt?: Date | string | null
   generatedAt?: Date | string | null
+  regenerateRequestedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   passage: Prisma.PassageCreateNestedOneWithoutAudioInput
@@ -395,6 +408,7 @@ export type PassageAudioUncheckedCreateInput = {
   lastError?: string | null
   generationStartedAt?: Date | string | null
   generatedAt?: Date | string | null
+  regenerateRequestedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -409,6 +423,7 @@ export type PassageAudioUpdateInput = {
   lastError?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   generationStartedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   generatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  regenerateRequestedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   passage?: Prisma.PassageUpdateOneRequiredWithoutAudioNestedInput
@@ -426,6 +441,7 @@ export type PassageAudioUncheckedUpdateInput = {
   lastError?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   generationStartedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   generatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  regenerateRequestedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -442,6 +458,7 @@ export type PassageAudioCreateManyInput = {
   lastError?: string | null
   generationStartedAt?: Date | string | null
   generatedAt?: Date | string | null
+  regenerateRequestedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -456,6 +473,7 @@ export type PassageAudioUpdateManyMutationInput = {
   lastError?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   generationStartedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   generatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  regenerateRequestedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -472,6 +490,7 @@ export type PassageAudioUncheckedUpdateManyInput = {
   lastError?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   generationStartedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   generatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  regenerateRequestedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -493,6 +512,7 @@ export type PassageAudioCountOrderByAggregateInput = {
   lastError?: Prisma.SortOrder
   generationStartedAt?: Prisma.SortOrder
   generatedAt?: Prisma.SortOrder
+  regenerateRequestedAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -515,6 +535,7 @@ export type PassageAudioMaxOrderByAggregateInput = {
   lastError?: Prisma.SortOrder
   generationStartedAt?: Prisma.SortOrder
   generatedAt?: Prisma.SortOrder
+  regenerateRequestedAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -530,6 +551,7 @@ export type PassageAudioMinOrderByAggregateInput = {
   lastError?: Prisma.SortOrder
   generationStartedAt?: Prisma.SortOrder
   generatedAt?: Prisma.SortOrder
+  regenerateRequestedAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -583,6 +605,7 @@ export type PassageAudioCreateWithoutPassageInput = {
   lastError?: string | null
   generationStartedAt?: Date | string | null
   generatedAt?: Date | string | null
+  regenerateRequestedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -598,6 +621,7 @@ export type PassageAudioUncheckedCreateWithoutPassageInput = {
   lastError?: string | null
   generationStartedAt?: Date | string | null
   generatedAt?: Date | string | null
+  regenerateRequestedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -628,6 +652,7 @@ export type PassageAudioUpdateWithoutPassageInput = {
   lastError?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   generationStartedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   generatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  regenerateRequestedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -643,6 +668,7 @@ export type PassageAudioUncheckedUpdateWithoutPassageInput = {
   lastError?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   generationStartedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   generatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  regenerateRequestedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -661,6 +687,7 @@ export type PassageAudioSelect<ExtArgs extends runtime.Types.Extensions.Internal
   lastError?: boolean
   generationStartedAt?: boolean
   generatedAt?: boolean
+  regenerateRequestedAt?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   passage?: boolean | Prisma.PassageDefaultArgs<ExtArgs>
@@ -678,6 +705,7 @@ export type PassageAudioSelectCreateManyAndReturn<ExtArgs extends runtime.Types.
   lastError?: boolean
   generationStartedAt?: boolean
   generatedAt?: boolean
+  regenerateRequestedAt?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   passage?: boolean | Prisma.PassageDefaultArgs<ExtArgs>
@@ -695,6 +723,7 @@ export type PassageAudioSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.
   lastError?: boolean
   generationStartedAt?: boolean
   generatedAt?: boolean
+  regenerateRequestedAt?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   passage?: boolean | Prisma.PassageDefaultArgs<ExtArgs>
@@ -712,11 +741,12 @@ export type PassageAudioSelectScalar = {
   lastError?: boolean
   generationStartedAt?: boolean
   generatedAt?: boolean
+  regenerateRequestedAt?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type PassageAudioOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "passageId" | "status" | "voiceId" | "textHash" | "manifest" | "billedCharacters" | "attemptCount" | "lastError" | "generationStartedAt" | "generatedAt" | "createdAt" | "updatedAt", ExtArgs["result"]["passageAudio"]>
+export type PassageAudioOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "passageId" | "status" | "voiceId" | "textHash" | "manifest" | "billedCharacters" | "attemptCount" | "lastError" | "generationStartedAt" | "generatedAt" | "regenerateRequestedAt" | "createdAt" | "updatedAt", ExtArgs["result"]["passageAudio"]>
 export type PassageAudioInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   passage?: boolean | Prisma.PassageDefaultArgs<ExtArgs>
 }
@@ -755,10 +785,14 @@ export type $PassageAudioPayload<ExtArgs extends runtime.Types.Extensions.Intern
     attemptCount: number
     lastError: string | null
     /**
-     * generating にした時刻（確保のトークン）
+     * 生成タスクが確保した時刻（確保のトークン）。generating の行と、ready のまま確保した行が値を持つ
      */
     generationStartedAt: Date | null
     generatedAt: Date | null
+    /**
+     * admin が「作り直す」を押した時刻（作り直しの依頼）
+     */
+    regenerateRequestedAt: Date | null
     createdAt: Date
     updatedAt: Date
   }, ExtArgs["result"]["passageAudio"]>
@@ -1196,6 +1230,7 @@ export interface PassageAudioFieldRefs {
   readonly lastError: Prisma.FieldRef<"PassageAudio", 'String'>
   readonly generationStartedAt: Prisma.FieldRef<"PassageAudio", 'DateTime'>
   readonly generatedAt: Prisma.FieldRef<"PassageAudio", 'DateTime'>
+  readonly regenerateRequestedAt: Prisma.FieldRef<"PassageAudio", 'DateTime'>
   readonly createdAt: Prisma.FieldRef<"PassageAudio", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"PassageAudio", 'DateTime'>
 }

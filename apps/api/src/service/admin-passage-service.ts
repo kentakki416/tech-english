@@ -4,12 +4,14 @@ import { logger } from "@repo/logger"
 
 import { decodeAdminPassageCursor, encodeAdminPassageCursor } from "../lib/admin-passage-cursor"
 import { type AdminPassageEditInput, buildDraftEditContent } from "../lib/admin-passage-edit"
+import { resolveAudioStatus } from "../lib/passage-audio"
 import { listPublishViolations } from "../lib/passage-publish-check"
 import type {
   AdminPassageDetail,
   AdminPassageListItem,
   PassageAudioRepository,
   PassageRepository,
+  TransactionRunner,
 } from "../repository"
 
 type PassageRepo = { passageRepository: PassageRepository }
@@ -39,6 +41,11 @@ export type AdminPassageList = {
  * 状態を変える操作の結果
  */
 export type AdminPassageStatusChange = { id: number; status: PassageStatus }
+
+/**
+ * 要確認を解除した結果
+ */
+export type AdminPassageAttentionResolution = { id: number; attentionReasons: string[]; needsAttention: boolean }
 
 /**
  * 再生成できる状態（生成済みで、公開中でないもの）
@@ -166,12 +173,14 @@ export const updateAdminPassage = async (
 }
 
 /**
- * 公開する（draft のときだけ）。公開の条件を満たさなければ 400 で、満たしていない条件を details に返す
+ * 公開する（draft のときだけ）。公開の条件を満たさなければ 400 で、満たしていない条件を details に返す。
+ * 読み上げの音声が failed なら、同じトランザクションで pending に戻す（失敗の回数とエラーも消す。admin の再試行と同じ処理）。
+ * 本文を直して再公開したのに failed のまま作り直されない、ということが無いように
  */
 export const publishAdminPassage = async (
   id: number,
   now: Date,
-  repo: PassageRepo,
+  repo: PassageRepo & { passageAudioRepository: PassageAudioRepository; transactionRunner: TransactionRunner },
 ): Promise<Result<AdminPassageStatusChange>> => {
   const found = await findDetailInStatus(id, ["draft"], repo)
   if (!found.ok) return found
@@ -185,11 +194,17 @@ export const publishAdminPassage = async (
     return err(badRequestError("Passage does not meet the publish conditions", violations))
   }
 
-  if (!await repo.passageRepository.transitionStatus(id, { from: ["draft"], publishedAt: now, reviewedAt: now, to: "published" })) {
+  const published = await repo.transactionRunner.run(async (tx) => {
+    if (!await repo.passageRepository.transitionStatus(id, { from: ["draft"], publishedAt: now, reviewedAt: now, to: "published" }, tx)) {
+      return { isAudioReset: false, isPublished: false }
+    }
+    return { isAudioReset: await repo.passageAudioRepository.resetFailed(id, tx), isPublished: true }
+  })
+  if (!published.isPublished) {
     logger.debug("AdminPassageService: Passage status changed during publish", { id })
     return err(conflictError("Passage status changed"))
   }
-  logger.info("AdminPassageService: Passage published", { id })
+  logger.info("AdminPassageService: Passage published", { id, isAudioReset: published.isAudioReset })
   return ok({ id, status: "published" })
 }
 
@@ -249,6 +264,38 @@ export const regenerateAdminPassage = async (id: number, repo: PassageRepo): Pro
 }
 
 /**
+ * 却下を取り消す（rejected のときだけ）。設問があれば draft、無ければ（LLM が不向きと判定したもの）collected に戻す。
+ * 挑戦があっても取り消せる（設問は消さない）
+ */
+export const restoreAdminPassage = async (id: number, repo: PassageRepo): Promise<Result<AdminPassageStatusChange>> => {
+  const found = await findDetailInStatus(id, ["rejected"], repo)
+  if (!found.ok) return found
+
+  const status = await repo.passageRepository.restoreRejected(id)
+  if (status === null) {
+    logger.debug("AdminPassageService: Passage status changed during restore", { id })
+    return err(conflictError("Passage status changed"))
+  }
+  logger.info("AdminPassageService: Rejected passage restored", { id, status })
+  return ok({ id, status })
+}
+
+/**
+ * 要確認の印を外す（管理者が理由を確かめた・直した後に、一覧の要確認の先頭から外すため）。状態は問わず、外れていても 200
+ */
+export const resolveAdminPassageAttention = async (
+  id: number,
+  repo: PassageRepo,
+): Promise<Result<AdminPassageAttentionResolution>> => {
+  if (!await repo.passageRepository.clearAttention(id)) {
+    logger.debug("AdminPassageService: Passage not found", { id })
+    return err(notFoundError("Passage not found"))
+  }
+  logger.info("AdminPassageService: Passage attention resolved", { id })
+  return ok({ id, attentionReasons: [], needsAttention: false })
+}
+
+/**
  * 読み上げの音声の再試行。failed のときだけ pending に戻す（attempt_count = 0）。生成タスクが次の実行で作り直す。
  * 問題が無ければ 404、音声の行が無い・failed でない（pending・generating・ready）・同時に状態が変わったときは 409
  */
@@ -272,4 +319,33 @@ export const retryAdminPassageAudio = async (
   }
   logger.info("AdminPassageService: Passage audio reset for retry", { id })
   return ok({ passageId: id, status: "pending" })
+}
+
+/**
+ * 読み上げの音声の作り直しを依頼する。表示上 ready（作成済み）のときだけ regenerate_requested_at を入れる（失敗の回数とエラーも消す）。
+ * 生成タスクは次の実行で、本文の hash が同じでも Polly で作り直す（作り直す間も前の音声を返し続ける）。
+ * 問題が無ければ 404、音声の行が無い・ready でない（pending・generating・failed、非公開に戻した・公開し直した後の確認待ち）・同時に状態が変わったときは 409
+ */
+export const regenerateAdminPassageAudio = async (
+  id: number,
+  now: Date,
+  repo: { passageAudioRepository: PassageAudioRepository },
+): Promise<Result<{ passageId: number; regenerateRequestedAt: Date }>> => {
+  const found = await repo.passageAudioRepository.findByPassageId(id)
+  if (!found) {
+    logger.debug("AdminPassageService: Passage not found", { id })
+    return err(notFoundError("Passage not found"))
+  }
+  const status = resolveAudioStatus(found.audio, found.passage)
+  if (status !== "ready") {
+    logger.debug("AdminPassageService: Passage audio is not ready", { id, status })
+    return err(conflictError("Passage audio can be regenerated only when it is ready"))
+  }
+
+  if (!await repo.passageAudioRepository.requestRegeneration(id, now)) {
+    logger.debug("AdminPassageService: Passage audio changed during regenerate", { id })
+    return err(conflictError("Passage audio status changed"))
+  }
+  logger.info("AdminPassageService: Passage audio regeneration requested", { id })
+  return ok({ passageId: id, regenerateRequestedAt: now })
 }
