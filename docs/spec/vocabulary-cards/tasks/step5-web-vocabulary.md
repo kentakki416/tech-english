@@ -5,7 +5,8 @@ web の単語帳を作る。単語帳のトップ（`/vocabulary`）と 1 回分
 ## 前提
 
 - [step2-api-vocabulary-session](./step2-api-vocabulary-session.md)・[step3-api-vocabulary-review](./step3-api-vocabulary-review.md)（API とスキーマ）
-- **`design-mock` skill で web のモック（`/mock/vocabulary`・`/mock/vocabulary/session`）を作り、README に「UI 設計」を足してから始める**。見た目（大きさ・余白・配色・めくる動き）は UI 設計に従い、この step は画面の構成と振る舞いを書く
+- 見た目（大きさ・余白・配色・めくる動き・効果音）は README の [UI 設計](../README.md#ui-設計) に従い、この step は画面の構成と振る舞いを書く。確定したモック（`src/app/mock/vocabulary/**`、部品は `src/app/mock/_components/PaperCard.tsx`・`VocabularySessionParts.tsx`・`paper-sound.ts`）を本実装の場所（`src/components/features/vocabulary/`・`src/libs/`）に移して使う。紙の色（`--color-paper` / `--color-ink` など）と `animate-card-flip` / `animate-card-rise` は、モックの段階で `globals.css` の `@theme` に入っている
+- 背景は全画面共通の `.app-backdrop`（web の背景の PR）をそのまま使い、単語帳の画面だけの光は付けない
 - web の規約：[apps/web/CLAUDE.md](../../../../apps/web/CLAUDE.md)（取得は Server Component、書き込みは Server Action、`features/*.api.ts` は `server-only`、型は `@repo/api-schema` から）
 - 仕様は README の [カードの表と裏](../README.md#カードの表と裏)・[1 回の流れ](../README.md#1-回の流れ)・[単語帳のトップ](../README.md#単語帳のトップ)・[web の実装構成](../README.md#web-の実装構成)
 
@@ -232,7 +233,9 @@ export function VocabularySession({ cards, nextDueDate, reviewAction }: Vocabula
 - **見ていた秒数**：解答画面の `use-active-seconds.ts` を `src/libs/use-active-seconds.ts` に移して両方から使い、`useActiveSeconds({ initialSeconds: 0, isRunning: true })` で測る。答えるときに `onAnswer(grade, seconds)` で親に渡す（上限の 60 秒はサーバーで切り詰める）
 - **表**：語句（見出し語が違えば小さく添える）・品詞・本文の 1 文（単語を強調）・「{問題のタイトル} より」・新しい単語なら「新しい単語」。「めくる」ボタン
 - **裏**：表の語句と 1 文を残し、意味（`splitDictionarySenses` で辞書の意味を区切る）・補足・出どころ（用語集は琥珀の点と「この文での意味」、辞書は灰の点と「英和辞書（一般的な意味）」）、「まだ」「覚えた」
-- **めくる動き**：表と裏を重ね、親に `perspective`、カードに `transform-style: preserve-3d` と `rotateY(180deg)` の `transition`（400ms）。裏は `backface-visibility: hidden` と `rotateY(180deg)`。`motion-reduce:` のときは `transition` を外して切り替えだけにする
+- **めくる動き**：表と裏を重ねて 180deg 回す作りにはしない（3D の変形が残って文字がぼやけるため）。めくるたびに `key` を変えた要素に `motion-safe:animate-card-flip`（440ms。0 → 90deg → -90 → 0deg）を付け直し、`FLIP_HALF_MS`（220ms）後に表示する面を差し替える（モックの `VocabularySessionMock.tsx` の `FlipCard` と同じ）。差し替えは `useEffect` の中で state を変えず、めくる操作のイベントの中で `setTimeout` する（`react-hooks/set-state-in-effect`）。`prefers-reduced-motion` のときはすぐ差し替える
+- **束**：`CardStackBehind`（後ろに 2 枚、残りの枚数で減らす）を手前のカードの後ろに置く
+- **飛ばす・上がる**：答えたら 300ms で横へ飛ばしてから次のカードにし、次のカードは `motion-safe:animate-card-rise` で束から上がる
 - **めくる前は答えのボタンを出さない**。めくった後にもう一度めくると表に戻る（答える前だけ）
 - 表を見ている間は、裏の意味を読み上げ（スクリーンリーダー）にも出さない（`aria-hidden`）。めくったら「意味」を `aria-live="polite"` で伝える
 
@@ -276,6 +279,15 @@ export function SentenceText({ sentence }: { sentence: NonNullable<VocabularyCar
 - `Space` はページのスクロールを止める（`preventDefault`）
 - ボタンにキーの表示（`Keycap`）を添える
 
+#### 効果音
+
+`src/libs/paper-sound.ts`（モックの `paper-sound.ts` を移す）。Web Audio でノイズから「シュッ」を作る（[UI 設計の効果音](../README.md#効果音)）。
+
+- `usePaperSound()` が `{ isEnabled, play, toggle }` を返す。`play()` はめくるたび（表 → 裏、裏 → 表）に呼ぶ
+- `AudioContext` は最初の `play()` で作る（ユーザーの操作の中で作らないと、自動再生の制限で鳴らない）
+- オン / オフは `localStorage`（キー `tech-english:vocabulary-sound`）に覚える。読み書きは `try` / `catch` で包み、使えないときはオンのまま動かす
+- 上部バーの右にスピーカーのアイコンと「効果音」（`aria-pressed`）
+
 #### ふりかえり
 
 `src/components/features/vocabulary/SessionReview.tsx`。全部答えたら出す。
@@ -306,6 +318,9 @@ web にはテストランナーが無いので、Playwright MCP で実画面を�
 - [ ] 候補が無いユーザー（新しく dev-login したユーザー）でトップが案内と問題一覧への導線を出す
 - [ ] 共通ヘッダーに「単語帳」が出て、`/vocabulary` で琥珀の下線が付く。390px 幅でナビが折り返さない
 - [ ] 結果画面の「調べた単語」に「単語帳で復習する」が出て（調べた単語が 0 のときは出ない）、押すとトップへ行く
+- [ ] めくり終わった後の裏の文字がぼやけていない（3D の変形が残っていない）
+- [ ] めくるたびに「シュッ」と鳴り、上部バーで消すと鳴らない。ページを開き直しても消した設定が残る（音そのものは耳で確かめる）
+- [ ] 束が 3 枚に見え、残り 2 枚で後ろが 1 枚、最後のカードで束が無くなる
 - [ ] OS の「視差効果を減らす」を有効にすると、めくる動きが切り替えだけになる（`emulate_media` の `reducedMotion: reduce`）
 - [ ] 1440px と 390px でカードが崩れない
 

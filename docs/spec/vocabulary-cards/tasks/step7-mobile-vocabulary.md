@@ -6,7 +6,8 @@ mobile の単語帳を作る。タブに「単語帳」を足し（マイペー�
 
 - [step2-api-vocabulary-session](./step2-api-vocabulary-session.md)・[step3-api-vocabulary-review](./step3-api-vocabulary-review.md)（API とスキーマ）
 - web の [step5-web-vocabulary](./step5-web-vocabulary.md)（振る舞いをそろえる）
-- **`design-mock` skill で mobile のモック（`apps/mobile/src/app/mock/vocabulary*`）を作り、README の「UI 設計」に mobile の画面を足してから始める**
+- 見た目・動き・効果音は README の [UI 設計](../README.md#ui-設計) に従う。確定したモック（`src/app/mock/(tabs)/vocabulary.tsx`・`src/app/mock/vocabulary/session.tsx`、部品は `src/components/mock/PaperCard.tsx`・`use-flip-sound.ts`）を本実装の場所に移して使う。紙の色（`paper` / `ink` など）は `src/const/mock-theme.ts` から `src/const/design-theme.ts` の `THEME_COLORS` に移す。めくる音の `assets/sounds/page-flip.wav` はモックの段階で入っている
+- 背景は mobile の背景の PR の `AppBackdrop`（ルートのレイアウトに敷いてある）を透かす。単語帳の画面の一番外側は塗らない
 - mobile の規約：[apps/mobile/CLAUDE.md](../../../../apps/mobile/CLAUDE.md)（型は `@repo/api-schema` から、env は `@/env` から、スタックからタブへ戻るのは `router.dismissTo`）
 - 仕様は README の [1 回の流れ](../README.md#1-回の流れ) と [mobile の実装構成](../README.md#mobile-の実装構成)
 
@@ -109,13 +110,14 @@ const save = async (target: CardAnswer) => {
 `src/components/features/vocabulary/FlashCard.tsx`。`key={current.lemma}` で 1 枚ごとに作り直す。
 
 - **見ていた秒数**：解答画面の `src/features/attempt/use-active-seconds.ts` を `src/libs/use-active-seconds.ts` に移して両方から使い、`useActiveSeconds({ initialSeconds: 0, isRunning: true })`（`AppState` が `active` の間だけ数える）
-- **めくる**：カード全体を `Pressable` にし、タップで `isFlipped` を切り替える。`react-native-reanimated` の `useSharedValue` と `withTiming`（400ms）で `rotateY` を 0 → 180deg にし、表と裏の `Animated.View` を重ねて `backfaceVisibility: "hidden"`。既存の `QuestionSheet.tsx` と同じ書き方
-- **視差効果を減らす設定**：`useReducedMotion()`（reanimated。既存の `use-reading-auto-scroll.ts` と同じ）が `true` なら `withTiming` を使わず、値を直接切り替える
-- **スワイプ**：`react-native-gesture-handler` の `Gesture.Pan()` と `GestureDetector`（このアプリで初めて使う。ルートレイアウトは `GestureHandlerRootView` で包まれている）
-  - めくる前は `enabled(false)`（意味を見ずに答えられないように）
-  - 指に合わせて `translateX` と少しの回転を付け、離したときに横に `SWIPE_THRESHOLD`（画面幅の 30%）以上動いていれば、その方向に飛ばして答える（右が「覚えた」、左が「まだ」）。足りなければ `withSpring` で戻す
-  - ジェスチャーのコールバックは UI スレッドで動くので、答えの処理（JS）は `react-native-worklets` の `scheduleOnRN` で呼ぶ（Reanimated 4 で `runOnJS` の代わり。導入済みのバージョンの書き方を実装時に確かめる）
-  - 縦のスクロールを奪わないよう `activeOffsetX([-10, 10])` で横に動いたときだけ始める
+- **めくる**：カード全体を `Pressable` にし、タップで `isFlipped` を切り替える。web と同じく、表と裏を重ねて 180deg 回す作りにはせず、RN の `Animated.timing`（440ms、ネイティブドライバ）で `rotateY` を 0 → 90deg → -90 → 0deg と動かし、220ms 後に表示する面を差し替える（モックの `session.tsx` の `FlipCard` と同じ）
+- **束**：`CardStackBehind`（後ろに 2 枚、残りの枚数で減らす）を手前のカードの後ろに置く。答えたら 280ms で横へ飛ばし、次のカードは束から上がる（280ms）
+- **効果音**：`use-flip-sound.ts`（`expo-audio` の `useAudioPlayer` で `page-flip.wav` を鳴らす。鳴らす前に `seekTo(0)`）。めくるたび（表 → 裏、裏 → 表）に鳴らす。オン / オフは上部バーの右のスピーカーで切り替え、`AsyncStorage`（キー `tech-english:vocabulary-sound`）に覚える。消音モードでの扱いは読み上げの音声のモード（`setAudioModeAsync`）に引きずられないかを実装時に確かめる
+- **視差効果を減らす設定**：`useReducedMotion()`（reanimated。既存の `use-reading-auto-scroll.ts` と同じ）が `true` なら、めくる・飛ばす・上がるを省いて切り替えだけにする
+- **スワイプ**：モックと同じく RN の `PanResponder` と `Animated.Value` で作る（1 回分の画面はスクロールしないので、ジェスチャーの取り合いが起きない）
+  - めくる前は `onMoveShouldSetPanResponder` で引き受けない（意味を見ずに答えられないように）。横に 10px 以上、縦より大きく動いたときだけ始める
+  - 指に合わせて `translateX` と最大 10deg の回転を付け、離したときに横に画面幅の 30% 以上動いていれば答える（右が「覚えた」、左が「まだ」）。足りなければ `Animated.spring` で戻す
+  - `PanResponder` は 1 回だけ作るので、今の `isFlipped` と答えの関数は `useRef` で最新を参照する（モックの `latest` と同じ）
 - **答えのボタン**：めくった後だけ、カードの下に「まだ」と「覚えた」を出す（スワイプが苦手な人と、読み上げを使う人のため）
 - **読み上げ**：カードに `accessibilityRole="button"` と「めくる」のヒント。めくった後は意味を `accessibilityLiveRegion="polite"`（Android）／`AccessibilityInfo.announceForAccessibility`（iOS）で伝える。スワイプは読み上げの利用中は使えないので、ボタンで答えられることを保つ
 
@@ -155,5 +157,7 @@ iOS シミュレーター（または実機）で（Expo web では確かめら�
 - [ ] めくった後、右へのスワイプで「覚えた」、左で「まだ」になり、少しだけ動かして離すと元に戻る。めくる前はスワイプしない
 - [ ] 縦のスクロール（長い 1 文）がスワイプと取り合わない
 - [ ] 答えたときに軽く振動する
+- [ ] めくるたびに「シュッ」と鳴り、上部バーで消すと鳴らない。アプリを開き直しても消した設定が残る
+- [ ] 束が 3 枚に見え、本番と同じ背景（AppBackdrop）が透けている
 - [ ] VoiceOver でカードをめくり、ボタンで答えられる
 - [ ] 機内モードで答えると、ふりかえりに「保存できなかったカードがあります」が出て、戻してから「もう一度送る」と保存される（答えは 1 行だけ）
