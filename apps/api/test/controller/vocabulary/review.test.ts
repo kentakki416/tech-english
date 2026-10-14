@@ -11,7 +11,7 @@ import { DrizzleTransactionRunner } from "../../../src/repository/drizzle/transa
 import { DrizzleUserRepository } from "../../../src/repository/drizzle/user-repository"
 import { DrizzleVocabularyRepository } from "../../../src/repository/drizzle/vocabulary-repository"
 import { vocabularyRouter } from "../../../src/routes/vocabulary-router"
-import { insertReadPassage } from "../../fixture/vocabulary"
+import { insertReadPassage, insertVocabularyCard } from "../../fixture/vocabulary"
 import { attachUnhandledExceptionHandler, createTestApp, createTestUser } from "../helper"
 import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb } from "../setup"
 
@@ -65,15 +65,29 @@ describe("POST /api/vocabulary/review", () => {
       expect(await testDb.select().from(vocabularyReviews)).toMatchObject([{ activeSeconds: 8, stageBefore: null, studyDate: today, userId: user.id }])
     })
 
-    it("続けてまだを付けると段階 0・翌日になり、答えは 2 行", async () => {
+    it("今日の分の段階 2 のカードにまだを付けると段階 0・翌日になり、答えが 1 行増える", async () => {
       const { token, user } = await createTestUser()
       await insertReadPassage(user.id, "2026-10-10T03:00:00.000Z")
-      await request(app).post("/api/vocabulary/review").set("Authorization", `Bearer ${token}`).send(buildBody())
+      const today = formatToday(user.timezone)
+      await insertVocabularyCard(user.id, { dueDate: today, lemma: "opt out of", stage: 2 })
 
       const res = await request(app).post("/api/vocabulary/review").set("Authorization", `Bearer ${token}`).send(buildBody({ grade: "forgot" }))
 
-      expect(res.body).toEqual({ due_date: addDaysToDate(formatToday(user.timezone), 1), lemma: "opt out of", stage: 0 })
-      expect(await testDb.$count(vocabularyReviews)).toBe(2)
+      expect(res.body).toEqual({ due_date: addDaysToDate(today, 1), lemma: "opt out of", stage: 0 })
+      expect(await testDb.select().from(vocabularyReviews)).toMatchObject([{ stageAfter: 0, stageBefore: 2 }])
+    })
+
+    it("答えたカード（次に出す日が今日より後）に別の client_review_id でもう一度答えても、段階は変わらず答えは 1 行（戻るボタンで古い 1 回分を答え直したとき）", async () => {
+      const { token, user } = await createTestUser()
+      await insertReadPassage(user.id, "2026-10-10T03:00:00.000Z")
+      const first = await request(app).post("/api/vocabulary/review").set("Authorization", `Bearer ${token}`).send(buildBody())
+
+      const second = await request(app).post("/api/vocabulary/review").set("Authorization", `Bearer ${token}`).send(buildBody({ grade: "forgot" }))
+
+      expect(second.status).toBe(200)
+      expect(second.body).toEqual(first.body)
+      expect(await testDb.select().from(vocabularyCards)).toMatchObject([{ stage: 1 }])
+      expect(await testDb.$count(vocabularyReviews)).toBe(1)
     })
 
     it("同じ client_review_id で 2 回送ると 2 回目も同じ状態が返り、段階は 1 つしか進まず答えは 1 行", async () => {

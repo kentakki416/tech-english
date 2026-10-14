@@ -67,6 +67,17 @@ describe("getUserCalendar", () => {
       expect(repo.learningRecordRepository.summarizeByDate).toHaveBeenCalledWith(USER.id, { from: "2026-10-05", to: "2026-10-08" })
     })
 
+    it("単語帳だけで秒数が 0 の日（1 秒未満ずつ答えた）も、学習した日なので段階 1", async () => {
+      const repo = setup()
+      repo.learningRecordRepository.summarizeByDate.mockResolvedValue([
+        { attemptCount: 0, cardCount: 3, correctCount: 0, date: "2026-10-06", questionCount: 0, rememberedCount: 2, studySeconds: 0 },
+      ])
+
+      const result = await getUserCalendar(USER.id, { from: "2026-10-06", to: "2026-10-06" }, repo, { now: FIXED_NOW })
+
+      expect(result).toMatchObject({ ok: true, value: { days: [{ cardCount: 3, date: "2026-10-06", level: 1, studySeconds: 0 }] } })
+    })
+
     it("to が未来の日（月表示の月末）でもその日まで返す", async () => {
       const repo = setup()
 

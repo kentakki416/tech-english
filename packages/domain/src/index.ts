@@ -41,7 +41,7 @@ export { canShareMemo } from "./rules/memo"
 export { calculateQuestionCount, calculateTimeLimitSeconds, isPassageDifficulty, isPassageStatus } from "./rules/passage"
 export { findSurfaceRange, hasQuote, isSurfaceAt, numberHeadings, numberParagraphs } from "./rules/passage-text"
 export { isQuestionType } from "./rules/question"
-export { isVocabularyGrade, normalizeVocabularyLemma, scheduleVocabularyReview } from "./rules/vocabulary"
+export { isVocabularyCardDue, isVocabularyGrade, normalizeVocabularyLemma, scheduleVocabularyReview } from "./rules/vocabulary"
 export type {
   AttemptAnswer,
   AttemptStatus,

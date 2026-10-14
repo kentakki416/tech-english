@@ -62,13 +62,42 @@ describe("reviewVocabularyCard", () => {
     it.each([
       [2, "forgot" as const, 0, "2026-10-16"],
       [3, "remembered" as const, 4, null],
-    ])("段階 %d のカードで %s なら段階 %d・次は %s", async (stageBefore, grade, stageAfter, dueDate) => {
+    ])("今日の分の段階 %d のカードで %s なら段階 %d・次は %s", async (stageBefore, grade, stageAfter, dueDate) => {
       const { repo, vocabularyRepository } = setup()
-      vocabularyRepository.findCardByLemma.mockResolvedValue(buildCard({ stage: stageBefore }))
+      vocabularyRepository.findCardByLemma.mockResolvedValue(buildCard({ dueDate: "2026-10-15", stage: stageBefore }))
 
       await reviewVocabularyCard(USER.id, { ...INPUT, grade }, repo, { now: FIXED_NOW })
 
       expect(vocabularyRepository.saveReview).toHaveBeenCalledWith(expect.objectContaining({ dueDate, stageAfter, stageBefore }), TX)
+    })
+
+    it("次に出す日を過ぎたカードも今日の分として保存する", async () => {
+      const { repo, vocabularyRepository } = setup()
+      vocabularyRepository.findCardByLemma.mockResolvedValue(buildCard({ dueDate: "2026-10-01", stage: 1 }))
+
+      await reviewVocabularyCard(USER.id, INPUT, repo, { now: FIXED_NOW })
+
+      expect(vocabularyRepository.saveReview).toHaveBeenCalledWith(expect.objectContaining({ dueDate: "2026-10-22", stageAfter: 2, stageBefore: 1 }), TX)
+    })
+
+    it("次に出す日が明日のカード（今日の分ではない）には保存せず、今の状態を返す（境界値。戻るボタンで古い 1 回分を答え直したとき）", async () => {
+      const { repo, vocabularyRepository } = setup()
+      vocabularyRepository.findCardByLemma.mockResolvedValue(buildCard({ dueDate: "2026-10-16", stage: 0 }))
+
+      const result = await reviewVocabularyCard(USER.id, INPUT, repo, { now: FIXED_NOW })
+
+      expect(result).toEqual({ ok: true, value: { dueDate: "2026-10-16", lemma: "opt out of", stage: 0 } })
+      expect(vocabularyRepository.saveReview).not.toHaveBeenCalled()
+    })
+
+    it("覚えた単語（段階 4・次に出す日なし）には保存せず、今の状態を返す", async () => {
+      const { repo, vocabularyRepository } = setup()
+      vocabularyRepository.findCardByLemma.mockResolvedValue(buildCard({ dueDate: null, stage: 4 }))
+
+      const result = await reviewVocabularyCard(USER.id, INPUT, repo, { now: FIXED_NOW })
+
+      expect(result).toEqual({ ok: true, value: { dueDate: null, lemma: "opt out of", stage: 4 } })
+      expect(vocabularyRepository.saveReview).not.toHaveBeenCalled()
     })
 
     it("見出し語は小文字にして扱う", async () => {

@@ -1,4 +1,5 @@
 import {
+  isVocabularyCardDue,
   normalizeVocabularyLemma,
   scheduleVocabularyReview,
   type User,
@@ -81,6 +82,8 @@ const convertCardToReviewResult = (card: VocabularyCard): VocabularyReviewResult
  * 1 枚の答えを保存する。次の段階と次に出す日は users.timezone での今日から求める（vocabulary-cards README「復習の間隔」）。
  *
  * - 同じ client_review_id の答えが保存済みなら何もせず、そのカードの今の状態を返す（冪等）
+ * - 今日の分ではないカード（次に出す日が今日より後・覚えた単語）への答えは保存せず、そのカードの今の状態を返す。
+ *   戻るボタンで古い 1 回分を開き直して答えた・別の端末で先に答えた、のような重なった答えで段階を 2 つ進めないため
  * - カードが無く、出題の候補にも無い（意味が用意できない）見出し語は 404
  * - 見ていた秒数は VOCABULARY_MAX_CARD_SECONDS に切り詰める
  */
@@ -111,6 +114,7 @@ export const reviewVocabularyCard = async (
     if (!card && !(await repo.vocabularyRepository.hasEncounter(userId, lemma, tx))) {
       return err(notFoundError("Word not found in the vocabulary"))
     }
+    if (card && !isVocabularyCardDue(card, today)) return ok(convertCardToReviewResult(card))
 
     const stageBefore = card?.stage ?? null
     const schedule = scheduleVocabularyReview(stageBefore, input.grade, today)

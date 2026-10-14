@@ -1,7 +1,13 @@
 import { VOCABULARY_GRADES, VOCABULARY_MASTERED_STAGE, VOCABULARY_REVIEW_INTERVAL_DAYS } from "../const/vocabulary"
-import type { VocabularyGrade, VocabularySchedule } from "../types/vocabulary"
+import type { VocabularyCard, VocabularyGrade, VocabularySchedule } from "../types/vocabulary"
 
 import { addDaysToDate } from "./learning-record"
+
+/**
+ * カードが今日の分か（次に出す日が今日以前）。覚えた単語（次に出す日なし）は今日の分ではない。today は users.timezone での今日（YYYY-MM-DD）
+ */
+export const isVocabularyCardDue = (card: Pick<VocabularyCard, "dueDate">, today: string): boolean =>
+  card.dueDate !== null && card.dueDate <= today
 
 /**
  * 単語帳の答えの値かどうか

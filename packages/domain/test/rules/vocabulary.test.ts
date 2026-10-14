@@ -1,5 +1,5 @@
 import { VOCABULARY_MASTERED_STAGE, VOCABULARY_REVIEW_INTERVAL_DAYS } from "../../src/const/vocabulary"
-import { isVocabularyGrade, normalizeVocabularyLemma, scheduleVocabularyReview } from "../../src/rules/vocabulary"
+import { isVocabularyCardDue, isVocabularyGrade, normalizeVocabularyLemma, scheduleVocabularyReview } from "../../src/rules/vocabulary"
 
 describe("scheduleVocabularyReview", () => {
   const TODAY = "2026-10-14"
@@ -60,5 +60,25 @@ describe("isVocabularyGrade", () => {
     ["", false],
   ])("%j は %s", (value, expected) => {
     expect(isVocabularyGrade(value)).toBe(expected)
+  })
+})
+
+describe("isVocabularyCardDue", () => {
+  const TODAY = "2026-10-14"
+
+  describe("正常系", () => {
+    it.each([
+      ["2026-10-13", true],
+      ["2026-10-14", true],
+      ["2026-10-15", false],
+    ])("次に出す日が %s なら %s（今日が境界）", (dueDate, expected) => {
+      expect(isVocabularyCardDue({ dueDate }, TODAY)).toBe(expected)
+    })
+  })
+
+  describe("異常系", () => {
+    it("覚えた単語（次に出す日なし）は今日の分ではない", () => {
+      expect(isVocabularyCardDue({ dueDate: null }, TODAY)).toBe(false)
+    })
   })
 })
