@@ -18,6 +18,13 @@ export {
   QUESTION_CHOICE_COUNT,
   QUESTION_TYPES,
 } from "./const/question"
+export {
+  VOCABULARY_GRADES,
+  VOCABULARY_MASTERED_STAGE,
+  VOCABULARY_MAX_CARD_SECONDS,
+  VOCABULARY_REVIEW_INTERVAL_DAYS,
+  VOCABULARY_SESSION_SIZE,
+} from "./const/vocabulary"
 export { isAttemptStatus, isWordLookupSource } from "./rules/attempt"
 export { isAudioStatus } from "./rules/audio"
 export { isAllowedLicense, isSourceFetchType, isSourceKind } from "./rules/content-source"
@@ -34,6 +41,7 @@ export { canShareMemo } from "./rules/memo"
 export { calculateQuestionCount, calculateTimeLimitSeconds, isPassageDifficulty, isPassageStatus } from "./rules/passage"
 export { findSurfaceRange, hasQuote, isSurfaceAt, numberHeadings, numberParagraphs } from "./rules/passage-text"
 export { isQuestionType } from "./rules/question"
+export { isVocabularyCardDue, isVocabularyGrade, normalizeVocabularyLemma, scheduleVocabularyReview } from "./rules/vocabulary"
 export type {
   AttemptAnswer,
   AttemptStatus,
@@ -61,3 +69,4 @@ export type { GlossaryEntry, Question, QuestionType } from "./types/question"
 export type { ReminderSetting } from "./types/reminder"
 export type { SourceDocument } from "./types/source-document"
 export type { User } from "./types/user"
+export type { VocabularyCard, VocabularyGrade, VocabularyReview, VocabularySchedule } from "./types/vocabulary"

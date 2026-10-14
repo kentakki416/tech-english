@@ -60,6 +60,9 @@ import { UserPutGoalController } from "./controller/user/put-goal"
 import { UserPutReminderController } from "./controller/user/put-reminder"
 import { UserStatsController } from "./controller/user/stats"
 import { UserUpdateController } from "./controller/user/update"
+import { VocabularyReviewController } from "./controller/vocabulary/review"
+import { VocabularySessionController } from "./controller/vocabulary/session"
+import { VocabularySummaryController } from "./controller/vocabulary/summary"
 import { env } from "./env"
 import { resolveAudioPublicUrlBase } from "./lib/passage-audio"
 import { authMiddleware } from "./middleware/auth"
@@ -81,6 +84,7 @@ import {
   DrizzleTransactionRunner,
   DrizzleUserGoalRepository,
   DrizzleUserRepository,
+  DrizzleVocabularyRepository,
 } from "./repository/drizzle"
 import { IoRedisHealthRepository, IoRedisRefreshTokenRepository } from "./repository/redis"
 import { adminRouter } from "./routes/admin-router"
@@ -93,6 +97,7 @@ import { mediaRouter } from "./routes/media-router"
 import { memoRouter } from "./routes/memo-router"
 import { passageRouter } from "./routes/passage-router"
 import { userRouter } from "./routes/user-router"
+import { vocabularyRouter } from "./routes/vocabulary-router"
 
 /**
  * インフラ client はプロセス起動時に 1 回だけ生成する。
@@ -139,6 +144,10 @@ const userGoalRepository = new DrizzleUserGoalRepository(db)
  * 学習リマインダー（study-reminder）の設定
  */
 const reminderSettingRepository = new DrizzleReminderSettingRepository(db)
+/**
+ * 単語帳（vocabulary-cards）のカードと答え、出題の候補
+ */
+const vocabularyRepository = new DrizzleVocabularyRepository(db)
 const databaseHealthRepository = new DrizzleDatabaseHealthRepository(db)
 const redisHealthRepository = new IoRedisHealthRepository(redis)
 const refreshTokenRepository = new IoRedisRefreshTokenRepository(redis)
@@ -290,6 +299,13 @@ const attemptSubmitController = new AttemptSubmitController(
  * 英和辞書（解答中の単語の意味）Controller のインスタンス化
  */
 const dictionaryLookupController = new DictionaryLookupController(dictionaryRepository)
+
+/**
+ * 単語帳（1 回分のカード・トップの数・答えの保存）Controller のインスタンス化
+ */
+const vocabularyReviewController = new VocabularyReviewController(transactionRunner, userRepository, vocabularyRepository)
+const vocabularySessionController = new VocabularySessionController(userRepository, vocabularyRepository)
+const vocabularySummaryController = new VocabularySummaryController(userRepository, vocabularyRepository)
 
 const app = express()
 
@@ -453,6 +469,14 @@ app.use(
   "/api/dictionary",
   dictionaryRouter({
     lookup: dictionaryLookupController,
+  })
+)
+app.use(
+  "/api/vocabulary",
+  vocabularyRouter({
+    review: vocabularyReviewController,
+    session: vocabularySessionController,
+    summary: vocabularySummaryController,
   })
 )
 

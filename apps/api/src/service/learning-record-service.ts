@@ -91,7 +91,7 @@ export type GoalProgressView = {
   targetDate: string | null
   weeklyMetric: GoalMetric | null
   /**
-   * passages は今週の提出数、minutes は今週の学習秒数 ÷ 60 の切り捨て。週の目標が無ければ null
+   * passages は今週の提出数（単語帳は数えない）、minutes は今週の学習秒数（単語帳の時間を含む）÷ 60 の切り捨て。週の目標が無ければ null
    */
   weeklyProgress: number | null
   weeklyTarget: number | null
@@ -294,7 +294,8 @@ const resolveDefaultCalendarRange = (today: string): { from: string; to: string 
 }
 
 /**
- * 学習カレンダー。from〜to の全日を、学習していない日も level 0 で返す（to が未来でもよい。月表示が月末まで要求するため）
+ * 学習カレンダー。from〜to の全日を、学習していない日も level 0 で返す（to が未来でもよい。月表示が月末まで要求するため）。
+ * 学習した日は秒数が 0 でも level 1 以上
  *
  * from と to は両方指定か両方省略。片方だけ・from > to・366 日を超える期間は 400
  */
@@ -327,12 +328,18 @@ export const getUserCalendar = async (
     const date = addDaysToDate(from, index)
     const summary = summaryByDate.get(date)
     const studySeconds = summary?.studySeconds ?? 0
+    /**
+     * 学習した日（summarizeByDate が返す日）は、秒数が 0 でも段階 1 にする（単語帳を 1 秒未満ずつ答えた日も色を付ける）
+     */
+    const level = summary ? (Math.max(convertStudySecondsToLevel(studySeconds), 1) as CalendarLevel) : 0
     return {
       attemptCount: summary?.attemptCount ?? 0,
+      cardCount: summary?.cardCount ?? 0,
       correctCount: summary?.correctCount ?? 0,
       date,
-      level: convertStudySecondsToLevel(studySeconds),
+      level,
       questionCount: summary?.questionCount ?? 0,
+      rememberedCount: summary?.rememberedCount ?? 0,
       studySeconds,
     }
   })

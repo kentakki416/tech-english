@@ -147,6 +147,16 @@ public async saveReview(input: SaveVocabularyReviewInput, tx: TransactionContext
 
 ### 3. Service
 
+今日の分かどうかの判定は `@repo/domain` の `rules/vocabulary.ts` に純関数で足す（テストは `test/rules/vocabulary.test.ts`。今日が境界・`null` は今日の分ではない）。
+
+```typescript
+/**
+ * カードが今日の分か（次に出す日が今日以前）。覚えた単語（次に出す日なし）は今日の分ではない。today は users.timezone での今日（YYYY-MM-DD）
+ */
+export const isVocabularyCardDue = (card: Pick<VocabularyCard, "dueDate">, today: string): boolean =>
+  card.dueDate !== null && card.dueDate <= today
+```
+
 step2 の `src/service/vocabulary-service.ts` に足す。行動イベントは送らない（長文読解の提出と同じく、答えは `vocabulary_reviews` に残るため）。
 
 ```typescript
@@ -165,6 +175,7 @@ const convertCardToReviewResult = (card: VocabularyCard): VocabularyReviewResult
  * 1 枚の答えを保存する。次の段階と次に出す日は users.timezone での今日から求める（README「復習の間隔」）。
  *
  * - 同じ client_review_id の答えが保存済みなら何もせず、そのカードの今の状態を返す（冪等）
+ * - 今日の分ではないカード（次に出す日が今日より後・覚えた単語）への答えは保存せず、そのカードの今の状態を返す
  * - カードが無く、出題の候補にも無い（意味が用意できない）見出し語は 404
  * - 見ていた秒数は 0〜VOCABULARY_MAX_CARD_SECONDS に切り詰める
  */
@@ -194,6 +205,10 @@ export const reviewVocabularyCard = async (
     if (!card && !(await repo.vocabularyRepository.hasEncounter(userId, lemma, tx))) {
       return err(notFoundError("Word not found in the vocabulary"))
     }
+    /**
+     * 戻るボタンで古い 1 回分を答え直した・別の端末で先に答えた、のような重なった答えで段階を 2 つ進めない
+     */
+    if (card && !isVocabularyCardDue(card, today)) return ok(convertCardToReviewResult(card))
 
     const stageBefore = card?.stage ?? null
     const schedule = scheduleVocabularyReview(stageBefore, input.grade, today)
@@ -301,6 +316,8 @@ pnpm lint:fix
   - [ ] `activeSeconds` の 60 はそのまま、61 は 60 に切り詰める（境界値）
   - [ ] 「今日」は `users.timezone` で決まる（`2026-10-14T15:30:00Z` は `Asia/Tokyo` で `studyDate: "2026-10-15"`、`dueDate` もそこから数える）
   - [ ] 保存済みの `client_review_id` なら `saveReview` を呼ばず、そのカードの今の状態を返す
+  - [ ] 次に出す日が過ぎたカードは今日の分として保存する
+  - [ ] 次に出す日が明日のカード（今日の分ではない）・覚えた単語（`dueDate: null`）には `saveReview` を呼ばず、そのカードの今の状態を返す（境界値）
 - 異常系
   - [ ] ユーザーが無ければ 401 で、`transactionRunner.run` を呼ばない
   - [ ] ロックでユーザーが見つからなければ 401 で、`saveReview` を呼ばない
@@ -312,7 +329,8 @@ pnpm lint:fix
 
 - 正常系
   - [ ] 新しい単語に「覚えた」で 200 と `{ due_date: <3 日後>, lemma, stage: 1 }`（`toEqual`）、`vocabulary_cards` に 1 行・`vocabulary_reviews` に 1 行（`toMatchObject`。`study_date`・`active_seconds`・`stage_before: null`）
-  - [ ] 続けて同じ見出し語に「まだ」で `stage: 0`・翌日、答えは 2 行
+  - [ ] 今日の分の段階 2 のカードに「まだ」で `stage: 0`・翌日、答えは 1 行（`stage_before: 2`）
+  - [ ] **答えたカード（次に出す日が今日より後）に別の `client_review_id` でもう一度答えても、1 回目と同じ状態が返り、段階は変わらず答えは 1 行のまま**（戻るボタンで古い 1 回分を答え直したとき）
   - [ ] **同じ `client_review_id` で 2 回送ると、2 回目も 200 で同じ状態が返り、カードの段階は 1 つしか進まず、答えは 1 行のまま**
   - [ ] **同じ `client_review_id` の 2 つのリクエストを `Promise.all` で同時に送っても、答えは 1 行・段階は 1 つだけ進む**（ロックの確認）
   - [ ] `active_seconds: 999` は 200 で、保存は 60

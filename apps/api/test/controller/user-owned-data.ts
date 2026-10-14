@@ -12,6 +12,8 @@ import {
   reminderSettings,
   sourceDocuments,
   userGoals,
+  vocabularyCards,
+  vocabularyReviews,
 } from "@repo/db"
 
 import { testDb } from "./setup"
@@ -189,6 +191,41 @@ export const USER_OWNED_TABLES: readonly UserOwnedTable[] = [
       })
     },
     tableName: "reminder_settings",
+  },
+  {
+    countRows: async (userId) => testDb.$count(vocabularyCards, eq(vocabularyCards.userId, userId)),
+    seed: async (userId) => {
+      await testDb.insert(vocabularyCards).values({
+        dueDate: "2026-10-17",
+        lastReviewedAt: new Date("2026-10-14T03:00:00.000Z"),
+        lemma: "opt out of",
+        stage: 1,
+        userId,
+      })
+    },
+    tableName: "vocabulary_cards",
+  },
+  {
+    countRows: async (userId) => testDb.$count(vocabularyReviews, eq(vocabularyReviews.userId, userId)),
+    seed: async (userId) => {
+      const [card] = await testDb
+        .select({ id: vocabularyCards.id })
+        .from(vocabularyCards)
+        .where(eq(vocabularyCards.userId, userId))
+        .limit(1)
+      if (!card) throw new Error(`vocabulary_cards の seed が先に必要（userId=${userId}）`)
+      await testDb.insert(vocabularyReviews).values({
+        activeSeconds: 8,
+        cardId: card.id,
+        clientReviewId: crypto.randomUUID(),
+        grade: "remembered",
+        stageAfter: 1,
+        stageBefore: null,
+        studyDate: "2026-10-14",
+        userId,
+      })
+    },
+    tableName: "vocabulary_reviews",
   },
 ]
 

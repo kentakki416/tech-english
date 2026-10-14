@@ -1,10 +1,14 @@
 import type { QuestionType } from "@repo/domain"
 
 /**
- * 1 日（学習した日）の集計
+ * 1 日（学習した日）の集計。学習した日は挑戦を提出した日か、単語帳で答えた日（vocabulary-cards README「学習記録への反映」）
  */
 export type DailyStudySummary = {
   attemptCount: number
+  /**
+   * 単語帳で答えた枚数（同じカードに 2 回答えれば 2）
+   */
+  cardCount: number
   correctCount: number
   /**
    * 学習した日（YYYY-MM-DD）
@@ -12,7 +16,11 @@ export type DailyStudySummary = {
   date: string
   questionCount: number
   /**
-   * かかった時間の合計（秒）
+   * 単語帳で「覚えた」を付けた数
+   */
+  rememberedCount: number
+  /**
+   * 挑戦のかかった時間と、単語帳でカードを見ていた時間の合計（秒）
    */
   studySeconds: number
 }
@@ -68,14 +76,15 @@ export type SubmittedAttempt = {
 export type FindSubmittedAttemptsOptions = { cursor?: number; date?: string; limit: number }
 
 /**
- * 学習記録の集計（読み取りのみ）のリポジトリ。数えるのは status = 'submitted' の挑戦だけで、他のユーザーの挑戦は含めない。
+ * 学習記録の集計（読み取りのみ）のリポジトリ。数えるのは status = 'submitted' の挑戦と、単語帳の答え（vocabulary_reviews）だけで、
+ * 他のユーザーの行は含めない。
  *
- * reading_attempts から都度集計する（learning-record README「集計の方法」）。遅くなったら日ごとの集計テーブルに
+ * reading_attempts と vocabulary_reviews から都度集計し、日付で合わせる（learning-record README「集計の方法」）。遅くなったら日ごとの集計テーブルに
  * 切り替える想定で、そのときはこの実装だけを差し替える（API の形は変えない）
  */
 export interface LearningRecordRepository {
   /**
-   * 学習した日（重複なし。日付の昇順）
+   * 学習した日（挑戦を提出した日と単語帳で答えた日。重複なし。日付の昇順）
    */
   findStudyDates(userId: number): Promise<string[]>
   /**
@@ -88,7 +97,7 @@ export interface LearningRecordRepository {
    */
   summarizeAccuracyByQuestionType(userId: number): Promise<QuestionTypeAccuracyCount[]>
   /**
-   * 期間内（from と to を含む）の日ごとの集計。学習した日だけを日付の昇順で返す
+   * 期間内（from と to を含む）の日ごとの集計。学習した日（単語帳だけの日を含む）だけを日付の昇順で返す
    */
   summarizeByDate(userId: number, range: { from: string; to: string }): Promise<DailyStudySummary[]>
   /**
@@ -96,5 +105,8 @@ export interface LearningRecordRepository {
    * 挑戦だけの正答数と設問数
    */
   summarizeNoAssistAccuracy(userId: number): Promise<AccuracyCount>
+  /**
+   * 累計。studySeconds だけ単語帳の秒数を含み、他は挑戦だけ
+   */
   summarizeTotals(userId: number): Promise<StudyTotals>
 }

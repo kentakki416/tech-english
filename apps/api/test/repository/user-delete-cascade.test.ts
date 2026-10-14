@@ -76,6 +76,8 @@ describe("users の削除の cascade", () => {
         "reminder_settings",
         "user_goals",
         "users",
+        "vocabulary_cards",
+        "vocabulary_reviews",
       ])
     })
 

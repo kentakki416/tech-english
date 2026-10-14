@@ -193,6 +193,8 @@ api の認証は既存の Bearer トークン（`authMiddleware`）のままで�
 | `attempt_word_lookups` | `user_id` / `reading_attempts` 経由 | cascade |
 | `user_goals` | `user_id` | cascade |
 | `reminder_settings` | `user_id` | cascade |
+| `vocabulary_cards` | `user_id` | cascade（[vocabulary-cards](../vocabulary-cards/README.md#必要な-db-設計)） |
+| `vocabulary_reviews` | `user_id` / `vocabulary_cards` 経由 | cascade |
 
 **新しくユーザーに紐づくテーブルを足すときは、必ず `users` の削除で cascade するか、削除の処理に含める。** 各テーブルの正本の spec にもこの制約を書いておく。
 

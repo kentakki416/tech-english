@@ -35,10 +35,12 @@ export class UserCalendarController {
     const response = parseResponse(getUserCalendarResponseSchema, {
       days: result.value.days.map((day) => ({
         attempt_count: day.attemptCount,
+        card_count: day.cardCount,
         correct_count: day.correctCount,
         date: day.date,
         level: day.level,
         question_count: day.questionCount,
+        remembered_count: day.rememberedCount,
         study_seconds: day.studySeconds,
       })),
       from: result.value.from,

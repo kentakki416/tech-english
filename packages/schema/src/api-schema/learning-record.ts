@@ -133,13 +133,24 @@ export const getUserCalendarResponseSchema = z.object({
   days: z.array(
     z.object({
       attempt_count: z.number().int(),
+      /**
+       * 単語帳で答えた枚数
+       */
+      card_count: z.number().int(),
       correct_count: z.number().int(),
       date: z.string(),
       /**
-       * 色の段階（0 = 学習なし / 1 = 〜5 分 / 2 = 〜15 分 / 3 = 〜30 分 / 4 = 30 分超）
+       * 色の段階（0 = 学習なし / 1 = 〜5 分 / 2 = 〜15 分 / 3 = 〜30 分 / 4 = 30 分超）。学習時間は単語帳の時間を含む
        */
       level: z.number().int().min(0).max(4),
       question_count: z.number().int(),
+      /**
+       * 単語帳で「覚えた」を付けた数
+       */
+      remembered_count: z.number().int(),
+      /**
+       * 挑戦と単語帳の合計（秒）
+       */
       study_seconds: z.number().int(),
     }),
   ),
