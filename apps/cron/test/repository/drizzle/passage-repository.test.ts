@@ -202,12 +202,12 @@ describe("DrizzlePassageRepository", () => {
     })
   })
 
-  describe("claimCollected", () => {
+  describe("claimNextCollected", () => {
     describe("正常系", () => {
-      it("collected を古い順に FOR UPDATE SKIP LOCKED で選び、同じ UPDATE 文で generating にする", async () => {
+      it("collected のうち最も古い 1 行を FOR UPDATE SKIP LOCKED で選び、同じ UPDATE 文で generating にする", async () => {
         const fake = createFakeUpdateDb([])
 
-        await new DrizzlePassageRepository(fake.db).claimCollected({ limit: 3, now: NOW })
+        await new DrizzlePassageRepository(fake.db).claimNextCollected({ now: NOW })
 
         const { params, sql } = renderUpdate(fake)
         expect(sql).toBe([
@@ -217,40 +217,39 @@ describe("DrizzlePassageRepository", () => {
         ].join(""))
         expect(params[0]).toBe("2026-10-13T03:00:00.000Z")
         expect(params[1]).toBe("generating")
-        expect(params.slice(3)).toEqual(["collected", 3])
+        expect(params.slice(3)).toEqual(["collected", 1])
       })
 
       it("passageId があればその行だけを候補にする", async () => {
         const fake = createFakeUpdateDb([])
 
-        await new DrizzlePassageRepository(fake.db).claimCollected({ limit: 1, now: NOW, passageId: 42 })
+        await new DrizzlePassageRepository(fake.db).claimNextCollected({ now: NOW, passageId: 42 })
 
         const { params, sql } = renderUpdate(fake)
         expect(sql).toContain("where ((\"passages\".\"status\" = $?) and (\"passages\".\"id\" = $?)) order by")
         expect(params.slice(3)).toEqual(["collected", 42, 1])
       })
 
-      it("RETURNING の行を created_at → id の順に並べ直し、取得時刻（claim のトークン）付きで返す", async () => {
+      it("RETURNING の行を取得時刻（claim のトークン）付きで返す", async () => {
         const blocks = [{ text: "Hello.", type: "paragraph" as const }]
-        const buildRow = (id: number, createdAt: string) => ({
-          id,
+        const fake = createFakeUpdateDb([{
+          id: 2,
           blocks,
-          createdAt: new Date(createdAt),
           generationAttemptCount: 1,
           generationStartedAt: NOW,
-          title: `T${id}`,
+          title: "T2",
           wordCount: 250,
-        })
-        const fake = createFakeUpdateDb([
-          buildRow(3, "2026-10-02T00:00:00.000Z"),
-          buildRow(2, "2026-10-01T00:00:00.000Z"),
-          buildRow(1, "2026-10-02T00:00:00.000Z"),
-        ])
+        }])
 
-        const claimed = await new DrizzlePassageRepository(fake.db).claimCollected({ limit: 3, now: NOW })
+        const claimed = await new DrizzlePassageRepository(fake.db).claimNextCollected({ now: NOW })
 
-        expect(claimed.map((passage) => passage.id)).toEqual([2, 1, 3])
-        expect(claimed[0]).toEqual({ id: 2, blocks, generationAttemptCount: 1, generationStartedAt: NOW, title: "T2", wordCount: 250 })
+        expect(claimed).toEqual({ id: 2, blocks, generationAttemptCount: 1, generationStartedAt: NOW, title: "T2", wordCount: 250 })
+      })
+
+      it("取れる行が無ければ null を返す", async () => {
+        const fake = createFakeUpdateDb([])
+
+        expect(await new DrizzlePassageRepository(fake.db).claimNextCollected({ now: NOW })).toBeNull()
       })
     })
   })

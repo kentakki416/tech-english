@@ -1,6 +1,7 @@
 import { AuthenticationError, InternalServerError, NotFoundError } from "@anthropic-ai/sdk"
 
 import {
+  LlmInvalidJsonError,
   LlmOutputTruncatedError,
   LlmRefusalError,
   type StructuredMessageRequest,
@@ -56,6 +57,9 @@ const buildInput = (overrides: Partial<GenerateQuestionsInput> = {}): GenerateQu
   ...overrides,
 })
 
+/**
+ * claimed は取れる collected の行（claimNextCollected が 1 回ごとに先頭から 1 件ずつ返し、無くなったら null）
+ */
 const createFakeRepo = (options: {
   claimed?: ClaimedPassage[]
   draftCount?: number
@@ -63,8 +67,9 @@ const createFakeRepo = (options: {
   isSaved?: boolean
   status?: "draft" | null
 } = {}) => {
+  const collectedQueue = [...(options.claimed ?? [buildPassage(1)])]
   const passageRepository = {
-    claimCollected: vi.fn<PassageRepository["claimCollected"]>(async () => options.claimed ?? [buildPassage(1)]),
+    claimNextCollected: vi.fn<PassageRepository["claimNextCollected"]>(async () => collectedQueue.shift() ?? null),
     countByStatus: vi.fn<PassageRepository["countByStatus"]>(async () => options.draftCount ?? 0),
     findStatusById: vi.fn<PassageRepository["findStatusById"]>(async () => options.status ?? null),
     insertIgnoringDuplicates: vi.fn<PassageRepository["insertIgnoringDuplicates"]>(async () => 0),
@@ -151,9 +156,11 @@ describe("generateQuestions", () => {
 
       const [generationRequest] = llmClient.requestsOf(GENERATION_MODEL)
       expect(generationRequest.maxTokens).toBe(16000)
+      expect(generationRequest.adaptiveThinking).toEqual({ effort: "high" })
       expect(generationRequest.userContent).toContain("Create exactly 3 questions for this passage.")
       const [verificationRequest] = llmClient.requestsOf(VERIFICATION_MODEL)
       expect(verificationRequest.maxTokens).toBe(2000)
+      expect(verificationRequest.adaptiveThinking).toBeUndefined()
       const output = buildGeneratedOutput()
       for (const question of output.questions) {
         expect(verificationRequest.userContent).toContain(question.prompt)
@@ -177,16 +184,58 @@ describe("generateQuestions", () => {
       }))
     })
 
-    it("releaseStaleGenerating を now - 30 分で呼んでから claimCollected する", async () => {
+    it("releaseStaleGenerating を now - 30 分で呼んでから claimNextCollected する", async () => {
       const repo = createFakeRepo({ claimed: [] })
 
       await generateQuestions(buildInput(), repo, { llmClient: createFakeLlmClient([]) })
 
       expect(repo.passageRepository.releaseStaleGenerating).toHaveBeenCalledWith(new Date("2026-10-13T02:30:00.000Z"))
-      expect(repo.passageRepository.claimCollected).toHaveBeenCalledWith({ limit: 10, now: NOW, passageId: undefined })
+      expect(repo.passageRepository.claimNextCollected).toHaveBeenCalledWith({ now: NOW, passageId: undefined })
+      expect(repo.passageRepository.releaseStaleGenerating.mock.invocationCallOrder[0])
+        .toBeLessThan(repo.passageRepository.claimNextCollected.mock.invocationCallOrder[0])
     })
 
-    it("下書きが上限ちょうどなら、LLM も claimCollected も呼ばずに pending_drafts_limit で返す", async () => {
+    it("1 件ずつ「取得 → 生成 → 保存」を繰り返し、各行はその行を取った時刻で取る", async () => {
+      const repo = createFakeRepo()
+      const claimedAt = [new Date("2026-10-13T03:00:00.000Z"), new Date("2026-10-13T03:40:00.000Z")]
+      let claimCount = 0
+      repo.passageRepository.claimNextCollected.mockImplementation(async ({ now }) => {
+        claimCount++
+        return claimCount <= 2 ? { ...buildPassage(claimCount), generationStartedAt: now } : null
+      })
+      let clock = 0
+      const now = () => claimedAt[Math.min(clock, claimedAt.length - 1)]
+      repo.passageRepository.saveDraft.mockImplementation(async () => {
+        clock++
+        return true
+      })
+      const llmClient = createFakeLlmClient([buildGeneratedOutput(), buildGeneratedOutput()])
+
+      const result = await generateQuestions(buildInput({ now }), repo, { llmClient })
+
+      expect(result.draftCount).toBe(2)
+      expect(repo.passageRepository.claimNextCollected.mock.calls.map(([call]) => call.now)).toEqual([...claimedAt, claimedAt[1]])
+      expect(repo.passageRepository.saveDraft.mock.calls.map(([claim]) => claim)).toEqual([
+        { generationStartedAt: claimedAt[0], id: 1 },
+        { generationStartedAt: claimedAt[1], id: 2 },
+      ])
+      /**
+       * 2 件目は 1 件目を保存してから取る（まとめて取らない）
+       */
+      expect(repo.passageRepository.saveDraft.mock.invocationCallOrder[0])
+        .toBeLessThan(repo.passageRepository.claimNextCollected.mock.invocationCallOrder[1])
+    })
+
+    it("取れる行が無くなったら、上限に達していなくても終える", async () => {
+      const repo = createFakeRepo({ claimed: [buildPassage(1)] })
+
+      const result = await generateQuestions(buildInput(), repo, { llmClient: createFakeLlmClient([buildGeneratedOutput()]) })
+
+      expect(result.draftCount).toBe(1)
+      expect(repo.passageRepository.claimNextCollected).toHaveBeenCalledTimes(2)
+    })
+
+    it("下書きが上限ちょうどなら、LLM も claimNextCollected も呼ばずに pending_drafts_limit で返す", async () => {
       const repo = createFakeRepo({ draftCount: 50 })
       const llmClient = createFakeLlmClient([])
 
@@ -194,20 +243,24 @@ describe("generateQuestions", () => {
 
       expect(result).toEqual({ draftCount: 0, failedCount: 0, rejectedCount: 0, retryLaterCount: 0, skippedReason: "pending_drafts_limit" })
       expect(repo.passageRepository.countByStatus).toHaveBeenCalledWith("draft")
-      expect(repo.passageRepository.claimCollected).not.toHaveBeenCalled()
+      expect(repo.passageRepository.claimNextCollected).not.toHaveBeenCalled()
       expect(repo.passageRepository.releaseStaleGenerating).not.toHaveBeenCalled()
       expect(llmClient.createStructuredMessage).not.toHaveBeenCalled()
     })
 
-    it("下書きが上限 - 1 なら limit が 1、余裕があれば maxPassagesPerRun", async () => {
-      const nearLimit = createFakeRepo({ claimed: [], draftCount: 49 })
-      const plenty = createFakeRepo({ claimed: [], draftCount: 3 })
+    it("下書きが上限 - 1 なら 1 件だけ、余裕があれば maxPassagesPerRun 件まで取る", async () => {
+      const passages = [1, 2, 3, 4, 5, 6].map(buildPassage)
+      const nearLimit = createFakeRepo({ claimed: passages, draftCount: 49 })
+      const plenty = createFakeRepo({ claimed: passages, draftCount: 3 })
+      const outputs = passages.map(() => buildGeneratedOutput())
 
-      await generateQuestions(buildInput(), nearLimit, { llmClient: createFakeLlmClient([]) })
-      await generateQuestions(buildInput({ maxPassagesPerRun: 4 }), plenty, { llmClient: createFakeLlmClient([]) })
+      const nearLimitResult = await generateQuestions(buildInput(), nearLimit, { llmClient: createFakeLlmClient(outputs) })
+      const plentyResult = await generateQuestions(buildInput({ maxPassagesPerRun: 4 }), plenty, { llmClient: createFakeLlmClient(outputs) })
 
-      expect(nearLimit.passageRepository.claimCollected).toHaveBeenCalledWith(expect.objectContaining({ limit: 1 }))
-      expect(plenty.passageRepository.claimCollected).toHaveBeenCalledWith(expect.objectContaining({ limit: 4 }))
+      expect(nearLimit.passageRepository.claimNextCollected).toHaveBeenCalledTimes(1)
+      expect(nearLimitResult.draftCount).toBe(1)
+      expect(plenty.passageRepository.claimNextCollected).toHaveBeenCalledTimes(4)
+      expect(plentyResult.draftCount).toBe(4)
     })
 
     it("passageId の指定時は下書きの上限を見ず、その 1 件だけを取る", async () => {
@@ -217,7 +270,8 @@ describe("generateQuestions", () => {
 
       expect(result.draftCount).toBe(1)
       expect(repo.passageRepository.countByStatus).not.toHaveBeenCalled()
-      expect(repo.passageRepository.claimCollected).toHaveBeenCalledWith({ limit: 1, now: NOW, passageId: 42 })
+      expect(repo.passageRepository.claimNextCollected).toHaveBeenCalledTimes(1)
+      expect(repo.passageRepository.claimNextCollected).toHaveBeenCalledWith({ now: NOW, passageId: 42 })
     })
 
     it("1 回目が不合格・2 回目が合格なら、2 回目の user message に不合格の理由が入り、下書きにする", async () => {
@@ -234,15 +288,15 @@ describe("generateQuestions", () => {
       expect(repo.passageRepository.recordGenerationFailure).not.toHaveBeenCalled()
     })
 
-    it("出力が途中で切れたら、その旨を理由にして再生成する", async () => {
+    it("出力が JSON として読めなければ、その旨を理由にして再生成する", async () => {
       const repo = createFakeRepo()
-      const llmClient = createFakeLlmClient([new LlmOutputTruncatedError("max_tokens"), buildGeneratedOutput()])
+      const llmClient = createFakeLlmClient([new LlmInvalidJsonError("Unexpected end of JSON input"), buildGeneratedOutput()])
 
       const result = await generateQuestions(buildInput(), repo, { llmClient })
 
       expect(result.draftCount).toBe(1)
       const [, second] = llmClient.requestsOf(GENERATION_MODEL)
-      expect(second.userContent).toContain("LLM output was truncated (stop_reason: max_tokens). Write more concisely")
+      expect(second.userContent).toContain("- LLM output is not valid JSON: Unexpected end of JSON input")
     })
 
     it("isSuitable = false なら markRejectedByLlm（理由が無ければ既定の理由）で、検証モデルは呼ばない", async () => {
@@ -271,7 +325,7 @@ describe("generateQuestions", () => {
       expect(repo.passageRepository.markRejectedByLlm.mock.calls[0][1].reason).toBe("目次だけ")
     })
 
-    it("停止指示を受けていたら、残りの行を処理せずに終える", async () => {
+    it("停止指示を受けていたら、次の行を取らずに終える", async () => {
       const repo = createFakeRepo({ claimed: [buildPassage(1), buildPassage(2)] })
       const llmClient = createFakeLlmClient([buildGeneratedOutput()])
       let isShuttingDown = false
@@ -284,10 +338,50 @@ describe("generateQuestions", () => {
 
       expect(result.draftCount).toBe(1)
       expect(llmClient.requestsOf(GENERATION_MODEL)).toHaveLength(1)
+      expect(repo.passageRepository.claimNextCollected).toHaveBeenCalledTimes(1)
     })
   })
 
   describe("異常系", () => {
+    it("出力が max_tokens で切れたら再生成せず、output_tokens と上限を warn に出して一時的な失敗（次の実行に回す）にする", async () => {
+      const repo = createFakeRepo({ claimed: [buildPassage(1), buildPassage(2)], failureStatus: "collected" })
+      const llmClient = createFakeLlmClient([new LlmOutputTruncatedError("max_tokens", 16000), buildGeneratedOutput()])
+
+      const result = await generateQuestions(buildInput(), repo, { llmClient })
+
+      expect(result).toEqual({ draftCount: 1, failedCount: 0, rejectedCount: 0, retryLaterCount: 1, skippedReason: null })
+      expect(repo.passageRepository.recordGenerationFailure).toHaveBeenCalledWith(
+        { generationStartedAt: STARTED_AT, id: 1 },
+        {
+          error: "LlmOutputTruncatedError: LLM output was truncated at the output limit (stop_reason: max_tokens, output_tokens: 16000)",
+          maxAttempts: 3,
+        },
+      )
+      expect(warnMock).toHaveBeenCalledWith("passage generation failed", expect.objectContaining({
+        maxTokens: 16000,
+        outcome: "retry_later",
+        outputTokens: 16000,
+        passageId: 1,
+        stopReason: "max_tokens",
+      }))
+      /**
+       * 1 件目は 1 回だけ呼んで次の件に進む（同じ上限での作り直しはしない）。検証モデルは 2 件目でだけ呼ぶ
+       */
+      expect(llmClient.requestsOf(GENERATION_MODEL)).toHaveLength(2)
+      expect(llmClient.requestsOf(VERIFICATION_MODEL)).toHaveLength(1)
+      expect(repo.passageRepository.saveDraft.mock.calls.map(([claim]) => claim.id)).toEqual([2])
+    })
+
+    it("出力が max_tokens で切れ、失敗が上限に達したら failedCount が 1", async () => {
+      const repo = createFakeRepo({ failureStatus: "failed" })
+      const llmClient = createFakeLlmClient([new LlmOutputTruncatedError("max_tokens", 15998)])
+
+      const result = await generateQuestions(buildInput(), repo, { llmClient })
+
+      expect(result.failedCount).toBe(1)
+      expect(warnMock).toHaveBeenCalledWith("passage generation failed", expect.objectContaining({ outcome: "failed", outputTokens: 15998 }))
+    })
+
     it("2 回とも不合格なら recordGenerationFailure に最後の理由を渡し、collected に戻れば retryLaterCount が 1", async () => {
       const repo = createFakeRepo({ failureStatus: "collected" })
       const invalid = buildGeneratedOutput({ questions: [buildQuestion(), buildQuestion()] })
@@ -370,7 +464,7 @@ describe("generateQuestions", () => {
       expect(content.attentionReasons).toEqual(["検証モデルでの確認に失敗しました"])
     })
 
-    it("isFatalLlmError なら失敗を記録せずに releaseClaim して throw し、残りの行は処理しない", async () => {
+    it("isFatalLlmError なら失敗を記録せずに releaseClaim して throw し、残りの行は取らない", async () => {
       const repo = createFakeRepo({ claimed: [buildPassage(1), buildPassage(2)] })
       const fatalError = new AuthenticationError(401, buildApiErrorBody("authentication_error"), "invalid x-api-key", API_ERROR_HEADERS)
       const llmClient = createFakeLlmClient([fatalError, buildGeneratedOutput()])
@@ -380,6 +474,7 @@ describe("generateQuestions", () => {
       expect(repo.passageRepository.releaseClaim).toHaveBeenCalledWith({ generationStartedAt: STARTED_AT, id: 1 })
       expect(repo.passageRepository.recordGenerationFailure).not.toHaveBeenCalled()
       expect(llmClient.requestsOf(GENERATION_MODEL)).toHaveLength(1)
+      expect(repo.passageRepository.claimNextCollected).toHaveBeenCalledTimes(1)
     })
 
     it("検証モデルの ID の誤り（404）は、下書きを検証なしで保存してから throw する", async () => {
@@ -414,7 +509,7 @@ describe("generateQuestions", () => {
 
     it("Repository が throw した場合、そのまま伝搬する", async () => {
       const repo = createFakeRepo()
-      repo.passageRepository.claimCollected.mockRejectedValueOnce(new Error("db connection failed"))
+      repo.passageRepository.claimNextCollected.mockRejectedValueOnce(new Error("db connection failed"))
 
       await expect(generateQuestions(buildInput(), repo, { llmClient: createFakeLlmClient([]) })).rejects.toThrow("db connection failed")
     })
