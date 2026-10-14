@@ -28,15 +28,12 @@ FROM base AS installer-builder
 WORKDIR /app
 
 COPY --from=pruner /app/out/json/ ./
-# .pnpmfile.cjs は turbo prune の出力に含まれないので別途コピー
-# (pnpm install --frozen-lockfile が pnpmfileChecksum を検証するため必須)
-COPY .pnpmfile.cjs ./
 RUN pnpm install --frozen-lockfile
 
 COPY --from=pruner /app/out/full/ ./
 
-# turbo 経由でビルド。build.dependsOn (^build + @repo/db#prisma:generate) により
-# @repo/* (db/logger 等) が先にビルド + Prisma client 生成される。
+# turbo 経由でビルド。build.dependsOn (^build) により
+# @repo/* (db/logger 等) が先にビルドされる。
 # pnpm --filter cron build だと @repo/* の dist が無く TS2307 で失敗する。
 RUN npx -y turbo@2.6.1 run build --filter=cron
 

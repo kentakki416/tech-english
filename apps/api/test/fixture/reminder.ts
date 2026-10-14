@@ -3,7 +3,7 @@ import { eq, reminderSettings } from "@repo/db"
 import { testDb } from "../controller/setup"
 
 /**
- * 学習リマインダー（study-reminder）のテスト用のヘルパー。Repository の契約テストと Controller のインテグレーションテストで使う
+ * 学習リマインダー（study-reminder）のテスト用のヘルパー。Repository のテストと Controller のインテグレーションテストで使う
  */
 
 /**

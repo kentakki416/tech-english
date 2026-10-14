@@ -1,19 +1,13 @@
 import { DrizzleTransactionRunner } from "../../src/repository/drizzle/transaction-runner"
 import { DrizzleUserRepository } from "../../src/repository/drizzle/user-repository"
-import { PrismaTransactionRunner } from "../../src/repository/prisma/transaction-runner"
-import { PrismaUserRepository } from "../../src/repository/prisma/user-repository"
-import type { TransactionRunner } from "../../src/repository/transaction"
-import type { UserRepository } from "../../src/repository/user-repository"
-import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb, testPrisma } from "../controller/setup"
+import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb } from "../controller/setup"
 
 /**
- * Prisma / Drizzle の両実装の TransactionRunner が、callback 内の書き込みを
- * 1 つのトランザクションとして commit / rollback することを確かめる。
+ * TransactionRunner が、callback 内の書き込みを 1 つのトランザクションとして
+ * commit / rollback することを確かめる。
  */
-const implementations: [string, TransactionRunner, UserRepository][] = [
-  ["Drizzle", new DrizzleTransactionRunner(testDb), new DrizzleUserRepository(testDb)],
-  ["Prisma", new PrismaTransactionRunner(testPrisma), new PrismaUserRepository(testPrisma)],
-]
+const transactionRunner = new DrizzleTransactionRunner(testDb)
+const userRepository = new DrizzleUserRepository(testDb)
 
 beforeEach(async () => {
   await cleanupTestData()
@@ -25,7 +19,7 @@ afterAll(async () => {
   await disconnectTestRedis()
 })
 
-describe.each(implementations)("%s TransactionRunner", (_name, transactionRunner, userRepository) => {
+describe("TransactionRunner", () => {
   describe("正常系", () => {
     it("callback が成功すると、tx を渡した書き込みが commit される", async () => {
       const created = await transactionRunner.run(async (tx) =>

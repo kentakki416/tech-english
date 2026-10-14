@@ -22,9 +22,6 @@ import { startTrackEventWorker } from "./workers/track-event-worker"
  *   4. ここで `startXxxWorker(...)` を呼んで `consumers` に push
  */
 const main = (): void => {
-  /**
-   * DB は Drizzle 実装を使う（Prisma 実装も repository/prisma に残してあり、ここを差し替えれば切り替えられる）
-   */
   const db = createDrizzleClient({
     onError: (error) => {
       logger.error("db idle client error", error)

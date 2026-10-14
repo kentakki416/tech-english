@@ -30,7 +30,7 @@ Express.js + TypeScript による API サーバー
 
 ## プロジェクト概要
 
-レイヤードアーキテクチャに基づいた REST API サーバー。Drizzle による型安全なデータアクセス、依存性注入による疎結合な設計を採用（Prisma 実装も切り替え先として併存。`packages/db/README.md` 参照）。
+レイヤードアーキテクチャに基づいた REST API サーバー。Drizzle による型安全なデータアクセス、依存性注入による疎結合な設計を採用（`packages/db/README.md` 参照）。
 
 ## セットアップ
 
@@ -58,7 +58,7 @@ Express.js + TypeScript による API サーバー
 
 - `@repo/domain`（`packages/domain`）にドメインモデルの型だけ定義している。api / cron / worker で共有する。
 - 実装はドメインロジックが必要になるまでしない（おそらく必要になるケースが少ないので対応しない）
-- Repository層でDrizzle / Prisma の行 -> ドメインモデル型に変換することでInterfaceを差し替え可能なものにしている
+- Repository層でDrizzle の行 -> ドメインモデル型に変換することでInterfaceを差し替え可能なものにしている
 - ビジネス上の区分・列挙型もここに定義する（例: `RegistrationPeriod`）
 - Repository / Service は `@repo/domain` から型をインポートする（`@repo/api-schema` には依存しない）
 

@@ -10,7 +10,7 @@ import { joinSqlValues } from "./sql-values"
  * 英文の取得元（ソース）。管理者が登録する
  *
  * 取得方法（fetch_type）ごとの列は 1 テーブルに nullable で並べ、必須は CHECK 制約で保証する。
- * 制約・index 名は Prisma の既定の命名（{table}_{columns}_key / _idx / _fkey）に合わせている（併存中の schema.prisma と一致させるため）。
+ * 制約・index 名は `{table}_{columns}_key` / `_idx` / `_fkey` の命名にそろえている。
  */
 export const contentSources = pgTable(
   "content_sources",

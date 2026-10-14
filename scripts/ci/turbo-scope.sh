@@ -18,7 +18,7 @@ BASE="${CI_BASE_SHA:-}"
 # turbo の --filter=...[ref] はパッケージに属さないファイルの変更で 0 件を返すため、
 # ここに挙げたパスが変わったら全実行に倒す。
 # **列挙漏れはタスク 0 件のまま緑になる。** ルート直下にファイルを足したら追記する。
-GLOBAL_PATHS='\.github/|scripts/ci/|turbo\.json$|package\.json$|pnpm-lock\.yaml$|pnpm-workspace\.yaml$|\.pnpmfile\.cjs$'
+GLOBAL_PATHS='\.github/|scripts/ci/|turbo\.json$|package\.json$|pnpm-lock\.yaml$|pnpm-workspace\.yaml$'
 for extra in "$@"; do
   GLOBAL_PATHS="${GLOBAL_PATHS}|${extra}"
 done

@@ -7,7 +7,7 @@
 - [step1-db-reading-attempts](./step1-db-reading-attempts.md)
 - [content-collection step1-db-content-sources](../../content-collection/tasks/step1-db-content-sources.md)（`content_sources` / `source_documents` / `passages`、`SOURCE_KINDS`）
 - [question-generation step1-db-questions](../../question-generation/tasks/step1-db-questions.md)
-- api の `PassageRepository` は [question-generation step5](../../question-generation/tasks/step5-api-admin-passage.md) と共有する。**先に着手した方が interface と Drizzle / Prisma の実装クラスを作り、もう片方はメソッドを足す**
+- api の `PassageRepository` は [question-generation step5](../../question-generation/tasks/step5-api-admin-passage.md) と共有する。**先に着手した方が interface と Drizzle の実装クラスを作り、もう片方はメソッドを足す**
 
 ## 対応内容
 
@@ -134,7 +134,6 @@ export interface ReadingAttemptRepository {
   - カーソル：`or(lt(publishedAt, cursor.publishedAt), and(eq(publishedAt, cursor.publishedAt), lt(id, cursor.id)))`
   - ランダム：`orderBy(sql\`random()\`).limit(1)`
   - タグ一覧：公開中の問題を持つソースの `jsonb_array_elements_text(tags)` を DISTINCT して昇順
-- Prisma：タグは `OR: tags.map((tag) => ({ ...source: { tags: { array_contains: [tag] } } }))`、未挑戦は `readingAttempts: { none: { status: "submitted", userId } }`、設問数は `_count`、ランダムは id だけ取得して JS で選ぶ（件数が少ないうちはこれでよい）
 - `summarizeByPassageIds`：`passage_id IN (...)` で GROUP BY。`attemptCount` と `bestCorrectCount` は `status = 'submitted'` だけ、`inProgressAttemptId` は `status = 'in_progress' AND started_at > aliveSince`
 - `findAliveInProgress`：`status = 'in_progress' AND started_at > aliveSince`（期限切れの更新は step3 の書き込み API で行い、ここは読むだけ）
 
@@ -206,6 +205,6 @@ Controller（インテグレーション。問題・設問・ソースを入れ�
 - [ ] `GET /api/passage/:id`：下書き・却下は（自分の挑戦中が無ければ）404 / 期限内の挑戦中があれば `in_progress_attempt` が返る / レスポンス全体を `toEqual` + `expect.any(String)` で検証（公開中は `can_start: true`）
 - [ ] `GET /api/passage/:id`：非公開に戻された問題でも期限内の自分の挑戦中があれば 200 で `can_start: false`、`time_limit_seconds` は挑戦の開始時点の値 / 24 時間たった挑戦中・提出済みの挑戦・他人の挑戦中だけなら 404
 
-Repository（`test/repository/passage-repository.test.ts`・`reading-attempt-repository.test.ts`。Drizzle / Prisma の両方）:
+Repository のテスト（`test/repository/passage-repository.test.ts`・`reading-attempt-repository.test.ts`。実 DB）:
 
-- [ ] 上の絞り込み・カーソル・タグ一覧・集計が両実装で同じ結果になる
+- [ ] 上の絞り込み・カーソル・タグ一覧・集計が期待どおりの結果になる

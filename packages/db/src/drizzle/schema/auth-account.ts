@@ -8,7 +8,6 @@ import { users } from "./user"
  *
  * OAuth プロバイダの access_token / refresh_token 等は本アプリでは保持しない
  * （プロバイダ側で発行・管理し、アプリは取得した user info を DB に保存後は内部 JWT で完結する）。
- * 制約・index 名は Prisma のマイグレーションと同じにしている（既存 DB と定義を一致させるため）。
  */
 export const authAccounts = pgTable(
   "auth_accounts",

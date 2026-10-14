@@ -73,7 +73,7 @@ export const buildAudioUrl = (baseUrl: string, key: string): string
 ### 3. Repository
 
 ```ts
-/** src/repository/passage-audio-repository.ts（新規。Drizzle / Prisma の両方に実装し、index.ts に足す） */
+/** src/repository/passage-audio-repository.ts（新規。Drizzle で実装し、index.ts に足す） */
 export type PassageAudioWithPassage = { audio: PassageAudio | null; passage: Pick<Passage, "publishedAt" | "status"> }
 export interface PassageAudioRepository {
   /** passages に passage_audios を left join（passages の状態と公開日時も読む）。問題が無ければ null */
@@ -85,9 +85,8 @@ export interface PassageAudioRepository {
 }
 ```
 
-- Prisma 実装の `_toDomain()` は `status` を `isAudioStatus` で検証し（未知の値は throw）、`manifest` は `Json` を `PassageAudioManifest` として扱う。`findByPassageId` の `passages.status` も `isPassageStatus` で検証する
-- `requestRegeneration` は `updated_at` を進めない（`resolveAudioStatus` が `updated_at < published_at` で公開し直しを判定するため）。Drizzle は `$onUpdate` が今の時刻を入れるので ``updatedAt: sql`${passageAudios.updatedAt}` `` を明示し、Prisma は `@updatedAt` が付く `updateMany` を使わず `$executeRaw` で書く
-- `PassageRepository`：`AdminPassageDetail` に `audio: PassageAudio | null` を足し、`findAdminDetail` で読む（join か別のクエリ。両実装）。`transitionStatus` に `tx?: TransactionContext` を足す（公開と音声の再試行を 1 つのトランザクションにするため。Drizzle は `resolveDrizzleClient`、Prisma は `resolvePrismaClient`）
+- `requestRegeneration` は `updated_at` を進めない（`resolveAudioStatus` が `updated_at < published_at` で公開し直しを判定するため）。Drizzle は `$onUpdate` が今の時刻を入れるので ``updatedAt: sql`${passageAudios.updatedAt}` `` を明示する
+- `PassageRepository`：`AdminPassageDetail` に `audio: PassageAudio | null` を足し、`findAdminDetail` で読む（join か別のクエリ）。`transitionStatus` に `tx?: TransactionContext` を足す（公開と音声の再試行を 1 つのトランザクションにするため。`resolveDrizzleClient` で解決する）
 - `ReadingAttemptRepository`：`SubmitReadingAttemptInput` に `listenedBlockCount` を足し、`markSubmitted` で書く
 - `LearningRecordRepository`：`SubmittedAttempt` に `listenedBlockCount` を足し、`summarizeNoAssistAccuracy` の条件に `listened_block_count = 0` を足す（コメントも「和訳・単語・読み上げをどれも使っていない挑戦だけ」に直す）
 
@@ -207,12 +206,12 @@ Controller（インテグレーション。実 DB）：
 - [ ] `GET /api/admin/passage/:id`：作り直しの依頼中・ready のまま確保中の行は `status: "ready"` と `regenerate_requested_at`・`last_error`
 - [ ] `/media`：`NODE_ENV=test` で `.storage/audio`（テストでは一時ディレクトリを `audioDir` に渡す）の mp3 が 200 で返り、`Range: bytes=0-99` で 206、無いファイルと `..` を含むパスで 404、`Cross-Origin-Resource-Policy: cross-origin`。`mediaRouter` の guard を `NODE_ENV=production` にして 404
 
-Repository の契約テスト（`test/repository/passage-audio-repository.test.ts`、Drizzle / Prisma の `describe.each`）：
+Repository のテスト（`test/repository/passage-audio-repository.test.ts`、実 DB）：
 
 - [ ] `findByPassageId`：行が無い問題は `audio: null` と `passage`（`status`・`publishedAt`）/ 非公開に戻した問題は `publishedAt` が残ったまま `status: "draft"` / 存在しない問題は null / `manifest` がそのまま読める
 - [ ] `resetFailed`：failed だけ更新して true、pending・generating・ready は変えずに false。tx を渡してロールバックすると戻らない
 - [ ] `requestRegeneration`：ready だけ `regenerate_requested_at`・`attempt_count = 0`・`last_error = null` にして true（`updated_at` は変わらない）、pending・generating・failed・行が無い・存在しない問題は false
 - [ ] `PassageRepository.transitionStatus` に tx を渡してロールバックすると戻らない
-- [ ] `findAdminDetail` が `audio` を返す、`summarizeNoAssistAccuracy` が `listened_block_count > 0` の挑戦を数えない（既存の契約テストに足す）
+- [ ] `findAdminDetail` が `audio` を返す、`summarizeNoAssistAccuracy` が `listened_block_count > 0` の挑戦を数えない（既存のテストに足す）
 
 手動確認：step3 の手順で `ready` にした問題に挑戦し、`curl -H "Authorization: Bearer <token>" localhost:8080/api/attempt/<id>/audio` の `url` をブラウザで開いて再生できる。
