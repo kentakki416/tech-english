@@ -28,6 +28,17 @@ const formatDayLabel = (date: string): string => {
 }
 
 /**
+ * 1 日の要約（「1 問、単語 12 枚、7 分」）。0 の項目は出さず、学習していない日は空文字
+ */
+const formatDaySummary = (day: MockCalendarDay): string => {
+  const items = [
+    day.attemptCount > 0 ? `${day.attemptCount} 問` : null,
+    day.cardCount > 0 ? `単語 ${day.cardCount} 枚` : null,
+  ].filter((item): item is string => item !== null)
+  return items.length === 0 ? "" : [...items, `${day.studyMinutes} 分`].join("、")
+}
+
+/**
  * 選んだ日の挑戦。モックでは履歴にある日はそれを、無い日は学習量に合わせて作る
  */
 const listAttemptsOfDay = (day: MockCalendarDay) => {
@@ -58,7 +69,7 @@ export function StudyCalendar({ days, isEmpty = false }: { days: MockCalendarDay
   const scrollRef = useRef<HTMLDivElement>(null)
 
   const calendarDays = useMemo(
-    () => (isEmpty ? days.map((day): MockCalendarDay => ({ ...day, attemptCount: 0, level: 0, studyMinutes: 0 })) : days),
+    () => (isEmpty ? days.map((day): MockCalendarDay => ({ ...day, attemptCount: 0, cardCount: 0, level: 0, rememberedCount: 0, studyMinutes: 0 })) : days),
     [days, isEmpty],
   )
 
@@ -127,13 +138,13 @@ export function StudyCalendar({ days, isEmpty = false }: { days: MockCalendarDay
                   {week.map(day => (
                     <button
                       key={day.date}
-                      aria-label={`${formatDayLabel(day.date)} ${day.attemptCount} 問 ${day.studyMinutes} 分`}
+                      aria-label={`${formatDayLabel(day.date)} ${formatDaySummary(day)}`.trim()}
                       aria-pressed={day.date === selectedDate}
                       className={`size-[11px] rounded-[2px] outline-none transition-shadow focus-visible:ring-2 focus-visible:ring-amber/60 ${LEVEL_CLASS[day.level]} ${
                         day.date === selectedDate ? "ring-1 ring-fg ring-offset-1 ring-offset-canvas" : ""
                       } ${day.date === MOCK_TODAY && day.level > 0 ? "shadow-[0_0_10px_rgb(243_178_76/0.7)] motion-safe:animate-lamp-on [animation-delay:400ms]" : ""}`}
                       onClick={() => setSelectedDate(day.date)}
-                      title={`${formatDayLabel(day.date)}：${day.attemptCount} 問、${day.studyMinutes} 分`}
+                      title={formatDaySummary(day) === "" ? formatDayLabel(day.date) : `${formatDayLabel(day.date)}：${formatDaySummary(day)}`}
                       type="button"
                     />
                   ))}
@@ -156,6 +167,7 @@ export function StudyCalendar({ days, isEmpty = false }: { days: MockCalendarDay
               return (
                 <button
                   key={index}
+                  aria-label={day ? `${formatDayLabel(day.date)} ${formatDaySummary(day)}`.trim() : undefined}
                   disabled={isFuture}
                   aria-pressed={day?.date === selectedDate}
                   className={`flex aspect-square flex-col items-start justify-between rounded-md border p-1.5 text-left outline-none focus-visible:ring-2 focus-visible:ring-amber/60 sm:aspect-[4/3] ${
@@ -190,11 +202,11 @@ export function StudyCalendar({ days, isEmpty = false }: { days: MockCalendarDay
       <div className="mt-5 border-t border-line pt-4">
         <div className="flex items-baseline justify-between">
           <h3 className="text-sm font-medium text-fg">{formatDayLabel(selectedDay.date)}</h3>
-          {selectedDay.attemptCount > 0 && (
-            <p className="text-xs text-fg-muted tabular-nums">{selectedDay.attemptCount} 問、{selectedDay.studyMinutes} 分</p>
+          {formatDaySummary(selectedDay) !== "" && (
+            <p className="text-xs text-fg-muted tabular-nums">{formatDaySummary(selectedDay)}</p>
           )}
         </div>
-        {selectedAttempts.length === 0 ? (
+        {selectedAttempts.length === 0 && selectedDay.cardCount === 0 ? (
           <p className="mt-2 text-sm text-fg-faint">この日の学習はありません。</p>
         ) : (
           <ul className="mt-2 divide-y divide-line">
@@ -208,6 +220,20 @@ export function StudyCalendar({ days, isEmpty = false }: { days: MockCalendarDay
                 </Link>
               </li>
             ))}
+            {selectedDay.cardCount > 0 && (
+              <li>
+                <Link className="group flex items-center gap-3 py-2 text-sm" href="/mock/vocabulary">
+                  <span aria-hidden className="grid w-11 shrink-0 place-items-start">
+                    <span className="block h-3 w-4 rounded-[2px] bg-[#efe4cf] shadow-[2px_2px_0_rgb(239_228_207/0.35)]" />
+                  </span>
+                  <span className="min-w-0 flex-1 text-fg group-hover:text-amber-bright">単語帳</span>
+                  <span className="shrink-0 text-xs text-fg-muted tabular-nums">
+                    {selectedDay.cardCount} 枚（覚えた {selectedDay.rememberedCount}）
+                  </span>
+                  <span className="w-10 shrink-0" />
+                </Link>
+              </li>
+            )}
           </ul>
         )}
       </div>

@@ -4,6 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context"
 
 import { MockStatePanel } from "@/components/mock/MockStatePanel"
 import { DifficultyMeter, mockStyles, PrimaryButton, SourceMeta } from "@/components/mock/parts"
+import { AppBackdrop } from "@/components/ui/AppBackdrop"
 import { MOCK_COLORS, MOCK_FONTS } from "@/const/mock-theme"
 import { formatSeconds, MOCK_PASSAGE_LIST } from "@/libs/mock-data"
 
@@ -18,6 +19,7 @@ export default function MockPassageStartScreen() {
 
   return (
     <SafeAreaView edges={["top", "bottom"]} style={mockStyles.screen}>
+      <AppBackdrop />
       <View style={styles.grabber} />
       <View style={styles.header}>
         <Pressable hitSlop={8} onPress={() => router.back()}>

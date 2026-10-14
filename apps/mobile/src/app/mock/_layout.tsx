@@ -25,8 +25,11 @@ export default function MockLayout() {
   return (
     <>
       <StatusBar style="light" />
-      <Stack screenOptions={{ contentStyle: { backgroundColor: MOCK_COLORS.canvas }, headerShown: false }}>
-        <Stack.Screen name="passages/[id]" options={{ presentation: "modal" }} />
+      {/**
+        * 背景は本番と同じくルートレイアウトに敷いた AppBackdrop を透かす。下から出るモーダルは下の画面が透けないよう塗る
+        */}
+      <Stack screenOptions={{ contentStyle: { backgroundColor: "transparent" }, headerShown: false }}>
+        <Stack.Screen name="passages/[id]" options={{ contentStyle: { backgroundColor: MOCK_COLORS.canvas }, presentation: "modal" }} />
       </Stack>
     </>
   )

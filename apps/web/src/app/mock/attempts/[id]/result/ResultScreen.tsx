@@ -290,7 +290,12 @@ export function ResultScreen({ elapsedSeconds }: { elapsedSeconds: number }) {
           </section>
 
           <section className="border-b border-line px-5 py-5 sm:px-6">
-            <h2 className="text-sm font-semibold text-fg">調べた単語</h2>
+            <div className="flex items-baseline justify-between gap-3">
+              <h2 className="text-sm font-semibold text-fg">調べた単語</h2>
+              <Link className="text-xs text-amber underline decoration-amber/40 underline-offset-2 hover:text-amber-bright hover:decoration-amber-bright" href="/mock/vocabulary">
+                単語帳で復習する
+              </Link>
+            </div>
             <ul className="mt-3 divide-y divide-line">
               {MOCK_RESULT.wordLookups.map(lookup => (
                 <li key={lookup.surface} className="flex items-baseline gap-3 py-2.5">

@@ -500,8 +500,19 @@ export type MockCalendarLevel = 0 | 1 | 2 | 3 | 4
 
 export type MockCalendarDay = {
   attemptCount: number
+  /**
+   * 単語帳で答えた枚数（vocabulary-cards spec）
+   */
+  cardCount: number
   date: string
   level: MockCalendarLevel
+  /**
+   * 単語帳で「覚えた」を付けた数
+   */
+  rememberedCount: number
+  /**
+   * 挑戦と単語帳の合計
+   */
   studyMinutes: number
 }
 
@@ -519,6 +530,14 @@ const STUDY_MINUTES_BY_LEVEL: Record<MockCalendarLevel, number> = {
 }
 
 const formatDate = (date: Date): string => date.toISOString().slice(0, 10)
+
+/**
+ * 単語帳で答えた日（今日は挑戦と単語帳の両方、5 日前は単語帳だけ）
+ */
+const MOCK_VOCABULARY_DAYS: Record<string, { cardCount: number, minutes: number, rememberedCount: number }> = {
+  "2026-10-05": { cardCount: 10, minutes: 3, rememberedCount: 7 },
+  "2026-10-10": { cardCount: 12, minutes: 2, rememberedCount: 9 },
+}
 
 /**
  * 学習時間（分）をカレンダーの色の段階にする（learning-record spec の段階）
@@ -555,8 +574,32 @@ export const createMockCalendar = (): MockCalendarDay[] => {
      * 履歴にある日は履歴から集計する（カレンダーと一覧の数字を揃える）
      */
     if (recorded.length > 0) {
-      const studyMinutes = Math.round(recorded.reduce((sum, attempt) => sum + attempt.elapsedSeconds, 0) / 60)
-      days.push({ attemptCount: recorded.length, date, level: convertMinutesToLevel(studyMinutes), studyMinutes })
+      const cards = MOCK_VOCABULARY_DAYS[date] ?? { cardCount: 0, minutes: 0, rememberedCount: 0 }
+      const studyMinutes = Math.round(recorded.reduce((sum, attempt) => sum + attempt.elapsedSeconds, 0) / 60) + cards.minutes
+      days.push({
+        attemptCount: recorded.length,
+        cardCount: cards.cardCount,
+        date,
+        level: convertMinutesToLevel(studyMinutes),
+        rememberedCount: cards.rememberedCount,
+        studyMinutes,
+      })
+      continue
+    }
+
+    /**
+     * 単語帳だけの日（挑戦は 0 で、単語帳の時間だけで色が付く）
+     */
+    const vocabularyOnly = MOCK_VOCABULARY_DAYS[date]
+    if (vocabularyOnly) {
+      days.push({
+        attemptCount: 0,
+        cardCount: vocabularyOnly.cardCount,
+        date,
+        level: convertMinutesToLevel(vocabularyOnly.minutes),
+        rememberedCount: vocabularyOnly.rememberedCount,
+        studyMinutes: vocabularyOnly.minutes,
+      })
       continue
     }
 
@@ -565,8 +608,10 @@ export const createMockCalendar = (): MockCalendarDay[] => {
     if (daysAgo === 12) level = 0
     days.push({
       attemptCount: level === 0 ? 0 : Math.max(1, Math.round(level * 0.8)),
+      cardCount: 0,
       date,
       level,
+      rememberedCount: 0,
       studyMinutes: STUDY_MINUTES_BY_LEVEL[level],
     })
   }
@@ -590,3 +635,194 @@ export const MOCK_REMINDER = {
   time: "21:00",
   weekdays: [1, 2, 3, 4, 5],
 }
+
+/**
+ * 単語帳のカード（vocabulary-cards spec。GET /api/vocabulary/session の 1 枚に相当）
+ */
+export type MockVocabularyCard = {
+  lemma: string
+  meaningJa: string
+  meaningSource: "dictionary" | "glossary"
+  noteJa: string | null
+  partOfSpeech: string | null
+  passageTitle: string
+  /**
+   * 単語を含む本文の 1 文。highlight は文の中での単語の位置 [start, end)
+   */
+  sentence: { highlightEnd: number, highlightStart: number, text: string } | null
+  /**
+   * 答える前の段階（0〜3）。新しい単語は null
+   */
+  stage: number | null
+  surface: string
+}
+
+/**
+ * 1 文の中から語句の位置を求めて、カードの 1 文を作る（モックのデータを書きやすくするため）
+ */
+const buildMockSentence = (text: string, surface: string): MockVocabularyCard["sentence"] => {
+  const highlightStart = text.indexOf(surface)
+  return { highlightEnd: highlightStart + surface.length, highlightStart, text }
+}
+
+/**
+ * 1 回分のカード（今日の復習 4 枚 → 新しい単語 6 枚）
+ */
+export const MOCK_VOCABULARY_CARDS: MockVocabularyCard[] = [
+  {
+    lemma: "opt out of",
+    meaningJa: "〜をやめる、（既定の動作を）無効にする",
+    meaningSource: "glossary",
+    noteJa: "対になるのは opt in（自分で選んで有効にする）。",
+    partOfSpeech: "熟語",
+    passageTitle: "Synchronizing with Effects",
+    sentence: buildMockSentence(
+      "You can opt out of re-running it by specifying a dependency array, which tells React to skip the Effect unless one of the listed values has changed.",
+      "opt out of",
+    ),
+    stage: 2,
+    surface: "opt out of",
+  },
+  {
+    lemma: "escape hatch",
+    meaningJa: "（通常の仕組みから）必要なときに抜け出すための手段",
+    meaningSource: "glossary",
+    noteJa: "技術文書では、抽象化の外にある低レベルな機能を使うための「逃げ道」を指すことが多い。",
+    partOfSpeech: "名詞",
+    passageTitle: "Synchronizing with Effects",
+    sentence: buildMockSentence(
+      "They are an escape hatch: you use them to step outside of React's rendering model when there is no other way to express what you need.",
+      "escape hatch",
+    ),
+    stage: 0,
+    surface: "escape hatch",
+  },
+  {
+    lemma: "propagate",
+    meaningJa: "（エラーなどを）呼び出し元へ伝える、伝播させる",
+    meaningSource: "glossary",
+    noteJa: null,
+    partOfSpeech: "動詞",
+    passageTitle: "Working with errors in Go",
+    sentence: buildMockSentence(
+      "Instead of panicking, a function returns an error value, and the caller decides whether to handle it or propagate it.",
+      "propagate",
+    ),
+    stage: 1,
+    surface: "propagate",
+  },
+  {
+    lemma: "idempotent",
+    meaningJa: "（何度実行しても）結果が同じになる、冪等な",
+    meaningSource: "glossary",
+    noteJa: "リトライの文脈で頻出。2 回実行しても 1 回実行したのと同じ状態になること。",
+    partOfSpeech: "形容詞",
+    passageTitle: "Configuring Cloud Run services",
+    sentence: buildMockSentence(
+      "Retries are only safe when the handler is idempotent: running it twice has the same effect as running it once.",
+      "idempotent",
+    ),
+    stage: 3,
+    surface: "idempotent",
+  },
+  {
+    lemma: "reach for",
+    meaningJa: "（解決策として）〜を使おうとする",
+    meaningSource: "glossary",
+    noteJa: "「手を伸ばす」から転じて、ある道具や手段に頼ろうとすることを表す。",
+    partOfSpeech: "熟語",
+    passageTitle: "Synchronizing with Effects",
+    sentence: buildMockSentence(
+      "Before reaching for an Effect, ask yourself whether the code is caused by rendering or by a specific interaction.",
+      "reaching for",
+    ),
+    stage: null,
+    surface: "reaching for",
+  },
+  {
+    lemma: "borrow",
+    meaningJa: "（…から）…を借りる / （…に）…を借りる",
+    meaningSource: "dictionary",
+    noteJa: null,
+    partOfSpeech: null,
+    passageTitle: "What Is Ownership?",
+    sentence: buildMockSentence(
+      "Instead of taking ownership, a function can borrow a value through a reference such as `&String`.",
+      "borrow",
+    ),
+    stage: null,
+    surface: "borrow",
+  },
+  {
+    lemma: "graceful shutdown",
+    meaningJa: "（処理中の作業を終えてから）安全に停止すること",
+    meaningSource: "glossary",
+    noteJa: "graceful は「優雅な」。急に止めず、後片付けをしてから止める意味で使う。",
+    partOfSpeech: "名詞",
+    passageTitle: "Pod Lifecycle",
+    sentence: buildMockSentence(
+      "Kubernetes sends `SIGTERM` first, giving the container a chance to perform a graceful shutdown before it is killed.",
+      "graceful shutdown",
+    ),
+    stage: null,
+    surface: "graceful shutdown",
+  },
+  {
+    lemma: "derive",
+    meaningJa: "（既存の値から）導き出す、算出する",
+    meaningSource: "glossary",
+    noteJa: "derived state（派生した状態）はフロントエンドの文書で頻出。",
+    partOfSpeech: "動詞",
+    passageTitle: "Synchronizing with Effects",
+    sentence: buildMockSentence(
+      "Because the value can be derived from existing props or state, you can simply calculate it during rendering.",
+      "derived",
+    ),
+    stage: null,
+    surface: "derived",
+  },
+  {
+    lemma: "caveat",
+    meaningJa: "注意点、但し書き",
+    meaningSource: "glossary",
+    noteJa: null,
+    partOfSpeech: "名詞",
+    passageTitle: "Synchronizing with Effects",
+    sentence: buildMockSentence(
+      "One caveat: Effects only run on the client, so they are not a good fit for code that must run during server rendering.",
+      "caveat",
+    ),
+    stage: null,
+    surface: "caveat",
+  },
+  {
+    lemma: "resilient",
+    meaningJa: "（変化や障害に）強い、すぐに元に戻れる",
+    meaningSource: "glossary",
+    noteJa: null,
+    partOfSpeech: "形容詞",
+    passageTitle: "Synchronizing with Effects",
+    sentence: buildMockSentence(
+      "Code that cleans up in the `return` function is more resilient to remounts in development.",
+      "resilient",
+    ),
+    stage: null,
+    surface: "resilient",
+  },
+]
+
+/**
+ * 単語帳のトップの数（GET /api/vocabulary/summary に相当）
+ */
+export const MOCK_VOCABULARY_SUMMARY = {
+  dueCount: 4,
+  learningCount: 23,
+  masteredCount: 41,
+  newCount: 6,
+  nextDueDate: "2026-10-11",
+}
+
+/**
+ * 1 回の最大枚数
+ */
+export const MOCK_VOCABULARY_SESSION_SIZE = 10

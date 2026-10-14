@@ -4,11 +4,12 @@ import { MOCK_USER } from "@/libs/mock-data"
 
 import { Wordmark } from "./Wordmark"
 
-type NavKey = "history" | "home" | "passages" | "settings"
+type NavKey = "history" | "home" | "passages" | "settings" | "vocabulary"
 
 const NAV_ITEMS: { href: string, key: NavKey, label: string }[] = [
   { href: "/mock/home", key: "home", label: "マイページ" },
   { href: "/mock/passages", key: "passages", label: "問題" },
+  { href: "/mock/vocabulary", key: "vocabulary", label: "単語帳" },
   { href: "/mock/history", key: "history", label: "履歴" },
   { href: "/mock/settings", key: "settings", label: "設定" },
 ]

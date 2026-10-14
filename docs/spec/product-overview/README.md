@@ -19,7 +19,8 @@
 - [`../study-reminder/README.md`](../study-reminder/README.md) — mobile のリマインダー通知。`reminder_settings` の正本
 - [`../read-aloud/README.md`](../read-aloud/README.md) — 本文の読み上げ（Amazon Polly で事前生成）。`passage_audios` の正本
 - [`../minimal-deploy/README.md`](../minimal-deploy/README.md) — 初期リリースのインフラ構成。本サービスは worker なし（`enable_worker = false`）で動くように設計する
-- [`./deferred-grammar-vocabulary.md`](./deferred-grammar-vocabulary.md) — MVP 対象外。文法問題・単語問題
+- [`../vocabulary-cards/README.md`](../vocabulary-cards/README.md) — 単語帳（MVP の後に追加）。`vocabulary_cards` / `vocabulary_reviews` の正本
+- [`./deferred-grammar-vocabulary.md`](./deferred-grammar-vocabulary.md) — MVP 対象外。文法問題（単語は vocabulary-cards に移した）
 
 ## 目次
 
@@ -98,7 +99,7 @@
 | 学習 | アシスト（段落の和訳・単語の意味） | ✅ | [reading-practice](../reading-practice/README.md) |
 | 学習 | 読み上げ（全文・段落、単語のハイライト、再生速度） | ✅ | [read-aloud](../read-aloud/README.md) |
 | 学習 | 文法問題 | ❌ 将来 | [deferred-grammar-vocabulary](./deferred-grammar-vocabulary.md) |
-| 学習 | 単語問題 | ❌ 将来 | [deferred-grammar-vocabulary](./deferred-grammar-vocabulary.md) |
+| 学習 | 単語帳（調べた単語・解いた問題の用語集をカードで復習） | MVP の後に追加（設計中） | [vocabulary-cards](../vocabulary-cards/README.md) |
 
 ### プラットフォームごとの提供範囲
 
@@ -144,6 +145,7 @@ flowchart LR
     record["learning-record<br/>user_goals"]
     remind["study-reminder<br/>reminder_settings"]
     aloud["read-aloud<br/>passage_audios"]
+    vocab["vocabulary-cards<br/>vocabulary_cards / vocabulary_reviews"]
 
     collect -->|"passages を<br/>collected で作る"| gen
     gen -->|"published の問題"| practice
@@ -153,6 +155,9 @@ flowchart LR
     auth --> remind
     gen -->|"published の本文を読み上げ"| aloud
     aloud -->|"音声と単語の時刻"| practice
+    practice -->|"調べた単語"| vocab
+    gen -->|"用語集"| vocab
+    vocab -->|"答えた日と時間"| record
 ```
 
 `passages` は収集（content-collection）が作り、生成（question-generation）が中身を埋めて公開する。行を作るのは収集側だが、**列とステータスの定義は question-generation を正本にする**（問題データの意味を決めているのは生成と承認の側のため）。
@@ -275,7 +280,7 @@ flowchart TD
 
 以下は MVP では実装しない。それぞれの着手トリガーと設計案は deferred ドキュメントにまとめる。
 
-- **文法問題・単語問題** → [`./deferred-grammar-vocabulary.md`](./deferred-grammar-vocabulary.md)
+- **文法問題** → [`./deferred-grammar-vocabulary.md`](./deferred-grammar-vocabulary.md)（単語は [vocabulary-cards](../vocabulary-cards/README.md) で単語帳として作る）
 - **英文の取得元の拡大**（JavaScript で描画するサイト、許諾を得たブログ、ShareAlike ライセンス）→ [`../content-collection/deferred-more-sources.md`](../content-collection/deferred-more-sources.md)
 - **アシストの拡張**（任意の文の翻訳、厳格モード）→ [`../reading-practice/deferred-assist-and-modes.md`](../reading-practice/deferred-assist-and-modes.md)
 - **読み上げの拡張**（声の選択、単語ごとの発音、ユーザーの音読の評価）→ [`../read-aloud/deferred-voices-and-pronunciation.md`](../read-aloud/deferred-voices-and-pronunciation.md)

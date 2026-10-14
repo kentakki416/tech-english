@@ -533,7 +533,6 @@ const styles = StyleSheet.create({
     zIndex: 30,
   },
   screen: {
-    backgroundColor: MOCK_COLORS.canvas,
     flex: 1,
   },
   sheet: {
