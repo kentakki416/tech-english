@@ -68,6 +68,11 @@ export type Question = Prisma.QuestionModel
  */
 export type ReadingAttempt = Prisma.ReadingAttemptModel
 /**
+ * Model ReminderSetting
+ * 
+ */
+export type ReminderSetting = Prisma.ReminderSettingModel
+/**
  * Model SourceDocument
  * 
  */

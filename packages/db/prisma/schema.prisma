@@ -289,6 +289,24 @@ model ReadingAttempt {
     @@map("reading_attempts")
 }
 
+// 学習リマインダーの設定（1 ユーザー 1 行。docs/spec/study-reminder）。
+// weekdays の値域と time の 15 分刻みは API の Zod で検証する（DB に制約は無い）。既定値は DB に持たせない
+model ReminderSetting {
+    id        Int      @id @default(autoincrement())
+    userId    Int      @unique @map("user_id")
+    isEnabled Boolean  @map("is_enabled")
+    /// ISO の曜日番号（1 = 月曜 〜 7 = 日曜）の配列。Prisma では Json で返るので、Repository で検証してから domain 型にする
+    weekdays  Json
+    /// 端末の時刻（15 分刻み）。Prisma では 1970-01-01 の UTC の DateTime として読み書きされるので、Repository で "HH:mm" と変換する
+    time      DateTime @db.Time(0)
+    createdAt DateTime @default(now()) @map("created_at")
+    updatedAt DateTime @updatedAt @map("updated_at")
+
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+    @@map("reminder_settings")
+}
+
 // 取得した文書（GitHub のファイル / サイトのページ）。取得方法ごとの列は nullable
 model SourceDocument {
     id             Int       @id @default(autoincrement())
@@ -336,6 +354,7 @@ model User {
     accounts        AuthAccount[]
     goal            UserGoal?
     readingAttempts ReadingAttempt[]
+    reminderSetting ReminderSetting?
     wordLookups     AttemptWordLookup[]
 
     @@map("users")

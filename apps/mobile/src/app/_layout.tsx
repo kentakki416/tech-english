@@ -18,14 +18,20 @@ import { COLORS } from "@/const/color"
 import { restoreSession } from "@/features/auth/auth.session"
 import { useAuthStore } from "@/features/auth/auth.store"
 import { useColorScheme } from "@/hooks/use-color-scheme"
+import { useNotificationRedirect } from "@/hooks/use-notification-redirect"
+import { useStudyReminderSync } from "@/hooks/use-study-reminder-sync"
 
+/**
+ * app が前面にいるときも通知を出す。iOS はバナーで出る。Android は shouldPlaySound: false で音・振動の無い通知になり、
+ * 通知チャンネルの重要度も既定のため、ヘッドアップ（画面上部の表示）にはならず通知領域に入るだけ
+ */
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
     shouldPlaySound: false,
     shouldSetBadge: false,
-  })
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
 })
 
 /**
@@ -35,6 +41,16 @@ void SplashScreen.preventAutoHideAsync()
 
 export const unstable_settings = {
   anchor: "(tabs)",
+}
+
+/**
+ * リマインダーの予約の同期と、通知のタップの遷移。
+ * Stack より後に置き、ナビゲーションの準備ができてから遷移させる（エフェクトは前の兄弟から順に実行される）
+ */
+function StudyReminderEffects() {
+  useStudyReminderSync()
+  useNotificationRedirect()
+  return null
 }
 
 export default function RootLayout() {
@@ -105,6 +121,7 @@ export default function RootLayout() {
             */}
           <Stack.Screen name="mock" options={{ headerShown: false }} />
         </Stack>
+        <StudyReminderEffects />
         <StatusBar style="auto" />
       </ThemeProvider>
     </GestureHandlerRootView>

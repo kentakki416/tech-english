@@ -9,6 +9,7 @@ import {
   passages,
   questions,
   readingAttempts,
+  reminderSettings,
   sourceDocuments,
   userGoals,
 } from "@repo/db"
@@ -176,6 +177,18 @@ export const USER_OWNED_TABLES: readonly UserOwnedTable[] = [
       })
     },
     tableName: "user_goals",
+  },
+  {
+    countRows: async (userId) => testDb.$count(reminderSettings, eq(reminderSettings.userId, userId)),
+    seed: async (userId) => {
+      await testDb.insert(reminderSettings).values({
+        isEnabled: true,
+        time: "21:15",
+        userId,
+        weekdays: [1, 3, 5],
+      })
+    },
+    tableName: "reminder_settings",
   },
 ]
 

@@ -212,7 +212,7 @@ api の認証は既存の Bearer トークン（`authMiddleware`）のままで�
 | | 処理 |
 | --- | --- |
 | web | Server Action で `DELETE /api/user` を呼び、成功したら cookie を消してログイン画面へ redirect |
-| mobile | `DELETE /api/user` が成功したら、通知の予約をすべて取り消し、secure-store のトークンと端末に保存した解答途中のデータを消してログイン画面へ |
+| mobile | `DELETE /api/user`（15 秒で打ち切り）が成功したら、通知の予約をすべて取り消して通知センターに届き済みのリマインダーも消し、secure-store のトークンと端末に保存した解答途中のデータを消してログイン画面へ |
 
 ### MVP 対象外（将来検討）
 
@@ -436,7 +436,7 @@ sequenceDiagram
     Api->>DB: DELETE FROM users（関連テーブルは cascade）
     Api->>Redis: この端末の refresh token の jti を削除
     Api-->>App: 204
-    App->>App: 通知の予約を取り消し / トークンと端末のデータを削除
+    App->>App: 通知の予約と届き済みのリマインダーを消す / トークンと端末のデータを削除
     App-->>U: GitHub 側の連携解除の案内 → ログイン画面
     Other->>Api: POST /api/auth/refresh（access token の期限切れ後）
     Api->>DB: ユーザーが存在しない

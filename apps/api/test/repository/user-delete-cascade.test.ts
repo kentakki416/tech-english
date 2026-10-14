@@ -73,6 +73,7 @@ describe("users の削除の cascade", () => {
         "attempt_word_lookups",
         "auth_accounts",
         "reading_attempts",
+        "reminder_settings",
         "user_goals",
         "users",
       ])

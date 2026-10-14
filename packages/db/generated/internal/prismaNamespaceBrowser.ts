@@ -61,6 +61,7 @@ export const ModelName = {
   PassageGlossaryEntry: 'PassageGlossaryEntry',
   Question: 'Question',
   ReadingAttempt: 'ReadingAttempt',
+  ReminderSetting: 'ReminderSetting',
   SourceDocument: 'SourceDocument',
   User: 'User',
   UserGoal: 'UserGoal'
@@ -263,6 +264,19 @@ export const ReadingAttemptScalarFieldEnum = {
 } as const
 
 export type ReadingAttemptScalarFieldEnum = (typeof ReadingAttemptScalarFieldEnum)[keyof typeof ReadingAttemptScalarFieldEnum]
+
+
+export const ReminderSettingScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  isEnabled: 'isEnabled',
+  weekdays: 'weekdays',
+  time: 'time',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type ReminderSettingScalarFieldEnum = (typeof ReminderSettingScalarFieldEnum)[keyof typeof ReminderSettingScalarFieldEnum]
 
 
 export const SourceDocumentScalarFieldEnum = {

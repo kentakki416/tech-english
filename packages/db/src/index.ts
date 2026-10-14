@@ -55,6 +55,7 @@ export type {
   PrismaClient,
   Question,
   ReadingAttempt,
+  ReminderSetting,
   SourceDocument,
   User,
   UserGoal,

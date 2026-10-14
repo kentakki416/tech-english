@@ -50,7 +50,9 @@ import { UserCalendarController } from "./controller/user/calendar"
 import { UserDeleteController } from "./controller/user/delete"
 import { UserGetController } from "./controller/user/get"
 import { UserGetGoalController } from "./controller/user/get-goal"
+import { UserGetReminderController } from "./controller/user/get-reminder"
 import { UserPutGoalController } from "./controller/user/put-goal"
+import { UserPutReminderController } from "./controller/user/put-reminder"
 import { UserStatsController } from "./controller/user/stats"
 import { UserUpdateController } from "./controller/user/update"
 import { env } from "./env"
@@ -68,6 +70,7 @@ import {
   DrizzleMemoRepository,
   DrizzlePassageRepository,
   DrizzleReadingAttemptRepository,
+  DrizzleReminderSettingRepository,
   DrizzleTransactionRunner,
   DrizzleUserGoalRepository,
   DrizzleUserRepository,
@@ -121,6 +124,10 @@ const dictionaryRepository = new DrizzleDictionaryRepository(db)
  */
 const learningRecordRepository = new DrizzleLearningRecordRepository(db)
 const userGoalRepository = new DrizzleUserGoalRepository(db)
+/**
+ * 学習リマインダー（study-reminder）の設定
+ */
+const reminderSettingRepository = new DrizzleReminderSettingRepository(db)
 const databaseHealthRepository = new DrizzleDatabaseHealthRepository(db)
 const redisHealthRepository = new IoRedisHealthRepository(redis)
 const refreshTokenRepository = new IoRedisRefreshTokenRepository(redis)
@@ -177,6 +184,12 @@ const userStatsController = new UserStatsController(learningRecordRepository, us
  */
 const userGetGoalController = new UserGetGoalController(userGoalRepository)
 const userPutGoalController = new UserPutGoalController(userGoalRepository, userRepository)
+
+/**
+ * 学習リマインダーの設定（取得・保存）Controller のインスタンス化
+ */
+const userGetReminderController = new UserGetReminderController(reminderSettingRepository)
+const userPutReminderController = new UserPutReminderController(reminderSettingRepository, userRepository)
 
 /**
  * dev-login Controller は production 以外でのみ生成する
@@ -359,7 +372,9 @@ app.use(
     delete: userDeleteController,
     get: userGetController,
     getGoal: userGetGoalController,
+    getReminder: userGetReminderController,
     putGoal: userPutGoalController,
+    putReminder: userPutReminderController,
     stats: userStatsController,
     update: userUpdateController,
   })

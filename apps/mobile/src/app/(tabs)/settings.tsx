@@ -9,6 +9,7 @@ import type { GetUserGoalResponse } from "@repo/api-schema"
 
 import { GoalForm } from "@/components/features/learning-record/GoalForm"
 import { TimezonePickerModal } from "@/components/features/learning-record/TimezonePickerModal"
+import { ReminderSection } from "@/components/features/study-reminder/ReminderSection"
 import { appStyles } from "@/components/ui/app-styles"
 import { SecondaryButton } from "@/components/ui/SecondaryButton"
 import { THEME_COLORS } from "@/const/design-theme"
@@ -132,9 +133,8 @@ export default function SettingsScreen() {
             <SectionTitle>目標</SectionTitle>
             <GoalForm key={loadCount} goal={data.goal} />
 
-            {/**
-              * リマインダーの区画は study-reminder step3 がここに入れる
-              */}
+            <SectionTitle>リマインダー</SectionTitle>
+            <ReminderSection />
 
             <SectionTitle>タイムゾーン</SectionTitle>
             <Pressable
