@@ -6,6 +6,7 @@ import { MOCK_VOCABULARY_CARDS, type MockVocabularyCard } from "@/libs/mock-data
 
 import { usePaperSound } from "../../_components/paper-sound"
 import { CardStackBehind, PaperCardBack, PaperCardFront, PaperSheet } from "../../_components/PaperCard"
+import type { MockPronunciation, PronunciationTarget } from "../../_components/PronunciationButtons"
 import {
   AnswerButtons,
   FlipButton,
@@ -17,7 +18,16 @@ import {
   SessionTopBar,
 } from "../../_components/VocabularySessionParts"
 
-export type VocabularySessionMockState = "back" | "done" | "front" | "review" | "save_failed"
+export type VocabularySessionMockState =
+  | "back"
+  | "done"
+  | "front"
+  | "no_sentence"
+  | "pron_sentence"
+  | "pron_word"
+  | "review"
+  | "save_failed"
+  | "word_pending"
 
 /**
  * カードが横に飛んでいく時間（答えたとき）
@@ -31,7 +41,53 @@ const FLIP_HALF_MS = 220
 
 const buildInitialProgress = (state: VocabularySessionMockState): { answers: Grade[], isFlipped: boolean } => {
   if (state === "review" || state === "save_failed") return { answers: REVIEWED_GRADES, isFlipped: false }
-  return { answers: ["remembered", "forgot"], isFlipped: state === "back" }
+  return { answers: ["remembered", "forgot"], isFlipped: state === "back" || state === "pron_sentence" }
+}
+
+/**
+ * 入力欄・ボタン・リンクにフォーカスがあるときは、Space / Enter をその要素の操作に任せる
+ */
+const isInteractiveTarget = (target: EventTarget | null): boolean =>
+  target instanceof HTMLElement && ["A", "BUTTON", "INPUT", "SELECT", "TEXTAREA"].includes(target.tagName)
+
+/**
+ * ブラウザの音声合成（無い環境では null）
+ */
+const getSpeechSynthesis = (): SpeechSynthesis | null => (typeof window.speechSynthesis === "undefined" ? null : window.speechSynthesis)
+
+/**
+ * モック：発音の再生。本番は mp3（単語は見出し語ごとの音声、1 文は読み上げの音声の区間）を鳴らすが、モックはブラウザの音声合成で代わりに読む。
+ * 同じボタンをもう一度押すと止め、もう一方を押すと切り替える
+ */
+function usePronunciationMock(initialPlaying: PronunciationTarget | null) {
+  const [playing, setPlaying] = useState<PronunciationTarget | null>(initialPlaying)
+
+  const stop = () => {
+    getSpeechSynthesis()?.cancel()
+    setPlaying(null)
+  }
+
+  const toggle = (target: PronunciationTarget, text: string) => {
+    const synthesis = getSpeechSynthesis()
+    synthesis?.cancel()
+    if (playing === target) {
+      setPlaying(null)
+      return
+    }
+    setPlaying(target)
+    const finish = () => setPlaying(current => (current === target ? null : current))
+    if (!synthesis) {
+      window.setTimeout(finish, target === "word" ? 900 : 3000)
+      return
+    }
+    const utterance = new SpeechSynthesisUtterance(text)
+    utterance.lang = "en-US"
+    utterance.rate = target === "word" ? 0.9 : 1
+    utterance.onend = finish
+    synthesis.speak(utterance)
+  }
+
+  return { playing, stop, toggle }
 }
 
 /**
@@ -41,29 +97,29 @@ const buildInitialProgress = (state: VocabularySessionMockState): { answers: Gra
 function FlipCard({
   card,
   flipCount,
-  isFlipped,
+  pronunciation,
   shownFlipped,
   onFlip,
 }: {
   card: MockVocabularyCard
   flipCount: number
-  isFlipped: boolean
+  pronunciation: MockPronunciation
   shownFlipped: boolean
   onFlip: () => void
 }) {
   return (
-    <button
-      aria-label={isFlipped ? "カードを表に戻す" : "カードをめくる"}
-      className="block w-full rounded-xl text-left outline-none focus-visible:ring-2 focus-visible:ring-amber/70 focus-visible:ring-offset-4 focus-visible:ring-offset-canvas"
+    <div
+      aria-roledescription="単語カード"
+      className="block w-full cursor-pointer rounded-xl text-left outline-none"
       onClick={onFlip}
-      type="button"
+      role="group"
     >
       <div key={flipCount} className={flipCount > 0 ? "motion-safe:animate-card-flip" : ""}>
         <PaperSheet className="relative h-[440px] sm:h-[380px]" tone={shownFlipped ? "back" : "front"}>
-          {shownFlipped ? <PaperCardBack card={card} /> : <PaperCardFront card={card} />}
+          {shownFlipped ? <PaperCardBack card={card} pronunciation={pronunciation} /> : <PaperCardFront card={card} pronunciation={pronunciation} />}
         </PaperSheet>
       </div>
-    </button>
+    </div>
   )
 }
 
@@ -82,10 +138,18 @@ export function VocabularySessionMock({ initialState }: { initialState: Vocabula
   const [flipCount, setFlipCount] = useState(0)
   const [leaving, setLeaving] = useState<"left" | "right" | null>(null)
   const sound = usePaperSound()
+  const speech = usePronunciationMock(initialState === "pron_word" ? "word" : initialState === "pron_sentence" ? "sentence" : null)
   const current = cards[answers.length]
+  const pronunciation: MockPronunciation = {
+    hasSentence: initialState !== "no_sentence",
+    isWordReady: initialState !== "word_pending",
+    onToggle: target => current && speech.toggle(target, target === "word" ? current.lemma : current.sentence?.text.replace(/`/g, "") ?? ""),
+    playing: speech.playing,
+  }
 
   const flip = () => {
     if (leaving) return
+    speech.stop()
     const next = !isFlipped
     setIsFlipped(next)
     sound.play()
@@ -99,6 +163,7 @@ export function VocabularySessionMock({ initialState }: { initialState: Vocabula
 
   const answer = (grade: Grade) => {
     if (!isFlipped || leaving) return
+    speech.stop()
     const finish = () => {
       setAnswers(previous => [...previous, grade])
       setIsFlipped(false)
@@ -118,6 +183,7 @@ export function VocabularySessionMock({ initialState }: { initialState: Vocabula
     const handleKeydown = (event: KeyboardEvent) => {
       if (event.isComposing || event.metaKey || event.ctrlKey || event.altKey || !current) return
       if (event.key === " " || event.key === "Enter") {
+        if (isInteractiveTarget(event.target)) return
         event.preventDefault()
         flip()
       } else if (event.key === "ArrowRight") {
@@ -149,7 +215,7 @@ export function VocabularySessionMock({ initialState }: { initialState: Vocabula
                     leaving === "right" ? "translate-x-[115%] rotate-12 opacity-0" : leaving === "left" ? "translate-x-[-115%] -rotate-12 opacity-0" : ""
                   }`}
                 >
-                  <FlipCard card={current} flipCount={flipCount} isFlipped={isFlipped} shownFlipped={shownFlipped} onFlip={flip} />
+                  <FlipCard card={current} flipCount={flipCount} pronunciation={pronunciation} shownFlipped={shownFlipped} onFlip={flip} />
                 </div>
               </div>
             </div>

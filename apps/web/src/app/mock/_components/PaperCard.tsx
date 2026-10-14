@@ -2,6 +2,8 @@ import { Fragment } from "react"
 
 import type { MockVocabularyCard } from "@/libs/mock-data"
 
+import { type MockPronunciation, SentenceSoundButton, WordSoundButton } from "./PronunciationButtons"
+
 /**
  * インラインコード（改行を含まない、対になったバッククォート）
  */
@@ -27,13 +29,27 @@ function InkText({ text }: { text: string }) {
 }
 
 /**
- * 本文の 1 文。単語に蛍光ペンのような琥珀の線を引く
+ * 本文の 1 文。単語に蛍光ペンのような琥珀の線を引く。1 文を再生している間は線をゆっくり光らせる（行数で切るところは isGlowInset で内側に）
  */
-export function SentenceText({ className = "", sentence }: { className?: string, sentence: NonNullable<MockVocabularyCard["sentence"]> }) {
+export function SentenceText({
+  className = "",
+  isGlowInset = false,
+  isPlaying = false,
+  sentence,
+}: {
+  className?: string
+  isGlowInset?: boolean
+  isPlaying?: boolean
+  sentence: NonNullable<MockVocabularyCard["sentence"]>
+}) {
   return (
     <p className={`font-reading leading-relaxed ${className}`}>
       <InkText text={sentence.text.slice(0, sentence.highlightStart)} />
-      <mark className="rounded-[2px] bg-transparent bg-[linear-gradient(transparent_52%,rgb(243_178_76/0.55)_52%)] px-0.5 text-ink">
+      <mark
+        className={`rounded-[2px] bg-transparent bg-[linear-gradient(transparent_52%,rgb(243_178_76/0.55)_52%)] px-0.5 text-ink ${
+          isPlaying ? (isGlowInset ? "motion-safe:animate-highlight-glow-inset" : "motion-safe:animate-highlight-glow") : ""
+        }`}
+      >
         <InkText text={sentence.text.slice(sentence.highlightStart, sentence.highlightEnd)} />
       </mark>
       <InkText text={sentence.text.slice(sentence.highlightEnd)} />
@@ -76,13 +92,24 @@ export function PaperSheet({ children, className = "", tone = "front" }: { child
 }
 
 /**
- * 語句と、見出し語が違うときの見出し語・品詞
+ * 語句と、見出し語が違うときの見出し語・品詞。発音のボタンは語句のすぐ右（表は左にボタンと同じ幅の空きを置いて、語句を中央に保つ）
  */
-function WordHeading({ card, size }: { card: MockVocabularyCard, size: "lg" | "sm" }) {
+function WordHeading({ card, pronunciation, size }: { card: MockVocabularyCard, pronunciation?: MockPronunciation, size: "lg" | "sm" }) {
   return (
-    <div className={size === "lg" ? "text-center" : "flex flex-wrap items-baseline gap-x-2"}>
-      <p className={`font-reading text-ink ${size === "lg" ? "text-[30px] leading-tight font-semibold sm:text-[34px]" : "text-[17px] font-semibold"}`}>
-        {card.surface}
+    <div className={size === "lg" ? "text-center" : "flex flex-wrap items-center gap-x-2"}>
+      <p className={`font-reading text-ink ${size === "lg" ? "text-[30px] leading-tight font-semibold sm:text-[34px]" : "flex items-center gap-1 text-[17px] font-semibold"}`}>
+        {size === "lg" ? (
+          <span className="flex items-center justify-center gap-2">
+            {pronunciation && <span aria-hidden className="w-9 shrink-0" />}
+            <span className="min-w-0 [overflow-wrap:anywhere]">{card.surface}</span>
+            {pronunciation && <WordSoundButton lemma={card.lemma} pronunciation={pronunciation} size="lg" />}
+          </span>
+        ) : (
+          <>
+            {card.surface}
+            {pronunciation && <WordSoundButton lemma={card.lemma} pronunciation={pronunciation} size="sm" />}
+          </>
+        )}
       </p>
       <p className={`flex items-center gap-2 text-ink-muted ${size === "lg" ? "mt-2 justify-center text-sm" : "text-xs"}`}>
         {card.lemma !== card.surface.toLowerCase() && <span className="font-reading">{card.lemma}</span>}
@@ -97,7 +124,7 @@ function WordHeading({ card, size }: { card: MockVocabularyCard, size: "lg" | "s
 /**
  * カードの表。語句・本文の 1 文・出典。新しい単語には印を付ける
  */
-export function PaperCardFront({ card }: { card: MockVocabularyCard }) {
+export function PaperCardFront({ card, pronunciation }: { card: MockVocabularyCard, pronunciation?: MockPronunciation }) {
   return (
     <div className="flex h-full flex-col px-6 pt-12 pb-5 sm:px-10 sm:pt-12">
       {card.stage === null && (
@@ -106,8 +133,17 @@ export function PaperCardFront({ card }: { card: MockVocabularyCard }) {
         </span>
       )}
       <div className="flex flex-1 flex-col justify-center gap-6">
-        <WordHeading card={card} size="lg" />
-        {card.sentence && <SentenceText className="text-center text-[15px] text-ink-muted sm:text-base" sentence={card.sentence} />}
+        <WordHeading card={card} pronunciation={pronunciation} size="lg" />
+        {card.sentence && (
+          <div className="space-y-2">
+            <SentenceText
+              className="text-center text-[15px] text-ink-muted sm:text-base"
+              isPlaying={pronunciation?.playing === "sentence"}
+              sentence={card.sentence}
+            />
+            {pronunciation && <SentenceSoundButton align="center" pronunciation={pronunciation} />}
+          </div>
+        )}
       </div>
       <p className="mt-4 truncate text-center font-reading text-xs text-ink-faint italic">— {card.passageTitle} より</p>
     </div>
@@ -117,12 +153,20 @@ export function PaperCardFront({ card }: { card: MockVocabularyCard }) {
 /**
  * カードの裏。表の語句と 1 文を小さく残し、意味・補足・出どころを出す
  */
-export function PaperCardBack({ card }: { card: MockVocabularyCard }) {
+export function PaperCardBack({ card, pronunciation }: { card: MockVocabularyCard, pronunciation?: MockPronunciation }) {
   const senses = card.meaningSource === "dictionary" ? card.meaningJa.split(" / ") : [card.meaningJa]
   return (
     <div className="flex h-full flex-col px-6 pt-12 pb-5 sm:px-10 sm:pt-12">
-      <WordHeading card={card} size="sm" />
-      {card.sentence && <SentenceText className="mt-1.5 line-clamp-2 text-[13px] text-ink-faint" sentence={card.sentence} />}
+      <WordHeading card={card} pronunciation={pronunciation} size="sm" />
+      {card.sentence && (
+        <SentenceText
+          isGlowInset
+          className="mt-1.5 line-clamp-2 text-[13px] text-ink-faint"
+          isPlaying={pronunciation?.playing === "sentence"}
+          sentence={card.sentence}
+        />
+      )}
+      {card.sentence && pronunciation?.hasSentence && <div className="mt-1 -ml-2.5"><SentenceSoundButton align="start" pronunciation={pronunciation} /></div>}
       <div className="my-4 border-t border-dashed border-ink-faint/50" />
       <div className="flex-1">
         <div aria-live="polite" className="space-y-1">
