@@ -35,8 +35,13 @@ export const createMockUserRepository = () => ({
  * 既定は候補もカードも無い
  */
 export const createMockVocabularyRepository = () => ({
+  findCardByLemma: vi.fn<VocabularyRepository["findCardByLemma"]>().mockResolvedValue(null),
   findDueCards: vi.fn<VocabularyRepository["findDueCards"]>().mockResolvedValue([]),
   findNewEncounters: vi.fn<VocabularyRepository["findNewEncounters"]>().mockResolvedValue([]),
+  findReviewedCard: vi.fn<VocabularyRepository["findReviewedCard"]>().mockResolvedValue(null),
+  hasEncounter: vi.fn<VocabularyRepository["hasEncounter"]>().mockResolvedValue(true),
+  lockUserForReview: vi.fn<VocabularyRepository["lockUserForReview"]>().mockResolvedValue(true),
+  saveReview: vi.fn<VocabularyRepository["saveReview"]>(),
   summarize: vi.fn<VocabularyRepository["summarize"]>().mockResolvedValue({
     dueCount: 0,
     learningCount: 0,

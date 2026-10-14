@@ -1,7 +1,16 @@
-import { DrizzleClient, type SQL, sql } from "@repo/db"
-import { type PassageBlock, VOCABULARY_MASTERED_STAGE } from "@repo/domain"
+import { and, DrizzleClient, eq, type SQL, sql, users, vocabularyCards, vocabularyReviews } from "@repo/db"
+import { type PassageBlock, type VocabularyCard, VOCABULARY_MASTERED_STAGE } from "@repo/domain"
 
-import type { DueVocabularyCard, VocabularyCounts, VocabularyEncounter, VocabularyRepository } from "../vocabulary-repository"
+import type { TransactionContext } from "../transaction"
+import type {
+  DueVocabularyCard,
+  SaveVocabularyReviewInput,
+  VocabularyCounts,
+  VocabularyEncounter,
+  VocabularyRepository,
+} from "../vocabulary-repository"
+
+import { resolveDrizzleClient } from "./transaction-runner"
 
 /**
  * encounters に passages と用語集の行を join した 1 行（列名は SQL の snake_case のまま）
@@ -60,6 +69,19 @@ const convertEncounterRowToDomain = (row: EncounterRow): VocabularyEncounter => 
   surface: row.surface,
 })
 
+type VocabularyCardRow = typeof vocabularyCards.$inferSelect
+
+const convertVocabularyCardRowToDomain = (row: VocabularyCardRow): VocabularyCard => ({
+  id: row.id,
+  dueDate: row.dueDate,
+  lastReviewedAt: row.lastReviewedAt,
+  lemma: row.lemma,
+  stage: row.stage,
+  userId: row.userId,
+  createdAt: row.createdAt,
+  updatedAt: row.updatedAt,
+})
+
 /**
  * Drizzle 実装の VocabularyRepository。候補の集め方が DISTINCT ON と UNION ALL を重ねる形なので、クエリビルダではなく sql で書く。
  * 日付は ::text、件数は ::int で受け取る（execute の結果はドライバの既定の変換を通るため、date が Date に、count が文字列になるのを避ける）
@@ -69,6 +91,14 @@ export class DrizzleVocabularyRepository implements VocabularyRepository {
 
   constructor(db: DrizzleClient) {
     this._db = db
+  }
+
+  public async findCardByLemma(userId: number, lemma: string, tx: TransactionContext): Promise<VocabularyCard | null> {
+    const [row] = await resolveDrizzleClient(this._db, tx)
+      .select()
+      .from(vocabularyCards)
+      .where(and(eq(vocabularyCards.userId, userId), eq(vocabularyCards.lemma, lemma)))
+    return row ? convertVocabularyCardRowToDomain(row) : null
   }
 
   public async findDueCards(userId: number, today: string, limit: number): Promise<DueVocabularyCard[]> {
@@ -101,6 +131,57 @@ export class DrizzleVocabularyRepository implements VocabularyRepository {
        LIMIT ${limit}
     `)
     return result.rows.map(convertEncounterRowToDomain)
+  }
+
+  public async findReviewedCard(userId: number, clientReviewId: string, tx: TransactionContext): Promise<VocabularyCard | null> {
+    const [row] = await resolveDrizzleClient(this._db, tx)
+      .select({ card: vocabularyCards })
+      .from(vocabularyReviews)
+      .innerJoin(vocabularyCards, eq(vocabularyCards.id, vocabularyReviews.cardId))
+      .where(and(eq(vocabularyReviews.userId, userId), eq(vocabularyReviews.clientReviewId, clientReviewId)))
+    return row ? convertVocabularyCardRowToDomain(row.card) : null
+  }
+
+  public async hasEncounter(userId: number, lemma: string, tx: TransactionContext): Promise<boolean> {
+    const result = await resolveDrizzleClient(this._db, tx).execute<{ exists: boolean }>(sql`
+      ${this._buildEncountersCte(userId)}
+      SELECT EXISTS (SELECT 1 FROM encounters WHERE lemma = ${lemma}) AS exists
+    `)
+    return result.rows[0]?.exists === true
+  }
+
+  /**
+   * FOR NO KEY UPDATE にするのは、同じユーザーの他のテーブルへの insert（外部キーの確認が取る FOR KEY SHARE）を待たせないため。
+   * FOR NO KEY UPDATE 同士はぶつかるので、同じユーザーの答えの保存だけが直列になる
+   */
+  public async lockUserForReview(userId: number, tx: TransactionContext): Promise<boolean> {
+    const rows = await resolveDrizzleClient(this._db, tx)
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.id, userId))
+      .for("no key update")
+    return rows.length > 0
+  }
+
+  public async saveReview(input: SaveVocabularyReviewInput, tx: TransactionContext): Promise<VocabularyCard> {
+    const db = resolveDrizzleClient(this._db, tx)
+    const values = { dueDate: input.dueDate, lastReviewedAt: input.reviewedAt, stage: input.stageAfter }
+    const [card] = await db
+      .insert(vocabularyCards)
+      .values({ ...values, lemma: input.lemma, userId: input.userId })
+      .onConflictDoUpdate({ set: values, target: [vocabularyCards.userId, vocabularyCards.lemma] })
+      .returning()
+    await db.insert(vocabularyReviews).values({
+      activeSeconds: input.activeSeconds,
+      cardId: card.id,
+      clientReviewId: input.clientReviewId,
+      grade: input.grade,
+      stageAfter: input.stageAfter,
+      stageBefore: input.stageBefore,
+      studyDate: input.studyDate,
+      userId: input.userId,
+    })
+    return convertVocabularyCardRowToDomain(card)
   }
 
   public async summarize(userId: number, today: string): Promise<VocabularyCounts> {

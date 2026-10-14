@@ -60,6 +60,7 @@ import { UserPutGoalController } from "./controller/user/put-goal"
 import { UserPutReminderController } from "./controller/user/put-reminder"
 import { UserStatsController } from "./controller/user/stats"
 import { UserUpdateController } from "./controller/user/update"
+import { VocabularyReviewController } from "./controller/vocabulary/review"
 import { VocabularySessionController } from "./controller/vocabulary/session"
 import { VocabularySummaryController } from "./controller/vocabulary/summary"
 import { env } from "./env"
@@ -300,8 +301,9 @@ const attemptSubmitController = new AttemptSubmitController(
 const dictionaryLookupController = new DictionaryLookupController(dictionaryRepository)
 
 /**
- * 単語帳（1 回分のカード・トップの数）Controller のインスタンス化
+ * 単語帳（1 回分のカード・トップの数・答えの保存）Controller のインスタンス化
  */
+const vocabularyReviewController = new VocabularyReviewController(transactionRunner, userRepository, vocabularyRepository)
 const vocabularySessionController = new VocabularySessionController(userRepository, vocabularyRepository)
 const vocabularySummaryController = new VocabularySummaryController(userRepository, vocabularyRepository)
 
@@ -472,6 +474,7 @@ app.use(
 app.use(
   "/api/vocabulary",
   vocabularyRouter({
+    review: vocabularyReviewController,
     session: vocabularySessionController,
     summary: vocabularySummaryController,
   })

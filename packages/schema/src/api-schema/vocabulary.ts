@@ -1,6 +1,6 @@
 import { z } from "zod"
 
-import { WORD_LOOKUP_SOURCES } from "@repo/domain"
+import { VOCABULARY_GRADES, WORD_LOOKUP_SOURCES } from "@repo/domain"
 
 // ========================================================
 // GET /api/vocabulary/summary - 単語帳のトップの数
@@ -64,3 +64,36 @@ export const getVocabularySessionResponseSchema = z.object({
 })
 
 export type GetVocabularySessionResponse = z.infer<typeof getVocabularySessionResponseSchema>
+
+// ========================================================
+// POST /api/vocabulary/review - 1 枚の答えの保存
+// ========================================================
+
+/**
+ * 1 枚の答えの保存のリクエストスキーマ。active_seconds は上限を超えてもサーバーが切り詰めるので 400 にしない
+ */
+export const reviewVocabularyCardRequestSchema = z.object({
+  active_seconds: z.number().int().min(0),
+  /**
+   * クライアントが作る UUID。通信のやり直しで同じ答えを送り直すときは同じ値を使う
+   */
+  client_review_id: z.string().uuid(),
+  grade: z.enum(VOCABULARY_GRADES),
+  /**
+   * GET /api/vocabulary/session の lemma をそのまま送る
+   */
+  lemma: z.string().trim().min(1).max(200),
+})
+
+export type ReviewVocabularyCardRequest = z.infer<typeof reviewVocabularyCardRequestSchema>
+
+/**
+ * 1 枚の答えの保存のレスポンススキーマ（答えた後のカードの状態）。due_date は覚えた単語なら null
+ */
+export const reviewVocabularyCardResponseSchema = z.object({
+  due_date: z.string().nullable(),
+  lemma: z.string(),
+  stage: z.number().int().min(0).max(4),
+})
+
+export type ReviewVocabularyCardResponse = z.infer<typeof reviewVocabularyCardResponseSchema>

@@ -1,11 +1,23 @@
-import { eq, passageGlossaryEntries, passages } from "@repo/db"
+import { eq, passageGlossaryEntries, passages, users, vocabularyCards, vocabularyReviews } from "@repo/db"
 
+import { DrizzleTransactionRunner } from "../../src/repository/drizzle/transaction-runner"
 import { DrizzleVocabularyRepository } from "../../src/repository/drizzle/vocabulary-repository"
 import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb } from "../controller/setup"
 import { insertReadingAttempt, insertAttemptUser } from "../fixture/passage"
 import { insertDictionaryEntry, insertReadPassage, insertVocabularyCard, insertWordLookup } from "../fixture/vocabulary"
 
 const vocabularyRepository = new DrizzleVocabularyRepository(testDb)
+const transactionRunner = new DrizzleTransactionRunner(testDb)
+
+const REVIEW_BASE = {
+  activeSeconds: 8,
+  dueDate: "2026-10-17",
+  grade: "remembered" as const,
+  reviewedAt: new Date("2026-10-14T03:00:00.000Z"),
+  stageAfter: 1,
+  stageBefore: null,
+  studyDate: "2026-10-14",
+}
 
 const at = (iso: string): Date => new Date(iso)
 
@@ -231,6 +243,101 @@ describe("VocabularyRepository", () => {
         masteredCount: 0,
         newCount: 0,
         nextDueDate: null,
+      })
+    })
+  })
+
+  describe("答えの保存（saveReview ほか）", () => {
+    describe("正常系", () => {
+      it("カードの無い見出し語ならカードが 1 行でき、答えが 1 行足される", async () => {
+        const user = await insertAttemptUser()
+
+        const card = await transactionRunner.run(async (tx) =>
+          vocabularyRepository.saveReview({ ...REVIEW_BASE, clientReviewId: crypto.randomUUID(), lemma: "opt out of", userId: user.id }, tx))
+
+        expect(card).toMatchObject({ dueDate: "2026-10-17", lemma: "opt out of", stage: 1, userId: user.id })
+        expect(await testDb.select().from(vocabularyReviews)).toMatchObject([
+          { activeSeconds: 8, cardId: card.id, grade: "remembered", stageAfter: 1, stageBefore: null, studyDate: "2026-10-14", userId: user.id },
+        ])
+      })
+
+      it("同じ見出し語の 2 回目は同じカードを更新し、答えは 2 行になる。段階 4 では次に出す日を null で保存できる", async () => {
+        const user = await insertAttemptUser()
+        const first = await transactionRunner.run(async (tx) =>
+          vocabularyRepository.saveReview({ ...REVIEW_BASE, clientReviewId: crypto.randomUUID(), lemma: "opt out of", userId: user.id }, tx))
+
+        const second = await transactionRunner.run(async (tx) =>
+          vocabularyRepository.saveReview({
+            ...REVIEW_BASE,
+            clientReviewId: crypto.randomUUID(),
+            dueDate: null,
+            lemma: "opt out of",
+            reviewedAt: new Date("2026-11-20T03:00:00.000Z"),
+            stageAfter: 4,
+            stageBefore: 3,
+            userId: user.id,
+          }, tx))
+
+        expect(second).toMatchObject({ id: first.id, dueDate: null, lastReviewedAt: new Date("2026-11-20T03:00:00.000Z"), stage: 4 })
+        expect(await testDb.$count(vocabularyCards)).toBe(1)
+        expect(await testDb.$count(vocabularyReviews)).toBe(2)
+      })
+
+      it("findReviewedCard は保存済みの client_review_id でカードの今の状態を返し、他のユーザーの同じ値では null", async () => {
+        const user = await insertAttemptUser()
+        const other = await insertAttemptUser()
+        const clientReviewId = crypto.randomUUID()
+        await transactionRunner.run(async (tx) => vocabularyRepository.saveReview({ ...REVIEW_BASE, clientReviewId, lemma: "opt out of", userId: user.id }, tx))
+
+        await transactionRunner.run(async (tx) => {
+          expect(await vocabularyRepository.findReviewedCard(user.id, clientReviewId, tx)).toMatchObject({ lemma: "opt out of", stage: 1 })
+          expect(await vocabularyRepository.findReviewedCard(other.id, clientReviewId, tx)).toBeNull()
+          expect(await vocabularyRepository.findCardByLemma(user.id, "opt out of", tx)).toMatchObject({ stage: 1 })
+          expect(await vocabularyRepository.findCardByLemma(other.id, "opt out of", tx)).toBeNull()
+        })
+      })
+
+      it("hasEncounter は候補にある見出し語で true、候補に無い・意味が用意できない見出し語で false", async () => {
+        const user = await insertAttemptUser()
+        const read = await insertReadPassage(user.id, "2026-10-10T03:00:00.000Z")
+        await insertWordLookup(read.attempt, { lemma: "nowhere", source: "dictionary", surface: "nowhere" })
+
+        await transactionRunner.run(async (tx) => {
+          expect(await vocabularyRepository.hasEncounter(user.id, "opt out of", tx)).toBe(true)
+          expect(await vocabularyRepository.hasEncounter(user.id, "unknown", tx)).toBe(false)
+          expect(await vocabularyRepository.hasEncounter(user.id, "nowhere", tx)).toBe(false)
+        })
+      })
+
+      it("lockUserForReview は存在するユーザーで true、存在しないユーザーで false", async () => {
+        const user = await insertAttemptUser()
+
+        await transactionRunner.run(async (tx) => {
+          expect(await vocabularyRepository.lockUserForReview(user.id, tx)).toBe(true)
+          expect(await vocabularyRepository.lockUserForReview(999999, tx)).toBe(false)
+        })
+      })
+    })
+
+    describe("異常系", () => {
+      it("同じユーザー・同じ client_review_id の答えをもう 1 行入れると throw する（unique 違反）", async () => {
+        const user = await insertAttemptUser()
+        const clientReviewId = crypto.randomUUID()
+        await transactionRunner.run(async (tx) => vocabularyRepository.saveReview({ ...REVIEW_BASE, clientReviewId, lemma: "opt out of", userId: user.id }, tx))
+
+        await expect(transactionRunner.run(async (tx) =>
+          vocabularyRepository.saveReview({ ...REVIEW_BASE, clientReviewId, lemma: "opt out of", userId: user.id }, tx))).rejects.toThrow()
+      })
+
+      it("users の行を消すと、カードと答えが消える（cascade）", async () => {
+        const user = await insertAttemptUser()
+        await transactionRunner.run(async (tx) =>
+          vocabularyRepository.saveReview({ ...REVIEW_BASE, clientReviewId: crypto.randomUUID(), lemma: "opt out of", userId: user.id }, tx))
+
+        await testDb.delete(users).where(eq(users.id, user.id))
+
+        expect(await testDb.$count(vocabularyCards)).toBe(0)
+        expect(await testDb.$count(vocabularyReviews)).toBe(0)
       })
     })
   })
