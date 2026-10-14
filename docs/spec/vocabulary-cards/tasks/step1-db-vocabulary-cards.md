@@ -349,7 +349,15 @@ pnpm --filter api db:generate --name vocabulary_cards
 - unique index が `vocabulary_cards (user_id, lemma)` と `vocabulary_reviews (user_id, client_review_id)`
 - FK が 3 本（`vocabulary_cards.user_id`・`vocabulary_reviews.user_id`・`vocabulary_reviews.card_id`）で、どれも `ON DELETE cascade`
 
-### 7. ビルド
+### 7. アカウント削除の一覧
+
+ユーザーに紐づくテーブルが増えるので、次の 3 か所に `vocabulary_cards` / `vocabulary_reviews` を足す（`test/repository/user-delete-cascade.test.ts` が、users から cascade でたどれるテーブルと一覧が一致することを確かめている）。
+
+- `apps/api/test/controller/user-owned-data.ts` の `USER_OWNED_TABLES`（テストデータの入れ方と数え方。`vocabulary_reviews` はカードの後に入れる）
+- `apps/api/test/repository/user-delete-cascade.test.ts` の期待するテーブルの一覧（名前順）
+- [github-auth の README の「アカウント削除の処理」](../../github-auth/README.md#アカウント削除の処理) の表
+
+### 8. ビルド
 
 ```bash
 pnpm --filter @repo/domain build && pnpm --filter @repo/db build

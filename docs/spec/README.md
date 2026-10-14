@@ -25,7 +25,7 @@
 | user-behavior-events | 設計中 | ユーザー行動を時系列イベントとして ClickHouse に蓄積する。DB に痕跡が残らない操作（削除・閲覧・離脱）を優先して記録し、運用ログとは別系統にする | [./user-behavior-events/README.md](./user-behavior-events/README.md) |
 | minimal-deploy | 実装中 | アイドル時の固定費をほぼゼロにした本番構成（Lambda + API Gateway + PlanetScale + Upstash、月 ~$7。worker は必要なときだけ Fargate Spot で作る）。実装は env で切り替え、同じアプリ・同じイメージを minimal と prd（ECS）の両方にデプロイできるようにする | [./minimal-deploy/README.md](./minimal-deploy/README.md) |
 | clickhouse-migration | 設計中 | ClickHouse のテーブル・view を版管理して local / dev / min / prd に適用する migration コマンドを用意し、deploy に組み込む。ClickHouse と CDC（Postgres → ClickHouse）を作るかを環境ごとに Terraform のフラグ（`enable_data_warehouse` / `enable_cdc`）で選ぶ | [./clickhouse-migration/README.md](./clickhouse-migration/README.md) |
-| vocabulary-cards | 設計中 | 単語帳。解答中に調べた単語と、解いた問題の用語集の単語をカードで復習する。表で意味を思い出してめくり、「覚えた / まだ」で次に出す日を延ばす（間隔反復）。web と mobile。単語帳で答えた日も学習した日に数える | [./vocabulary-cards/README.md](./vocabulary-cards/README.md) |
+| vocabulary-cards | 実装中 | 単語帳。解答中に調べた単語と、解いた問題の用語集の単語をカードで復習する。表で意味を思い出してめくり、「覚えた / まだ」で次に出す日を延ばす（間隔反復）。web と mobile。単語帳で答えた日も学習した日に数える | [./vocabulary-cards/README.md](./vocabulary-cards/README.md) |
 | dev-login | 完了 | 開発環境専用ログイン。Google OAuth を介さず seed 済み dev ユーザー（alice/bob）として 1 クリックでログインできる | [./dev-login/README.md](./dev-login/README.md) |
 
 ## ステータスの定義
