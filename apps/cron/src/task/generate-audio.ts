@@ -9,7 +9,7 @@ import { createStorage, type Storage } from "@repo/storage"
 import { FakeTtsClient, isPollyVoiceId, PollyTtsClient, type TtsClient } from "../client/polly"
 import { AUDIO_CACHE_CONTROL, POLLY_MAX_ATTEMPTS } from "../const/audio"
 import { env } from "../env"
-import { isAudioStorageAllowed } from "../lib/audio"
+import { buildAudioVoiceId, isAudioStorageAllowed } from "../lib/audio"
 import { DrizzlePassageAudioRepository } from "../repository/drizzle"
 import { setupGracefulShutdown } from "../runtime/graceful-shutdown"
 import * as service from "../service"
@@ -85,12 +85,16 @@ const main = async (): Promise<void> => {
     url: env.DATABASE_URL,
   })
   const { isShuttingDown } = setupGracefulShutdown(db)
+  /**
+   * fake は fake:<voice> にする（polly に切り替えたときに、fake で作った無音の音声を voice が違う行として作り直すため）
+   */
+  const voiceId = buildAudioVoiceId({ provider: env.TTS_PROVIDER, voiceId: env.TTS_VOICE_ID })
 
   logger.info("generate-audio started", {
     maxPassagesPerRun: env.AUDIO_MAX_PASSAGES_PER_RUN,
     storageType: env.AUDIO_STORAGE_TYPE,
     ttsProvider: env.TTS_PROVIDER,
-    voiceId: env.TTS_VOICE_ID,
+    voiceId,
   })
 
   try {
@@ -99,7 +103,7 @@ const main = async (): Promise<void> => {
         isShuttingDown,
         maxPassagesPerRun: env.AUDIO_MAX_PASSAGES_PER_RUN,
         now: () => new Date(),
-        voiceId: env.TTS_VOICE_ID,
+        voiceId,
       },
       { passageAudioRepository: new DrizzlePassageAudioRepository(db) },
       { audioStorage: createAudioStorage(), ttsClient },

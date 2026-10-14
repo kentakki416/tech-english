@@ -8,6 +8,7 @@ import { SubmitButton } from "@/components/ui/SubmitButton"
 import { learningRecordApi } from "@/features/learning-record/learning-record.api"
 import { getUser } from "@/features/user/get-user"
 import { logoutAction } from "@/libs/auth-actions"
+import { redirectIfSessionRejected } from "@/libs/session"
 
 import { saveGoalAction, updateTimezoneAction } from "./actions"
 
@@ -27,7 +28,7 @@ const listTimezoneOptions = (current: string): string[] => {
  * 設定（目標 → タイムゾーン → リマインダー → アカウント → 危険な操作）
  */
 export default async function SettingsPage() {
-  const [user, { goal }] = await Promise.all([getUser(), learningRecordApi.getGoal()])
+  const [user, { goal }] = await Promise.all([getUser(), learningRecordApi.getGoal()]).catch(redirectIfSessionRejected)
 
   return (
     <>

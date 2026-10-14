@@ -1,5 +1,6 @@
 import type { AdminPassageDetailResponse, AdminPassageListItemResponse, UpdateAdminPassageRequest } from "@repo/api-schema"
 import {
+  calculateQuestionCount,
   PASSAGE_DIFFICULTIES,
   READING_WPM_BY_DIFFICULTY,
   SECONDS_PER_QUESTION,
@@ -98,6 +99,7 @@ export const convertAdminPassageDetailToResponse = (detail: AdminPassageDetail):
       type: question.type,
       verification_choice_index: question.verificationChoiceIndex,
     })),
+    recommended_question_count: calculateQuestionCount(passage.wordCount),
     reject_reason: passage.rejectReason,
     reviewed_at: passage.reviewedAt?.toISOString() ?? null,
     source: {

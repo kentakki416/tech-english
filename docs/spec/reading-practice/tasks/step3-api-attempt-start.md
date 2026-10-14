@@ -19,7 +19,8 @@ export type PassageSegment = { glossaryEntryId?: number; kind: PassageSegmentKin
 export type SegmentWithRange = PassageSegment & { end: number; start: number }
 export type GlossarySpan = Pick<GlossaryEntry, "blockIndex" | "endOffset" | "id" | "startOffset">
 
-export const segmentBlockText = (text: string, glossary: GlossarySpan[]): SegmentWithRange[]
+/** テストのためだけに使うので export せず、ファイル末尾の `export const forTesting = { segmentBlockText }` に入れる */
+const segmentBlockText = (text: string, glossary: GlossarySpan[]): SegmentWithRange[]
 export const segmentPassage = (blocks: PassageBlock[], glossary: GlossarySpan[]): SegmentWithRange[][]
 export const numberParagraphs = (blocks: PassageBlock[]): (number | null)[]
 export const findEvidenceSegmentRange = (text: string, segments: SegmentWithRange[], quote: string): { end: number; start: number } | null
@@ -101,8 +102,10 @@ createInProgress(input: CreateReadingAttemptInput): Promise<ReadingAttempt | nul
 /** そのユーザーの started_at <= aliveSince の in_progress を expired にし、件数を返す */
 expireStale(userId: number, aliveSince: Date): Promise<number>
 /** 他人の挑戦は null（存在を明かさない） */
-findByIdForUser(id: number, userId: number): Promise<ReadingAttempt | null>
+findByIdForUser(id: number, userId: number, options?: ReadOptions): Promise<ReadingAttempt | null>
 ```
+
+- 読み取りのメソッドは `options?: ReadOptions`（`{ fromPrimary?: boolean }`）を受け取る。`fromPrimary: true` なら read replica ではなく primary から読む。書き込み API の前提の確認・書き込みの直後の読み直しで使う（Service では `PRIMARY_READ` という定数で渡す）
 
 - Drizzle の `createInProgress`：`onConflictDoNothing({ target: [userId, passageId], where: sql\`status = 'in_progress'\` }).returning()`（部分 index を対象にするため条件が要る。引数名は使っている drizzle-orm の版で確認する）
 - Prisma の `createInProgress`：`create` の例外が `code === "P2002"` なら null（`Prisma` は型だけの export なので `instanceof` は使わない）
@@ -113,6 +116,9 @@ findByIdForUser(id: number, userId: number): Promise<ReadingAttempt | null>
 
 ```ts
 type AttemptRepo = { passageRepository: PassageRepository; readingAttemptRepository: ReadingAttemptRepository; userRepository: UserRepository }
+
+/** read replica の遅れを避けて primary から読む */
+const PRIMARY_READ: ReadOptions = { fromPrimary: true }
 
 export const startAttempt = async (
   input: { now: Date; passageId: number; userId: number },
@@ -127,7 +133,8 @@ export const startAttempt = async (
   const content = await repo.passageRepository.findAttemptContentById(input.passageId)
   if (!content) return err(notFoundError("Passage not found"))
 
-  const existing = await repo.readingAttemptRepository.findAliveInProgress(input.userId, input.passageId, aliveSince)
+  /** 作るかどうかの前提の確認なので primary から読む（作った直後の挑戦中を read replica の遅れで見失わないため） */
+  const existing = await repo.readingAttemptRepository.findAliveInProgress(input.userId, input.passageId, aliveSince, PRIMARY_READ)
   if (existing) return ok({ isCreated: false, view: buildInProgressView(existing, content, input.now) })
 
   /** 新しく始められるのは公開中の問題だけ。非公開に戻された問題でも挑戦中なら上で再開できる */
@@ -140,8 +147,8 @@ export const startAttempt = async (
     timeLimitSeconds: content.passage.timeLimitSeconds!,
     userId: input.userId,
   })
-  /** 同時に開始されて部分 unique index に当たったときは、先に作られた方を返す */
-  const attempt = created ?? await repo.readingAttemptRepository.findAliveInProgress(input.userId, input.passageId, aliveSince)
+  /** 同時に開始されて部分 unique index に当たったときは、先に作られた方を返す（作られたばかりの行なので primary から読む） */
+  const attempt = created ?? await repo.readingAttemptRepository.findAliveInProgress(input.userId, input.passageId, aliveSince, PRIMARY_READ)
   if (!attempt) throw new Error("In-progress attempt disappeared after conflict")
   return ok({ isCreated: created !== null, view: buildInProgressView(attempt, content, input.now) })
 }
@@ -155,13 +162,13 @@ export const getAttempt = async (input: { attemptId: number; now: Date; userId: 
 - 設問は `{ id, choices, orderIndex, prompt, type }` だけを **明示的に** 取り出す（スプレッドで渡さない。正解が混ざる事故を防ぐ）。api-schema の `z.object` も未知のキーを落とすので二重の防御になる
 - `expiresAt = calculateExpiresAt(attempt.startedAt)`、`serverNow = now`、`attribution = buildAttribution(content.source, content.passage)`、`translationJa` は code のブロックでは null
 
-`getAttempt`：`expireStale` → `findByIdForUser`（null なら 404）→ `findAttemptContentById`。`in_progress` は `buildInProgressView`、`expired` は `{ id, passage, startedAt, status }`。`submitted` は提出 API ができる step4 で結果の形にする（この step では `err(conflictError(...))` を返しておく）。
+`getAttempt`：`expireStale` → `findByIdForUser`（null なら 404。先に `expireStale` で書き込むので書き込み API と同じく `PRIMARY_READ` で読む。開始の直後に redirect された先の GET が 404 になる・提出の直後の結果画面が in_progress を読んで解答画面へ戻す、を防ぐ）→ `findAttemptContentById`。`in_progress` は `buildInProgressView`、`expired` は `{ id, passage, startedAt, status }`。`submitted` は提出 API ができる step4 で結果の形にする（この step では `err(conflictError(...))` を返しておく）。
 
 ### 5. Controller・Router・DI
 
 - `controller/attempt/start.ts`（`AttemptStartController`）：`isCreated` なら 201、再開なら 200
 - `controller/attempt/detail.ts`（`AttemptDetailController`）
-- domain → snake_case の変換は start / detail / submit（step4）で共通なので `controller/attempt/mapper.ts` に `toInProgressAttemptResponse(view)` / `toExpiredAttemptResponse(view)` を置く
+- domain → snake_case の変換は start / detail / submit（step4）で共通なので `controller/attempt/mapper.ts` に `convertInProgressAttemptToResponse(view)` / `convertExpiredAttemptToResponse(view)` を置く。出典（`attribution`）の変換は開始確認の概要（step2 の `controller/passage/detail.ts`）とも共通なので `controller/passage/mapper.ts` の `convertAttributionToResponse` を両方から使う
 - `passage-router.ts` に `start` を足して `POST /:id/attempt`、`routes/attempt-router.ts`（新規）に `detail` で `GET /:id`
 - `src/index.ts`：`app.use("/api/attempt", attemptRouter({ detail }))`、`passageRouter` に `start` を渡す
 
@@ -186,7 +193,7 @@ lib（`test/lib/segment-passage.test.ts`）:
 Service（ユニット）:
 
 - [ ] ユーザーが居なければ 401 で、`expireStale` も `createInProgress` も呼ばない
-- [ ] `expireStale` が `findAliveInProgress` より先に呼ばれる
+- [ ] `expireStale` が `findAliveInProgress` より先に呼ばれる。`findAliveInProgress`（最初の確認・同時開始の読み直し）と `getAttempt` の `findByIdForUser` に `{ fromPrimary: true }` を渡す
 - [ ] 挑戦中があれば `isCreated: false` で、`createInProgress` を呼ばない
 - [ ] 非公開の問題：挑戦中が無ければ 404、あれば再開できる
 - [ ] `createInProgress` が null（同時開始）なら `findAliveInProgress` の結果を返す

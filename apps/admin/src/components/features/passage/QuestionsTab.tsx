@@ -6,7 +6,6 @@ import type { GetAdminPassageResponse } from "@repo/api-schema"
 
 import Badge from "@/components/ui/badge/Badge"
 import {
-  calculateRecommendedQuestionCount,
   createNewClientKey,
   formatBlockLabel,
   hasQuoteInText,
@@ -52,6 +51,7 @@ export function QuestionsTab({
   isEditable,
   marks,
   openQuestionKey,
+  recommendedQuestionCount,
   showVerificationMismatch,
   wordCount,
   onChange,
@@ -63,6 +63,10 @@ export function QuestionsTab({
   isEditable: boolean
   marks: PassageErrorMarks
   openQuestionKey: string | null
+  /**
+   * 英単語数から決まる目安の設問数（詳細の recommended_question_count。境界は API の domain が持つ）
+   */
+  recommendedQuestionCount: number
   /**
    * 検証モデルとの食い違いのバッジを出すか（公開中は出さない）
    */
@@ -258,7 +262,7 @@ export function QuestionsTab({
       {isEditable && (
         <div className="flex items-center justify-between gap-4">
           <div className="text-theme-xs text-gray-500 dark:text-gray-400">
-            <p>設問は 3〜5 問。英単語数 {wordCount} 語なので {calculateRecommendedQuestionCount(wordCount)} 問が目安です。</p>
+            <p>設問は 3〜5 問。英単語数 {wordCount} 語なので {recommendedQuestionCount} 問が目安です。</p>
             {attemptCount > 0 && <p className="mt-1">挑戦がある問題は、設問の追加・削除ができません（設問文・選択肢・正解・解説は修正できます）。</p>}
           </div>
           <button

@@ -25,7 +25,7 @@ flowchart TD
 
 ### 2. 純関数（`apps/cron/src/lib/question-generation/`）
 
-env も DB も知らない。メッセージ中の段落の表記は `numberParagraphs` で求め、番号が無いブロックは「見出し」とする。
+env も DB も知らない。メッセージ中のブロックの表記は、段落は `numberParagraphs` の「段落 N」、見出しは `numberHeadings` の「見出し N」とする（api の公開の条件のメッセージと同じ規則。和訳の無い見出しが複数あっても理由を区別できるように）。
 
 ```typescript
 /** validate-generated-output.ts：不合格なら再生成させる検査 */
@@ -53,7 +53,7 @@ export const buildDraftContent = (input: {
 }): { content: GeneratedDraft, droppedGlossary: { blockIndex: number, surface: string }[] }
 ```
 
-1. **和訳**：`translations` を code 以外のブロックの `translationJa` に入れる（code・範囲外は無視）。和訳の無いブロックごとに要確認「段落 4 の和訳がありません」
+1. **和訳**：`translations` を code 以外のブロックの `translationJa` に入れる（code・範囲外は無視）。和訳の無いブロックごとに要確認「段落 4 の和訳がありません」「見出し 1 の和訳がありません」
 2. **用語集**：code・範囲外のブロックを指すものと、`findSurfaceRange` で見つからないものは捨てて `droppedGlossary` に入れる（task がログに出す）。同じ位置の重複は 1 つにする
 3. **根拠**：`hasQuote` が false なら要確認「Q2：根拠の引用が段落 2 の本文に見つかりません」
 4. **語義設問の対象**：同じ `blockIndex` と `surface` の用語集の項目があれば紐づける。無ければ `findSurfaceRange` で探し、見つかれば `meaningJa: ""` の項目を足して紐づけ、要確認「Q3：対象の語句「opt in」を用語集に追加しました。意味を入力してください」。見つからなければ紐づけず要確認「Q3：対象の語句「opt in」が段落 2 に見つかりません」
@@ -182,7 +182,7 @@ export const generateQuestions = async (
    - API エラー（SDK のリトライ後）・`LlmRefusalError` → `recordGenerationFailure`（`error` は種類とメッセージ）。戻り値が `failed` なら `failedCount` を +1、`collected` なら `retryLaterCount` を +1
    - `isFatalLlmError` → `releaseClaim` して throw（設定の誤りで全件の失敗回数を増やさない）。他の取得済みの行は 30 分後に回収される
    - claim が古く保存が false → warn ログだけ出して数えない
-5. 1 件ごとに `logger.info`（passageId、結果、`usage` のトークン数とキャッシュの読み込み数、捨てた用語集）
+5. 1 件ごとにログを出す（passageId、結果、`usage` のトークン数とキャッシュの読み込み数、捨てた用語集）。下書き・却下は `logger.info`（`passage processed`）、`recordGenerationFailure` にした失敗は `logger.warn`（`passage generation failed`。エラーの内容を含める）
 
 ### 6. Task（`apps/cron/src/task/generate-questions.ts`）
 
@@ -191,7 +191,7 @@ export const generateQuestions = async (
 - `env.ts` に `GENERATE_MAX_PASSAGES_PER_RUN`（既定 10）・`GENERATE_MAX_PENDING_DRAFTS`（既定 50）を `z.coerce.number().int().positive()` で足す。`ANTHROPIC_API_KEY` が無ければ throw
 - `parseGenerateQuestionsArgs(process.argv.slice(2))`、`setupGracefulShutdown(db)` の `isShuttingDown` を渡す。`now: () => new Date()`、`random: Math.random`
 - `DrizzlePassageRepository(db)`、`new AnthropicClient(new Anthropic({ apiKey, maxRetries: 2, timeout }))`
-- 結果をログに出し、**`failedCount > 0` なら throw して exit code 1**。`finally` で `db.$disconnect()`
+- 結果をログに出し、**`describeRunFailure(result)` が理由を返したら throw して exit code 1**（`failedCount > 0`、または `draftCount + rejectedCount === 0 && retryLaterCount > 0`＝取得した全件が一時的な失敗。判定は `lib/question-generation/describe-run-failure.ts` の純関数に置き、task に件数の判定を書かない）。`finally` で `db.$disconnect()`
 - `package.json` に `"generate:questions": "dotenvx run -f .env.local -- tsx src/task/generate-questions.ts"`、`CLAUDE.md` のタスクと環境変数の表に追記。スケジュール（`collect:passages` の 1 時間後）の登録は [step7-infra-cron-schedules](./step7-infra-cron-schedules.md)
 
 ## 動作確認
@@ -205,11 +205,12 @@ pnpm --filter cron generate:questions --passage-id=42   # ローカル DB と AP
 `test/lib/question-generation/`（純関数。モック不要）：
 
 - [ ] `validateGeneratedOutput`：設問数が語数（300 / 301 語の境界）に合わない / 選択肢が大文字小文字違いで重複 / 根拠が範囲外・code ブロック → 不合格。`isSuitable = false` は配列が空でも合格
-- [ ] `buildDraftContent`：用語集の位置が本文から求まる / 見つからない語句が `droppedGlossary` に入る / 和訳の無いブロック・見つからない根拠が要確認になる
+- [ ] `buildDraftContent`：用語集の位置が本文から求まる / 見つからない語句が `droppedGlossary` に入る / 和訳の無いブロック・見つからない根拠が要確認になる / 和訳の無い見出しが 2 つあれば「見出し 1」「見出し 2」で区別される
 - [ ] `buildDraftContent`：語義設問の対象が既存の項目に紐づく / 用語集に無ければ項目が足されて紐づく / 本文に無ければ紐づかず要確認
 - [ ] `shuffleChoices`：固定した `random` で並びが変わり、正解の選択肢の **文字列** が `correctChoiceIndex` の位置にある
 - [ ] `findVerificationMismatches`：一致は理由なし、食い違いだけ理由と `verificationChoiceIndex` が入る
 - [ ] `parseGenerateQuestionsArgs`：`--passage-id=42` → 42、`abc` / `0` → throw、指定なし → undefined
+- [ ] `describeRunFailure`：`failed` が 1 件 → 理由を返す / 下書き・却下が 0 件で `retryLaterCount` が 1 以上 → 理由を返す / 下書きか却下が 1 件でもあれば（他が失敗しても）null
 
 `test/service/passage/generate-questions.test.ts`（Repository は `vi.fn()`、`LlmClient` は偽物）：
 
@@ -218,7 +219,7 @@ pnpm --filter cron generate:questions --passage-id=42   # ローカル DB と AP
 - [ ] 合格 → `saveDraft` に和訳・用語集・シャッフル後の設問・制限時間・要確認の理由が渡り、`draftCount` が 1
 - [ ] 1 回目不合格・2 回目合格 → 2 回目の user message に不合格の理由が入る。2 回とも不合格 → `recordGenerationFailure`
 - [ ] `isSuitable = false` → `markRejectedByLlm`、検証モデルは呼ばない
-- [ ] API エラーで `recordGenerationFailure` が `failed` を返す → `failedCount` が 1。2 件目の処理は続く
+- [ ] API エラーで `recordGenerationFailure` が `failed` を返す → `failedCount` が 1。2 件目の処理は続く。失敗は warn でログに出る
 - [ ] 検証モデルが失敗 → 検証なしで保存され、要確認に理由が入る
 - [ ] `isFatalLlmError` → `releaseClaim` して throw
 - [ ] `passageId` 指定で 0 件 → throw。指定時は下書きの上限を見ない

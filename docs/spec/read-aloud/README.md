@@ -17,7 +17,7 @@
 - [`../product-overview/README.md`](../product-overview/README.md) — 機能一覧・インフラ上の配置
 - [`../minimal-deploy/README.md`](../minimal-deploy/README.md) — cron（ECS RunTask）と S3 の置き場所
 - [`./deferred-voices-and-pronunciation.md`](./deferred-voices-and-pronunciation.md) — MVP 対象外。声の選択、単語の発音、ユーザーの音読の評価
-- **この spec が正本のもの**：`passage_audios` の列定義、音声のマニフェスト（`PassageAudioManifest`）の型、`AUDIO_STATUSES`
+- **この spec が正本のもの**：`passage_audios` の列定義、`reading_attempts.listened_block_count`（読み上げを聞いた段落の数）、音声のマニフェスト（`PassageAudioManifest`）の型、`AUDIO_STATUSES`
 
 ## 目次
 
@@ -108,7 +108,7 @@
 
 - 読み上げを聞いている間も **タイマーは進む**（読解の時間に含める）
 - 解答画面の **一時停止** で読み上げも止まる。再開しても読み上げは自動で再開しない（再生ボタンで再開する）
-- 画面を離れたとき（web はタブを切り替えたとき、mobile はアプリを閉じたとき）は読み上げを止める。タイマーが止まるのと合わせる
+- 画面を離れたとき（web はタブを切り替えたとき、mobile はアプリを閉じたときと、上に画面を積んだとき）は読み上げを止める。タイマーが止まるのと合わせる
 - 和訳を表示中の段落（全文訳を含む）は、**読み上げている間だけ英文で表示** する（音声とハイライトを英文に合わせるため）。次の段落に進むか停止すると、和訳の表示に戻る。和訳の切り替えの状態そのものは変えない
 - 提出すると読み上げは止まる
 - mobile は端末の消音モードでも音を出す（学習アプリとして、マナーモード中でも聞けるようにする）
@@ -169,7 +169,7 @@ Polly の Neural は **単語の時刻（Speech Marks）を返せる最も安い
 | 音声の生成（1 問） | 4,800 文字 × $16 / 100 万文字 | **約 $0.077（約 12 円）**。公開時に 1 回だけ |
 | 月 30 問を公開 | 14.4 万文字 | 約 $2.3 |
 | 月 100 問を公開 | 48 万文字 | 約 $7.7 |
-| 月 300 問を公開（生成タスクの上限） | 144 万文字 | 約 $23 |
+| 月 300 問を公開（[question-generation の生成の上限](../question-generation/README.md#費用の上限)） | 144 万文字 | 約 $23 |
 | 保存（S3） | 1 問 約 1MB（mp3、約 2.7 分）。1,000 問で 1GB × $0.025 | 月 約 $0.03 |
 | 配信（CloudFront） | 1 回の全文再生で約 1MB | 月 1TB（約 100 万回の再生）まで無料。超過分は 1GB あたり $0.114 |
 | 生成タスクの実行（ECS RunTask） | 1 時間ごと、1 回 1 分前後 | 月 $0.2 前後 |
@@ -178,6 +178,7 @@ Polly の Neural は **単語の時刻（Speech Marks）を返せる最も安い
 - 費用は **公開した問題の数に比例** し、ユーザー数や再生回数にはほぼ比例しない（音声を作り置きして使い回すため）
 - 本文を直して再公開したとき（本文のハッシュで判定）と、voice を変えたときだけ作り直す。読み上げ用テキストの作り方の版（`AUDIO_TEXT_VERSION`）を上げても自動では作り直さない（[音声の生成タスク](#音声の生成タスク)）
 - 1 回の実行で作る件数に上限を置く（`AUDIO_MAX_PASSAGES_PER_RUN`、既定 20）。AWS の Budgets で Polly の利用額にアラートを付ける
+- voice の変更・読み上げ用テキストの版の更新では、公開済みの問題数 × 約 $0.077 が 1 度にかかる（1 時間に最大 20 問ずつ作り直す。公開済みが 300 問なら約 $23）
 
 参考：[Amazon Polly の料金](https://aws.amazon.com/polly/pricing/)、[Polly の Speech Marks](https://docs.aws.amazon.com/polly/latest/dg/speechmarks.html)、[Polly の Generative の制約](https://docs.aws.amazon.com/polly/latest/dg/generative-voices.html)、[CloudFront の料金](https://aws.amazon.com/cloudfront/pricing/pay-as-you-go/)、[Google Cloud TTS の料金（調査サイト）](https://texttolab.com/blog/google-cloud-tts-pricing)、[Azure TTS の料金（調査サイト）](https://texttolab.com/blog/azure-text-to-speech-pricing)、[OpenAI TTS の料金（調査サイト）](https://texttolab.com/blog/openai-tts-pricing)、[ElevenLabs の料金](https://elevenlabs.io/pricing)
 
@@ -197,7 +198,7 @@ cron に `generate:audio` タスクを足す。EventBridge Scheduler で **1 時
 6. 失敗したら `attempt_count` を増やし、3 回で `failed`（[失敗時の扱い](#失敗時の扱い)）
 
 - Polly を呼ぶ間はトランザクションを開かない（本番〈minimal〉の DB は PgBouncer の transaction pooling なので、長いトランザクションを避ける）
-- Polly のクライアントは `apps/cron/src/client/polly/`（`@aws-sdk/client-polly`）。資格情報は ECS のタスクロール（IAM に `polly:SynthesizeSpeech`）。ローカルは AWS の資格情報が無ければタスクが「音声合成を使えない」として何もせず終わる（開発中は無音の mp3〈無音の MPEG フレームを並べたもの〉と等間隔の単語の時刻を返す `FakeTtsClient` を env で選べる）
+- Polly のクライアントは `apps/cron/src/client/polly/`（`@aws-sdk/client-polly`）。資格情報は ECS のタスクロール（IAM に `polly:SynthesizeSpeech`）。音声合成は `TTS_PROVIDER` で選び、既定は `production` では `polly`、それ以外は `fake`（無音の mp3〈無音の MPEG フレームを並べたもの〉と等間隔の単語の時刻を返す `FakeTtsClient`。手元の AWS の資格情報で意図せず課金しないため。[step3 の env](./tasks/step3-cron-generate-audio.md#5-taskenvスクリプト)）。ローカルで `polly` を選んで AWS の資格情報が無ければ、タスクは「音声合成を使えない」として何もせず終わる
 - 冪等：同じ問題を 2 回処理しても、同じキーに上書きして同じマニフェストになる
 - 読み上げ用テキストの作り方を変えて `AUDIO_TEXT_VERSION` を上げても、`ready` の行は自動では作り直さない。作り直すときはデプロイの後に `UPDATE passage_audios SET status = 'pending' WHERE status = 'ready'` を流す（次の実行から `AUDIO_MAX_PASSAGES_PER_RUN` 件ずつ作り直す。その間は「準備中」になる。ハッシュが変わらない行は Polly を呼ばずに `ready` に戻る）
 
@@ -229,7 +230,7 @@ cron に `generate:audio` タスクを足す。EventBridge Scheduler で **1 時
 | 再生 | `HTMLAudioElement`（1 つを使い回し、パートごとに `src` を差し替える） | `expo-audio` の `useAudioPlayer`（パートごとに `replace`） |
 | 速度 | `playbackRate`（`preservesPitch = true`） | `setPlaybackRate`（`shouldCorrectPitch = true`） |
 | 時刻の取得 | 再生中だけ `requestAnimationFrame` で `currentTime` を読む | `playbackStatusUpdate` の `currentTime`（更新間隔 100ms） |
-| 画面を離れたとき | `visibilitychange` で一時停止 | `AppState` が `active` でなくなったら一時停止 |
+| 画面を離れたとき | `visibilitychange` で一時停止 | `AppState` が `active` でなくなったとき、`useIsFocused` が false になったとき（上に画面を積んだとき）に一時停止 |
 | 消音モード | ― | `setAudioModeAsync({ playsInSilentMode: true })` |
 | 次のパートの先読み | 次のパートの `Audio` を `preload = "auto"` で先に作る | 行わない（段落の間に短い間が空くのは許容する） |
 
@@ -240,14 +241,17 @@ cron に `generate:audio` タスクを足す。EventBridge Scheduler で **1 時
 - 「聞いた段落」の記録は、ブロックの中の再生位置が 1 秒を超えたら `listenedBlockIndexes` に足す（シークの操作は無いので、再生位置で再生した時間を表せる）。途中経過として端末に保存する値（web は `localStorage`、mobile は `AsyncStorage`）に含め、提出時に件数（`listened_block_count`）を送る。途中経過の版は上げず、この値が無い古い保存も読む（解答中の挑戦の途中経過を消さないため）
 - マニフェストは解答画面・結果画面を開いた後に、挑戦とは別のリクエストで取得する（挑戦の開始・取得のレスポンスを重くしない。押す前に「準備中」を出すため、押したときではなく開いたときに取る）。web は Route Handler（`/api/attempts/[id]/audio`）を経由する
 - 外から止めた（一時停止の操作・上部バーの一時停止・画面を離れた）直後にパートの終わりが届いたら、次のパートは鳴らさずに用意だけして一時停止のままにする（再開すると次のパートの最初から鳴る。次が無ければ待機に戻る）。止める直前にパートが終わっていると、終わりの通知が後から届いて次のパートが勝手に鳴るため
+- この「止めた」扱いは、アプリのボタンを通らない再開でも解く（web はメディアキー・AirPods・ブラウザのメディアコントロール〈`audio` の `play` イベント〉、mobile は割り込みの終わり・前面に戻ったときに OS が再生を戻したとき）。解かないと、パートの終わりで次のパートを用意するだけになり段落の境目で止まる
 - 取得の失敗だけでなく再生の失敗（mp3 を読み込めない。mobile は 10 秒たっても読み込めない）でも時刻表を捨て、再生ボタンでマニフェストを取り直す（取り直したら待機に戻り、もう一度押すと再生する）。公開し直しで音声が作り直されて古い mp3 が消えていると、同じ時刻表の URL では失敗し続けるため
 - mobile は、パートを `replace` した後に届く前のパートの再生状態の通知を、通知の音声の長さ（`duration`）が新しいパートの長さと合う（±250ms）まで捨てる（ネイティブからの通知は非同期で、前のパートの通知が何件も後から届くことがある）。詳細は [step6](./tasks/step6-mobile-read-aloud.md)
+- mobile は、上に画面を積んでいる間の再生状態の通知を捨て、パートの終わりの通知は player の今の再生位置がパートの終わりにあるときだけ受ける（他の player の終わりの通知で、一時停止中のパートを次に差し替えないため）
 
 ### 失敗時の扱い
 
 - Polly の一時的なエラー（throttling・5xx）は SDK のリトライに任せる。それでも失敗した問題は `attempt_count` を増やして次の実行に回す
+- mp3 の保存の一時的なエラー（S3 の 5xx・throttling、ローカルの保存先の失敗）も、Polly の一時的なエラーと同じく `attempt_count` を増やして次の実行に回す
 - 3 回失敗したら `failed` にして `last_error` を残す。管理者が admin で「再試行」すると `pending` に戻る（`attempt_count = 0`）
-- 資格情報・権限・voice の設定の誤りのように、どの問題でも同じく失敗するエラーでは、失敗の回数を増やさずに確保を `pending` に戻してタスクを止める（全件が `failed` にならないように）
+- 資格情報・権限・voice の設定の誤りのように、どの問題でも同じく失敗するエラーでは、失敗の回数を増やさずに確保を `pending` に戻してタスクを止める（全件が `failed` にならないように）。Polly だけでなく mp3 の保存先（S3 の権限が無い・bucket が無い・資格情報が無効・bucket のリージョンが違う）の誤りも同じ（保存は音声合成の後なので、1 件の失敗にすると Polly の料金をかけて全件が `failed` に進む）。前の mp3 の削除でこの誤りが起きたときも、その問題の結果は書き終えたままタスクを止める
 - 1 件でも失敗があればタスクは exit 1（ECS のタスクの終了コードとログに残す。通知は MVP では持たない。[content-collection](../content-collection/README.md#実行の上限と失敗時の扱い) と同じ）
 - 音声が無い・失敗した問題でも、解答は普段どおりできる（読み上げのボタンが無効になるだけ）
 
@@ -449,7 +453,7 @@ cron に `generate:audio` タスクを足す。EventBridge Scheduler で **1 時
 └────────────────────────────────────────────┴─────────────────────────────────┘
 ```
 
-- 本文の上の注記を「本文（根拠の箇所をハイライトしています。単語のタップ・和訳・読み上げはここでも使えます）」にする
+- 本文の上の注記を「本文（根拠の箇所をハイライトしています。単語のタップ・和訳・読み上げはここでも使えます）」にする（web だけ。mobile は「本文（根拠の箇所をハイライトしています）」のまま。[mobile の画面](#mobile-の画面)）
 - アシストの使用に「読み上げ n 段落」（解答中に聞いた段落の数）を足す。結果画面で聞いた段落は数えない
 - 結果画面を開いただけでは再生しない
 
@@ -481,6 +485,7 @@ cron に `generate:audio` タスクを足す。EventBridge Scheduler で **1 時
 - 本文の最後の段落がミニプレーヤーに隠れないよう、本文の下の余白を広げる
 - 本文を指で動かし始めたら自動スクロールを止める。自動スクロールは読み上げ中の段落の始まりを「本文の根拠を見る」と同じ位置（画面の上の方）に合わせる
 - 段落の長押し（押している間だけ和訳）は、読み上げ中の段落でも使える
+- 結果画面の本文の上の注記は変えない（「本文（根拠の箇所をハイライトしています）」のまま。web は読み上げも使えることを書き足す）
 
 ### 見た目の決まり
 
@@ -513,7 +518,7 @@ cron に `generate:audio` タスクを足す。EventBridge Scheduler で **1 時
 | 読み上げ中の位置に戻る | 読み上げ中の段落までスクロールし、自動スクロールを再開 |
 | 読み上げ中の単語を押す | 単語のカード（再生は止めない） |
 | 上部バーの一時停止 | 読み上げも一時停止。解答を再開しても読み上げは止まったまま |
-| 画面を離れる（タブの切り替え・アプリを閉じる） | 読み上げを一時停止 |
+| 画面を離れる（タブの切り替え・アプリを閉じる・mobile で上に画面を積む） | 読み上げを一時停止 |
 | 提出・中断 | 読み上げを止める |
 
 ## 必要な API
@@ -538,7 +543,7 @@ erDiagram
         int id PK
         int passage_id FK "unique"
         text status "AUDIO_STATUSES"
-        text voice_id "例: Joanna"
+        text voice_id "例: Joanna（TTS_PROVIDER=fake は fake:Joanna）"
         text text_hash "読み上げ対象の本文と voice のハッシュ"
         jsonb manifest "PassageAudioManifest, nullable"
         int billed_characters "Polly の課金文字数（音声 + 単語の時刻）"
@@ -562,6 +567,7 @@ erDiagram
 - `AUDIO_STATUSES = ["pending", "generating", "ready", "failed"]` は `@repo/domain` の `const/audio.ts`。DB の CHECK 制約はここから作る
 - `PassageAudioManifest`（`@repo/domain` の `types/audio.ts`）：`{ blocks: { blockIndex: number; parts: { durationMs: number; key: string; words: [startMs, endMs, startOffset, endOffset][] }[] }[] }`。単語の時刻は容量を抑えるため配列のタプルにする（600 語で約 20KB）
 - `generation_started_at` は生成タスクが確保したときの時刻。結果を書くときの条件（確保のトークン）と、30 分以上止まった `generating` の回収に使う。`generating` の行は必ず値を持つ（CHECK 制約）
+- `voice_id` は生成に使った voice。`TTS_PROVIDER=fake`（無音の mp3）は `fake:<voice>` にして `text_hash` にも入れる（fake で作った問題を Polly に切り替えたときに、voice が違う行として作り直し、保存キーも変える。同じ値だと CloudFront の長期キャッシュに無音の mp3 が残る）
 - `manifest` / `text_hash` は最後に成功した生成のもの。失敗しても前の値を残す（前の mp3 のキーを後で消すため。利用者には `ready` のときしかマニフェストを返さない）
 - index：`(status)`（生成タスクの取得用）
 - ユーザーに紐づかないテーブルなので、アカウント削除の cascade の対象外

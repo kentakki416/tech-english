@@ -54,8 +54,8 @@ function PassageNote({ row }: { row: PassageRow }) {
   if (row.status !== "draft" || row.attention_reasons.length === 0) return EMPTY_MARK
   return (
     <div className="space-y-1">
-      {row.attention_reasons.map((reason) => (
-        <p key={reason} className="flex items-start gap-1.5 text-theme-xs text-warning-600 dark:text-orange-400">
+      {row.attention_reasons.map((reason, index) => (
+        <p key={index} className="flex items-start gap-1.5 text-theme-xs text-warning-600 dark:text-orange-400">
           <span aria-hidden className="mt-1 size-1.5 shrink-0 rounded-full bg-warning-500" />
           {reason}
         </p>

@@ -4,8 +4,10 @@ import { logout } from "../../../src/service/auth-service"
 const mockDelete = vi.fn<(_0: string) => Promise<void>>()
 const mockRefreshTokenRepository: RefreshTokenRepository = {
   delete: mockDelete,
+  findRotatedTokens: vi.fn(),
   findUserId: vi.fn(),
   save: vi.fn(),
+  saveRotatedTokens: vi.fn(),
 }
 
 describe("logout", () => {

@@ -95,7 +95,8 @@ export type GenerateQuestionsResult = {
   failedCount: number
   rejectedCount: number
   /**
-   * 失敗したが上限に達していないので collected に戻した件数（次回の実行でやり直す）
+   * 失敗したが上限に達していないので collected に戻した件数（次回の実行でやり直す）。
+   * draftCount と rejectedCount が 0 でこれが 1 以上（全件が失敗）なら task が exit 1 で終える
    */
   retryLaterCount: number
   skippedReason: "pending_drafts_limit" | null
@@ -279,7 +280,7 @@ const processPassage = async (
   const generation = await generateValidOutput(passage, input, deps)
   if (!generation.ok) {
     const outcome = await recordFailure(claim, `validation failed: ${generation.errors.join("; ")}`, repo)
-    logger.info("passage processed", {
+    logger.warn("passage generation failed", {
       errors: generation.errors,
       generationUsage: generation.usage,
       outcome,
@@ -416,7 +417,7 @@ export const generateQuestions = async (
       }
       const description = describeError(error)
       outcome = await recordFailure(claim, description, repo)
-      logger.info("passage processed", { error: description, outcome, passageId: passage.id })
+      logger.warn("passage generation failed", { error: description, outcome, passageId: passage.id })
     }
     if (outcome === "draft") result.draftCount++
     if (outcome === "failed") result.failedCount++

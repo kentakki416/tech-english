@@ -21,6 +21,8 @@ export type ContentSourceFormState = {
 
 const DUPLICATE_MESSAGE = "同じリポジトリ・サイトがすでに登録されています。"
 
+const ORIGIN_LOCKED_MESSAGE = "取得した文書があるソースは、リポジトリ・サイトの URL を変えられません。変えたいときは別のソースとして登録してください。"
+
 /**
  * API の失敗をフォームの文言にする。409 は重複、それ以外は再試行を促す
  */
@@ -69,6 +71,10 @@ export const updateContentSourceAction = async (
     await contentSourceApi.update(id, parsed.data)
   } catch (error) {
     if (error instanceof ApiClientError && error.status === 404) return { message: "このソースは見つかりませんでした。" }
+    /**
+     * フォームの値はここで検証済みなので、API の 400 は取得した文書があるソースの取得元（リポジトリ・サイトの URL）の変更
+     */
+    if (error instanceof ApiClientError && error.status === 400) return { message: ORIGIN_LOCKED_MESSAGE }
     return convertApiErrorToFormState(error, "保存に失敗しました。時間をおいて再度お試しください。")
   }
 

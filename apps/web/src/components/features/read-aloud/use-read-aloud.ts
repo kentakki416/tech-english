@@ -118,7 +118,8 @@ const createReadAloudPlayer = (events: PlayerEvents) => {
   /**
    * 外から止めた（一時停止の操作・上部バーの一時停止・タブの切り替えなど。pause() と toggle() の一時停止）。
    * 立っている間にパートの終わり（ended）が届いたら、次のパートの src を差し替えるだけで鳴らさない（止める直前にパートが終わっていると、
-   * 止めた後に ended が届いて次のパートが勝手に鳴るため）。再開と、自分の操作で始めたとき（start）に下ろす
+   * 止めた後に ended が届いて次のパートが勝手に鳴るため）。再開（audio の play イベント。toggle の再開に加えて、メディアキー・イヤホン・
+   * ブラウザのメディアコントロールで再開したときも）と、自分の操作で始めたとき（start）に下ろす
    */
   let isPauseRequested = false
   /**
@@ -202,9 +203,13 @@ const createReadAloudPlayer = (events: PlayerEvents) => {
   }
 
   /**
-   * 再生中かは自分の操作ではなく audio の play / pause で決める（イヤホンが外れたなど、ブラウザが止めたときも表示を合わせる）
+   * 再生中かは自分の操作ではなく audio の play / pause で決める（イヤホンが外れたなど、ブラウザが止めたときも表示を合わせる）。
+   * 再開したので「止めた」印も下ろす（メディアキー・AirPods・ブラウザのメディアコントロールは toggle を通らずに audio を再開するので、
+   * 下ろさないとパートの終わりで次のパートを用意するだけになり、段落の境目で止まる。shouldPlay: false の startPart は play しないので
+   * play イベントは来ず、止めた後に届いたパートの終わりで次のパートを一時停止のまま用意する動きとは矛盾しない）
    */
   const handlePlay = () => {
+    isPauseRequested = false
     events.onPlaybackChange(current => current && { ...current, isPlaying: true })
     startTracking()
   }

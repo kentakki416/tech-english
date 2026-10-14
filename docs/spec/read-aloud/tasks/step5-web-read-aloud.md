@@ -205,7 +205,7 @@ export function useReadAloud({ attemptId, blocks, onBlockListened }: UseReadAlou
 
 **取得**
 
-- マウント時に `fetch(`/api/attempts/${attemptId}/audio`)` し、`getAttemptAudioResponseSchema` で検証する。`ready` → `buildReadAloudTimeline` で時刻表を作り `ready`（時刻表のブロックが 0 なら `failed`）、`pending` / `failed` はそのまま、通信の失敗・200 以外・検証の失敗は `error`
+- マウント時に `fetch(`/api/attempts/${attemptId}/audio`)` する。レスポンスは Route Handler が `getAttemptAudioResponseSchema` で検証済み（§1 の `attemptApi.getAudio`。検証に失敗すると Route Handler は 500 を返す）なので、ブラウザでは `GetAttemptAudioResponse` の型を付けるだけにする（Zod のスキーマをブラウザの bundle に入れないため）。`ready` → `buildReadAloudTimeline` で時刻表を作り `ready`（時刻表のブロックが 0 なら `failed`）、`pending` / `failed` はそのまま、通信の失敗・200 以外は `error`
 - 画面を離れた後に届いた結果は捨てる（`AbortController` で中断する）
 
 **再生**
@@ -214,7 +214,7 @@ export function useReadAloud({ attemptId, blocks, onBlockListened }: UseReadAlou
 - 次のパート（同じブロックの次のパート、全文なら次のブロックの最初のパート）の `Audio` を `preload = "auto"` で先に作っておく（ブラウザのキャッシュに載せるため。再生はしない）
 - `isPlaying` は自分の操作ではなく、`audio` の `play` / `pause` イベントで決める（イヤホンが外れたなど、ブラウザが止めたときも表示を合わせる）
 - `ended`：同じブロックに次のパートがあればそれを、全文なら次のブロックを再生する。段落の再生・最後のブロックなら `stop()`
-- 外から止めた（`pause()`、`togglePlay` の一時停止。上部バーの一時停止・`visibilitychange` を含む）ら「止めた」印を立て、再開（`togglePlay` の再開）と自分の操作で始めたとき（待機からの再生・`playBlock` で別の段落）に下ろす。印が立っている間に `ended` が届いたら、次のパートがあれば `src` を差し替えるだけで `play()` せず、一時停止の表示にする（再開すると次のパートの最初から鳴る）。次が無ければ `stop()`。止める直前にパートが終わっていると、止めた後に `ended` が届いて次のパートが勝手に鳴るため
+- 外から止めた（`pause()`、`togglePlay` の一時停止。上部バーの一時停止・`visibilitychange` を含む）ら「止めた」印を立て、再開（`audio` の `play` イベント。`togglePlay` の再開に加えて、メディアキー・AirPods・Chrome のメディアコントロールなど `togglePlay` を通らない再開も含む）と自分の操作で始めたとき（待機からの再生・`playBlock` で別の段落）に下ろす。`togglePlay` を通らない再開で下ろさないと、`ended` で次のパートを用意するだけになり段落の境目で止まる（印が立っている間に `src` だけ差し替えたパートは `play()` しないので `play` イベントは来ず、下の動きとは矛盾しない）。印が立っている間に `ended` が届いたら、次のパートがあれば `src` を差し替えるだけで `play()` せず、一時停止の表示にする（再開すると次のパートの最初から鳴る）。次が無ければ `stop()`。止める直前にパートが終わっていると、止めた後に `ended` が届いて次のパートが勝手に鳴るため
 - パートの終わり（`audio.ended` が true で `ended` の前）に `togglePlay` が呼ばれたら、`paused` でも再生中として扱って一時停止にする（`paused` だけで見ると、終わったパートを最初から鳴らし直す）
 - `error`：再生を止めて `availability = "error"`。時刻表も捨てる（公開し直しで音声が作り直されて古い mp3 が消えていると、同じ時刻表の URL では失敗し続けるため。次の再生ボタンでマニフェストを取り直す）
 
@@ -393,6 +393,7 @@ pnpm --filter web build
 - [ ] api を止めて開くと「読み上げを読み込めませんでした」。api を戻して再生ボタンを押すと取り直して「全文を読み上げ」に戻る
 - [ ] mp3 の読み込みを失敗させる（Playwright の `page.route("**/media/**", route => route.abort())`）と「読み上げを読み込めませんでした」。戻して再生ボタンを押すと `/api/attempts/:id/audio` を取り直して「全文を読み上げ」に戻り（再生はしない）、もう一度押すと再生する
 - [ ] パートの終わり（`pause` イベントで `audio.ended` が true の間）に一時停止を押すと、次のパートは鳴らずに一時停止の表示（「段落 n / N」が次の段落）になり、再開すると次のパートの最初から鳴る。段落の再生で一時停止した後に `ended` が届くと待機に戻る（`new Audio()` を包んで要素を取り、`pause` のリスナーからボタンを押す・`ended` を dispatch する）
+- [ ] 再生ボタン・`R`・上部バーで一時停止した後、ボタンを通らずに再開すると（`browser_evaluate` で `new Audio()` を包んで取った要素の `play()` を呼ぶ。メディアキー・Chrome のメディアコントロールの代わり）、段落の境目で止まらずに次の段落へ進む
 - [ ] mp3 を 1 つ消して再生すると、そのパートで止まって「読み上げを読み込めませんでした」
 - [ ] `browser_emulate_media` で `reducedMotion: "reduce"` にすると、自動スクロールがアニメーションしない
 - [ ] 幅 390px：ミニプレーヤーが閉じた設問シートのすぐ上にあり、`R` のキーキャップが無い。設問シートを開くとその下に隠れる

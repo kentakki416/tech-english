@@ -17,19 +17,14 @@
 /** packages/schema/src/api-schema/reminder.ts */
 import { z } from "zod"
 
+// ========================================================
+// 共通: 時刻の形式
+// ========================================================
+
 /**
  * "HH:mm" かつ 15 分刻み（00 / 15 / 30 / 45）。"24:00" や秒付きは不可
  */
 const REMINDER_TIME_PATTERN = /^([01]\d|2[0-3]):(00|15|30|45)$/
-
-/**
- * リマインダーの設定（GET / PUT のレスポンス共通の形）
- */
-const reminderSettingSchema = z.object({
-  is_enabled: z.boolean(),
-  time: z.string(),
-  weekdays: z.array(z.number()),
-})
 
 // ========================================================
 // GET /api/user/reminder - リマインダーの設定の取得
@@ -38,7 +33,11 @@ const reminderSettingSchema = z.object({
 /**
  * リマインダーの設定の取得のレスポンススキーマ。未保存なら既定値（オフ・毎日・21:00）
  */
-export const getUserReminderResponseSchema = reminderSettingSchema
+export const getUserReminderResponseSchema = z.object({
+  is_enabled: z.boolean(),
+  time: z.string().regex(REMINDER_TIME_PATTERN),
+  weekdays: z.array(z.number().int().min(1).max(7)),
+})
 
 export type GetUserReminderResponse = z.infer<typeof getUserReminderResponseSchema>
 
@@ -58,15 +57,21 @@ export const updateUserReminderRequestSchema = z.object({
     .refine((values) => new Set(values).size === values.length, "曜日が重複しています"),
 })
 
+export type UpdateUserReminderRequest = z.infer<typeof updateUserReminderRequestSchema>
+
 /**
  * リマインダーの設定の保存のレスポンススキーマ（保存後の値）
  */
-export const updateUserReminderResponseSchema = reminderSettingSchema
+export const updateUserReminderResponseSchema = z.object({
+  is_enabled: z.boolean(),
+  time: z.string().regex(REMINDER_TIME_PATTERN),
+  weekdays: z.array(z.number().int().min(1).max(7)),
+})
 
-export type UpdateUserReminderRequest = z.infer<typeof updateUserReminderRequestSchema>
 export type UpdateUserReminderResponse = z.infer<typeof updateUserReminderResponseSchema>
 ```
 
+- GET と PUT のレスポンスは同じ形だが、エンドポイントごとに別の `z.object` で書く（`packages/schema/CLAUDE.md` の「共通スキーマは作らない」）。レスポンスも時刻の形式と曜日の値域で検証する（API が契約と違う値を返したら 500 にし、mobile は `parse` で弾く）
 - mobile も `GetUserReminderResponse` / `UpdateUserReminderRequest` をここから import する（[step3](./step3-mobile-reminder.md)）
 - オフにするときも `weekdays` と `time` を送る（オフの間も曜日と時刻を保持し、次にオンにしたとき元の値に戻すため）
 

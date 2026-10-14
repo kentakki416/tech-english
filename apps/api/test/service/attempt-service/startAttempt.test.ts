@@ -20,6 +20,8 @@ const repo = { passageRepository, readingAttemptRepository, userRepository }
 
 const INPUT = { now: FIXED_NOW, passageId: 1, userId: 7 }
 
+const PRIMARY = { fromPrimary: true }
+
 const extractView = (result: Awaited<ReturnType<typeof startAttempt>>): InProgressAttemptView => {
   if (!result.ok) throw new Error("Expected ok result")
   return result.value.view
@@ -151,14 +153,14 @@ describe("startAttempt", () => {
       expect(readingAttemptRepository.createInProgress).not.toHaveBeenCalled()
     })
 
-    it("期限切れの更新（expireStale）を、挑戦中を探すより先に、そのユーザーと 24 時間前の境目で呼ぶ", async () => {
+    it("期限切れの更新（expireStale）を、挑戦中を探すより先に、そのユーザーと 24 時間前の境目で呼ぶ。挑戦中は primary から探す", async () => {
       passageRepository.findAttemptContentById.mockResolvedValue(buildAttemptContent())
       readingAttemptRepository.findAliveInProgress.mockResolvedValue(buildAttempt())
 
       await startAttempt(INPUT, repo)
 
       expect(readingAttemptRepository.expireStale).toHaveBeenCalledWith(7, ALIVE_SINCE)
-      expect(readingAttemptRepository.findAliveInProgress).toHaveBeenCalledWith(7, 1, ALIVE_SINCE)
+      expect(readingAttemptRepository.findAliveInProgress).toHaveBeenCalledWith(7, 1, ALIVE_SINCE, PRIMARY)
       const [expireOrder] = readingAttemptRepository.expireStale.mock.invocationCallOrder
       const [findOrder] = readingAttemptRepository.findAliveInProgress.mock.invocationCallOrder
       expect(expireOrder).toBeLessThan(findOrder ?? 0)
@@ -188,7 +190,7 @@ describe("startAttempt", () => {
       expect(readingAttemptRepository.findAliveInProgress).toHaveBeenCalledTimes(2)
     })
 
-    it("同時に開始されたときの読み直しは read replica の遅れで見失わないよう primary から読む（最初の確認は replica のまま）", async () => {
+    it("最初の確認も、同時に開始されたときの読み直しも、read replica の遅れで見失わないよう primary から読む", async () => {
       passageRepository.findAttemptContentById.mockResolvedValue(buildAttemptContent())
       readingAttemptRepository.findAliveInProgress
         .mockResolvedValueOnce(null)
@@ -198,8 +200,8 @@ describe("startAttempt", () => {
       await startAttempt(INPUT, repo)
 
       expect(readingAttemptRepository.findAliveInProgress.mock.calls).toEqual([
-        [7, 1, ALIVE_SINCE],
-        [7, 1, ALIVE_SINCE, { fromPrimary: true }],
+        [7, 1, ALIVE_SINCE, PRIMARY],
+        [7, 1, ALIVE_SINCE, PRIMARY],
       ])
     })
 
@@ -210,7 +212,7 @@ describe("startAttempt", () => {
 
       await startAttempt(INPUT, repo)
 
-      expect(readingAttemptRepository.findAliveInProgress.mock.calls).toEqual([[7, 1, ALIVE_SINCE]])
+      expect(readingAttemptRepository.findAliveInProgress.mock.calls).toEqual([[7, 1, ALIVE_SINCE, PRIMARY]])
     })
   })
 

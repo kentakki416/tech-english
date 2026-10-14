@@ -3,7 +3,14 @@ import { Alert } from "react-native"
 import type { UpdateUserReminderRequest } from "@repo/api-schema"
 
 import { studyReminderApi } from "./study-reminder.api"
-import { cancelScheduledStudyReminders, fetchNotificationPermission, rescheduleStudyReminders } from "./study-reminder.notification"
+import {
+  cancelScheduledStudyReminders,
+  dismissPresentedStudyReminders,
+  fetchNotificationPermission,
+  isNotificationPermissionGranted,
+  type NotificationPermission,
+  rescheduleStudyReminders,
+} from "./study-reminder.notification"
 import { useStudyReminderStore } from "./study-reminder.store"
 
 /**
@@ -49,8 +56,20 @@ const captureGeneration = (): (() => boolean) => {
 const isEditing = (): boolean => pendingSave !== null || isAwaitingPermission
 
 /**
+ * 取得に失敗したときの予約。通知が許可されていれば、最後に API と一致した値（savedSetting）で作り直す。
+ * 拒否中（予約 0 件）に OS の設定で許可し、オフライン（または取得の timeout）で前面に戻したとき、
+ * 案内は消えたのに予約が 0 件のままにならないようにするため（許可済みで予約がある場合も同じ値で作り直すだけ）。
+ * 許可されていない、または savedSetting が無い（このログインでまだ取得も保存もできていない）なら予約に触れない
+ */
+const rescheduleWithSavedSetting = async (permission: NotificationPermission | null): Promise<void> => {
+  const { savedSetting } = useStudyReminderStore.getState()
+  if (!savedSetting || !isNotificationPermissionGranted(permission)) return
+  await rescheduleStudyReminders(savedSetting, permission)
+}
+
+/**
  * ログイン直後・前面復帰。権限は取得より先に読んで反映する（オフラインで取得に失敗しても、OS の設定で許可したら案内を消す）。
- * 取得に失敗したら予約に触れない（オフラインでも前の予約で通知を出す）
+ * 取得に失敗したら（オフライン・timeout）、savedSetting で予約を作り直してから取得のエラーを投げる（rescheduleWithSavedSetting）
  */
 export const refreshStudyReminders = async (): Promise<void> => {
   const isCurrent = captureGeneration()
@@ -59,7 +78,10 @@ export const refreshStudyReminders = async (): Promise<void> => {
     const permission = await fetchNotificationPermission()
     if (!isCurrent()) return
     useStudyReminderStore.getState().setPermission(permission)
-    const setting = await studyReminderApi.get()
+    const setting = await studyReminderApi.get().catch(async (error: unknown) => {
+      if (isCurrent()) await rescheduleWithSavedSetting(permission)
+      throw error
+    })
     if (!isCurrent()) return
     useStudyReminderStore.getState().applyFetchedSetting(setting, permission, isEditing())
     await rescheduleStudyReminders(setting, permission)
@@ -116,7 +138,8 @@ export const runWhileAwaitingPermission = async <T>(task: () => Promise<T>): Pro
 }
 
 /**
- * ログアウト・アカウント削除。この端末の予約をすべて取り消して store を空にする。
+ * ログアウト・アカウント削除。この端末の予約と、通知センターに届き済みのリマインダーをすべて消して store を空にする
+ * （別のユーザーがこの端末でログインしたとき、前のユーザーのリマインダーを残さない）。
  * キューの前の処理は待たない（応答の無い通信の後ろで待つと、ログアウト・アカウント削除が終わらない）。
  * 前の処理は世代が変わるので結果を反映しないが、予約し直している途中だった処理が後から足した予約も消えるよう、
  * キューの最後でももう一度取り消す（こちらは待たない）
@@ -128,6 +151,18 @@ export const clearStudyReminders = async (): Promise<void> => {
    * 取り消しに失敗しても前のユーザーの設定を画面に残さない
    */
   useStudyReminderStore.getState().reset()
+  runSerially(cancelScheduledStudyReminders).catch((error: unknown) => console.warn("Failed to cancel study reminders:", error))
+  await Promise.all([cancelScheduledStudyReminders(), dismissPresentedStudyReminders()])
+}
+
+/**
+ * ログインの成功時（ログイン中にして同期が始まる前）。この端末の予約をすべて取り消す。
+ * 強制ログアウトでは予約を残すので、そのあと別のユーザーがログインして最初の取得に失敗すると、前のユーザーの予約が残るため。
+ * 同じユーザーでも次の同期（取得の成功）で作り直される。clearStudyReminders と同じく、キューの前の処理は待たずに取り消し、
+ * キューの最後でももう一度取り消す（ログイン後の同期はその後ろに積まれる）。
+ * store はログインしていない間に discardStudyReminderSetting で空にしてあるので触れない
+ */
+export const cancelStudyRemindersOnSignIn = async (): Promise<void> => {
   runSerially(cancelScheduledStudyReminders).catch((error: unknown) => console.warn("Failed to cancel study reminders:", error))
   await cancelScheduledStudyReminders()
 }

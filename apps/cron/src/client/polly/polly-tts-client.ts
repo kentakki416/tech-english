@@ -42,7 +42,7 @@ export class PollyTtsClient implements TtsClient {
 
   public async synthesize(input: SynthesizeInput): Promise<SynthesizeResult> {
     /**
-     * voice は task が起動時に isPollyVoiceId で確かめている。不正な値は Polly が ValidationException で返す（isFatalTtsError）
+     * voice は task が起動時に isPollyVoiceId で確かめている。不正な値は Polly が ValidationException で返す（isFatalAudioGenerationError）
      */
     const voiceId = input.voiceId as VoiceId
     const base = { Engine: "neural", Text: input.text, TextType: "text", VoiceId: voiceId } as const

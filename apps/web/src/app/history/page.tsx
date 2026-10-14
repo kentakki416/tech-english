@@ -3,6 +3,7 @@ import type { Metadata } from "next"
 import { HistoryList } from "@/components/features/learning-record/HistoryList"
 import { AppHeader } from "@/components/ui/AppHeader"
 import { learningRecordApi } from "@/features/learning-record/learning-record.api"
+import { redirectIfSessionRejected } from "@/libs/session"
 
 export const metadata: Metadata = {
   title: "学習履歴",
@@ -12,7 +13,10 @@ export const metadata: Metadata = {
  * 学習履歴。1 ページ目をここで取り、続きは HistoryList が「さらに表示」で取得する
  */
 export default async function HistoryPage() {
-  const page = await learningRecordApi.getAttempts()
+  /**
+   * 削除済みユーザーの access token では 401 になり、共通ヘッダーまで描画が進まないので、ここでもログイン画面へ移す
+   */
+  const page = await learningRecordApi.getAttempts().catch(redirectIfSessionRejected)
 
   return (
     <>

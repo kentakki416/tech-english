@@ -34,6 +34,11 @@ const CALENDAR_MAX_DAYS = 366
 const CALENDAR_YEAR_WEEK_COUNT = 53
 
 /**
+ * 一番苦手な種類を決めるのに要る、設問のある種類の数（1 種類だけでは他と比べられない）
+ */
+const MIN_COMPARED_QUESTION_TYPE_COUNT = 2
+
+/**
  * マイページの最近の挑戦の件数
  */
 const RECENT_ATTEMPT_LIMIT = 5
@@ -197,16 +202,18 @@ const calculateGoalProgress = (goal: UserGoal, weekDays: DailyStudySummary[], to
 }
 
 /**
- * 正答率が一番低い種類。丸める前の比で比べ、同率なら QUESTION_TYPES の順で先のもの。設問のある種類が無ければ null
+ * 正答率が一番低い種類。設問のある種類だけを丸める前の比で比べ、一番低い比の種類が複数あれば QUESTION_TYPES の順で先のもの。
+ * 他の種類より低いと言えないときは null（設問のある種類が 2 つ未満・設問のある種類がすべて同率。すべて 100% もここに入る）
  */
 const findWeakestQuestionType = (counts: (AccuracyCount & { type: QuestionType })[]): QuestionType | null => {
-  let weakest: { ratio: number; type: QuestionType } | null = null
-  for (const count of counts) {
-    if (count.questionCount === 0) continue
-    const ratio = count.correctCount / count.questionCount
-    if (weakest === null || ratio < weakest.ratio) weakest = { ratio, type: count.type }
-  }
-  return weakest?.type ?? null
+  const answered = counts
+    .filter((count) => count.questionCount > 0)
+    .map((count) => ({ ratio: count.correctCount / count.questionCount, type: count.type }))
+  if (answered.length < MIN_COMPARED_QUESTION_TYPE_COUNT) return null
+  const ratios = answered.map((entry) => entry.ratio)
+  const lowest = Math.min(...ratios)
+  if (lowest === Math.max(...ratios)) return null
+  return answered.find((entry) => entry.ratio === lowest)?.type ?? null
 }
 
 /**

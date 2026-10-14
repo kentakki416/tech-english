@@ -120,6 +120,16 @@ const STALE_STATUS_MIN_MS = 1000
 const STALE_STATUS_MAX_DELAY_MS = 2000
 
 /**
+ * didJustFinish を受けたとき、player の今の再生位置がパートの終わりからこの範囲にあれば、このパートの終わりとみなす
+ */
+const PART_END_TOLERANCE_MS = 250
+
+/**
+ * 外から止めた後、止めた位置よりこの分だけ進んだ playing の更新が来たら、OS が再生を戻したとみなす（再生位置の誤差を見込む）
+ */
+const RESUMED_POSITION_MARGIN_MS = 200
+
+/**
  * 速度を変えても声の高さを保つ。iOS は medium（timeDomain。声に向く）。
  * web の expo-audio は high のときだけ preservesPitch を true にするので、web 表示だけ high にする（Android は品質の指定を使わない）
  */
@@ -169,9 +179,15 @@ const createReadAloudController = (player: AudioPlayer, events: ControllerEvents
   /**
    * 外から止めた（一時停止の操作・上部バーの一時停止・アプリが前面でなくなった・上に画面を積んだ。pause()）。
    * 立っている間にパートの終わり（didJustFinish）が届いたら、次のパートを replace するだけで play() しない（止める直前にパートが終わっていると、
-   * 止めた後に終わりの更新が届いて次のパートが勝手に鳴るため）。再開と、自分の操作で始めたとき（start）に下ろす
+   * 止めた後に終わりの更新が届いて次のパートが勝手に鳴るため）。再開（toggle）と、自分の操作で始めたとき（start）と、
+   * OS が再生を戻したとき（isResumedByOs）に下ろす
    */
   let isPauseRequested = false
+  /**
+   * 外から止めた時刻と位置（パートを replace したときはその時刻と 0）。OS が再生を戻したかを、その後に届いた更新と比べて見分ける
+   */
+  let pausedAt = 0
+  let pausedPositionMs = 0
   /**
    * このパートで status.playing を見たか。再生を始める前に届いた didJustFinish は前のパートのものとして無視する
    */
@@ -241,6 +257,8 @@ const createReadAloudController = (player: AudioPlayer, events: ControllerEvents
     previousPartDurationMs = loadedPartDurationMs
     loadedPartDurationMs = part.durationMs
     replacedAt = Date.now()
+    pausedAt = replacedAt
+    pausedPositionMs = 0
     events.onPlaybackChange(() => ({ blockIndex, isPlaying: options.shouldPlay, mode, partIndex, wordIndex: -1 }))
     player.replace({ uri: part.url })
     /**
@@ -293,6 +311,27 @@ const createReadAloudController = (player: AudioPlayer, events: ControllerEvents
   }
 
   /**
+   * player の今の再生位置が、今のパートの終わりにあるか。iOS の expo-audio は終わりの更新の currentTime を player の長さに書き換えて送るので、
+   * status ではなく player から読む（他の player の終わりの通知を受けても、この player の位置で見分けられるように）。
+   * 終わりは player の長さとマニフェストの長さの短いほう（mp3 の長さの見積もりがずれる端末でも、本当の終わりを取りこぼさない）
+   */
+  const isPlayerAtPartEnd = (partDurationMs: number): boolean => {
+    const playerDurationMs = player.duration * 1000
+    const endMs = Number.isFinite(playerDurationMs) && playerDurationMs > 0 ? Math.min(playerDurationMs, partDurationMs) : partDurationMs
+    return player.currentTime * 1000 >= endMs - PART_END_TOLERANCE_MS
+  }
+
+  /**
+   * 外から止めた後に、自分の操作を通らずに再生が戻ったか（電話・Siri などの割り込みの終わりや、アプリが前面に戻ったときに、expo-audio の
+   * ネイティブが止める前に鳴っていた player を play し直す）。止めた・パートを替えた直後に届く古い更新（playing: true のまま）と
+   * 取り違えないよう、2 秒以上たってから、止めた位置より進んだ playing の更新だけを見る
+   */
+  const isResumedByOs = (status: AudioStatus): boolean =>
+    status.playing
+    && Date.now() - pausedAt >= STALE_STATUS_MAX_DELAY_MS
+    && status.currentTime * 1000 > pausedPositionMs + RESUMED_POSITION_MARGIN_MS
+
+  /**
    * 読み上げ中の単語と聞いた段落。単語が変わったときだけ state を変える
    */
   const trackPosition = (block: TimelineBlock, current: PlaybackCursor, positionMs: number) => {
@@ -318,6 +357,8 @@ const createReadAloudController = (player: AudioPlayer, events: ControllerEvents
     if (!cursor) return
     isPauseRequested = true
     player.pause()
+    pausedAt = Date.now()
+    pausedPositionMs = player.currentTime * 1000
     isStarting = false
     updateIsPlaying(false)
   }
@@ -342,7 +383,12 @@ const createReadAloudController = (player: AudioPlayer, events: ControllerEvents
     }
     const positionMs = status.currentTime * 1000
     if (status.didJustFinish) {
-      if (hasPlayedPart && !hasFinishedPart) {
+      /**
+       * パートの長さが合っていても（上の判定）、player の位置が終わりに無ければこのパートの終わりではないとして捨てる
+       * （他の player の終わりの通知を受けても、一時停止中のパートを次のパートに差し替えないため）
+       */
+      const partDurationMs = block.parts[cursor.partIndex]?.durationMs ?? 0
+      if (hasPlayedPart && !hasFinishedPart && isPlayerAtPartEnd(partDurationMs)) {
         hasFinishedPart = true
         startNextPart(cursor)
       }
@@ -357,6 +403,10 @@ const createReadAloudController = (player: AudioPlayer, events: ControllerEvents
        * 再生位置が進んでから鳴り始めたとみなす
        */
       if (positionMs > 0) isStarting = false
+      /**
+       * OS が再生を戻したら「止めた」印を下ろす（下ろさないとパートの終わりで次のパートを用意するだけになり、段落の境目で止まる）
+       */
+      if (isPauseRequested && isResumedByOs(status)) isPauseRequested = false
       updateIsPlaying(true)
     } else if (!isStarting) {
       updateIsPlaying(false)
@@ -406,6 +456,16 @@ const createReadAloudController = (player: AudioPlayer, events: ControllerEvents
         return
       }
       isPauseRequested = false
+      /**
+       * 画面を離れている間に届いたパートの終わりは捨てるので、終わったまま戻ってきたら次のパートから鳴らす
+       * （そのまま play すると終わった位置から動かず、再生中の表示のまま止まる）
+       */
+      const partDurationMs = findBlock(cursor.blockIndex)?.parts[cursor.partIndex]?.durationMs ?? 0
+      if (hasPlayedPart && !hasFinishedPart && isPlayerAtPartEnd(partDurationMs)) {
+        hasFinishedPart = true
+        startNextPart(cursor)
+        return
+      }
       isStarting = true
       updateIsPlaying(true)
       player.play()
@@ -471,6 +531,10 @@ export function useReadAloud({ attemptId, blocks, onBlockListened }: UseReadAlou
    * 初めて再生するときに作る
    */
   const controllerRef = useRef<ReadAloudController | null>(null)
+  /**
+   * 画面が見えているか（上に別の画面を積んでいる間は false）。その間の再生の状態の更新は捨てる
+   */
+  const isFocusedRef = useRef(isFocused)
 
   useEffect(() => {
     onBlockListenedRef.current = onBlockListened
@@ -536,7 +600,12 @@ export function useReadAloud({ attemptId, blocks, onBlockListened }: UseReadAlou
     return controllerRef.current
   }, [markPlaybackFailed, player])
 
+  /**
+   * 画面を離れている（上に画面を積んでいる）間の更新は捨てる（その間は一時停止している。積んだ画面の player のパートの終わりの通知を
+   * 受けても、一時停止中なのに次のパートに差し替えないため。捨てたこの player の終わりは、戻って再開したときに toggle が拾う）
+   */
   useEventListener(player, "playbackStatusUpdate", (status) => {
+    if (!isFocusedRef.current) return
     controllerRef.current?.handleStatus(status)
   })
 
@@ -603,6 +672,7 @@ export function useReadAloud({ attemptId, blocks, onBlockListened }: UseReadAlou
    * 上に画面を積んで見えなくなったとき。アンマウントでは呼ばない（解放した player を触らないよう、下の dispose に任せる）
    */
   useEffect(() => {
+    isFocusedRef.current = isFocused
     if (!isFocused) controllerRef.current?.pause()
   }, [isFocused])
 
