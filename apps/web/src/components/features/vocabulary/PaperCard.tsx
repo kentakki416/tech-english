@@ -7,6 +7,11 @@ import { SentenceText } from "./SentenceText"
 export type VocabularyCard = GetVocabularySessionResponse["cards"][number]
 
 /**
+ * 裏に出す辞書の語義の数。多い単語（EJDict の run など）は先頭から出し、残りは「…」にする（紙の高さは決まっているので、はみ出さないように）
+ */
+const MAX_SENSES = 4
+
+/**
  * 束の後ろの 2 枚。手前のカードと合わせて 3 枚に見えるよう、1 枚ごとに下へずらし、横にも少しずらして傾ける。
  * 奥ほど紙を濃くし、上の縁に明るい線を入れて、重なりの境目を見せる
  */
@@ -92,7 +97,8 @@ export function PaperCardFront({ card }: { card: VocabularyCard }) {
  * カードの裏。表の語句と 1 文を小さく残し、意味・補足・出どころを出す。辞書の意味は " / " で行を分ける
  */
 export function PaperCardBack({ card }: { card: VocabularyCard }) {
-  const senses = card.meaning_source === "dictionary" ? splitDictionarySenses(card.meaning_ja) : [card.meaning_ja]
+  const allSenses = card.meaning_source === "dictionary" ? splitDictionarySenses(card.meaning_ja) : [card.meaning_ja]
+  const senses = allSenses.length > MAX_SENSES ? [...allSenses.slice(0, MAX_SENSES), "…"] : allSenses
   return (
     <div className="flex h-full flex-col px-6 pt-12 pb-5 sm:px-10">
       <WordHeading card={card} size="sm" />

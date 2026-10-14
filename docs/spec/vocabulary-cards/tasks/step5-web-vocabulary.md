@@ -236,7 +236,7 @@ export function VocabularySession({ cards, nextDueDate, reviewAction }: Vocabula
 
 - **見ていた秒数**：解答画面の `use-active-seconds.ts` を `src/libs/use-active-seconds.ts` に移して両方から使い、`useActiveSeconds({ initialSeconds: 0, isRunning: true })` で測る。答えるときに `onAnswer(grade, seconds)` で親に渡す（上限の 60 秒はサーバーで切り詰める）
 - **表**：語句（見出し語が違えば小さく添える）・品詞・本文の 1 文（単語を強調）・「{問題のタイトル} より」・新しい単語なら「新しい単語」。「めくる」ボタン
-- **裏**：表の語句と 1 文を残し、意味（`splitDictionarySenses` で辞書の意味を区切る）・補足・出どころ（用語集は琥珀の点と「この文での意味」、辞書は灰の点と「英和辞書（一般的な意味）」）、「まだ」「覚えた」
+- **裏**：表の語句と 1 文を残し、意味（`splitDictionarySenses` で辞書の意味を区切る。紙の高さは決まっているので語義は 4 つまでにし、残りは「…」）・補足・出どころ（用語集は琥珀の点と「この文での意味」、辞書は灰の点と「英和辞書（一般的な意味）」）、「まだ」「覚えた」
 - **めくる動き**：表と裏を重ねて 180deg 回す作りにはしない（3D の変形が残って文字がぼやけるため）。めくるたびに `key` を変えた要素に `motion-safe:animate-card-flip`（440ms。0 → 90deg → -90 → 0deg）を付け直し、`FLIP_HALF_MS`（220ms）後に表示する面を差し替える（モックの `VocabularySessionMock.tsx` の `FlipCard` と同じ）。差し替えは `useEffect` の中で state を変えず、めくる操作のイベントの中で `setTimeout` する（`react-hooks/set-state-in-effect`）。`prefers-reduced-motion` のときはすぐ差し替える
 - **束**：`CardStackBehind`（後ろに 2 枚、残りの枚数で減らす）を手前のカードの後ろに置く
 - **飛ばす・上がる**：答えたら 300ms で横へ飛ばしてから次のカードにし、次のカードは `motion-safe:animate-card-rise` で束から上がる
