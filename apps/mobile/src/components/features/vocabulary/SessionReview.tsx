@@ -1,5 +1,6 @@
 import { useRouter } from "expo-router"
-import { Pressable, StyleSheet, Text, View } from "react-native"
+import { useEffect, useRef } from "react"
+import { AccessibilityInfo, Platform, Pressable, StyleSheet, Text, View } from "react-native"
 
 import type { ReviewVocabularyCardRequest } from "@repo/api-schema"
 
@@ -47,7 +48,8 @@ export function ProgressSquares({ answers, total }: { answers: Pick<CardAnswer, 
 
 /**
  * ふりかえり。覚えた / まだの数と、まだの単語の一覧。保存できなかったカードは同じ clientReviewId で送り直せる。
- * 保存中のカードが残っている間は「もう 1 回」を押せない（取り直した 1 回分に、保存前のカードがまた出ないように）
+ * 保存中のカードが残っている間は「もう 1 回」を押せない（取り直した 1 回分に、保存前のカードがまた出ないように）。
+ * 出たときに読み上げのフォーカスを見出しへ移し、保存できなかったカードが増えたら iOS でも読み上げる（Android は accessibilityLiveRegion）
  */
 export function SessionReview({
   answers,
@@ -65,11 +67,23 @@ export function SessionReview({
   const forgotCards = cards.filter((_, index) => answers[index]?.grade === "forgot")
   const failedCount = answers.filter(item => item.saveStatus === "failed").length
   const isSaving = answers.some(item => item.saveStatus === "saving")
+  const titleRef = useRef<Text>(null)
+
+  /**
+   * react-native-web には sendAccessibilityEvent が無いので、iOS / Android だけ
+   */
+  useEffect(() => {
+    if (Platform.OS !== "web" && titleRef.current) AccessibilityInfo.sendAccessibilityEvent(titleRef.current, "focus")
+  }, [])
+
+  useEffect(() => {
+    if (failedCount > 0 && Platform.OS === "ios") AccessibilityInfo.announceForAccessibility(`保存できなかったカードが ${failedCount} 枚あります。`)
+  }, [failedCount])
 
   return (
     <View style={styles.review}>
-      <Text accessibilityRole="header" style={styles.title}>ふりかえり</Text>
-      <Text style={styles.score}>
+      <Text ref={titleRef} accessibilityRole="header" style={styles.title}>ふりかえり</Text>
+      <Text accessibilityLabel={`覚えた ${rememberedCount}、まだ ${answers.length - rememberedCount}`} style={styles.score}>
         <Text style={appStyles.caption}>覚えた  </Text>
         <Text style={styles.remembered}>{rememberedCount}</Text>
         <Text style={styles.slash}>  /  </Text>

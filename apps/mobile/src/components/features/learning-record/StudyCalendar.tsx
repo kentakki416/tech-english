@@ -349,7 +349,10 @@ export function StudyCalendar({
             </Pressable>
           ))
         )}
-        {selectedAttempts !== undefined && selectedAttempts !== null && selectedDay !== undefined && selectedCardCount > 0 && (
+        {/**
+          * 挑戦の取得に失敗しても、カレンダーのデータで分かっている単語帳の行は出す
+          */}
+        {selectedAttempts !== undefined && selectedDay !== undefined && selectedCardCount > 0 && (
           <Pressable
             accessibilityLabel={`単語帳 ${selectedCardCount} 枚（覚えた ${selectedDay.remembered_count}）`}
             accessibilityRole="button"

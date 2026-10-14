@@ -32,7 +32,8 @@ export const formatStudyMinutes = (studySeconds: number): string =>
   isUnderOneMinute(studySeconds) ? "1 分未満" : `${convertStudySecondsToMinutes(studySeconds)} 分`
 
 /**
- * 学習カレンダーの 1 日の要約。「1 問、単語 12 枚、7 分」のように、0 の項目は出さない。学習していない日は空文字
+ * 学習カレンダーの 1 日の要約。「1 問、単語 12 枚、7 分」のように、0 の項目は出さない。学習していない日は空文字。
+ * 学習した日の秒数が 0（単語帳を 1 秒未満ずつ答えた）でも「0 分」にせず「1 分未満」と出す（web と同じ）
  */
 export const formatStudyDaySummary = (day: { attempt_count: number, card_count: number, study_seconds: number }): string => {
   const items = [
@@ -40,7 +41,7 @@ export const formatStudyDaySummary = (day: { attempt_count: number, card_count: 
     day.card_count > 0 ? `単語 ${day.card_count} 枚` : null,
   ].filter((item): item is string => item !== null)
   if (items.length === 0) return ""
-  return [...items, formatStudyMinutes(day.study_seconds)].join("、")
+  return [...items, day.study_seconds > 0 ? formatStudyMinutes(day.study_seconds) : "1 分未満"].join("、")
 }
 
 /**

@@ -15,13 +15,20 @@ const SOUND_STORAGE_KEY = "tech-english:vocabulary-sound"
 /**
  * カードをめくる効果音。expo-audio で同梱の音声を鳴らし、オン / オフを端末に覚える。
  *
- * 初めて鳴らすときに、消音モードでは鳴らさず・ほかのアプリの音楽を止めない音声のモード（iOS の ambient）にする。
+ * 画面を開いたときに、消音モードでは鳴らさず・ほかのアプリの音楽を止めない音声のモード（iOS の ambient）にし、鳴らすときはその設定を待つ
+ * （setAudioModeAsync は後から効くので、待たずに鳴らすと最初の 1 回だけ前のモードで鳴る）。ambient はカテゴリを変えるだけで
+ * 音声のセッションを有効にしないので、開いただけでほかのアプリの音楽は止まらない。
  * 読み上げは再生を始めるときに自分のモード（消音モードでも鳴らす）にし直すので、こちらで変えても読み上げは困らない
  */
 export function useFlipSound() {
   const player = useAudioPlayer(FLIP_SOUND)
   const [isEnabled, setIsEnabled] = useState(true)
-  const isAudioModeRequestedRef = useRef(false)
+  const audioModeRef = useRef<Promise<void> | null>(null)
+
+  useEffect(() => {
+    audioModeRef.current = setAudioModeAsync({ interruptionMode: "mixWithOthers", playsInSilentMode: false, shouldPlayInBackground: false })
+      .catch((error: unknown) => console.warn("Failed to set audio mode:", error))
+  }, [])
 
   useEffect(() => {
     let isActive = true
@@ -37,13 +44,10 @@ export function useFlipSound() {
 
   const play = () => {
     if (!isEnabled) return
-    if (!isAudioModeRequestedRef.current) {
-      isAudioModeRequestedRef.current = true
-      void setAudioModeAsync({ interruptionMode: "mixWithOthers", playsInSilentMode: false, shouldPlayInBackground: false })
-        .catch((error: unknown) => console.warn("Failed to set audio mode:", error))
-    }
-    void player.seekTo(0)
-    player.play()
+    void (audioModeRef.current ?? Promise.resolve()).then(() => {
+      void player.seekTo(0)
+      player.play()
+    })
   }
 
   /**

@@ -46,6 +46,7 @@ export const vocabularyApi = {
 
 ### 2. タブとスタック
 
+- web 表示では react-native-screens が無効で、外したタブの画面が `zIndex: -1` で残る。画面は AppBackdrop を透かす（塗らない）ので外したタブが透けて重なる。web 表示だけタブの `animation` を `"fade"` にして、外したタブの不透明度を 0 にする（iOS / Android は外したタブを描かないので `"none"` のまま）
 - `src/app/(tabs)/_layout.tsx` に「問題」と「設定」の間で `<Tabs.Screen name="vocabulary" options={{ tabBarIcon: …"albums-outline"…, title: "単語帳" }} />` を足す。コメントの「タブ（マイページ / 問題 / 設定）」も直す
 - `src/app/_layout.tsx` の `Stack.Protected guard={status === "signedIn"}` に、JSDoc のコメントつきで `<Stack.Screen name="vocabulary/session" options={{ headerShown: false }} />` を足す（上部バーは画面が持つ）
 
@@ -54,7 +55,7 @@ export const vocabularyApi = {
 `src/app/(tabs)/vocabulary.tsx`。マイページのタブと同じく `useFocusEffect` で開くたびに summary を取り直し（1 回分から戻ったときに数が変わるため）、`requestSeqRef` で古い応答を捨てる。
 
 - 上部はタブの画面と同じ「画面名だけ」の上部
-- 状態ごとに出すものは web の step5 の `VocabularySummaryPanel` と同じ（今日の分がある / 今日の分が無い / 候補もカードも無い）。「はじめる」は `router.push("/vocabulary/session")`、問題一覧への導線は `router.push("/passages")`（同じタブの階層なので push でよい）
+- 状態ごとに出すものは web の step5 の `VocabularySummaryPanel` と同じ（今日の分がある / 今日の分が無い / 候補もカードも無い）。「はじめる」は `router.navigate("/vocabulary/session")`（素早く 2 回押しても 1 回分の画面を 2 枚積まない）、問題一覧への導線は `router.navigate("/passages")`（タブからタブへ）
 - 読み込み中・失敗は `history.tsx` と同じ（`ActivityIndicator`・「読み込めませんでした。」と「再読み込み」）
 
 ### 4. 1 回分の画面（スタック）
@@ -102,7 +103,8 @@ const save = async (target: CardAnswer) => {
 ```
 
 - `Crypto` は `expo-crypto`（導入済み。`src/features/auth/github-oauth.ts` と同じ `Crypto.randomUUID()`）
-- 上部バーは `history.tsx` と同じ形（`SafeAreaView edges={["top"]}`・「‹ 単語帳」で `router.back()`・中央に進み具合 `3 / 10`）
+- 上部バーは `history.tsx` と同じ形（`SafeAreaView edges={["top"]}`・「‹ 単語帳」で `router.back()`・中央に進み具合 `3 / 10`）。進み具合のマスが「覚えた」で灯る動き（web の `lamp-on`）は mobile では省く
+- 読み上げ：2 枚目からはカードが出たときにフォーカスをカードへ移し（`AccessibilityInfo.sendAccessibilityEvent`）、カードのラベルの先頭で「10 枚中 3 枚目」と伝える。ふりかえりでは見出しへフォーカスを移す
 - 途中で戻っても確認は出さない（答えた分は保存済み）
 
 ### 5. カード（めくる・スワイプ）
@@ -112,7 +114,7 @@ const save = async (target: CardAnswer) => {
 - **見ていた秒数**：解答画面の `src/features/attempt/use-active-seconds.ts` を `src/libs/use-active-seconds.ts` に移して両方から使い、`useActiveSeconds({ initialSeconds: 0, isRunning: true })`（`AppState` が `active` の間だけ数える）
 - **めくる**：カード全体を `Pressable` にし、タップで `isFlipped` を切り替える。web と同じく、表と裏を重ねて 180deg 回す作りにはせず、RN の `Animated.timing`（440ms、ネイティブドライバ）で `rotateY` を 0 → 90deg → -90 → 0deg と動かし、220ms 後に表示する面を差し替える（モックの `session.tsx` の `FlipCard` と同じ）
 - **束**：`CardStackBehind`（後ろに 2 枚、残りの枚数で減らす）を手前のカードの後ろに置く。答えたら 280ms で横へ飛ばし、次のカードは束から上がる（280ms）
-- **効果音**：`use-flip-sound.ts`（`expo-audio` の `useAudioPlayer` で `page-flip.wav` を鳴らす。鳴らす前に `seekTo(0)`）。めくるたび（表 → 裏、裏 → 表）に鳴らす。オン / オフは上部バーの右のスピーカーで切り替え、`AsyncStorage`（キー `tech-english:vocabulary-sound`）に覚える。消音モードでの扱いは読み上げの音声のモード（`setAudioModeAsync`）に引きずられないかを実装時に確かめる
+- **効果音**：`use-flip-sound.ts`（`expo-audio` の `useAudioPlayer` で `page-flip.wav` を鳴らす。鳴らす前に `seekTo(0)`）。めくるたび（表 → 裏、裏 → 表）に鳴らす。オン / オフは上部バーの右のスピーカーで切り替え、`AsyncStorage`（キー `tech-english:vocabulary-sound`）に覚える。フックは `src/features/vocabulary/use-flip-sound.ts`。初めて鳴らすときに `setAudioModeAsync({ interruptionMode: "mixWithOthers", playsInSilentMode: false })`（iOS の ambient）にし、消音モードでは鳴らさず、ほかのアプリの音楽も止めない（何も設定しないと iOS の既定の soloAmbient で、鳴らすたびにほかのアプリの音楽を止める）。読み上げは画面ごとに再生を始めるときに自分のモード（消音モードでも鳴らす・ほかを止める）にし直すので、こちらで変えても読み上げは困らない
 - **視差効果を減らす設定**：`useReducedMotion()`（reanimated。既存の `use-reading-auto-scroll.ts` と同じ）が `true` なら、めくる・飛ばす・上がるを省いて切り替えだけにする
 - **スワイプ**：モックと同じく RN の `PanResponder` と `Animated.Value` で作る（1 回分の画面はスクロールしないので、ジェスチャーの取り合いが起きない）
   - めくる前は `onMoveShouldSetPanResponder` で引き受けない（意味を見ずに答えられないように）。横に 10px 以上、縦より大きく動いたときだけ始める
@@ -155,7 +157,7 @@ iOS シミュレーター（または実機）で（Expo web では確かめら�
 
 - [ ] めくる動きが滑らかで、「視差効果を減らす」を有効にすると切り替えだけになる
 - [ ] めくった後、右へのスワイプで「覚えた」、左で「まだ」になり、少しだけ動かして離すと元に戻る。めくる前はスワイプしない
-- [ ] 縦のスクロール（長い 1 文）がスワイプと取り合わない
+- [ ] カードはスクロールしない。語義の多い単語（辞書の意味）・大きな文字の設定でも、意味と出どころが紙からはみ出さない（語義は 4 つまで、紙の上の文字は 1.3 倍まで）
 - [ ] 答えたときに軽く振動する
 - [ ] めくるたびに「シュッ」と鳴り、上部バーで消すと鳴らない。アプリを開き直しても消した設定が残る
 - [ ] 束が 3 枚に見え、本番と同じ背景（AppBackdrop）が透けている

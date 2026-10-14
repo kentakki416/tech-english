@@ -9,6 +9,11 @@ import { THEME_COLORS, THEME_FONTS } from "@/const/design-theme"
 type VocabularySentence = NonNullable<GetVocabularySessionResponse["cards"][number]["sentence"]>
 
 /**
+ * 紙の上の文字を端末の文字サイズの設定でどこまで大きくするか。紙の高さは決まっているので、大きくしすぎると意味が切れる
+ */
+export const PAPER_MAX_FONT_SCALE = 1.3
+
+/**
  * バッククォートのインラインコードを、紙の上のコードの見た目で描く（入れ子の Text）
  */
 function InkText({ text }: { text: string }) {
@@ -36,7 +41,7 @@ export function SentenceText({
   style?: StyleProp<TextStyle>
 }) {
   return (
-    <Text numberOfLines={numberOfLines} style={[styles.sentence, style]}>
+    <Text maxFontSizeMultiplier={PAPER_MAX_FONT_SCALE} numberOfLines={numberOfLines} style={[styles.sentence, style]}>
       <InkText text={sentence.text.slice(0, sentence.highlight_start)} />
       <Text style={styles.highlight}>
         <InkText text={sentence.text.slice(sentence.highlight_start, sentence.highlight_end)} />
@@ -51,11 +56,13 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(243, 178, 76, 0.45)",
     color: THEME_COLORS.ink,
   },
+  /**
+   * 大きさは周りの文に合わせる（見本・表・裏で文の大きさが違うため）
+   */
   inlineCode: {
     backgroundColor: "rgba(216, 201, 172, 0.6)",
     color: THEME_COLORS.ink,
     fontFamily: THEME_FONTS.code,
-    fontSize: 13,
   },
   sentence: {
     fontFamily: THEME_FONTS.reading,

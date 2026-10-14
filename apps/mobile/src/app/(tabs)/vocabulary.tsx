@@ -22,20 +22,21 @@ type VocabularyTopData = {
 }
 
 /**
- * 束になったカードの見本。一番上は今日の 1 枚目の語句と 1 文（今日の分が無ければ「All done.」で薄くする）
+ * 束になったカードの見本。一番上は今日の 1 枚目の語句と 1 文。今日の分が無ければ「All done.」で薄くする（web と同じ）。
+ * 今日の分があるのに 1 枚目を取れなかったときは、何も書いていない紙にする
  */
-function DeckPreview({ card }: { card: VocabularyCard | undefined }) {
+function DeckPreview({ card, isDimmed }: { card: VocabularyCard | undefined, isDimmed: boolean }) {
   return (
-    <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={[styles.deck, !card && styles.deckDimmed]}>
+    <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={[styles.deck, isDimmed && styles.deckDimmed]}>
       <CardStackBehind count={2} />
       <PaperSheet style={styles.deckCard}>
-        {card ? (
+        {isDimmed ? (
+          <View style={styles.deckDone}><Text style={styles.deckDoneText}>All done.</Text></View>
+        ) : card && (
           <View style={styles.deckBody}>
             <Text style={styles.deckSurface}>{card.surface}</Text>
             {card.sentence && <SentenceText numberOfLines={2} sentence={card.sentence} style={styles.deckSentence} />}
           </View>
-        ) : (
-          <View style={styles.deckDone}><Text style={styles.deckDoneText}>All done.</Text></View>
         )}
       </PaperSheet>
     </View>
@@ -57,23 +58,30 @@ function CountStat({ label, unit, value }: { label: string, unit: string, value:
 /**
  * 単語帳のトップ（タブ）。今日の分がある / 今日の分が終わった / まだ単語が無い、の 3 つの状態で出し分ける（web の VocabularySummaryPanel と同じ）。
  * 1 回分から戻ったときに数が変わるので、フォーカスのたびに取り直す（フォーカス中にアプリが前面に戻ったときも）。
- * 束の見本に今日の 1 枚目を出すため、1 回分も一緒に取る（読み取りだけで何も書き込まない）
+ * 束の見本に今日の 1 枚目を出すため、1 回分も一緒に取る（読み取りだけで何も書き込まない）。1 回分の取得に失敗しても見本の 1 枚目を出さないだけ（web と同じ）
  */
 export default function VocabularyScreen() {
   const router = useRouter()
   const [data, setData] = useState<VocabularyTopData | null>(null)
   const [hasError, setHasError] = useState(false)
   /**
-   * 取得のたびに進める連番。古い取得の結果が後から届いたら捨てる
+   * 取得のたびに進める連番。古い取得の結果が後から届いたら捨てる。
+   * 答えた直後に戻ると、保存（POST）より先にこの取得が届き、1 枚分古い数が次に開くまで残ることがある（数は目安なので許容する）
    */
   const requestSeqRef = useRef(0)
 
   const load = useCallback(async () => {
     const seq = ++requestSeqRef.current
     try {
-      const [summary, session] = await Promise.all([vocabularyApi.getSummary(), vocabularyApi.getSession()])
+      const [summary, session] = await Promise.all([
+        vocabularyApi.getSummary(),
+        vocabularyApi.getSession().catch((error: unknown) => {
+          console.warn("Failed to fetch the first vocabulary card:", error)
+          return null
+        }),
+      ])
       if (seq !== requestSeqRef.current) return
-      setData({ firstCard: session.cards[0], summary })
+      setData({ firstCard: session?.cards[0], summary })
       setHasError(false)
     } catch (error) {
       if (seq !== requestSeqRef.current) return
@@ -145,15 +153,18 @@ export default function VocabularyScreen() {
                       <CountStat label="今日の復習" unit="枚" value={summary.due_count} />
                       <CountStat label="新しい単語" unit="語" value={summary.new_count} />
                     </View>
-                    <DeckPreview card={data.firstCard} />
-                    <PrimaryButton label={`はじめる（${todayCount} 枚）`} onPress={() => router.push("/vocabulary/session")} />
+                    <DeckPreview card={data.firstCard} isDimmed={false} />
+                    {/**
+                      * navigate にして、素早く 2 回押しても 1 回分の画面を 2 枚積まない
+                      */}
+                    <PrimaryButton label={`はじめる（${todayCount} 枚）`} onPress={() => router.navigate("/vocabulary/session")} />
                     <Text style={styles.todayHint}>1〜2 分で終わります。途中でやめても、答えた分は残ります。</Text>
                   </>
                 ) : (
                   <>
                     <Text style={styles.doneTitle}>今日の分は終わりました</Text>
                     {summary.next_due_date && <Text style={styles.doneLead}>次の復習は {formatDayLabel(summary.next_due_date)} です。</Text>}
-                    <DeckPreview card={undefined} />
+                    <DeckPreview card={undefined} isDimmed />
                     <SecondaryButton label="問題を解いて単語を増やす" onPress={() => router.navigate("/passages")} />
                   </>
                 )}
@@ -165,7 +176,7 @@ export default function VocabularyScreen() {
                   <CountStat label="覚えた単語" unit="語" value={summary.mastered_count} />
                 </View>
                 <Text style={[appStyles.caption, styles.intervalLabel]}>復習の間隔</Text>
-                <Text style={styles.interval}>
+                <Text accessibilityLabel={`覚えた、${VOCABULARY_INTERVAL_LABELS.join("、")}、覚えた単語`} style={styles.interval}>
                   覚えた
                   {VOCABULARY_INTERVAL_LABELS.map(label => (
                     <Fragment key={label}>

@@ -72,7 +72,7 @@ function SessionDone({ nextDueDate }: { nextDueDate: string | null }) {
   const router = useRouter()
   return (
     <View style={styles.done}>
-      <View style={styles.doneDeck}>
+      <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.doneDeck}>
         <CardStackBehind count={2} />
         <PaperSheet style={styles.doneCard}>
           <View style={styles.doneCardBody}><Text style={styles.doneCardText}>All done.</Text></View>
@@ -157,8 +157,11 @@ export function VocabularySession({
             <FlashCard
               key={current.lemma}
               card={current}
+              isFirst={answers.length === 0}
               isReducedMotion={isReducedMotion}
+              position={answers.length + 1}
               remainingCount={cards.length - answers.length - 1}
+              total={cards.length}
               onAnswer={answer}
               onFlip={sound.play}
             />

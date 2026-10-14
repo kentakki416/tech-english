@@ -1,3 +1,4 @@
+import { useId } from "react"
 import { type StyleProp, StyleSheet, Text, View, type ViewStyle } from "react-native"
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg"
 
@@ -6,9 +7,14 @@ import type { GetVocabularySessionResponse } from "@repo/api-schema"
 import { splitDictionarySenses } from "@/components/features/passage/passage-text"
 import { THEME_COLORS, THEME_FONTS } from "@/const/design-theme"
 
-import { SentenceText } from "./SentenceText"
+import { PAPER_MAX_FONT_SCALE, SentenceText } from "./SentenceText"
 
 export type VocabularyCard = GetVocabularySessionResponse["cards"][number]
+
+/**
+ * 裏に出す辞書の語義の数。多い単語（EJDict の run など）は先頭から出し、残りは「…」にする（紙からはみ出さないように）
+ */
+const MAX_SENSES = 4
 
 /**
  * 束の後ろの 2 枚。手前のカードと合わせて 3 枚に見えるよう、1 枚ごとに下へずらし、横にも少しずらして傾ける（web と同じ）
@@ -30,24 +36,28 @@ function PunchHole() {
 }
 
 /**
- * 紙の 1 枚（表と裏で共通の地）。読書灯が上から当たっているように、上ほど明るくする
+ * 紙の 1 枚（表と裏で共通の地）。読書灯が上から当たっているように、上ほど明るくする。
+ * 影は外側、角の切り取りは内側の View に分ける（同じ View に overflow: hidden と影を付けると、iOS では影も切られる）。
+ * グラデーションの id は 1 枚ごとに変える（web 表示では同じ DOM に複数の紙が並ぶため）
  */
 export function PaperSheet({ children, style, tone = "front" }: { children: React.ReactNode, style?: StyleProp<ViewStyle>, tone?: "back" | "front" }) {
-  const gradientId = `paper-${tone}`
+  const gradientId = `paper-${tone}-${useId().replace(/[^\w-]/g, "")}`
   return (
     <View style={[styles.sheet, style]}>
-      <Svg height="100%" pointerEvents="none" style={StyleSheet.absoluteFill} width="100%">
-        <Defs>
-          <LinearGradient id={gradientId} x1="0" x2="0" y1="0" y2="1">
-            <Stop offset="0" stopColor={tone === "front" ? "#f7eedc" : "#f1e6d0"} />
-            <Stop offset="0.45" stopColor={tone === "front" ? THEME_COLORS.paper : "#ede1ca"} />
-            <Stop offset="1" stopColor={THEME_COLORS.paperDeep} />
-          </LinearGradient>
-        </Defs>
-        <Rect fill={`url(#${gradientId})`} height="100%" width="100%" />
-      </Svg>
-      <PunchHole />
-      {children}
+      <View style={styles.sheetClip}>
+        <Svg height="100%" pointerEvents="none" style={StyleSheet.absoluteFill} width="100%">
+          <Defs>
+            <LinearGradient id={gradientId} x1="0" x2="0" y1="0" y2="1">
+              <Stop offset="0" stopColor={tone === "front" ? "#f7eedc" : "#f1e6d0"} />
+              <Stop offset="0.45" stopColor={tone === "front" ? THEME_COLORS.paper : "#ede1ca"} />
+              <Stop offset="1" stopColor={THEME_COLORS.paperDeep} />
+            </LinearGradient>
+          </Defs>
+          <Rect fill={`url(#${gradientId})`} height="100%" width="100%" />
+        </Svg>
+        <PunchHole />
+        {children}
+      </View>
     </View>
   )
 }
@@ -59,11 +69,11 @@ function WordHeading({ card, size }: { card: VocabularyCard, size: "lg" | "sm" }
   const hasLemma = card.lemma !== card.surface.toLowerCase()
   return (
     <View style={size === "lg" ? styles.headingLarge : styles.headingSmall}>
-      <Text style={size === "lg" ? styles.surfaceLarge : styles.surfaceSmall}>{card.surface}</Text>
+      <Text maxFontSizeMultiplier={PAPER_MAX_FONT_SCALE} style={size === "lg" ? styles.surfaceLarge : styles.surfaceSmall}>{card.surface}</Text>
       {(hasLemma || card.part_of_speech) && (
         <View style={styles.headingMeta}>
-          {hasLemma && <Text style={styles.lemma}>{card.lemma}</Text>}
-          {card.part_of_speech && <Text style={styles.partOfSpeech}>{card.part_of_speech}</Text>}
+          {hasLemma && <Text maxFontSizeMultiplier={PAPER_MAX_FONT_SCALE} style={styles.lemma}>{card.lemma}</Text>}
+          {card.part_of_speech && <Text maxFontSizeMultiplier={PAPER_MAX_FONT_SCALE} style={styles.partOfSpeech}>{card.part_of_speech}</Text>}
         </View>
       )}
     </View>
@@ -76,12 +86,12 @@ function WordHeading({ card, size }: { card: VocabularyCard, size: "lg" | "sm" }
 export function PaperCardFront({ card }: { card: VocabularyCard }) {
   return (
     <View style={styles.face}>
-      {card.stage === null && <Text style={styles.newStamp}>新しい単語</Text>}
+      {card.stage === null && <Text maxFontSizeMultiplier={PAPER_MAX_FONT_SCALE} style={styles.newStamp}>新しい単語</Text>}
       <View style={styles.frontBody}>
         <WordHeading card={card} size="lg" />
         {card.sentence && <SentenceText sentence={card.sentence} style={styles.frontSentence} />}
       </View>
-      <Text numberOfLines={1} style={styles.source}>— {card.passage.title} より</Text>
+      <Text maxFontSizeMultiplier={PAPER_MAX_FONT_SCALE} numberOfLines={1} style={styles.source}>— {card.passage.title} より</Text>
     </View>
   )
 }
@@ -90,19 +100,20 @@ export function PaperCardFront({ card }: { card: VocabularyCard }) {
  * カードの裏。表の語句と 1 文を小さく残し、意味・補足・出どころを出す。辞書の意味は語義ごとに行を分ける
  */
 export function PaperCardBack({ card }: { card: VocabularyCard }) {
-  const senses = card.meaning_source === "dictionary" ? splitDictionarySenses(card.meaning_ja) : [card.meaning_ja]
+  const allSenses = card.meaning_source === "dictionary" ? splitDictionarySenses(card.meaning_ja) : [card.meaning_ja]
+  const senses = allSenses.length > MAX_SENSES ? [...allSenses.slice(0, MAX_SENSES), "…"] : allSenses
   return (
     <View style={styles.face}>
       <WordHeading card={card} size="sm" />
       {card.sentence && <SentenceText numberOfLines={2} sentence={card.sentence} style={styles.backSentence} />}
       <View style={styles.fold} />
       <View style={styles.meanings}>
-        {senses.map(sense => <Text key={sense} style={styles.meaning}>{sense}</Text>)}
-        {card.note_ja && <Text style={styles.note}>{card.note_ja}</Text>}
+        {senses.map((sense, index) => <Text key={index} maxFontSizeMultiplier={PAPER_MAX_FONT_SCALE} numberOfLines={2} style={styles.meaning}>{sense}</Text>)}
+        {card.note_ja && <Text maxFontSizeMultiplier={PAPER_MAX_FONT_SCALE} numberOfLines={3} style={styles.note}>{card.note_ja}</Text>}
       </View>
       <View style={styles.origin}>
         <View style={[styles.originDot, { backgroundColor: card.meaning_source === "glossary" ? THEME_COLORS.amber : THEME_COLORS.inkFaint }]} />
-        <Text style={styles.originText}>{card.meaning_source === "glossary" ? "この文での意味" : "英和辞書（一般的な意味）"}</Text>
+        <Text maxFontSizeMultiplier={PAPER_MAX_FONT_SCALE} style={styles.originText}>{card.meaning_source === "glossary" ? "この文での意味" : "英和辞書（一般的な意味）"}</Text>
       </View>
     </View>
   )
@@ -247,14 +258,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 1,
   },
+  /**
+   * 地の色は Android の elevation の影のため（影は背景のある View にしか付かない）。上に紙のグラデーションを重ねる
+   */
   sheet: {
+    backgroundColor: THEME_COLORS.paperDeep,
     borderRadius: 12,
     elevation: 8,
-    overflow: "hidden",
     shadowColor: "#000000",
     shadowOffset: { height: 14, width: 0 },
     shadowOpacity: 0.6,
     shadowRadius: 20,
+  },
+  sheetClip: {
+    borderRadius: 12,
+    flex: 1,
+    overflow: "hidden",
   },
   source: {
     color: THEME_COLORS.inkFaint,
