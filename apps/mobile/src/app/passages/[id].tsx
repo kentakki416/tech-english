@@ -53,7 +53,8 @@ const buildResumeSummary = async (passage: GetPassageResponse): Promise<ResumeSu
 }
 
 /**
- * 開始確認（下から出るモーダル）。本文はまだ見せない。期限内の挑戦中があれば再開の表示にする
+ * 開始確認（下から出るモーダル）。本文はまだ見せない。期限内の挑戦中があれば再開の表示にする。
+ * 公開を終了した問題（can_start が false。API は自分の挑戦中があるときだけ返す）は「再開する」だけを出し、開始のボタンは出さない
  */
 export default function PassageStartScreen() {
   const router = useRouter()
@@ -183,6 +184,7 @@ export default function PassageStartScreen() {
             {state.resume ? (
               <ResumeNotice
                 answeredCount={state.resume.answeredCount}
+                canStart={state.passage.can_start}
                 elapsedSeconds={state.resume.elapsedSeconds}
                 expiryRemainingMs={state.resume.expiryRemainingMs}
                 questionCount={state.passage.question_count}
@@ -199,13 +201,15 @@ export default function PassageStartScreen() {
               出典：{state.passage.attribution.source_name}（{state.passage.attribution.license_spdx}）。一部を抜粋・改変しています。
             </Text>
           </ScrollView>
-          <View style={styles.footer}>
-            <PrimaryButton
-              isDisabled={isStarting}
-              label={state.resume ? "再開する" : "開始する"}
-              onPress={async () => startAttempt(state.passage.id)}
-            />
-          </View>
+          {(state.passage.can_start || state.resume) && (
+            <View style={styles.footer}>
+              <PrimaryButton
+                isDisabled={isStarting}
+                label={state.resume ? "再開する" : "開始する"}
+                onPress={async () => startAttempt(state.passage.id)}
+              />
+            </View>
+          )}
         </>
       )}
     </SafeAreaView>

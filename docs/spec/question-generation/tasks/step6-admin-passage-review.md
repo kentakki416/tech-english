@@ -46,7 +46,7 @@ export const fetchAdminPassageList = async (status: AdminPassageStatus): Promise
 }>
 
 export const fetchAdminPassage = async (id: number): Promise<GetAdminPassageResponse | null>  /** 404 は null */
-export const updateAdminPassage / publishAdminPassage / rejectAdminPassage / unpublishAdminPassage / regenerateAdminPassage
+export const updateAdminPassage / publishAdminPassage / rejectAdminPassage / unpublishAdminPassage / regenerateAdminPassage / restoreAdminPassage / resolveAdminPassageAttention
 ```
 
 `passage.labels.ts`（`server-only` を付けない。Client Component から使う）：状態のラベルと `Badge` の色（README の表：収集済み `light`、生成中 `info`、下書き `primary`、公開 `success`、却下 `dark`、失敗 `error`、要確認 `warning`）、難易度（Easy / Normal / Hard）、設問の種類（要旨 / 詳細 / 文脈での語義 / 推論 / 筆者の意図）。キーは `adminPassageStatusSchema.options` などから型付けする。
@@ -91,9 +91,9 @@ export function convertFormToRequest(form: PassageForm): UpdateAdminPassageReque
 
 | 状態 | 操作 | 囲み |
 | --- | --- | --- |
-| draft | 再生成・却下・保存・公開する | 公開の 400 があれば error、`attention_reasons` があれば warning |
+| draft | 再生成・却下・保存・公開する。要確認のときだけ warning の囲みの右上に「要確認を解除」 | 公開の 400 があれば error、`needs_attention` か `attention_reasons` があれば warning |
 | published | 非公開に戻す | info「公開中の問題は編集できません」（`attempt_count` を差し込む。0 件なら挑戦の文は出さない） |
-| rejected | 再生成 | info：却下の理由 |
+| rejected | 却下を取り消す・再生成 | info：却下の理由と、「却下を取り消す」で戻る先（設問があれば下書き、無ければ生成待ち） |
 | failed | 再生成 | error：`generation_error` |
 | collected / generating | なし | info：生成待ち / 生成中 |
 
@@ -103,7 +103,9 @@ export function convertFormToRequest(form: PassageForm): UpdateAdminPassageReque
 - 和訳タブ・本文タブ：ブロックの表記は heading を「見出し N」（heading だけを数える連番）、code を「コード（lang）」、他を「段落 N」（heading と code を数えない連番）。API の公開の条件・cron の要確認の理由と同じ番号にする（和訳の無い見出しが複数あっても区別できるように）
 - 用語集タブ：`DataTable` の行は form の `glossary`。「語句を追加」「編集」は テンプレートの `Modal` と既存の入力欄（`src/libs/ui-classes.ts`）で語句・見出し語・品詞・段落・文脈での意味・補足を入力するダイアログを出す（モックはボタンだけなので、却下のダイアログと同じ枠で作る）。語句が選んだ段落に見つからなければ警告を出す（判定は保存時の API と同じ `findSurfaceRange` の規則。単語の途中の出現は数えないので、"cached" しか無い段落の "cache" は警告になる）。「削除」は form から消し、その語句を対象にしていた設問の `targetGlossaryKey` を null にする
 - 基本情報タブ：「計算式で再計算」は詳細の `time_limit_formula` と form の難易度・設問数・`word_count` で計算し、モックと同じ形で計算の過程を出す（admin は `@repo/domain` を import できないため式の定数を API から受け取っている）。制限時間の入力は `m:ss`。「LLM の判定」の表示は元の判定を保存する列が無いので出さない
-- 却下・再生成の `Modal` はモックの文言のまま。却下は理由が空なら「却下する」を押せない
+- 却下・再生成の `Modal` はモックの文言のまま（却下の説明の「あとから再生成で戻せる」は「誤って却下したときは『却下を取り消す』で下書きに戻せる」にする）。却下は理由が空なら「却下する」を押せない
+- 「却下を取り消す」は同じ枠の `Modal` で確認してから実行する。文言は詳細の `questions` の有無で変える（あれば「下書きに戻す。生成した設問・和訳・用語集と修正は残り、却下の理由は消える」、無ければ「生成待ちに戻し、次回の生成タスクで作られる」）
+- 「要確認を解除」はダイアログなしで実行する。解除すると `updated_at` が変わって詳細を取り直したときにフォームが作り直されるので、**未保存の修正があれば先に保存する**（保存の 400 なら解除しない）
 
 ### 5. Server Action（`src/app/(dashboard)/passages/[id]/actions.ts`）
 
@@ -120,12 +122,14 @@ export async function publishPassageAction(id: number): Promise<PassageActionRes
 export async function rejectPassageAction(id: number, reason: string): Promise<PassageActionResult>
 export async function unpublishPassageAction(id: number): Promise<PassageActionResult>
 export async function regeneratePassageAction(id: number): Promise<PassageActionResult>
+export async function restorePassageAction(id: number): Promise<PassageActionResult>
+export async function resolvePassageAttentionAction(id: number): Promise<PassageActionResult>
 ```
 
 - 成功したら `revalidatePath("/passages")` と ``revalidatePath(`/passages/${id}`)``。`ApiClientError` の 400 / 404 / 409 は `ok: false` で返し、それ以外は throw する（`global-error.tsx` に任せる）
 - 「保存」の成功で「下書きを保存しました」を出す（モックの `savedMessage`）。保存の 400 の `details`（`["glossary", i, "surface"]` など）は該当の語句の行に出す
 - 「公開する」：**未保存の修正があれば先に保存し**、成功したら公開する。公開の 400 は error の囲み「公開の条件を満たしていないため、公開できません」に `details` の `message` を列挙し、`path` が `["questions", i, "evidence"]` の設問の見出しに `error` のバッジ「根拠が見つかりません」、`["blocks", i, "translation_ja"]` の和訳の入力欄に `error` の枠と「和訳が空です」、`["glossary", i, *]`（位置の不一致・意味が空）は用語集タブの該当の語句の行にメッセージを出す。設問文が空（`prompt_empty`）などそれ以外は error の囲みの一覧だけに出る
-- 却下・非公開・再生成の成功後は `router.refresh()` で詳細を取り直す（再生成の後は collected の表示になる）。409 は「他の操作で状態が変わりました。画面を再読み込みしてください」などを error の囲みで出す
+- 却下・却下の取り消し・非公開・再生成・要確認の解除の成功後は `router.refresh()` で詳細を取り直す（再生成の後は collected、却下の取り消しの後は draft か collected の表示になる）。409 は「他の操作で状態が変わりました。画面を再読み込みしてください」などを error の囲みで出す
 
 ## 動作確認
 
@@ -154,4 +158,6 @@ admin にはユニットテストが無いので、`verify-web-page` skill の�
 - [ ] 一覧の要確認の列で、和訳の無い見出しが 2 つあると「見出し 1 の和訳がありません」「見出し 2 の和訳がありません」と別々に出る
 - [ ] 「非公開に戻す」で下書きに戻る。挑戦がある問題では「設問を追加」「この設問を削除」が無効になっている
 - [ ] 却下（理由が空だと押せない）・再生成のダイアログが動き、一覧の該当の状態に移る
+- [ ] 却下済みの問題で「却下を取り消す」→ ダイアログ → 設問のある問題は下書きに戻り、設問・和訳・用語集が残っている。LLM が却下した（設問の無い）問題は生成待ちに戻る
+- [ ] 要確認の下書きで「要確認を解除」→ 囲みとバッジが消え、一覧の要確認の列が「―」になって要確認の先頭から外れる。未保存の修正がある状態で押すと、修正が保存されてから解除される
 - [ ] 存在しない id で 404 の画面になる。ブラウザに `ADMIN_API_TOKEN` が渡っていない（開発者ツールで確認）

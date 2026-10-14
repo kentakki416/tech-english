@@ -129,44 +129,39 @@ describe("PrismaPassageRepository", () => {
     })
   })
 
-  describe("claimCollected", () => {
+  describe("claimNextCollected", () => {
     describe("正常系", () => {
-      it("Drizzle 実装と同じ UPDATE ... WHERE id IN (SELECT ... FOR UPDATE SKIP LOCKED) を $queryRaw で投げ、created_at → id の順に返す", async () => {
+      it("Drizzle 実装と同じ UPDATE ... WHERE id IN (SELECT ... LIMIT 1 FOR UPDATE SKIP LOCKED) を $queryRaw で投げ、取った 1 行を返す", async () => {
         const blocks = [{ text: "Hello.", type: "paragraph" }]
-        const buildRow = (id: number, createdAt: string) => ({
-          id,
-          blocks,
-          created_at: new Date(createdAt),
-          generation_attempt_count: 0,
-          generation_started_at: NOW,
-          title: `T${id}`,
-          word_count: 250,
-        })
         const fake = createFakePrisma({
-          queryRows: [buildRow(2, "2026-10-02T00:00:00.000Z"), buildRow(1, "2026-10-01T00:00:00.000Z")],
+          queryRows: [{
+            id: 1,
+            blocks,
+            generation_attempt_count: 0,
+            generation_started_at: NOW,
+            title: "T1",
+            word_count: 250,
+          }],
         })
 
-        const claimed = await new PrismaPassageRepository(fake.prisma).claimCollected({ limit: 3, now: NOW, passageId: 42 })
+        const claimed = await new PrismaPassageRepository(fake.prisma).claimNextCollected({ now: NOW, passageId: 42 })
 
-        expect(claimed).toEqual([
-          { id: 1, blocks, generationAttemptCount: 0, generationStartedAt: NOW, title: "T1", wordCount: 250 },
-          { id: 2, blocks, generationAttemptCount: 0, generationStartedAt: NOW, title: "T2", wordCount: 250 },
-        ])
+        expect(claimed).toEqual({ id: 1, blocks, generationAttemptCount: 0, generationStartedAt: NOW, title: "T1", wordCount: 250 })
         const [strings, ...values] = fake.queryRaw.mock.calls[0]
         const sql = readRawSql(strings)
         expect(sql).toContain("SET status = 'generating', generation_started_at = $?::timestamp(3), updated_at = $?::timestamp(3)")
         expect(sql).toContain("WHERE status = 'collected' AND ($?::integer IS NULL OR id = $?::integer)")
-        expect(sql).toContain("ORDER BY created_at ASC, id ASC LIMIT $?::integer FOR UPDATE SKIP LOCKED")
-        expect(values).toEqual(["2026-10-13T03:00:00.000Z", "2026-10-13T03:00:00.000Z", 42, 42, 3])
+        expect(sql).toContain("ORDER BY created_at ASC, id ASC LIMIT 1 FOR UPDATE SKIP LOCKED")
+        expect(values).toEqual(["2026-10-13T03:00:00.000Z", "2026-10-13T03:00:00.000Z", 42, 42])
       })
 
-      it("passageId が無ければ NULL を渡して全件を候補にする", async () => {
+      it("passageId が無ければ NULL を渡して全件を候補にし、取れる行が無ければ null を返す", async () => {
         const fake = createFakePrisma()
 
-        await new PrismaPassageRepository(fake.prisma).claimCollected({ limit: 10, now: NOW })
+        expect(await new PrismaPassageRepository(fake.prisma).claimNextCollected({ now: NOW })).toBeNull()
 
         const [, ...values] = fake.queryRaw.mock.calls[0]
-        expect(values.slice(2)).toEqual([null, null, 10])
+        expect(values.slice(2)).toEqual([null, null])
       })
     })
   })

@@ -43,6 +43,8 @@ const resultQuestionSchema = attemptQuestionSchema.extend({
   /** 根拠のセグメントの範囲（segment_end は含まない）。引用が本文に見つからなければ null */
   evidence: z.object({ block_index: z.number(), quote: z.string(), segment_end: z.number(), segment_start: z.number() }).nullable(),
   explanation_ja: z.string(),
+  /** 提出後に正解が直されたか（保存した is_correct と「selected_choice_index === いまの correct_choice_index」が食い違うとき true） */
+  is_answer_key_changed: z.boolean(),
   /** 提出時点の正誤（保存値） */
   is_correct: z.boolean(),
   selected_choice_index: z.number().nullable(),
@@ -102,6 +104,12 @@ export const gradeAnswers = (
   questions: Pick<Question, "correctChoiceIndex" | "id">[],
   answers: { questionId: number; selectedChoiceIndex: number | null }[],
 ): { answers: { isCorrect: boolean; questionId: number; selectedChoiceIndex: number | null }[]; correctCount: number }
+
+/** 提出後に正解が直されたか。保存した正誤と、保存した回答をいまの正解で採点し直した正誤が食い違えば true（未回答は常に false） */
+export const hasAnswerKeyChanged = (
+  storedAnswer: { isCorrect: boolean; selectedChoiceIndex: number | null },
+  correctChoiceIndex: number,
+): boolean => storedAnswer.isCorrect !== (storedAnswer.selectedChoiceIndex === correctChoiceIndex)
 ```
 
 ### 3. 辞書の引き方（`apps/api/src/lib/lookup-dictionary.ts`）
@@ -189,7 +197,7 @@ flowchart TD
 8. 7 で null だったら挑戦を読み直し、`submitted` なら 3 と同じく保存済みの結果を返す
 9. `buildSubmittedView(attempt, content, answers, lookups)` を返す
 
-`buildSubmittedView`：用語集は全件（語義設問の対象も含む）で `segmentPassage` し、各設問の根拠を `findEvidenceSegmentRange(blocks[evidenceBlockIndex].text, segments[evidenceBlockIndex], evidenceQuote)` で範囲にする。`isCorrect` は保存値、正解・解説・選択肢はいまの設問。`getAttempt` の `submitted` もこれで返す（step3 の仮の 409 を置き換える）。提出・`getAttempt` とも、挑戦・回答・調べた単語は `PRIMARY_READ`（primary）から読む（提出の直後の行を read replica の遅れで見失わないため）。
+`buildSubmittedView`：用語集は全件（語義設問の対象も含む）で `segmentPassage` し、各設問の根拠を `findEvidenceSegmentRange(blocks[evidenceBlockIndex].text, segments[evidenceBlockIndex], evidenceQuote)` で範囲にする。`isCorrect` は保存値、正解・解説・選択肢はいまの設問。提出後に管理者が正解を直すと両者が食い違う（B を選んで不正解だった設問の正解を B に直すと「あなたの回答 B・正解 B・不正解」になる）ので、提出時の採点は変えずに `isAnswerKeyChanged = hasAnswerKeyChanged(answer, question.correctChoiceIndex)` を付け、結果画面で注記させる。`getAttempt` の `submitted` もこれで返す（step3 の仮の 409 を置き換える）。提出・`getAttempt` とも、挑戦・回答・調べた単語は `PRIMARY_READ`（primary）から読む（提出の直後の行を read replica の遅れで見失わないため）。
 
 `dictionary-service.ts`（新規）：`lookupWord({ word }, { dictionaryRepository })` → `generateLookupCandidates` → `findByHeadwords`（1 クエリ）→ `pickFirstEntry`。無ければ `err(notFoundError(...))`。
 
@@ -213,6 +221,7 @@ lib（境界値）:
 - [ ] `clampElapsedSeconds`：申告 > 壁時計 → 壁時計 / 申告 = 壁時計 / 申告 < 壁時計 → 申告 / 開始が未来（時計のずれ）→ 0
 - [ ] `isOvertime`：制限時間ちょうどは false、1 秒超えで true
 - [ ] `gradeAnswers`：未回答（null・回答なし）は不正解、`correctCount`
+- [ ] `hasAnswerKeyChanged`：正解のまま・不正解のままは false / 不正解だった回答がいまの正解・正解だった回答がいまは不正解なら true / 不正解の回答のまま正解が別の選択肢に変わっても false / 未回答は false
 - [ ] `generateLookupCandidates`：`Libraries` → `library` / `rendered` → `render` / `used` → `use` / `running` → `run` / `went` → `go` / `React's` → `react` / `re-render` → 全体の後に `re`・`render` / 重複が無い
 - [ ] `pickFirstEntry` は候補の順で最初に見つかったものを返す
 
@@ -223,6 +232,7 @@ Service（ユニット）:
 - [ ] `markSubmitted` が null（同時提出）なら挿入せず、保存済みの結果を返す
 - [ ] 重複・知らない `question_id` で 400。回答の無い設問も `isCorrect: false` で挿入される
 - [ ] `studyDate` に `user.timezone` が使われる。`translatedBlockCount` の上限、この問題に無い用語集 ID の単語は捨てられる
+- [ ] `getAttempt`：提出後に正解が直された設問は `isCorrect` が保存値のまま `isAnswerKeyChanged: true`（直されていない設問・未回答は false）
 
 Controller（インテグレーション）:
 
@@ -232,6 +242,7 @@ Controller（インテグレーション）:
 - [ ] 冪等：回答を変えて 2 回目を送っても 200 で 1 回目と同じ結果、DB の行数が変わらない。`Promise.all` で同時に 2 回送っても回答の行は 1 組
 - [ ] `active_seconds` を壁時計より大きく送ると切り詰められる。開始から 24 時間たった挑戦は 409 で DB が `expired`
 - [ ] 提出後の `GET /api/attempt/:id` が提出のレスポンスと同じ形（`submitted`）を返し、語義設問の対象語句が用語集に含まれる
+- [ ] 提出後に `questions.correct_choice_index` を直すと、`GET /api/attempt/:id` の `correct_count`・`is_correct` は提出時のまま、食い違う設問だけ `is_answer_key_changed: true`
 - [ ] `GET /api/dictionary`：`Rendering` → `render` の意味で 200 / 辞書に無い語で 404 / `123`・空・65 文字で 400 / 認証なしで 401
 
 Repository（Drizzle / Prisma の両方）:

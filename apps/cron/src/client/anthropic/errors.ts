@@ -17,14 +17,21 @@ export class LlmRefusalError extends Error {
 }
 
 /**
- * 出力が `max_tokens`（またはコンテキストの上限）で途中で切れた。JSON として完結していないので、検証の不合格と同じ扱いにする
+ * 出力が `max_tokens`（またはコンテキストの上限）で途中で切れた。思考（thinking）のトークンも `max_tokens` に含まれるので、
+ * 思考が長引くと JSON を書き終える前に切れる。text が JSON として読めても完結していないので使わない。
+ * 生成では一時的な失敗として次の実行に回す（同じ上限ですぐに作り直しても切れやすく、費用だけが増えるため）
  */
 export class LlmOutputTruncatedError extends Error {
+  /**
+   * 応答の `usage.output_tokens`（思考のトークンを含む出力トークン数）
+   */
+  public readonly outputTokens: number
   public readonly stopReason: string
 
-  constructor(stopReason: string) {
-    super(`LLM output was truncated (stop_reason: ${stopReason})`)
+  constructor(stopReason: string, outputTokens: number) {
+    super(`LLM output was truncated at the output limit (stop_reason: ${stopReason}, output_tokens: ${outputTokens})`)
     this.name = "LlmOutputTruncatedError"
+    this.outputTokens = outputTokens
     this.stopReason = stopReason
   }
 }
