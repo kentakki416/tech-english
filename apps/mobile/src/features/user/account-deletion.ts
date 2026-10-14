@@ -3,6 +3,7 @@ import * as Notifications from "expo-notifications"
 
 import { DELETE_ACCOUNT_CONFIRMATION_TEXT } from "@repo/api-schema"
 
+import { useAttemptStore } from "@/features/attempt/attempt.store"
 import { clearStoredTokens, getStoredTokens } from "@/features/auth/auth.storage"
 import { useAuthStore } from "@/features/auth/auth.store"
 
@@ -35,6 +36,10 @@ export const deleteAccount = async (): Promise<void> => {
  * サーバー側は削除済みなので、1 つ失敗しても残りは続け、完了の表示に進む
  */
 const clearDeviceData = async (): Promise<void> => {
+  /**
+   * 開始・提出のレスポンスを入れたメモリ上の挑戦（ユーザーごとのデータ）
+   */
+  useAttemptStore.getState().clearStoreAttempts()
   const results = await Promise.allSettled([
     /**
      * リマインダーの予約（study-reminder-{曜日}）。この app が予約する通知はリマインダーだけなので全件取り消す。
