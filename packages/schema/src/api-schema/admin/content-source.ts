@@ -1,6 +1,6 @@
 import { z } from "zod"
 
-import { ALLOWED_LICENSES, SOURCE_FETCH_TYPES, SOURCE_KINDS } from "@repo/domain"
+import { ALLOWED_LICENSES, PASSAGE_STATUSES, SOURCE_FETCH_TYPES, SOURCE_KINDS } from "@repo/domain"
 
 // ========================================================
 // 共通: ソースの入力・出力の部品
@@ -27,11 +27,14 @@ const isWebUrl = (value: string): boolean => {
 }
 
 /**
- * GitHub のリポジトリ（owner/name）。owner は英数字とハイフン（39 文字まで）、name は英数字と . _ -（"." と ".." は不可）
+ * GitHub のリポジトリ（owner/name）。owner は英数字とハイフン（39 文字まで）、name は英数字と . _ -（"." と ".." は不可）。
+ * GitHub はリポジトリ名の大文字・小文字を区別しないので、小文字にそろえて保存・検索する
+ * （`reactjs/react.dev` と `ReactJS/react.dev` を別のソースとして登録できないようにするため）
  */
 const githubRepositorySchema = z
   .string()
   .regex(/^[A-Za-z0-9][A-Za-z0-9-]{0,38}\/(?!\.{1,2}$)[A-Za-z0-9._-]{1,100}$/)
+  .transform((value) => value.toLowerCase())
 
 /**
  * http / https の URL
@@ -184,16 +187,11 @@ export const contentSourceSchema = z.discriminatedUnion("fetch_type", [
 export type ContentSourceResponse = z.infer<typeof contentSourceSchema>
 
 /**
- * 本文候補の状態ごとの件数（キーは PASSAGE_STATUSES）
+ * 本文候補の状態ごとの件数（キーは PASSAGE_STATUSES）。状態を足したらキーも自動で増える
  */
-export const passageCountsSchema = z.object({
-  collected: z.number().int(),
-  draft: z.number().int(),
-  failed: z.number().int(),
-  generating: z.number().int(),
-  published: z.number().int(),
-  rejected: z.number().int(),
-})
+export const passageCountsSchema = z.object(
+  Object.fromEntries(PASSAGE_STATUSES.map((status) => [status, z.number().int()])) as Record<(typeof PASSAGE_STATUSES)[number], z.ZodNumber>,
+)
 
 export type PassageCountsResponse = z.infer<typeof passageCountsSchema>
 

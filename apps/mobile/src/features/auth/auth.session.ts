@@ -1,5 +1,6 @@
 import * as Localization from "expo-localization"
 
+import { useAttemptStore } from "@/features/attempt/attempt.store"
 import { cancelStudyRemindersOnSignIn, clearStudyReminders } from "@/features/study-reminder/study-reminder.sync"
 
 import { authApi } from "./auth.api"
@@ -72,12 +73,14 @@ export const signInAsDevUser = async (email: string): Promise<SignInResult> => {
  *
  * refresh の失敗による強制ログアウト（`src/libs/api-client.ts` の `expireSession`）はここを通らない。
  * 強制ログアウトでは予約も届き済みの通知も消さない（ログインが切れても通知は届き、タップでログイン画面に進む仕様。study-reminder）。
- * 予約は次にログインしたときに取り消す（cancelStudyRemindersBeforeSync）
+ * 予約は次にログインしたときに取り消す（cancelStudyRemindersBeforeSync）。
+ * メモリに持つ挑戦（attempt.store）は強制ログアウトと同じく空にする
  */
 export const signOut = async (): Promise<void> => {
   await revokeRefreshToken()
   await cancelStudyReminders()
   await clearStoredTokens()
+  useAttemptStore.getState().clearStoreAttempts()
   useAuthStore.getState().setStatus("signedOut")
 }
 

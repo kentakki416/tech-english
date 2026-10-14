@@ -6,6 +6,8 @@ import { type ContentSource, isAllowedLicense, isPassageStatus, isSourceFetchTyp
 import type {
   ContentSourceInput,
   ContentSourceRepository,
+  ContentSourceSaveResult,
+  ContentSourceUpdateOptions,
   FailedPage,
   PassageCountRow,
 } from "../content-source-repository"
@@ -24,6 +26,18 @@ type PassageCountQueryRow = { count: bigint; source_id: number; status: string }
  * 取得に失敗したとみなす HTTP ステータスの下限
  */
 const FAILED_HTTP_STATUS = 400
+
+/**
+ * Prisma の unique 制約違反のエラーコード
+ */
+const UNIQUE_CONSTRAINT_FAILED = "P2002"
+
+/**
+ * unique 制約違反か（PrismaClientKnownRequestError の code。@repo/db は Prisma の値を出さないので形で判定する）。
+ * content_sources の unique 制約は主キーと repository / site_url だけなので、重複の登録とみなせる
+ */
+const isUniqueViolation = (error: unknown): boolean =>
+  typeof error === "object" && error !== null && "code" in error && error.code === UNIQUE_CONSTRAINT_FAILED
 
 /**
  * jsonb の string[] 列
@@ -106,11 +120,16 @@ export class PrismaContentSourceRepository implements ContentSourceRepository {
     })
   }
 
-  public async create(input: ContentSourceInput): Promise<ContentSource> {
-    const row = await this._prisma.contentSource.create({
-      data: { ...buildColumnValues(input), fetchType: input.fetchType },
-    })
-    return this._toDomain(row)
+  public async create(input: ContentSourceInput): Promise<ContentSourceSaveResult> {
+    try {
+      const row = await this._prisma.contentSource.create({
+        data: { ...buildColumnValues(input), fetchType: input.fetchType },
+      })
+      return { kind: "saved", source: this._toDomain(row) }
+    } catch (error) {
+      if (isUniqueViolation(error)) return { kind: "duplicate" }
+      throw error
+    }
   }
 
   public async findAll(): Promise<ContentSource[]> {
@@ -148,22 +167,41 @@ export class PrismaContentSourceRepository implements ContentSourceRepository {
     })
   }
 
+  public async hasSourceDocuments(sourceId: number): Promise<boolean> {
+    const row = await this._prisma.sourceDocument.findFirst({ select: { id: true }, where: { sourceId } })
+    return row !== null
+  }
+
   /**
    * 対象が無い（id が無い・取得方法が違う）ときは P2025 で throw する
    */
   public async update(
     id: number,
     input: ContentSourceInput,
-    options: { shouldResetCollectedCommit: boolean },
-  ): Promise<ContentSource> {
-    const row = await this._prisma.contentSource.update({
-      data: {
-        ...buildColumnValues(input),
-        ...(options.shouldResetCollectedCommit ? { lastCollectedCommitSha: null } : {}),
-      },
-      where: { fetchType: input.fetchType, id },
-    })
-    return this._toDomain(row)
+    options: ContentSourceUpdateOptions,
+  ): Promise<ContentSourceSaveResult> {
+    try {
+      const row = await this._prisma.$transaction(async (tx) => {
+        const updated = await tx.contentSource.update({
+          data: {
+            ...buildColumnValues(input),
+            ...(options.shouldResetCollectedCommit ? { lastCollectedCommitSha: null } : {}),
+          },
+          where: { fetchType: input.fetchType, id },
+        })
+        if (options.shouldResetDocumentCache) {
+          await tx.sourceDocument.updateMany({
+            data: { contentHash: null, etag: null, lastModified: null },
+            where: { sourceId: id },
+          })
+        }
+        return updated
+      })
+      return { kind: "saved", source: this._toDomain(row) }
+    } catch (error) {
+      if (isUniqueViolation(error)) return { kind: "duplicate" }
+      throw error
+    }
   }
 
   /**

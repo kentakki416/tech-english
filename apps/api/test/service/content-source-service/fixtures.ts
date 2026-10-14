@@ -17,6 +17,7 @@ export const createMockContentSourceRepository = () => ({
   findByRepository: vi.fn<ContentSourceRepository["findByRepository"]>(),
   findBySiteUrl: vi.fn<ContentSourceRepository["findBySiteUrl"]>(),
   findFailedPages: vi.fn<ContentSourceRepository["findFailedPages"]>(),
+  hasSourceDocuments: vi.fn<ContentSourceRepository["hasSourceDocuments"]>(),
   update: vi.fn<ContentSourceRepository["update"]>(),
 })
 

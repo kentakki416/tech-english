@@ -5,12 +5,10 @@ import type {
   AttemptQuestion,
   ExpiredAttempt,
   InProgressAttempt,
-  PassageAttributionResponse,
   PassageSegmentResponse,
   SubmittedAttempt,
 } from "@repo/api-schema"
 
-import type { PassageAttribution } from "../../lib/build-attribution"
 import type { PassageSegment } from "../../lib/segment-passage"
 import type {
   AttemptBlockView,
@@ -21,21 +19,11 @@ import type {
   InProgressAttemptView,
   SubmittedAttemptView,
 } from "../../service/attempt-service"
+import { convertAttributionToResponse } from "../passage/mapper"
 
 /**
  * 挑戦の domain の形 → API の snake_case の形。開始・取得・提出（reading-practice step4）で共有する
  */
-
-const convertAttributionToResponse = (attribution: PassageAttribution): PassageAttributionResponse => ({
-  commit_sha: attribution.commitSha,
-  license_spdx: attribution.licenseSpdx,
-  license_url: attribution.licenseUrl,
-  page_url: attribution.pageUrl,
-  permalink_url: attribution.permalinkUrl,
-  retrieved_at: attribution.retrievedAt.toISOString(),
-  source_kind: attribution.sourceKind,
-  source_name: attribution.sourceName,
-})
 
 const convertAttemptPassageToResponse = (passage: AttemptPassageView): AttemptPassage => ({
   id: passage.id,

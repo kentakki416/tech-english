@@ -101,7 +101,7 @@ export const getUserStatsResponseSchema = z.object({
    */
   type_accuracy: z.array(accuracySchema.extend({ type: z.enum(QUESTION_TYPES) })),
   /**
-   * 正答率が一番低い種類（設問のある種類だけで比べる。無ければ null）
+   * 正答率が一番低い種類（設問のある種類だけで比べる。設問のある種類が 2 つ未満・すべて同率〈すべて 100% を含む〉なら null）
    */
   weakest_question_type: z.enum(QUESTION_TYPES).nullable(),
 })

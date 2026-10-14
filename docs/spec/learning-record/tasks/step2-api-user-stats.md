@@ -20,7 +20,7 @@ flowchart LR
     C --> D["calculateStreak・週の進捗・正答率を計算"]
 ```
 
-1. `repo.userRepository.findById(userId)` が `null` なら `err(unauthorizedError(...))`。「今日」を求めるのにタイムゾーンが要るため、読み取りの API でも 401 にする（削除済みユーザーの access token。クライアントは refresh に失敗してログイン画面へ戻る）
+1. `repo.userRepository.findById(userId)` が `null` なら `err(unauthorizedError(...))`。「今日」を求めるのにタイムゾーンが要るため、読み取りの API でも 401 にする（削除済みユーザーの access token。mobile は refresh に失敗して、web は 401 を受けたページが cookie を消して（`/api/auth/session-expired`）ログイン画面へ戻る）
 2. 「今日」は `formatDateInTimeZone(deps.now, user.timezone)`。集計そのものは `study_date` だけで決まり、タイムゾーン変換はしない
 3. 数えるのは `status = 'submitted'` の挑戦だけ（途中・期限切れは数えない。期限切れへの更新はこの API では行わない）
 
@@ -81,7 +81,7 @@ export const getUserStatsResponseSchema = z.object({
     study_seconds: z.number().int(),
   }),
   type_accuracy: z.array(accuracySchema.extend({ type: z.enum(QUESTION_TYPES) })),
-  /** 正答率が一番低い種類（設問のある種類だけで比べる。無ければ null） */
+  /** 正答率が一番低い種類（設問のある種類だけで比べる。設問のある種類が 2 つ未満・すべて同率〈すべて 100% を含む〉なら null） */
   weakest_question_type: z.enum(QUESTION_TYPES).nullable(),
 })
 
@@ -218,7 +218,10 @@ export const getUserStats = async (
 
 
 - 週の進捗: `passages` は `weekDays` の `attemptCount` の合計、`minutes` は `studySeconds` の合計 ÷ 60 の切り捨て。`is_weekly_achieved` は `progress >= weekly_target`（週の目標が無ければ `weekly_progress: null`・`false`）
-- 正答率は `Math.round(correct / question * 100)`、`question === 0` なら `null`。最も低い種類の比較は丸める前の比で行い、同率なら `QUESTION_TYPES` の順で先のもの
+- 正答率は `Math.round(correct / question * 100)`、`question === 0` なら `null`
+- `weakest_question_type`（一番苦手な種類）は、設問のある種類だけを丸める前の比で比べて一番低い種類。一番低い比の種類が複数あれば `QUESTION_TYPES` の順で先のもの。ただし次のときは「他の種類より低い」と言えないので `null`（web / mobile は文を出さない）
+  - 設問のある種類が 2 つ未満（1 種類だけでは比べられない）
+  - 設問のある種類がすべて同率（一番低い比 = 一番高い比）。すべて 100%（初めての 1 問を全問正解したときなど）もここに入る
 - `getUserCalendar(userId, range: { from?: string, to?: string }, repo: { learningRecordRepository, userRepository }, deps: { now: Date })`:
   - `from` と `to` は両方指定か両方省略。片方だけ・`from > to`・`countDaysBetween(from, to) + 1 > 366` は `err(badRequestError(...))`
   - 省略時は年表示の範囲: `to = 今日`、`from = max(getWeekRange(今日).start − 52 週, 今日 − 365 日)`（月曜始まりの 53 列に収まり、366 日を超えない）
@@ -257,6 +260,8 @@ Service のユニットテスト（Repository は `vi.fn()`、`now` を固定）
 - [ ] 挑戦が 0 件なら累計 0・正答率 null・`weakest_question_type` null・`goal` null
 - [ ] 週の目標が minutes のとき `weekly_progress` は秒の合計 ÷ 60 の切り捨て、目標値ちょうどで `is_weekly_achieved` が true
 - [ ] `type_accuracy` は 5 種類を `QUESTION_TYPES` の順で返し、設問の無い種類は null
+- [ ] 一番苦手な種類は丸める前の比で比べ、一番低い比の種類が複数あれば `QUESTION_TYPES` の順で先のもの
+- [ ] 設問のある種類がすべて 100%・1 種類だけ・すべて同率なら、一番苦手な種類は null
 - [ ] ユーザーが存在しなければ 3 つとも `UNAUTHORIZED`
 - [ ] calendar: 省略時は今日が月曜なら 365 日・日曜なら 366 日。`days` は全日で level が付く
 - [ ] calendar: 366 日は ok、367 日・`from > to`・片方だけは `BAD_REQUEST`

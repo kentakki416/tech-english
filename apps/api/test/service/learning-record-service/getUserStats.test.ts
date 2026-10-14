@@ -273,7 +273,7 @@ describe("getUserStats", () => {
       }
     })
 
-    it("同率なら QUESTION_TYPES の順で先の種類を一番苦手とする", async () => {
+    it("一番低い比の種類が複数あれば（他に高い種類があるとき）、QUESTION_TYPES の順で先の種類を一番苦手とする", async () => {
       const repo = setup()
       repo.learningRecordRepository.summarizeAccuracyByQuestionType.mockResolvedValue([
         { correctCount: 1, questionCount: 2, type: "purpose" },
@@ -284,6 +284,33 @@ describe("getUserStats", () => {
       const result = await getUserStats(USER.id, repo, { now: FIXED_NOW })
 
       expect(result.ok && result.value.weakestQuestionType).toBe("vocabulary")
+    })
+
+    it.each([
+      [
+        "設問のある種類がすべて 100%（初めての 1 問を全問正解）",
+        [
+          { correctCount: 2, questionCount: 2, type: "main_idea" },
+          { correctCount: 1, questionCount: 1, type: "detail" },
+          { correctCount: 1, questionCount: 1, type: "inference" },
+        ],
+      ],
+      ["設問のある種類が 1 つだけ", [{ correctCount: 1, questionCount: 4, type: "main_idea" }]],
+      [
+        "設問のある種類がすべて同率（100% 未満）",
+        [
+          { correctCount: 1, questionCount: 2, type: "main_idea" },
+          { correctCount: 2, questionCount: 4, type: "vocabulary" },
+          { correctCount: 3, questionCount: 6, type: "purpose" },
+        ],
+      ],
+    ] as const)("他の種類より低いと言えないので一番苦手な種類は null: %s", async (_label, counts) => {
+      const repo = setup()
+      repo.learningRecordRepository.summarizeAccuracyByQuestionType.mockResolvedValue([...counts])
+
+      const result = await getUserStats(USER.id, repo, { now: FIXED_NOW })
+
+      expect(result.ok && result.value.weakestQuestionType).toBeNull()
     })
   })
 

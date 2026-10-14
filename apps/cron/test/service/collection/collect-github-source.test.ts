@@ -18,6 +18,12 @@ import {
   NOW,
 } from "./helpers"
 
+/**
+ * commit SHA を書けなかったときの warn を確かめるため logger を差し替える（@repo/logger の logger は Proxy で spyOn できない）
+ */
+const { warnMock } = vi.hoisted(() => ({ warnMock: vi.fn() }))
+vi.mock("@repo/logger", () => ({ logger: { debug: vi.fn(), error: vi.fn(), info: vi.fn(), warn: warnMock } }))
+
 const buildInput = (overrides: Partial<CollectGitHubSourceInput> = {}): CollectGitHubSourceInput => ({
   maxDocuments: 100,
   maxPassages: 200,
@@ -142,17 +148,43 @@ describe("collectGitHubSource", () => {
       expect(insertOrder).toBeLessThan(markFetchedOrder)
     })
 
-    it("全件処理すると completed で commit SHA が更新される", async () => {
+    it.each([
+      ["未収集（null）", null],
+      ["前回の SHA", "commit-sha-previous"],
+    ])("全件処理すると completed で、収集を始めたときの SHA（%s）を条件に commit SHA を更新する", async (_label, previousSha) => {
       const client = createFakeGitHubClient(buildGitHubOptions(["docs/a.md", "docs/b.md"]))
       const repo = createFakeRepo()
 
-      const result = await collectGitHubSource(buildInput(), repo, createDeps(client))
+      const result = await collectGitHubSource(
+        buildInput({ source: buildGitHubSource({ lastCollectedCommitSha: previousSha }) }),
+        repo,
+        createDeps(client),
+      )
 
       expect(result).toEqual({ createdPassageCount: 4, fetchedDocumentCount: 2, status: "completed" })
       expect(repo.contentSourceRepository.markCollected).toHaveBeenCalledWith(1, {
         lastCollectedAt: NOW,
-        lastCollectedCommitSha: COMMIT_SHA,
+        lastCollectedCommitSha: { expected: previousSha, next: COMMIT_SHA },
       })
+      expect(warnMock).not.toHaveBeenCalled()
+    })
+
+    it("収集の途中で admin が last_collected_commit_sha を変えて markCollected が false を返したら、warn を出して completed で終える", async () => {
+      const client = createFakeGitHubClient(buildGitHubOptions(["docs/a.md"]))
+      const repo = createFakeRepo()
+      repo.contentSourceRepository.markCollected.mockResolvedValue(false)
+
+      const result = await collectGitHubSource(
+        buildInput({ source: buildGitHubSource({ lastCollectedCommitSha: "commit-sha-previous" }) }),
+        repo,
+        createDeps(client),
+      )
+
+      expect(result.status).toBe("completed")
+      expect(warnMock).toHaveBeenCalledWith(
+        "last_collected_commit_sha was changed during the collection; the commit SHA is not recorded",
+        { commitSha: COMMIT_SHA, expectedCommitSha: "commit-sha-previous", sourceId: 1 },
+      )
     })
 
     it("maxDocuments に達すると limit_reached で、commit SHA を更新しない", async () => {

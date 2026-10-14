@@ -1,4 +1,4 @@
-import { findSurfaceRange, hasQuote, isSurfaceAt, numberParagraphs } from "../../src/rules/passage-text"
+import { findSurfaceRange, hasQuote, isSurfaceAt, numberHeadings, numberParagraphs } from "../../src/rules/passage-text"
 import type { PassageBlockType } from "../../src/types/passage"
 
 describe("findSurfaceRange", () => {
@@ -106,6 +106,20 @@ describe("hasQuote", () => {
     it("引用が空（バッククォートだけを含む）なら false", () => {
       expect(hasQuote("Use `useEffect` to synchronize.", "")).toBe(false)
       expect(hasQuote("Use `useEffect` to synchronize.", "``")).toBe(false)
+    })
+  })
+})
+
+describe("numberHeadings", () => {
+  describe("正常系", () => {
+    it("heading だけを 1 から連番にし、それ以外は null", () => {
+      const types: PassageBlockType[] = ["heading", "paragraph", "code", "list_item", "heading", "quote", "heading"]
+
+      expect(numberHeadings(types.map((type) => ({ type })))).toEqual([1, null, null, null, 2, null, 3])
+    })
+
+    it("ブロックが無ければ空配列", () => {
+      expect(numberHeadings([])).toEqual([])
     })
   })
 })

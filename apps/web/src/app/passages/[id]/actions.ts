@@ -1,5 +1,6 @@
 "use server"
 
+import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 
 import { startAttemptPathParamSchema } from "@repo/api-schema"
@@ -33,6 +34,10 @@ export const startAttemptAction = async (
   } catch {
     return { message: START_FAILED_MESSAGE }
   }
+  /**
+   * 前に開いた同じ挑戦の解答画面のキャッシュ（古い途中の状態）を使わず、取り直させる
+   */
+  revalidatePath(`/attempts/${attemptId}`)
   /**
    * redirect は NEXT_REDIRECT という例外で実現されるので try / catch の外で呼ぶ
    */

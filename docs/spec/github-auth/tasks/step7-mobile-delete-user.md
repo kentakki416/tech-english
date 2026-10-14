@@ -52,6 +52,8 @@ const clearDeviceData = async (): Promise<void> => {
     /** 解答途中のデータ（キーは挑戦 ID）と表示設定。キーの命名に依存しないよう全消去する */
     AsyncStorage.clear(),
   ])
+  /** メモリに持つ挑戦（reading-practice step8 の attempt.store）。ログアウト・強制ログアウトでも空にしている */
+  useAttemptStore.getState().clearStoreAttempts()
 }
 
 /**
@@ -126,4 +128,4 @@ development build で、使い捨てのユーザー（GitHub でログインし�
 - [ ] 解答途中で中断した挑戦がある状態で削除すると、AsyncStorage が空になる（reading-practice step9 の実装後）
 - [ ] 機内モードで削除 → エラーの文言が出て確認画面のまま。通信を戻して再試行すると削除できる
 - [ ] 完了の表示のまま app を終了して起動し直すと、ログイン画面が開く（トークンは消えている）
-- [ ] 同じユーザーで web にもログインしていた場合、web は access token の期限切れ後にログイン画面へ戻る
+- [ ] 同じユーザーで web にもログインしていた場合、web は次にユーザーを取得するページ（マイページ・設定・学習履歴など）を開いた時点でログイン画面へ戻る（[step6 の 7.](./step6-web-delete-user.md#7-別の端末で削除されたときのログアウト期限内の-access-token-が拒まれたとき)）

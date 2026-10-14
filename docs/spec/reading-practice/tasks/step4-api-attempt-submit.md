@@ -12,9 +12,14 @@
 
 ### 1. api-schema
 
-`attempt.ts` に足す（`WORD_LOOKUP_SOURCES` は `@repo/domain` から）:
+`attempt.ts` に足す（`WORD_LOOKUP_SOURCES`・`MAX_QUESTIONS_PER_PASSAGE` は `@repo/domain` から）:
 
 ```ts
+/** 提出で受け取る調べた単語の件数の上限。web / mobile もこの件数を超えた分を記録しない */
+export const SUBMIT_ATTEMPT_MAX_WORD_LOOKUPS = 300
+/** 提出で受け取る surface / lemma の長さの上限。web / mobile もこれを超える記録を送らない */
+export const SUBMIT_ATTEMPT_MAX_WORD_LENGTH = 100
+
 export const submitAttemptRequestSchema = z.object({
   /** 画面を見ていた秒数（クライアントの計測値）。サーバーが壁時計で切り詰める */
   active_seconds: z.number().int().nonnegative(),
@@ -22,15 +27,15 @@ export const submitAttemptRequestSchema = z.object({
     question_id: z.number().int().positive(),
     /** null = 未回答 */
     selected_choice_index: z.number().int().min(0).max(3).nullable(),
-  })).max(10),
+  })).max(MAX_QUESTIONS_PER_PASSAGE),
   translated_block_count: z.number().int().nonnegative(),
   /** 調べた 1 回ごとに 1 要素（同じ単語を 2 回調べたら 2 要素） */
   word_lookups: z.array(z.object({
     glossary_entry_id: z.number().int().positive().nullable(),
-    lemma: z.string().trim().min(1).max(100),
+    lemma: z.string().trim().min(1).max(SUBMIT_ATTEMPT_MAX_WORD_LENGTH),
     source: z.enum(WORD_LOOKUP_SOURCES),
-    surface: z.string().trim().min(1).max(100),
-  }).refine((lookup) => (lookup.source === "glossary") === (lookup.glossary_entry_id !== null))).max(300),
+    surface: z.string().trim().min(1).max(SUBMIT_ATTEMPT_MAX_WORD_LENGTH),
+  }).refine((lookup) => (lookup.source === "glossary") === (lookup.glossary_entry_id !== null))).max(SUBMIT_ATTEMPT_MAX_WORD_LOOKUPS),
 })
 
 const resultQuestionSchema = attemptQuestionSchema.extend({
@@ -184,7 +189,7 @@ flowchart TD
 8. 7 で null だったら挑戦を読み直し、`submitted` なら 3 と同じく保存済みの結果を返す
 9. `buildSubmittedView(attempt, content, answers, lookups)` を返す
 
-`buildSubmittedView`：用語集は全件（語義設問の対象も含む）で `segmentPassage` し、各設問の根拠を `findEvidenceSegmentRange(blocks[evidenceBlockIndex].text, segments[evidenceBlockIndex], evidenceQuote)` で範囲にする。`isCorrect` は保存値、正解・解説・選択肢はいまの設問。`getAttempt` の `submitted` もこれで返す（step3 の仮の 409 を置き換える）。
+`buildSubmittedView`：用語集は全件（語義設問の対象も含む）で `segmentPassage` し、各設問の根拠を `findEvidenceSegmentRange(blocks[evidenceBlockIndex].text, segments[evidenceBlockIndex], evidenceQuote)` で範囲にする。`isCorrect` は保存値、正解・解説・選択肢はいまの設問。`getAttempt` の `submitted` もこれで返す（step3 の仮の 409 を置き換える）。提出・`getAttempt` とも、挑戦・回答・調べた単語は `PRIMARY_READ`（primary）から読む（提出の直後の行を read replica の遅れで見失わないため）。
 
 `dictionary-service.ts`（新規）：`lookupWord({ word }, { dictionaryRepository })` → `generateLookupCandidates` → `findByHeadwords`（1 クエリ）→ `pickFirstEntry`。無ければ `err(notFoundError(...))`。
 
