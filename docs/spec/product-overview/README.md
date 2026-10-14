@@ -17,6 +17,7 @@
 - [`../reading-practice/README.md`](../reading-practice/README.md) — 問題を解く・採点・解説・アシスト。`reading_attempts` 系テーブルの正本
 - [`../learning-record/README.md`](../learning-record/README.md) — 学習記録（カレンダー）と目標。`user_goals` の正本
 - [`../study-reminder/README.md`](../study-reminder/README.md) — mobile のリマインダー通知。`reminder_settings` の正本
+- [`../read-aloud/README.md`](../read-aloud/README.md) — 本文の読み上げ（Amazon Polly で事前生成）。`passage_audios` の正本
 - [`../minimal-deploy/README.md`](../minimal-deploy/README.md) — 初期リリースのインフラ構成。本サービスは worker なし（`enable_worker = false`）で動くように設計する
 - [`./deferred-grammar-vocabulary.md`](./deferred-grammar-vocabulary.md) — MVP 対象外。文法問題・単語問題
 
@@ -77,7 +78,7 @@
 | **本文** | 問題の英文。取得元の文書から 200〜600 語を抜き出したもの |
 | **設問** | 本文について問う 4 択の質問 1 つ。内部名は `question` |
 | **挑戦** | ユーザーが 1 つの問題を解き始めてから提出するまでの 1 回分。同じ問題に何度でも挑戦できる。内部名は `attempt` |
-| **アシスト** | 解答中に使える補助。段落の和訳表示と、単語の意味表示の 2 種類 |
+| **アシスト** | 解答中に使える補助。段落の和訳表示、単語の意味表示、本文の読み上げの 3 種類 |
 | **ソース** | 英文の取得元として管理者が登録したもの。GitHub リポジトリか、公式ドキュメントのサイト |
 | **出典表示** | 問題ごとに表示する取得元のリンク・ライセンス・改変の有無 |
 
@@ -95,6 +96,7 @@
 | 問題作成 | 4 択問題の生成（LLM）と管理者承認 | ✅ | [question-generation](../question-generation/README.md) |
 | 学習 | 長文読解（制限時間・採点・解説・時間の記録） | ✅ | [reading-practice](../reading-practice/README.md) |
 | 学習 | アシスト（段落の和訳・単語の意味） | ✅ | [reading-practice](../reading-practice/README.md) |
+| 学習 | 読み上げ（全文・段落、単語のハイライト、再生速度） | ✅ | [read-aloud](../read-aloud/README.md) |
 | 学習 | 文法問題 | ❌ 将来 | [deferred-grammar-vocabulary](./deferred-grammar-vocabulary.md) |
 | 学習 | 単語問題 | ❌ 将来 | [deferred-grammar-vocabulary](./deferred-grammar-vocabulary.md) |
 
@@ -141,6 +143,7 @@ flowchart LR
     practice["reading-practice<br/>reading_attempts / attempt_answers /<br/>attempt_word_lookups / dictionary_entries"]
     record["learning-record<br/>user_goals"]
     remind["study-reminder<br/>reminder_settings"]
+    aloud["read-aloud<br/>passage_audios"]
 
     collect -->|"passages を<br/>collected で作る"| gen
     gen -->|"published の問題"| practice
@@ -148,6 +151,8 @@ flowchart LR
     practice -->|"提出済みの挑戦を集計"| record
     auth --> record
     auth --> remind
+    gen -->|"published の本文を読み上げ"| aloud
+    aloud -->|"音声と単語の時刻"| practice
 ```
 
 `passages` は収集（content-collection）が作り、生成（question-generation）が中身を埋めて公開する。行を作るのは収集側だが、**列とステータスの定義は question-generation を正本にする**（問題データの意味を決めているのは生成と承認の側のため）。
@@ -197,16 +202,17 @@ flowchart LR
 
 ### インフラ上の配置
 
-[minimal-deploy](../minimal-deploy/README.md) の構成に載せる。新しいインフラは足さない。
+[minimal-deploy](../minimal-deploy/README.md) の構成に載せる。足すのは読み上げの音声を置く S3 の bucket と CloudFront だけ（[read-aloud](../read-aloud/README.md#音声の保存と配信)）。
 
 | 処理 | 配置 | 起動 |
 | --- | --- | --- |
 | api | Lambda（minimal）/ ECS（prd） | HTTP リクエスト |
 | `collect:passages` | ECS RunTask | EventBridge Scheduler で 1 日 1 回 |
 | `generate:questions` | ECS RunTask | EventBridge Scheduler で 1 日 1 回（`collect:passages` の後） |
+| `generate:audio` | ECS RunTask | EventBridge Scheduler で 1 時間ごと（公開された問題の読み上げの音声を作る） |
 | リマインダー | **サーバー処理なし**（mobile 端末内のローカル通知） | ― |
 
-外部サービスとして **GitHub API**（収集、ログイン）と **Claude API**（生成）を新たに使い、cron から **公式ドキュメントのサイト** にも HTTP でアクセスする。いずれも外向きの通信なので、minimal（public subnet + public IP）でも prd（NAT Gateway）でも追加のネットワーク設定は要らない。
+外部サービスとして **GitHub API**（収集、ログイン）・**Claude API**（生成）・**Amazon Polly**（読み上げの音声）を新たに使い、cron から **公式ドキュメントのサイト** にも HTTP でアクセスする。いずれも外向きの通信なので、minimal（public subnet + public IP）でも prd（NAT Gateway）でも追加のネットワーク設定は要らない。
 
 ### ドメイン定数の置き場所
 
@@ -218,10 +224,11 @@ flowchart LR
 | `PASSAGE_STATUSES` / `PASSAGE_DIFFICULTIES` / `PASSAGE_BLOCK_TYPES` / `QUESTION_TYPES` | question-generation |
 | `ATTEMPT_STATUSES` / `WORD_LOOKUP_SOURCES` | reading-practice |
 | `GOAL_METRICS` | learning-record |
+| `AUDIO_STATUSES` | read-aloud |
 
 ### 実装の順番
 
-機能をまたいで step を進める順番。各 step の「前提」はこの図に合わせて書いてある。テーブルを先にすべて作り、admin・cron・ユーザー向け API を並行して進め、最後に web と mobile の画面を作る。
+機能をまたいで step を進める順番。各 step の「前提」はこの図に合わせて書いてある。テーブルを先にすべて作り、admin・cron・ユーザー向け API を並行して進め、最後に web と mobile の画面を作る。読み上げ（read-aloud）は解答画面・結果画面ができた後に、テーブルから画面までを足す。
 
 ```mermaid
 flowchart TD
@@ -239,10 +246,21 @@ flowchart TD
     L --> K
     I --> K
     J --> K
+    I -->|"reading-practice step7 の後"| M["read-aloud step1-4<br/>passage_audios / cron（音声の生成）/ API"]
+    F --> M
+    G --> M
+    M --> N["web: read-aloud step5"]
+    N --> O["mobile: read-aloud step6"]
+    J -->|"reading-practice step10 の後"| O
+    M --> P["admin: read-aloud step7"]
+    N --> K
+    O --> K
+    P --> K
 ```
 
 - `passages` は content-collection step1 で全列を作る（列の定義の正本は question-generation）
 - learning-record の集計 API は、reading-practice の提出 API（`study_date` を決める `src/lib/time-zone.ts`）の後に作る
+- read-aloud は reading-practice の提出 API（step4）・web の解答画面と結果画面（step6・7）と learning-record の集計 API（step2）の後に始める（`reading_attempts` に列を足し、解答画面・結果画面とアシストの判定に読み上げを足すため）。question-generation の admin（step5・6）と生成タスク（step3）も先に要る（公開の `published_at`・admin の問題の確認画面・同じ「状態で確保する」書き方を使う）。step8（S3・CloudFront・スケジュール）は AWS の設定後に infra の PR にまとめるので図に入れない
 - web と mobile の画面は図の矢印の順に 1 本ずつ進める。モックの共通部品は、最初に使う step が本番の場所に移し、後の step はそれを使う
 
 | 移す step | web | mobile |
@@ -259,7 +277,8 @@ flowchart TD
 
 - **文法問題・単語問題** → [`./deferred-grammar-vocabulary.md`](./deferred-grammar-vocabulary.md)
 - **英文の取得元の拡大**（JavaScript で描画するサイト、許諾を得たブログ、ShareAlike ライセンス）→ [`../content-collection/deferred-more-sources.md`](../content-collection/deferred-more-sources.md)
-- **アシストの拡張**（任意の文の翻訳、読み上げ、厳格モード）→ [`../reading-practice/deferred-assist-and-modes.md`](../reading-practice/deferred-assist-and-modes.md)
+- **アシストの拡張**（任意の文の翻訳、厳格モード）→ [`../reading-practice/deferred-assist-and-modes.md`](../reading-practice/deferred-assist-and-modes.md)
+- **読み上げの拡張**（声の選択、単語ごとの発音、ユーザーの音読の評価）→ [`../read-aloud/deferred-voices-and-pronunciation.md`](../read-aloud/deferred-voices-and-pronunciation.md)
 - **サーバーからのプッシュ通知・web のリマインダー** → [`../study-reminder/deferred-remote-push.md`](../study-reminder/deferred-remote-push.md)
 - **ライトテーマ**。MVP はダークテーマのみ
 - **課金・プラン**。MVP は全機能を無料で提供する

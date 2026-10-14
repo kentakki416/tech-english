@@ -1,6 +1,6 @@
 # 長文読解（問題を解く・採点・解説・アシスト）
 
-公開された問題をユーザーが選び、制限時間を意識しながら英文を読んで 4 択の設問に答え、提出すると採点と解説を受けられる。解答中は **アシスト**（段落の和訳、単語の意味）を使える。このサービスの中心になる機能で、web と mobile の両方に提供する。
+公開された問題をユーザーが選び、制限時間を意識しながら英文を読んで 4 択の設問に答え、提出すると採点と解説を受けられる。解答中は **アシスト**（段落の和訳、単語の意味、本文の読み上げ）を使える。このサービスの中心になる機能で、web と mobile の両方に提供する。
 
 「問題を解く画面」は利用時間の大半を過ごす画面なので、**長い英文を疲れずに読めること** を最優先にする。対象はエンジニアなので、エディタや GitHub のようなダークテーマで、コードがコードとして読める見た目にする。
 
@@ -16,7 +16,8 @@
 - [`../content-collection/README.md`](../content-collection/README.md#出典表示) — 出典表示に出す内容の正本
 - [`../learning-record/README.md`](../learning-record/README.md) — 提出済みの挑戦（`reading_attempts`）を集計してカレンダーと統計を出す
 - [`../github-auth/README.md`](../github-auth/README.md) — すべての画面でログインが必要
-- [`./deferred-assist-and-modes.md`](./deferred-assist-and-modes.md) — MVP 対象外。任意の文の翻訳、範囲選択の翻訳、読み上げ、厳格モード、ライトテーマ
+- [`../read-aloud/README.md`](../read-aloud/README.md) — 解答画面と結果画面の読み上げ（3 つめのアシスト）。`reading_attempts.listened_block_count` の意味の正本
+- [`./deferred-assist-and-modes.md`](./deferred-assist-and-modes.md) — MVP 対象外。任意の文の翻訳、範囲選択の翻訳、厳格モード、ライトテーマ
 - **この spec が正本のもの**：`reading_attempts` / `attempt_answers` / `attempt_word_lookups` / `dictionary_entries`、`ATTEMPT_STATUSES` / `WORD_LOOKUP_SOURCES`
 
 ## 目次
@@ -107,7 +108,7 @@
 | スコア | 正答数 / 設問数（例：`3 / 4`） |
 | 時間 | かかった時間 / 制限時間。超過していれば超過時間 |
 | 読む速さ | 英単語数 ÷ かかった時間（WPM。設問を解く時間を含む） |
-| アシストの使用 | 和訳を見た段落数、単語を調べた回数 |
+| アシストの使用 | 和訳を見た段落数、単語を調べた回数、読み上げを聞いた段落数（[read-aloud](../read-aloud/README.md#使える場面とアシストの扱い)） |
 | 設問ごとの結果 | 自分の回答、正解、正誤、**解説（日本語）**、「本文の根拠を見る」 |
 | 調べた単語 | この挑戦で調べた単語と意味の一覧（復習用） |
 | 出典表示 | [content-collection の出典表示](../content-collection/README.md#出典表示) |
@@ -120,7 +121,7 @@
 
 ### アシスト
 
-解答中に使える補助は 2 種類。**アシストを使っても点数は変わらない** が、使用状況を記録して結果画面とマイページに出す（「アシストなしで正解できた」ことが分かるように）。
+解答中に使える補助は 3 種類。**アシストを使っても点数は変わらない** が、使用状況を記録して結果画面とマイページに出す（「アシストなしで正解できた」ことが分かるように）。
 
 **① 段落の和訳**
 
@@ -141,6 +142,11 @@
 - インラインコードとコードブロックはタップしても何も出ない
 - 調べた単語は記録し、結果画面の「調べた単語」に出す
 - **「文脈での語義」を問う設問の対象語句は、解答中は用語集から外す**（タップすると辞書の一般的な意味だけが出る）。用語集の文脈の意味がそのまま設問の答えになってしまうため。結果画面では用語集の意味も見られる
+
+**③ 読み上げ**
+
+- 本文を音声で読み上げ、読んでいる単語をハイライトする（全文・段落ごと、再生速度の変更）。読み上げを聞いた段落の数を記録する
+- 仕様の詳細は [read-aloud](../read-aloud/README.md)
 
 ### 解答画面の要件
 
@@ -310,7 +316,6 @@ type PassageSegment = {
 詳細は [`deferred-assist-and-modes.md`](./deferred-assist-and-modes.md)。
 
 - **任意の文・範囲選択した語句の翻訳**（LLM をその場で呼ぶ）
-- **読み上げ（TTS）**
 - **厳格モード**（時間切れで強制提出、アシスト禁止）。ランキングなど競争要素を入れるとき
 - **ライトテーマ**
 - **復習モード**（間違えた設問だけ解き直す、調べた単語の単語帳）→ 単語帳は [deferred-grammar-vocabulary](../product-overview/deferred-grammar-vocabulary.md) と合わせて検討
@@ -740,7 +745,7 @@ mobile（Expo）は上の「スマホ幅（1024px 未満）」と同じ構成で
 | GET | `/api/passage/:id` | 開始確認用の概要（本文は含まない）。`can_start`（新しく始められるか）と期限内の挑戦中を付ける。公開中でない問題は、自分の期限内の挑戦中があるときだけ `can_start: false` で返し（再開の入口。制限時間は挑戦の開始時点の値）、無ければ 404 |
 | POST | `/api/passage/:id/attempt` | 挑戦の開始。挑戦中のものがあればそれを返す。レスポンス：挑戦 ID、`started_at`、`server_now`、制限時間、本文（セグメント・和訳）、用語集、設問と選択肢（正解なし）、出典 |
 | GET | `/api/attempt/:id` | 自分の挑戦を取得。`in_progress` なら開始時と同じ形、`submitted` なら結果の形（各設問に、提出後に正解が直されたかを示す `is_answer_key_changed`） |
-| POST | `/api/attempt/:id/submit` | 提出。`answers[]`（`question_id`, `selected_choice_index | null`）、`active_seconds`、`translated_block_count`、`word_lookups[]`（`surface`, `lemma`, `source`, `glossary_entry_id`）。レスポンスは結果（正解・解説・根拠を含む）。冪等 |
+| POST | `/api/attempt/:id/submit` | 提出。`answers[]`（`question_id`, `selected_choice_index | null`）、`active_seconds`、`translated_block_count`、`listened_block_count`（[read-aloud](../read-aloud/README.md)）、`word_lookups[]`（`surface`, `lemma`, `source`, `glossary_entry_id`）。レスポンスは結果（正解・解説・根拠を含む）。冪等 |
 | GET | `/api/dictionary?word=` | 英和辞書の検索。見つからなければ 404 |
 
 いずれも認証必須。他人の挑戦 ID を指定したら 404（存在を明かさない）。挑戦の開始・提出は、ユーザーが存在しない（アカウント削除済みで access token だけ残っている）場合に 401 を返す（[github-auth](../github-auth/README.md#アカウント削除の処理)）。
@@ -755,7 +760,7 @@ web 側の Next.js Route Handler：
 
 | テーブル | 主要カラム | 説明 |
 | --- | --- | --- |
-| `reading_attempts` | `id`, `user_id`, `passage_id`, `status`, `started_at`, `submitted_at`, `time_limit_seconds`, `elapsed_seconds`, `is_overtime`, `question_count`, `correct_count`, `translated_block_count`, `word_lookup_count`, `study_date` | 挑戦。提出時に採点結果と時間を入れる |
+| `reading_attempts` | `id`, `user_id`, `passage_id`, `status`, `started_at`, `submitted_at`, `time_limit_seconds`, `elapsed_seconds`, `is_overtime`, `question_count`, `correct_count`, `translated_block_count`, `word_lookup_count`, `listened_block_count`, `study_date` | 挑戦。提出時に採点結果と時間を入れる。`listened_block_count` は [read-aloud](../read-aloud/README.md) が足す |
 | `attempt_answers` | `id`, `attempt_id`, `question_id`, `selected_choice_index`, `is_correct` | 設問ごとの回答と正誤（提出時点の正誤を固定して保存） |
 | `attempt_word_lookups` | `id`, `attempt_id`, `user_id`, `passage_id`, `surface`, `lemma`, `source`, `glossary_entry_id` | 調べた単語。結果画面の一覧と、将来の単語帳・単語問題に使う |
 | `dictionary_entries` | `id`, `headword`, `meaning_ja` | 英和辞書（EJDict-hand） |
@@ -782,6 +787,7 @@ erDiagram
         smallint correct_count "nullable"
         smallint translated_block_count "default 0"
         smallint word_lookup_count "default 0"
+        smallint listened_block_count "default 0（read-aloud）"
         date study_date "提出時のユーザーの TZ での日付, nullable"
         timestamp created_at
         timestamp updated_at

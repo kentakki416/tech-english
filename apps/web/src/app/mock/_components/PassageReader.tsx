@@ -5,6 +5,7 @@ import { Fragment, useEffect, useMemo, useRef, useState } from "react"
 import type { MockGlossaryEntry, MockPassageBlock, MockWordLookup } from "@/libs/mock-data"
 
 import { lookUpDictionary, type Segment, segmentText } from "./passage-text"
+import type { ReadAloudState } from "./ReadAloud"
 
 export type ReaderFontSize = "lg" | "md" | "sm"
 
@@ -49,10 +50,34 @@ function HighlightedCode({ code }: { code: string }) {
   return <>{nodes}</>
 }
 
-function SegmentList({ interactive, segments }: { interactive: boolean, segments: Segment[] }) {
+/**
+ * 読み上げ中の単語の印：琥珀の下線と淡い背景（単語のカードを開いた単語の表示とは別にする）
+ */
+const READING_WORD_CLASS = "bg-amber/15 shadow-[inset_0_-2px_0_var(--color-amber)]"
+
+function SegmentList({
+  interactive,
+  readingWordIndex = null,
+  segments,
+  wordOffset = 0,
+}: {
+  interactive: boolean
+  readingWordIndex?: number | null
+  segments: Segment[]
+  wordOffset?: number
+}) {
+  /**
+   * 単語だけに通し番号を振る（読み上げ中の単語の位置と対応させる）
+   */
+  const wordOrdinals: (number | null)[] = []
+  let nextOrdinal = wordOffset
+  for (const segment of segments) {
+    wordOrdinals.push(segment.kind === "word" ? nextOrdinal++ : null)
+  }
   return (
     <>
       {segments.map((segment, index) => {
+        const isReading = wordOrdinals[index] !== null && wordOrdinals[index] === readingWordIndex
         if (segment.kind === "code") {
           return (
             <code
@@ -68,7 +93,9 @@ function SegmentList({ interactive, segments }: { interactive: boolean, segments
         }
         return (
           <span
-            className="cursor-pointer rounded-[3px] transition-colors hover:bg-amber-wash hover:text-amber-bright data-[active=true]:bg-amber/25 data-[active=true]:text-amber-bright"
+            className={`cursor-pointer rounded-[3px] transition-colors hover:bg-amber-wash hover:text-amber-bright data-[active=true]:bg-amber/25 data-[active=true]:text-amber-bright ${
+              isReading ? READING_WORD_CLASS : ""
+            }`}
             data-glossary-id={segment.glossaryId}
             data-word={segment.text}
             key={index}
@@ -142,6 +169,37 @@ function WordCard({ card, onClose }: { card: WordCardState, onClose: () => void 
   )
 }
 
+const countWords = (segments: Segment[]) => segments.filter(segment => segment.kind === "word").length
+
+/**
+ * 根拠のハイライトを含む段落。前・根拠・後の 3 つに分けても、読み上げ中の単語の位置が通しで合うようにする
+ */
+function HighlightedParagraph({
+  glossary,
+  quote,
+  readingWordIndex,
+  text,
+}: {
+  glossary: MockGlossaryEntry[]
+  quote: string
+  readingWordIndex: number | null
+  text: string
+}) {
+  const start = text.indexOf(quote)
+  const before = segmentText(text.slice(0, start), glossary)
+  const middle = segmentText(quote, glossary)
+  const after = segmentText(text.slice(start + quote.length), glossary)
+  return (
+    <>
+      <SegmentList interactive readingWordIndex={readingWordIndex} segments={before} />
+      <mark className="rounded-sm bg-amber/20 px-0.5 text-fg ring-1 ring-amber/50">
+        <SegmentList interactive readingWordIndex={readingWordIndex} segments={middle} wordOffset={countWords(before)} />
+      </mark>
+      <SegmentList interactive readingWordIndex={readingWordIndex} segments={after} wordOffset={countWords(before) + countWords(middle)} />
+    </>
+  )
+}
+
 /**
  * 本文を表示する。段落番号の列（エディタの行番号のような gutter）・段落ごとの和訳・単語の意味・根拠のハイライトを持つ
  */
@@ -152,9 +210,12 @@ export function PassageReader({
   glossary,
   hiddenGlossaryIds = [],
   highlight = null,
+  isReadAloudAvailable = true,
+  readAloud = null,
   showAllTranslations = false,
   translatedBlocks,
   onLookup,
+  onPlayBlock,
   onToggleTranslation,
 }: {
   blocks: MockPassageBlock[]
@@ -163,9 +224,12 @@ export function PassageReader({
   glossary: MockGlossaryEntry[]
   hiddenGlossaryIds?: number[]
   highlight?: { blockIndex: number, quote: string } | null
+  isReadAloudAvailable?: boolean
+  readAloud?: ReadAloudState | null
   showAllTranslations?: boolean
   translatedBlocks: Set<number>
   onLookup?: (lookup: MockWordLookup) => void
+  onPlayBlock?: (blockIndex: number) => void
   onToggleTranslation?: (blockIndex: number) => void
 }) {
   const [card, setCard] = useState<WordCardState | null>(null)
@@ -236,8 +300,14 @@ export function PassageReader({
         {blocks.map((block, blockIndex) => {
           const isCode = block.type === "code"
           const isHeading = block.type === "heading"
-          const isTranslated = !isCode && (showAllTranslations || translatedBlocks.has(blockIndex))
+          const isReadingBlock = readAloud?.blockIndex === blockIndex
+          /**
+           * 読み上げ中の段落は、和訳を表示していても英文で出す（音声とハイライトを英文に合わせる）
+           */
+          const isTranslated = !isCode && !isReadingBlock && (showAllTranslations || translatedBlocks.has(blockIndex))
           const blockHighlight = highlight?.blockIndex === blockIndex ? highlight.quote : null
+          const isPlayingBlock = isReadingBlock && readAloud?.mode === "block" && readAloud.isPlaying
+          const readingWordIndex = isReadingBlock ? (readAloud?.wordIndex ?? null) : null
 
           return (
             <section
@@ -266,6 +336,29 @@ export function PassageReader({
                     訳
                   </button>
                 )}
+                {!isCode && onPlayBlock && (
+                  <button
+                    aria-label={isPlayingBlock ? "この段落の読み上げを一時停止" : "この段落を読み上げ"}
+                    aria-pressed={isPlayingBlock}
+                    className={`grid h-[22px] w-[22px] place-items-center rounded border outline-none transition focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-amber/60 disabled:pointer-events-none ${
+                      isReadingBlock
+                        ? "border-amber/50 bg-amber-wash text-amber opacity-100"
+                        : "border-line-strong text-fg-muted opacity-0 hover:text-fg group-hover:opacity-100 disabled:group-hover:opacity-40 [@media(hover:none)]:opacity-60"
+                    }`}
+                    disabled={!isReadAloudAvailable}
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      onPlayBlock(blockIndex)
+                    }}
+                    type="button"
+                  >
+                    {isPlayingBlock ? (
+                      <svg aria-hidden className="size-2.5" fill="currentColor" viewBox="0 0 24 24"><path d="M6 5h4v14H6zM14 5h4v14h-4z" /></svg>
+                    ) : (
+                      <svg aria-hidden className="size-2.5 translate-x-px" fill="currentColor" viewBox="0 0 24 24"><path d="M7 5v14l12-7z" /></svg>
+                    )}
+                  </button>
+                )}
               </div>
 
               <div className="min-w-0 max-w-[68ch]">
@@ -282,20 +375,19 @@ export function PassageReader({
                   </p>
                 ) : isHeading ? (
                   <h1 className="mb-5 text-[1.55em] font-semibold leading-tight tracking-[-0.01em] text-fg">
-                    <SegmentList interactive segments={segmentText(block.text, visibleGlossary)} />
+                    <SegmentList interactive readingWordIndex={readingWordIndex} segments={segmentText(block.text, visibleGlossary)} />
                   </h1>
                 ) : (
                   <p className="mb-[1.15em]" lang="en">
                     {blockHighlight && block.text.includes(blockHighlight) ? (
-                      <>
-                        <SegmentList interactive segments={segmentText(block.text.slice(0, block.text.indexOf(blockHighlight)), visibleGlossary)} />
-                        <mark className="rounded-sm bg-amber/20 px-0.5 text-fg ring-1 ring-amber/50">
-                          <SegmentList interactive segments={segmentText(blockHighlight, visibleGlossary)} />
-                        </mark>
-                        <SegmentList interactive segments={segmentText(block.text.slice(block.text.indexOf(blockHighlight) + blockHighlight.length), visibleGlossary)} />
-                      </>
+                      <HighlightedParagraph
+                        glossary={visibleGlossary}
+                        quote={blockHighlight}
+                        readingWordIndex={readingWordIndex}
+                        text={block.text}
+                      />
                     ) : (
-                      <SegmentList interactive segments={segmentText(block.text, visibleGlossary)} />
+                      <SegmentList interactive readingWordIndex={readingWordIndex} segments={segmentText(block.text, visibleGlossary)} />
                     )}
                   </p>
                 )}

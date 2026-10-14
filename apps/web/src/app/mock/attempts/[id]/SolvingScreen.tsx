@@ -15,16 +15,26 @@ import {
 
 import { Keycap, SourceMeta } from "../../_components/parts"
 import { PassageReader, type ReaderFontSize } from "../../_components/PassageReader"
+import { ReadAloudBar, ReturnToReadingButton, useReadAloudMock } from "../../_components/ReadAloud"
 
-export type SolvingMockState = "confirm" | "normal" | "overtime" | "paused" | "warning"
+export type SolvingMockState = "audio_pending" | "confirm" | "normal" | "overtime" | "paused" | "reading" | "warning"
 
 const INITIAL_REMAINING: Record<SolvingMockState, number> = {
+  audio_pending: 252,
   confirm: 96,
   normal: 252,
   overtime: -83,
   paused: 252,
+  reading: 231,
   warning: 48,
 }
+
+const VISIBLE_GLOSSARY = MOCK_GLOSSARY.filter(entry => !MOCK_HIDDEN_GLOSSARY_IDS.includes(entry.id))
+
+/**
+ * 本文をスクロールするキー。読み上げ中に押されたら自動スクロールを止める
+ */
+const SCROLL_KEYS = ["ArrowDown", "ArrowUp", "End", "Home", "PageDown", "PageUp", " "]
 
 const CHOICE_LETTERS = ["A", "B", "C", "D"]
 
@@ -41,6 +51,7 @@ const SHORTCUTS: { keys: string[], label: string }[] = [
   { keys: ["J"], label: "次の設問へ" },
   { keys: ["K"], label: "前の設問へ" },
   { keys: ["T"], label: "全文の和訳を切り替え" },
+  { keys: ["R"], label: "読み上げの再生・一時停止" },
   { keys: ["Esc"], label: "単語のカードを閉じる" },
   { keys: ["⌘", "Enter"], label: "提出する" },
   { keys: ["?"], label: "この一覧を表示" },
@@ -186,6 +197,15 @@ export function SolvingScreen({ initialState }: { initialState: SolvingMockState
   const [viewedTranslations, setViewedTranslations] = useState<Set<number>>(new Set([2]))
   const [lookupCount, setLookupCount] = useState(2)
   const [fontSize, setFontSize] = useState<ReaderFontSize>("md")
+  const [isFollowing, setIsFollowing] = useState(true)
+  const isAudioAvailable = initialState !== "audio_pending"
+  const readAloud = useReadAloudMock({
+    blocks: MOCK_BLOCKS,
+    glossary: VISIBLE_GLOSSARY,
+    initialState: initialState === "reading" ? { blockIndex: 1, isPlaying: true, mode: "all", wordIndex: 6 } : undefined,
+  })
+  const readingBlockIndex = readAloud.state.blockIndex
+  const isReading = readingBlockIndex !== null
 
   const answeredCount = MOCK_QUESTIONS.filter(question => answers[question.id] !== undefined && answers[question.id] !== null).length
   const unansweredCount = MOCK_QUESTIONS.length - answeredCount
@@ -207,6 +227,39 @@ export function SolvingScreen({ initialState }: { initialState: SolvingMockState
     })
   }, [])
 
+  /**
+   * 読み上げ中の段落が変わったら、その段落が見える位置までスクロールする（自動スクロールを止めていない間だけ）
+   */
+  useEffect(() => {
+    if (readingBlockIndex === null || !isFollowing) return
+    document.getElementById(`block-${readingBlockIndex}`)?.scrollIntoView({ behavior: "smooth", block: "center" })
+  }, [isFollowing, readingBlockIndex])
+
+  const togglePause = () => {
+    if (!isPaused) readAloud.pause()
+    setIsPaused(value => !value)
+  }
+
+  const toggleReadAloud = useCallback(() => {
+    if (!isAudioAvailable) return
+    if (!isReading) setIsFollowing(true)
+    readAloud.togglePlay()
+  }, [isAudioAvailable, isReading, readAloud])
+
+  const playBlock = (blockIndex: number) => {
+    setIsFollowing(true)
+    readAloud.playBlock(blockIndex)
+  }
+
+  const returnToReading = () => setIsFollowing(true)
+
+  /**
+   * 読み上げ中にユーザーが自分でスクロールしたら、自動スクロールを止める
+   */
+  const stopFollowing = useCallback(() => {
+    if (isReading && isFollowing) setIsFollowing(false)
+  }, [isFollowing, isReading])
+
   const chooseAnswer = useCallback((questionId: number, choiceIndex: number) => {
     setAnswers(value => ({ ...value, [questionId]: choiceIndex }))
   }, [])
@@ -216,6 +269,7 @@ export function SolvingScreen({ initialState }: { initialState: SolvingMockState
       const target = event.target as HTMLElement
       if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") return
       if (isPaused) return
+      if (SCROLL_KEYS.includes(event.key)) stopFollowing()
       if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
         setIsConfirmOpen(true)
         return
@@ -225,6 +279,7 @@ export function SolvingScreen({ initialState }: { initialState: SolvingMockState
       if (event.key === "j") setCurrentIndex(value => Math.min(value + 1, MOCK_QUESTIONS.length - 1))
       if (event.key === "k") setCurrentIndex(value => Math.max(value - 1, 0))
       if (event.key === "t") toggleAllTranslations()
+      if (event.key === "r") toggleReadAloud()
       if (event.key === "?") setIsShortcutsOpen(value => !value)
       if (event.key === "Escape") {
         setIsShortcutsOpen(false)
@@ -233,7 +288,7 @@ export function SolvingScreen({ initialState }: { initialState: SolvingMockState
     }
     window.addEventListener("keydown", handleKeydown)
     return () => window.removeEventListener("keydown", handleKeydown)
-  }, [chooseAnswer, currentIndex, isPaused, toggleAllTranslations])
+  }, [chooseAnswer, currentIndex, isPaused, stopFollowing, toggleAllTranslations, toggleReadAloud])
 
   const toggleTranslation = (blockIndex: number) => {
     setTranslatedBlocks((value) => {
@@ -294,7 +349,7 @@ export function SolvingScreen({ initialState }: { initialState: SolvingMockState
           <button
             aria-label={isPaused ? "再開する" : "一時停止"}
             className="grid size-8 place-items-center rounded-md border border-line text-fg-muted outline-none hover:border-line-strong hover:text-fg focus-visible:ring-2 focus-visible:ring-amber/60"
-            onClick={() => setIsPaused(value => !value)}
+            onClick={togglePause}
             type="button"
           >
             {isPaused ? (
@@ -320,7 +375,11 @@ export function SolvingScreen({ initialState }: { initialState: SolvingMockState
       </header>
 
       <div className="relative flex-1 overflow-hidden lg:grid lg:grid-cols-[minmax(0,1fr)_420px]">
-        <main className="h-full overflow-y-auto pt-8 pr-5 pb-28 pl-1 sm:px-6 lg:px-10 lg:pb-16">
+        <main
+          className="h-full overflow-y-auto pt-8 pr-5 pb-20 pl-1 sm:px-6 lg:px-10 lg:pb-5"
+          onTouchMove={stopFollowing}
+          onWheel={stopFollowing}
+        >
           <div className="mx-auto max-w-3xl">
             <PassageReader
               blocks={MOCK_BLOCKS}
@@ -328,14 +387,32 @@ export function SolvingScreen({ initialState }: { initialState: SolvingMockState
               fontSize={fontSize}
               glossary={MOCK_GLOSSARY}
               hiddenGlossaryIds={MOCK_HIDDEN_GLOSSARY_IDS}
+              isReadAloudAvailable={isAudioAvailable}
+              readAloud={readAloud.state}
               showAllTranslations={showAllTranslations}
               translatedBlocks={translatedBlocks}
               onLookup={() => setLookupCount(value => value + 1)}
+              onPlayBlock={playBlock}
               onToggleTranslation={toggleTranslation}
             />
             <p className="mt-10 border-t border-line pt-4 pl-11 text-xs leading-relaxed text-fg-faint sm:pl-14">
               出典：{MOCK_PASSAGE.sourceName}（{MOCK_PASSAGE.license}）。一部を抜粋・改変しています。
             </p>
+          </div>
+          <div className="pointer-events-none sticky bottom-0 z-10 mx-auto mt-8 max-w-3xl pl-11 sm:pl-14">
+            <div className="pointer-events-auto">
+              {isReading && !isFollowing && <ReturnToReadingButton onClick={returnToReading} />}
+              <ReadAloudBar
+                blocks={MOCK_BLOCKS}
+                isAvailable={isAudioAvailable}
+                progress={readAloud.progress}
+                rate={readAloud.rate}
+                state={readAloud.state}
+                onRateChange={readAloud.setRate}
+                onStop={readAloud.stop}
+                onToggle={toggleReadAloud}
+              />
+            </div>
           </div>
         </main>
 
@@ -409,8 +486,10 @@ export function SolvingScreen({ initialState }: { initialState: SolvingMockState
         <span className="h-3 w-px bg-line-strong" />
         <span className="tabular-nums">和訳 {viewedTranslations.size} 段落</span>
         <span className="tabular-nums">単語 {lookupCount} 回</span>
+        <span className="tabular-nums">読み上げ {readAloud.listenedBlocks.size} 段落</span>
         <div className="ml-auto flex items-center gap-4">
           <span className="flex items-center gap-1.5"><Keycap>T</Keycap>全文訳</span>
+          <span className="flex items-center gap-1.5"><Keycap>R</Keycap>読み上げ</span>
           <span className="flex items-center gap-1.5"><Keycap>J</Keycap><Keycap>K</Keycap>設問</span>
           <span className="flex items-center gap-1.5"><Keycap>⌘</Keycap><Keycap>↵</Keycap>提出</span>
           <button className="flex items-center gap-1.5 hover:text-fg" onClick={() => setIsShortcutsOpen(true)} type="button">
