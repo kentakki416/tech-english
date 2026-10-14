@@ -281,9 +281,9 @@ stateDiagram-v2
 
 | 処理 | 実装 |
 | --- | --- |
-| 単語帳のトップ | Server Component で `GET /api/vocabulary/summary` |
+| 単語帳のトップ | Server Component で `GET /api/vocabulary/summary` と、束の見本に今日の 1 枚目を出すための `GET /api/vocabulary/session`（読み取りだけ。失敗しても見本の 1 枚目を出さないだけでトップは出す）。mobile のタブも同じ |
 | 1 回分の取得 | `/vocabulary/session` の Server Component で `GET /api/vocabulary/session` を取得し、Client Component に props で渡す。「もう 1 回」は `router.refresh()` で取り直す |
-| 答えの保存 | Server Action（`POST /api/vocabulary/review`）。Client Component は保存を待たずに次のカードへ進み、保存できなかったカードはふりかえりで同じ `client_review_id` で送り直す |
+| 答えの保存 | Server Action（`POST /api/vocabulary/review`）。Client Component は保存を待たずに次のカードへ進み、保存できなかったカードはふりかえりで同じ `client_review_id` で送り直す。Server Action の呼び出し自体の失敗（通信が切れた・デプロイで action が変わった）も保存できなかったカードとして扱う |
 | めくる動き | CSS の `@keyframes`（`animate-card-flip`）で横に回し、真横を向いた瞬間に表と裏を差し替える（[UI 設計の動き](#動き)）。`prefers-reduced-motion` のときは切り替えだけにする |
 | 効果音 | Web Audio でノイズから「シュッ」を作って鳴らす（音声ファイルを持たない。[UI 設計の効果音](#効果音)）。`AudioContext` は最初にめくったとき（ユーザーの操作の中）に作る。オン / オフは `localStorage` に覚える |
 | キーボード | `Space` / `Enter` めくる、`→` 覚えた、`←` まだ（めくった後だけ） |

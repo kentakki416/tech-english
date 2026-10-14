@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 
 import type { GetUserAttemptsResponse, GetUserCalendarResponse, LearningRecordAttemptResponse } from "@repo/api-schema"
 
-import { formatDayLabel, formatSeconds, formatStudyMinutes } from "@/libs/format"
+import { formatDayLabel, formatSeconds, formatStudyDaySummary } from "@/libs/format"
 
 type CalendarDay = GetUserCalendarResponse["days"][number]
 
@@ -55,6 +55,14 @@ const buildMonthDate = (month: string, day: number): string => `${month}-${Strin
 const getLevelClass = (level: number): string => LEVEL_CLASSES[level] ?? LEVEL_CLASSES[0]
 
 const hasFirstOfMonth = (week: (CalendarDay | null)[]): boolean => week.some(day => day?.date.endsWith("-01"))
+
+/**
+ * マスのツールチップ・読み上げのラベル（`10月10日（土）：1 問、単語 12 枚、7 分`）。学習していない日は日付だけ
+ */
+const buildDayCellLabel = (date: string, day: CalendarDay | undefined, separator: string): string => {
+  const summary = day ? formatStudyDaySummary(day) : ""
+  return summary === "" ? formatDayLabel(date) : `${formatDayLabel(date)}${separator}${summary}`
+}
 
 /**
  * 学習カレンダー。年表示（草）と月表示を切り替え、日付を選ぶとその日の挑戦を出す。
@@ -135,12 +143,12 @@ export function StudyCalendar({ initialCalendar }: { initialCalendar: GetUserCal
 
   const selectedDay = dayByDate.get(selectedDate)
   /**
-   * カレンダーで学習していないと分かっている日は取得しない
+   * カレンダーで挑戦が無いと分かっている日（学習していない日・単語帳だけの日）は取得しない
    */
-  const isKnownEmptyDay = selectedDay?.attempt_count === 0
+  const isKnownNoAttemptDay = selectedDay?.attempt_count === 0
 
   useEffect(() => {
-    if (isKnownEmptyDay) return
+    if (isKnownNoAttemptDay) return
     const controller = new AbortController()
     fetch(`/api/user/attempts?${new URLSearchParams({ date: selectedDate })}`, { signal: controller.signal })
       .then(async (res) => {
@@ -152,7 +160,7 @@ export function StudyCalendar({ initialCalendar }: { initialCalendar: GetUserCal
         if (!controller.signal.aborted) setDayAttempts({ attempts: null, date: selectedDate })
       })
     return () => controller.abort()
-  }, [isKnownEmptyDay, selectedDate])
+  }, [isKnownNoAttemptDay, selectedDate])
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollLeft = scrollRef.current.scrollWidth
@@ -162,7 +170,9 @@ export function StudyCalendar({ initialCalendar }: { initialCalendar: GetUserCal
   const monthLabel = month.slice(0, 4) === currentMonth.slice(0, 4)
     ? `${Number(month.slice(5, 7))}月`
     : `${month.slice(0, 4)}年${Number(month.slice(5, 7))}月`
-  const selectedAttempts = isKnownEmptyDay ? [] : dayAttempts?.date === selectedDate ? dayAttempts.attempts : undefined
+  const selectedAttempts = isKnownNoAttemptDay ? [] : dayAttempts?.date === selectedDate ? dayAttempts.attempts : undefined
+  const selectedSummary = selectedDay ? formatStudyDaySummary(selectedDay) : ""
+  const selectedCardCount = selectedDay?.card_count ?? 0
 
   return (
     <div>
@@ -208,13 +218,13 @@ export function StudyCalendar({ initialCalendar }: { initialCalendar: GetUserCal
                   ) : (
                     <button
                       key={day.date}
-                      aria-label={`${formatDayLabel(day.date)} ${day.attempt_count} 問 ${formatStudyMinutes(day.study_seconds)}`}
+                      aria-label={buildDayCellLabel(day.date, day, " ")}
                       aria-pressed={day.date === selectedDate}
                       className={`size-[11px] rounded-[2px] outline-none transition-shadow focus-visible:ring-2 focus-visible:ring-amber/60 ${getLevelClass(day.level)} ${
                         day.date === selectedDate ? "ring-1 ring-fg ring-offset-1 ring-offset-canvas" : ""
                       } ${day.date === today && day.level > 0 ? "shadow-[0_0_10px_rgb(243_178_76/0.7)] motion-safe:animate-lamp-on [animation-delay:400ms]" : ""}`}
                       onClick={() => setSelectedDate(day.date)}
-                      title={`${formatDayLabel(day.date)}：${day.attempt_count} 問、${formatStudyMinutes(day.study_seconds)}`}
+                      title={buildDayCellLabel(day.date, day, "：")}
                       type="button"
                     />
                   ))}
@@ -264,7 +274,7 @@ export function StudyCalendar({ initialCalendar }: { initialCalendar: GetUserCal
               return (
                 <button
                   key={date}
-                  aria-label={day ? `${formatDayLabel(date)} ${day.attempt_count} 問` : formatDayLabel(date)}
+                  aria-label={buildDayCellLabel(date, day, " ")}
                   aria-pressed={date === selectedDate}
                   className={`flex aspect-square flex-col items-start justify-between rounded-md border p-1.5 text-left outline-none focus-visible:ring-2 focus-visible:ring-amber/60 sm:aspect-[4/3] ${
                     date === selectedDate ? "border-fg/60" : "border-line"
@@ -299,21 +309,23 @@ export function StudyCalendar({ initialCalendar }: { initialCalendar: GetUserCal
       <div className="mt-5 border-t border-line pt-4">
         <div className="flex items-baseline justify-between">
           <h3 className="text-sm font-medium text-fg">{formatDayLabel(selectedDate)}</h3>
-          {selectedDay && selectedDay.attempt_count > 0 && (
-            <p className="text-xs text-fg-muted tabular-nums">
-              {selectedDay.attempt_count} 問、{formatStudyMinutes(selectedDay.study_seconds)}
-            </p>
-          )}
+          {selectedSummary !== "" && <p className="text-xs text-fg-muted tabular-nums">{selectedSummary}</p>}
         </div>
+        {/**
+          * 挑戦の取得に失敗しても、カレンダーのデータで分かっている単語帳の行は出す
+          */}
         {selectedAttempts === undefined ? (
           <p className="mt-2 text-sm text-fg-faint">読み込み中…</p>
-        ) : selectedAttempts === null ? (
+        ) : selectedAttempts === null && selectedCardCount === 0 ? (
           <p className="mt-2 text-sm text-wrong" role="alert">{LOAD_FAILED_MESSAGE}</p>
-        ) : selectedAttempts.length === 0 ? (
+        ) : selectedAttempts !== null && selectedAttempts.length === 0 && selectedCardCount === 0 ? (
           <p className="mt-2 text-sm text-fg-faint">この日の学習はありません。</p>
         ) : (
           <ul className="mt-2 divide-y divide-line">
-            {selectedAttempts.map(attempt => (
+            {selectedAttempts === null && (
+              <li className="py-2 text-sm text-wrong" role="alert">{LOAD_FAILED_MESSAGE}</li>
+            )}
+            {(selectedAttempts ?? []).map(attempt => (
               <li key={attempt.id}>
                 <Link className="flex items-center gap-3 py-2 text-sm hover:text-amber-bright" href={`/attempts/${attempt.id}/result`}>
                   <span className="w-11 shrink-0 text-xs text-fg-faint tabular-nums">{attempt.submitted_time}</span>
@@ -323,6 +335,20 @@ export function StudyCalendar({ initialCalendar }: { initialCalendar: GetUserCal
                 </Link>
               </li>
             ))}
+            {selectedDay !== undefined && selectedCardCount > 0 && (
+              <li>
+                <Link className="group flex items-center gap-3 py-2 text-sm" href="/vocabulary">
+                  <span aria-hidden className="grid w-11 shrink-0 place-items-start">
+                    <span className="block h-3 w-4 rounded-[2px] bg-paper shadow-[2px_2px_0_rgb(242_232_213/0.35)]" />
+                  </span>
+                  <span className="min-w-0 flex-1 text-fg group-hover:text-amber-bright">単語帳</span>
+                  <span className="shrink-0 text-xs text-fg-muted tabular-nums">
+                    {selectedCardCount} 枚（覚えた {selectedDay.remembered_count}）
+                  </span>
+                  <span className="w-10 shrink-0" />
+                </Link>
+              </li>
+            )}
           </ul>
         )}
       </div>
