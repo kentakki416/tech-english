@@ -59,3 +59,57 @@
     }
   }
 }
+
+/**
+ * ページの背景（夜の部屋に読書灯がともっている）
+ *
+ * 要素の背景色（canvas）の上に、画面に固定した疑似要素で次を重ねる（上が手前）。
+ * スクロールしても動かず、本文の下では色が薄くなるようにして長文を邪魔しない。
+ *
+ * 1. 星：上半分に散らした小さな光の点
+ * 2. ドットのグリッド：エディタの方眼。マスクで中央は薄く、下は消す
+ * 3. 読書灯：上の中央から落ちる琥珀の光と、白のスポットライト
+ * 4. 夜の色：右下に青、左下に紫のにじみ
+ * 5. 周辺減光：四隅を暗くして中央を浮かせる
+ * 6. 下地：上ほど明るい縦のグラデーション
+ */
+@layer components {
+  .app-backdrop {
+    isolation: isolate;
+  }
+
+  .app-backdrop::before,
+  .app-backdrop::after {
+    content: "";
+    inset: 0;
+    pointer-events: none;
+    position: fixed;
+    z-index: -1;
+  }
+
+  .app-backdrop::before {
+    background-image:
+      radial-gradient(ellipse 1200px 520px at 50% -8%, color-mix(in srgb, var(--color-amber) 18%, transparent), transparent 62%),
+      radial-gradient(ellipse 900px 560px at 50% 0%, rgb(255 255 255 / 0.05), transparent 65%),
+      radial-gradient(ellipse 900px 720px at 100% 100%, rgb(76 112 214 / 0.2), transparent 60%),
+      radial-gradient(ellipse 820px 660px at 0% 100%, rgb(154 112 232 / 0.12), transparent 60%),
+      radial-gradient(ellipse 100% 100% at 50% 50%, transparent 40%, rgb(0 0 0 / 0.22) 78%, rgb(0 0 0 / 0.38) 100%),
+      linear-gradient(180deg, #171c28 0%, var(--color-canvas) 55%, #0e1118 100%);
+  }
+
+  .app-backdrop::after {
+    background-image:
+      radial-gradient(circle 1.5px at 12% 14%, rgb(255 255 255 / 0.32), transparent 1.6px),
+      radial-gradient(circle 1px at 78% 22%, rgb(255 255 255 / 0.24), transparent 1.1px),
+      radial-gradient(circle 1px at 64% 8%, rgb(255 255 255 / 0.2), transparent 1.1px),
+      radial-gradient(circle 1.5px at 91% 38%, rgb(255 236 200 / 0.26), transparent 1.6px),
+      radial-gradient(circle 1px at 33% 30%, rgb(255 255 255 / 0.16), transparent 1.1px),
+      radial-gradient(circle 1.5px at 6% 44%, rgb(255 255 255 / 0.2), transparent 1.6px),
+      radial-gradient(circle 1px at 47% 18%, rgb(255 236 200 / 0.18), transparent 1.1px),
+      radial-gradient(circle at 1px 1px, rgb(255 255 255 / 0.085) 1px, transparent 1.5px);
+    background-size:
+      auto, auto, auto, auto, auto, auto, auto,
+      24px 24px;
+    mask-image: radial-gradient(ellipse 85% 75% at 50% 0%, #000 0%, rgb(0 0 0 / 0.55) 55%, transparent 100%);
+  }
+}
