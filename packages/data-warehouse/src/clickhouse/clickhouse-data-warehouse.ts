@@ -2,7 +2,7 @@ import { createClient, type ClickHouseClient } from "@clickhouse/client"
 
 import { logger } from "@repo/logger"
 
-import type { DataWarehouse } from "./data-warehouse"
+import type { DataWarehouse } from "../data-warehouse"
 
 export type ClickHouseConfig = {
   database: string

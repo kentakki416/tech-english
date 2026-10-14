@@ -1,4 +1,4 @@
-import { ClickHouseDataWarehouse, type ClickHouseConfig } from "./clickhouse-data-warehouse"
+import { ClickHouseDataWarehouse, type ClickHouseConfig } from "./clickhouse/clickhouse-data-warehouse"
 import type { DataWarehouse } from "./data-warehouse"
 import { NoopDataWarehouse } from "./noop-data-warehouse"
 

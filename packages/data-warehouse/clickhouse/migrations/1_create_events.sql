@@ -2,13 +2,10 @@
 --
 -- 設計: docs/spec/user-behavior-events/README.md
 --
--- ClickHouse の entrypoint は init スクリプトを DB 指定なしで実行するため、
--- テーブル名を tech_english. で修飾しないと default DB に作られる。
---
 -- ReplacingMergeTree にしているのは BullMQ が at-least-once で
 -- 同じイベントが 2 回届きうるため。ORDER BY 末尾の event_id が重複排除キーになる。
 -- 集計時は FINAL を付けるか argMax で最新を取る。
-CREATE TABLE IF NOT EXISTS tech_english.events
+CREATE TABLE IF NOT EXISTS events
 (
     event_id       UUID,
     event_name     LowCardinality(String),

@@ -107,8 +107,9 @@ docker compose up -d
 pnpm --filter @repo/db prisma:generate
 pnpm --filter api db:migrate
 
-# 5. ClickHouse に CDC の view を作る（テーブルが migrate で作られた後にしか作れないため）
-docker exec tech-english-clickhouse bash /docker-entrypoint-initdb.d/03-postgres-cdc-views.sh
+# 5. ClickHouse の migration を適用する（events テーブル / Postgres からの CDC / view）
+#    CDC は Postgres のテーブルを取り込むため、4 の後に流す
+pnpm --filter @repo/data-warehouse dwh:migrate
 
 # 6. 全アプリを起動する
 pnpm dev
@@ -211,7 +212,7 @@ graph TB
 | [packages/redis](packages/redis/README.md) | `createRedisClient` |
 | [packages/queue](packages/queue/README.md) | `JobQueue` / `JobConsumer` の抽象と BullMQ 実装 |
 | [packages/events](packages/events/README.md) | 行動イベントの型と `EventTracker`（fire-and-forget で送出） |
-| [packages/data-warehouse](packages/data-warehouse/README.md) | `DataWarehouse` 抽象と ClickHouse 実装 |
+| [packages/data-warehouse](packages/data-warehouse/README.md) | `DataWarehouse` 抽象と ClickHouse 実装。ClickHouse のテーブル・view の migration（[`clickhouse/`](packages/data-warehouse/clickhouse/README.md)） |
 | [packages/storage](packages/storage/README.md) | `createStorage` と local / S3 実装 |
 | [packages/eslint-config](packages/eslint-config/README.md) / [packages/typescript-config](packages/typescript-config/README.md) | 共有 lint / tsconfig |
 
