@@ -87,10 +87,10 @@ export interface PassageRepository {
 - `attempt_count` / `question_count` は `reading_attempts` / `questions` を数えるサブクエリ。挑戦は **状態を問わず** 数える（挑戦中のユーザーも設問 ID に回答を送るため）。ソースは `source_documents` → `content_sources` を join
 - `countByStatus` は絞り込みを無視した全体の件数（無い状態は 0 で埋める）
 - `updateDraftContent`：① passages をガード付き（`status = 'draft'`）で更新、0 行なら false ② 用語集：リクエストに無い id を削除、既存を id で更新（`passage_id` も条件に入れる）、新規を insert して index → id の配列を作る ③ 設問：リクエストに無い id を削除、残す行の `order_index` を一時的に `-(order_index + 1)` へ退避してから最終値で更新（`(passage_id, order_index)` の unique 違反を避ける）、新規を insert。`target_glossary_entry_id` は ② の配列から引く
-- `restoreRejected`：1 トランザクションで ① `status = 'rejected'` の行を `FOR UPDATE` でロック（無ければ null。`resetForRegeneration` も同じ行をロックするので、設問の有無の確認と書き込みの間に設問が消されない）② 設問が 1 つでもあれば `status = 'draft'`・`reject_reason = null` だけを書く（設問・用語集・和訳・要確認・`reviewed_at` は残す）③ 無ければ（LLM が不向きと判定したもの）`resetForRegeneration` と同じ値で `collected` に戻す（用語集が残っていれば消す。`generation_attempt_count = 0`）。Prisma 実装はロックつきの select を `$queryRaw` で書く
+- `restoreRejected`：1 トランザクションで ① `status = 'rejected'` の行を `FOR UPDATE` でロック（無ければ null。`resetForRegeneration` も同じ行をロックするので、設問の有無の確認と書き込みの間に設問が消されない）② 設問が 1 つでもあれば `status = 'draft'`・`reject_reason = null` だけを書く（設問・用語集・和訳・要確認・`reviewed_at` は残す）③ 無ければ（LLM が不向きと判定したもの）`resetForRegeneration` と同じ値で `collected` に戻す（用語集が残っていれば消す。`generation_attempt_count = 0`）
 - `clearAttention`：`needs_attention = false`、`attention_reasons = []` を `id` だけを条件に書く（解除済みでも書く。冪等）
 - `resetForRegeneration`：questions / glossary を削除し、passages の `blocks` から `translationJa` を外す。`difficulty` / `time_limit_seconds` / 生成の記録 / `generation_started_at` / `generation_error` / `reject_reason` / `reviewed_at` を null、`needs_attention = false`、`attention_reasons = []`、**`generation_attempt_count = 0`**（失敗から戻した直後の 1 回の失敗で再び failed にならないように）。英文とタイトルは残す
-- Drizzle と Prisma の両方に実装し、Prisma 実装は `type` / `status` を type guard で検証する。不足する演算子は `@repo/db` の re-export に足す
+- Drizzle で実装する。不足する演算子は `@repo/db` の re-export に足す
 
 ### 4. 純関数（`apps/api/src/lib/`）
 
@@ -174,7 +174,7 @@ Service のユニットテスト（`test/service/admin-passage-service/`、Repos
 - [ ] 異常系：挑戦がある問題で設問を 1 つ消す・足す・別の id にする → 409。挑戦が 0 件なら 200
 - [ ] 異常系：公開の条件を満たさない → 400 で `details` を持つ。遷移の Repository が false → 409
 
-Repository の契約テスト（`test/repository/passage-repository.test.ts`、Drizzle / Prisma の両方）：
+Repository のテスト（`test/repository/passage-repository.test.ts`、実 DB）：
 
 - [ ] 一覧：draft が「要確認 → 更新が古い順」、他が新しい順。cursor で 2 ページ目が重複・欠落なく続く。`source_id` / `needs_attention` の絞り込み
 - [ ] `countByStatus` が全状態を 0 埋めで返す。`attemptCount` / `questionCount` が数えられる

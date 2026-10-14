@@ -33,23 +33,17 @@ WORKDIR /app
 
 # Step 1: package.json + lock だけ先にコピーして install (キャッシュ効率化)
 COPY --from=pruner /app/out/json/ ./
-# .pnpmfile.cjs は turbo prune の出力に含まれないので別途コピー
-# (pnpm install --frozen-lockfile が pnpmfileChecksum を検証するため必須)
-COPY .pnpmfile.cjs ./
 RUN pnpm install --frozen-lockfile
 
 # Step 2: ソース全部をコピー
 COPY --from=pruner /app/out/full/ ./
 
-# Step 3: Prisma Client を生成
-RUN pnpm --filter @repo/db prisma:generate
-
-# Step 4: API をビルド。turbo 経由で実行することで turbo.json の build.dependsOn
-# (^build + @repo/db#prisma:generate) により packages/* (@repo/*) が先にビルドされる。
+# Step 3: API をビルド。turbo 経由で実行することで turbo.json の build.dependsOn
+# (^build) により packages/* (@repo/*) が先にビルドされる。
 # pnpm --filter api build だと api の tsc しか走らず @repo/* の dist が無く TS2307 になる。
 RUN npx -y turbo@2.6.1 run build --filter=api
 
-# Step 5: 本番用依存のみを /app/deploy に抽出
+# Step 4: 本番用依存のみを /app/deploy に抽出
 # workspace 依存 (@repo/*) は symlink ではなく実体コピーされる
 RUN pnpm deploy --filter api --prod /app/deploy
 

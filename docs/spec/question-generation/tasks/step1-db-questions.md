@@ -138,7 +138,7 @@ export const numberParagraphs = (blocks: Pick<PassageBlock, "type">[]): (number 
 
 ### 4. Drizzle のスキーマ
 
-FK の書き方は `auth-account.ts`、CHECK の作り方は `packages/db/README.md` に合わせる。
+FK の書き方は `auth-account.ts`、CHECK の作り方は `docs/tech-stack/drizzle.md` の「enum 的な列は const から CHECK 制約を作る」に合わせる。
 
 ```typescript
 /** packages/db/src/drizzle/schema/passage-glossary-entry.ts */
@@ -204,43 +204,13 @@ export const questions = pgTable(
 
 - `order_index` には範囲の CHECK を付けない（step5 の保存で並べ替えるとき、unique 制約を避けるために一時的に負の値へ退避するため）
 - `schema/index.ts` に 2 ファイルを足す（ファイル名順）
-- `packages/db/src/index.ts` の Prisma 型の re-export に `PassageGlossaryEntry` / `Question` を足す
+- `@repo/domain` の `rules/question.ts` に type guard `isQuestionType` を置く（`rules/passage.ts` の `isPassageStatus` と同じ書き方）
 
-### 5. `schema.prisma`
-
-```prisma
-model Question {
-    id                      Int      @id @default(autoincrement())
-    passageId               Int      @map("passage_id")
-    orderIndex              Int      @map("order_index") @db.SmallInt
-    type                    String
-    prompt                  String
-    choices                 Json
-    correctChoiceIndex      Int      @map("correct_choice_index") @db.SmallInt
-    explanationJa           String   @map("explanation_ja")
-    evidenceBlockIndex      Int      @map("evidence_block_index")
-    evidenceQuote           String   @map("evidence_quote")
-    targetGlossaryEntryId   Int?     @map("target_glossary_entry_id")
-    verificationChoiceIndex Int?     @map("verification_choice_index") @db.SmallInt
-    createdAt               DateTime @default(now()) @map("created_at")
-    updatedAt               DateTime @updatedAt @map("updated_at")
-
-    passage             Passage                @relation(fields: [passageId], references: [id], onDelete: Cascade)
-    targetGlossaryEntry PassageGlossaryEntry?  @relation("QuestionTarget", fields: [targetGlossaryEntryId], references: [id], onDelete: SetNull)
-
-    @@unique([passageId, orderIndex])
-    @@map("questions")
-}
-```
-
-`PassageGlossaryEntry` も同様に書き（`@@index([passageId])`、`@@index([lemma])`、逆参照 `targetedBy Question[] @relation("QuestionTarget")`）、content-collection step1 の `Passage` に `questions Question[]` と `glossaryEntries PassageGlossaryEntry[]` を足す。CHECK 制約は Prisma で表現できないので、Prisma 実装の Repository は `type` を `isQuestionType`（`rules/question.ts` に type guard を足す）で検証してから domain 型にする。
-
-### 6. マイグレーション
+### 5. マイグレーション
 
 ```bash
 pnpm --filter api db:generate   # 生成された SQL の CHECK / FK / index を目で確認する
 pnpm --filter api db:migrate
-pnpm --filter @repo/db prisma:generate
 ```
 
 ## 動作確認

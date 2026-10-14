@@ -41,7 +41,7 @@ export class DrizzleMemoRepository implements MemoRepository {
   }
 
   /**
-   * 対象が無いときは Prisma 実装（P2025）と同じく throw する
+   * 対象が無いときは throw する
    */
   public async update(id: number, data: UpdateMemoInput): Promise<Memo> {
     const [row] = await this._db
@@ -57,7 +57,7 @@ export class DrizzleMemoRepository implements MemoRepository {
   }
 
   /**
-   * 対象が無いときは Prisma 実装（P2025）と同じく throw する
+   * 対象が無いときは throw する
    */
   public async deleteById(id: number): Promise<void> {
     const [row] = await this._db.delete(memos).where(eq(memos.id, id)).returning({ id: memos.id })

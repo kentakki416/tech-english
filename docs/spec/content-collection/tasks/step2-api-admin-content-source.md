@@ -126,12 +126,11 @@ export interface ContentSourceRepository {
 ```
 
 - **取得失敗のページ** は `source_documents.http_status >= 400`（[step6](./step6-cron-collect-website.md) が記録する）
-- Drizzle の件数：`select({ count: count(), sourceId: sourceDocuments.sourceId, status: passages.status }).from(passages).innerJoin(sourceDocuments, eq(passages.sourceDocumentId, sourceDocuments.id)).groupBy(sourceDocuments.sourceId, passages.status)`
-- Prisma の件数：`groupBy` は関連先の列でまとめられないので `$queryRaw` で同じ SQL を書く（`count` は `bigint` で返るので `Number()`、`status` は `isPassageStatus` で検証）
-- `_toDomain(row)`：`fetchType` で分岐し、取得方法ごとの必須列（`repository` / `branch` / `siteUrl`）が null なら throw（CHECK があるので通常は起きない）。Prisma 実装は `isSourceKind` / `isAllowedLicense` / `isSourceFetchType` でも検証し、jsonb は `z.array(z.string()).parse()` で配列に戻す
+- 件数：`select({ count: count(), sourceId: sourceDocuments.sourceId, status: passages.status }).from(passages).innerJoin(sourceDocuments, eq(passages.sourceDocumentId, sourceDocuments.id)).groupBy(sourceDocuments.sourceId, passages.status)`
+- `_toDomain(row)`：`fetchType` で分岐し、取得方法ごとの必須列（`repository` / `branch` / `siteUrl`）が null なら throw（CHECK があるので通常は起きない）
 - `update` は `input.fetchType` の列だけを書き、`shouldResetCollectedCommit` なら `lastCollectedCommitSha: null` も書く。`shouldResetDocumentCache` なら同じトランザクションで `source_documents`（`source_id = id`）の `etag` / `last_modified` / `content_hash` を null にする。対象が無ければ throw（memo と同じ）
-- `create` / `update` は unique 制約の違反を捕まえて `{ kind: "duplicate" }` を返す（Drizzle は `DrizzleQueryError` の `cause.code === "23505"`、Prisma は `code === "P2002"`。`@repo/db` は Prisma の値を出さないので形で判定する）。content_sources の unique 制約は主キーと `repository` / `site_url` だけなので、重複の登録とみなせる
-- `src/repository/index.ts`・`drizzle/index.ts`・`prisma/index.ts` に足す
+- `create` / `update` は unique 制約の違反を捕まえて `{ kind: "duplicate" }` を返す（`DrizzleQueryError` の `cause.code === "23505"`）。content_sources の unique 制約は主キーと `repository` / `site_url` だけなので、重複の登録とみなせる
+- `src/repository/index.ts`・`drizzle/index.ts` に足す
 
 ### 3. ライセンス検出の client（`src/client/github-license.ts`）
 
@@ -266,7 +265,7 @@ Service のユニットテスト（`test/service/content-source-service/*.test.t
   - [ ] `create` / `update` が `duplicate` を返したら 409（事前の検査と書き込みの間の競合）
   - [ ] 文書を取得したソースの `repository` / `site_url` を変えると 400（`update` は呼ばれない）
 
-Repository の契約テスト（`test/repository/content-source-repository.test.ts`。`describe.each` で Drizzle / Prisma）：
+Repository のテスト（`test/repository/content-source-repository.test.ts`。実 DB）：
 
 - [ ] github / website それぞれ `create` → `findById` / `findByRepository` / `findBySiteUrl` で同じ値が返る（`toEqual`）
 - [ ] `update` が渡した列を書き、`shouldResetCollectedCommit` のときだけ `lastCollectedCommitSha` が null になる。`shouldResetDocumentCache` のときだけ、そのソースの `source_documents` の `etag` / `last_modified` / `content_hash` が null になる（他のソースの行は変わらない）。存在しない id で throw

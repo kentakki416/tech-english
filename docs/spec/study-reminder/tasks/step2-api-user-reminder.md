@@ -112,33 +112,9 @@ public async upsertByUserId(userId: number, data: UpsertReminderSettingInput): P
 ```
 
 - `_toDomainReminderSetting(row: ReminderSettingRow)` は既存の `_toDomainMemo` と同じ形で、`time` だけ `row.time.slice(0, 5)` にする（Postgres の `time` は `"21:00:00"` で返る）
-- `updated_at` は `$onUpdate` が `ON CONFLICT DO UPDATE SET` にも入るので明示しない（契約テストで進むことを確認する）
+- `updated_at` は `$onUpdate` が `ON CONFLICT DO UPDATE SET` にも入るので明示しない（Repository のテストで進むことを確認する）
 - `reminderSettings` は `@repo/db` から import する（`drizzle-orm` を直接入れない）
-
-Prisma 実装 `src/repository/prisma/reminder-setting-repository.ts`（`PrismaReminderSettingRepository`）。`time` は `DateTime`、`weekdays` は `Json` で返るので変換と検証をする。
-
-```typescript
-public async upsertByUserId(userId: number, data: UpsertReminderSettingInput): Promise<ReminderSetting> {
-  const values = { isEnabled: data.isEnabled, time: this._toPrismaTime(data.time), weekdays: data.weekdays }
-  const row = await this._prisma.reminderSetting.upsert({
-    create: { ...values, userId },
-    update: values,
-    where: { userId },
-  })
-  return this._toDomainReminderSetting(row)
-}
-
-/**
- * "HH:mm" → 1970-01-01 の UTC の DateTime（Prisma の @db.Time の表現）
- */
-private _toPrismaTime(time: string): Date {
-  return new Date(`1970-01-01T${time}:00.000Z`)
-}
-```
-
-- `_toDomainReminderSetting` では `time: row.time.toISOString().slice(11, 16)`。`weekdays` は `Array.isArray` かつ全要素が 1〜7 の整数であることを確かめ、違えば throw する（`as` でキャストしない。`packages/domain/README.md`）
-- Prisma の `time` の UTC の解釈がずれると Drizzle と値が食い違う。下の契約テストの「実装間の互換性」で必ず確認する
-- 両実装を `src/repository/{drizzle,prisma}/index.ts` に `export *` で足す
+- `src/repository/drizzle/index.ts` に `export *` で足す
 
 ### 3. Service
 
@@ -235,7 +211,7 @@ pnpm --filter api test
 pnpm lint:fix
 ```
 
-Repository の契約テスト `test/repository/reminder-setting-repository.test.ts`（`describe.each` で Drizzle / Prisma の両方。ユーザーは `testDb` で先に作る）:
+Repository のテスト `test/repository/reminder-setting-repository.test.ts`（実 DB。ユーザーは `testDb` で先に作る）:
 
 - 正常系
   - [ ] `upsertByUserId` で作った設定を `findByUserId` で取得でき、`time` が `"HH:mm"`（例 `"21:15"`）、`weekdays` が渡した配列になる
@@ -245,8 +221,6 @@ Repository の契約テスト `test/repository/reminder-setting-repository.test.
   - [ ] `findByUserId` は設定の無いユーザーで `null`
   - [ ] 存在しない `userId` の `upsertByUserId` は throw する（FK 違反）
   - [ ] `users` の行を消すと `findByUserId` が `null` になる（cascade）
-- 実装間の互換性
-  - [ ] Drizzle で保存した `"21:15"` を Prisma で読んでも `"21:15"`、逆も同じ
 
 Service のユニットテスト（`test/service/reminder-service/getReminderSetting.test.ts`・`saveReminderSetting.test.ts`。Repository は `vi.fn()`）:
 

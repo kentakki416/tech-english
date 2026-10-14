@@ -1,18 +1,9 @@
 import { memos, sql } from "@repo/db"
 
 import { DrizzleMemoRepository } from "../../src/repository/drizzle/memo-repository"
-import type { MemoRepository } from "../../src/repository/memo-repository"
-import { PrismaMemoRepository } from "../../src/repository/prisma/memo-repository"
-import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb, testPrisma } from "../controller/setup"
+import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb } from "../controller/setup"
 
-/**
- * Prisma / Drizzle の両実装が MemoRepository として同じ振る舞いをすることを確かめる。
- * DI で使うのは Drizzle 実装だが、Prisma 実装へ戻せる状態を保つために両方を検証する。
- */
-const implementations: [string, MemoRepository][] = [
-  ["Drizzle", new DrizzleMemoRepository(testDb)],
-  ["Prisma", new PrismaMemoRepository(testPrisma)],
-]
+const memoRepository = new DrizzleMemoRepository(testDb)
 
 beforeEach(async () => {
   await cleanupTestData()
@@ -24,7 +15,7 @@ afterAll(async () => {
   await disconnectTestRedis()
 })
 
-describe.each(implementations)("%s MemoRepository", (_name, memoRepository) => {
+describe("MemoRepository", () => {
   describe("正常系", () => {
     it("create したメモを findById で取得できる", async () => {
       const created = await memoRepository.create({ body: "Body", title: "Title" })
@@ -78,7 +69,7 @@ describe.each(implementations)("%s MemoRepository", (_name, memoRepository) => {
   })
 })
 
-describe.each(implementations)("%s MemoRepository の日時", (_name, memoRepository) => {
+describe("MemoRepository の日時", () => {
   /**
    * created_at は DB の default（now()）で入る。Postgres のタイムゾーンが UTC 以外
    * （ローカルの docker-compose は Asia/Tokyo）でも、現在時刻（UTC）とずれないこと。
@@ -90,9 +81,7 @@ describe.each(implementations)("%s MemoRepository の日時", (_name, memoReposi
 
     expect(Math.abs(created.createdAt.getTime() - before)).toBeLessThan(60_000)
   })
-})
 
-describe("実装間の互換性", () => {
   /**
    * timestamp（タイムゾーン無し）を UTC として扱う前提を、Postgres のタイムゾーン設定に依らず守る。
    * CI の Postgres は UTC なので、上の createdAt のテストだけではこの設定の欠落に気付けない。
@@ -101,26 +90,5 @@ describe("実装間の互換性", () => {
     const result = await testDb.execute<{ timezone: string }>(sql`SELECT current_setting('TimeZone') AS timezone`)
 
     expect(result.rows[0]?.timezone).toBe("UTC")
-  })
-
-  /**
-   * 両 ORM とも TIMESTAMP(3)（タイムゾーン無し）を UTC として扱う前提で併存させている。
-   * 片方の解釈がずれると、同じ行の日時が実装によって変わってしまう。
-   */
-  it("Drizzle で書いた日時を Prisma で読んでも同じ値になる", async () => {
-    const createdAt = new Date("2026-03-04T05:06:07.890Z")
-    const [row] = await testDb.insert(memos).values({ body: "b", createdAt, title: "t" }).returning()
-
-    const found = await new PrismaMemoRepository(testPrisma).findById(row.id)
-
-    expect(found?.createdAt.toISOString()).toBe(createdAt.toISOString())
-  })
-
-  it("Prisma で書いた日時を Drizzle で読んでも同じ値になる", async () => {
-    const created = await new PrismaMemoRepository(testPrisma).create({ body: "b", title: "t" })
-
-    const found = await new DrizzleMemoRepository(testDb).findById(created.id)
-
-    expect(found?.createdAt.toISOString()).toBe(created.createdAt.toISOString())
   })
 })

@@ -8,7 +8,6 @@
 # Drizzle の schema / migrations / config は packages/db (@repo/db) にあるため、
 # turbo prune で @repo/db に必要な workspace だけを抽出する。
 # drizzle-kit は @repo/db の devDependency なので --prod にせず全 install する。
-# packages/db/prisma/migrations は履歴として残しているだけで、このイメージでは適用しない。
 
 # ==============================================================================
 # Stage 1: base - pnpm をインストールしたベースイメージ
@@ -44,7 +43,6 @@ WORKDIR /app
 
 # package.json + lock を先に入れて install (drizzle-kit は devDep なので --prod にしない)
 COPY --from=pruner /app/out/json/ ./
-COPY .pnpmfile.cjs ./
 RUN pnpm install --frozen-lockfile
 
 # drizzle.config.ts / migrations / schema (src/drizzle) を含むソースをコピー

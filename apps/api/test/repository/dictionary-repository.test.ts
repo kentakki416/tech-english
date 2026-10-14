@@ -1,17 +1,9 @@
 import { dictionaryEntries } from "@repo/db"
 
-import type { DictionaryRepository } from "../../src/repository/dictionary-repository"
 import { DrizzleDictionaryRepository } from "../../src/repository/drizzle/dictionary-repository"
-import { PrismaDictionaryRepository } from "../../src/repository/prisma/dictionary-repository"
-import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb, testPrisma } from "../controller/setup"
+import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb } from "../controller/setup"
 
-/**
- * Prisma / Drizzle の両実装が DictionaryRepository として同じ振る舞いをすることを確かめる
- */
-const implementations: [string, DictionaryRepository][] = [
-  ["Drizzle", new DrizzleDictionaryRepository(testDb)],
-  ["Prisma", new PrismaDictionaryRepository(testPrisma)],
-]
+const dictionaryRepository = new DrizzleDictionaryRepository(testDb)
 
 beforeEach(async () => {
   await cleanupTestData()
@@ -28,7 +20,7 @@ afterAll(async () => {
   await disconnectTestRedis()
 })
 
-describe.each(implementations)("%s DictionaryRepository", (_name, dictionaryRepository) => {
+describe("DictionaryRepository", () => {
   describe("findByHeadwords", () => {
     describe("正常系", () => {
       it("見出し語が一致する項目だけを返す（一致しない候補は無視する）", async () => {

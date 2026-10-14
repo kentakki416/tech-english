@@ -156,4 +156,4 @@ redirect_uri: `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/callback/google`,
 - `apps/api/src/lib/jwt.ts` — JWT 発行・検証
 - `apps/api/src/middleware/rate-limit.ts` — レート制限（token のユーザー単位、無ければ IP 単位）
 - `apps/api/src/repository/redis/refresh-token-repository.ts` — refresh token の Redis 永続化（ローテーションの猶予の記録を含む）
-- `apps/api/src/repository/drizzle/auth-account-repository.ts` — User と AuthAccount の DB 操作（Prisma 版は `repository/prisma/`）
+- `apps/api/src/repository/drizzle/auth-account-repository.ts` — User と AuthAccount の DB 操作

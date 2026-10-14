@@ -2,7 +2,6 @@ import {
   attemptAnswers,
   attemptWordLookups,
   createDrizzleClient,
-  createPrismaClient,
   dictionaryEntries,
   eq,
   passageGlossaryEntries,
@@ -11,11 +10,7 @@ import {
 
 import { DrizzleReadingAttemptRepository } from "../../src/repository/drizzle/reading-attempt-repository"
 import { DrizzleTransactionRunner } from "../../src/repository/drizzle/transaction-runner"
-import { PrismaReadingAttemptRepository } from "../../src/repository/prisma/reading-attempt-repository"
-import { PrismaTransactionRunner } from "../../src/repository/prisma/transaction-runner"
-import type { ReadingAttemptRepository } from "../../src/repository/reading-attempt-repository"
-import type { TransactionRunner } from "../../src/repository/transaction"
-import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb, testPrisma } from "../controller/setup"
+import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb } from "../controller/setup"
 import {
   insertAttemptUser,
   insertGeneratedPassage,
@@ -36,27 +31,14 @@ const buildMissingReplicaUrl = (): string => {
 }
 
 const brokenReplicaDb = createDrizzleClient({ onError: () => undefined, replicaUrl: buildMissingReplicaUrl() })
-const brokenReplicaPrisma = createPrismaClient({ replicaUrl: buildMissingReplicaUrl() })
+
+const readingAttemptRepository = new DrizzleReadingAttemptRepository(testDb)
+const transactionRunner = new DrizzleTransactionRunner(testDb)
 
 /**
- * Prisma / Drizzle の両実装が ReadingAttemptRepository として同じ振る舞いをすることを確かめる。
- * DI で使うのは Drizzle 実装だが、Prisma 実装へ戻せる状態を保つために両方を検証する。
- * 3 つ目は tx を渡す書き込みに使う TransactionRunner、4 つ目は read replica に届かない client を使う同じ実装
+ * read replica に届かない client を使う同じ実装
  */
-const implementations: [string, ReadingAttemptRepository, TransactionRunner, ReadingAttemptRepository][] = [
-  [
-    "Drizzle",
-    new DrizzleReadingAttemptRepository(testDb),
-    new DrizzleTransactionRunner(testDb),
-    new DrizzleReadingAttemptRepository(brokenReplicaDb),
-  ],
-  [
-    "Prisma",
-    new PrismaReadingAttemptRepository(testPrisma),
-    new PrismaTransactionRunner(testPrisma),
-    new PrismaReadingAttemptRepository(brokenReplicaPrisma),
-  ],
-]
+const brokenReplicaRepository = new DrizzleReadingAttemptRepository(brokenReplicaDb)
 
 const at = (iso: string): Date => new Date(iso)
 
@@ -125,12 +107,12 @@ const selectAnswers = async (attemptId: number) =>
 
 afterAll(async () => {
   await cleanupTestData()
-  await Promise.all([brokenReplicaDb.$disconnect(), brokenReplicaPrisma.$disconnect()])
+  await brokenReplicaDb.$disconnect()
   await disconnectTestDb()
   await disconnectTestRedis()
 })
 
-describe.each(implementations)("%s ReadingAttemptRepository", (_name, readingAttemptRepository, transactionRunner, brokenReplicaRepository) => {
+describe("ReadingAttemptRepository", () => {
   describe("createInProgress", () => {
     describe("正常系", () => {
       it("挑戦中の挑戦を作って返す", async () => {

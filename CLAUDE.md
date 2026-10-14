@@ -18,12 +18,12 @@ Turborepo + pnpm モノレポ。
 ### Packages
 
 - **packages/schema**: Shared Zod schemas (`@repo/api-schema`)
-- **packages/db**: DB スキーマ / マイグレーション / client factory (`@repo/db`)。**Drizzle と Prisma を併存**させ、マイグレーションと DI は Drizzle（`createDrizzleClient`）、Prisma（`createPrismaClient`）は repository 実装の切り替え先として残す（`packages/db/README.md` 参照）
+- **packages/db**: DB スキーマ / マイグレーション / client factory (`@repo/db`)。ORM は Drizzle（`createDrizzleClient`）（`packages/db/README.md` 参照）
 - **packages/logger**: `ILogger` + pino/winston/console/silent + AsyncLocalStorage context (`@repo/logger`)
 - **packages/errors**: `Result<T>` + `ApiError` + 業務エラー生成ヘルパ (`@repo/errors`)
 - **packages/redis**: `createRedisClient` factory（BullMQ / Pub/Sub 対応）(`@repo/redis`)
 - **packages/queue**: Queue 抽象 (`JobQueue<T>` / `JobProcessor<T>` / `JobConsumer`) + BullMQ 実装 (`@repo/queue`)。ハンドラ側は実装を知らないため、SQS / Cloud Tasks 等への差し替えが可能
-- **packages/domain**: api / cron / worker が共有するドメイン型 (`@repo/domain`)。型・定数・純粋関数のみ・依存ゼロ。**Repository interface と Drizzle / Prisma の型は置かない**。enum 的な値の集合はここが SSOT で、api-schema は `z.enum` をここの定数から作り、DB は Drizzle のスキーマでここの定数から `CHECK` 制約を作る（`packages/domain/README.md` 参照）
+- **packages/domain**: api / cron / worker が共有するドメイン型 (`@repo/domain`)。型・定数・純粋関数のみ・依存ゼロ。**Repository interface と Drizzle の型は置かない**。enum 的な値の集合はここが SSOT で、api-schema は `z.enum` をここの定数から作り、DB は Drizzle のスキーマでここの定数から `CHECK` 制約を作る（`packages/domain/README.md` 参照）
 - **packages/data-warehouse**: `DataWarehouse` 抽象 + ClickHouse 実装 + `createDataWarehouse` factory (`@repo/data-warehouse`)。分析イベントの書き込み先
 - **packages/events**: 行動イベントの型定義 + `EventTracker` 抽象 + Queue 実装 (`@repo/events`)。送出は fire-and-forget で、失敗を呼び出し元に伝播させない
 - **packages/storage**: `createStorage` factory + local / S3 実装 (`@repo/storage`)
@@ -66,7 +66,7 @@ pnpm test         # テスト
 
 ## Code Style
 
-ESLint v9 flat config。**ファイル変更後は `pnpm lint:fix` を実行する。** ルールの実体は `packages/eslint-config/`。セミコロン / クォート / インデント / import 順 / 命名（case）/ クラスメンバーの修飾子と `_` プレフィックス / `@repo/db`（Drizzle / Prisma）と `@repo/*` の import 境界は**すべて lint が強制する**ので、ここには列挙しない。
+ESLint v9 flat config。**ファイル変更後は `pnpm lint:fix` を実行する。** ルールの実体は `packages/eslint-config/`。セミコロン / クォート / インデント / import 順 / 命名（case）/ クラスメンバーの修飾子と `_` プレフィックス / `@repo/db`（Drizzle）と `@repo/*` の import 境界は**すべて lint が強制する**ので、ここには列挙しない。
 
 lint で強制できていない規約は以下。
 

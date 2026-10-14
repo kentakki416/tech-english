@@ -54,7 +54,6 @@
 }
 ```
 
-- **`packages/db` は例外**: prisma の `generated/` も出力対象に含めるため `include` / `rootDir` / `exclude` を独自に持つ。
 - Next.js / Expo の app（web / admin / mobile）は framework の preset を使い、base は extends しない。
 
 ## `tsconfig.json` と `tsconfig.build.json` の使い分け

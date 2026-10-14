@@ -6,7 +6,7 @@ import { contentSources } from "./content-source"
 /**
  * 取得した文書（GitHub のファイル / サイトのページ）。差分検出・出典の組み立て・サイトのクロールの待ち行列に使う
  *
- * 取得方法ごとの列は nullable。制約・index 名は Prisma の既定の命名に合わせている。
+ * 取得方法ごとの列は nullable。制約・index 名は `{table}_{columns}_key` / `_idx` / `_fkey` の命名にそろえている。
  */
 export const sourceDocuments = pgTable(
   "source_documents",

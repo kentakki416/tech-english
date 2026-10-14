@@ -7,7 +7,7 @@ import { passages } from "./passage"
 /**
  * 読み上げの音声合成（Amazon Polly の SynthesizeSpeech）で課金された文字数の記録。追記だけで、更新・削除しない。
  * generate:audio が音声と単語の時刻のリクエストごとに 1 行書き、今月（UTC の暦月）の合計で AUDIO_MONTHLY_CHARACTER_LIMIT を超えないようにする。
- * 列の正本は docs/spec/read-aloud/README.md の「必要な DB 設計」。制約・index 名は Prisma の既定の命名に合わせている。
+ * 列の正本は docs/spec/read-aloud/README.md の「必要な DB 設計」。制約・index 名は `{table}_{columns}_key` / `_idx` / `_fkey` の命名にそろえている。
  */
 export const audioSynthesisUsages = pgTable(
   "audio_synthesis_usages",

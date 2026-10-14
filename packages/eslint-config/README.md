@@ -50,7 +50,7 @@ eslint-plugin-react 7.37.5 で deprecated ではないため `react/*` のまま
 
 ## @repo/db の import 境界
 
-`@repo/db` を依存に持つ server-side app（api / cron / worker）は、Prisma の型や Drizzle のテーブル定義が業務ロジックへ漏れないように本フラグメントを spread する。
+`@repo/db` を依存に持つ server-side app（api / cron / worker）は、Drizzle のテーブル定義が業務ロジックへ漏れないように本フラグメントを spread する。
 
 ```js
 // apps/worker/eslint.config.js
@@ -62,21 +62,21 @@ module.exports = [...baseConfig, ...dbBoundary]
 
 | 項目 | 内容 |
 | --- | --- |
-| 許可する export | client の factory / その options 型 / client 型のみ（`createDrizzleClient` / `CreateDrizzleClientOptions` / `DrizzleClient` と、Prisma の同名 3 つ） |
-| 制限する export | 上記以外すべて。Prisma のモデル型（`Memo` / `User` / `AuthAccount` …）と型ユーティリティ `Prisma`、Drizzle のテーブル定義（`memos` / `users` …）と演算子（`eq` / `and` …）が対象。`import type` と `import * as` も検出する。テーブルが増えても設定変更は不要 |
+| 許可する export | client の factory / その options 型 / client 型のみ（`createDrizzleClient` / `CreateDrizzleClientOptions` / `DrizzleClient`） |
+| 制限する export | 上記以外すべて。Drizzle のテーブル定義（`memos` / `users` …）と演算子（`eq` / `and` …）が対象。`import type` と `import * as` も検出する。テーブルが増えても設定変更は不要 |
 | 許可する層 | `src/repository/**/*.ts` のみ。Repository 実装だけが「DB row → domain 型」の変換責務を持つ |
 | 業務ロジックが使う型 | `@repo/domain`（`packages/domain`） |
 
 ### このルールの限界
 
-**検出できるのは `@repo/db` からの直接 import だけ。** repository 層の `interface` が戻り値に Prisma / Drizzle の型を使った場合、その型は推論で service / jobs へ伝播するが lint では検出できない（実際に `apps/worker` で起きた）。
+**検出できるのは `@repo/db` からの直接 import だけ。** repository 層の `interface` が戻り値に Drizzle の型を使った場合、その型は推論で service / jobs へ伝播するが lint では検出できない（実際に `apps/worker` で起きた）。
 
 ```ts
-/** ✗ lint は通るが Prisma 型が jobs へ伝播する */
-import type { Memo } from "@repo/db"        // repository/ 配下なので許可される
+/** ✗ lint は通るが Drizzle の行の型が jobs へ伝播する */
+import { memos } from "@repo/db"            // repository/ 配下なので許可される
 
 export interface MemoRepository {
-  findById(id: number): Promise<Memo | null>  // ← 戻り値経由で漏れる
+  findById(id: number): Promise<typeof memos.$inferSelect | null>  // ← 戻り値経由で漏れる
 }
 ```
 

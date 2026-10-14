@@ -7,17 +7,9 @@ import type {
   ContentSourceUpdateOptions,
 } from "../../src/repository/content-source-repository"
 import { DrizzleContentSourceRepository } from "../../src/repository/drizzle/content-source-repository"
-import { PrismaContentSourceRepository } from "../../src/repository/prisma/content-source-repository"
-import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb, testPrisma } from "../controller/setup"
+import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb } from "../controller/setup"
 
-/**
- * Prisma / Drizzle の両実装が ContentSourceRepository として同じ振る舞いをすることを確かめる。
- * DI で使うのは Drizzle 実装だが、Prisma 実装へ戻せる状態を保つために両方を検証する。
- */
-const implementations: [string, ContentSourceRepository][] = [
-  ["Drizzle", new DrizzleContentSourceRepository(testDb)],
-  ["Prisma", new PrismaContentSourceRepository(testPrisma)],
-]
+const contentSourceRepository = new DrizzleContentSourceRepository(testDb)
 
 type GitHubRepositoryInput = Extract<ContentSourceInput, { fetchType: "github_repository" }>
 type WebsiteInput = Extract<ContentSourceInput, { fetchType: "website" }>
@@ -148,7 +140,7 @@ afterAll(async () => {
   await disconnectTestRedis()
 })
 
-describe.each(implementations)("%s ContentSourceRepository", (_name, contentSourceRepository) => {
+describe("ContentSourceRepository", () => {
   describe("正常系", () => {
     it("github を create すると findById / findByRepository で同じ値が返る", async () => {
       const created = await createSource(contentSourceRepository, GITHUB_INPUT)
@@ -411,18 +403,5 @@ describe.each(implementations)("%s ContentSourceRepository", (_name, contentSour
       expect(result).toEqual({ kind: "duplicate" })
       expect(await selectSourceDocument(document.id)).toMatchObject({ contentHash: "content-hash-/3/tutorial/", etag: "\"v1\"" })
     })
-  })
-})
-
-describe("実装間の互換性", () => {
-  it.each([
-    ["github", GITHUB_INPUT],
-    ["website", WEBSITE_INPUT],
-  ])("Drizzle で作った %s のソースを Prisma で読んでも同じ値になる", async (_label, input) => {
-    const created = await createSource(new DrizzleContentSourceRepository(testDb), input)
-
-    const found = await new PrismaContentSourceRepository(testPrisma).findById(created.id)
-
-    expect(found).toEqual(created)
   })
 })

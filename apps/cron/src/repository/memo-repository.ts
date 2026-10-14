@@ -6,9 +6,6 @@
  *   - cron 側は一括削除など batch 系の操作だけ持つ
  * 共有 interface を作ると不要なメソッドが両方に漏れ出すため、それぞれの app で必要な
  * 操作のみを持つ独自 interface とする方針。
- *
- * 実装は Prisma（`./prisma`）と Drizzle（`./drizzle`）の 2 つがあり、どちらを使うかは
- * `src/task/` の DI で決める。
  */
 export interface MemoRepository {
   /**

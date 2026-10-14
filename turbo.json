@@ -5,26 +5,15 @@
     "**/.env.*local"
   ],
   "tasks": {
-    "@repo/db#prisma:generate": {
-      "cache": false,
-      "inputs": [
-        "prisma/schema.prisma"
-      ],
-      "outputs": [
-        "generated/**"
-      ]
-    },
     "build": {
       "dependsOn": [
-        "^build",
-        "@repo/db#prisma:generate"
+        "^build"
       ],
       "outputs": [
         ".next/**",
         "!.next/cache/**",
         "dist/**",
-        "build/**",
-        "generated/**"
+        "build/**"
       ]
     },
     "start": {

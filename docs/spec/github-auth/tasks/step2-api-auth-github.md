@@ -137,9 +137,8 @@ export interface UserRepository {
 }
 ```
 
-- Drizzle: `create` の `values` に `timezone: data.timezone`（`undefined` なら既定値）。`updateProfile` / `updateTimezone` は `update(users).set(...).where(eq(users.id, id)).returning()` で、行が無ければ `DrizzleMemoRepository.update` と同じく throw
-- Prisma: `user.update({ data, where: { id } })`（無ければ P2025 で throw）
-- 契約テスト（`test/repository/user-repository.test.ts`）: `create` に `timezone` を渡すと保存される／`updateProfile` は名前とアイコンだけが変わりメールとタイムゾーンは変わらない／`updateTimezone` で変わる／存在しない id の更新は throw
+- `create` の `values` に `timezone: data.timezone`（`undefined` なら既定値）。`updateProfile` / `updateTimezone` は `update(users).set(...).where(eq(users.id, id)).returning()` で、行が無ければ `DrizzleMemoRepository.update` と同じく throw
+- Repository のテスト（`test/repository/user-repository.test.ts`）: `create` に `timezone` を渡すと保存される／`updateProfile` は名前とアイコンだけが変わりメールとタイムゾーンは変わらない／`updateTimezone` で変わる／存在しない id の更新は throw
 
 ### 5. Service
 

@@ -1,17 +1,9 @@
 import { authAccounts, eq } from "@repo/db"
 
 import { DrizzleUserRepository } from "../../src/repository/drizzle/user-repository"
-import { PrismaUserRepository } from "../../src/repository/prisma/user-repository"
-import type { UserRepository } from "../../src/repository/user-repository"
-import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb, testPrisma } from "../controller/setup"
+import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb } from "../controller/setup"
 
-/**
- * Prisma / Drizzle の両実装が UserRepository として同じ振る舞いをすることを確かめる。
- */
-const implementations: [string, UserRepository][] = [
-  ["Drizzle", new DrizzleUserRepository(testDb)],
-  ["Prisma", new PrismaUserRepository(testPrisma)],
-]
+const userRepository = new DrizzleUserRepository(testDb)
 
 beforeEach(async () => {
   await cleanupTestData()
@@ -23,7 +15,7 @@ afterAll(async () => {
   await disconnectTestRedis()
 })
 
-describe.each(implementations)("%s UserRepository", (_name, userRepository) => {
+describe("UserRepository", () => {
   describe("正常系", () => {
     it("create したユーザーを findById / findByEmail で取得できる", async () => {
       const created = await userRepository.create({

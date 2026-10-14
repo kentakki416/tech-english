@@ -142,8 +142,7 @@ findFetchQueue(input: { limit: number; refetchBefore: Date; sourceId: number }):
 markResponse(id: number, input: { fetchedAt: Date; httpStatus: number | null }): Promise<void>
 ```
 
-- Drizzle の `upsertDiscovered`：500 件ずつ `insert(...).values(...).onConflictDoUpdate({ target: [sourceId, path], set: { httpStatus: sql\`CASE WHEN ... THEN NULL ELSE ${sourceDocuments.httpStatus} END\`, sitemapLastmod: sql\`COALESCE(excluded.sitemap_lastmod, ${sourceDocuments.sitemapLastmod})\` } })`
-- Prisma は一括の条件つき upsert が無いので、同じ SQL を `$executeRaw`（`unnest` で配列を渡す）で書く
+- `upsertDiscovered`：500 件ずつ `insert(...).values(...).onConflictDoUpdate({ target: [sourceId, path], set: { httpStatus: sql\`CASE WHEN ... THEN NULL ELSE ${sourceDocuments.httpStatus} END\`, sitemapLastmod: sql\`COALESCE(excluded.sitemap_lastmod, ${sourceDocuments.sitemapLastmod})\` } })`
 - `findFetchQueue` は step1 の index `(source_id, fetched_at)` を使う
 
 ### 6. 1 ソース分の収集（`collectWebsiteSource`）

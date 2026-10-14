@@ -84,11 +84,11 @@ export type ContentSource = GitHubRepositorySource | WebsiteSource
 - `rules/passage.ts`：`isPassageStatus` / `isPassageDifficulty`（`question-generation step1` が `calculateTimeLimitSeconds` などを同じファイルに足す）
 - `src/index.ts` に re-export を足す（ファイルパス順。型は `export type`）
 
-type guard は Prisma 実装の `_toDomain()` が使う（`schema.prisma` は TS の定数を参照できず `String` 列になるため）。書き方は `rules/membership-tier.ts` と同じ。
+type guard の書き方は `rules/membership-tier.ts` と同じ。
 
 ### 3. Drizzle のスキーマ
 
-`packages/db/package.json` の `dependencies` に `"@repo/domain": "workspace:^"` を足す。CHECK の作り方は `packages/db/README.md` の「enum 的な列は const から CHECK 制約を作る」と同じ。
+`packages/db/package.json` の `dependencies` に `"@repo/domain": "workspace:^"` を足す。CHECK の作り方は `docs/tech-stack/drizzle.md` の「enum 的な列は const から CHECK 制約を作る」と同じ。制約・index 名は `{table}_{columns}_key` / `_idx` / `_fkey` の命名にそろえる。
 
 ```ts
 /** packages/db/src/drizzle/schema/content-source.ts */
@@ -179,36 +179,8 @@ export const contentSources = pgTable(
 ### 4. `@repo/db` の export
 
 - `src/index.ts` のクエリ演算子に `asc` / `count` / `gte` / `inArray` / `isNotNull` / `isNull` / `or` を足す（step2・step5・step6 が使う）
-- Prisma の型の re-export に `ContentSource` / `Passage` / `SourceDocument` を足す
 
-### 5. Prisma のスキーマ
-
-`packages/db/prisma/schema.prisma` に `ContentSource` / `SourceDocument` / `Passage` を足し、`pnpm --filter @repo/db prisma:generate` する。CHECK 制約は Prisma で表現できないので書かない（適用するのは Drizzle のマイグレーション）。
-
-```prisma
-model SourceDocument {
-    id             Int       @id @default(autoincrement())
-    sourceId       Int       @map("source_id")
-    path           String
-    fetchedAt      DateTime? @map("fetched_at")
-    httpStatus     Int?      @map("http_status") @db.SmallInt
-    // ...（他の列も Drizzle と同じ名前・nullable で）
-    createdAt      DateTime  @default(now()) @map("created_at")
-    updatedAt      DateTime  @updatedAt @map("updated_at")
-
-    source   ContentSource @relation(fields: [sourceId], references: [id], onDelete: Restrict)
-    passages Passage[]
-
-    @@unique([sourceId, path])
-    @@index([sourceId, fetchedAt])
-    @@map("source_documents")
-}
-```
-
-- jsonb は `Json`（default は `@default("[]")`）、`repository` / `siteUrl` は `String? @unique`、`difficulty` は `Int? @db.SmallInt`
-- 制約・index 名が Drizzle 側と一致すること（Prisma の既定の命名 `{table}_{columns}_key` / `_idx` / `_fkey` に Drizzle 側を合わせてある）
-
-### 6. マイグレーション
+### 5. マイグレーション
 
 ```bash
 pnpm --filter @repo/domain build

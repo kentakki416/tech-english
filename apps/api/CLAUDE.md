@@ -7,7 +7,7 @@ Express.js API サーバー（port 8080）。
 ```bash
 pnpm dev           # ホットリロード起動
 pnpm test          # ローカル用（dotenvx で .env.local を復号して vitest run）
-pnpm test:ci       # CI 用（env は外部から渡す前提。generate + migrate + vitest run）
+pnpm test:ci       # CI 用（env は外部から渡す前提。migrate + vitest run）
 pnpm test:watch    # 変更ファイルだけ再実行
 pnpm test:coverage # カバレッジ計測（coverage/ に出力）
 pnpm db:seed:sample-passages # 開発用のサンプル問題（公開 1・下書き 2）を dev DB に入れる。何度流してもよい（状態と内容が初期値に戻る）
@@ -26,13 +26,13 @@ pnpm db:seed:sample-passages # 開発用のサンプル問題（公開 1・下�
 | Router | `src/routes/` | controllers は optional なオブジェクトで受け、存在する場合のみルート登録 |
 | Controller | `src/controller/{feature}/` | API と 1 対 1。**try-catch を書かない**。`Result` は必ず `sendError` 経由で返す |
 | Service | `src/service/` | `export const` のアロー関数。**戻り値は必ず `Promise<Result<T>>`** |
-| Repository | interface は `src/repository/`、実装は `src/repository/drizzle/` `src/repository/redis/` | **service / controller は `src/repository` バレルから interface だけ import する**（実装ディレクトリから import しない）。DB の実装は Drizzle を DI で使い、`src/repository/prisma/` は切り替え先として残している（`packages/db/README.md`）。**DB の repository を足すときは Drizzle / Prisma の両方に実装し、`test/repository/` の契約テストに加える** |
-| Domain 型 | `@repo/domain` | api / cron / worker で共有。`@repo/api-schema` にも Drizzle / Prisma にも依存しない |
+| Repository | interface は `src/repository/`、実装は `src/repository/drizzle/` `src/repository/redis/` | **service / controller は `src/repository` バレルから interface だけ import する**（実装ディレクトリから import しない）。**DB の repository を足すときは `test/repository/` に実 DB で検証するテストを加える** |
+| Domain 型 | `@repo/domain` | api / cron / worker で共有。`@repo/api-schema` にも Drizzle にも依存しない |
 
 - **Service の Repository 引数は単一でも `repo: { xxxRepository }` のオブジェクトにまとめる**。将来 Repository が増えてもシグネチャを変えずに済むため
 - **DI は `src/index.ts`** で Repository → Controller → Router の順に組み立てる。実装クラスを import してよいのはここと Controller インテグレーションテストだけ
-- **トランザクション**: 抽象は `src/repository/transaction.ts`、実装は `src/repository/drizzle/transaction-runner.ts`（Prisma 版は `src/repository/prisma/`）。`TransactionContext` は不透明トークンなので、service から `tx` で直接クエリを書くことはできない（型エラーになる）
-- **read replica**: `DATABASE_REPLICA_URL` があると、tx の外の読み取りは read replica に流れる。書き込みの直後・同時操作で書き込めなかった後の読み直しなど、replica の遅れが許されない読み取りは `ReadOptions`（`{ fromPrimary: true }`）を受ける Repository メソッドで primary から読む（Drizzle は `this._db.$primary`、Prisma は `$transaction` の中。例: `ReadingAttemptRepository`）
+- **トランザクション**: 抽象は `src/repository/transaction.ts`、実装は `src/repository/drizzle/transaction-runner.ts`。`TransactionContext` は不透明トークンなので、service から `tx` で直接クエリを書くことはできない（型エラーになる）
+- **read replica**: `DATABASE_REPLICA_URL` があると、tx の外の読み取りは read replica に流れる。書き込みの直後・同時操作で書き込めなかった後の読み直しなど、replica の遅れが許されない読み取りは `ReadOptions`（`{ fromPrimary: true }`）を受ける Repository メソッドで primary から読む（`this._db.$primary` を使う。例: `ReadingAttemptRepository`）
 
 ## 行動イベントの送出
 

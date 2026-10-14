@@ -6,7 +6,7 @@ declare const transactionContextBrand: unique symbol
 
 /**
  * Service から見て中身の無い**不透明トークン**。構造を持たない brand 型にしているのは、
- * `Prisma.TransactionClient` や Drizzle のトランザクションを公開すると service / controller が永続化技術に
+ * Drizzle のトランザクションを公開すると service / controller が永続化技術に
  * 型付けされてしまうため。実体を解決するのは Repository 実装だけ。
  */
 export type TransactionContext = {
