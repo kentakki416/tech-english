@@ -41,4 +41,12 @@ process.env.DATABASE_URL =
  * ここに移し、controller / service のどちらの実行でも同じ初期化が走るようにする。
  */
 process.env.DB_NAME = process.env.DB_NAME || "tech-english_test"
-process.env.REDIS_URL = process.env.REDIS_URL || "redis://localhost:6380/1"
+
+/**
+ * Redis は設定されていても DB の番号を 1 に置き換える（test/controller/setup.ts が flushdb する）。
+ * `pnpm test` は dotenvx で .env.local の REDIS_URL（DB の番号なし＝開発用の DB 0）を入れるので、
+ * 未設定のときだけ補う形だと、テストのたびに開発用の Redis（refresh token など）を空にしてしまう
+ */
+const testRedisUrl = new URL(process.env.REDIS_URL || "redis://localhost:6380")
+testRedisUrl.pathname = "/1"
+process.env.REDIS_URL = testRedisUrl.toString()
