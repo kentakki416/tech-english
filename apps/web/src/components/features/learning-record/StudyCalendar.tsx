@@ -311,15 +311,21 @@ export function StudyCalendar({ initialCalendar }: { initialCalendar: GetUserCal
           <h3 className="text-sm font-medium text-fg">{formatDayLabel(selectedDate)}</h3>
           {selectedSummary !== "" && <p className="text-xs text-fg-muted tabular-nums">{selectedSummary}</p>}
         </div>
+        {/**
+          * 挑戦の取得に失敗しても、カレンダーのデータで分かっている単語帳の行は出す
+          */}
         {selectedAttempts === undefined ? (
           <p className="mt-2 text-sm text-fg-faint">読み込み中…</p>
-        ) : selectedAttempts === null ? (
+        ) : selectedAttempts === null && selectedCardCount === 0 ? (
           <p className="mt-2 text-sm text-wrong" role="alert">{LOAD_FAILED_MESSAGE}</p>
-        ) : selectedAttempts.length === 0 && selectedCardCount === 0 ? (
+        ) : selectedAttempts !== null && selectedAttempts.length === 0 && selectedCardCount === 0 ? (
           <p className="mt-2 text-sm text-fg-faint">この日の学習はありません。</p>
         ) : (
           <ul className="mt-2 divide-y divide-line">
-            {selectedAttempts.map(attempt => (
+            {selectedAttempts === null && (
+              <li className="py-2 text-sm text-wrong" role="alert">{LOAD_FAILED_MESSAGE}</li>
+            )}
+            {(selectedAttempts ?? []).map(attempt => (
               <li key={attempt.id}>
                 <Link className="flex items-center gap-3 py-2 text-sm hover:text-amber-bright" href={`/attempts/${attempt.id}/result`}>
                   <span className="w-11 shrink-0 text-xs text-fg-faint tabular-nums">{attempt.submitted_time}</span>

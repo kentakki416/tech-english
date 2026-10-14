@@ -1,13 +1,10 @@
-import { Fragment } from "react"
-
 import type { GetVocabularySessionResponse } from "@repo/api-schema"
 
-export type VocabularyCard = GetVocabularySessionResponse["cards"][number]
+import { splitDictionarySenses } from "@/components/features/passage/passage-text"
 
-/**
- * インラインコード（改行を含まない、対になったバッククォート）
- */
-const INLINE_CODE_PATTERN = /(`[^`\n]+`)/
+import { SentenceText } from "./SentenceText"
+
+export type VocabularyCard = GetVocabularySessionResponse["cards"][number]
 
 /**
  * 束の後ろの 2 枚。手前のカードと合わせて 3 枚に見えるよう、1 枚ごとに下へずらし、横にも少しずらして傾ける。
@@ -17,40 +14,6 @@ const STACK_LAYERS = [
   { className: "bg-[linear-gradient(180deg,#e7dbc3,#dccfb4)]", transform: "translate(-7px, 22px) rotate(-2.2deg)" },
   { className: "bg-[linear-gradient(180deg,#efe4ce,#e4d7bd)]", transform: "translate(5px, 11px) rotate(1.4deg)" },
 ]
-
-/**
- * バッククォートのインラインコードを、紙の上のコードの見た目で描く
- */
-function InkText({ text }: { text: string }) {
-  return (
-    <>
-      {text.split(INLINE_CODE_PATTERN).map((part, index) =>
-        index % 2 === 1 ? (
-          <code key={index} className="rounded-[3px] bg-paper-edge/60 px-1 py-px font-code text-[0.84em] text-ink">
-            {part.slice(1, -1)}
-          </code>
-        ) : (
-          <Fragment key={index}>{part}</Fragment>
-        ),
-      )}
-    </>
-  )
-}
-
-/**
- * 本文の 1 文。単語に蛍光ペンのような琥珀の線を引く
- */
-export function SentenceText({ className = "", sentence }: { className?: string, sentence: NonNullable<VocabularyCard["sentence"]> }) {
-  return (
-    <p className={`font-reading leading-relaxed ${className}`}>
-      <InkText text={sentence.text.slice(0, sentence.highlight_start)} />
-      <mark className="rounded-[2px] bg-transparent bg-[linear-gradient(transparent_52%,rgb(243_178_76/0.55)_52%)] px-0.5 text-ink">
-        <InkText text={sentence.text.slice(sentence.highlight_start, sentence.highlight_end)} />
-      </mark>
-      <InkText text={sentence.text.slice(sentence.highlight_end)} />
-    </p>
-  )
-}
 
 /**
  * 単語帳のリングを通す穴（パンチで開けた穴から、後ろの暗い画面が見える）
@@ -129,16 +92,16 @@ export function PaperCardFront({ card }: { card: VocabularyCard }) {
  * カードの裏。表の語句と 1 文を小さく残し、意味・補足・出どころを出す。辞書の意味は " / " で行を分ける
  */
 export function PaperCardBack({ card }: { card: VocabularyCard }) {
-  const senses = card.meaning_source === "dictionary" ? card.meaning_ja.split(" / ") : [card.meaning_ja]
+  const senses = card.meaning_source === "dictionary" ? splitDictionarySenses(card.meaning_ja) : [card.meaning_ja]
   return (
     <div className="flex h-full flex-col px-6 pt-12 pb-5 sm:px-10">
       <WordHeading card={card} size="sm" />
       {card.sentence && <SentenceText className="mt-1.5 line-clamp-2 text-[13px] text-ink-faint" sentence={card.sentence} />}
       <div className="my-4 border-t border-dashed border-ink-faint/50" />
       <div className="flex-1">
-        <div aria-live="polite" className="space-y-1">
-          {senses.map(sense => (
-            <p key={sense} className="text-[19px] leading-snug font-semibold text-ink [word-break:auto-phrase] sm:text-[22px]">{sense}</p>
+        <div className="space-y-1">
+          {senses.map((sense, index) => (
+            <p key={index} className="text-[19px] leading-snug font-semibold text-ink [word-break:auto-phrase] sm:text-[22px]">{sense}</p>
           ))}
         </div>
         {card.note_ja && <p className="mt-3 border-l-2 border-ink-amber/40 pl-3 text-[13px] leading-relaxed text-ink-muted">{card.note_ja}</p>}

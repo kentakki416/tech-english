@@ -11,10 +11,14 @@ export const metadata: Metadata = {
 
 /**
  * 単語帳のトップ。今日の分（今日の復習・新しい単語）と単語の数、今日の分が無ければ次の復習の日。
- * カードの束の見本に今日の 1 枚目の表を出すため、1 回分も一緒に取る（読み取りだけで何も書き込まない）
+ * カードの束の見本に今日の 1 枚目の表を出すため、1 回分も一緒に取る（読み取りだけで何も書き込まない）。
+ * 1 回分の取得に失敗しても、見本の 1 枚目を出さないだけでトップは出す
  */
 export default async function VocabularyPage() {
-  const [summary, session] = await Promise.all([vocabularyApi.getSummary(), vocabularyApi.getSession()]).catch(redirectIfSessionRejected)
+  const [summary, session] = await Promise.all([
+    vocabularyApi.getSummary().catch(redirectIfSessionRejected),
+    vocabularyApi.getSession().catch(() => null),
+  ])
 
   return (
     <>
@@ -22,7 +26,7 @@ export default async function VocabularyPage() {
       <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6 sm:py-10">
         <h1 className="text-xl font-semibold text-fg">単語帳</h1>
         <p className="mt-1 text-sm text-fg-muted">長文で出会った単語を、カードをめくって覚えます。</p>
-        <VocabularySummaryPanel firstCard={session.cards[0]} summary={summary} />
+        <VocabularySummaryPanel firstCard={session?.cards[0]} summary={summary} />
       </main>
     </>
   )

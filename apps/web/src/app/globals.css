@@ -56,9 +56,10 @@
   --animate-lamp-on: lamp-on 420ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
   --animate-card-rise: card-rise 280ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
   /**
-   * カードを横に裏返す。真横（90deg）で面を差し替え、反対側から戻ってくる。終わった後は変形を残さない（3D の変形が残ると文字がぼやけるため）
+   * カードを横に裏返す。真横（90deg）で面を差し替え、反対側から戻ってくる。終わった後は変形を残さない（3D の変形が残ると文字がぼやけるため、
+   * fill-mode は backwards にして最後のキーフレームを残さない）
    */
-  --animate-card-flip: card-flip 440ms cubic-bezier(0.45, 0, 0.25, 1) both;
+  --animate-card-flip: card-flip 440ms cubic-bezier(0.45, 0, 0.25, 1) backwards;
 
   @keyframes card-flip {
     0% {

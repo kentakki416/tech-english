@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef, useSyncExternalStore } from "react"
+import { useSyncExternalStore } from "react"
 
 /**
  * 効果音のオン / オフを覚えておく localStorage のキー（"off" のときだけ消す）
@@ -20,6 +20,16 @@ const SWISH_ATTACK_SECONDS = 0.025
 
 const listeners = new Set<() => void>()
 
+/**
+ * localStorage に書けなかったときの値（プライベートブラウズなど）。書けないときも、開いている間は切り替えた値で動かす
+ */
+let fallbackIsEnabled: boolean | null = null
+
+/**
+ * 画面をまたいで 1 つだけ使う AudioContext（1 回分を開き直すたびに作ると、閉じない context が増えるため）
+ */
+let sharedContext: AudioContext | null = null
+
 const subscribe = (listener: () => void) => {
   listeners.add(listener)
   window.addEventListener("storage", listener)
@@ -30,14 +40,29 @@ const subscribe = (listener: () => void) => {
 }
 
 /**
- * localStorage が使えない（プライベートブラウズなど）ときはオンのまま動かす
+ * localStorage が使えない（プライベートブラウズなど）ときは、切り替えた値か、まだ切り替えていなければオン
  */
 const readIsEnabled = (): boolean => {
+  if (fallbackIsEnabled !== null) return fallbackIsEnabled
   try {
     return window.localStorage.getItem(SOUND_STORAGE_KEY) !== "off"
   } catch {
     return true
   }
+}
+
+/**
+ * 最初に鳴らすとき（ユーザーの操作の中）に作る（自動再生の制限のため）。AudioContext が無い・作れないブラウザでは null（鳴らさない）
+ */
+const getAudioContext = (): AudioContext | null => {
+  if (sharedContext) return sharedContext
+  if (typeof window.AudioContext !== "function") return null
+  try {
+    sharedContext = new AudioContext()
+  } catch {
+    return null
+  }
+  return sharedContext
 }
 
 /**
@@ -76,26 +101,33 @@ const playSwish = (context: AudioContext) => {
 }
 
 /**
- * カードをめくる効果音。音声ファイルを持たず、Web Audio でノイズから作る。
- * AudioContext は最初に鳴らすとき（ユーザーの操作の中）に作る（自動再生の制限のため）。オン / オフは localStorage に覚える
+ * カードをめくる効果音。音声ファイルを持たず、Web Audio でノイズから作る。オン / オフは localStorage に覚える。
+ * 鳴らせなくても（AudioContext が無い・失敗した）めくる操作は止めない
  */
 export function usePaperSound() {
   const isEnabled = useSyncExternalStore(subscribe, readIsEnabled, () => true)
-  const contextRef = useRef<AudioContext | null>(null)
 
   const play = () => {
     if (!isEnabled) return
-    const context = contextRef.current ?? new AudioContext()
-    contextRef.current = context
-    if (context.state === "suspended") void context.resume()
-    playSwish(context)
+    const context = getAudioContext()
+    if (!context) return
+    try {
+      if (context.state === "suspended") context.resume().catch(() => undefined)
+      playSwish(context)
+    } catch {
+      /**
+       * 効果音は飾りなので、鳴らせなくても何もしない
+       */
+    }
   }
 
   const toggle = () => {
+    const next = !isEnabled
     try {
-      window.localStorage.setItem(SOUND_STORAGE_KEY, isEnabled ? "off" : "on")
+      window.localStorage.setItem(SOUND_STORAGE_KEY, next ? "on" : "off")
+      fallbackIsEnabled = null
     } catch {
-      return
+      fallbackIsEnabled = next
     }
     for (const listener of listeners) listener()
   }

@@ -71,17 +71,21 @@ export const metadata: Metadata = {
 }
 
 /**
- * 単語帳のトップ。今日の分（今日の復習・新しい単語）と単語の数、今日の分が無ければ次の復習の日
+ * 単語帳のトップ。今日の分（今日の復習・新しい単語）と単語の数、今日の分が無ければ次の復習の日。
+ * 束の見本に今日の 1 枚目の表を出すため 1 回分も取る。1 回分の取得に失敗しても見本の 1 枚目を出さないだけ
  */
 export default async function VocabularyPage() {
-  const summary = await vocabularyApi.getSummary().catch(redirectIfSessionRejected)
+  const [summary, session] = await Promise.all([
+    vocabularyApi.getSummary().catch(redirectIfSessionRejected),
+    vocabularyApi.getSession().catch(() => null),
+  ])
 
   return (
     <>
       <AppHeader current="vocabulary" />
       <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6 sm:py-10">
         <h1 className="text-xl font-semibold text-fg">単語帳</h1>
-        <VocabularySummaryPanel summary={summary} />
+        <VocabularySummaryPanel firstCard={session?.cards[0]} summary={summary} />
       </main>
     </>
   )
@@ -199,7 +203,7 @@ export function VocabularySession({ cards, nextDueDate, reviewAction }: Vocabula
         client_review_id: answer.clientReviewId,
         grade: answer.grade,
         lemma: answer.lemma,
-      })
+      }).catch((): ReviewVocabularyCardActionResult => ({ status: "failed" }))
       startSaving(() => {
         setAnswers((previous) => previous.map((item) =>
           item.clientReviewId === answer.clientReviewId ? { ...item, saveStatus: result.status } : item))
@@ -237,13 +241,15 @@ export function VocabularySession({ cards, nextDueDate, reviewAction }: Vocabula
 - **束**：`CardStackBehind`（後ろに 2 枚、残りの枚数で減らす）を手前のカードの後ろに置く
 - **飛ばす・上がる**：答えたら 300ms で横へ飛ばしてから次のカードにし、次のカードは `motion-safe:animate-card-rise` で束から上がる
 - **めくる前は答えのボタンを出さない**。めくった後にもう一度めくると表に戻る（答える前だけ）
-- 表を見ている間は、裏の意味を読み上げ（スクリーンリーダー）にも出さない（`aria-hidden`）。めくったら「意味」を `aria-live="polite"` で伝える
+- 表を見ている間は、裏の意味を読み上げ（スクリーンリーダー）にも出さない（表と裏は同時に描かない）。めくったら「意味」を、常に置いてある `aria-live="polite"` の要素（`sr-only`）で伝える（めくったときに作る要素の live region は読まれないことが多いため）
+- カードの中身はボタンに入れない（`aria-label` を付けたボタンに入れると、読み上げで中身の語句を読めないため）。カードはクリックでもめくれ、キーボードは「めくる」ボタンと `Space`。2 枚目からは出たときにカード（`tabIndex={-1}`）へフォーカスを移し、上部バーの「3 / 10」を `aria-live` で伝える
+- 出てすぐ（250ms）はめくらない。視差効果を減らす設定ではすぐ次のカードになるので、「覚えた」のダブルクリックの 2 回目が同じ位置の「めくる」に当たらないようにする
 
 本文の 1 文の描画（`src/components/features/vocabulary/SentenceText.tsx`）：
 
 ```tsx
 /**
- * 本文の 1 文。highlight_start〜highlight_end を強調し、インラインコードは本文と同じ見た目で描く
+ * 本文の 1 文。highlight_start〜highlight_end を強調し、インラインコードは紙の上のコードの見た目で描く
  */
 export function SentenceText({ sentence }: { sentence: NonNullable<VocabularyCard["sentence"]> }) {
   const parts = [
@@ -255,7 +261,7 @@ export function SentenceText({ sentence }: { sentence: NonNullable<VocabularyCar
     <p className="font-reading">
       {parts.map((part, index) => {
         const content = splitInlineCode(part.text).map((piece, pieceIndex) =>
-          piece.isCode ? <InlineCode key={pieceIndex}>{piece.text}</InlineCode> : <Fragment key={pieceIndex}>{piece.text}</Fragment>)
+          piece.isCode ? <code key={pieceIndex} className="…">{piece.text}</code> : <Fragment key={pieceIndex}>{piece.text}</Fragment>)
         return part.isHighlight ? <mark key={index} className="…">{content}</mark> : <Fragment key={index}>{content}</Fragment>
       })}
     </p>
@@ -263,12 +269,12 @@ export function SentenceText({ sentence }: { sentence: NonNullable<VocabularyCar
 }
 ```
 
-- `InlineCode` は `PassageReader.tsx` の中にしか無いので、`src/components/features/passage/InlineCode.tsx` に切り出して `PassageReader` と共有する。`splitInlineCode` は `passage-text.ts` の既存の関数
+- インラインコードは紙の上のコードの見た目（`paper-edge` の地・墨色）で描く。本文の `InlineCode`（暗い地）は紙のカードに合わないので共有しない。`splitInlineCode` は `passage-text.ts` の既存の関数
 - 用語集の語句はインラインコードをまたがない（解答中もインラインコードは押せない）ので、強調の境目でコードが割れることは無い
 
 #### キーボード
 
-`src/components/features/vocabulary/use-vocabulary-shortcuts.ts`。解答画面の `use-attempt-shortcuts.ts` と同じく `useEffectEvent` で 1 回だけ登録し、入力欄・IME の変換中・修飾キーつきは無視する。
+`src/components/features/vocabulary/use-vocabulary-shortcuts.ts`。解答画面の `use-attempt-shortcuts.ts` と同じく `useEffectEvent` で 1 回だけ登録し、入力欄・IME の変換中・修飾キーつき・押しっぱなしの繰り返し（`event.repeat`）は無視する。
 
 | キー | 動作 |
 | --- | --- |
@@ -284,9 +290,9 @@ export function SentenceText({ sentence }: { sentence: NonNullable<VocabularyCar
 `src/libs/paper-sound.ts`（モックの `paper-sound.ts` を移す）。Web Audio でノイズから「シュッ」を作る（[UI 設計の効果音](../README.md#効果音)）。
 
 - `usePaperSound()` が `{ isEnabled, play, toggle }` を返す。`play()` はめくるたび（表 → 裏、裏 → 表）に呼ぶ
-- `AudioContext` は最初の `play()` で作る（ユーザーの操作の中で作らないと、自動再生の制限で鳴らない）
-- オン / オフは `localStorage`（キー `tech-english:vocabulary-sound`）に覚える。読み書きは `try` / `catch` で包み、使えないときはオンのまま動かす
-- 上部バーの右にスピーカーのアイコンと「効果音」（`aria-pressed`）
+- `AudioContext` は最初の `play()` で作る（ユーザーの操作の中で作らないと、自動再生の制限で鳴らない）。モジュールで 1 つだけ作って画面をまたいで使い回す（開き直すたびに作ると閉じない context が増える）。作れない・鳴らせないときは鳴らさないだけで、めくる操作は止めない
+- オン / オフは `localStorage`（キー `tech-english:vocabulary-sound`）に覚える。読み書きは `try` / `catch` で包み、読めないときはオン、書けないときは開いている間だけ切り替えた値で動かす
+- 上部バーの右にスピーカーのアイコンと「効果音」（名前は「効果音」に固定し、オン / オフは `aria-pressed`）
 
 #### ふりかえり
 
@@ -295,8 +301,8 @@ export function SentenceText({ sentence }: { sentence: NonNullable<VocabularyCar
 - 「覚えた 7 / まだ 3」
 - 「まだ」の単語の一覧（語句と意味）
 - 保存に失敗したカードがあれば「保存できなかったカードがあります」と「もう一度送る」（同じ `clientReviewId` で `save` を呼び直す）
-- 「もう 1 回」（`router.refresh()`。次の回のカードが無ければページが「今日の分は終わりました」を出す）と「単語帳のトップへ」（`/vocabulary`）
-- 保存中のカードが残っている間は「もう 1 回」を押せない（取り直した回に、保存前のカードがもう一度入らないように）
+- 「もう 1 回」（`useTransition` の中で `router.refresh()`。次の回のカードが無ければページが「今日の分は終わりました」を出す）と「単語帳のトップへ」（`/vocabulary`）
+- 保存中のカードが残っている間と、次の回を取りに行っている間は「もう 1 回」を押せない（取り直した回に、保存前のカードがもう一度入らないように）
 
 ## 動作確認
 
