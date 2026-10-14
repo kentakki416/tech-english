@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons"
 import { useFocusEffect } from "@react-navigation/native"
-import { type Href, useRouter } from "expo-router"
+import { useRouter } from "expo-router"
 import { useCallback, useRef, useState } from "react"
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
@@ -20,12 +20,6 @@ type SettingsData = {
   goal: GetUserGoalResponse["goal"]
   timezone: string
 }
-
-/**
- * アカウント削除の確認（github-auth step7 が `src/app/settings/delete-account.tsx` を作る）。
- * まだルートが無いので typed routes の型に含まれず、Href として渡す
- */
-const DELETE_ACCOUNT_HREF = "/settings/delete-account" as Href
 
 function SectionTitle({ children }: { children: string }) {
   return <Text accessibilityRole="header" style={styles.sectionTitle}>{children}</Text>
@@ -184,7 +178,7 @@ export default function SettingsScreen() {
             <Pressable
               accessibilityRole="button"
               style={({ pressed }) => [styles.dangerButton, pressed && styles.dangerButtonPressed]}
-              onPress={() => router.push(DELETE_ACCOUNT_HREF)}
+              onPress={() => router.push("/settings/delete-account")}
             >
               <Text style={styles.dangerButtonText}>アカウントを削除</Text>
             </Pressable>

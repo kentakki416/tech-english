@@ -111,6 +111,37 @@ export const deleteAccountAction = async (
 
 learning-record step4 の設定画面の「危険な操作」区画にある「アカウントを削除」のリンク先が `/settings/delete-account` になっていることを確かめる（モックでは `/mock/settings/delete-account`）。
 
+### 7. 別の端末で削除されたときのログアウト（期限内の access token が拒まれたとき）
+
+別の端末でアカウントを削除すると、この端末の access token は期限内でも `GET /api/user` や学習記録の API で 401 になる。そのままだと access token の期限（最長 15 分）まで全ページがエラー画面になるので、401 を受けたページで cookie を消してログイン画面へ移す。
+
+```mermaid
+sequenceDiagram
+    participant B as ブラウザ
+    participant P as proxy
+    participant S as Server Component
+    participant R as /api/auth/session-expired
+    participant Api as api
+
+    B->>P: GET /（期限内の access token）
+    P->>S: そのまま通す
+    S->>Api: GET /api/user
+    Api-->>S: 401（ユーザーが削除済み）
+    S-->>B: redirect /api/auth/session-expired
+    B->>R: GET（PUBLIC_PATHS。proxy は更新しない）
+    R-->>B: cookie を消して redirect /sign-in
+```
+
+| ファイル | 内容 |
+| --- | --- |
+| `src/libs/session.ts` | `redirectIfSessionRejected(error)`。`ApiClientError` の 401 で、cookie の access token が期限内（`isAccessTokenUsable`）なら `/api/auth/session-expired` へ `redirect`。それ以外は投げ直す（access token が無い・期限が近いときの 401 は proxy の更新が api の障害で失敗した場合なので、ログアウトさせない） |
+| `src/app/api/auth/session-expired/route.ts` | `GET`。`clearAuthCookies()` してから `/sign-in` へ redirect。Server Component は cookie を書き換えられず、cookie を残したまま `/sign-in` へ移すと次のページでも同じ 401 を繰り返すため、Route Handler で消す |
+| `src/features/user/get-user.ts` | `apiClient.get("/api/user").catch(redirectIfSessionRejected)` |
+| `src/components/ui/AppHeader.tsx` | `getUser().catch` で `unstable_rethrow(error)` してから `null` にする（redirect を握りつぶさない） |
+| `src/app/page.tsx` / `src/app/settings/page.tsx` / `src/app/history/page.tsx` | ページのデータ取得にも `.catch(redirectIfSessionRejected)` を付ける（学習記録の API は削除済みユーザーで 401 になり、`getUser` より先に返る・共通ヘッダーまで描画が進まないため） |
+| `src/app/passages/page.tsx` / `src/app/passages/[id]/page.tsx` / `src/app/passages/random/page.tsx` / `src/app/attempts/[id]/page.tsx` / `src/app/attempts/[id]/result/page.tsx` | ページのデータ取得にも `.catch(redirectIfSessionRejected)` を付ける（共通ヘッダーより先に取得するので、JWT の secret の差し替えなどですべての API が 401 になるとエラー画面になるため。`generateMetadata` の取得は今までどおり null にする） |
+| `src/proxy.ts` | `PUBLIC_PATHS` に `"/api/auth/session-expired"` を足し、public なパスでの token 更新の対象から外す（cookie を消すレスポンスと食い違わないように） |
+
 ## 動作確認
 
 ```bash
@@ -129,6 +160,7 @@ pnpm lint:fix
 - [ ] 削除すると完了画面（共通ヘッダーなし、GitHub の Settings → Applications の案内）が出て、cookie が消えている
 - [ ] DB からユーザーと関連データが消え、Redis からこの端末の refresh token の jti が消えている
 - [ ] 完了画面の「ログイン画面へ」で `/sign-in`。戻るボタンで `/settings` に行こうとしても `/sign-in` に飛ばされる
-- [ ] 別のブラウザでログインしていた同じユーザーは、access token の期限（最長 15 分）が切れた後の操作でログイン画面に戻る（`JWT_ACCESS_EXPIRATION=1m` で api を起動して確認）
+- [ ] 別のブラウザでログインしていた同じユーザーは、access token の期限内でも、次にマイページ・設定・学習履歴・問題一覧を開いた時点でログイン画面に戻り、cookie が消えている（`/sign-in` と `/api/auth/session-expired` の間でリダイレクトがループしない）
+- [ ] 同じく、access token の期限（最長 15 分）が切れた後は proxy の refresh が 401 になってログイン画面に戻る（`JWT_ACCESS_EXPIRATION=1m` で api を起動して確認）
 - [ ] api を止めた状態で削除 → エラーの文言が出て、cookie は消えずに確認画面のまま
 - [ ] 既存のメモの削除が動く（`apiClient.delete` の変更の影響確認）

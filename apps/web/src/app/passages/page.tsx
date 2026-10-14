@@ -6,6 +6,7 @@ import { PassageList } from "@/components/features/passage/PassageList"
 import { AppHeader } from "@/components/ui/AppHeader"
 import { buildPassageSearchParams, buildRandomPassagePath, parsePassageSearchParams } from "@/features/passage/passage-query"
 import { passageApi } from "@/features/passage/passage.api"
+import { redirectIfSessionRejected } from "@/libs/session"
 
 export const metadata: Metadata = {
   title: "問題",
@@ -20,7 +21,7 @@ type Props = {
  */
 export default async function PassagesPage({ searchParams }: Props) {
   const filter = parsePassageSearchParams(await searchParams)
-  const page = await passageApi.getList(filter)
+  const page = await passageApi.getList(filter).catch(redirectIfSessionRejected)
 
   return (
     <>

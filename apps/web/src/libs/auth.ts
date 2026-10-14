@@ -22,27 +22,37 @@ export type OAuthSession = {
 }
 
 /**
+ * access / refresh token の cookie の属性。ログイン時（setAuthCookies）と proxy の refresh で同じ値を使う
+ *
  * sameSite="lax" を使う理由:
  * OAuth コールバック（github.com → /api/auth/callback/github → /）は cross-site 起点の
  * 連鎖ナビゲーションになるため、strict だと最終遷移先で cookie が送信されず
  * proxy が認証無しと判定してしまう。CSRF は state パラメータで対策済み。
  */
-export const setAuthCookies = async (accessToken: string, refreshToken: string) => {
-  const store = await cookies()
-  store.set(ACCESS_TOKEN_COOKIE, accessToken, {
+export const AUTH_COOKIE_OPTIONS = {
+  access: {
     httpOnly: true,
     maxAge: ACCESS_TOKEN_MAX_AGE,
     path: "/",
     sameSite: "lax",
     secure: isProduction,
-  })
-  store.set(REFRESH_TOKEN_COOKIE, refreshToken, {
+  },
+  refresh: {
     httpOnly: true,
     maxAge: REFRESH_TOKEN_MAX_AGE,
     path: "/",
     sameSite: "lax",
     secure: isProduction,
-  })
+  },
+} as const
+
+/**
+ * Server Action / Route Handler からだけ呼べる（Server Component では cookie を書き換えられない）
+ */
+export const setAuthCookies = async (accessToken: string, refreshToken: string) => {
+  const store = await cookies()
+  store.set(ACCESS_TOKEN_COOKIE, accessToken, AUTH_COOKIE_OPTIONS.access)
+  store.set(REFRESH_TOKEN_COOKIE, refreshToken, AUTH_COOKIE_OPTIONS.refresh)
 }
 
 export const clearAuthCookies = async () => {

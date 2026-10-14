@@ -1,6 +1,6 @@
 import { env } from "@/env"
 
-import { clearAuthCookies, getAccessToken, getRefreshToken, setAuthCookies } from "./auth"
+import { getAccessToken } from "./auth"
 
 const API_BASE_URL = env.API_URL
 
@@ -24,36 +24,13 @@ const buildHeaders = async (extra?: HeadersInit): Promise<HeadersInit> => {
   }
 }
 
-/** refresh API が non-2xx なら cookie をクリアする（＝要再ログイン） */
-const tryRefresh = async (): Promise<boolean> => {
-  const refreshToken = await getRefreshToken()
-  if (!refreshToken) return false
-  const res = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
-    body: JSON.stringify({ refresh_token: refreshToken }),
-    headers: { "Content-Type": "application/json" },
-    method: "POST",
-  })
-  if (!res.ok) {
-    await clearAuthCookies()
-    return false
-  }
-  const json = await res.json() as { access_token: string; refresh_token: string }
-  await setAuthCookies(json.access_token, json.refresh_token)
-  return true
-}
-
 /**
- * 401 なら tryRefresh して 1 回だけ再試行する。retry=false で再帰を 1 段に制限し、
- * 「refresh しても 401」で無限ループにならないようにしている。
+ * access token の更新はここでは行わない。Server Component は cookie を書き換えられず、更新した refresh token を
+ * 保存できないため。更新は描画より前に proxy（src/libs/token-refresh.ts）が行い、ここに届く cookie は更新済み
  */
-const fetchWithAuth = async (input: string, init: RequestInit, retry = true): Promise<Response> => {
+const fetchWithAuth = async (input: string, init: RequestInit): Promise<Response> => {
   const headers = await buildHeaders(init.headers)
-  const res = await fetch(`${API_BASE_URL}${input}`, { ...init, headers })
-  if (res.status === 401 && retry) {
-    const refreshed = await tryRefresh()
-    if (refreshed) return fetchWithAuth(input, init, false)
-  }
-  return res
+  return fetch(`${API_BASE_URL}${input}`, { ...init, headers })
 }
 
 const throwApiError = async (res: Response): Promise<never> => {
@@ -62,35 +39,47 @@ const throwApiError = async (res: Response): Promise<never> => {
 }
 
 /**
+ * 204 No Content はボディが無いので json() を呼ばない
+ */
+const readJson = async <T>(res: Response): Promise<T> =>
+  (res.status === 204 ? undefined : await res.json()) as T
+
+/**
  * 「ブラウザから Express を直接叩かない」原則の実体。cookies() に依存するため
  * Server Component / Server Action / Route Handler からのみ使う。
  *
  * 戻り値はランタイム検証をしないので、検証が必要なら呼び出し側で zod を使う。
  */
 export const apiClient = {
-  delete: async <T = unknown>(path: string): Promise<T> => {
-    const res = await fetchWithAuth(path, { method: "DELETE" })
+  /**
+   * body は省略できる（`DELETE /api/user` のように確認の値を送る API だけが渡す）
+   */
+  delete: async <T = unknown>(path: string, body?: unknown): Promise<T> => {
+    const res = await fetchWithAuth(path, {
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      method: "DELETE",
+    })
     if (!res.ok) await throwApiError(res)
-    return res.json() as Promise<T>
+    return readJson<T>(res)
   },
   get: async <T>(path: string): Promise<T> => {
     const res = await fetchWithAuth(path, { method: "GET" })
     if (!res.ok) await throwApiError(res)
-    return res.json() as Promise<T>
+    return readJson<T>(res)
   },
   patch: async <T>(path: string, body: unknown): Promise<T> => {
     const res = await fetchWithAuth(path, { body: JSON.stringify(body), method: "PATCH" })
     if (!res.ok) await throwApiError(res)
-    return res.json() as Promise<T>
+    return readJson<T>(res)
   },
   post: async <T>(path: string, body: unknown): Promise<T> => {
     const res = await fetchWithAuth(path, { body: JSON.stringify(body), method: "POST" })
     if (!res.ok) await throwApiError(res)
-    return res.json() as Promise<T>
+    return readJson<T>(res)
   },
   put: async <T>(path: string, body: unknown): Promise<T> => {
     const res = await fetchWithAuth(path, { body: JSON.stringify(body), method: "PUT" })
     if (!res.ok) await throwApiError(res)
-    return res.json() as Promise<T>
+    return readJson<T>(res)
   },
 }

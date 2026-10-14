@@ -3,6 +3,7 @@ import { redirect } from "next/navigation"
 import { buildPassageListPath, parsePassageSearchParams } from "@/features/passage/passage-query"
 import { passageApi } from "@/features/passage/passage.api"
 import { ApiClientError } from "@/libs/api-client"
+import { redirectIfSessionRejected } from "@/libs/session"
 
 type Props = {
   searchParams: Promise<Record<string, string | string[] | undefined>>
@@ -17,9 +18,9 @@ export default async function RandomPassagePage({ searchParams }: Props) {
   const id = await passageApi
     .getRandom(filter)
     .then(result => result.id)
-    .catch((error: unknown) => {
+    .catch(async (error: unknown) => {
       if (error instanceof ApiClientError && error.status === 404) return null
-      throw error
+      return redirectIfSessionRejected(error)
     })
   /**
    * redirect は例外で実現されるので try / catch（.catch）の外で呼ぶ

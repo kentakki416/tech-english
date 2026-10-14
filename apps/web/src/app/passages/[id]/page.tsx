@@ -13,6 +13,7 @@ import { AppHeader } from "@/components/ui/AppHeader"
 import { passageApi } from "@/features/passage/passage.api"
 import { ApiClientError } from "@/libs/api-client"
 import { formatSeconds } from "@/libs/format"
+import { redirectIfSessionRejected } from "@/libs/session"
 
 import { startAttemptAction } from "./actions"
 
@@ -45,7 +46,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
  * 公開を終了した問題（can_start が false。API は自分の挑戦中があるときだけ返す）は「再開する」だけを出し、開始のボタンは出さない
  */
 export default async function PassageStartPage({ params }: Props) {
-  const passage = await loadPassage((await params).id)
+  const passage = await loadPassage((await params).id).catch(redirectIfSessionRejected)
   if (passage === null) notFound()
 
   const { attribution, can_start: canStart, in_progress_attempt: inProgressAttempt } = passage
