@@ -45,7 +45,10 @@ export class DrizzleWordAudioRepository implements WordAudioRepository {
   }
 
   /**
-   * ① の行は FOR UPDATE SKIP LOCKED でロックしてから更新する（別の実行がロック中の行は飛ばす）。② は候補を選んでから insert し、
+   * 次の順に limit 件まで確保する（vocabulary-pronunciation README「単語の音声の生成タスク」）。
+   * ① pending（作り直し待ち）② まだ行が無い見出し語 ③ voice が今と違う ready（確保中でなく、失敗が上限未満）。
+   * voice の変更の行は作り直す間も前の音声を出せるので最後にする（voice を変えた直後も、新しく出た見出し語を先に作る）。
+   * ①③ は FOR UPDATE SKIP LOCKED でロックしてから更新する（別の実行がロック中の行は飛ばす）。② は候補を選んでから insert し、
    * ON CONFLICT (lemma) DO NOTHING で、別の実行が先に作った見出し語は確保しない（RETURNING で返った行だけを確保できたものとする）
    */
   public async claimTargets(input: {
@@ -55,27 +58,9 @@ export class DrizzleWordAudioRepository implements WordAudioRepository {
     staleBefore: Date
     voiceId: string
   }): Promise<ClaimedWordAudio[]> {
-    const isNotClaimedRecently = or(isNull(wordAudios.generationStartedAt), lt(wordAudios.generationStartedAt, input.staleBefore))
     return this._db.transaction(async (tx) => {
-      const existing = await tx
-        .select({ audioKey: wordAudios.audioKey, id: wordAudios.id, lemma: wordAudios.lemma, status: wordAudios.status })
-        .from(wordAudios)
-        .where(
-          or(
-            eq(wordAudios.status, "pending"),
-            and(
-              eq(wordAudios.status, "ready"),
-              ne(wordAudios.voiceId, input.voiceId),
-              isNotClaimedRecently,
-              lt(wordAudios.attemptCount, input.maxAttempts),
-            ),
-          ),
-        )
-        .orderBy(asc(wordAudios.id))
-        .limit(input.limit)
-        .for("update", { skipLocked: true })
-
       const claims: ClaimedWordAudio[] = []
+      const countRemaining = () => input.limit - claims.length
       const toClaim = (row: { audioKey: string | null; id: number; lemma: string }, claimedStatus: WordAudioClaimStatus): ClaimedWordAudio => ({
         claimedStatus,
         generationStartedAt: input.now,
@@ -84,7 +69,13 @@ export class DrizzleWordAudioRepository implements WordAudioRepository {
         previousAudioKey: row.audioKey,
       })
 
-      const pendingRows = existing.filter((row) => row.status === "pending")
+      const pendingRows = await tx
+        .select({ audioKey: wordAudios.audioKey, id: wordAudios.id, lemma: wordAudios.lemma })
+        .from(wordAudios)
+        .where(eq(wordAudios.status, "pending"))
+        .orderBy(asc(wordAudios.id))
+        .limit(input.limit)
+        .for("update", { skipLocked: true })
       if (pendingRows.length > 0) {
         await tx
           .update(wordAudios)
@@ -92,33 +83,55 @@ export class DrizzleWordAudioRepository implements WordAudioRepository {
           .where(and(inArray(wordAudios.id, pendingRows.map((row) => row.id)), eq(wordAudios.status, "pending")))
         claims.push(...pendingRows.map((row) => toClaim(row, "generating")))
       }
-      const readyRows = existing.filter((row) => row.status === "ready")
-      if (readyRows.length > 0) {
+      if (countRemaining() <= 0) return claims
+
+      const candidates = await tx.execute<{ lemma: string }>(buildNewLemmaQuery(countRemaining()))
+      if (candidates.rows.length > 0) {
+        const inserted = await tx
+          .insert(wordAudios)
+          .values(
+            candidates.rows.map((row) => ({
+              generationStartedAt: input.now,
+              lemma: row.lemma,
+              status: "generating" as const,
+              updatedAt: input.now,
+              voiceId: input.voiceId,
+            })),
+          )
+          .onConflictDoNothing({ target: wordAudios.lemma })
+          .returning({ id: wordAudios.id, lemma: wordAudios.lemma })
+        /**
+         * RETURNING の順は保証されないので、候補の順（調べた単語 → 用語集、それぞれ新しい順）に並べ直す（月の上限で途中で止めたときに、優先する語から作るため）
+         */
+        const insertedIds = new Map(inserted.map((row) => [row.lemma, row.id]))
+        claims.push(...candidates.rows.flatMap((row) => {
+          const id = insertedIds.get(row.lemma)
+          return id === undefined ? [] : [toClaim({ audioKey: null, id, lemma: row.lemma }, "generating")]
+        }))
+      }
+      if (countRemaining() <= 0) return claims
+
+      const voiceChangedRows = await tx
+        .select({ audioKey: wordAudios.audioKey, id: wordAudios.id, lemma: wordAudios.lemma })
+        .from(wordAudios)
+        .where(
+          and(
+            eq(wordAudios.status, "ready"),
+            ne(wordAudios.voiceId, input.voiceId),
+            or(isNull(wordAudios.generationStartedAt), lt(wordAudios.generationStartedAt, input.staleBefore)),
+            lt(wordAudios.attemptCount, input.maxAttempts),
+          ),
+        )
+        .orderBy(asc(wordAudios.id))
+        .limit(countRemaining())
+        .for("update", { skipLocked: true })
+      if (voiceChangedRows.length > 0) {
         await tx
           .update(wordAudios)
           .set({ generationStartedAt: input.now, updatedAt: input.now })
-          .where(and(inArray(wordAudios.id, readyRows.map((row) => row.id)), eq(wordAudios.status, "ready")))
-        claims.push(...readyRows.map((row) => toClaim(row, "ready")))
+          .where(and(inArray(wordAudios.id, voiceChangedRows.map((row) => row.id)), eq(wordAudios.status, "ready")))
+        claims.push(...voiceChangedRows.map((row) => toClaim(row, "ready")))
       }
-
-      const remaining = input.limit - claims.length
-      if (remaining <= 0) return claims
-      const candidates = await tx.execute<{ lemma: string }>(buildNewLemmaQuery(remaining))
-      if (candidates.rows.length === 0) return claims
-      const inserted = await tx
-        .insert(wordAudios)
-        .values(
-          candidates.rows.map((row) => ({
-            generationStartedAt: input.now,
-            lemma: row.lemma,
-            status: "generating" as const,
-            updatedAt: input.now,
-            voiceId: input.voiceId,
-          })),
-        )
-        .onConflictDoNothing({ target: wordAudios.lemma })
-        .returning({ id: wordAudios.id, lemma: wordAudios.lemma })
-      claims.push(...inserted.map((row) => toClaim({ ...row, audioKey: null }, "generating")))
       return claims
     })
   }

@@ -107,7 +107,7 @@
 | **見出し語ごとに Polly で作る** | ✅ 単語だけをはっきり読む | ― | 1 万語で約 $1.6（[費用](#費用)） | **単語に採用**。辞書のような単体の発音が覚えやすい。cron のタスクと表が増える |
 | **段落の音声から区間を切り出す** | △ 文の流れの中の発音。前後の音につながって聞こえることがある | ✅ 本文と同じ声・同じ読み | 0（作り置きの音声を使う） | **1 文に採用**。読み上げのマニフェストの単語の時刻で区間が求まる |
 | 端末の音声合成（Web Speech API / `expo-speech`） | △ | △ | 0 | 不採用。声の品質が端末で変わる（read-aloud と同じ理由） |
-| カードを出すときに api が Polly を呼ぶ | ✅ | ― | 同上 | 不採用。api に Polly と S3 の書き込みの権限が要り、1 回分の取得が遅くなる |
+| カードを出すときに api が Polly を呼ぶ | ✅ | ― | 見出し語ごとに作るのと同じ（作った音声を保存して使い回すなら） | 不採用。api に Polly と S3 の書き込みの権限が要り、1 回分の取得が遅くなる |
 
 ### 費用
 
@@ -131,9 +131,9 @@ cron に `generate:word-audio` タスクを足す。EventBridge Scheduler で **
 
 1. `generating` のまま 30 分以上たった行を `pending` に戻す（前回の実行が途中で落ちた場合の回収）
 2. 対象を **状態で確保する**（短いトランザクション、`FOR UPDATE SKIP LOCKED`、`WORD_AUDIO_MAX_PER_RUN` 件まで）。次の順に取る
-   - `pending` の行（失敗が 3 回未満の作り直し待ち）
-   - `ready` で `voice_id` が今の voice と違う行（voice の変更）。`ready` のまま `generation_started_at` だけを入れ、作り直す間も前の音声を出す
-   - **まだ行が無い見出し語**：調べた単語（英和辞書の見出し語と一致するもの）を新しい順、続けて公開中の問題の用語集の語句を公開の新しい順。`INSERT ... ON CONFLICT (lemma) DO NOTHING` で `generating` の行を作る（実行が重なっても二重に作らない）
+   1. `pending` の行（失敗が 3 回未満の作り直し待ち）
+   2. **まだ行が無い見出し語**：調べた単語（英和辞書の見出し語と一致するもの）を新しい順、続けて公開中の問題の用語集の語句を公開の新しい順。`INSERT ... ON CONFLICT (lemma) DO NOTHING` で `generating` の行を作る（実行が重なっても二重に作らない）
+   3. `ready` で `voice_id` が今の voice と違う行（voice の変更。確保中でなく、失敗が 3 回未満）。`ready` のまま `generation_started_at` だけを入れ、作り直す間も前の音声を出す。前の音声を出せるので最後にする（voice を変えた直後も、新しく出た見出し語を先に作る。1 万語の作り直しは 1 時間 300 語で約 34 時間かかる）
 3. 1 語ずつ、**トランザクションの外で** 音声を作る。まず月の上限を確かめ（今月の課金文字数 + その語の文字数が `AUDIO_MONTHLY_CHARACTER_LIMIT` を超えるなら、その語と残りの確保を外して止める）、Polly の `SynthesizeSpeech`（`OutputFormat=mp3`、テキストは見出し語のまま）を 1 回呼ぶ。課金された文字数を `audio_synthesis_usages` に記録する（`word_audio_id` 付き）
 4. mp3 を保存する（キー：`words/{text_hash}.mp3`。`text_hash` は voice と見出し語のハッシュ。[次節](#単語の音声の保存と配信)）
 5. 結果を短いトランザクションで書く。条件は `generation_started_at = 確保した時刻`（30 分を過ぎて別の実行に取り直された行を、古い実行が上書きしない）。成功したら `status = 'ready'`・`audio_key`・`voice_id`・`text_hash`・`generated_at`。前の音声のキーが違えば（voice の変更）前の mp3 を消す
@@ -176,7 +176,8 @@ cron に `generate:word-audio` タスクを足す。EventBridge Scheduler で **
 
 ### 失敗時の扱い
 
-- Polly・保存の一時的なエラーは `generate:audio` と同じく `attempt_count` を増やして次の実行に回す。3 回で `failed`。`failed` の語は自動では作り直さない（admin の画面は MVP では持たない。作り直すときは SQL で `status = 'pending'`・`attempt_count = 0` に戻す）
+- Polly・保存の一時的なエラーは `generate:audio` と同じく `attempt_count` を増やして次の実行に回す。3 回で `failed`。`failed` の語は自動では作り直さない（admin の画面は MVP では持たない。作り直すときは SQL で `status = 'pending'`・`attempt_count = 0`・`last_error = NULL` に戻す）
+- voice の変更で `ready` のまま確保した行の失敗は、`ready` のまま `attempt_count` を増やして `last_error` を残す（前の voice の音声を出し続ける。`failed` にしない。read-aloud と同じ）。3 回に達した行は生成タスクが取らなくなる。作り直すときは SQL で `attempt_count = 0`・`last_error = NULL` に戻す（`status` は `ready` のまま。`pending` にすると作り直しが終わるまで「準備中」になる）
 - 資格情報・権限・保存先の設定の誤りは、失敗の回数を増やさずに確保を外してタスクを止める（全語が `failed` にならないように。`generate:audio` と同じ）
 - 月の上限で止めたとき・1 語でも失敗したときはタスクを exit 1 にする（ECS のタスクの終了コードとログに残す）
 - 再生の失敗（mp3 を読み込めない）は、ボタンを押す前の状態に戻すだけにする（もう一度押すと読み込み直す）。単語帳の答えには影響しない

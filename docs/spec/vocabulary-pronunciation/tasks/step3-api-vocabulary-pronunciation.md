@@ -104,7 +104,7 @@ const attachPronunciations = async (
   cards: VocabularyCardView[],
   repo: { passageAudioRepository: PassageAudioRepository; wordAudioRepository: WordAudioRepository },
   audioPublicUrlBase: string | null,
-): Promise<VocabularyCardWithPronunciation[]> => {
+): Promise<VocabularySessionCard[]> => {
   if (audioPublicUrlBase === null || cards.length === 0) {
     return cards.map((card) => ({ ...card, pronunciation: { sentence: null, wordUrl: null } }))
   }
