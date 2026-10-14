@@ -32,6 +32,18 @@ export const formatStudyMinutes = (studySeconds: number): string =>
   isUnderOneMinute(studySeconds) ? "1 分未満" : `${convertStudySecondsToMinutes(studySeconds)} 分`
 
 /**
+ * 学習カレンダーの 1 日の要約。「1 問、単語 12 枚、7 分」のように、0 の項目は出さない。学習していない日は空文字
+ */
+export const formatStudyDaySummary = (day: { attempt_count: number, card_count: number, study_seconds: number }): string => {
+  const items = [
+    day.attempt_count > 0 ? `${day.attempt_count} 問` : null,
+    day.card_count > 0 ? `単語 ${day.card_count} 枚` : null,
+  ].filter((item): item is string => item !== null)
+  if (items.length === 0) return ""
+  return [...items, formatStudyMinutes(day.study_seconds)].join("、")
+}
+
+/**
  * 学習秒数を `9時間12分` にする（1 時間未満は `12分`、0 秒より多く 60 秒未満は `1分未満`）
  */
 export const formatStudyTime = (studySeconds: number): string => {
