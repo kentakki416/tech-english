@@ -5,6 +5,7 @@
 
 | ドキュメント | 一言でいうと |
 |---|---|
+| [drizzle.md](./drizzle.md) | Postgres の ORM。スキーマを TS で書き、`@repo/domain` の定数から `CHECK` 制約を作るために Prisma から移った |
 | [clickhouse/](./clickhouse/README.md) | 行動イベントの分析先。追記と集計に強い列指向 DB。AWS では ClickHouse Cloud で動かし、分析クエリは view を経由する |
 
 ここに無い技術の一覧はルートの [README.md](../../README.md#技術スタック) を見る。
