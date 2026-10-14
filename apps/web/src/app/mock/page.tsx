@@ -44,6 +44,28 @@ const SCREENS: { description: string, href: string, spec: string, states?: { hre
     states: [{ href: "/mock/attempts/42/result?state=overtime", label: "時間超過" }],
     title: "結果・解説",
   },
+  {
+    description: "今日の分・単語の数・復習の間隔",
+    href: "/mock/vocabulary",
+    spec: "vocabulary-cards",
+    states: [
+      { href: "/mock/vocabulary?state=done", label: "今日の分が終わった" },
+      { href: "/mock/vocabulary?state=empty", label: "まだ単語が無い" },
+    ],
+    title: "単語帳",
+  },
+  {
+    description: "紙のカードをめくって覚えた / まだを付ける",
+    href: "/mock/vocabulary/session",
+    spec: "vocabulary-cards",
+    states: [
+      { href: "/mock/vocabulary/session?state=back", label: "めくった後" },
+      { href: "/mock/vocabulary/session?state=review", label: "ふりかえり" },
+      { href: "/mock/vocabulary/session?state=save_failed", label: "保存できなかった" },
+      { href: "/mock/vocabulary/session?state=done", label: "今日の分が終わった" },
+    ],
+    title: "単語帳（1 回分）",
+  },
   { description: "提出した挑戦の一覧", href: "/mock/history", spec: "learning-record", title: "学習履歴" },
   { description: "目標・タイムゾーン・ログアウト・危険な操作", href: "/mock/settings", spec: "learning-record", title: "設定" },
   {
