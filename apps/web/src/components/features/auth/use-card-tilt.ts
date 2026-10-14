@@ -54,14 +54,14 @@ export function useCardTilt<T extends HTMLElement>(isPaused: boolean): RefObject
       element.dataset.tilting = "true"
     }
 
-    const moveTilt = (event: PointerEvent) => {
+    const tiltOnMove = (event: PointerEvent) => {
       if (event.pointerType !== "mouse" || isReducedMotion()) return
       isPointerInsideRef.current = true
       pointer = { clientX: event.clientX, clientY: event.clientY }
       if (frameId === null) frameId = requestAnimationFrame(writeTilt)
     }
 
-    const leaveTilt = () => {
+    const resetTiltOnLeave = () => {
       isPointerInsideRef.current = false
       if (isPausedRef.current) return
       if (frameId !== null) cancelAnimationFrame(frameId)
@@ -69,11 +69,11 @@ export function useCardTilt<T extends HTMLElement>(isPaused: boolean): RefObject
       resetTilt(element)
     }
 
-    element.addEventListener("pointermove", moveTilt)
-    element.addEventListener("pointerleave", leaveTilt)
+    element.addEventListener("pointermove", tiltOnMove)
+    element.addEventListener("pointerleave", resetTiltOnLeave)
     return () => {
-      element.removeEventListener("pointermove", moveTilt)
-      element.removeEventListener("pointerleave", leaveTilt)
+      element.removeEventListener("pointermove", tiltOnMove)
+      element.removeEventListener("pointerleave", resetTiltOnLeave)
       if (frameId !== null) cancelAnimationFrame(frameId)
     }
   }, [])
