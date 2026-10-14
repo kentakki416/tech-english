@@ -1,5 +1,6 @@
+import { useRouter } from "expo-router"
 import { useState } from "react"
-import { StyleSheet, Text, View } from "react-native"
+import { Pressable, StyleSheet, Text, View } from "react-native"
 
 import type { PassageAttributionResponse, ResultQuestion, ResultWordLookup, SubmittedAttempt } from "@repo/api-schema"
 
@@ -79,12 +80,23 @@ function ResultSummary({ result }: { result: SubmittedAttempt }) {
 }
 
 /**
- * 調べた単語（サーバーが重複を除いた一覧）。語句・意味・出どころ（用語集は「文脈」、辞書は「辞書」）
+ * 調べた単語（サーバーが重複を除いた一覧）。語句・意味・出どころ（用語集は「文脈」、辞書は「辞書」）。1 つ以上あれば見出しの行に「単語帳で復習する」
  */
 function WordLookupSection({ lookups }: { lookups: ResultWordLookup[] }) {
+  const router = useRouter()
   return (
     <View style={styles.section}>
-      <Text style={appStyles.sectionTitle}>調べた単語</Text>
+      <View style={styles.lookupHeader}>
+        <Text style={appStyles.sectionTitle}>調べた単語</Text>
+        {/**
+          * 結果画面はタブの上に積んだスタックなので、dismissTo で単語帳のタブへ戻る
+          */}
+        {lookups.length > 0 && (
+          <Pressable accessibilityRole="link" hitSlop={8} onPress={() => router.dismissTo("/vocabulary")}>
+            <Text style={styles.lookupLink}>単語帳で復習する</Text>
+          </Pressable>
+        )}
+      </View>
       {lookups.length === 0 ? (
         <Text style={styles.empty}>この挑戦では単語を調べていません。</Text>
       ) : (
@@ -199,6 +211,16 @@ const styles = StyleSheet.create({
   },
   link: {
     color: THEME_COLORS.fg,
+  },
+  lookupHeader: {
+    alignItems: "baseline",
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  lookupLink: {
+    color: THEME_COLORS.amber,
+    fontSize: 13,
+    textDecorationLine: "underline",
   },
   lookupMeaning: {
     color: THEME_COLORS.fgMuted,
