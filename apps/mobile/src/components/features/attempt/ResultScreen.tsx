@@ -18,7 +18,6 @@ import {
   ReadAloudBar,
   ReturnToReadingButton,
 } from "@/components/features/read-aloud/ReadAloudBar"
-import { THEME_COLORS } from "@/const/design-theme"
 import { useDictionaryLookup } from "@/features/dictionary/use-dictionary-lookup"
 import { useReadAloud } from "@/features/read-aloud/use-read-aloud"
 import { useReadingAutoScroll } from "@/features/read-aloud/use-reading-auto-scroll"
