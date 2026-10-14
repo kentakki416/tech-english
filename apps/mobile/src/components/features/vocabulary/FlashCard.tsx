@@ -48,6 +48,13 @@ const CARD_MAX_HEIGHT = 420
 const CARD_HEIGHT_RATIO = 0.55
 
 /**
+ * カードの読み上げのカスタムアクション（発音を鳴らす）。新アーキテクチャ（Fabric）の iOS は VoiceOver に label ではなく name を読ませるので、
+ * name も日本語にする（Android の TalkBack は label を読む）
+ */
+const PLAY_WORD_ACTION = "発音を聞く"
+const PLAY_SENTENCE_ACTION = "この文を聞く"
+
+/**
  * 2 枚目から、カードが出たときに読み上げのフォーカスを移すまでの時間（作り直した画面の要素が読み上げに登録されるのを待つ）
  */
 const FOCUS_DELAY_MS = 100
@@ -138,13 +145,13 @@ export function FlashCard({
       pronunciation.toggle("sentence", { endMs: sentenceAudio.end_ms, startMs: sentenceAudio.start_ms, url: sentenceAudio.url })
     }
   }
-  const pronunciationControls: PronunciationControls = { playing: pronunciation.playing, onToggle: togglePronunciation }
+  const pronunciationControls: PronunciationControls = { onToggle: togglePronunciation, playing: pronunciation.playing }
   /**
    * 読み上げのカスタムアクション。音声が無いもの（単語が準備中・1 文の音声が無い）は出さない
    */
   const accessibilityActions = [
-    ...(wordUrl ? [{ label: "発音を聞く", name: "playWord" }] : []),
-    ...(card.sentence && sentenceAudio ? [{ label: "この文を聞く", name: "playSentence" }] : []),
+    ...(wordUrl ? [{ label: PLAY_WORD_ACTION, name: PLAY_WORD_ACTION }] : []),
+    ...(card.sentence && sentenceAudio ? [{ label: PLAY_SENTENCE_ACTION, name: PLAY_SENTENCE_ACTION }] : []),
   ]
 
   const answer = (grade: Grade) => {
@@ -271,8 +278,8 @@ export function FlashCard({
               accessibilityLiveRegion="polite"
               accessibilityRole={Platform.OS === "web" ? undefined : "button"}
               onAccessibilityAction={(event) => {
-                if (event.nativeEvent.actionName === "playWord") togglePronunciation("word")
-                if (event.nativeEvent.actionName === "playSentence") togglePronunciation("sentence")
+                if (event.nativeEvent.actionName === PLAY_WORD_ACTION) togglePronunciation("word")
+                if (event.nativeEvent.actionName === PLAY_SENTENCE_ACTION) togglePronunciation("sentence")
               }}
               onPress={flip}
             >

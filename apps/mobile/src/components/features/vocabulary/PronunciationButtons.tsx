@@ -12,8 +12,8 @@ import { PAPER_MAX_FONT_SCALE } from "./SentenceText"
  * カードに渡す発音の操作。鳴らせるか（音声があるか）はカードの pronunciation から決める
  */
 export type PronunciationControls = {
-  playing: PronunciationTarget | null
   onToggle: (target: PronunciationTarget) => void
+  playing: PronunciationTarget | null
 }
 
 /**
@@ -112,13 +112,13 @@ export function WordSoundButton({
       accessibilityRole="button"
       accessibilityState={{ disabled: !isReady, selected: isPlaying }}
       hitSlop={(MIN_TOUCH_SIZE - dimension) / 2}
-      onPress={isReady ? () => controls.onToggle("word") : undefined}
       style={({ pressed }) => [
         styles.wordButton,
         { borderRadius: dimension / 2, height: dimension, width: dimension },
-        isPlaying && styles.playing,
+        isPlaying && styles.wordButtonPlaying,
         pressed && isReady && !isPlaying && styles.pressed,
       ]}
+      onPress={isReady ? () => controls.onToggle("word") : undefined}
     >
       <SpeakerIcon color={color} isPlaying={isPlaying} size={size === "lg" ? 20 : 16} />
     </Pressable>
@@ -126,7 +126,8 @@ export function WordSoundButton({
 }
 
 /**
- * 1 文のすぐ下の、1 文の読み上げのボタン（1 文の音声があるときだけ置く）。表は中央、裏は左寄せで三角を 1 文の頭にそろえる
+ * 1 文のすぐ下の、1 文の読み上げのボタン（1 文の音声があるときだけ置く）。表は中央、裏は左寄せで三角を 1 文の頭にそろえる。
+ * 文字は再生中も「この文を聞く」のまま（見えている文字と読み上げの名前をそろえる）。再生中は琥珀の地・動く波・selected で示す
  */
 export function SentenceSoundButton({ align, controls }: { align: "center" | "start", controls: PronunciationControls }) {
   const isPlaying = controls.playing === "sentence"
@@ -136,34 +137,29 @@ export function SentenceSoundButton({ align, controls }: { align: "center" | "st
       accessibilityRole="button"
       accessibilityState={{ selected: isPlaying }}
       hitSlop={8}
-      onPress={() => controls.onToggle("sentence")}
       style={({ pressed }) => [
         styles.sentenceButton,
         align === "center" ? styles.sentenceButtonCenter : styles.sentenceButtonStart,
-        isPlaying && styles.playing,
+        isPlaying && styles.sentenceButtonPlaying,
         pressed && !isPlaying && styles.pressed,
       ]}
+      onPress={() => controls.onToggle("sentence")}
     >
       {isPlaying ? (
-        <SpeakerIcon color={THEME_COLORS.inkAmber} isPlaying size={14} />
+        <SpeakerIcon isPlaying color={THEME_COLORS.inkAmber} size={14} />
       ) : (
         <Svg height={11} viewBox="0 0 12 12" width={11}>
           <Path d="M3 1.8v8.4L10 6 3 1.8Z" fill={THEME_COLORS.inkMuted} />
         </Svg>
       )}
       <Text maxFontSizeMultiplier={PAPER_MAX_FONT_SCALE} style={[styles.sentenceLabel, isPlaying && styles.sentenceLabelPlaying]}>
-        {isPlaying ? "この文を再生中" : "この文を聞く"}
+        この文を聞く
       </Text>
     </Pressable>
   )
 }
 
 const styles = StyleSheet.create({
-  playing: {
-    backgroundColor: "rgba(243, 178, 76, 0.2)",
-    borderColor: "rgba(148, 96, 15, 0.35)",
-    borderWidth: StyleSheet.hairlineWidth,
-  },
   pressed: {
     backgroundColor: PRESSED_BACKGROUND,
   },
@@ -177,6 +173,12 @@ const styles = StyleSheet.create({
   },
   sentenceButtonCenter: {
     alignSelf: "center",
+  },
+  /**
+   * 1 文の再生中は琥珀の地だけ（縁は単語のボタンだけ。UI 設計）
+   */
+  sentenceButtonPlaying: {
+    backgroundColor: "rgba(243, 178, 76, 0.2)",
   },
   /**
    * 左の余白の分だけ左へずらし、三角を 1 文の頭にそろえる
@@ -195,5 +197,10 @@ const styles = StyleSheet.create({
   wordButton: {
     alignItems: "center",
     justifyContent: "center",
+  },
+  wordButtonPlaying: {
+    backgroundColor: "rgba(243, 178, 76, 0.2)",
+    borderColor: "rgba(148, 96, 15, 0.35)",
+    borderWidth: StyleSheet.hairlineWidth,
   },
 })

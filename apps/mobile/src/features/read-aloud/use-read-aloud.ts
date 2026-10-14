@@ -433,7 +433,8 @@ const createReadAloudController = (player: AudioPlayer, events: ControllerEvents
       isPauseRequested = false
       /**
        * 消音モードでも鳴らし、ほかのアプリの音楽は止める。再生を始めるたびに頼む（画面を開いただけではほかのアプリの音を止めない。
-       * 単語帳のめくる音・発音でモードが変わっていても戻す。同じモードなら何もしない）。失敗しても再生は続ける
+       * 単語帳のめくる音・発音でモードが変わっていても戻す。同じモードなら何もしない）。失敗しても再生は続ける。
+       * 設定は待たない（replace したパートの mp3 を読み込む間に終わる。待つとパートの開始と状態の更新の順が変わる）
        */
       void requestAudioMode("readAloud")
       startPart(input.blockIndex, 0, input.mode, { shouldPlay: true })

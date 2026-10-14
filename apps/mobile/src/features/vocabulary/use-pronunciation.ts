@@ -37,9 +37,9 @@ type ActivePlayback = {
 }
 
 /**
- * 終わりに足す余白。1 文は区間の終わりが次の単語の始まりなので最後の音が切れないように、単語は鳴り終わってから表示を戻すように
+ * 単語の終わりに足す余白（鳴り終わってから表示を戻す）。1 文は区間の終わりが次の単語の始まりで文の後の間を含むので、余白は足さない
  */
-const TAIL_MS = 150
+const WORD_TAIL_MS = 150
 
 /**
  * replace してから・play() してから、この時間たっても読み込めない・鳴り始めなければ失敗として止める
@@ -61,8 +61,9 @@ const STATUS_UPDATE_INTERVAL_MS = 100
  * カードの発音の再生（vocabulary-pronunciation README「再生の実装」）。1 回分の画面で 1 つだけ持ち、expo-audio の player を 1 つ使い回す。
  *
  * 押したら音声のモード（消音モードでも鳴らし、ほかのアプリの音楽は小さくする）を待って replace し、読み込めたら区間の始めに合わせて鳴らす。
- * 止めるのはタイマー。鳴り始めた（player.playing になった）ときの再生位置から、区間の終わり（単語は mp3 の終わり）までの時間に余白を足して置く
- * （play() の時点から数えると、seek した先の読み込みが遅いときに文の最後が切れるため）。
+ * 止めるのはタイマー。鳴り始めた（player.playing で、再生位置が区間の始めより進んだ）ときの再生位置から、区間の終わり（単語は mp3 の終わり + 余白）
+ * までの時間で置く（play() の時点から数えると、seek した先の読み込みが遅いときに文の最後が切れるため。web の expo-audio は play() の時点で
+ * player.playing を true にするので、再生位置が進んだかでも確かめる。読み上げと同じ）。
  * 終わりの通知（didJustFinish）は前の再生のものが遅れて届くことがあるので使わない。
  *
  * expo-audio は、アプリが背面に移ったとき・一時的に音声を取られたときに止めた player を、前面に戻ったときに鳴らし直す。
@@ -102,7 +103,10 @@ export function usePronunciation(): Pronunciation {
     pausePlayer()
   }, [pausePlayer])
 
-  const finishAfter = (token: symbol, ms: number) => {
+  /**
+   * ms 後に、同じ再生のままなら止める（読み込み・鳴り始めの見張りと、区間の終わりに使う）
+   */
+  const scheduleStop = (token: symbol, ms: number) => {
     clearTimer()
     timerRef.current = setTimeout(() => {
       if (activeRef.current?.token === token) stop()
@@ -110,15 +114,15 @@ export function usePronunciation(): Pronunciation {
   }
 
   /**
-   * 読み込めたら、区間の始めに合わせて鳴らす。鳴り始めるまでは失敗の見張りのタイマーだけを置く
+   * 読み込めたら、区間の始めに seek して鳴らす。鳴り始めるまでは失敗の見張りのタイマーだけを置く
    */
-  const startLoaded = (active: ActivePlayback) => {
+  const playFromSegmentStart = (active: ActivePlayback) => {
     active.phase = "starting"
     const startMs = active.source.startMs ?? 0
     const begin = () => {
       if (activeRef.current?.token !== active.token) return
       player.play()
-      finishAfter(active.token, LOAD_TIMEOUT_MS)
+      scheduleStop(active.token, LOAD_TIMEOUT_MS)
     }
     if (startMs === 0) {
       begin()
@@ -139,8 +143,9 @@ export function usePronunciation(): Pronunciation {
     active.phase = "playing"
     const positionMs = player.currentTime * 1000
     const durationMs = player.duration * 1000
-    const endMs = active.source.endMs ?? (Number.isFinite(durationMs) && durationMs > 0 ? durationMs : positionMs + WORD_FALLBACK_MS)
-    finishAfter(active.token, Math.max(endMs - positionMs, 0) + TAIL_MS)
+    const endMs = active.source.endMs
+      ?? (Number.isFinite(durationMs) && durationMs > 0 ? durationMs : positionMs + WORD_FALLBACK_MS) + WORD_TAIL_MS
+    scheduleStop(active.token, Math.max(endMs - positionMs, 0))
   }
 
   /**
@@ -152,8 +157,8 @@ export function usePronunciation(): Pronunciation {
       if (status.playing) pausePlayer()
       return
     }
-    if (active.phase === "loading" && player.isLoaded) startLoaded(active)
-    else if (active.phase === "starting" && player.playing) scheduleEnd(active)
+    if (active.phase === "loading" && player.isLoaded) playFromSegmentStart(active)
+    else if (active.phase === "starting" && player.playing && player.currentTime * 1000 > (active.source.startMs ?? 0)) scheduleEnd(active)
   })
 
   const toggle = (target: PronunciationTarget, source: PronunciationSource) => {
@@ -172,7 +177,7 @@ export function usePronunciation(): Pronunciation {
       if (activeRef.current?.token !== active.token) return
       active.phase = "loading"
       player.replace({ uri: source.url })
-      finishAfter(active.token, LOAD_TIMEOUT_MS)
+      scheduleStop(active.token, LOAD_TIMEOUT_MS)
     })
   }
 

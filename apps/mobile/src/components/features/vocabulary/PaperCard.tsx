@@ -351,15 +351,15 @@ const styles = StyleSheet.create({
     gap: 8,
     justifyContent: "center",
   },
+  surfaceSmall: {
+    color: THEME_COLORS.ink,
+    fontFamily: THEME_FONTS.readingSemiBold,
+    fontSize: 17,
+  },
   /**
    * 発音のボタン（36）と同じ幅。語句を中央に保つ
    */
   surfaceSpacer: {
     width: 36,
-  },
-  surfaceSmall: {
-    color: THEME_COLORS.ink,
-    fontFamily: THEME_FONTS.readingSemiBold,
-    fontSize: 17,
   },
 })

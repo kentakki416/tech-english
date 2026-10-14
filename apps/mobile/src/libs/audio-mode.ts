@@ -30,6 +30,7 @@ let current: { kind: AudioModeKind, ready: Promise<void> } | null = null
  * （それぞれが setAudioModeAsync を呼ぶと、後から呼んだ方のモードが残って取り違える。発音を聞いた後のめくる音が消音モードでも鳴る、など）。
  *
  * 鳴らす前に呼び、返る Promise を待ってから play する（setAudioModeAsync は後から効くので、待たないと前のモードで鳴る）。
+ * 読み上げだけは待たない（パートの mp3 を読み込む間に設定が終わる。use-read-aloud.ts）。
  * 失敗しても再生は続ける（warn だけ）。web 表示では setAudioModeAsync が何もしない
  */
 export const requestAudioMode = async (kind: AudioModeKind): Promise<void> => {
