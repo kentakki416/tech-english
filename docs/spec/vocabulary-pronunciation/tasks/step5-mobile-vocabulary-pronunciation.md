@@ -65,11 +65,13 @@ export const requestAudioMode = (kind: AudioModeKind): Promise<void> => {
 
 `src/features/vocabulary/use-pronunciation.ts`。`expo-audio` の `useAudioPlayer` を 1 つ使い回す。
 
-- `toggle(target, source)`：同じものを再生中なら止める。違えば `requestAudioMode("pronunciation")` を待ち、`player.replace({ uri })` → 読み込めたら（`playbackStatusUpdate` の `isLoaded`）`seekTo(startMs / 1000)`（単語は 0）→ `play()`
-- 1 文は、再生を始めてから `(endMs - startMs + 150) ms` でタイマーを置いて `pause()` する（`currentTime` の通知は 100ms 間隔なので、タイマーの方が区間の終わりに合う）
-- 単語は `didJustFinish` で終わる
+- `toggle(target, source)`：同じものを再生中なら止める。違えば `requestAudioMode("pronunciation")` を待ち、`player.replace({ uri })` → 読み込めたら（`playbackStatusUpdate` を受けたときの `player.isLoaded`。`status.isLoaded` は web では常に true）`seekTo(startMs / 1000)`（始めが 0 なら seek しない）→ `play()`
+- 止めるのはタイマー。`play()` の後、`playbackStatusUpdate`（`updateInterval: 100`）で `player.playing` になった（鳴り始めた）ときの `player.currentTime` から、終わり（1 文は `endMs`、単語は `player.duration`。分からなければ 3 秒後）までの時間 + 150ms で置く（`play()` の時点から数えると、seek した先の読み込みが遅いときに文の最後が切れる。通知の位置で判定するより、タイマーの方が区間の終わりに合う）
+- `seekTo(startMs / 1000, 0, 0)`（iOS は許容誤差を省くと前後にずれた位置へ seek する）
+- `didJustFinish` は前の再生のものが遅れて届くことがあるので使わない
 - 10 秒たっても読み込めなければ `playing` を `null` に戻す（読み上げと同じ）
-- `stop()`：`pause()` とタイマーの解除。アンマウント・`AppState` が `active` でなくなったときにも呼ぶ
+- `stop()`：`pause()` とタイマーの解除。アンマウント・`AppState` が `active` でなくなったときにも呼ぶ。再生中かに関わらず `pause()` する
+- expo-audio は、アプリが背面に移ったとき・一時的に音声を取られたときに止めた player を、前面に戻ったときに鳴らし直す。止めた後（再生していないとき）に `status.playing` の通知が来たら `pause()` し直す（止めたのに段落の続きが鳴り続けないように）
 - 先読みはしない（mobile は押してから読む）
 
 ### 3. カードにボタン
@@ -77,11 +79,11 @@ export const requestAudioMode = (kind: AudioModeKind): Promise<void> => {
 - `PaperCardFront`・`PaperCardBack` に `pronunciation` の props を足し、語句のすぐ右に単語のボタン、1 文のすぐ下に 1 文のボタンを置く（位置は UI 設計）。ボタンは `PronunciationButtons.tsx` に分ける
 - 1 文の再生中は `SentenceText` の強調の地を濃くする
 - ボタンはカード（`Pressable`）の中の `Pressable` にする（子が押されると親の `onPress`〈めくる〉は呼ばれない）。スワイプの `PanResponder` はめくった後の横の動きだけを引き受けるので、ボタンのタップとは取り合わない
-- `word_url` が null の単語のボタンは `disabled` にして `accessibilityLabel` に「準備中」。`sentence` が null の 1 文のボタンは出さない
+- `word_url` が null の単語のボタンは `onPress` を外して押せなくし、`accessibilityLabel` に「準備中」・`accessibilityState` に `disabled`。`Pressable` の `disabled` は使わない（disabled の `Pressable` はタッチを引き受けず、外のカードがめくれてしまう）。`sentence` が null の 1 文のボタンは出さない
 - 読み上げのラベルは「{見出し語} の発音を聞く」「この文を聞く」、`accessibilityState={{ selected: 再生中 }}`
 - カードの `Pressable` は読み上げでは 1 つのボタンのまま（中のボタンは読み上げの要素にならない）なので、`accessibilityActions` に「発音を聞く」（`word_url` があるとき）・「この文を聞く」（`sentence` があるとき）を足し、`onAccessibilityAction` で `toggle` を呼ぶ
 - web 表示ではカードの `accessibilityRole` を外す（react-native-web が `<button>` にし、中のボタンと入れ子になるため）
-- `FlashCard` の `flip`・`answer` で `stop()` を呼ぶ。`VocabularySession` が `usePronunciation` を 1 つ持って渡す
+- `FlashCard` の `flip`・`answer` で `stop()` を呼ぶ。答えて飛んでいく間は鳴らさない。`VocabularySession` が `usePronunciation` を 1 つ持って渡す
 
 ## 動作確認
 

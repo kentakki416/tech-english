@@ -1,6 +1,8 @@
 import AsyncStorage from "@react-native-async-storage/async-storage"
-import { setAudioModeAsync, useAudioPlayer } from "expo-audio"
-import { useEffect, useRef, useState } from "react"
+import { useAudioPlayer } from "expo-audio"
+import { useEffect, useState } from "react"
+
+import { requestAudioMode } from "@/libs/audio-mode"
 
 /**
  * めくる音（web の Web Audio の「シュッ」と同じ作り方で書き出した 0.16 秒の WAV）
@@ -15,19 +17,17 @@ const SOUND_STORAGE_KEY = "tech-english:vocabulary-sound"
 /**
  * カードをめくる効果音。expo-audio で同梱の音声を鳴らし、オン / オフを端末に覚える。
  *
- * 画面を開いたときに、消音モードでは鳴らさず・ほかのアプリの音楽を止めない音声のモード（iOS の ambient）にし、鳴らすときはその設定を待つ
- * （setAudioModeAsync は後から効くので、待たずに鳴らすと最初の 1 回だけ前のモードで鳴る）。ambient はカテゴリを変えるだけで
- * 音声のセッションを有効にしないので、開いただけでほかのアプリの音楽は止まらない。
- * 読み上げは再生を始めるときに自分のモード（消音モードでも鳴らす）にし直すので、こちらで変えても読み上げは困らない
+ * 鳴らすたびに、消音モードでは鳴らさず・ほかのアプリの音楽を止めない音声のモード（iOS の ambient）を頼み、その設定を待ってから鳴らす
+ * （発音・読み上げは消音モードでも鳴らすモードにするので、その後のめくる音が消音モードで鳴らないように。同じモードなら待つだけ）。
+ * 画面を開いたときにも先に頼んでおき、最初のめくりで設定を待たないようにする。
+ * ambient はカテゴリを変えるだけで音声のセッションを有効にしないので、ほかのアプリの音楽は止まらない
  */
 export function useFlipSound() {
   const player = useAudioPlayer(FLIP_SOUND)
   const [isEnabled, setIsEnabled] = useState(true)
-  const audioModeRef = useRef<Promise<void> | null>(null)
 
   useEffect(() => {
-    audioModeRef.current = setAudioModeAsync({ interruptionMode: "mixWithOthers", playsInSilentMode: false, shouldPlayInBackground: false })
-      .catch((error: unknown) => console.warn("Failed to set audio mode:", error))
+    void requestAudioMode("effect")
   }, [])
 
   useEffect(() => {
@@ -44,7 +44,7 @@ export function useFlipSound() {
 
   const play = () => {
     if (!isEnabled) return
-    void (audioModeRef.current ?? Promise.resolve()).then(() => {
+    void requestAudioMode("effect").then(() => {
       void player.seekTo(0)
       player.play()
     })

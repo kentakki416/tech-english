@@ -29,13 +29,16 @@ function InkText({ text }: { text: string }) {
 }
 
 /**
- * 本文の 1 文。単語に蛍光ペンのような琥珀の塗りを付ける（本文の根拠の強調と同じ考え方で、紙の上なので少し濃くする）
+ * 本文の 1 文。単語に蛍光ペンのような琥珀の塗りを付ける（本文の根拠の強調と同じ考え方で、紙の上なので少し濃くする）。
+ * 1 文を再生している間は塗りを濃くする（入れ子の Text は影を付けられず、ネイティブで動かせないため、web のように光らせない）
  */
 export function SentenceText({
+  isPlaying = false,
   numberOfLines,
   sentence,
   style,
 }: {
+  isPlaying?: boolean
   numberOfLines?: number
   sentence: VocabularySentence
   style?: StyleProp<TextStyle>
@@ -43,7 +46,7 @@ export function SentenceText({
   return (
     <Text maxFontSizeMultiplier={PAPER_MAX_FONT_SCALE} numberOfLines={numberOfLines} style={[styles.sentence, style]}>
       <InkText text={sentence.text.slice(0, sentence.highlight_start)} />
-      <Text style={styles.highlight}>
+      <Text style={[styles.highlight, isPlaying && styles.highlightPlaying]}>
         <InkText text={sentence.text.slice(sentence.highlight_start, sentence.highlight_end)} />
       </Text>
       <InkText text={sentence.text.slice(sentence.highlight_end)} />
@@ -55,6 +58,9 @@ const styles = StyleSheet.create({
   highlight: {
     backgroundColor: "rgba(243, 178, 76, 0.45)",
     color: THEME_COLORS.ink,
+  },
+  highlightPlaying: {
+    backgroundColor: "rgba(243, 178, 76, 0.8)",
   },
   /**
    * 大きさは周りの文に合わせる（見本・表・裏で文の大きさが違うため）

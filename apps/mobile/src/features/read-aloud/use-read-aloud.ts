@@ -1,12 +1,13 @@
 import { useIsFocused } from "@react-navigation/native"
 import { useEventListener } from "expo"
-import { type AudioPlayer, type AudioStatus, type PitchCorrectionQuality, setAudioModeAsync, useAudioPlayer } from "expo-audio"
+import { type AudioPlayer, type AudioStatus, type PitchCorrectionQuality, useAudioPlayer } from "expo-audio"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { AppState, Platform } from "react-native"
 
 import type { AttemptBlock } from "@repo/api-schema"
 
 import { attemptApi } from "@/features/attempt/attempt.api"
+import { requestAudioMode } from "@/libs/audio-mode"
 
 import {
   DEFAULT_READ_ALOUD_RATE,
@@ -197,7 +198,6 @@ const createReadAloudController = (player: AudioPlayer, events: ControllerEvents
    */
   let hasFinishedPart = false
   let loadTimer: ReturnType<typeof setTimeout> | null = null
-  let isAudioModeRequested = false
   /**
    * 「聞いた段落」として通知したブロック。親も重複を除くので、二重に通知しても害は無い
    */
@@ -227,17 +227,6 @@ const createReadAloudController = (player: AudioPlayer, events: ControllerEvents
     isPauseRequested = false
     player.pause()
     events.onPlaybackChange(() => null)
-  }
-
-  /**
-   * 消音モードでも鳴らし、ほかのアプリの音楽は止める。初めて再生するときに 1 回だけ（画面を開いただけではほかのアプリの音を止めない）。
-   * 失敗しても再生は続ける
-   */
-  const requestAudioMode = () => {
-    if (isAudioModeRequested) return
-    isAudioModeRequested = true
-    void setAudioModeAsync({ interruptionMode: "doNotMix", playsInSilentMode: true, shouldPlayInBackground: false })
-      .catch((error: unknown) => console.warn("Failed to set audio mode:", error))
   }
 
   /**
@@ -442,7 +431,11 @@ const createReadAloudController = (player: AudioPlayer, events: ControllerEvents
       timeline = input.timeline
       rate = input.rate
       isPauseRequested = false
-      requestAudioMode()
+      /**
+       * 消音モードでも鳴らし、ほかのアプリの音楽は止める。再生を始めるたびに頼む（画面を開いただけではほかのアプリの音を止めない。
+       * 単語帳のめくる音・発音でモードが変わっていても戻す。同じモードなら何もしない）。失敗しても再生は続ける
+       */
+      void requestAudioMode("readAloud")
       startPart(input.blockIndex, 0, input.mode, { shouldPlay: true })
     },
     stop,
@@ -468,6 +461,7 @@ const createReadAloudController = (player: AudioPlayer, events: ControllerEvents
       }
       isStarting = true
       updateIsPlaying(true)
+      void requestAudioMode("readAloud")
       player.play()
     },
   }
