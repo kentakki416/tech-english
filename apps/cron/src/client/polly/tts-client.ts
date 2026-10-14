@@ -28,12 +28,29 @@ export type SynthesizeResult = {
   marks: SpeechMark[]
 }
 
+export type SynthesizeAudioResult = {
+  /**
+   * mp3
+   */
+  audio: Buffer
+  /**
+   * 課金文字数（mp3 の 1 リクエスト分）
+   */
+  billedCharacters: number
+}
+
 /**
  * 音声合成のクライアント。service はこの interface だけを知る（本番は PollyTtsClient、ローカルとテストは FakeTtsClient）
  */
 export interface TtsClient {
   /**
-   * SDK が throw したエラー（リトライ後の throttling / 5xx、資格情報・権限の誤りなど）と、recordBilledCharacters のエラーはそのまま伝播する
+   * 音声と単語の時刻を作る（読み上げ）。SDK が throw したエラー（リトライ後の throttling / 5xx、資格情報・権限の誤りなど）と、
+   * recordBilledCharacters のエラーはそのまま伝播する
    */
   synthesize(input: SynthesizeInput): Promise<SynthesizeResult>
+  /**
+   * mp3 だけを作る（単語の発音。単語の時刻は要らないのでリクエストは 1 回）。成功したら課金文字数で recordBilledCharacters を呼ぶ。
+   * エラーの伝播は synthesize と同じ
+   */
+  synthesizeAudio(input: SynthesizeInput): Promise<SynthesizeAudioResult>
 }

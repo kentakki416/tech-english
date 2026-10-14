@@ -99,11 +99,17 @@ const cronEnvSchema = z
     /**
      * generate-audio が今月（UTC の暦月。Polly の請求の月）に Polly で課金してよい文字数（audio_synthesis_usages の合計）。
      * 各問題を作る前に「今月の合計 + その問題の見込み」が超えるなら、確保を外して exit 1 で止める（作り直し・不具合の繰り返しで課金が膨らまないため）。
+     * generate-word-audio（単語の発音）も同じ上限を使い、読み上げと合算して数える（単語は月 1 万語で約 10 万文字・約 $1.6）。
      * 既定の 180 万文字（約 $29）は、README の費用の試算の「月 300 問を公開」（1 問 4,800 文字 × 300 = 144 万文字・約 $23）に
      * 失敗の再試行・admin の作り直しの分として 25% の余裕を持たせ、Polly の Budgets の上限（$30）より手前で止まる値。
      * voice の変更などで公開済みの問題をまとめて作り直す月は、一時的に上げる
      */
     AUDIO_MONTHLY_CHARACTER_LIMIT: z.coerce.number().int().positive().default(1_800_000),
+    /**
+     * generate-word-audio（単語の発音）が 1 回の実行で確保する見出し語の上限。1 語は mp3 の 1 リクエスト（平均 約 10 文字）。
+     * 課金は AUDIO_MONTHLY_CHARACTER_LIMIT で読み上げと合算して止める
+     */
+    WORD_AUDIO_MAX_PER_RUN: z.coerce.number().int().positive().default(300),
     /**
      * generate-audio の mp3 の保存先。local は AUDIO_STORAGE_LOCAL_DIR、s3 は AUDIO_STORAGE_S3_BUCKET。
      * production の local は generate-audio の起動時に throw する（コンテナの一時領域に mp3 を書いて ready にしないため）。

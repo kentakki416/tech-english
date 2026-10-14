@@ -22,3 +22,13 @@ export const AUDIO_CACHE_CONTROL = "public, max-age=31536000, immutable"
  * Polly の SDK の 1 リクエストの試行回数（初回を含む。SDK の既定と同じ 3）。throttling・5xx は SDK が指数バックオフで再試行する
  */
 export const POLLY_MAX_ATTEMPTS = 3
+
+/**
+ * 確保したままこの分数を超えた行は、前回の実行が途中で落ちたものとして回収する（generate:audio・generate:word-audio で共有）
+ */
+export const STALE_CLAIM_MINUTES = 30
+
+/**
+ * 失敗がこの回数に達したら、generating で確保した行は failed にし、ready のまま確保した行は取らなくなる（generate:audio・generate:word-audio で共有）
+ */
+export const MAX_AUDIO_ATTEMPTS = 3

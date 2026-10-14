@@ -99,6 +99,11 @@ class BilledFakeTtsClient implements TtsClient {
     const result = await this._fake.synthesize(input)
     return { ...result, billedCharacters: input.text.length * 2 }
   }
+
+  public async synthesizeAudio(input: SynthesizeInput) {
+    await input.recordBilledCharacters(input.text.length)
+    return { audio: (await this._fake.synthesizeAudio(input)).audio, billedCharacters: input.text.length }
+  }
 }
 
 const createFakeStorage = () => ({
@@ -376,8 +381,8 @@ describe("generateAudio", () => {
       await generateAudio(buildInput(), repo, createDeps(new BilledFakeTtsClient()))
 
       expect(repo.audioSynthesisUsageRepository.record.mock.calls).toEqual([
-        [{ characters: 12, now: NOW, passageId: 42 }],
-        [{ characters: 12, now: NOW, passageId: 42 }],
+        [{ characters: 12, now: NOW, target: { passageId: 42 } }],
+        [{ characters: 12, now: NOW, target: { passageId: 42 } }],
       ])
     })
 

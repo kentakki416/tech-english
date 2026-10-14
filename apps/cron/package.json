@@ -10,6 +10,7 @@
     "dev": "dotenvx run -f .env.local -- tsx watch src/index.ts",
     "generate:audio": "dotenvx run -f .env.local -- tsx src/task/generate-audio.ts",
     "generate:questions": "dotenvx run -f .env.local -- tsx src/task/generate-questions.ts",
+    "generate:word-audio": "dotenvx run -f .env.local -- tsx src/task/generate-word-audio.ts",
     "lint": "eslint 'src/**/*.ts' 'test/**/*.ts'",
     "lint:fix": "eslint 'src/**/*.ts' 'test/**/*.ts' --fix",
     "start": "dotenvx run -f .env.local -- node dist/index.js",

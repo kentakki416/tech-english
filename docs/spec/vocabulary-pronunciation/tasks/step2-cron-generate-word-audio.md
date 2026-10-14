@@ -142,7 +142,7 @@ export const generateWordAudio = async (
 
 ### 5. Task と env
 
-- `src/task/generate-word-audio.ts`：`generate-audio.ts` と同じく `createTtsClient`・`createAudioStorage`（`production` で保存先が `local` なら throw）を使い、`generateWordAudio` を呼んで、`hasFailure` なら exit 1。`createTtsClient`・`createAudioStorage` は 2 つのタスクで共有するので `src/lib/audio/` か `src/runtime/` に移す
+- `src/task/generate-word-audio.ts`：`generate-audio.ts` と同じく `createTtsClient`・`createAudioStorage`（`production` で保存先が `local` なら throw）を使い、`generateWordAudio` を呼んで、`hasFailure` なら exit 1。`createTtsClient`・`createAudioStorage`・`assertAudioStorageAllowed` は 2 つのタスクで共有するので `src/runtime/audio-clients.ts` に移す
 - `package.json` の scripts に `"generate:word-audio": "dotenvx run -f .env.local -- tsx src/task/generate-word-audio.ts"`（並びは名前順）
 - `src/env.ts` に `WORD_AUDIO_MAX_PER_RUN: z.coerce.number().int().positive().default(300)`（JSDoc に「1 回の実行で作る語の数の上限」）。`TTS_PROVIDER`・`TTS_VOICE_ID`・`AUDIO_STORAGE_*`・`AUDIO_MONTHLY_CHARACTER_LIMIT` は `generate:audio` と共有する
 - `Dockerfile` の起動はタスク名を引数で渡す形なら変更なし（`generate:audio` と同じ）
@@ -158,23 +158,21 @@ pnpm --filter cron test
 
 ### テスト
 
+cron のテストは DB を使わない（[apps/cron/CLAUDE.md のテスト戦略](../../../../apps/cron/CLAUDE.md#テスト戦略)）。Repository は生成される SQL の文字列まで、Service は Repository を `vi.fn()` にして確かめ、SQL の動きはローカル DB で確かめる（次の「手で確かめる」）。
+
 - `test/lib/audio/word-audio.test.ts`：`calculateWordTextHash` が voice と見出し語で変わる・同じ入力で同じ値。`buildWordAudioKey` が `words/{hash}.mp3`
-- `test/client/polly/polly-tts-client.test.ts`：`synthesizeAudio` が `OutputFormat: "mp3"` で 1 回だけ送り、`RequestCharacters` で `recordBilledCharacters` を呼ぶ
+- `test/client/polly/polly-tts-client.test.ts`：`synthesizeAudio` が `OutputFormat: "mp3"` で 1 回だけ送り、`RequestCharacters` で `recordBilledCharacters` を呼ぶ。SDK のエラーは記録せずに伝播する
 - `test/client/polly/fake-tts-client.test.ts`：`synthesizeAudio` が無音の mp3 と `billedCharacters: 0` を返し、`recordBilledCharacters` を呼ばない
-- `test/repository/word-audio-repository.test.ts`（実 DB）
-  - [ ] 調べた単語（辞書に一致）と公開中の問題の用語集の語句を確保し、辞書に無い調べた単語・下書き / 却下の問題の用語集・行がある見出し語は取らない
-  - [ ] 調べた単語が用語集より先、それぞれ新しい順。`limit` で切れる
-  - [ ] `pending` と、`ready` で voice が違う行も取る（`ready` は `ready` のまま `generation_started_at` だけが入る）。`ready` で voice が同じ行・`failed` は取らない
-  - [ ] 2 つの `claimTargets` を同時に呼んでも、同じ見出し語を 2 回確保しない
-  - [ ] `completeClaim` が `generation_started_at` の一致を条件に書き、違えば `lost_claim` で何も変えない
-  - [ ] 失敗 3 回で `failed`、`ready` のまま確保した行は `ready` のまま
-  - [ ] `releaseStaleGenerating` が 30 分より前の確保だけを `pending` に戻す（境界値）
-- `test/service/audio/generate-word-audio.test.ts`（Repository と Storage は実物、`TtsClient` は `FakeTtsClient` か `vi.fn()` の偽物）
-  - [ ] 確保した語ごとに mp3 を保存し、`ready` にして `audio_synthesis_usages` に `word_audio_id` で記録する（fake は記録しない）
-  - [ ] 月の上限：今月の合計 + 見出し語の文字数が上限を超える語の手前で止め、残りの確保を外して `stoppedByLimit`
-  - [ ] 設定の誤り（`isFatalAudioGenerationError`）で、失敗の回数を増やさずに確保を外して止める
-  - [ ] 一時的な失敗で `attempt_count` が増え、`hasFailure`
-  - [ ] voice の変更で作り直したら、前の mp3 を消す
+- `test/repository/drizzle/word-audio-repository.test.ts`（SQL の文字列）
+  - [ ] `claimTargets`：pending と voice が違う確保中でない ready（失敗が上限未満）を `FOR UPDATE SKIP LOCKED` で選ぶ。pending は generating、ready は `generation_started_at` だけ。残りの枠で候補の SQL（調べた単語〈辞書と一致〉→ 用語集〈公開中〉、新しい順）を引き、`ON CONFLICT (lemma) DO NOTHING` で insert して RETURNING の行だけを確保する
+  - [ ] `completeClaim`：ガード（id・状態・確保の時刻）に合わなければ `lost_claim`。ready の値、失敗で pending / failed、ready のまま確保した行は ready のまま
+  - [ ] `releaseClaim`・`releaseStaleGenerating`
+- `test/service/audio/generate-word-audio.test.ts`（Repository は `vi.fn()`、`TtsClient` は `FakeTtsClient` か課金を記録する偽物、`audioStorage` は `vi.fn()`）
+  - [ ] 確保した語ごとに mp3 を保存し、`ready` の outcome を書く。課金文字数を `word_audio_id` で記録する（fake は記録しない）
+  - [ ] 月の上限：超える語の手前で止め、残りの確保を外して `isMonthlyLimitReached`（上限ちょうどは作る）
+  - [ ] 設定の誤り（`isFatalAudioGenerationError`）で、失敗の回数を増やさずに確保を外して throw
+  - [ ] 一時的な失敗で失敗の outcome（上限 3）にし、次の語は続ける
+  - [ ] voice の変更で作り直したら前の mp3 を消す（キーが同じなら消さない）。lost_claim は消さない
 
 ### 手で確かめる
 
@@ -186,3 +184,6 @@ docker exec -i tech-english-postgres psql -U postgres -d "tech-english_dev" -c "
 
 - [ ] 調べた単語と用語集の語句の行が `ready` になり、`.storage/audio/words/` に mp3 がある
 - [ ] もう一度実行しても何も作らない（行がある見出し語は取らない）
+- [ ] 2 つを同時に流しても、同じ見出し語を二重に作らない
+- [ ] `AUDIO_MONTHLY_CHARACTER_LIMIT=1` で、確保を外して exit 1 になる（行は前の状態のまま）
+- [ ] `TTS_VOICE_ID` を変えて流すと、全語を ready のまま作り直し、前の mp3 が消える

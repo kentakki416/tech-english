@@ -57,6 +57,19 @@ describe("FakeTtsClient", () => {
     })
   })
 
+  describe("synthesizeAudio", () => {
+    it("synthesize と同じ無音の mp3 を返し、課金文字数は 0 で recordBilledCharacters を呼ばない", async () => {
+      const client = new FakeTtsClient()
+      const input = { recordBilledCharacters, text: "escape hatch", voiceId: "Joanna" }
+
+      const result = await client.synthesizeAudio(input)
+
+      expect(result).toEqual({ audio: (await client.synthesize(input)).audio, billedCharacters: 0 })
+      expect(measureMp3DurationMs(result.audio)).toBeGreaterThanOrEqual(2 * 300)
+      expect(recordBilledCharacters).not.toHaveBeenCalled()
+    })
+  })
+
   describe("異常系", () => {
     it("単語が無ければ時刻は空で、音声は 1 フレーム", async () => {
       const result = await new FakeTtsClient().synthesize({ recordBilledCharacters, text: "— …", voiceId: "Joanna" })

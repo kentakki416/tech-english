@@ -69,10 +69,10 @@ describe("DrizzleAudioSynthesisUsageRepository", () => {
 
   describe("record", () => {
     describe("正常系", () => {
-      it("課金された文字数・問題・時刻（created_at と updated_at）を 1 行書く", async () => {
+      it("読み上げの課金：課金された文字数・問題・時刻（created_at と updated_at）を 1 行書き、word_audio_id は null", async () => {
         const fake = createFakeDb([])
 
-        await new DrizzleAudioSynthesisUsageRepository(fake.db).record({ characters: 2400, now: NOW, passageId: 42 })
+        await new DrizzleAudioSynthesisUsageRepository(fake.db).record({ characters: 2400, now: NOW, target: { passageId: 42 } })
 
         const insert = fake.queries[0]
         expect(insert?.calls.find((call) => call.method === "values")?.args[0]).toEqual({
@@ -80,8 +80,23 @@ describe("DrizzleAudioSynthesisUsageRepository", () => {
           createdAt: NOW,
           passageId: 42,
           updatedAt: NOW,
+          wordAudioId: null,
         })
         expect(renderQuery(insert?.calls).sql).toContain("insert into \"audio_synthesis_usages\"")
+      })
+
+      it("単語の発音の課金：word_audio_id で 1 行書き、passage_id は null", async () => {
+        const fake = createFakeDb([])
+
+        await new DrizzleAudioSynthesisUsageRepository(fake.db).record({ characters: 9, now: NOW, target: { wordAudioId: 7 } })
+
+        expect(fake.queries[0]?.calls.find((call) => call.method === "values")?.args[0]).toEqual({
+          characters: 9,
+          createdAt: NOW,
+          passageId: null,
+          updatedAt: NOW,
+          wordAudioId: 7,
+        })
       })
     })
   })

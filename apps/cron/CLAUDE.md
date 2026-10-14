@@ -10,6 +10,7 @@
 | `collect:passages` | `pnpm collect:passages [--source-id=N] [--dry-run]` | 有効なソースから英文を取得して本文候補（`passages`、`status = collected`）を作る（[content-collection](../../docs/spec/content-collection/README.md)）。`--source-id` で 1 ソースに絞り、`--dry-run`（`--source-id` 必須）は最大 5 件を取得して抽出結果を表示する（DB に書かない・無効のソースも可）。`github_repository`（GitHub API）と `website`（公式ドキュメントのサイトのクロール）の両方を扱う |
 | `generate:questions` | `pnpm generate:questions [--passage-id=N]` | `collected` の本文候補から Claude API で設問・和訳・用語集を生成し、解答キーを見ない検証をして `draft` にする（[question-generation](../../docs/spec/question-generation/README.md#生成タスクの動き)）。`ANTHROPIC_API_KEY` が必須。`--passage-id` で 1 件だけ（`collected` でなければ throw。下書きの上限を見ない）。1 件でも `failed` になる、または取得した全件が一時的な失敗で `collected` に戻る（下書き・却下が 0 件）と exit 1 |
 | `generate:audio` | `pnpm generate:audio` | 公開済みの問題の読み上げの音声（mp3 と単語の時刻のマニフェスト）を Amazon Polly で作り、`passage_audios` を `ready` にする（[read-aloud](../../docs/spec/read-aloud/README.md#音声の生成タスク)）。本番は 1 時間ごと。`production` 以外の既定は `TTS_PROVIDER=fake`（無音の mp3 と等間隔の単語の時刻。ローカルの確認用）。`polly` で AWS の資格情報を解決できなければ、`production` 以外は warn を出して何もせず exit 0。`production` で `AUDIO_STORAGE_TYPE=local` なら起動時に throw（exit 1）。却下（`rejected`）の問題の mp3 と行は毎回消す。今月の Polly の課金文字数が `AUDIO_MONTHLY_CHARACTER_LIMIT` を超えそうなら止めて exit 1。1 件でも失敗（失敗の上限に達した・次の実行に回した失敗）があれば exit 1 |
+| `generate:word-audio` | `pnpm generate:word-audio` | 単語帳に出うる見出し語（調べた単語のうち英和辞書の見出し語と一致するもの・公開中の問題の用語集の語句）の発音の mp3 を Amazon Polly で 1 語ずつ作り、`word_audios` を `ready` にする（[vocabulary-pronunciation](../../docs/spec/vocabulary-pronunciation/README.md#単語の音声の生成タスク)）。本番は 1 時間ごと。音声合成・保存先・月の上限（読み上げと合算）は `generate:audio` と共有する。月の上限で止めたら・1 語でも失敗があれば exit 1 |
 
 ## Commands
 
@@ -19,6 +20,7 @@ pnpm cleanup:old-memos # タスクを 1 回実行
 pnpm collect:passages --source-id=3 --dry-run  # 1 ソースの試し実行（DB に書かない）
 pnpm generate:questions --passage-id=42        # 1 件だけ生成（ANTHROPIC_API_KEY が必要）
 pnpm generate:audio                            # 読み上げの音声を作る（production 以外は無音の mp3。リポジトリ直下の .storage/audio/ に保存）
+pnpm generate:word-audio                       # 単語の発音の音声を作る（同上。.storage/audio/words/ に保存）
 pnpm test              # Vitest（DB client を mock するので DB 不要）
 ```
 
@@ -160,6 +162,24 @@ Markdown / MDX / HTML から本文を抽出し、200〜600 語の本文候補に
 - **保存先**：`audioStorage`（`@repo/storage`）。`local` はリポジトリ直下の `.storage/audio/`（git に入れない。api が開発環境でだけ `/media` で配信する。`production` の `local` はコンテナの一時領域に mp3 を書いて `ready` にしてしまうので、task が起動時に throw する。cron の他のタスクを止めないよう env のスキーマでは検査しない）、`s3` は `Cache-Control: public, max-age=31536000, immutable`（`AUDIO_CACHE_CONTROL`）。マニフェストにはキーだけを保存し、URL は api が組み立てる。削除の失敗は warn だけ（空のディレクトリは残る）。ただし保存先の設定の誤り（`isFatalAudioGenerationError`）は error を出して throw する（その問題の結果は書き終えたまま。以降も同じく消せず mp3 が残り続けるのに気づけないため）
 - **ローカルの AWS の資格情報に注意**：`TTS_PROVIDER` の既定は `production` だけ `polly`、それ以外は `fake`。`TTS_PROVIDER=polly` を明示すると、資格情報は SDK の既定の解決順（環境変数・`~/.aws`・SSO など）で探すので、手元に有効な資格情報があれば実際に Polly を呼んで課金される
 
+### generate:word-audio（単語の発音の音声の生成）
+
+[vocabulary-pronunciation](../../docs/spec/vocabulary-pronunciation/README.md#単語の音声の生成タスク) の単語の音声を作るタスク。`word_audios` の列は vocabulary-pronunciation の README が正本。`generate:audio` と音声合成のクライアント・保存先・月の上限・設定の誤りの判定を共有し、流れ（状態での確保・確保の時刻のガード・3 回で `failed`）もそろえている。
+
+| ファイル | 役割 |
+| --- | --- |
+| `client/polly/*-tts-client.ts` の `synthesizeAudio` | mp3 だけを作る（単語の時刻は要らないので Polly のリクエストは 1 回）。`FakeTtsClient` は無音の mp3 |
+| `lib/audio/word-audio.ts` | `calculateWordTextHash`（voice と見出し語の SHA-256）、`buildWordAudioKey`（`words/{text_hash}.mp3`。見出し語に空白や記号があっても URL に使えるようハッシュにする） |
+| `runtime/audio-clients.ts` | `createTtsClient`・`createAudioStorage`・`assertAudioStorageAllowed`（`generate:audio` と共有） |
+| `service/audio/generate-word-audio.ts` | 本体。30 分以上 generating の行の回収 → `claimTargets` → 1 語ずつ（月の上限の判定 → トランザクションの外で音声合成と保存）→ `completeClaim` → voice の変更なら前の mp3 の削除 |
+| `repository/word-audio-repository.ts` | `claimTargets`（短いトランザクションで ① pending と voice が違う ready を `FOR UPDATE SKIP LOCKED` で選び、pending は generating・ready は ready のまま `generation_started_at` だけ ② まだ行が無い見出し語を調べた単語〈英和辞書と一致〉→ 公開中の問題の用語集の順に新しい順で選び、`ON CONFLICT (lemma) DO NOTHING` で generating の行を insert）/ `completeClaim` / `releaseClaim` / `releaseStaleGenerating` |
+
+- **候補**：api の単語帳の出題の候補（`VocabularyRepository` の encounters）のうち、意味が用意できる語句と同じ正規化（`lower(btrim(lemma))`）・英和辞書の一致（`headword = 見出し語`）。ユーザーは区別せず、自分が提出していない問題の用語集の語句も作る（単語帳に出る前に作っておくため）
+- **月の上限**：1 語ごとに、作る前に「今月の合計（読み上げと合算）+ 見出し語の文字数」が `AUDIO_MONTHLY_CHARACTER_LIMIT` を超えるなら、その語と残りの確保を外して exit 1。課金文字数は `audio_synthesis_usages` に `word_audio_id` つきで記録する（fake は記録しない）
+- **voice の変更**：`voice_id` が違う `ready` の行を `ready` のまま確保して作り直し（api は前の音声の URL を返し続ける）、成功したら前の mp3 を消す
+- **消さない**：問題の却下・アカウント削除では `word_audios` を消さない（単語の発音は本文でも個人のデータでもないため）
+- SQL の確かめ方：`claimTargets` の候補の SQL と確保は SQL の文字列までしかテストしないので、変えたらローカル DB で確かめる（2 回目の実行で何も確保しないこと、2 つを同時に流しても同じ見出し語を二重に作らないこと、`AUDIO_MONTHLY_CHARACTER_LIMIT=1` で確保を外して exit 1 になること、`TTS_VOICE_ID` を変えると全語を ready のまま作り直して前の mp3 が消えること）
+
 ## ESM 専用の依存（require(esm)）
 
 cron は CommonJS でビルドするが、unified / remark / rehype は ESM 専用で配布されている。そのため:
@@ -201,6 +221,7 @@ run-once モデルなので、**処理の途中でシグナルを受けて終了
 | `AWS_REGION` | no | `ap-northeast-1` | generate:audio が使う Polly と S3 のリージョン |
 | `AUDIO_MAX_PASSAGES_PER_RUN` | no | `20` | generate:audio が 1 回の実行で確保する問題の上限（Polly の費用の上限） |
 | `AUDIO_MONTHLY_CHARACTER_LIMIT` | no | `1800000` | generate:audio が今月（UTC の暦月。Polly の請求の月）に Polly で課金してよい文字数（`audio_synthesis_usages` の合計）。各問題を作る前に「今月の合計 + 見込み」が超えるなら確保を外して exit 1。既定は read-aloud の費用の試算の「月 300 問を公開」（144 万文字・約 $23）に、失敗の再試行・admin の作り直しの分として 25% の余裕を持たせ、Polly の Budgets の上限（$30）より手前（約 $29）で止まる値。voice の変更などで公開済みの問題をまとめて作り直す月は一時的に上げる |
+| `WORD_AUDIO_MAX_PER_RUN` | no | `300` | generate:word-audio が 1 回の実行で確保する見出し語の上限。1 語は mp3 の 1 リクエスト（平均 約 10 文字）で、課金は `AUDIO_MONTHLY_CHARACTER_LIMIT` で読み上げと合算して止める |
 | `AUDIO_STORAGE_TYPE` | no | `local` | generate:audio の mp3 の保存先。`local` / `s3`。`production` で `local` なら generate:audio は起動時に throw する（スキーマでは検査しないので他のタスクは動く） |
 | `AUDIO_STORAGE_LOCAL_DIR` | no | `../../.storage/audio` | `local` の保存先（`apps/cron` からの相対。リポジトリ直下の `.storage/audio/` になり、api の `/media` 配信と共有する） |
 | `AUDIO_STORAGE_S3_BUCKET` | `AUDIO_STORAGE_TYPE=s3` で必須 | - | `s3` の保存先の bucket（`superRefine` で検査。空文字は未設定と同じ） |

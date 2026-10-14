@@ -3,12 +3,13 @@ import { logger } from "@repo/logger"
 import type { Storage } from "@repo/storage"
 
 import type { TtsClient } from "../../client/polly"
-import { POLLY_MAX_BILLED_CHARACTERS } from "../../const/audio"
+import { MAX_AUDIO_ATTEMPTS, POLLY_MAX_BILLED_CHARACTERS, STALE_CLAIM_MINUTES } from "../../const/audio"
 import {
   buildAudioKey,
   buildSpeechText,
   calculateAudioTextHash,
   convertSpeechMarksToWordTimings,
+  describeAudioError,
   estimateBilledCharacters,
   getBillingMonthStart,
   isFatalAudioGenerationError,
@@ -25,16 +26,6 @@ import type {
   ClaimedAudioTarget,
   PassageAudioRepository,
 } from "../../repository"
-
-/**
- * 確保したままこの分数を超えた行は、前回の実行が途中で落ちたものとして回収する（generating は pending に戻し、ready のまま確保した行は取り直せるようにする）
- */
-const STALE_CLAIM_MINUTES = 30
-
-/**
- * 失敗がこの回数に達したら、generating で確保した行は failed にし、ready のまま確保した行は取らなくなる（管理者の操作まで自動では作り直さない）
- */
-const MAX_AUDIO_ATTEMPTS = 3
 
 const MILLIS_PER_MINUTE = 60 * 1000
 
@@ -105,15 +96,6 @@ type AudioPlan =
   | { estimatedCharacters: number; keyRevision: number | undefined; kind: "generate"; textHash: string }
 
 /**
- * last_error に残す「種類: メッセージ」
- */
-const describeError = (error: unknown): string => {
-  if (!(error instanceof Error)) return String(error)
-  const kind = error.name === "Error" ? error.constructor.name : error.name
-  return `${kind}: ${error.message}`
-}
-
-/**
  * 1 件の処理の方針を決める。前の成功のマニフェストがあり、その本文のハッシュ（voice と AUDIO_TEXT_VERSION を含む）が今と同じで、
  * 作り直しの依頼も無ければ、行の状態を問わず作り直さない（admin の再試行・手動の UPDATE などで pending に戻された ready の行でも Polly を呼ばない）。
  * manifest がある行の text_hash はその manifest のもので、その mp3 は別の生成が成功して置き換わるまで消さないので、そのまま使える。
@@ -148,7 +130,7 @@ const generatePassageAudio = async (
      * CHECK 制約（characters > 0）に合わせ、課金の無い応答（RequestCharacters が無い）は記録しない
      */
     if (characters <= 0) return
-    await repo.audioSynthesisUsageRepository.record({ characters, now: options.now(), passageId: target.passageId })
+    await repo.audioSynthesisUsageRepository.record({ characters, now: options.now(), target: { passageId: target.passageId } })
   }
 
   try {
@@ -177,7 +159,7 @@ const generatePassageAudio = async (
     return { billedCharacters, kind: "ready", manifest: { blocks }, textHash: plan.textHash, voiceId: options.voiceId }
   } catch (error) {
     if (isFatalAudioGenerationError(error)) throw error
-    return { error: describeError(error), kind: "failed", maxAttempts: MAX_AUDIO_ATTEMPTS }
+    return { error: describeAudioError(error), kind: "failed", maxAttempts: MAX_AUDIO_ATTEMPTS }
   }
 }
 
@@ -195,7 +177,7 @@ const deleteAudioKeys = async (keys: string[], passageId: number, audioStorage: 
         logger.error("failed to delete an audio file because of a storage configuration error", error, { key, passageId })
         throw error
       }
-      logger.warn("failed to delete an audio file", { error: describeError(error), key, passageId })
+      logger.warn("failed to delete an audio file", { error: describeAudioError(error), key, passageId })
       isAllDeleted = false
     }
   }

@@ -1,6 +1,6 @@
 import { audioSynthesisUsages, DrizzleClient, gte, sql } from "@repo/db"
 
-import type { AudioSynthesisUsageRepository } from "../audio-synthesis-usage-repository"
+import type { AudioSynthesisUsageRepository, AudioSynthesisUsageTarget } from "../audio-synthesis-usage-repository"
 
 /**
  * Drizzle 実装の AudioSynthesisUsageRepository
@@ -12,10 +12,13 @@ export class DrizzleAudioSynthesisUsageRepository implements AudioSynthesisUsage
     this._db = db
   }
 
-  public async record(input: { characters: number; now: Date; passageId: number }): Promise<void> {
+  public async record(input: { characters: number; now: Date; target: AudioSynthesisUsageTarget }): Promise<void> {
+    const target = "passageId" in input.target
+      ? { passageId: input.target.passageId, wordAudioId: null }
+      : { passageId: null, wordAudioId: input.target.wordAudioId }
     await this._db
       .insert(audioSynthesisUsages)
-      .values({ characters: input.characters, createdAt: input.now, passageId: input.passageId, updatedAt: input.now })
+      .values({ characters: input.characters, createdAt: input.now, ...target, updatedAt: input.now })
   }
 
   /**
