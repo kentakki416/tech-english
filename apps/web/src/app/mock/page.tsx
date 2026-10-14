@@ -55,7 +55,7 @@ const SCREENS: { description: string, href: string, spec: string, states?: { hre
     title: "単語帳",
   },
   {
-    description: "紙のカードをめくって覚えた / まだを付ける",
+    description: "紙のカードを 1 枚ずつ横に裏返して、覚えた / まだを付ける",
     href: "/mock/vocabulary/session",
     spec: "vocabulary-cards",
     states: [
@@ -64,7 +64,18 @@ const SCREENS: { description: string, href: string, spec: string, states?: { hre
       { href: "/mock/vocabulary/session?state=save_failed", label: "保存できなかった" },
       { href: "/mock/vocabulary/session?state=done", label: "今日の分が終わった" },
     ],
-    title: "単語帳（1 回分）",
+    title: "単語帳（1 回分）デザイン 1",
+  },
+  {
+    description: "左のリングで綴じた単語帳を、1 枚ずつ左へめくる（スマホ幅は上へ）",
+    href: "/mock/vocabulary/session-ring",
+    spec: "vocabulary-cards",
+    states: [
+      { href: "/mock/vocabulary/session-ring?state=turned", label: "めくった後" },
+      { href: "/mock/vocabulary/session-ring?state=stamped", label: "答えた後（ハンコ）" },
+      { href: "/mock/vocabulary/session-ring?state=review", label: "ふりかえり" },
+    ],
+    title: "単語帳（1 回分）デザイン 2",
   },
   { description: "提出した挑戦の一覧", href: "/mock/history", spec: "learning-record", title: "学習履歴" },
   { description: "目標・タイムゾーン・ログアウト・危険な操作", href: "/mock/settings", spec: "learning-record", title: "設定" },
