@@ -2,6 +2,7 @@ import { DrizzleLearningRecordRepository } from "../../src/repository/drizzle/le
 import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb } from "../controller/setup"
 import { createSubmittedAttempt } from "../fixture/learning-record"
 import { insertAttemptUser, insertGeneratedPassage, insertReadingAttempt } from "../fixture/passage"
+import { insertVocabularyCard, insertVocabularyReview } from "../fixture/vocabulary"
 
 const learningRecordRepository = new DrizzleLearningRecordRepository(testDb)
 
@@ -107,8 +108,8 @@ describe("LearningRecordRepository", () => {
         })
 
         expect(await learningRecordRepository.summarizeByDate(user.id, { from: "2026-10-05", to: "2026-10-11" })).toEqual([
-          { attemptCount: 2, correctCount: 5, date: "2026-10-06", questionCount: 6, studySeconds: 350 },
-          { attemptCount: 1, correctCount: 1, date: "2026-10-08", questionCount: 3, studySeconds: 90 },
+          { attemptCount: 2, cardCount: 0, correctCount: 5, date: "2026-10-06", questionCount: 6, rememberedCount: 0, studySeconds: 350 },
+          { attemptCount: 1, cardCount: 0, correctCount: 1, date: "2026-10-08", questionCount: 3, rememberedCount: 0, studySeconds: 90 },
         ])
       })
 
@@ -332,6 +333,74 @@ describe("LearningRecordRepository", () => {
 
         expect(await learningRecordRepository.findSubmittedAttempts(user.id, { cursor: othersAttempt.id, limit: 10 })).toEqual([])
         expect(await learningRecordRepository.findSubmittedAttempts(user.id, { cursor: 999_999, limit: 10 })).toEqual([])
+      })
+    })
+  })
+
+  describe("単語帳の答え（vocabulary-cards）", () => {
+    /**
+     * 2026-10-06 は挑戦だけ、10-07 は単語帳だけ、10-08 は両方。単語帳は 10-07 に 3 枚（覚えた 2）、10-08 に 1 枚（まだ）
+     */
+    const insertMixedStudy = async () => {
+      const user = await insertAttemptUser()
+      const passage = await insertPassageWithQuestions()
+      await createSubmittedAttempt({ elapsedSeconds: 200, passageId: passage.id, questionIds: passage.questionIds, studyDate: "2026-10-06", userId: user.id })
+      await createSubmittedAttempt({ elapsedSeconds: 100, passageId: passage.id, questionIds: passage.questionIds, studyDate: "2026-10-08", userId: user.id })
+      const card = await insertVocabularyCard(user.id, { lemma: "opt out of" })
+      await insertVocabularyReview(user.id, card.id, { activeSeconds: 10, grade: "remembered", studyDate: "2026-10-07" })
+      await insertVocabularyReview(user.id, card.id, { activeSeconds: 20, grade: "remembered", studyDate: "2026-10-07" })
+      await insertVocabularyReview(user.id, card.id, { activeSeconds: 30, grade: "forgot", studyDate: "2026-10-07" })
+      await insertVocabularyReview(user.id, card.id, { activeSeconds: 5, grade: "forgot", studyDate: "2026-10-08" })
+      return user
+    }
+
+    describe("正常系", () => {
+      it("findStudyDates は挑戦だけの日・単語帳だけの日・両方の日を重複なしの昇順で返す", async () => {
+        const user = await insertMixedStudy()
+
+        expect(await learningRecordRepository.findStudyDates(user.id)).toEqual(["2026-10-06", "2026-10-07", "2026-10-08"])
+      })
+
+      it("summarizeByDate は単語帳だけの日も返し、両方の日の学習秒数は合計、挑戦数は挑戦だけ", async () => {
+        const user = await insertMixedStudy()
+
+        expect(await learningRecordRepository.summarizeByDate(user.id, { from: "2026-10-06", to: "2026-10-08" })).toEqual([
+          { attemptCount: 1, cardCount: 0, correctCount: 3, date: "2026-10-06", questionCount: 3, rememberedCount: 0, studySeconds: 200 },
+          { attemptCount: 0, cardCount: 3, correctCount: 0, date: "2026-10-07", questionCount: 0, rememberedCount: 2, studySeconds: 60 },
+          { attemptCount: 1, cardCount: 1, correctCount: 3, date: "2026-10-08", questionCount: 3, rememberedCount: 0, studySeconds: 105 },
+        ])
+      })
+
+      it("summarizeByDate は期間の境界ちょうどの単語帳の答えを含め、外は含めない（境界値）", async () => {
+        const user = await insertMixedStudy()
+
+        expect((await learningRecordRepository.summarizeByDate(user.id, { from: "2026-10-07", to: "2026-10-07" })).map((day) => day.date)).toEqual(["2026-10-07"])
+      })
+
+      it("summarizeTotals は学習秒数にだけ単語帳の秒数を足し、挑戦数・問題数は変えない", async () => {
+        const user = await insertMixedStudy()
+
+        expect(await learningRecordRepository.summarizeTotals(user.id)).toMatchObject({ attemptCount: 2, passageCount: 1, studySeconds: 365 })
+      })
+    })
+
+    describe("異常系", () => {
+      it("他のユーザーの単語帳の答えは、どの集計にも入らない", async () => {
+        await insertMixedStudy()
+        const other = await insertAttemptUser()
+
+        expect(await learningRecordRepository.findStudyDates(other.id)).toEqual([])
+        expect(await learningRecordRepository.summarizeByDate(other.id, { from: "2026-10-01", to: "2026-10-31" })).toEqual([])
+        expect(await learningRecordRepository.summarizeTotals(other.id)).toMatchObject({ attemptCount: 0, studySeconds: 0 })
+      })
+
+      it("単語帳の答えしか無いユーザーの正答率の集計は 0 件のまま", async () => {
+        const user = await insertAttemptUser()
+        const card = await insertVocabularyCard(user.id, { lemma: "opt out of" })
+        await insertVocabularyReview(user.id, card.id)
+
+        expect(await learningRecordRepository.summarizeNoAssistAccuracy(user.id)).toEqual({ correctCount: 0, questionCount: 0 })
+        expect(await learningRecordRepository.summarizeAccuracyByQuestionType(user.id)).toEqual([])
       })
     })
   })

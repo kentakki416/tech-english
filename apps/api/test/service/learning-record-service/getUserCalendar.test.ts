@@ -44,8 +44,8 @@ describe("getUserCalendar", () => {
     it("from〜to の全日を日付の昇順で返し、学習していない日は 0 で、学習秒数から色の段階を付ける", async () => {
       const repo = setup()
       repo.learningRecordRepository.summarizeByDate.mockResolvedValue([
-        { attemptCount: 1, correctCount: 3, date: "2026-10-06", questionCount: 4, studySeconds: 300 },
-        { attemptCount: 2, correctCount: 5, date: "2026-10-08", questionCount: 8, studySeconds: 1801 },
+        { attemptCount: 1, cardCount: 0, correctCount: 3, date: "2026-10-06", questionCount: 4, rememberedCount: 0, studySeconds: 300 },
+        { attemptCount: 2, cardCount: 12, correctCount: 5, date: "2026-10-08", questionCount: 8, rememberedCount: 9, studySeconds: 1801 },
       ])
 
       const result = await getUserCalendar(USER.id, { from: "2026-10-05", to: "2026-10-08" }, repo, { now: FIXED_NOW })
@@ -54,10 +54,10 @@ describe("getUserCalendar", () => {
         ok: true,
         value: {
           days: [
-            { attemptCount: 0, correctCount: 0, date: "2026-10-05", level: 0, questionCount: 0, studySeconds: 0 },
-            { attemptCount: 1, correctCount: 3, date: "2026-10-06", level: 1, questionCount: 4, studySeconds: 300 },
-            { attemptCount: 0, correctCount: 0, date: "2026-10-07", level: 0, questionCount: 0, studySeconds: 0 },
-            { attemptCount: 2, correctCount: 5, date: "2026-10-08", level: 4, questionCount: 8, studySeconds: 1801 },
+            { attemptCount: 0, cardCount: 0, correctCount: 0, date: "2026-10-05", level: 0, questionCount: 0, rememberedCount: 0, studySeconds: 0 },
+            { attemptCount: 1, cardCount: 0, correctCount: 3, date: "2026-10-06", level: 1, questionCount: 4, rememberedCount: 0, studySeconds: 300 },
+            { attemptCount: 0, cardCount: 0, correctCount: 0, date: "2026-10-07", level: 0, questionCount: 0, rememberedCount: 0, studySeconds: 0 },
+            { attemptCount: 2, cardCount: 12, correctCount: 5, date: "2026-10-08", level: 4, questionCount: 8, rememberedCount: 9, studySeconds: 1801 },
           ],
           from: "2026-10-05",
           to: "2026-10-08",

@@ -21,11 +21,13 @@ const setup = () => {
 /**
  * 2026-10-05（月）〜 2026-10-11（日）の週の日ごとの集計
  */
-const buildWeekDay = (date: string, attemptCount: number, studySeconds: number) => ({
+const buildWeekDay = (date: string, attemptCount: number, studySeconds: number, cardCount = 0) => ({
   attemptCount,
+  cardCount,
   correctCount: attemptCount * 3,
   date,
   questionCount: attemptCount * 4,
+  rememberedCount: cardCount,
   studySeconds,
 })
 
@@ -223,6 +225,19 @@ describe("getUserStats", () => {
       const result = await getUserStats(USER.id, repo, { now: FIXED_NOW })
 
       expect(result.ok && result.value.goal).toMatchObject({ isWeeklyAchieved: achieved, weeklyProgress: attemptCount })
+    })
+
+    it("単語帳だけの日（挑戦 0・カード 12 枚）は、passages の進捗に数えず、minutes の進捗には秒を含める", async () => {
+      const repo = setup()
+      repo.learningRecordRepository.summarizeByDate.mockResolvedValue([buildWeekDay("2026-10-06", 1, 600), buildWeekDay("2026-10-07", 0, 180, 12)])
+
+      repo.userGoalRepository.findByUserId.mockResolvedValue(buildUserGoal({ weeklyMetric: "passages", weeklyTarget: 5 }))
+      const passages = await getUserStats(USER.id, repo, { now: FIXED_NOW })
+      repo.userGoalRepository.findByUserId.mockResolvedValue(buildUserGoal({ weeklyMetric: "minutes", weeklyTarget: 60 }))
+      const minutes = await getUserStats(USER.id, repo, { now: FIXED_NOW })
+
+      expect(passages.ok && passages.value.goal).toMatchObject({ weeklyProgress: 1 })
+      expect(minutes.ok && minutes.value.goal).toMatchObject({ weeklyProgress: 13 })
     })
 
     it("週の目標が無ければ進捗は null で未達成。目標日が無ければ残り日数は null", async () => {

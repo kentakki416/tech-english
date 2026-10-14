@@ -91,7 +91,7 @@ export type GoalProgressView = {
   targetDate: string | null
   weeklyMetric: GoalMetric | null
   /**
-   * passages は今週の提出数、minutes は今週の学習秒数 ÷ 60 の切り捨て。週の目標が無ければ null
+   * passages は今週の提出数（単語帳は数えない）、minutes は今週の学習秒数（単語帳の時間を含む）÷ 60 の切り捨て。週の目標が無ければ null
    */
   weeklyProgress: number | null
   weeklyTarget: number | null
@@ -329,10 +329,12 @@ export const getUserCalendar = async (
     const studySeconds = summary?.studySeconds ?? 0
     return {
       attemptCount: summary?.attemptCount ?? 0,
+      cardCount: summary?.cardCount ?? 0,
       correctCount: summary?.correctCount ?? 0,
       date,
       level: convertStudySecondsToLevel(studySeconds),
       questionCount: summary?.questionCount ?? 0,
+      rememberedCount: summary?.rememberedCount ?? 0,
       studySeconds,
     }
   })

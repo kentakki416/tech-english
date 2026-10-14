@@ -10,6 +10,7 @@ import { DrizzleUserRepository } from "../../../src/repository/drizzle/user-repo
 import { userRouter } from "../../../src/routes/user-router"
 import { createSubmittedAttempt, insertUserGoal } from "../../fixture/learning-record"
 import { insertGeneratedPassage } from "../../fixture/passage"
+import { insertVocabularyCard, insertVocabularyReview } from "../../fixture/vocabulary"
 import { attachUnhandledExceptionHandler, createTestApp, createTestUser } from "../helper"
 import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb } from "../setup"
 
@@ -160,6 +161,20 @@ describe("GET /api/user/stats", () => {
       expect(res.body.totals).toMatchObject({ attempt_count: 2, correct_count: 4, question_count: 6 })
       expect(res.body.recent_attempts.map((attempt: { correct_count: number; used_assist: boolean }) => [attempt.correct_count, attempt.used_assist]))
         .toEqual(expect.arrayContaining([[3, true], [1, false]]))
+    })
+
+    it("単語帳だけで続けた日も連続学習日数に入り、累計の学習時間に単語帳の秒数が入る", async () => {
+      const { token, user } = await createTestUser()
+      const today = formatToday("Asia/Tokyo")
+      const card = await insertVocabularyCard(user.id, { lemma: "opt out of" })
+      await insertVocabularyReview(user.id, card.id, { activeSeconds: 40, studyDate: addDaysToDate(today, -1) })
+      await insertVocabularyReview(user.id, card.id, { activeSeconds: 50, studyDate: today })
+
+      const res = await request(app).get("/api/user/stats").set("Authorization", `Bearer ${token}`)
+
+      expect(res.status).toBe(200)
+      expect(res.body.streak).toMatchObject({ current: 2, longest: 2 })
+      expect(res.body.totals).toMatchObject({ attempt_count: 0, study_seconds: 90 })
     })
 
     it("まだ 1 問も解いていなければ、累計 0・正答率 null・目標 null・最近の挑戦なしで 200", async () => {

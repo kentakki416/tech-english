@@ -9,6 +9,7 @@ import { DrizzleUserRepository } from "../../../src/repository/drizzle/user-repo
 import { userRouter } from "../../../src/routes/user-router"
 import { createSubmittedAttempt } from "../../fixture/learning-record"
 import { insertGeneratedPassage } from "../../fixture/passage"
+import { insertVocabularyCard, insertVocabularyReview } from "../../fixture/vocabulary"
 import { attachUnhandledExceptionHandler, createTestApp, createTestUser } from "../helper"
 import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb } from "../setup"
 
@@ -69,12 +70,32 @@ describe("GET /api/user/calendar", () => {
       expect(res.body.days[0].date).toBe(res.body.from)
       expect(res.body.days[dayCount - 1]).toEqual({
         attempt_count: 1,
+        card_count: 0,
         correct_count: 2,
         date: today,
         level: 3,
         question_count: 3,
+        remembered_count: 0,
         study_seconds: 1000,
       })
+    })
+
+    it("単語帳で答えた日は card_count / remembered_count を持ち、色の段階は単語帳の時間を含めて決まる", async () => {
+      const { token, user } = await createTestUser()
+      await insertStudy(user.id, "2026-10-08", 280)
+      const card = await insertVocabularyCard(user.id, { lemma: "opt out of" })
+      await insertVocabularyReview(user.id, card.id, { activeSeconds: 30, grade: "remembered", studyDate: "2026-10-08" })
+      await insertVocabularyReview(user.id, card.id, { activeSeconds: 40, grade: "forgot", studyDate: "2026-10-09" })
+
+      const res = await request(app)
+        .get("/api/user/calendar")
+        .query({ from: "2026-10-08", to: "2026-10-09" })
+        .set("Authorization", `Bearer ${token}`)
+
+      expect(res.body.days).toEqual([
+        { attempt_count: 1, card_count: 1, correct_count: 2, date: "2026-10-08", level: 2, question_count: 3, remembered_count: 1, study_seconds: 310 },
+        { attempt_count: 0, card_count: 1, correct_count: 0, date: "2026-10-09", level: 1, question_count: 0, remembered_count: 0, study_seconds: 40 },
+      ])
     })
 
     it("from〜to を指定すると、days の件数が範囲の日数と一致し、学習していない日は level 0", async () => {
@@ -93,18 +114,22 @@ describe("GET /api/user/calendar", () => {
       expect(res.body.days).toHaveLength(31)
       expect(res.body.days[0]).toEqual({
         attempt_count: 1,
+        card_count: 0,
         correct_count: 2,
         date: "2026-10-01",
         level: 1,
         question_count: 3,
+        remembered_count: 0,
         study_seconds: 300,
       })
       expect(res.body.days[1]).toEqual({
         attempt_count: 0,
+        card_count: 0,
         correct_count: 0,
         date: "2026-10-02",
         level: 0,
         question_count: 0,
+        remembered_count: 0,
         study_seconds: 0,
       })
       expect(res.body.days[30]).toMatchObject({ date: "2026-10-31", level: 2, study_seconds: 301 })
