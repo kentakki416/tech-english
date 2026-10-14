@@ -21,6 +21,7 @@ import type {
   DraftEditContent,
   PassageRepository,
   PassageTransition,
+  RestoredPassageStatus,
 } from "../passage-repository"
 
 /**
@@ -46,6 +47,31 @@ const passageBlocksSchema = z.array(
  * jsonb の string[] 列
  */
 const stringListSchema = z.array(z.string())
+
+/**
+ * 生成待ち（collected）に戻すときに書く値。Drizzle 実装の RESET_TO_COLLECTED_VALUES と同じ（和訳は blocks から別に外す）
+ */
+const RESET_TO_COLLECTED_DATA = {
+  attentionReasons: [],
+  difficulty: null,
+  generatedAt: null,
+  generationAttemptCount: 0,
+  generationError: null,
+  generationModel: null,
+  generationPromptVersion: null,
+  generationStartedAt: null,
+  needsAttention: false,
+  rejectReason: null,
+  reviewedAt: null,
+  status: "collected",
+  timeLimitSeconds: null,
+} satisfies PrismaTypes.PassageUpdateInput
+
+/**
+ * jsonb の blocks を読み、和訳を外す（collected に戻すとき）
+ */
+const parseBlocksWithoutTranslations = (blocks: unknown): PassageBlock[] =>
+  passageBlocksSchema.parse(blocks).map(({ translationJa: _translationJa, ...block }) => block)
 
 /**
  * 一覧で読む関連（挑戦・設問の件数とソース）
@@ -163,6 +189,11 @@ export class PrismaPassageRepository implements PassageRepository {
     this._prisma = prisma
   }
 
+  public async clearAttention(id: number): Promise<boolean> {
+    const result = await this._prisma.passage.updateMany({ data: { attentionReasons: [], needsAttention: false }, where: { id } })
+    return result.count > 0
+  }
+
   public async countByStatus(): Promise<Record<PassageStatus, number>> {
     const groups = await this._prisma.passage.groupBy({ _count: { _all: true }, by: ["status"] })
     const counts = Object.fromEntries(PASSAGE_STATUSES.map((status) => [status, 0])) as Record<PassageStatus, number>
@@ -239,31 +270,38 @@ export class PrismaPassageRepository implements PassageRepository {
       `
       if (!row) return false
 
-      const blocks: PassageBlock[] = passageBlocksSchema
-        .parse(row.blocks)
-        .map(({ translationJa: _translationJa, ...block }) => block)
       await tx.question.deleteMany({ where: { passageId: id } })
       await tx.passageGlossaryEntry.deleteMany({ where: { passageId: id } })
       await tx.passage.update({
-        data: {
-          attentionReasons: [],
-          blocks,
-          difficulty: null,
-          generatedAt: null,
-          generationAttemptCount: 0,
-          generationError: null,
-          generationModel: null,
-          generationPromptVersion: null,
-          generationStartedAt: null,
-          needsAttention: false,
-          rejectReason: null,
-          reviewedAt: null,
-          status: "collected",
-          timeLimitSeconds: null,
-        },
+        data: { ...RESET_TO_COLLECTED_DATA, blocks: parseBlocksWithoutTranslations(row.blocks) },
         where: { id },
       })
       return true
+    })
+  }
+
+  /**
+   * Drizzle 実装と同じ手順。行ロックつきの select は $queryRaw で書く
+   */
+  public async restoreRejected(id: number): Promise<RestoredPassageStatus | null> {
+    return this._prisma.$transaction(async (tx) => {
+      const [row] = await tx.$queryRaw<{ blocks: unknown }[]>`
+        SELECT blocks FROM passages WHERE id = ${id}::integer AND status = 'rejected' FOR UPDATE
+      `
+      if (!row) return null
+
+      const question = await tx.question.findFirst({ select: { id: true }, where: { passageId: id } })
+      if (question) {
+        await tx.passage.update({ data: { rejectReason: null, status: "draft" }, where: { id } })
+        return "draft"
+      }
+
+      await tx.passageGlossaryEntry.deleteMany({ where: { passageId: id } })
+      await tx.passage.update({
+        data: { ...RESET_TO_COLLECTED_DATA, blocks: parseBlocksWithoutTranslations(row.blocks) },
+        where: { id },
+      })
+      return "collected"
     })
   }
 

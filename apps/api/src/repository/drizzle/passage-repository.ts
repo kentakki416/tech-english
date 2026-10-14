@@ -28,6 +28,7 @@ import type {
   DraftEditContent,
   PassageRepository,
   PassageTransition,
+  RestoredPassageStatus,
 } from "../passage-repository"
 
 /**
@@ -46,6 +47,32 @@ const ATTEMPT_COUNT_SQL = sql<number>`(SELECT count(*) FROM ${readingAttempts} W
  * 設問の数。passages を FROM に持つクエリの select で使う
  */
 const QUESTION_COUNT_SQL = sql<number>`(SELECT count(*) FROM ${questions} WHERE ${questions.passageId} = ${passages.id})`.mapWith(Number)
+
+/**
+ * 生成待ち（collected）に戻すときに書く値。生成の記録・却下の理由・確認の記録・要確認を空にし、失敗の回数を 0 に戻す
+ * （英文とタイトルは残す。和訳は blocks から別に外す）。再生成と、設問の無い却下の取り消しで使う
+ */
+const RESET_TO_COLLECTED_VALUES = {
+  attentionReasons: [],
+  difficulty: null,
+  generatedAt: null,
+  generationAttemptCount: 0,
+  generationError: null,
+  generationModel: null,
+  generationPromptVersion: null,
+  generationStartedAt: null,
+  needsAttention: false,
+  rejectReason: null,
+  reviewedAt: null,
+  status: "collected",
+  timeLimitSeconds: null,
+} satisfies Partial<typeof passages.$inferInsert>
+
+/**
+ * blocks から和訳を外す（collected に戻すとき）
+ */
+const removeTranslations = (blocks: PassageRow["blocks"]): PassageRow["blocks"] =>
+  blocks.map(({ translationJa: _translationJa, ...block }) => block)
 
 /**
  * Drizzleの型 → ドメインの型
@@ -118,6 +145,15 @@ export class DrizzlePassageRepository implements PassageRepository {
 
   constructor(db: DrizzleClient) {
     this._db = db
+  }
+
+  public async clearAttention(id: number): Promise<boolean> {
+    const rows = await this._db
+      .update(passages)
+      .set({ attentionReasons: [], needsAttention: false })
+      .where(eq(passages.id, id))
+      .returning({ id: passages.id })
+    return rows.length > 0
   }
 
   public async countByStatus(): Promise<Record<PassageStatus, number>> {
@@ -223,24 +259,38 @@ export class DrizzlePassageRepository implements PassageRepository {
       await tx.delete(passageGlossaryEntries).where(eq(passageGlossaryEntries.passageId, id))
       await tx
         .update(passages)
-        .set({
-          attentionReasons: [],
-          blocks: row.blocks.map(({ translationJa: _translationJa, ...block }) => block),
-          difficulty: null,
-          generatedAt: null,
-          generationAttemptCount: 0,
-          generationError: null,
-          generationModel: null,
-          generationPromptVersion: null,
-          generationStartedAt: null,
-          needsAttention: false,
-          rejectReason: null,
-          reviewedAt: null,
-          status: "collected",
-          timeLimitSeconds: null,
-        })
+        .set({ ...RESET_TO_COLLECTED_VALUES, blocks: removeTranslations(row.blocks) })
         .where(eq(passages.id, id))
       return true
+    })
+  }
+
+  /**
+   * 1 トランザクションで ① rejected の行をロックする（再生成の resetForRegeneration も同じ行を FOR UPDATE するので、
+   * 設問の有無の確認と書き込みの間に設問が消されない）② 設問の有無で戻す状態を決める ③ passages を書く。
+   * collected に戻すときは resetForRegeneration と同じ状態にする（用語集が残っていれば消し、和訳を外す）
+   */
+  public async restoreRejected(id: number): Promise<RestoredPassageStatus | null> {
+    return this._db.transaction(async (tx) => {
+      const [row] = await tx
+        .select({ blocks: passages.blocks })
+        .from(passages)
+        .where(and(eq(passages.id, id), eq(passages.status, "rejected")))
+        .for("update")
+      if (!row) return null
+
+      const [question] = await tx.select({ id: questions.id }).from(questions).where(eq(questions.passageId, id)).limit(1)
+      if (question) {
+        await tx.update(passages).set({ rejectReason: null, status: "draft" }).where(eq(passages.id, id))
+        return "draft"
+      }
+
+      await tx.delete(passageGlossaryEntries).where(eq(passageGlossaryEntries.passageId, id))
+      await tx
+        .update(passages)
+        .set({ ...RESET_TO_COLLECTED_VALUES, blocks: removeTranslations(row.blocks) })
+        .where(eq(passages.id, id))
+      return "collected"
     })
   }
 

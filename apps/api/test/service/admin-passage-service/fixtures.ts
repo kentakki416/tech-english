@@ -4,10 +4,12 @@ import type { PassageRepository } from "../../../src/repository"
  * admin-passage-service のユニットテストで共有する Repository のモック
  */
 export const createMockPassageRepository = () => ({
+  clearAttention: vi.fn<PassageRepository["clearAttention"]>(),
   countByStatus: vi.fn<PassageRepository["countByStatus"]>(),
   findAdminDetail: vi.fn<PassageRepository["findAdminDetail"]>(),
   findAdminList: vi.fn<PassageRepository["findAdminList"]>(),
   resetForRegeneration: vi.fn<PassageRepository["resetForRegeneration"]>(),
+  restoreRejected: vi.fn<PassageRepository["restoreRejected"]>(),
   transitionStatus: vi.fn<PassageRepository["transitionStatus"]>(),
   updateDraftContent: vi.fn<PassageRepository["updateDraftContent"]>(),
 })

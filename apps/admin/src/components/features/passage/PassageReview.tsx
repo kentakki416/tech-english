@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { startTransition, useActionState, useMemo, useState } from "react"
+import { type ReactNode, startTransition, useActionState, useMemo, useState } from "react"
 
 import type { GetAdminPassageResponse } from "@repo/api-schema"
 
@@ -11,6 +11,8 @@ import {
   publishPassageAction,
   regeneratePassageAction,
   rejectPassageAction,
+  resolvePassageAttentionAction,
+  restorePassageAction,
   savePassageAction,
   unpublishPassageAction,
 } from "@/app/(dashboard)/passages/[id]/actions"
@@ -64,6 +66,8 @@ type ReviewCommand =
   | { form: PassageForm, isDirty: boolean, type: "publish" }
   | { reason: string, type: "reject" }
   | { type: "regenerate" }
+  | { form: PassageForm, isDirty: boolean, type: "resolveAttention" }
+  | { type: "restore" }
   | { type: "unpublish" }
 
 type SaveOutcome = { detail: GetAdminPassageResponse, ok: true } | { feedback: ReviewFeedback, ok: false }
@@ -101,15 +105,28 @@ const findInitialQuestionKey = (form: PassageForm): string | null => {
   return (mismatch ?? form.questions[0])?.clientKey ?? null
 }
 
-function Notice({ items, title, tone }: { items: string[], title: string, tone: keyof typeof NOTICE_TONE_CLASSES }) {
+/**
+ * 囲みの案内。action は囲みの右上に置く操作（要確認の解除など）
+ */
+function Notice({ action, items, title, tone }: {
+  action?: ReactNode
+  items: string[]
+  title: string
+  tone: keyof typeof NOTICE_TONE_CLASSES
+}) {
   return (
     <div className={`rounded-xl border p-4 text-sm ${NOTICE_TONE_CLASSES[tone]}`} role={tone === "error" ? "alert" : undefined}>
-      <p className="font-medium text-gray-800 dark:text-white/90">{title}</p>
-      {items.length > 0 && (
-        <ul className="mt-1.5 list-disc space-y-1 pl-5 text-gray-600 dark:text-gray-300">
-          {items.map((item, index) => <li key={index}>{item}</li>)}
-        </ul>
-      )}
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="font-medium text-gray-800 dark:text-white/90">{title}</p>
+          {items.length > 0 && (
+            <ul className="mt-1.5 list-disc space-y-1 pl-5 text-gray-600 dark:text-gray-300">
+              {items.map((item, index) => <li key={index}>{item}</li>)}
+            </ul>
+          )}
+        </div>
+        {action}
+      </div>
     </div>
   )
 }
@@ -135,7 +152,13 @@ function StatusNotice({ detail }: { detail: GetAdminPassageResponse }) {
   case "rejected":
     return (
       <Notice
-        items={[`却下の理由：${detail.reject_reason ?? "（記録がありません）"}`, "「再生成」で生成待ちに戻せます。"]}
+        items={[
+          `却下の理由：${detail.reject_reason ?? "（記録がありません）"}`,
+          detail.questions.length > 0
+            ? "「却下を取り消す」で、生成した内容を残したまま下書きに戻せます。"
+            : "「却下を取り消す」で生成待ちに戻せます（生成した設問が無いため）。",
+          "「再生成」で、生成した内容を消して生成待ちに戻せます。",
+        ]}
         title="却下した問題です"
         tone="info"
       />
@@ -170,6 +193,7 @@ export function PassageReview({ detail }: { detail: GetAdminPassageResponse }) {
   const [translatedBlocks, setTranslatedBlocks] = useState<Set<number>>(new Set())
   const [isRejectOpen, setIsRejectOpen] = useState(false)
   const [isRegenerateOpen, setIsRegenerateOpen] = useState(false)
+  const [isRestoreOpen, setIsRestoreOpen] = useState(false)
   const [rejectReason, setRejectReason] = useState("")
 
   /**
@@ -187,6 +211,11 @@ export function PassageReview({ detail }: { detail: GetAdminPassageResponse }) {
 
   const isDraft = detail.status === "draft"
   const isPublished = detail.status === "published"
+  const isRejected = detail.status === "rejected"
+  /**
+   * 要確認の囲みと「要確認を解除」は下書きのときだけ出す（一覧の要確認も下書きにだけ出る）
+   */
+  const needsAttention = isDraft && (detail.needs_attention || detail.attention_reasons.length > 0)
   const canRegenerate = ["draft", "failed", "rejected"].includes(detail.status) && detail.attempt_count === 0
 
   /**
@@ -206,12 +235,13 @@ export function PassageReview({ detail }: { detail: GetAdminPassageResponse }) {
   }
 
   /**
-   * 状態を変える操作（却下・非公開・再生成）。成功したらダイアログを閉じて詳細を取り直す
+   * 状態を変える操作（却下・非公開・再生成・却下の取り消し・要確認の解除）。成功したらダイアログを閉じて詳細を取り直す
    */
   const changeStatus = async (execute: () => Promise<{ ok: true } | PassageActionFailure>): Promise<ReviewState> => {
     const result = await execute()
     setIsRejectOpen(false)
     setIsRegenerateOpen(false)
+    setIsRestoreOpen(false)
     if (!result.ok) return { feedback: convertFailureToFeedback(result, form) }
     setRejectReason("")
     router.refresh()
@@ -241,6 +271,18 @@ export function PassageReview({ detail }: { detail: GetAdminPassageResponse }) {
       return changeStatus(async () => rejectPassageAction(detail.id, command.reason))
     case "regenerate":
       return changeStatus(async () => regeneratePassageAction(detail.id))
+    case "resolveAttention": {
+      /**
+       * 解除すると更新日時が変わり、取り直した詳細でフォームが作り直される。未保存の修正を失わないよう先に保存する
+       */
+      if (command.isDirty) {
+        const saved = await saveForm(command.form)
+        if (!saved.ok) return { feedback: saved.feedback }
+      }
+      return changeStatus(async () => resolvePassageAttentionAction(detail.id))
+    }
+    case "restore":
+      return changeStatus(async () => restorePassageAction(detail.id))
     case "unpublish":
       return changeStatus(async () => unpublishPassageAction(detail.id))
     }
@@ -322,7 +364,12 @@ export function PassageReview({ detail }: { detail: GetAdminPassageResponse }) {
                 非公開に戻す
               </button>
             )}
-            {(isDraft || detail.status === "failed" || detail.status === "rejected") && (
+            {isRejected && (
+              <button className={outlineButtonClass} disabled={isPending} onClick={() => setIsRestoreOpen(true)} type="button">
+                却下を取り消す
+              </button>
+            )}
+            {(isDraft || detail.status === "failed" || isRejected) && (
               <button
                 className={`${outlineButtonClass} disabled:cursor-not-allowed disabled:opacity-50`}
                 disabled={isPending || !canRegenerate}
@@ -372,13 +419,34 @@ export function PassageReview({ detail }: { detail: GetAdminPassageResponse }) {
           <p className="mt-3 text-theme-sm text-success-600 dark:text-success-500" role="status">下書きを保存しました</p>
         )}
         {!isPending && isDraft && isDirty && (
-          <p className="mt-3 text-theme-sm text-gray-500 dark:text-gray-400">未保存の修正があります。「公開する」を押すと、保存してから公開します。</p>
+          <p className="mt-3 text-theme-sm text-gray-500 dark:text-gray-400">
+            {needsAttention
+              ? "未保存の修正があります。「公開する」「要確認を解除」を押すと、保存してから実行します。"
+              : "未保存の修正があります。「公開する」を押すと、保存してから公開します。"}
+          </p>
         )}
       </section>
 
       <StatusNotice detail={detail} />
       {feedback?.kind === "error" && <Notice items={feedback.messages} title={feedback.title} tone="error" />}
-      {isDraft && detail.attention_reasons.length > 0 && <Notice items={detail.attention_reasons} title="要確認" tone="warning" />}
+      {needsAttention && (
+        <Notice
+          action={(
+            <button
+              className={`${outlineButtonClass} shrink-0`}
+              disabled={isPending}
+              onClick={() => runInTransition({ form, isDirty, type: "resolveAttention" })}
+              title="理由を確かめた・直した後に押すと、要確認の印と理由が消え、一覧の要確認の先頭から外れます"
+              type="button"
+            >
+              要確認を解除
+            </button>
+          )}
+          items={detail.attention_reasons}
+          title="要確認"
+          tone="warning"
+        />
+      )}
 
       <div className="grid gap-6 xl:grid-cols-2">
         <section className={`${cardClass} min-w-0 self-start xl:sticky xl:top-24`}>
@@ -467,7 +535,9 @@ export function PassageReview({ detail }: { detail: GetAdminPassageResponse }) {
 
       <Modal className="m-4 max-w-[520px] p-6 lg:p-8" isOpen={isRejectOpen} onClose={() => setIsRejectOpen(false)}>
         <h4 className="text-lg font-semibold text-gray-800 dark:text-white/90">この問題を却下する</h4>
-        <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">却下した問題はユーザーに表示されません。あとから「再生成」で生成待ちに戻せます。</p>
+        <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+          却下した問題はユーザーに表示されません。誤って却下したときは「却下を取り消す」で下書きに戻せます。
+        </p>
         <label className={`${labelClass} mt-5`} htmlFor="reject-reason">却下の理由（必須）</label>
         <textarea
           className={textareaClass}
@@ -499,6 +569,19 @@ export function PassageReview({ detail }: { detail: GetAdminPassageResponse }) {
         <div className="mt-6 flex justify-end gap-3">
           <button className={outlineButtonClass} onClick={() => setIsRegenerateOpen(false)} type="button">キャンセル</button>
           <button className={primaryButtonClass} disabled={isPending} onClick={() => runInTransition({ type: "regenerate" })} type="button">再生成する</button>
+        </div>
+      </Modal>
+
+      <Modal className="m-4 max-w-[520px] p-6 lg:p-8" isOpen={isRestoreOpen} onClose={() => setIsRestoreOpen(false)}>
+        <h4 className="text-lg font-semibold text-gray-800 dark:text-white/90">却下を取り消す</h4>
+        <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+          {detail.questions.length > 0
+            ? "却下を取り消して下書きに戻します。生成した設問・和訳・用語集と修正した内容はそのまま残り、却下の理由は消えます。"
+            : "生成した設問が無いため、生成待ち（収集済み）に戻します。次回の生成タスクで設問・和訳・用語集が作られます。却下の理由は消えます。"}
+        </p>
+        <div className="mt-6 flex justify-end gap-3">
+          <button className={outlineButtonClass} onClick={() => setIsRestoreOpen(false)} type="button">キャンセル</button>
+          <button className={primaryButtonClass} disabled={isPending} onClick={() => runInTransition({ type: "restore" })} type="button">却下を取り消す</button>
         </div>
       </Modal>
     </div>

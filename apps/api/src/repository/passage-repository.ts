@@ -98,9 +98,18 @@ export type PassageTransition = {
 }
 
 /**
+ * 却下を取り消した後の状態（設問があれば draft、無ければ collected）
+ */
+export type RestoredPassageStatus = Extract<PassageStatus, "collected" | "draft">
+
+/**
  * 問題（passages と、その設問・用語集）のリポジトリ。reading-practice のユーザー向け API と共有する
  */
 export interface PassageRepository {
+  /**
+   * 要確認の印を外す（needs_attention = false、attention_reasons = []）。状態は問わず、外れていても書く。行が無ければ false
+   */
+  clearAttention(id: number): Promise<boolean>
   /**
    * 状態ごとの件数（絞り込みなしの全体）。行が無い状態は 0 で埋める
    */
@@ -116,6 +125,12 @@ export interface PassageRepository {
    * 状態が from に無い・挑戦が 1 件でもあるときは何もせず false（同時操作の保護）
    */
   resetForRegeneration(id: number, from: PassageStatus[]): Promise<boolean>
+  /**
+   * 却下（rejected）を取り消す。設問があれば draft に戻して却下の理由を消す（設問・用語集・和訳・要確認・確認の記録は残す）。
+   * 設問が無ければ（LLM が不向きと判定したもの）resetForRegeneration と同じく生成の記録を空にして collected に戻す。
+   * 戻した状態を返す。rejected でなければ何もせず null（同時操作の保護）
+   */
+  restoreRejected(id: number): Promise<RestoredPassageStatus | null>
   /**
    * 状態を遷移させる。状態が from に無ければ何もせず false（同時操作の保護）
    */

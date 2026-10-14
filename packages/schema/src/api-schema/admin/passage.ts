@@ -159,7 +159,7 @@ export const adminPassageDetailSchema = adminPassageSummaryBaseSchema.extend({
 })
 
 /**
- * 状態を変える操作（公開・却下・非公開・再生成）のレスポンス
+ * 状態を変える操作（公開・却下・非公開・再生成・却下の取り消し）のレスポンス
  */
 const adminPassageStatusResponseSchema = z.object({
   id: z.number().int(),
@@ -385,3 +385,46 @@ export const regenerateAdminPassageResponseSchema = adminPassageStatusResponseSc
 
 export type RegenerateAdminPassagePathParam = z.infer<typeof regenerateAdminPassagePathParamSchema>
 export type RegenerateAdminPassageResponse = z.infer<typeof regenerateAdminPassageResponseSchema>
+
+// ========================================================
+// POST /api/admin/passage/:id/restore - 却下の取り消し
+// ========================================================
+
+/**
+ * 却下の取り消しのパスパラメータスキーマ。rejected のときだけ受け付け（それ以外は 409）、
+ * 設問があれば draft、無ければ collected に戻す
+ */
+export const restoreAdminPassagePathParamSchema = z.object({
+  id: z.coerce.number().int().positive(),
+})
+
+/**
+ * 却下の取り消しのレスポンススキーマ（status は draft か collected）
+ */
+export const restoreAdminPassageResponseSchema = adminPassageStatusResponseSchema
+
+export type RestoreAdminPassagePathParam = z.infer<typeof restoreAdminPassagePathParamSchema>
+export type RestoreAdminPassageResponse = z.infer<typeof restoreAdminPassageResponseSchema>
+
+// ========================================================
+// POST /api/admin/passage/:id/attention/resolve - 要確認の解除
+// ========================================================
+
+/**
+ * 要確認の解除のパスパラメータスキーマ。needs_attention を false、attention_reasons を空にする（状態は問わない。解除済みでも 200）
+ */
+export const resolveAdminPassageAttentionPathParamSchema = z.object({
+  id: z.coerce.number().int().positive(),
+})
+
+/**
+ * 要確認の解除のレスポンススキーマ
+ */
+export const resolveAdminPassageAttentionResponseSchema = z.object({
+  id: z.number().int(),
+  attention_reasons: z.array(z.string()),
+  needs_attention: z.boolean(),
+})
+
+export type ResolveAdminPassageAttentionPathParam = z.infer<typeof resolveAdminPassageAttentionPathParamSchema>
+export type ResolveAdminPassageAttentionResponse = z.infer<typeof resolveAdminPassageAttentionResponseSchema>
