@@ -9,17 +9,22 @@ import { SafeAreaView } from "react-native-safe-area-context"
 import { MockStatePanel } from "@/components/mock/MockStatePanel"
 import { CardStackBehind, PaperCardBack, PaperCardFront, PaperSheet } from "@/components/mock/PaperCard"
 import { mockStyles, PrimaryButton, SecondaryButton } from "@/components/mock/parts"
+import type { MockPronunciation, PronunciationTarget } from "@/components/mock/PronunciationButtons"
 import { useFlipSound } from "@/components/mock/use-flip-sound"
 import { MOCK_COLORS } from "@/const/mock-theme"
 import { MOCK_VOCABULARY_CARDS, MOCK_VOCABULARY_SUMMARY, type MockVocabularyCard } from "@/libs/mock-data"
 
-type MockState = "back" | "done" | "front" | "review" | "save_failed"
+type MockState = "back" | "done" | "front" | "no_sentence" | "pron_sentence" | "pron_word" | "review" | "save_failed" | "word_pending"
 
 type Grade = "forgot" | "remembered"
 
 const STATES: { href: Href, key: MockState, label: string }[] = [
   { href: "/mock/vocabulary/session", key: "front", label: "表" },
   { href: "/mock/vocabulary/session?state=back", key: "back", label: "めくった後" },
+  { href: "/mock/vocabulary/session?state=pron_word", key: "pron_word", label: "単語を再生中" },
+  { href: "/mock/vocabulary/session?state=pron_sentence", key: "pron_sentence", label: "1 文を再生中（裏）" },
+  { href: "/mock/vocabulary/session?state=word_pending", key: "word_pending", label: "単語が準備中" },
+  { href: "/mock/vocabulary/session?state=no_sentence", key: "no_sentence", label: "1 文の音声なし" },
   { href: "/mock/vocabulary/session?state=review", key: "review", label: "ふりかえり" },
   { href: "/mock/vocabulary/session?state=save_failed", key: "save_failed", label: "保存できなかった" },
   { href: "/mock/vocabulary/session?state=done", key: "done", label: "今日の分が終わった" },
@@ -49,6 +54,11 @@ const SWIPE_THRESHOLD_RATIO = 0.3
 const CARD_HEIGHT = 420
 
 const WEEKDAY_LABELS = ["日", "月", "火", "水", "木", "金", "土"]
+
+/**
+ * モックの再生の長さ（単語 / 1 文）。本番は mp3 の再生が終わるまで
+ */
+const MOCK_PLAY_MS: Record<PronunciationTarget, number> = { sentence: 3200, word: 900 }
 
 const formatDayLabel = (date: string): string => {
   const value = new Date(`${date}T00:00:00Z`)
@@ -80,6 +90,39 @@ function ProgressSquares({ answers, total }: { answers: Grade[], total: number }
 }
 
 /**
+ * モック：発音の再生。音は出さず、決まった時間だけ再生中にする（状態の切り替えで開いた再生中は止めるまで続ける）。
+ * 同じボタンをもう一度押すと止め、もう一方を押すと切り替える
+ */
+function usePronunciationMock(initialPlaying: PronunciationTarget | null) {
+  const [playing, setPlaying] = useState<PronunciationTarget | null>(initialPlaying)
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const clearTimer = () => {
+    if (timer.current) clearTimeout(timer.current)
+    timer.current = null
+  }
+
+  useEffect(() => clearTimer, [])
+
+  const stop = () => {
+    clearTimer()
+    setPlaying(null)
+  }
+
+  const toggle = (target: PronunciationTarget) => {
+    clearTimer()
+    if (playing === target) {
+      setPlaying(null)
+      return
+    }
+    setPlaying(target)
+    timer.current = setTimeout(() => setPlaying(null), MOCK_PLAY_MS[target])
+  }
+
+  return { playing, stop, toggle }
+}
+
+/**
  * 1 枚のカード。タップでめくり（横に回って真横で面を差し替える）、めくった後は左右にスワイプして答える。
  * key で 1 枚ごとに作り直し、束から上がってくる動きを付ける
  */
@@ -87,16 +130,18 @@ function FlipCard({
   card,
   isFlipped,
   isReducedMotion,
+  pronunciation,
+  swipeThreshold,
   onAnswer,
   onFlip,
-  swipeThreshold,
 }: {
   card: MockVocabularyCard
   isFlipped: boolean
   isReducedMotion: boolean
+  pronunciation: MockPronunciation
+  swipeThreshold: number
   onAnswer: (grade: Grade) => void
   onFlip: () => void
-  swipeThreshold: number
 }) {
   const [shownFlipped, setShownFlipped] = useState(isFlipped)
   const flipProgress = useRef(new Animated.Value(0)).current
@@ -141,15 +186,32 @@ function FlipCard({
   const riseY = rise.interpolate({ inputRange: [0, 1], outputRange: [10, 0] })
   const riseScale = rise.interpolate({ inputRange: [0, 1], outputRange: [0.97, 1] })
 
+  /**
+   * VoiceOver / TalkBack ではカード全体を 1 つのボタンとして読み、発音はカスタムアクション（上下スワイプ）で鳴らす。
+   * web 表示は react-native-web が button を <button> にし、中の発音のボタンと入れ子になるため、カードには役割を付けない
+   */
   return (
     <Animated.View
       {...panResponder.panHandlers}
       style={{ transform: [{ translateY: riseY }, { scale: riseScale }, { translateX: drag }, { rotate: tilt }] }}
     >
-      <Pressable accessibilityHint={isFlipped ? "表に戻します" : "意味を表示します"} accessibilityLabel="カード" accessibilityRole="button" onPress={flip}>
+      <Pressable
+        accessibilityActions={[
+          ...(pronunciation.isWordReady ? [{ label: "発音を聞く", name: "playWord" }] : []),
+          ...(pronunciation.hasSentence && card.sentence ? [{ label: "この文を聞く", name: "playSentence" }] : []),
+        ]}
+        accessibilityHint={isFlipped ? "表に戻します" : "意味を表示します"}
+        accessibilityLabel="カード"
+        accessibilityRole={Platform.OS === "web" ? undefined : "button"}
+        onAccessibilityAction={(event) => {
+          if (event.nativeEvent.actionName === "playWord") pronunciation.onToggle("word")
+          if (event.nativeEvent.actionName === "playSentence") pronunciation.onToggle("sentence")
+        }}
+        onPress={flip}
+      >
         <Animated.View style={{ transform: [{ perspective: 1600 }, { rotateY }] }}>
           <PaperSheet style={{ height: CARD_HEIGHT }} tone={shownFlipped ? "back" : "front"}>
-            {shownFlipped ? <PaperCardBack card={card} /> : <PaperCardFront card={card} />}
+            {shownFlipped ? <PaperCardBack card={card} pronunciation={pronunciation} /> : <PaperCardFront card={card} pronunciation={pronunciation} />}
           </PaperSheet>
         </Animated.View>
       </Pressable>
@@ -234,7 +296,8 @@ function SessionDone() {
  * 単語帳の 1 回分（モック）。スタックの全画面
  *
  * カードをタップしてめくり、めくった後はボタンか左右のスワイプ（右が覚えた、左がまだ）で答える。
- * 答えると軽く振動し、カードが横に飛んで次のカードが束から上がってくる。めくるたびに紙の音を鳴らす（上部バーで消せる）
+ * 答えると軽く振動し、カードが横に飛んで次のカードが束から上がってくる。めくるたびに紙の音を鳴らす（上部バーで消せる）。
+ * 語句の右のスピーカーで単語の発音、1 文の下のボタンで 1 文を再生する（めくる・答えると止める）
  */
 export default function MockVocabularySessionScreen() {
   const router = useRouter()
@@ -243,22 +306,31 @@ export default function MockVocabularySessionScreen() {
   const cards = state === "done" ? [] : MOCK_VOCABULARY_CARDS
   const isReviewState = state === "review" || state === "save_failed"
   const [answers, setAnswers] = useState<Grade[]>(isReviewState ? REVIEWED_GRADES : ["remembered", "forgot"])
-  const [isFlipped, setIsFlipped] = useState(state === "back")
+  const [isFlipped, setIsFlipped] = useState(state === "back" || state === "pron_sentence")
   const [isLeaving, setIsLeaving] = useState(false)
   const leave = useRef(new Animated.Value(0)).current
   const isReducedMotion = useReducedMotion()
   const sound = useFlipSound()
   const { width } = useWindowDimensions()
   const current = cards[answers.length]
+  const speech = usePronunciationMock(state === "pron_word" ? "word" : state === "pron_sentence" ? "sentence" : null)
+  const pronunciation: MockPronunciation = {
+    hasSentence: state !== "no_sentence",
+    isWordReady: state !== "word_pending",
+    playing: speech.playing,
+    onToggle: speech.toggle,
+  }
 
   const flip = () => {
     if (isLeaving) return
+    speech.stop()
     sound.play()
     setIsFlipped(value => !value)
   }
 
   const answer = (grade: Grade) => {
     if (!isFlipped || isLeaving) return
+    speech.stop()
     if (Platform.OS !== "web") void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
     const finish = () => {
       setAnswers(previous => [...previous, grade])
@@ -322,9 +394,10 @@ export default function MockVocabularySessionScreen() {
                   card={current}
                   isFlipped={isFlipped}
                   isReducedMotion={isReducedMotion}
+                  pronunciation={pronunciation}
+                  swipeThreshold={width * SWIPE_THRESHOLD_RATIO}
                   onAnswer={answer}
                   onFlip={flip}
-                  swipeThreshold={width * SWIPE_THRESHOLD_RATIO}
                 />
               </Animated.View>
             </View>

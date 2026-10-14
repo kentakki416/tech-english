@@ -5,6 +5,8 @@ import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg"
 import { MOCK_COLORS, MOCK_FONTS } from "@/const/mock-theme"
 import type { MockVocabularyCard } from "@/libs/mock-data"
 
+import { type MockPronunciation, SentenceSoundButton, WordSoundButton } from "./PronunciationButtons"
+
 /**
  * インラインコード（改行を含まない、対になったバッククォート）
  */
@@ -34,13 +36,16 @@ function InkText({ text }: { text: string }) {
 }
 
 /**
- * 本文の 1 文。単語に蛍光ペンのような琥珀の塗りを付ける
+ * 本文の 1 文。単語に蛍光ペンのような琥珀の塗りを付ける。1 文を再生している間は塗りを濃くする
+ * （入れ子の Text は影を付けられず、ネイティブで動かせないため、web のように光らせずに色だけ変える）
  */
 export function SentenceText({
+  isPlaying = false,
   numberOfLines,
   sentence,
   style,
 }: {
+  isPlaying?: boolean
   numberOfLines?: number
   sentence: NonNullable<MockVocabularyCard["sentence"]>
   style?: StyleProp<TextStyle>
@@ -48,7 +53,7 @@ export function SentenceText({
   return (
     <Text numberOfLines={numberOfLines} style={[styles.sentence, style]}>
       <InkText text={sentence.text.slice(0, sentence.highlightStart)} />
-      <Text style={styles.highlight}>
+      <Text style={[styles.highlight, isPlaying && styles.highlightPlaying]}>
         <InkText text={sentence.text.slice(sentence.highlightStart, sentence.highlightEnd)} />
       </Text>
       <InkText text={sentence.text.slice(sentence.highlightEnd)} />
@@ -91,13 +96,30 @@ export function PaperSheet({ children, style, tone = "front" }: { children: Reac
 }
 
 /**
- * 語句と、見出し語が違うときの見出し語・品詞
+ * 語句と、見出し語が違うときの見出し語・品詞。発音のボタンは語句のすぐ右。
+ * 表は左にボタンと同じ幅の空きを置き、語句を中央に保ったまま長い語句を折り返せるようにする
  */
-function WordHeading({ card, size }: { card: MockVocabularyCard, size: "lg" | "sm" }) {
+function WordHeading({ card, pronunciation, size }: { card: MockVocabularyCard, pronunciation?: MockPronunciation, size: "lg" | "sm" }) {
   const hasLemma = card.lemma !== card.surface.toLowerCase()
+  if (size === "lg") {
+    return (
+      <View style={styles.headingLarge}>
+        <View style={styles.surfaceRow}>
+          {pronunciation && <View style={styles.surfaceSpacer} />}
+          <Text style={styles.surfaceLarge}>{card.surface}</Text>
+          {pronunciation && <WordSoundButton lemma={card.lemma} pronunciation={pronunciation} size="lg" />}
+        </View>
+        <View style={styles.headingMeta}>
+          {hasLemma && <Text style={styles.lemma}>{card.lemma}</Text>}
+          {card.partOfSpeech && <Text style={styles.partOfSpeech}>{card.partOfSpeech}</Text>}
+        </View>
+      </View>
+    )
+  }
   return (
-    <View style={size === "lg" ? styles.headingLarge : styles.headingSmall}>
-      <Text style={size === "lg" ? styles.surfaceLarge : styles.surfaceSmall}>{card.surface}</Text>
+    <View style={[styles.headingSmall, pronunciation && styles.headingSmallWithSound]}>
+      <Text style={styles.surfaceSmall}>{card.surface}</Text>
+      {pronunciation && <WordSoundButton lemma={card.lemma} pronunciation={pronunciation} size="sm" />}
       <View style={styles.headingMeta}>
         {hasLemma && <Text style={styles.lemma}>{card.lemma}</Text>}
         {card.partOfSpeech && <Text style={styles.partOfSpeech}>{card.partOfSpeech}</Text>}
@@ -109,13 +131,18 @@ function WordHeading({ card, size }: { card: MockVocabularyCard, size: "lg" | "s
 /**
  * カードの表。語句・本文の 1 文・出典。新しい単語には印を付ける
  */
-export function PaperCardFront({ card }: { card: MockVocabularyCard }) {
+export function PaperCardFront({ card, pronunciation }: { card: MockVocabularyCard, pronunciation?: MockPronunciation }) {
   return (
     <View style={styles.face}>
       {card.stage === null && <Text style={styles.newStamp}>新しい単語</Text>}
       <View style={styles.frontBody}>
-        <WordHeading card={card} size="lg" />
-        {card.sentence && <SentenceText sentence={card.sentence} style={styles.frontSentence} />}
+        <WordHeading card={card} pronunciation={pronunciation} size="lg" />
+        {card.sentence && (
+          <View style={styles.frontSentenceBlock}>
+            <SentenceText isPlaying={pronunciation?.playing === "sentence"} sentence={card.sentence} style={styles.frontSentence} />
+            {pronunciation && <SentenceSoundButton align="center" pronunciation={pronunciation} />}
+          </View>
+        )}
       </View>
       <Text numberOfLines={1} style={styles.source}>— {card.passageTitle} より</Text>
     </View>
@@ -125,12 +152,15 @@ export function PaperCardFront({ card }: { card: MockVocabularyCard }) {
 /**
  * カードの裏。表の語句と 1 文を小さく残し、意味・補足・出どころを出す
  */
-export function PaperCardBack({ card }: { card: MockVocabularyCard }) {
+export function PaperCardBack({ card, pronunciation }: { card: MockVocabularyCard, pronunciation?: MockPronunciation }) {
   const senses = card.meaningSource === "dictionary" ? card.meaningJa.split(" / ") : [card.meaningJa]
   return (
     <View style={styles.face}>
-      <WordHeading card={card} size="sm" />
-      {card.sentence && <SentenceText numberOfLines={2} sentence={card.sentence} style={styles.backSentence} />}
+      <WordHeading card={card} pronunciation={pronunciation} size="sm" />
+      {card.sentence && (
+        <SentenceText isPlaying={pronunciation?.playing === "sentence"} numberOfLines={2} sentence={card.sentence} style={styles.backSentence} />
+      )}
+      {card.sentence && pronunciation && <View style={styles.backSentenceSound}><SentenceSoundButton align="start" pronunciation={pronunciation} /></View>}
       <View style={styles.fold} />
       <View accessibilityLiveRegion="polite" style={styles.meanings}>
         {senses.map(sense => <Text key={sense} style={styles.meaning}>{sense}</Text>)}
@@ -165,6 +195,9 @@ const styles = StyleSheet.create({
     marginTop: 6,
     textAlign: "left",
   },
+  backSentenceSound: {
+    marginTop: 4,
+  },
   face: {
     flex: 1,
     paddingBottom: 18,
@@ -187,6 +220,9 @@ const styles = StyleSheet.create({
     fontSize: 15,
     textAlign: "center",
   },
+  frontSentenceBlock: {
+    gap: 8,
+  },
   headingLarge: {
     alignItems: "center",
   },
@@ -201,9 +237,16 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: 8,
   },
+  headingSmallWithSound: {
+    alignItems: "center",
+    columnGap: 4,
+  },
   highlight: {
     backgroundColor: "rgba(243, 178, 76, 0.45)",
     color: MOCK_COLORS.ink,
+  },
+  highlightPlaying: {
+    backgroundColor: "rgba(243, 178, 76, 0.8)",
   },
   hole: {
     alignItems: "center",
@@ -329,10 +372,23 @@ const styles = StyleSheet.create({
   },
   surfaceLarge: {
     color: MOCK_COLORS.ink,
+    flexShrink: 1,
     fontFamily: MOCK_FONTS.readingSemiBold,
     fontSize: 30,
     lineHeight: 38,
     textAlign: "center",
+  },
+  surfaceRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 8,
+    justifyContent: "center",
+  },
+  /**
+   * 発音のボタン（36）と同じ幅。語句を中央に保つ
+   */
+  surfaceSpacer: {
+    width: 36,
   },
   surfaceSmall: {
     color: MOCK_COLORS.ink,

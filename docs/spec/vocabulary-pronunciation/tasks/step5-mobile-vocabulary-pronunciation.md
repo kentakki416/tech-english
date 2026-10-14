@@ -7,7 +7,7 @@ mobile の単語帳の 1 回分のカードに、単語の発音と 1 文の読�
 - [step3-api-vocabulary-pronunciation](./step3-api-vocabulary-pronunciation.md)（カードの `pronunciation`）
 - vocabulary-cards の [step7-mobile-vocabulary](../../vocabulary-cards/tasks/step7-mobile-vocabulary.md)（`VocabularySession`・`FlashCard`・`PaperCard`・`use-flip-sound.ts`）
 - read-aloud の [step6-mobile-read-aloud](../../read-aloud/tasks/step6-mobile-read-aloud.md)（`use-read-aloud.ts` の音声のモード）
-- 見た目は `design-mock` で決めて README に追記した「UI 設計」に従う
+- 見た目は README の [UI 設計](../README.md#ui-設計) に従う。モックは `src/components/mock/PronunciationButtons.tsx`
 - 仕様は README の [ボタンの操作](../README.md#ボタンの操作)・[再生の実装](../README.md#再生の実装)
 
 ## 対応内容
@@ -74,10 +74,13 @@ export const requestAudioMode = (kind: AudioModeKind): Promise<void> => {
 
 ### 3. カードにボタン
 
-- `PaperCardFront`・`PaperCardBack` に `pronunciation` の props を足し、語句の横に単語のボタン、1 文の横に 1 文のボタンを置く（位置は UI 設計）
+- `PaperCardFront`・`PaperCardBack` に `pronunciation` の props を足し、語句のすぐ右に単語のボタン、1 文のすぐ下に 1 文のボタンを置く（位置は UI 設計）。ボタンは `PronunciationButtons.tsx` に分ける
+- 1 文の再生中は `SentenceText` の強調の地を濃くする
 - ボタンはカード（`Pressable`）の中の `Pressable` にする（子が押されると親の `onPress`〈めくる〉は呼ばれない）。スワイプの `PanResponder` はめくった後の横の動きだけを引き受けるので、ボタンのタップとは取り合わない
 - `word_url` が null の単語のボタンは `disabled` にして `accessibilityLabel` に「準備中」。`sentence` が null の 1 文のボタンは出さない
-- 読み上げのラベルは「{見出し語} の発音を聞く」「この文を聞く」、`accessibilityState={{ selected: 再生中 }}`。カードの `accessibilityLabel`（語句・意味をまとめたもの）とは別の要素になるよう、ボタンには `accessible` を付ける
+- 読み上げのラベルは「{見出し語} の発音を聞く」「この文を聞く」、`accessibilityState={{ selected: 再生中 }}`
+- カードの `Pressable` は読み上げでは 1 つのボタンのまま（中のボタンは読み上げの要素にならない）なので、`accessibilityActions` に「発音を聞く」（`word_url` があるとき）・「この文を聞く」（`sentence` があるとき）を足し、`onAccessibilityAction` で `toggle` を呼ぶ
+- web 表示ではカードの `accessibilityRole` を外す（react-native-web が `<button>` にし、中のボタンと入れ子になるため）
 - `FlashCard` の `flip`・`answer` で `stop()` を呼ぶ。`VocabularySession` が `usePronunciation` を 1 つ持って渡す
 
 ## 動作確認
@@ -100,4 +103,4 @@ iOS シミュレーター（または実機）で（Expo web では確かめら�
 - [ ] 消音モードで、発音は鳴り、めくる効果音は鳴らない。発音の後にめくっても、めくる音は消音モードで鳴らない
 - [ ] 音楽を流したまま発音を押すと、音楽が一時的に小さくなって戻る（止まらない）。めくる音では音楽が変わらない
 - [ ] 読み上げ（解答画面）を聞いた後に単語帳を開いても、めくる音が消音モードで鳴らない
-- [ ] VoiceOver で単語のボタンに移れ、「〇〇の発音を聞く」と読まれる。押してもカードはめくれない
+- [ ] VoiceOver でカードを選び、上下スワイプで「発音を聞く」「この文を聞く」を選んでダブルタップすると鳴る。カードはめくれない

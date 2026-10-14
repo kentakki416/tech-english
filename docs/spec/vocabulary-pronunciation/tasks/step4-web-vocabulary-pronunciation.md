@@ -6,7 +6,7 @@ web の単語帳の 1 回分のカードに、単語の発音と 1 文の読み�
 
 - [step3-api-vocabulary-pronunciation](./step3-api-vocabulary-pronunciation.md)（カードの `pronunciation`）
 - vocabulary-cards の [step5-web-vocabulary](../../vocabulary-cards/tasks/step5-web-vocabulary.md)（`VocabularySession`・`FlashCard`・`PaperCard`）
-- 見た目（ボタンの位置・アイコン・再生中の表示）は、実装の前に `design-mock` で決めて README に追記した「UI 設計」に従う
+- 見た目（ボタンの位置・アイコン・再生中の表示・動き）は README の [UI 設計](../README.md#ui-設計) に従う。モックは `src/app/mock/_components/PronunciationButtons.tsx`
 - 仕様は README の [聞けるもの](../README.md#聞けるもの)・[ボタンの操作](../README.md#ボタンの操作)・[再生の実装](../README.md#再生の実装)
 
 ## 対応内容
@@ -54,7 +54,8 @@ export function usePronunciation(): {
 
 ### 2. カードにボタン
 
-- `PaperCardFront`・`PaperCardBack`（`PaperCard.tsx`）に `pronunciation` の props（`onToggle`・`playing`・`pronunciation`）を足し、語句の横に単語のボタン、1 文の横に 1 文のボタンを置く（位置は UI 設計）
+- `PaperCardFront`・`PaperCardBack`（`PaperCard.tsx`）に `pronunciation` の props（`onToggle`・`playing`・`pronunciation`）を足し、語句のすぐ右に単語のボタン、1 文のすぐ下に 1 文のボタンを置く（位置は UI 設計）。ボタンは `PronunciationButtons.tsx` に分ける
+- 1 文の再生中は `SentenceText` の強調を光らせる（`globals.css` に `--animate-sound-wave`・`--animate-highlight-glow`）
 - `word_url` が null の単語のボタンは `disabled` にして「準備中」の `title` / `aria-label` を付ける。`sentence` が null の 1 文のボタンは出さない
 - ボタンはカードのクリック（めくる）と重なるので、`onClick` で `event.stopPropagation()` する。`Space` / `Enter` はボタンの操作になる（`use-vocabulary-shortcuts` はボタンにフォーカスがあると無視する）
 - 読み上げのラベルは「{見出し語} の発音を聞く」「この文を聞く」。再生中は `aria-pressed`
