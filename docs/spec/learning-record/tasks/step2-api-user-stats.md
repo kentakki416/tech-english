@@ -171,9 +171,7 @@ Drizzle 実装（`src/repository/drizzle/learning-record-repository.ts`）の要
 - `findSubmittedAttempts`: `passages` を join してタイトルを取る。cursor は `sql\`(${readingAttempts.submittedAt}, ${readingAttempts.id}) < (SELECT submitted_at, id FROM reading_attempts WHERE id = ${cursor} AND user_id = ${userId})\``（他人の id なら 0 件）
 - 足りない演算子（`count` / `countDistinct` / `gte` / `lte` など）は `packages/db/src/index.ts` の re-export に足す
 
-Prisma 実装は `groupBy` / `aggregate` / `findMany({ distinct })` を使い、join の要る種類別は `$queryRaw` で書く。`@db.Date` は `Date` で返るので `toISOString().slice(0, 10)` で文字列にする。
-
-`UserGoalRepository`（`findByUserId(userId): Promise<UserGoal | null>`）は Drizzle / Prisma の両方に作り、Prisma 実装の `_toDomain()` で `weeklyMetric` を `isGoalMetric` で検証する（未知の値は throw）。両 Repository を `src/repository/index.ts` と各実装の `index.ts` に足す（ファイル名順）。
+`UserGoalRepository`（`findByUserId(userId): Promise<UserGoal | null>`）も Drizzle で作る。両 Repository を `src/repository/index.ts` と `drizzle/index.ts` に足す（ファイル名順）。
 
 ### Service（`src/service/learning-record-service.ts`）
 
@@ -246,7 +244,7 @@ pnpm lint:fix
 
 テスト用の投入は `test/controller/helper.ts` に `createSubmittedAttempt({ elapsedSeconds, studyDate, userId, ... })` を足す（passage / question の作成は reading-practice の step のヘルパーがあれば使う）。
 
-Repository の契約テスト（`test/repository/learning-record-repository.test.ts`・`user-goal-repository.test.ts`、Drizzle / Prisma の `describe.each`）:
+Repository のテスト（`test/repository/learning-record-repository.test.ts`・`user-goal-repository.test.ts`。実 DB）:
 
 - [ ] `in_progress` / `expired` の挑戦と他のユーザーの挑戦は、どのメソッドの結果にも入らない
 - [ ] `summarizeByDate` は `from` と `to` の日を含み、範囲外の日を含まない（境界）

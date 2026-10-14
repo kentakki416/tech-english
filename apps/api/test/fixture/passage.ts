@@ -16,7 +16,7 @@ import { GLOSSARY_ITEMS, locateGlossaryItem, PASSAGE_BLOCKS, QUESTION_ITEMS } fr
 
 /**
  * 問題（ソース・取得文書・passages・用語集・設問）と挑戦を DB に入れるテスト用のヘルパー。
- * Repository の契約テストと Controller のインテグレーションテストで使う（reading-practice の API のテストでも使う想定）
+ * Repository のテストと Controller のインテグレーションテストで使う（reading-practice の API のテストでも使う想定）
  */
 
 type ContentSourceInsert = typeof contentSources.$inferInsert

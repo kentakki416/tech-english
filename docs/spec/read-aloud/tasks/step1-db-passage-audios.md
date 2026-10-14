@@ -69,7 +69,7 @@ export type PassageAudio = {
 }
 ```
 
-- `src/rules/audio.ts` に Prisma 実装の `_toDomain()` で使う type guard `isAudioStatus(value: string): value is AudioStatus` を置く（`isPassageStatus` と同じ書き方）
+- `src/rules/audio.ts` に type guard `isAudioStatus(value: string): value is AudioStatus` を置く（`isPassageStatus` と同じ書き方）
 - `src/types/attempt.ts` の `ReadingAttempt` に `listenedBlockCount: number` を足す（キーはアルファベット順で `isOvertime` の後）
 - `src/index.ts` に名前を列挙して re-export を足す（ファイル名順）：`AUDIO_STATUSES`、`isAudioStatus`、`AudioStatus` / `AudioWordTiming` / `PassageAudio` / `PassageAudioManifest` / `PassageAudioPart`
 
@@ -116,7 +116,6 @@ export const passageAudios = pgTable(
 
 - `reading-attempt.ts` に `listenedBlockCount: smallint("listened_block_count").notNull().default(0)` を足す（`isOvertime` の後。既存の行は 0 になる）
 - `schema/index.ts` に `export * from "./passage-audio"` を足す（ファイル名順）
-- `packages/db/src/index.ts` の Prisma 型の re-export に `PassageAudio` を足す（アルファベット順）
 
 ### 3. マイグレーション
 
@@ -127,57 +126,23 @@ pnpm --filter api db:generate
 
 生成された SQL を目で確認する：`passage_audios` の CHECK 4 つ（status の値が定数どおり）、`passage_id` の unique index と `ON DELETE CASCADE`、`(status)` の index、`reading_attempts` への `ADD COLUMN "listened_block_count" smallint DEFAULT 0 NOT NULL`。
 
-### 4. `schema.prisma`
-
-```prisma
-// 問題ごとの読み上げの音声（read-aloud）。CHECK 制約は Drizzle のマイグレーションが正本
-model PassageAudio {
-    id               Int       @id @default(autoincrement())
-    passageId        Int       @unique @map("passage_id")
-    /// AUDIO_STATUSES
-    status           String    @default("pending")
-    voiceId          String    @map("voice_id")
-    textHash         String    @map("text_hash")
-    /// PassageAudioManifest
-    manifest         Json?
-    billedCharacters Int       @default(0) @map("billed_characters")
-    attemptCount     Int       @default(0) @map("attempt_count") @db.SmallInt
-    lastError        String?   @map("last_error")
-    /// generating にした時刻（確保のトークン）
-    generationStartedAt DateTime? @map("generation_started_at")
-    generatedAt      DateTime? @map("generated_at")
-    createdAt        DateTime  @default(now()) @map("created_at")
-    updatedAt        DateTime  @updatedAt @map("updated_at")
-
-    passage Passage @relation(fields: [passageId], references: [id], onDelete: Cascade)
-
-    @@index([status])
-    @@map("passage_audios")
-}
-```
-
-- `Passage` に `audio PassageAudio?`、`ReadingAttempt` に `listenedBlockCount Int @default(0) @map("listened_block_count") @db.SmallInt` を足す
-- `unique` の名前は Prisma の既定（`passage_audios_passage_id_key`）と Drizzle の名前を一致させている
-
-### 5. 既存の Repository への影響（reading-practice / learning-record）
+### 4. 既存の Repository への影響（reading-practice / learning-record）
 
 `ReadingAttempt` に列が増えるので、型エラーになった箇所を直す（この step では値の読み書きの仕様は変えない。提出で値を入れるのは [step4](./step4-api-attempt-audio.md)）。
 
-- api の `ReadingAttemptRepository` の Prisma 実装の `_toDomain()` に `listenedBlockCount` を足す。Drizzle 実装は列を明示して select していれば足す（行をそのまま返していれば不要）
+- api の `ReadingAttemptRepository` の Drizzle 実装は、列を明示して select していれば `listenedBlockCount` を足す（行をそのまま返していれば不要）
 - テストの fixture（`ReadingAttempt` を組み立てている Service のユニットテスト）に `listenedBlockCount: 0` を足す
 
-### 6. 作り直しの依頼と課金文字数の記録（後から足したマイグレーション）
+### 5. 作り直しの依頼と課金文字数の記録（後から足したマイグレーション）
 
 [README の費用](../README.md#費用)（月の上限）と [音声ができるまで](../README.md#音声ができるまで)（admin の作り直し）のために、1 つのマイグレーション（`20261014021420_add_audio_regeneration_and_usages`）で足す。
 
 - `passage-audio.ts` に `regenerateRequestedAt: timestamp("regenerate_requested_at", { mode: "date", precision: 3 })`（nullable。`passageId` の後）
-- `audio-synthesis-usage.ts`（新規）：`audio_synthesis_usages`（`id` serial、`characters integer NOT NULL`〈CHECK `> 0`〉、`passage_id integer NOT NULL`〈`passages` への FK。passages は物理削除しないので restrict〉、`...timestamps`、index `audio_synthesis_usages_created_at_idx (created_at)`）。追記だけのテーブル。`schema/index.ts` に `export * from "./audio-synthesis-usage"`、`packages/db/src/index.ts` の Prisma 型の re-export に `AudioSynthesisUsage`
-- `schema.prisma`：`PassageAudio` に `regenerateRequestedAt DateTime? @map("regenerate_requested_at")`、`model AudioSynthesisUsage`（`@@index([createdAt])`、`onDelete: Restrict`）、`Passage` に `audioUsages AudioSynthesisUsage[]`。`prisma:generate` する
-- `@repo/domain` の `PassageAudio` に `regenerateRequestedAt: Date | null`。api の Drizzle / Prisma の行 → ドメインの変換に足す
+- `audio-synthesis-usage.ts`（新規）：`audio_synthesis_usages`（`id` serial、`characters integer NOT NULL`〈CHECK `> 0`〉、`passage_id integer NOT NULL`〈`passages` への FK。passages は物理削除しないので restrict〉、`...timestamps`、index `audio_synthesis_usages_created_at_idx (created_at)`）。追記だけのテーブル。`schema/index.ts` に `export * from "./audio-synthesis-usage"`
+- `@repo/domain` の `PassageAudio` に `regenerateRequestedAt: Date | null`。api の Drizzle の行 → ドメインの変換に足す
 
 ```bash
 pnpm --filter @repo/db db:generate --name add_audio_regeneration_and_usages
-pnpm --filter @repo/db prisma:generate
 ```
 
 生成された SQL を目で確認する：`CREATE TABLE "audio_synthesis_usages"`（CHECK `"characters" > 0`）、`ALTER TABLE "passage_audios" ADD COLUMN "regenerate_requested_at" timestamp(3)`、`created_at` の index、`ON DELETE RESTRICT` の FK。
@@ -188,7 +153,6 @@ pnpm --filter @repo/db prisma:generate
 pnpm --filter @repo/domain build && pnpm --filter @repo/domain test
 pnpm --filter api db:generate      # 生成された SQL を確認
 pnpm --filter api db:migrate
-pnpm --filter @repo/db prisma:generate
 pnpm build && pnpm lint:fix
 pnpm --filter api test             # 既存のテストが通る（マイグレーションが test DB に流れる）
 ```

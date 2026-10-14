@@ -38,9 +38,9 @@ export type DeleteUserRequest = z.infer<typeof deleteUserRequestSchema>
 
 ### 2. Repository
 
-`UserRepository` に `deleteById(id: number): Promise<void>` を足す。対象が無いときは何もしない（同時に 2 回削除されても失敗しないように。Drizzle は `delete(users).where(eq(users.id, id))`、Prisma は `user.deleteMany`）。関連テーブルは DB の `ON DELETE CASCADE` で消えるので、Repository で個別に消さない。
+`UserRepository` に `deleteById(id: number): Promise<void>` を足す。対象が無いときは何もしない（同時に 2 回削除されても失敗しないように。`delete(users).where(eq(users.id, id))`）。関連テーブルは DB の `ON DELETE CASCADE` で消えるので、Repository で個別に消さない。
 
-契約テスト（`test/repository/user-repository.test.ts`）: 削除後に `findById` が null／紐づく `auth_accounts` も消える／存在しない id は何もしない。
+Repository のテスト（`test/repository/user-repository.test.ts`）: 削除後に `findById` が null／紐づく `auth_accounts` も消える／存在しない id は何もしない。
 
 ### 3. Service（`apps/api/src/service/user-service.ts`）
 

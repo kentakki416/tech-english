@@ -29,7 +29,7 @@ pnpm --filter cron add picomatch && pnpm --filter cron add -D @types/picomatch
 | `src/lib/path-filter.ts` | `isTargetPath(path, { excludeGlobs, includeGlobs })`（picomatch。step6 も使う）、`findGlobBaseDirectories(globs)` |
 | `src/lib/parse-collect-args.ts` | `parseCollectArgs(argv)` → `{ dryRun: boolean; sourceId: number \| null }` |
 | `src/lib/format-dry-run.ts` | 試し実行の表示（純関数） |
-| `src/repository/{content-source,source-document,passage}-repository.ts` と `drizzle/` / `prisma/` | cron 用の Repository（api とは別） |
+| `src/repository/{content-source,source-document,passage}-repository.ts` と `drizzle/` | cron 用の Repository（api とは別） |
 | `src/service/collection/types.ts` | `CollectionRepo`（3 つの Repository をまとめた型）と `SourceCollectionResult` |
 | `src/service/collection/list-github-target-files.ts` | ツリーの取得と絞り込み（truncated 対応） |
 | `src/service/collection/collect-github-source.ts` | 1 ソース分の収集 |
@@ -134,9 +134,8 @@ export interface PassageRepository {
 }
 ```
 
-- Drizzle：`insert(passages).values(inputs).onConflictDoNothing({ target: passages.contentHash }).returning({ id: passages.id })` の件数。空配列ならクエリを投げず 0。`upsertByPath` は `onConflictDoUpdate({ set: { title }, target: [sourceDocuments.sourceId, sourceDocuments.path] }).returning()`
-- Prisma：`createMany({ data, skipDuplicates: true })` の `count`、`upsert({ where: { sourceId_path: { ... } } })`。`_toDomain` は `isSourceKind` などで検証する
-- `markCollected`：Drizzle は `where` に `eq(id)` と、SHA を渡したときは `expected === null ? isNull(lastCollectedCommitSha) : eq(lastCollectedCommitSha, expected)` を `and` でつなぎ、結果の `rowCount > 0` を返す。Prisma は条件に合わなくても throw しないよう `updateMany({ where: { id, lastCollectedCommitSha: expected } })` の `count > 0`
+- `insert(passages).values(inputs).onConflictDoNothing({ target: passages.contentHash }).returning({ id: passages.id })` の件数。空配列ならクエリを投げず 0。`upsertByPath` は `onConflictDoUpdate({ set: { title }, target: [sourceDocuments.sourceId, sourceDocuments.path] }).returning()`
+- `markCollected`：`where` に `eq(id)` と、SHA を渡したときは `expected === null ? isNull(lastCollectedCommitSha) : eq(lastCollectedCommitSha, expected)` を `and` でつなぎ、結果の `rowCount > 0` を返す
 - `PassageRepository` は question-generation step3 も cron に作る。先に作られていればメソッドを足す
 
 ### 6. 1 ソース分の収集（`collectGitHubSource`）
@@ -265,8 +264,8 @@ pnpm lint:fix
   - [ ] 本文候補の上限に達したら残りのソースを処理しない
   - [ ] `--source-id` が存在しない・無効（`--dry-run` なし）なら throw
 - [ ] `previewSource` が Repository の書き込みメソッドを 1 回も呼ばない
-- [ ] Repository（Drizzle / Prisma）：`insertIgnoringDuplicates([])` はクエリを投げない。重複スキップの指定（`onConflictDoNothing` / `skipDuplicates`）と戻り値の件数
-- [ ] Repository（Drizzle / Prisma）：`markCollected` が SHA を渡したときだけ収集を始めたときの SHA（null は IS NULL）を条件に足し、条件に合わなければ `false` を返す
+- [ ] Repository：`insertIgnoringDuplicates([])` はクエリを投げない。重複スキップの指定（`onConflictDoNothing`）と戻り値の件数
+- [ ] Repository：`markCollected` が SHA を渡したときだけ収集を始めたときの SHA（null は IS NULL）を条件に足し、条件に合わなければ `false` を返す
 
 手動確認（ローカル DB、`GITHUB_CONTENT_TOKEN` を dotenvx で設定）：
 

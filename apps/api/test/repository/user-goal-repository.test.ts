@@ -1,20 +1,11 @@
 import { eq, userGoals } from "@repo/db"
 
 import { DrizzleUserGoalRepository } from "../../src/repository/drizzle/user-goal-repository"
-import { PrismaUserGoalRepository } from "../../src/repository/prisma/user-goal-repository"
-import type { UserGoalRepository } from "../../src/repository/user-goal-repository"
-import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb, testPrisma } from "../controller/setup"
+import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb } from "../controller/setup"
 import { insertUserGoal } from "../fixture/learning-record"
 import { insertAttemptUser } from "../fixture/passage"
 
-/**
- * Prisma / Drizzle の両実装が UserGoalRepository として同じ振る舞いをすることを確かめる。
- * DI で使うのは Drizzle 実装だが、Prisma 実装へ戻せる状態を保つために両方を検証する
- */
-const implementations: [string, UserGoalRepository][] = [
-  ["Drizzle", new DrizzleUserGoalRepository(testDb)],
-  ["Prisma", new PrismaUserGoalRepository(testPrisma)],
-]
+const userGoalRepository = new DrizzleUserGoalRepository(testDb)
 
 const GOAL_INPUT = {
   goalText: "英語の公式ドキュメントを辞書なしで読めるようになる",
@@ -35,7 +26,7 @@ afterAll(async () => {
   await disconnectTestRedis()
 })
 
-describe.each(implementations)("%s UserGoalRepository", (_name, userGoalRepository) => {
+describe("UserGoalRepository", () => {
   describe("findByUserId", () => {
     describe("正常系", () => {
       it("そのユーザーの目標を返す（target_date は YYYY-MM-DD の文字列）", async () => {

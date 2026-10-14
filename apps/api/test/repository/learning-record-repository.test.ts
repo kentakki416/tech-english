@@ -1,18 +1,9 @@
 import { DrizzleLearningRecordRepository } from "../../src/repository/drizzle/learning-record-repository"
-import type { LearningRecordRepository } from "../../src/repository/learning-record-repository"
-import { PrismaLearningRecordRepository } from "../../src/repository/prisma/learning-record-repository"
-import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb, testPrisma } from "../controller/setup"
+import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb } from "../controller/setup"
 import { createSubmittedAttempt } from "../fixture/learning-record"
 import { insertAttemptUser, insertGeneratedPassage, insertReadingAttempt } from "../fixture/passage"
 
-/**
- * Prisma / Drizzle の両実装が LearningRecordRepository として同じ振る舞いをすることを確かめる。
- * DI で使うのは Drizzle 実装だが、Prisma 実装へ戻せる状態を保つために両方を検証する
- */
-const implementations: [string, LearningRecordRepository][] = [
-  ["Drizzle", new DrizzleLearningRecordRepository(testDb)],
-  ["Prisma", new PrismaLearningRecordRepository(testPrisma)],
-]
+const learningRecordRepository = new DrizzleLearningRecordRepository(testDb)
 
 const at = (iso: string): Date => new Date(iso)
 
@@ -45,7 +36,7 @@ afterAll(async () => {
   await disconnectTestRedis()
 })
 
-describe.each(implementations)("%s LearningRecordRepository", (_name, learningRecordRepository) => {
+describe("LearningRecordRepository", () => {
   describe("提出していない挑戦・他のユーザーの挑戦", () => {
     describe("異常系", () => {
       it("挑戦中・期限切れの挑戦と他のユーザーの挑戦は、どのメソッドの結果にも入らない", async () => {

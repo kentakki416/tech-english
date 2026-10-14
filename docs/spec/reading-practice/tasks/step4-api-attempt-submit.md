@@ -146,13 +146,13 @@ findAnswersByAttemptId(attemptId: number): Promise<AttemptAnswer[]>
 /** glossary は passage_glossary_entries.meaning_ja、dictionary は dictionary_entries（headword = lemma）を left join。id の昇順 */
 findWordLookupsWithMeaning(attemptId: number): Promise<WordLookupWithMeaning[]>
 
-/** dictionary-repository.ts（新規。Drizzle / Prisma の両方に実装） */
+/** dictionary-repository.ts（新規。Drizzle で実装） */
 export interface DictionaryRepository {
   findByHeadwords(headwords: string[]): Promise<DictionaryEntry[]>
 }
 ```
 
-書き込みは `resolveDrizzleClient(this._db, tx)` / `resolvePrismaClient(this._prisma, tx)` で `tx` を解決する（既存の `UserRepository.create` と同じ）。
+書き込みは `resolveDrizzleClient(this._db, tx)` で `tx` を解決する（既存の `UserRepository.create` と同じ）。
 
 ### 5. Service
 
@@ -245,6 +245,6 @@ Controller（インテグレーション）:
 - [ ] 提出後に `questions.correct_choice_index` を直すと、`GET /api/attempt/:id` の `correct_count`・`is_correct` は提出時のまま、食い違う設問だけ `is_answer_key_changed: true`
 - [ ] `GET /api/dictionary`：`Rendering` → `render` の意味で 200 / 辞書に無い語で 404 / `123`・空・65 文字で 400 / 認証なしで 401
 
-Repository（Drizzle / Prisma の両方）:
+Repository のテスト（実 DB）:
 
 - [ ] `markSubmitted` は `in_progress` でない行を更新せず null / `insertWordLookups([])` が例外にならない / `findWordLookupsWithMeaning` が用語集と辞書の意味を引き、用語集が消された行は `meaningJa: null` / `findByHeadwords`

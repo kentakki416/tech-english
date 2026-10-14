@@ -19,7 +19,7 @@
 |---|---|---|---|
 | **Service** | ユニットテスト | `apps/api/test/service/` | DB 不要。`vi.fn()` で Repository をモック。高速・並列 |
 | **Controller** | 統合テスト | `apps/api/test/controller/` | 自前インフラ（Postgres / Redis）は**本物**、`supertest` で HTTP から検証 |
-| **Repository**（DB） | 契約テスト | `apps/api/test/repository/` | Postgres は**本物**。Drizzle / Prisma の両実装を `describe.each` で同じケースにかけ、振る舞いが揃っていることを検証 |
+| **Repository**（DB） | 統合テスト | `apps/api/test/repository/` | Postgres は**本物**。SQL・型変換・制約違反を実 DB で検証 |
 | cron / worker | ユニットテスト | 各 `test/` | DB client / Redis を mock（DB / Redis 不要） |
 
 - **Service ユニットテスト**は「何が起きたか（呼び出し・戻り値）」を検証する責務。

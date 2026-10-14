@@ -27,7 +27,6 @@ export type CreateDrizzleClientOptions = {
  * 日時の列は `timestamp`（タイムゾーン無し）で、Drizzle はこれを UTC として読み書きする。
  * 一方 DB の default の `now()` はセッションのタイムゾーンで評価されるため、Postgres 側が
  * UTC 以外（ローカルの docker-compose は TZ=Asia/Tokyo）だと created_at が 9 時間ずれて入る。
- * Prisma は `@default(now())` を client 側で埋めていたので、この問題が表に出ていなかった。
  */
 const createPool = (connectionString: string, onError: (error: Error) => void): Pool => {
   const pool = new Pool({ connectionString, options: "-c TimeZone=UTC" })
@@ -39,7 +38,7 @@ const createDatabase = (pool: Pool) => drizzle({ client: pool })
 
 /**
  * Drizzle の DB client。read / write の振り分けと `$primary` は withReplicas が提供する。
- * `$disconnect()` は Prisma の同名メソッドに合わせて足しており、primary / replica の Pool を閉じる。
+ * `$disconnect()` は primary / replica の Pool を閉じる。
  */
 export type DrizzleClient = PgAsyncWithReplicas<ReturnType<typeof createDatabase>> & {
   $disconnect: () => Promise<void>

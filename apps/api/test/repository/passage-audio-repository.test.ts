@@ -3,22 +3,12 @@ import type { AudioStatus } from "@repo/domain"
 
 import { DrizzlePassageAudioRepository } from "../../src/repository/drizzle/passage-audio-repository"
 import { DrizzleTransactionRunner } from "../../src/repository/drizzle/transaction-runner"
-import type { PassageAudioRepository } from "../../src/repository/passage-audio-repository"
-import { PrismaPassageAudioRepository } from "../../src/repository/prisma/passage-audio-repository"
-import { PrismaTransactionRunner } from "../../src/repository/prisma/transaction-runner"
-import type { TransactionRunner } from "../../src/repository/transaction"
-import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb, testPrisma } from "../controller/setup"
+import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb } from "../controller/setup"
 import { insertGeneratedPassage, insertPassageAudio } from "../fixture/passage"
 import { AUDIO_TEXT_HASH, buildAudioManifest } from "../fixture/passage-audio"
 
-/**
- * Prisma / Drizzle の両実装が PassageAudioRepository として同じ振る舞いをすることを確かめる。
- * DI で使うのは Drizzle 実装だが、Prisma 実装へ戻せる状態を保つために両方を検証する
- */
-const implementations: [string, PassageAudioRepository, TransactionRunner][] = [
-  ["Drizzle", new DrizzlePassageAudioRepository(testDb), new DrizzleTransactionRunner(testDb)],
-  ["Prisma", new PrismaPassageAudioRepository(testPrisma), new PrismaTransactionRunner(testPrisma)],
-]
+const passageAudioRepository = new DrizzlePassageAudioRepository(testDb)
+const transactionRunner = new DrizzleTransactionRunner(testDb)
 
 /**
  * insertPassageAudio の updated_at（音声を作った時刻）
@@ -55,7 +45,7 @@ afterAll(async () => {
   await disconnectTestRedis()
 })
 
-describe.each(implementations)("%s PassageAudioRepository", (_name, passageAudioRepository, transactionRunner) => {
+describe("PassageAudioRepository", () => {
   describe("findByPassageId", () => {
     describe("正常系", () => {
       it("音声の行と問題の状態・公開日時を返し、マニフェストは書いたとおりに読める", async () => {

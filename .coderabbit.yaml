@@ -18,8 +18,6 @@ reviews:
   in_progress_fortune: false
 
   path_filters:
-    # Prisma が生成するクライアント（コミット対象だがレビュー不要）
-    - "!packages/db/generated/**"
     # PR 本文に貼るスクリーンショット
     - "!docs/screenshots/**"
     # ロックファイル

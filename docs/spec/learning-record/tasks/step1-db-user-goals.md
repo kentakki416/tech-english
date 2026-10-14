@@ -66,7 +66,7 @@ export type StreakSummary = { current: number, longest: number }
 export type WeekRange = { end: string, start: string }
 ```
 
-`rules/goal.ts` に Prisma 実装の検証用の type guard を置く（`rules/membership-tier.ts` と同じ形）。
+`rules/goal.ts` に type guard を置く（`rules/membership-tier.ts` と同じ形）。
 
 ```typescript
 /** packages/domain/src/rules/goal.ts */
@@ -167,7 +167,7 @@ export type { CalendarLevel, GoalMetric, StreakSummary, UserGoal, WeekRange } fr
 
 ### 4. `user_goals` の Drizzle スキーマ
 
-`packages/db/src/drizzle/schema/user-goal.ts`。FK は `auth-account.ts` と同じ書き方、CHECK は `packages/db/README.md` の「enum 的な列は const から CHECK 制約を作る」に従う。
+`packages/db/src/drizzle/schema/user-goal.ts`。FK は `auth-account.ts` と同じ書き方、CHECK は `docs/tech-stack/drizzle.md` の「enum 的な列は const から CHECK 制約を作る」に従う。
 
 ```typescript
 import { sql } from "drizzle-orm"
@@ -211,37 +211,11 @@ export const userGoals = pgTable(
 - `schema/index.ts` に `export * from "./user-goal"` を足す（ファイル名順）
 - `pnpm --filter api db:generate` でマイグレーションを作り、生成された SQL に FK（`ON DELETE cascade`）・unique index・3 つの CHECK があることを目で確認する
 
-### 5. Prisma の `schema.prisma`
-
-Drizzle と同じ形に合わせる（`packages/db/README.md` の「併存の方針」）。`@unique` の index 名は Prisma の既定で `user_goals_user_id_key` になり、Drizzle と一致する。
-
-```prisma
-// ユーザーの目標（1 ユーザー 1 行）。CHECK 制約は Drizzle のマイグレーションが持つ
-model UserGoal {
-    id           Int       @id @default(autoincrement())
-    userId       Int       @unique @map("user_id")
-    goalText     String?   @map("goal_text") @db.VarChar(200)
-    targetDate   DateTime? @map("target_date") @db.Date
-    /// GOAL_METRICS（"passages" | "minutes"）。Prisma 実装は isGoalMetric で検証する
-    weeklyMetric String?   @map("weekly_metric")
-    weeklyTarget Int?      @map("weekly_target")
-    createdAt    DateTime  @default(now()) @map("created_at")
-    updatedAt    DateTime  @updatedAt @map("updated_at")
-
-    user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-
-    @@map("user_goals")
-}
-```
-
-`model User` に `goal UserGoal?` を足し、`pnpm --filter @repo/db prisma:generate` する。
-
 ## 動作確認
 
 ```bash
 pnpm --filter @repo/domain test
 pnpm --filter api db:generate && pnpm --filter api db:migrate
-pnpm --filter @repo/db prisma:generate
 pnpm build && pnpm lint:fix
 ```
 
@@ -258,7 +232,7 @@ pnpm build && pnpm lint:fix
 - [ ] `getWeekRange`: 月曜（`2026-10-05`）→ `2026-10-05`〜`2026-10-11` / 土曜（`2026-10-10`）→ 同じ週 / 日曜（`2026-10-11`）→ 同じ週 / 年またぎ（`2027-01-01` 金曜）→ `2026-12-28`〜`2027-01-03`
 - [ ] `addDaysToDate` / `countDaysBetween`: うるう年の 2 月末・年またぎ・負の日数
 
-DB の制約（psql で確認。Repository の契約テストは step2 / step3 で書く）:
+DB の制約（psql で確認。Repository のテストは step2 / step3 で書く）:
 
 - [ ] 同じ `user_id` の 2 行目は unique 違反になる
 - [ ] `weekly_metric = 'hours'` は CHECK 違反になる

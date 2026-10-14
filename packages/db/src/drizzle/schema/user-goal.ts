@@ -11,7 +11,7 @@ import { users } from "./user"
  * ユーザーの目標（1 ユーザー 1 行）。項目はどれも任意
  *
  * 列の正本は docs/spec/learning-record/README.md の「必要な DB 設計」。
- * users の削除で cascade する（アカウント削除で目標も消すため）。制約・index 名は Prisma の既定の命名に合わせている。
+ * users の削除で cascade する（アカウント削除で目標も消すため）。制約・index 名は `{table}_{columns}_key` / `_idx` / `_fkey` の命名にそろえている。
  */
 export const userGoals = pgTable(
   "user_goals",

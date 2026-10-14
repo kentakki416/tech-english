@@ -13,7 +13,7 @@ import { users } from "./user"
 /**
  * 調べた単語。結果画面の一覧と、将来の単語帳・単語問題に使う
  *
- * users と reading_attempts の削除で cascade する。制約・index 名は Prisma の既定の命名に合わせている。
+ * users と reading_attempts の削除で cascade する。制約・index 名は `{table}_{columns}_key` / `_idx` / `_fkey` の命名にそろえている。
  */
 export const attemptWordLookups = pgTable(
   "attempt_word_lookups",

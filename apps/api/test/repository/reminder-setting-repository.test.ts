@@ -1,23 +1,11 @@
-import { eq, reminderSettings, sql, users } from "@repo/db"
+import { eq, reminderSettings, users } from "@repo/db"
 
 import { DrizzleReminderSettingRepository } from "../../src/repository/drizzle/reminder-setting-repository"
-import { PrismaReminderSettingRepository } from "../../src/repository/prisma/reminder-setting-repository"
-import type { ReminderSettingRepository } from "../../src/repository/reminder-setting-repository"
-import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb, testPrisma } from "../controller/setup"
+import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb } from "../controller/setup"
 import { insertAttemptUser } from "../fixture/passage"
 import { insertReminderSetting, selectReminderSettingRows } from "../fixture/reminder"
 
-/**
- * Prisma / Drizzle の両実装が ReminderSettingRepository として同じ振る舞いをすることを確かめる。
- * DI で使うのは Drizzle 実装だが、Prisma 実装へ戻せる状態を保つために両方を検証する
- */
-const drizzleRepository = new DrizzleReminderSettingRepository(testDb)
-const prismaRepository = new PrismaReminderSettingRepository(testPrisma)
-
-const implementations: [string, ReminderSettingRepository][] = [
-  ["Drizzle", drizzleRepository],
-  ["Prisma", prismaRepository],
-]
+const reminderSettingRepository = new DrizzleReminderSettingRepository(testDb)
 
 const REMINDER_INPUT = {
   isEnabled: true,
@@ -40,7 +28,7 @@ afterAll(async () => {
   await disconnectTestRedis()
 })
 
-describe.each(implementations)("%s ReminderSettingRepository", (_name, reminderSettingRepository) => {
+describe("ReminderSettingRepository", () => {
   describe("findByUserId", () => {
     describe("正常系", () => {
       it("そのユーザーの設定を返す（time は \"HH:mm\"）", async () => {
@@ -155,51 +143,6 @@ describe.each(implementations)("%s ReminderSettingRepository", (_name, reminderS
         await expect(reminderSettingRepository.upsertByUserId(999_999, REMINDER_INPUT)).rejects.toThrow()
         expect(await testDb.$count(reminderSettings)).toBe(0)
       })
-    })
-  })
-})
-
-describe("Prisma ReminderSettingRepository の weekdays の検証", () => {
-  describe("異常系", () => {
-    it.each([
-      ["配列でない", { day: 1 }],
-      ["範囲外の値（0）", [0, 1]],
-      ["範囲外の値（8）", [8]],
-      ["整数でない", [1.5]],
-      ["文字列", ["1"]],
-    ])("DB の weekdays が曜日番号の配列でない（%s）と findByUserId が throw する", async (_label, weekdays) => {
-      const user = await insertAttemptUser()
-      await testDb.insert(reminderSettings).values({
-        isEnabled: true,
-        time: "21:00",
-        userId: user.id,
-        /**
-         * API を通さずに不正な値を入れる（DB には weekdays の値域の制約が無い）
-         */
-        weekdays: sql`${JSON.stringify(weekdays)}::jsonb`,
-      })
-
-      await expect(prismaRepository.findByUserId(user.id)).rejects.toThrow()
-    })
-  })
-})
-
-describe("ReminderSettingRepository の実装間の互換性", () => {
-  describe("正常系", () => {
-    it.each(["21:15", "00:00", "23:45"])("Drizzle で保存した %s を Prisma で読んでも同じ値になる", async (time) => {
-      const user = await insertAttemptUser()
-
-      const saved = await drizzleRepository.upsertByUserId(user.id, { ...REMINDER_INPUT, time })
-
-      expect(await prismaRepository.findByUserId(user.id)).toEqual(saved)
-    })
-
-    it.each(["21:15", "00:00", "23:45"])("Prisma で保存した %s を Drizzle で読んでも同じ値になる", async (time) => {
-      const user = await insertAttemptUser()
-
-      const saved = await prismaRepository.upsertByUserId(user.id, { ...REMINDER_INPUT, time })
-
-      expect(await drizzleRepository.findByUserId(user.id)).toEqual(saved)
     })
   })
 })

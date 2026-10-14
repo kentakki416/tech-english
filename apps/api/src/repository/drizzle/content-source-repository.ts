@@ -152,7 +152,7 @@ export class DrizzleContentSourceRepository implements ContentSourceRepository {
   }
 
   /**
-   * 対象が無いときは Prisma 実装（P2025）と同じく throw する
+   * 対象が無いときは throw する
    */
   public async update(
     id: number,

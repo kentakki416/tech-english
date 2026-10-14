@@ -24,7 +24,6 @@
 ```bash
 # ルートで一度だけ
 pnpm install
-pnpm --filter @repo/db prisma:generate
 ```
 
 ## スケジュール（TODO）

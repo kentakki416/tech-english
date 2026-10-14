@@ -350,13 +350,13 @@ terraform apply -replace="module.ecs_api.aws_ecs_service.this[0]"
 → **`prd` 環境のゲートは外し、承認は `prd-api-approval`（api 本番切替）だけ**にする。
 
 ### 落とし穴 9: DB の TLS が pg で verify-full 扱いになり RDS で落ちる
-`createDrizzleClient` / `drizzle-kit migrate`（と併存している `createPrismaClient` の `@prisma/adapter-pg`）は、いずれも node-postgres（`pg`）で接続する。
+`createDrizzleClient` / `drizzle-kit migrate` は、いずれも node-postgres（`pg`）で接続する。
 DATABASE_URL が **`?sslmode=require`** だと、pg（pg-connection-string）が
 これを **`verify-full` 扱い**にし、RDS の CA（公的 CA ではない自己署名チェーン）を弾いて
 `self-signed certificate in certificate chain` で落ちる。
 
 ハマりどころ:
-- Prisma で migration していた頃は、migration だけ Rust 製エンジンで `require` を libpq 流（暗号化のみ・CA 検証なし）に解釈して通り、ランタイム / seed だけが落ちていた。Drizzle は migration も pg で接続するので、migrate ステップで先に落ちる。
+- migration も pg で接続するので、デプロイでは migrate ステップで先に落ちる。
 - api の shallow な `/health`（`{"status":"ok"}`）は DB を見ないので、**DB アクセスが壊れていても 200 を返してしまう**（気づきにくい）。
 
 → **`DATABASE_URL` を `?sslmode=no-verify`** にする（暗号化はするが CA 検証しない。RDS は VPC 内通信なので実用上のリスクは低い）。`seed-secrets.sh` がこの値で構築する。
