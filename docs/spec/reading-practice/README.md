@@ -201,7 +201,7 @@ stateDiagram-v2
 | サーバーの検証 | `0 ≤ active_seconds ≤ 提出時刻 − started_at` に切り詰めて `elapsed_seconds` に保存する |
 | 時間超過 | `elapsed_seconds > time_limit_seconds` |
 | 学習時間 | `elapsed_seconds` をそのまま学習記録の学習時間に使う |
-| 再開 | 経過秒数と選んだ回答を端末に保存する（web は `localStorage`、mobile は `AsyncStorage`。キーは挑戦 ID）。**別の端末で再開すると経過秒数と回答は 0 からになる**（壁時計の上限は効いたまま） |
+| 再開 | 経過秒数と選んだ回答を端末に保存する（web は `localStorage`、mobile は `AsyncStorage`。キーは挑戦 ID）。**別の端末で再開すると経過秒数と回答は 0 からになる**（壁時計の上限は効いたまま）。保存は提出が通って結果画面を開いたとき・期限切れになったとき（もう提出できない）に消す |
 
 クライアントの申告値を使うため改ざんは防げないが、本サービスはランキングなどの競争要素を持たない自己学習なので許容する。競争要素を入れるときの扱いは [deferred](./deferred-assist-and-modes.md#厳格モード) にまとめる。
 
@@ -286,10 +286,10 @@ type PassageSegment = {
 | 処理 | 実装 |
 | --- | --- |
 | 問題一覧 | Server Component で取得。絞り込みは URL のクエリにして Server Component で再取得 |
-| 挑戦の開始 | 開始確認の「開始」は Server Action（`POST /api/passage/:id/attempt`）→ 解答画面へ redirect |
+| 挑戦の開始 | 開始確認の「開始」は Server Action（`POST /api/passage/:id/attempt`）→ `revalidatePath` で解答画面のキャッシュを捨てて redirect |
 | 解答画面 | Server Component で挑戦を取得して Client Component に props で渡す。タイマー・回答・アシストは Client Component の state |
 | 辞書の検索 | Client Component から Route Handler（`/api/dictionary`）→ api |
-| 提出 | Server Action（`POST /api/attempt/:id/submit`）→ 結果画面へ redirect |
+| 提出 | Server Action（`POST /api/attempt/:id/submit`）→ `revalidatePath` で解答画面のキャッシュを捨てて結果画面へ redirect（「戻る」で提出済みの挑戦の解答画面を出さない） |
 
 ### mobile の実装構成
 

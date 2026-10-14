@@ -78,7 +78,7 @@ const tokenizePlainText = (text: string, start: number, end: number): SegmentWit
 /**
  * ブロックの本文をセグメントに分ける。code だけバッククォートで囲み直して順に連結すると元の text に戻る
  */
-export const segmentBlockText = (text: string, glossary: GlossarySpan[]): SegmentWithRange[] => {
+const segmentBlockText = (text: string, glossary: GlossarySpan[]): SegmentWithRange[] => {
   const codeRanges = findInlineCodeRanges(text)
   const specialSegments: SegmentWithRange[] = [
     ...codeRanges.map((range): SegmentWithRange => ({
@@ -160,3 +160,5 @@ export const findEvidenceSegmentRange = (
   if (first === undefined || last === undefined) return null
   return { end: last + 1, start: first }
 }
+
+export const forTesting = { segmentBlockText }

@@ -378,7 +378,10 @@ export const startAttempt = async (
     return err(notFoundError("Passage not found"))
   }
 
-  const existing = await repo.readingAttemptRepository.findAliveInProgress(input.userId, input.passageId, aliveSince)
+  /**
+   * 作るかどうかの前提の確認なので primary から読む（作った直後の挑戦中を read replica の遅れで見失って 2 つ目を作ろうとしないため）
+   */
+  const existing = await repo.readingAttemptRepository.findAliveInProgress(input.userId, input.passageId, aliveSince, PRIMARY_READ)
   if (existing) return ok({ isCreated: false, view: buildInProgressView(existing, content, input.now) })
 
   const { passage } = content
@@ -413,7 +416,8 @@ export const startAttempt = async (
 }
 
 /**
- * 自分の挑戦の取得。そのユーザーの期限切れの挑戦中を expired にしてから読む。他人の挑戦・存在しない ID は 404（存在を明かさない）
+ * 自分の挑戦の取得。そのユーザーの期限切れの挑戦中を expired にしてから読む。他人の挑戦・存在しない ID は 404（存在を明かさない）。
+ * 先に expireStale で書き込むので書き込み API と同じく primary から読む（開始・提出の直後の挑戦を read replica の遅れで見失わないため）
  */
 export const getAttempt = async (
   input: { attemptId: number; now: Date; userId: number },
@@ -421,7 +425,7 @@ export const getAttempt = async (
 ): Promise<Result<AttemptView>> => {
   await repo.readingAttemptRepository.expireStale(input.userId, calculateAliveSince(input.now))
 
-  const attempt = await repo.readingAttemptRepository.findByIdForUser(input.attemptId, input.userId)
+  const attempt = await repo.readingAttemptRepository.findByIdForUser(input.attemptId, input.userId, PRIMARY_READ)
   if (!attempt) {
     logger.debug("AttemptService: Attempt not found", { attemptId: input.attemptId, userId: input.userId })
     return err(notFoundError("Attempt not found"))
@@ -435,12 +439,12 @@ export const getAttempt = async (
 
   if (attempt.status === "submitted") {
     /**
-     * submitted が読めた read replica には同じトランザクションで書いた回答・調べた単語も届いている
+     * 挑戦を primary から読んだので、回答・調べた単語も primary から読む（提出の直後は read replica にまだ届いていないことがある）
      */
-    return ok(await loadSubmittedView(attempt, content, repo.readingAttemptRepository))
+    return ok(await loadSubmittedView(attempt, content, repo.readingAttemptRepository, PRIMARY_READ))
   }
   /**
-   * expireStale の直後でも read replica の遅れで更新前の行が読めることがあるので、in_progress も開始時刻で期限を判定する
+   * expireStale と同じ now で判定するので in_progress のまま読めるのは期限内のはずだが、念のため開始時刻でも期限を判定する
    */
   if (attempt.status === "expired" || isAttemptExpired(attempt.startedAt, input.now)) {
     return ok(buildExpiredView(attempt, content))

@@ -1,7 +1,7 @@
 import type { SubmitAttemptRequest } from "@repo/api-schema"
 
 /**
- * 端末（localStorage）に保存する挑戦の途中経過。解答画面が書き、開始確認の再開の表示と結果画面が読む・消す。
+ * 端末（localStorage）に保存する挑戦の途中経過。解答画面が書き、開始確認の再開の表示が読み、結果画面と期限切れの表示が消す。
  * ブラウザでだけ動かすので `server-only` を付けない。
  * localStorage はプライベートブラウズや容量超過で例外になるため、読み書きはすべて try / catch で包み、失敗しても画面は動かす
  */

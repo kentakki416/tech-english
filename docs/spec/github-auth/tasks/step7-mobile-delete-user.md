@@ -52,6 +52,8 @@ const clearDeviceData = async (): Promise<void> => {
     /** 解答途中のデータ（キーは挑戦 ID）と表示設定。キーの命名に依存しないよう全消去する */
     AsyncStorage.clear(),
   ])
+  /** メモリに持つ挑戦（reading-practice step8 の attempt.store）。ログアウト・強制ログアウトでも空にしている */
+  useAttemptStore.getState().clearStoreAttempts()
 }
 
 /**

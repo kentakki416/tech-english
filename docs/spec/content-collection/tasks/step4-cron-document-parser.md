@@ -101,7 +101,7 @@ export const parseHtml = (html: string, options: { contentSelector: string | nul
 ```
 
 - `selectContentHtml`：`document.querySelector(selector)` が無ければ null（本文 0 語になり、試し実行で気付ける）。あれば `[...REMOVED_SELECTORS, ...excludeSelectors]` に合う子孫を `remove()` して `innerHTML` を返す
-- `extractContentHtmlWithReadability`：`document.cloneNode(true)` から同じ要素を取り除き、`new Readability(clone).parse()?.content ?? null`
+- `extractContentHtmlWithReadability`：`document.cloneNode(true)` から同じ要素を取り除き、`new Readability(clone, { keepClasses: true }).parse()?.content ?? null`（Readability は既定で `class` を消し、`<code class="language-go">` の lang が取れなくなるため）
 - `extractLinks`：`a[href]` の `href`（jsdom が `url` を基準に絶対 URL にする）のうち `http:` / `https:` だけ。重複を除く
 - 不正な CSS セレクタは jsdom が throw する（文書単位の失敗）
 - `<pre><code class="language-go">` は `rehype-remark` が `lang: "go"` の `code` にする
@@ -119,7 +119,7 @@ export const parseHtml = (html: string, options: { contentSelector: string | nul
 
 インラインの変換（`convertInlineToText`）：`text` はそのまま、`inlineCode` は `` `value` ``、`break` は空白、`image` / `imageReference` / `html` / `footnoteReference` / `mdxTextExpression` は空、それ以外（`emphasis` / `strong` / `delete` / `link` / `linkReference` / `mdxJsxTextElement`）は子を再帰（link の URL は捨てる）。
 
-コード以外のテキストは、Hugo のショートコード（`/\{\{[<%].*?[%>]\}\}/g`。Kubernetes のドキュメントに残る）を消し、空白の連続を 1 つにして trim する。コードは `value` をそのまま（末尾の改行だけ除く）。
+コード以外のテキストは、空白の連続を 1 つにしてから、Hugo のショートコード（Kubernetes のドキュメントに残る）を処理して trim する。用語のツールチップ `{{< glossary_tooltip text="nodes" term_id="node" >}}` は文の一部なので `text` の値（無ければ `term_id`）に置き換え、それ以外のショートコード（`/\{\{[<%].*?[%>]\}\}/g`。`{{< note >}}` など）は消す。コードは `value` をそのまま（末尾の改行だけ除く）。
 
 ### 6. 切り分け
 
@@ -172,14 +172,14 @@ fixture は `apps/cron/test/fixtures/document/` に置く。**英文は自作す
 | `guide.mdx` | frontmatter の title、`import` 文・`<Sandpack>`・表・画像が消える、`lang` つきのコード、入れ子のリスト |
 | `book.md` | frontmatter 無し → 最初の h1 がタイトル、h2 / h3 / h4 の節 |
 | `go-doc.html` | `main article` の指定、`nav` / `.feedback` / `[aria-hidden]` の除去、`language-go` のコード、相対リンク |
-| `article-no-selector.html` | Readability で本文だけが取れる |
+| `article-no-selector.html` | Readability で本文だけが取れる、`language-sh` のコードが `lang` つきになる（`keepClasses`） |
 | `js-rendered.html` | 本文が空で `<script>` だけ → 英単語数 0。script は実行されない |
 
 テストは `apps/cron/test/lib/document/*.test.ts`。切り分けと判定は、N 語の段落を作るヘルパでブロックを組み立てて境界値を作る。
 
 - 正常系
   - [ ] `parseMarkdown` / `parseHtml` + `convertMdastToBlocks` が上表の fixture で期待どおりのブロック列（`toEqual`）になる
-  - [ ] インラインコードはバッククォートつきで残り、リンクはテキストだけ、Hugo のショートコードと `[!NOTE]` は消える
+  - [ ] インラインコードはバッククォートつきで残り、リンクはテキストだけ、Hugo のショートコードと `[!NOTE]` は消える。`glossary_tooltip` は `text`（無ければ `term_id`）の語に置き換わる（引数の順序・改行によらない）
   - [ ] `parseHtml` の `links` が絶対 URL になり、`mailto:` / `javascript:` を含まない
   - [ ] `countEnglishWords` がコードブロック・インラインコード・記号だけのトークンを数えない
   - [ ] 切り分け：h2 / h3 で区切り h4 では区切らない。150 語 + 100 語は 1 塊、250 語 + 100 語は 2 塊、150 語 + 500 語は 2 塊（前者は `too_short`）

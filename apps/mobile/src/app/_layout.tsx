@@ -40,13 +40,17 @@ export const unstable_settings = {
 export default function RootLayout() {
   const colorScheme = useColorScheme()
   const status = useAuthStore((state) => state.status)
-  const [isFontLoaded] = useFonts({
+  const [isFontLoaded, fontError] = useFonts({
     IBMPlexMono_400Regular,
     IBMPlexMono_500Medium,
     Literata_400Regular,
     Literata_600SemiBold,
   })
-  const isReady = isFontLoaded && status !== "loading"
+  /**
+   * フォントの読み込みに失敗したときもスプラッシュを閉じる（システムのフォントで描画する）。
+   * 失敗を待ち続けると、スプラッシュのまま先に進めなくなるため
+   */
+  const isReady = (isFontLoaded || fontError !== null) && status !== "loading"
 
   useEffect(() => {
     void restoreSession()

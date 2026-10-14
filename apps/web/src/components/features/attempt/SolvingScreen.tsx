@@ -4,7 +4,12 @@ import Link from "next/link"
 import { unstable_rethrow } from "next/navigation"
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react"
 
-import type { InProgressAttempt, SubmitAttemptRequest } from "@repo/api-schema"
+import {
+  type InProgressAttempt,
+  SUBMIT_ATTEMPT_MAX_WORD_LENGTH,
+  SUBMIT_ATTEMPT_MAX_WORD_LOOKUPS,
+  type SubmitAttemptRequest,
+} from "@repo/api-schema"
 
 import type { SubmitAttemptActionResult } from "@/app/attempts/[id]/actions"
 import { PassageReader, type ReaderFontSize } from "@/components/features/passage/PassageReader"
@@ -15,6 +20,7 @@ import { Keycap } from "@/components/ui/Keycap"
 import {
   type AttemptProgress,
   readAttemptProgress,
+  removeAttemptProgress,
   type WordLookupRecord,
   writeAttemptProgress,
 } from "@/features/attempt/attempt-progress"
@@ -49,16 +55,6 @@ const FONT_SIZE_OPTIONS: { key: ReaderFontSize, label: string, sizeClass: string
  */
 const EXPIRY_CHECK_INTERVAL_MS = 60 * 1000
 
-/**
- * 提出の word_lookups の上限（submitAttemptRequestSchema の max と同じ）。超えた分は記録しない
- */
-const MAX_WORD_LOOKUPS = 300
-
-/**
- * 提出の surface / lemma の長さの上限（submitAttemptRequestSchema と同じ）
- */
-const MAX_WORD_LENGTH = 100
-
 const SUBMIT_FAILED_MESSAGE = "提出できませんでした。時間をおいて再度お試しください。"
 
 const PROGRESS_LINE_CLASS: Record<TimerPhase, string> = {
@@ -69,7 +65,7 @@ const PROGRESS_LINE_CLASS: Record<TimerPhase, string> = {
 
 const HEADER_BUTTON_FOCUS_CLASS = "outline-none focus-visible:ring-2 focus-visible:ring-amber/60"
 
-const isValidWordText = (text: unknown): boolean => typeof text === "string" && text.trim().length > 0 && text.trim().length <= MAX_WORD_LENGTH
+const isValidWordText = (text: unknown): boolean => typeof text === "string" && text.trim().length > 0 && text.trim().length <= SUBMIT_ATTEMPT_MAX_WORD_LENGTH
 
 /**
  * 提出の検証（source が glossary のときだけ glossary_entry_id を持つ）を通る形か
@@ -100,7 +96,7 @@ const restoreProgress = (attempt: InProgressAttempt, translatableBlockIndexes: S
     answers,
     elapsedSeconds: Number.isFinite(saved.elapsedSeconds) ? Math.max(0, Math.floor(saved.elapsedSeconds)) : 0,
     translatedBlockIndexes: [...new Set(saved.translatedBlockIndexes)].filter(index => translatableBlockIndexes.has(index)),
-    wordLookups: saved.wordLookups.filter(isValidWordLookup).slice(0, MAX_WORD_LOOKUPS),
+    wordLookups: saved.wordLookups.filter(isValidWordLookup).slice(0, SUBMIT_ATTEMPT_MAX_WORD_LOOKUPS),
   }
 }
 
@@ -172,10 +168,15 @@ function SolvingSession({
 
   /**
    * 途中経過を端末に保存する（経過秒数が変わる毎秒と、回答・アシストが変わるたび）。画面が非表示になったときにも書く。
-   * hydration 前（保存を読む前）に書くと保存を 0 で上書きしてしまうので書かない
+   * hydration 前（保存を読む前）に書くと保存を 0 で上書きしてしまうので書かない。
+   * 期限切れになったら（期限の確認・提出の 409）もう提出できないので、途中経過を消してそれ以降は書かない
    */
   useEffect(() => {
     if (!isHydrated) return
+    if (isExpired) {
+      removeAttemptProgress(attempt.id)
+      return
+    }
     const progress: RestoredProgress = {
       answers,
       elapsedSeconds,
@@ -188,7 +189,7 @@ function SolvingSession({
     }
     document.addEventListener("visibilitychange", writeOnHide)
     return () => document.removeEventListener("visibilitychange", writeOnHide)
-  }, [answers, attempt.id, elapsedSeconds, isHydrated, viewedTranslationBlocks, wordLookups])
+  }, [answers, attempt.id, elapsedSeconds, isExpired, isHydrated, viewedTranslationBlocks, wordLookups])
 
   /**
    * 期限（開始から 24 時間）を 1 分ごとと画面に戻ったときに確かめる。端末の時計のずれは server_now で補正する
@@ -239,7 +240,7 @@ function SolvingSession({
    */
   const recordWordLookup = useCallback((lookup: WordLookupRecord) => {
     if (!isValidWordLookup(lookup)) return
-    setWordLookups(current => (current.length >= MAX_WORD_LOOKUPS ? current : [...current, lookup]))
+    setWordLookups(current => (current.length >= SUBMIT_ATTEMPT_MAX_WORD_LOOKUPS ? current : [...current, lookup]))
   }, [])
 
   const openSubmitConfirm = () => {

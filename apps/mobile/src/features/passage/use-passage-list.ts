@@ -7,7 +7,7 @@ import { passageApi } from "./passage.api"
 
 /**
  * 1 ページ目の取り方。initial は絞り込みが変わったとき（一覧の代わりに読み込み中を出す）、
- * refresh は引っ張って更新、silent は画面に戻ったときの取り直し（読み込み中を出さない）
+ * refresh は引っ張って更新、silent は画面に戻ったときの取り直し（読み込み中を出さず、読み込み済みのページも消さない）
  */
 type FirstPageMode = "initial" | "refresh" | "silent"
 
@@ -22,7 +22,8 @@ export type PassageListState = {
   items: PassageListItemResponse[]
   loadMore: () => void
   /**
-   * 1 ページ目から取り直す。isSilent なら引っ張って更新の表示（isRefreshing）を出さない
+   * 1 ページ目から取り直す。isSilent なら引っ張って更新の表示（isRefreshing）を出さず、一覧を置き換えずに
+   * 1 ページ目にある問題（挑戦状況など）だけを id で差し替える
    */
   refresh: (options?: { isSilent?: boolean }) => void
   /**
@@ -58,21 +59,44 @@ export function usePassageList(filter: PassageFilterQuery): PassageListState {
    */
   const isLoadingMoreRef = useRef(false)
   /**
+   * 画面に戻ったときの取り直し（silent）の最中は次のページを取りに行かない
+   * （取り直しの前の cursor で取ったページと混ざって、間のページが抜けないように）
+   */
+  const isSilentRefreshingRef = useRef(false)
+  /**
+   * 読み込み済みの一覧。silent の取り直しで、一覧が空なら置き換え、あれば差し替えにするため
+   */
+  const itemsRef = useRef(items)
+  /**
    * 最新の絞り込み。refresh の参照を変えずに今の条件で取り直すため
    */
   const filterRef = useRef(filter)
 
+  useEffect(() => {
+    itemsRef.current = items
+  }, [items])
+
   const fetchFirstPage = useCallback(async (mode: FirstPageMode) => {
     const seq = ++requestSeqRef.current
     isLoadingMoreRef.current = false
+    isSilentRefreshingRef.current = mode === "silent"
     setIsLoadingMore(false)
     if (mode === "initial") setIsLoading(true)
     if (mode === "refresh") setIsRefreshing(true)
     try {
       const page = await passageApi.getList(filterRef.current)
       if (seq !== requestSeqRef.current) return
-      setItems(page.passages)
-      setNextCursor(page.next_cursor)
+      if (mode === "silent" && itemsRef.current.length > 0) {
+        /**
+         * 画面に戻ったときは読み込み済みのページを消さない（60 件読んでいた一覧が 20 件に縮んでスクロールが飛ばないように）。
+         * 1 ページ目にある問題だけを id で差し替え、続きの cursor はそのまま使う
+         */
+        const freshById = new Map(page.passages.map(passage => [passage.id, passage]))
+        setItems(current => current.map(passage => freshById.get(passage.id) ?? passage))
+      } else {
+        setItems(page.passages)
+        setNextCursor(page.next_cursor)
+      }
       setTags(page.tags)
       setTotalCount(page.total_count)
       setHasError(false)
@@ -90,6 +114,7 @@ export function usePassageList(filter: PassageFilterQuery): PassageListState {
       }
     } finally {
       if (seq === requestSeqRef.current) {
+        isSilentRefreshingRef.current = false
         setIsLoading(false)
         setIsRefreshing(false)
       }
@@ -106,7 +131,7 @@ export function usePassageList(filter: PassageFilterQuery): PassageListState {
   }, [fetchFirstPage])
 
   const loadMore = useCallback(() => {
-    if (nextCursor === null || isLoading || isRefreshing || isLoadingMoreRef.current) return
+    if (nextCursor === null || isLoading || isRefreshing || isLoadingMoreRef.current || isSilentRefreshingRef.current) return
     const seq = requestSeqRef.current
     isLoadingMoreRef.current = true
     setIsLoadingMore(true)

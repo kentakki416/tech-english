@@ -19,6 +19,7 @@ import {
   extractWebPage,
   findFetchablePagePath,
   findStartPagePath,
+  isPassageTargetUrl,
   selectFetchablePagePaths,
 } from "./website-pages"
 
@@ -161,9 +162,11 @@ const extractPageSafely = (
 /**
  * 200 のページを保存し、作った本文候補の件数を返す。
  *
- * 1. ページ内のリンクのうち取得してよいものを未取得の行として入れる（404 / 410 の行は対象に戻す）
- * 2. 対象パスのページで、本文のハッシュが前回と違えば本文候補を挿入する（開始ページなど対象パス外のページはリンクだけ使う）
- * 3. 最後に markFetched（ハッシュ・ETag・Last-Modified の記録）。途中で落ちても次回やり直し、挿入済みの本文候補は unique で弾く
+ * 1. 本文を抽出する。失敗したら（不正な CSS セレクタなど）markResponse で取得の時刻だけ記録して終える
+ * 2. ページ内のリンクのうち取得してよいものを未取得の行として入れる（404 / 410 の行は対象に戻す）
+ * 3. 対象パスのページで、本文のハッシュが前回と違えば本文候補を挿入する。開始ページなど対象パス外のページと、
+ *    リダイレクトの行き先が対象パス外・除外パス・ページでない拡張子のページはリンクだけ使う
+ * 4. 最後に markFetched（ハッシュ・ETag・Last-Modified の記録）。途中で落ちても次回やり直し、挿入済みの本文候補は unique で弾く
  */
 const savePage = async (
   input: { client: IWebPageClient; document: SourceDocument; now: Date; page: Extract<FetchPageResult, { kind: "ok" }>; source: WebsiteSource },
@@ -171,20 +174,34 @@ const savePage = async (
 ): Promise<number> => {
   const { client, document, now, page, source } = input
   const extracted = extractPageSafely(source, { body: page.body, finalUrl: page.finalUrl, path: document.path })
-  if (extracted !== null) {
-    const linkPaths = selectFetchablePagePaths(extracted.links, page.finalUrl, source, client)
-    if (linkPaths.length > 0) {
-      await repo.sourceDocumentRepository.upsertDiscovered(
-        source.id,
-        linkPaths.map((path) => ({ path, sitemapLastmod: null })),
-        { shouldReviveGone: true },
-      )
-    }
+  if (extracted === null) {
+    /**
+     * ETag / Last-Modified / ハッシュは保存しない。保存すると次回から 304 か同じハッシュで止まり、
+     * セレクタを直してもページが変わるまで抽出し直されない
+     */
+    await repo.sourceDocumentRepository.markResponse(document.id, { fetchedAt: now, httpStatus: page.status })
+    return 0
   }
 
-  const shouldCreatePassages = extracted !== null
-    && isTargetPath(document.path, source)
-    && extracted.contentHash !== document.contentHash
+  const linkPaths = selectFetchablePagePaths(extracted.links, page.finalUrl, source, client)
+  if (linkPaths.length > 0) {
+    await repo.sourceDocumentRepository.upsertDiscovered(
+      source.id,
+      linkPaths.map((path) => ({ path, sitemapLastmod: null })),
+      { shouldReviveGone: true },
+    )
+  }
+
+  const isTargetPage = isTargetPath(document.path, source)
+  const isRedirectedOutOfTarget = isTargetPage && !isPassageTargetUrl(page.finalUrl, source)
+  if (isRedirectedOutOfTarget) {
+    logger.info("page was redirected outside the target paths; no passages are created", {
+      finalUrl: page.finalUrl,
+      path: document.path,
+      sourceId: source.id,
+    })
+  }
+  const shouldCreatePassages = isTargetPage && !isRedirectedOutOfTarget && extracted.contentHash !== document.contentHash
   const createdPassageCount = shouldCreatePassages
     ? await repo.passageRepository.insertIgnoringDuplicates(
       extracted.candidates.map((candidate) => ({
@@ -202,20 +219,42 @@ const savePage = async (
   await repo.sourceDocumentRepository.markFetched(document.id, {
     blobSha: null,
     commitSha: null,
-    contentHash: extracted?.contentHash ?? null,
+    contentHash: extracted.contentHash,
     etag: page.etag,
     fetchedAt: now,
     httpStatus: page.status,
     lastModified: page.lastModified,
-    title: extracted?.title ?? null,
+    title: extracted.title,
   })
   return createdPassageCount
 }
 
 /**
+ * ページを取得する。429 / 503（WebSourceThrottledError）は、その行に試した時刻を記録してから throw し直す
+ * （記録しないと次回も同じ行が先頭に来て、429 / 503 を返し続けるページがソース全体を止めるため）
+ */
+const fetchPageRecordingThrottle = async (
+  input: { client: IWebPageClient; document: SourceDocument; now: Date; url: string },
+  repo: CollectionRepo,
+): Promise<FetchPageResult> => {
+  const { client, document, now, url } = input
+  try {
+    return await client.fetchPage(url, { etag: document.etag, lastModified: document.lastModified })
+  } catch (error) {
+    if (error instanceof WebSourceThrottledError) {
+      await repo.sourceDocumentRepository.markResponse(document.id, { fetchedAt: now, httpStatus: error.status })
+    }
+    throw error
+  }
+}
+
+/**
  * 取得待ちの行を順に取得する。停止指示・本文候補の上限で抜けたらその状態を、全部処理したら completed / limit_reached を返す。
- * ネットワークエラーの行は何も更新せず（次回に先頭で取り直す）、MAX_CONSECUTIVE_NETWORK_ERRORS 回続いたら throw する
- * （サイトの障害で残りのページのタイムアウトを待たないため）。429 / 503 は WebSourceThrottledError が上に伝わる
+ *
+ * 取得できなかった行（ネットワークエラー・429 / 503）も fetched_at に試した時刻を入れ、待ち行列から外す
+ * （COLLECT_WEB_REFETCH_DAYS 日後に取り直す）。入れないと次回も同じ行が先頭に来て、取得できないページが残りのページを塞ぐ。
+ * ネットワークエラーが MAX_CONSECUTIVE_NETWORK_ERRORS 回続いたら throw する（サイトの障害で残りのページのタイムアウトを待たないため）。
+ * 429 / 503 は WebSourceThrottledError が上に伝わる
  */
 const fetchQueuedDocuments = async (
   input: CollectWebsiteSourceInput & { client: IWebPageClient; progress: Progress; queue: SourceDocument[] },
@@ -229,10 +268,11 @@ const fetchQueuedDocuments = async (
     if (progress.createdPassageCount >= input.maxPassages) return "limit_reached"
 
     const url = buildPageUrl(source, document.path)
-    const result = await client.fetchPage(url, { etag: document.etag, lastModified: document.lastModified })
+    const result = await fetchPageRecordingThrottle({ client, document, now, url }, repo)
     if (result.kind === "network_error") {
       consecutiveNetworkErrorCount += 1
       logger.warn("page fetch failed", { error: result.errorMessage, path: document.path, sourceId: source.id })
+      await repo.sourceDocumentRepository.markResponse(document.id, { fetchedAt: now, httpStatus: null })
       if (consecutiveNetworkErrorCount >= MAX_CONSECUTIVE_NETWORK_ERRORS) {
         throw new Error(`Network errors occurred ${consecutiveNetworkErrorCount} times in a row: ${url}`)
       }
@@ -270,7 +310,8 @@ const fetchQueuedDocuments = async (
  * 4. 200 のページはリンクを未取得の行として入れ、本文のハッシュが前回と違えば本文候補を作る
  *
  * Crawl-delay が上限を超えるサイトと 429 / 503 はそのソースを打ち切る（失敗にしない）。
- * 取得先の制限（BlockedUrlError）と robots.txt の読込み失敗は throw する
+ * 取得先の制限（BlockedUrlError）と robots.txt の読込み失敗は throw する。
+ * last_collected_at は取得を最後まで終えたとき（completed / limit_reached）だけ進める
  */
 export const collectWebsiteSource = async (
   input: CollectWebsiteSourceInput,
@@ -295,6 +336,12 @@ export const collectWebsiteSource = async (
     status = resolveAbortedStatus(error, now, source.id)
   }
 
-  await repo.contentSourceRepository.markCollected(source.id, { lastCollectedAt: now })
+  /**
+   * 429 / 503・Crawl-delay・停止指示で途中で終えたソースは進めない（最終収集の表示が実際より新しくならないように。
+   * findEnabled は last_collected_at の古い順なので、次回の実行で先に処理される）
+   */
+  if (status === "completed" || status === "limit_reached") {
+    await repo.contentSourceRepository.markCollected(source.id, { lastCollectedAt: now })
+  }
   return { ...progress, status }
 }

@@ -2,12 +2,14 @@ import type { PassageBlock } from "@repo/domain"
 
 import {
   findEvidenceSegmentRange,
+  forTesting,
   type GlossarySpan,
-  segmentBlockText,
   segmentPassage,
   type SegmentWithRange,
 } from "../../src/lib/segment-passage"
 import { PASSAGE_BLOCKS } from "../fixture/passage-content"
+
+const { segmentBlockText } = forTesting
 
 /**
  * 本文中の surface の位置の用語集（ブロックは 0）
