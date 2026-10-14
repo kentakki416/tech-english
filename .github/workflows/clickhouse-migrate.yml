@@ -1,0 +1,71 @@
+name: ClickHouse Migrate
+
+# =============================================================================
+# ClickHouse の migration だけを流す (deploy をやり直さずに)
+# =============================================================================
+# 使いどころ (手順は docs/tech-stack/clickhouse/cdc.md):
+# - CDC の対象テーブルを足し、apply で ClickPipe の初回の取り込みが終わった後 (view を作る)
+# - ClickPipe を Resync した後 (view を作り直す)
+# - Postgres に足した列を view に出す (そのテーブルに書き込みがあった後)
+#
+# 最後に deploy した migration イメージで起動する (.github/actions/run-deployed-migration)。
+# Postgres (Drizzle) の migration は postgres-migrate.yml。
+# =============================================================================
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        required: true
+        type: choice
+        options:
+          - dev
+          - min
+          - prd
+
+# 同じ環境の deploy と同時に走らないよう、deploy workflow と同じ group にする
+concurrency:
+  group: deploy-aws-${{ inputs.environment }}
+  cancel-in-progress: false
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: ap-northeast-1
+
+  # ClickHouse の接続情報の secret。Terraform の enable_data_warehouse = true の環境にだけある
+  DATA_WAREHOUSE_SECRET_ID: /tech-english-${{ inputs.environment }}/data-warehouse
+
+jobs:
+  migrate-dwh:
+    name: Run ClickHouse Migration (${{ inputs.environment }})
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@v4 # composite action を使うため
+
+      - name: Configure AWS credentials with OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # deploy の detect と同じ判定。ClickHouse の無い環境では何もせずに失敗する
+      - name: Check data warehouse secret
+        env:
+          ENVIRONMENT: ${{ inputs.environment }}
+        run: |
+          if ! OUTPUT=$(aws secretsmanager describe-secret --secret-id "${DATA_WAREHOUSE_SECRET_ID}" --query Name --output text 2>&1); then
+            echo "${OUTPUT}" >&2
+            echo "::error::${DATA_WAREHOUSE_SECRET_ID} not found. ClickHouse is not enabled in ${ENVIRONMENT} (enable_data_warehouse = false)"
+            exit 1
+          fi
+
+      - name: Run ClickHouse migration
+        uses: ./.github/actions/run-deployed-migration
+        with:
+          environment: ${{ inputs.environment }}
+          task-definition: tech-english-${{ inputs.environment }}-dwh-migration

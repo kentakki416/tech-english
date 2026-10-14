@@ -103,7 +103,7 @@
 ### スコープ外
 
 - **web / admin のホスティング**: 現状どおり（このリポジトリの AWS 構成には含まれていない）
-- **ClickHouse Cloud の費用**: worker の書き込み先は prd と同じ扱い。必要になるまでは `DATA_WAREHOUSE_TYPE=none` にもできるが、イベントが記録されなくなるため本番で使うかはプロダクトごとに判断する（`apps/worker/CLAUDE.md`）
+- **ClickHouse Cloud の費用**: worker の書き込み先は Terraform の `enable_data_warehouse` で選ぶ（min の既定は `false` で `DATA_WAREHOUSE_TYPE=none`）。`false` ではイベントが記録されないため、本番で使うかはプロダクトごとに判断する（[`../clickhouse-migration/README.md`](../clickhouse-migration/README.md)）
 - **dev の minimal 化**: dev も同じ固定費がかかっているが、本 spec では扱わない。`env/min` を雛形にすれば同じ構成で作れる
 
 ---
@@ -255,7 +255,7 @@ worker（バックグラウンドジョブ）を最初から使うプロダク�
   - `packages/db` の Pool は接続時に `options=-c TimeZone=UTC` を送る。PgBouncer は 1.20 以降この `options` を受け付け、`TimeZone` は既定でクライアントごとに引き継ぐので、接続を使い回しても UTC のまま。PS-5 での実機確認は step3 で行う（[リスク](#リスクと実装時の確認事項)参照）
   - migration（drizzle-kit）も同じ接続文字列で流す。Drizzle は migration 全体を 1 トランザクションで実行するため、transaction pooling でも問題ない
 - **バックアップ**: PlanetScale の自動バックアップに任せる（保持期間は実装時に確認して README に追記する）
-- **リージョン**: アプリ（Lambda）も DB も東京。ClickHouse Cloud は prd と同じ接続先
+- **リージョン**: アプリ（Lambda）も DB も東京。ClickHouse Cloud も `enable_data_warehouse = true` のとき東京に作る
 
 ### secret と環境変数の注入
 

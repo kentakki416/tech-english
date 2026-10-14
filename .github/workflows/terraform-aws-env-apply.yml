@@ -73,9 +73,15 @@ jobs:
         working-directory: infra/terraform/aws/env/${{ inputs.environment }}
 
       # plan を一度走らせて差分を可視化（apply ログだけだと事後追跡しづらいため）
+      # CLICKHOUSE_* は enable_data_warehouse = true の環境の GitHub Environment にだけ置く (false に戻す apply が終わるまでは消さない)。
+      # 変数の値は tfplan に保存されるので、Apply の step には渡さない
       - name: Terraform Plan
         run: terraform plan -no-color -input=false -lock-timeout=120s -out=tfplan
         working-directory: infra/terraform/aws/env/${{ inputs.environment }}
+        env:
+          TF_VAR_clickhouse_org_id: ${{ secrets.CLICKHOUSE_ORG_ID }}
+          TF_VAR_clickhouse_token_key: ${{ secrets.CLICKHOUSE_TOKEN_KEY }}
+          TF_VAR_clickhouse_token_secret: ${{ secrets.CLICKHOUSE_TOKEN_SECRET }}
 
       - name: Terraform Apply
         run: terraform apply -no-color -input=false -lock-timeout=120s -auto-approve tfplan

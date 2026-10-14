@@ -1,0 +1,115 @@
+name: Run one-shot ECS task
+description: >-
+  ECS の one-shot タスク (migration など) を起動し、終了を待って終了コードで成否を判定する。
+  image を指定したら、最新のタスク定義の image だけを差し替えた revision を register してから起動する。
+  タスクのログは成否にかかわらず出す。
+
+inputs:
+  cluster:
+    description: ECS cluster 名
+    required: true
+  task-definition:
+    description: タスク定義の family。ecs-workload module はコンテナ名とロググループ (/ecs/<family>) も同じ名前にしている
+    required: true
+  image:
+    description: 起動するイメージ。省略したら最新の revision をそのまま起動する
+    required: false
+    default: ""
+  subnets:
+    description: タスクを置く subnet の ID (カンマ区切り)
+    required: true
+  security-group:
+    description: タスクに付ける Security Group の ID
+    required: true
+  assign-public-ip:
+    description: ENABLED (public subnet に置くとき) / DISABLED (private subnet に置くとき)
+    required: false
+    default: DISABLED
+
+runs:
+  using: composite
+  steps:
+    - name: Register task definition with the image
+      id: register
+      shell: bash
+      env:
+        IMAGE: ${{ inputs.image }}
+        TASK_DEFINITION: ${{ inputs.task-definition }}
+      run: |
+        set -euo pipefail
+        if [ -z "${IMAGE}" ]; then
+          echo "task_definition=${TASK_DEFINITION}" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+
+        TASK_DEF_FILE=$(mktemp)
+        aws ecs describe-task-definition \
+          --task-definition "${TASK_DEFINITION}" \
+          --query taskDefinition \
+          | jq --arg IMAGE "${IMAGE}" '
+              .containerDefinitions[0].image = $IMAGE
+              | del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)
+            ' > "${TASK_DEF_FILE}"
+
+        REVISION_ARN=$(aws ecs register-task-definition \
+          --cli-input-json "file://${TASK_DEF_FILE}" \
+          --query 'taskDefinition.taskDefinitionArn' --output text)
+
+        echo "Registered task definition: ${REVISION_ARN}"
+        echo "task_definition=${REVISION_ARN}" >> "$GITHUB_OUTPUT"
+
+    - name: Run task and wait for it to stop
+      shell: bash
+      env:
+        ASSIGN_PUBLIC_IP: ${{ inputs.assign-public-ip }}
+        CLUSTER: ${{ inputs.cluster }}
+        FAMILY: ${{ inputs.task-definition }}
+        SECURITY_GROUP: ${{ inputs.security-group }}
+        SUBNETS: ${{ inputs.subnets }}
+        TASK_DEFINITION: ${{ steps.register.outputs.task_definition }}
+      run: |
+        set -euo pipefail
+
+        # Service が無い one-shot タスクなので、起動時に network 設定を渡す
+        RUN_RESULT=$(aws ecs run-task \
+          --cluster "${CLUSTER}" \
+          --task-definition "${TASK_DEFINITION}" \
+          --launch-type FARGATE \
+          --network-configuration "awsvpcConfiguration={subnets=[${SUBNETS}],securityGroups=[${SECURITY_GROUP}],assignPublicIp=${ASSIGN_PUBLIC_IP}}")
+        TASK_ARN=$(jq -r '.tasks[0].taskArn // empty' <<< "${RUN_RESULT}")
+        if [ -z "${TASK_ARN}" ]; then
+          echo "::error::Failed to start the task"
+          jq '.failures' <<< "${RUN_RESULT}"
+          exit 1
+        fi
+        echo "Task ARN: ${TASK_ARN}"
+
+        aws ecs wait tasks-stopped --cluster "${CLUSTER}" --tasks "${TASK_ARN}"
+
+        # 停止理由とコンテナの終了コードを常に出す (exitCode が None ならコンテナが起動していない。image の pull 失敗など)
+        echo "=== Task details ==="
+        aws ecs describe-tasks \
+          --cluster "${CLUSTER}" \
+          --tasks "${TASK_ARN}" \
+          --query 'tasks[0].{stopCode:stopCode,stoppedReason:stoppedReason,containers:containers[*].{name:name,exitCode:exitCode,reason:reason,lastStatus:lastStatus}}' \
+          --output yaml
+
+        EXIT_CODE=$(aws ecs describe-tasks \
+          --cluster "${CLUSTER}" \
+          --tasks "${TASK_ARN}" \
+          --query 'tasks[0].containers[0].exitCode' \
+          --output text)
+
+        # ロググループ全体だと過去の実行のログが混ざるため、このタスクのログストリーム
+        # (awslogs-stream-prefix の ecs / コンテナ名 / タスク ID) だけを出す
+        echo "=== Logs ==="
+        aws logs filter-log-events \
+          --log-group-name "/ecs/${FAMILY}" \
+          --log-stream-names "ecs/${FAMILY}/${TASK_ARN##*/}" \
+          --query 'events[].[message]' \
+          --output text || true
+
+        if [ "${EXIT_CODE}" != "0" ]; then
+          echo "::error::Task failed with exit code ${EXIT_CODE}"
+          exit 1
+        fi

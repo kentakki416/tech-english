@@ -43,8 +43,8 @@ const main = (): void => {
    * どのデータウェアハウスを使うかを決めるのはここだけ。
    * Repository 以降は DataWarehouse 抽象にしか依存しない。
    *
-   * `none` は何も書かない実装になる。ClickHouse をホスティングしない環境
-   * （dev 等）のための選択肢で、env.ts 側で URL の必須判定も外れる。
+   * `none` は何も書かない実装になる。ClickHouse を持たない環境
+   * （Terraform の enable_data_warehouse = false）のための選択肢で、env.ts 側で URL の必須判定も外れる。
    */
   const dataWarehouse = env.DATA_WAREHOUSE_TYPE === "none"
     ? createDataWarehouse({ type: "none" })

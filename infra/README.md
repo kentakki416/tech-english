@@ -19,7 +19,7 @@ infra/terraform/aws/
 ├── env/
 │   ├── dev/     # dev 環境 (rolling デプロイ、api.dev.<domain>)
 │   └── prd/     # prd 環境 (Blue/Green デプロイ、api.<domain>)
-└── modules/     # 再利用可能な module (vpc / alb / ecs-cluster / ecs-workload / rds / elasticache / acm / route53 / secrets)
+└── modules/     # 再利用可能な module (vpc / alb / ecs-cluster / ecs-workload / rds / elasticache / acm / route53 / secrets / clickhouse-service / clickpipes-postgres-cdc)
 ```
 
 Route 53 hosted zone は Terraform 管理外。Route 53 Domains でドメインを購入すると AWS が同名 hosted zone を自動作成し、Registrar 側の NS もその hosted zone に自動で向くため、env/{dev,prd} は `data "aws_route53_zone"` で参照するだけで済む（[公式ドキュメント](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/domain-register.html)）。
@@ -45,6 +45,9 @@ Route 53 hosted zone は Terraform 管理外。Route 53 Domains でドメイン�
 | VPC CIDR | `10.0.0.0/16` | `10.1.0.0/16` |
 | state key | `dev/terraform.tfstate` | `prd/terraform.tfstate` |
 | RDS / ElastiCache | 最小構成 (single AZ, snapshot OFF, TLS OFF) | dev と同等 (※将来本番強化したい場合は別途) |
+| ClickHouse Cloud (`enable_data_warehouse`) | 既定 `false` (作らない) | 既定 `true` |
+| CDC: ClickPipes + SSH bastion (`enable_cdc`) | 既定 `false` (作らない) | 既定 `false` (作らない) |
+| RDS の論理レプリケーション | 有効 (パラメータグループ) | 有効 (パラメータグループ) |
 
 ## デプロイフロー
 

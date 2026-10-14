@@ -4,6 +4,32 @@ resource "aws_db_subnet_group" "this" {
   tags       = var.tags
 }
 
+/**
+ * family を変えると作り直しになる。使用中のパラメータグループは消せないため、
+ * create_before_destroy で新しいものに付け替えてから消す (名前が衝突しないよう name_prefix にする)
+ */
+resource "aws_db_parameter_group" "this" {
+  count = length(var.parameters) > 0 ? 1 : 0
+
+  name_prefix = "${var.name}-params-"
+  family      = var.parameter_group_family
+
+  dynamic "parameter" {
+    for_each = var.parameters
+    content {
+      name         = parameter.value.name
+      value        = parameter.value.value
+      apply_method = parameter.value.apply_method
+    }
+  }
+
+  tags = var.tags
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
 # RDS インスタンス本体。
 # - master password は app secret (例: /tech-english-prd/app) の DB_PASSWORD を唯一の情報源とし、
 #   env 層が ephemeral resource で読んで var.master_password (ephemeral) として渡す。
@@ -35,6 +61,7 @@ resource "aws_db_instance" "this" {
   password_wo_version = var.master_password_version
 
   db_subnet_group_name   = aws_db_subnet_group.this.name
+  parameter_group_name   = one(aws_db_parameter_group.this[*].name)
   vpc_security_group_ids = var.security_group_ids
   publicly_accessible    = false
 

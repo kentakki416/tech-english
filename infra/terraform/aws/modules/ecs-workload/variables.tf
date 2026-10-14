@@ -78,6 +78,12 @@ variable "secret_keys" {
   default     = []
 }
 
+variable "additional_secrets" {
+  description = "secrets_arn 以外の secret から注入する値。環境変数名 → valueFrom (<secret の ARN>:<キー>::)"
+  type        = map(string)
+  default     = {}
+}
+
 variable "task_role_arn" {
   description = "task 内アプリが AWS API を呼ぶときの role ARN。null なら execution_role_arn と同じ"
   type        = string

@@ -1,0 +1,101 @@
+name: Run deployed migration
+description: >-
+  最後に deploy した migration イメージで、migration の one-shot タスクを起動する。
+  deploy をやり直さずに migration だけを流す workflow (postgres-migrate.yml / clickhouse-migrate.yml) から使う。
+  AWS の認証情報は呼び出し側で設定しておく。
+
+inputs:
+  environment:
+    description: dev / min / prd
+    required: true
+  task-definition:
+    description: 起動するタスク定義の family (例 tech-english-dev-migration / tech-english-dev-dwh-migration)
+    required: true
+  project-name:
+    description: Terraform の project_name (リソース名のプレフィックスと default_tags の Project)
+    required: false
+    default: tech-english
+
+runs:
+  using: composite
+  steps:
+    # Terraform の apply でできた revision の image は :latest (ECR に無い placeholder) なので使えない。
+    # deploy は毎回 Drizzle の migration のタスク定義に SHA タグのイメージを register する。ClickHouse の
+    # migration も同じイメージなので、その revision を新しい順に見て :latest でない最初の image を使う
+    - name: Find the last deployed migration image
+      id: image
+      shell: bash
+      env:
+        ENVIRONMENT: ${{ inputs.environment }}
+        SOURCE_TASK_DEFINITION: ${{ inputs.project-name }}-${{ inputs.environment }}-migration
+      run: |
+        set -euo pipefail
+        # for の中のコマンド置換は失敗しても止まらないので、先に変数に入れる (権限不足などを取り違えないように)
+        ARNS=$(aws ecs list-task-definitions \
+          --family-prefix "${SOURCE_TASK_DEFINITION}" \
+          --status ACTIVE \
+          --sort DESC \
+          --query 'taskDefinitionArns' \
+          --output text)
+        for ARN in ${ARNS}; do
+          IMAGE=$(aws ecs describe-task-definition \
+            --task-definition "${ARN}" \
+            --query 'taskDefinition.containerDefinitions[0].image' \
+            --output text)
+          if [[ "${IMAGE}" != *:latest ]]; then
+            echo "Last deployed migration image: ${IMAGE} (${ARN})"
+            echo "image=${IMAGE}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+        done
+        echo "::error::No deployed migration image found. Run the deploy workflow for ${ENVIRONMENT} first"
+        exit 1
+
+    # Terraform output や GitHub Secrets で固定化せず、AWS リソースのタグから動的に解決する。
+    # dev / prd のタスクは private subnet から NAT 経由で、min は public subnet から public IP で外に出る
+    - name: Resolve network configuration from tags
+      id: network
+      shell: bash
+      env:
+        ENVIRONMENT: ${{ inputs.environment }}
+        PROJECT_NAME: ${{ inputs.project-name }}
+        SECURITY_GROUP_NAME: ${{ inputs.project-name }}-${{ inputs.environment }}-ecs
+        SUBNET_NAME_PREFIX: ${{ inputs.project-name }}-${{ inputs.environment }}-${{ inputs.environment == 'min' && 'public' || 'private' }}
+      run: |
+        set -euo pipefail
+
+        VPC_ID=$(aws ec2 describe-vpcs \
+          --filters "Name=tag:Project,Values=${PROJECT_NAME}" "Name=tag:Environment,Values=${ENVIRONMENT}" \
+          --query 'Vpcs[0].VpcId' --output text)
+
+        if [ -z "${VPC_ID}" ] || [ "${VPC_ID}" = "None" ]; then
+          echo "::error::VPC not found (tag:Project=${PROJECT_NAME} tag:Environment=${ENVIRONMENT})"
+          exit 1
+        fi
+
+        SUBNETS=$(aws ec2 describe-subnets \
+          --filters "Name=vpc-id,Values=${VPC_ID}" "Name=tag:Name,Values=${SUBNET_NAME_PREFIX}*" \
+          --query 'Subnets[*].SubnetId' --output text | tr '\t' ',')
+
+        ECS_SG=$(aws ec2 describe-security-groups \
+          --filters "Name=vpc-id,Values=${VPC_ID}" "Name=tag:Name,Values=${SECURITY_GROUP_NAME}" \
+          --query 'SecurityGroups[0].GroupId' --output text)
+
+        if [ -z "${SUBNETS}" ] || [ -z "${ECS_SG}" ] || [ "${ECS_SG}" = "None" ]; then
+          echo "::error::Failed to resolve subnets or security group (VPC=${VPC_ID} subnets='${SUBNETS}' sg='${ECS_SG}')"
+          exit 1
+        fi
+
+        echo "Resolved: VPC=${VPC_ID} subnets=${SUBNETS} ecs_sg=${ECS_SG}"
+        echo "subnets=${SUBNETS}" >> "$GITHUB_OUTPUT"
+        echo "ecs_security_group=${ECS_SG}" >> "$GITHUB_OUTPUT"
+
+    - name: Run migration task
+      uses: ./.github/actions/run-one-shot-task
+      with:
+        cluster: ${{ inputs.project-name }}-${{ inputs.environment }}-cluster
+        task-definition: ${{ inputs.task-definition }}
+        image: ${{ steps.image.outputs.image }}
+        subnets: ${{ steps.network.outputs.subnets }}
+        security-group: ${{ steps.network.outputs.ecs_security_group }}
+        assign-public-ip: ${{ inputs.environment == 'min' && 'ENABLED' || 'DISABLED' }}

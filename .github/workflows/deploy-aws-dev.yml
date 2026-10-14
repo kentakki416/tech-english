@@ -3,8 +3,10 @@ name: Deploy to AWS dev
 # =============================================================================
 # Job 構成
 # =============================================================================
-# build → migrate → ┬→ deploy-api    (rolling 完走)
-#                   ├→ deploy-worker (rolling 完走)
+# detect (ClickHouse の有無)
+# build → migrate → ┬→ migrate-dwh   (ClickHouse の migration。enable_data_warehouse の環境だけ)
+#                   ├→ deploy-api    (rolling 完走)
+#                   ├→ deploy-worker (rolling 完走。migrate-dwh の成功 / skip を待つ)
 #                   └→ deploy-cron   (task definition revision を register するのみ)
 #
 # dev は rolling deploy (env/dev/main.tf の ecs_api / ecs_worker で enable_blue_green = false)
@@ -48,12 +50,48 @@ env:
   ECS_WORKER_SERVICE: tech-english-dev-worker
   ECS_MIGRATION_TASK_DEF: tech-english-dev-migration
   ECS_CRON_TASK_DEF: tech-english-dev-cron
+  ECS_DWH_MIGRATION_TASK_DEF: tech-english-dev-dwh-migration
+
+  # ClickHouse の接続情報の secret。Terraform の enable_data_warehouse = true の環境にだけある
+  DATA_WAREHOUSE_SECRET_ID: /tech-english-dev/data-warehouse
 
   # VPC リソース解決用 (Terraform 側 modules/vpc の Name タグと一致)
   ECS_SECURITY_GROUP_NAME: tech-english-dev-ecs
   PRIVATE_SUBNET_NAME_PREFIX: tech-english-dev-private # `${prefix}*` で wildcard 検索する
 
 jobs:
+  # =========================================================================
+  # ClickHouse の有無 (= Terraform の enable_data_warehouse) を調べる
+  # =========================================================================
+  # 判定の正本は Terraform のフラグだけ。フラグが true の環境にだけ接続情報の secret がある。
+  # dwh-migration のタスク定義では判定しない (deploy が register した revision が、フラグを
+  # false にしても ACTIVE のまま残るため)。設計: docs/spec/clickhouse-migration/README.md
+  detect:
+    name: Detect data warehouse
+    runs-on: ubuntu-latest
+    environment: dev
+    outputs:
+      dwh_enabled: ${{ steps.dwh.outputs.dwh_enabled }}
+    steps:
+      - name: Configure AWS credentials with OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # secret が無い以外のエラー (権限不足など) で false にすると migration が黙って飛ばされるので、失敗させる
+      - name: Check data warehouse secret
+        id: dwh
+        run: |
+          if OUTPUT=$(aws secretsmanager describe-secret --secret-id "${DATA_WAREHOUSE_SECRET_ID}" --query Name --output text 2>&1); then
+            echo "dwh_enabled=true" >> "$GITHUB_OUTPUT"
+          elif grep -q ResourceNotFoundException <<< "${OUTPUT}"; then
+            echo "dwh_enabled=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "${OUTPUT}" >&2
+            exit 1
+          fi
+
   build:
     name: Build & Push Docker Images
     runs-on: ubuntu-latest
@@ -131,34 +169,13 @@ jobs:
     runs-on: ubuntu-latest
     environment: dev
     steps:
+      - uses: actions/checkout@v4 # composite action を使うため
+
       - name: Configure AWS credentials with OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
-
-      # 現行 migration task definition の image を build job の SHA タグに書き換えて新リビジョンを register する。
-      # migration は専用イメージ (tech-english-migration) を参照 — drizzle-kit を本番 API に混入させないため。
-      - name: Register migration task definition with new image
-        id: register
-        env:
-          IMAGE: ${{ needs.build.outputs.registry }}/${{ env.ECR_MIGRATION_REPO }}:${{ needs.build.outputs.image_tag }}
-        run: |
-          TASK_DEF_FILE=$(mktemp)
-          aws ecs describe-task-definition \
-            --task-definition "${ECS_MIGRATION_TASK_DEF}" \
-            --query taskDefinition \
-            | jq --arg IMAGE "${IMAGE}" '
-                .containerDefinitions[0].image = $IMAGE
-                | del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)
-              ' > "${TASK_DEF_FILE}"
-
-          REVISION_ARN=$(aws ecs register-task-definition \
-            --cli-input-json "file://${TASK_DEF_FILE}" \
-            --query 'taskDefinition.taskDefinitionArn' --output text)
-
-          echo "Registered migration task definition: ${REVISION_ARN}"
-          echo "revision_arn=${REVISION_ARN}" >> "$GITHUB_OUTPUT"
 
       # Terraform output や GitHub Secrets で固定化せず、AWS リソースのタグから動的に解決する。
       # 環境を destroy / apply し直しても (subnet ID / SG ID が変わっても) 自動で追従する。
@@ -196,56 +213,82 @@ jobs:
           echo "private_subnets=${PRIVATE_SUBNETS}" >> "$GITHUB_OUTPUT"
           echo "ecs_security_group=${ECS_SG}" >> "$GITHUB_OUTPUT"
 
+      # migration task definition の image を build job の SHA タグに書き換えた revision で起動する。
+      # migration は専用イメージ (tech-english-migration) を参照 — drizzle-kit を本番 API に混入させないため。
       - name: Run DB migration
-        env:
-          PRIVATE_SUBNETS: ${{ steps.network.outputs.private_subnets }}
-          ECS_SECURITY_GROUP: ${{ steps.network.outputs.ecs_security_group }}
-          REVISION_ARN: ${{ steps.register.outputs.revision_arn }}
+        uses: ./.github/actions/run-one-shot-task
+        with:
+          cluster: ${{ env.ECS_CLUSTER }}
+          task-definition: ${{ env.ECS_MIGRATION_TASK_DEF }}
+          image: ${{ needs.build.outputs.registry }}/${{ env.ECR_MIGRATION_REPO }}:${{ needs.build.outputs.image_tag }}
+          subnets: ${{ steps.network.outputs.private_subnets }}
+          security-group: ${{ steps.network.outputs.ecs_security_group }}
+
+  # =========================================================================
+  # ClickHouse migration (enable_data_warehouse の環境だけ)
+  # =========================================================================
+  # Drizzle の migrate の後に流す (CDC の view の元テーブルが Postgres に先にできている必要があるため)。
+  # 失敗しても api / cron の deploy は止めない (分析用のため)。worker は ClickHouse に書くので待たせる。
+  migrate-dwh:
+    name: Run ClickHouse Migration
+    needs: [detect, build, migrate]
+    if: ${{ needs.detect.outputs.dwh_enabled == 'true' }}
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - uses: actions/checkout@v4 # composite action を使うため
+
+      - name: Configure AWS credentials with OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # Terraform output や GitHub Secrets で固定化せず、AWS リソースのタグから動的に解決する。
+      # 環境を destroy / apply し直しても (subnet ID / SG ID が変わっても) 自動で追従する。
+      - name: Resolve network configuration from tags
+        id: network
         run: |
-          # run-task はタスクを起動するだけで終了は待たない。
-          # Service が無い one-shot タスクなので、起動時に network 設定を渡す必要がある。
-          TASK_ARN=$(aws ecs run-task \
-            --cluster "${ECS_CLUSTER}" \
-            --task-definition "${REVISION_ARN}" \
-            --launch-type FARGATE \
-            --network-configuration "awsvpcConfiguration={subnets=[${PRIVATE_SUBNETS}],securityGroups=[${ECS_SECURITY_GROUP}],assignPublicIp=DISABLED}" \
-            --query 'tasks[0].taskArn' \
-            --output text)
+          set -euo pipefail
 
-          echo "Migration task ARN: ${TASK_ARN}"
+          # default_tags (Project / Environment) で VPC を特定
+          VPC_ID=$(aws ec2 describe-vpcs \
+            --filters "Name=tag:Project,Values=${PROJECT_NAME}" "Name=tag:Environment,Values=${ENVIRONMENT}" \
+            --query 'Vpcs[0].VpcId' --output text)
 
-          # タスクが STOPPED になるまで待つ (成否は問わない)
-          aws ecs wait tasks-stopped \
-            --cluster "${ECS_CLUSTER}" \
-            --tasks "${TASK_ARN}"
-
-          # 診断情報を常に出力 (stopCode / stoppedReason / コンテナの reason / lastStatus を含む)。
-          # exitCode が None / 0 以外のときに「なぜ落ちたか」を Actions ログだけで判定できるようにする。
-          echo "=== Task details ==="
-          aws ecs describe-tasks \
-            --cluster "${ECS_CLUSTER}" \
-            --tasks "${TASK_ARN}" \
-            --query 'tasks[0].{stopCode:stopCode,stoppedReason:stoppedReason,containers:containers[*].{name:name,exitCode:exitCode,reason:reason,lastStatus:lastStatus}}' \
-            --output yaml
-
-          # 成否は describe-tasks のコンテナ exitCode で判定。
-          # 0 = 成功 / それ以外 = 失敗 / None = コンテナが起動すらしていない (image pull 失敗等)
-          EXIT_CODE=$(aws ecs describe-tasks \
-            --cluster "${ECS_CLUSTER}" \
-            --tasks "${TASK_ARN}" \
-            --query 'tasks[0].containers[0].exitCode' \
-            --output text)
-
-          # 失敗時は CloudWatch Logs を Actions ログに転載してから job を fail させる
-          if [ "${EXIT_CODE}" != "0" ]; then
-            echo "Migration failed with exit code ${EXIT_CODE}"
-            aws logs filter-log-events \
-              --log-group-name "/ecs/${ECS_MIGRATION_TASK_DEF}" \
-              --limit 200 \
-              --query 'events[*].message' \
-              --output text || true
+          if [ -z "${VPC_ID}" ] || [ "${VPC_ID}" = "None" ]; then
+            echo "::error::VPC not found (tag:Project=${PROJECT_NAME} tag:Environment=${ENVIRONMENT})"
             exit 1
           fi
+
+          # isolatedのsubnetが含まれないようにnameでフィルタリング (prefix は workflow env で定義)
+          PRIVATE_SUBNETS=$(aws ec2 describe-subnets \
+            --filters "Name=vpc-id,Values=${VPC_ID}" "Name=tag:Name,Values=${PRIVATE_SUBNET_NAME_PREFIX}*" \
+            --query 'Subnets[*].SubnetId' --output text | tr '\t' ',')
+
+          # ECS task 用 SG (Terraform 側 Name = "${var.name}-ecs")
+          ECS_SG=$(aws ec2 describe-security-groups \
+            --filters "Name=vpc-id,Values=${VPC_ID}" "Name=tag:Name,Values=${ECS_SECURITY_GROUP_NAME}" \
+            --query 'SecurityGroups[0].GroupId' --output text)
+
+          if [ -z "${PRIVATE_SUBNETS}" ] || [ -z "${ECS_SG}" ] || [ "${ECS_SG}" = "None" ]; then
+            echo "::error::Failed to resolve subnets or security group (VPC=${VPC_ID} subnets='${PRIVATE_SUBNETS}' sg='${ECS_SG}')"
+            exit 1
+          fi
+
+          echo "Resolved: VPC=${VPC_ID} subnets=${PRIVATE_SUBNETS} ecs_sg=${ECS_SG}"
+          echo "private_subnets=${PRIVATE_SUBNETS}" >> "$GITHUB_OUTPUT"
+          echo "ecs_security_group=${ECS_SG}" >> "$GITHUB_OUTPUT"
+
+      # Drizzle と同じ migration イメージを、タスク定義の command で ClickHouse の migration として起動する
+      - name: Run ClickHouse migration
+        uses: ./.github/actions/run-one-shot-task
+        with:
+          cluster: ${{ env.ECS_CLUSTER }}
+          task-definition: ${{ env.ECS_DWH_MIGRATION_TASK_DEF }}
+          image: ${{ needs.build.outputs.registry }}/${{ env.ECR_MIGRATION_REPO }}:${{ needs.build.outputs.image_tag }}
+          subnets: ${{ steps.network.outputs.private_subnets }}
+          security-group: ${{ steps.network.outputs.ecs_security_group }}
 
   # =========================================================================
   # API service (rolling)
@@ -291,9 +334,16 @@ jobs:
   # worker service (rolling)
   # =========================================================================
   # worker は rolling deploy なので wait-for-service-stability=true で完走を待つ。
+  # migrate-dwh が skip (ClickHouse の無い環境) でも進めるため、needs の結果で条件を書く。
+  # detect の失敗で migrate-dwh が skip になったときは進めない
   deploy-worker:
     name: Deploy worker service
-    needs: [build, migrate]
+    needs: [detect, build, migrate, migrate-dwh]
+    if: >-
+      ${{ !cancelled()
+        && needs.detect.result == 'success'
+        && needs.migrate.result == 'success'
+        && (needs.migrate-dwh.result == 'success' || needs.migrate-dwh.result == 'skipped') }}
     runs-on: ubuntu-latest
     environment: dev
     steps:

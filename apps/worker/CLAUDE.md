@@ -62,10 +62,11 @@ BullMQ の stalled 検出 / リトライ / ECS deploy 時の SIGKILL で **同�
 ### データウェアハウスを持たない環境
 
 `DATA_WAREHOUSE_TYPE=none` にすると `NoopDataWarehouse` が DI され、行動イベントの
-insert がスキップされる（ジョブは成功扱いで completed になる）。**dev はこの設定**で、
-分析価値の無い環境のために ClickHouse を常駐させないための逃げ道。
+insert がスキップされる（ジョブは成功扱いで completed になる）。AWS では Terraform の
+`enable_data_warehouse = false` の環境（既定は dev / min）がこの設定になる。分析価値の無い環境の
+ために ClickHouse を持たないための逃げ道。
 
-**本番で `none` にしてはいけない。** 呼び出し側から見ると insert は成功するので、
+**イベントを記録する環境で `none` にしてはいけない。** 呼び出し側から見ると insert は成功するので、
 設定を間違えるとイベントが無言で消える。気付けるように insert のたびに
 `data warehouse is disabled, skipped insert` を debug ログに出している。
 

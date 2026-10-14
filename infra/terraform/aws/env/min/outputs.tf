@@ -45,6 +45,11 @@ output "ecs_migration_task_definition_family" {
   value       = module.ecs_migration.task_definition_family
 }
 
+output "ecs_dwh_migration_task_definition_family" {
+  description = "ClickHouse migration task definition family。enable_data_warehouse = false なら null"
+  value       = one(module.ecs_dwh_migration[*].task_definition_family)
+}
+
 output "ecs_cron_task_definition_family" {
   description = "cron task definition family (deploy で新 revision を register する対象)"
   value       = module.ecs_cron.task_definition_family
@@ -54,4 +59,10 @@ output "ecs_cron_task_definition_family" {
 output "app_secret_name" {
   description = "Application secret の名前"
   value       = module.app_secrets.secret_name
+}
+
+# ClickHouse Cloud
+output "clickhouse_https_host" {
+  description = "ClickHouse Cloud のサービスの HTTPS ホスト名。enable_data_warehouse = false なら null"
+  value       = one(module.clickhouse[*].https_host)
 }

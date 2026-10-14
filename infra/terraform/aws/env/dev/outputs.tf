@@ -83,6 +83,11 @@ output "ecs_migration_task_definition_family" {
   value       = module.ecs_migration.task_definition_family
 }
 
+output "ecs_dwh_migration_task_definition_family" {
+  description = "ClickHouse migration task definition family。enable_data_warehouse = false なら null"
+  value       = one(module.ecs_dwh_migration[*].task_definition_family)
+}
+
 output "ecs_cron_task_definition_family" {
   description = "cron task definition family (deploy で新 revision を register する対象)"
   value       = module.ecs_cron.task_definition_family
@@ -134,4 +139,15 @@ output "redis_address" {
 output "redis_port" {
   description = "Redis port"
   value       = module.elasticache.port
+}
+
+# ClickHouse Cloud
+output "clickhouse_https_host" {
+  description = "ClickHouse Cloud のサービスの HTTPS ホスト名。enable_data_warehouse = false なら null"
+  value       = one(module.clickhouse[*].https_host)
+}
+
+output "clickpipe_state" {
+  description = "ClickPipe の状態 (Running / Snapshot / Failed など)。Failed でも apply は成功するため、apply 後に確認する。enable_cdc = false なら null"
+  value       = one(module.cdc[*].clickpipe_state)
 }

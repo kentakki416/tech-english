@@ -115,6 +115,41 @@ variable "cron_schedule_state" {
 }
 
 # =============================================================================
+# データウェアハウス (ClickHouse Cloud)
+# =============================================================================
+
+variable "enable_data_warehouse" {
+  description = "ClickHouse Cloud のサービスを作り、worker の書き込み先と ClickHouse の migration を有効にするか。CI の apply はフラグの変数を渡さないので、切り替えはこの既定値を変えてコミットする（手順は docs/spec/clickhouse-migration/tasks/step4-ci-deploy-dwh-migration.md）"
+  type        = bool
+  default     = false
+}
+
+/**
+ * ClickHouse Cloud の API の認証情報。Terraform の workflow が GitHub Environment の secret (CLICKHOUSE_*) を TF_VAR_* で渡す。
+ * enable_data_warehouse = false の環境では渡さなくてよい（provider には "unused" を渡す）
+ */
+variable "clickhouse_org_id" {
+  description = "ClickHouse Cloud の organization ID"
+  type        = string
+  default     = null
+  sensitive   = true
+}
+
+variable "clickhouse_token_key" {
+  description = "ClickHouse Cloud の API キーの key ID"
+  type        = string
+  default     = null
+  sensitive   = true
+}
+
+variable "clickhouse_token_secret" {
+  description = "ClickHouse Cloud の API キーの secret"
+  type        = string
+  default     = null
+  sensitive   = true
+}
+
+# =============================================================================
 # タグ設定
 # =============================================================================
 

@@ -284,6 +284,14 @@ ephemeral "aws_secretsmanager_secret_version" "app" {
   secret_id = module.app_secrets.seeded_secret_id
 }
 
+locals {
+  /**
+   * DB マスターパスワードの版。app secret の DB_PASSWORD を変更したら +1 して apply する。
+   * RDS と ClickPipe の両方に渡す (片方だけ上げると、ClickPipe が古いパスワードのまま認証に失敗して CDC が止まる)
+   */
+  db_password_version = 1
+}
+
 module "rds" {
   source = "../../modules/rds"
 
@@ -297,9 +305,23 @@ module "rds" {
   db_name           = "tech_english"
   master_username   = "techenglish"
 
-  master_password = jsondecode(ephemeral.aws_secretsmanager_secret_version.app.secret_string)["DB_PASSWORD"]
-  # app secret の DB_PASSWORD を変更したら +1 して apply する
-  master_password_version = 1
+  master_password         = jsondecode(ephemeral.aws_secretsmanager_secret_version.app.secret_string)["DB_PASSWORD"]
+  master_password_version = local.db_password_version
+
+  /**
+   * CDC (ClickPipes) 用に論理レプリケーションを常に有効にする。
+   * enable_cdc に連動させると「apply → 再起動 → もう一度 apply」の 2 段になるため、
+   * 再起動が要るのはこのパラメータグループを入れるときの 1 回だけにする (手順は docs/tech-stack/clickhouse/cdc.md)。
+   * slot が無い間は WAL を溜め込まないので、常に有効でも WAL が少し増える程度。
+   */
+  parameters = [
+    { name = "rds.logical_replication", value = "1" },
+    /**
+     * slot が保持できる WAL の上限 (MB)。ClickPipe が止まったまま WAL が溜まり続けて
+     * ディスクが埋まるのを防ぐ。超えると slot が無効になり CDC は止まるが、DB は止まらない
+     */
+    { name = "max_slot_wal_keep_size", value = "5120", apply_method = "immediate" },
+  ]
 
   subnet_ids         = [for k in local.isolated_subnet_keys : module.vpc.subnets[k].id]
   security_group_ids = [module.vpc.security_groups["rds"].id]
@@ -353,6 +375,70 @@ module "elasticache" {
   # maintenance: 月曜 19:00-20:00 UTC (JST 月曜 04:00-05:00)
   snapshot_window    = "18:00-19:00"
   maintenance_window = "mon:19:00-mon:20:00"
+
+  tags = local.common_tags
+}
+
+# =============================================================================
+# ClickHouse Cloud (enable_data_warehouse のときだけ)
+# =============================================================================
+# - 接続情報 (DATA_WAREHOUSE_*) は /<prefix>/data-warehouse の secret に入れ、worker と
+#   dwh-migration にだけ渡す
+# - deploy workflow はこの secret の有無で ClickHouse の migration を流すかを判定する
+#   (判定の正本はこのフラグだけ)
+# - 接続を許すのは、worker と migration のタスクが外へ出る NAT の IP と、
+#   clickhouse_additional_ip_access_cidrs に足した IP (分析ツールなど) だけ
+# 設計: docs/spec/clickhouse-migration/README.md
+
+module "clickhouse" {
+  source = "../../modules/clickhouse-service"
+  count  = var.enable_data_warehouse ? 1 : 0
+
+  name            = local.name_prefix
+  region          = var.aws_region
+  secret_name     = "/${local.name_prefix}/data-warehouse"
+  ip_access_cidrs = concat(["${module.vpc.nat_gateway_public_ip}/32"], var.clickhouse_additional_ip_access_cidrs)
+
+  # ClickHouse の default ユーザーのパスワードを作り直したら +1 する (手順は modules/clickhouse-service/main.tf)
+  password_version = 1
+
+  credentials_configured = alltrue([
+    for v in [var.clickhouse_org_id, var.clickhouse_token_key, var.clickhouse_token_secret] : v != null && v != ""
+  ])
+
+  tags = local.common_tags
+}
+
+locals {
+  /** ClickHouse の接続情報。enable_data_warehouse = false なら空で、worker も migration も受け取らない */
+  data_warehouse_secrets = var.enable_data_warehouse ? module.clickhouse[0].ecs_secrets : {}
+}
+
+# =============================================================================
+# CDC: Postgres (RDS) → ClickHouse Cloud (enable_cdc のときだけ)
+# =============================================================================
+# - ClickPipes が SSH bastion 経由で RDS の論理レプリケーションを読み、pg_cdc に取り込む
+# - 同期の対象は infra/clickhouse/cdc-tables.json。変えたら apply で ClickPipe に反映する
+# 設計: docs/spec/clickhouse-migration/README.md
+
+module "cdc" {
+  source = "../../modules/clickpipes-postgres-cdc"
+  count  = var.enable_cdc ? 1 : 0
+
+  name                  = local.name_prefix
+  service_id            = module.clickhouse[0].service_id
+  vpc_id                = module.vpc.vpc_id
+  public_subnet_id      = module.vpc.subnets[local.public_subnet_keys[0]].id
+  rds_security_group_id = module.vpc.security_groups["rds"].id
+  rds_address           = module.rds.address
+  rds_port              = module.rds.port
+  rds_database          = module.rds.db_name
+  rds_username          = module.rds.master_username
+  rds_password          = jsondecode(ephemeral.aws_secretsmanager_secret_version.app.secret_string)["DB_PASSWORD"]
+  rds_password_version  = local.db_password_version
+
+  /** CDC 対象の一覧の正本。ローカルの migration コマンドも同じファイルを読む */
+  tables = jsondecode(file("${path.module}/../../../../clickhouse/cdc-tables.json"))
 
   tags = local.common_tags
 }
@@ -471,7 +557,7 @@ module "ecs_cluster" {
 
   # Task execution role に Secrets Manager Get 権限を持たせる対象 ARN を渡す。
   # ここで一元管理し、各 workload の task definition は valueFrom で個別キーを引くだけ。
-  secret_arns_readable = [module.app_secrets.secret_arn]
+  secret_arns_readable = concat([module.app_secrets.secret_arn], module.clickhouse[*].secret_arn)
 
   tags = local.common_tags
 }
@@ -504,7 +590,7 @@ locals {
       "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET",
       "FRONTEND_URL", "NODE_ENV", "PORT",
     ]
-    # dev は DATA_WAREHOUSE_TYPE=none で ClickHouse を持たないため接続情報は渡さない
+    # DATA_WAREHOUSE_* は app secret ではなく local.data_warehouse_secrets から渡す
     worker    = ["DATABASE_URL", "REDIS_URL", "NODE_ENV"]
     cron      = ["DATABASE_URL", "NODE_ENV"]
     migration = ["DATABASE_URL"]
@@ -558,13 +644,14 @@ module "ecs_worker" {
   subnets            = local.ecs_common.subnets
   security_groups    = local.ecs_common.security_groups
 
-  secrets_arn = local.ecs_common.secrets_arn
-  secret_keys = local.secret_keys.worker
+  secrets_arn        = local.ecs_common.secrets_arn
+  secret_keys        = local.secret_keys.worker
+  additional_secrets = local.data_warehouse_secrets
 
-  # ClickHouse をホスティングしない環境なので、何も書き込まない実装を使わせる。
+  # enable_data_warehouse = false なら、何も書き込まない実装を使わせる。
   # 秘密情報ではないので secrets ではなく平文の environment で渡す。
   environment = {
-    DATA_WAREHOUSE_TYPE = "none"
+    DATA_WAREHOUSE_TYPE = var.enable_data_warehouse ? "clickhouse" : "none"
   }
 
   # 先に ECR へ image を push してから apply する前提で 1 固定。
@@ -600,6 +687,40 @@ module "ecs_migration" {
 
   secrets_arn = local.ecs_common.secrets_arn
   secret_keys = local.secret_keys.migration
+
+  create_service        = false
+  log_retention_in_days = var.log_retention_days
+  tags                  = local.common_tags
+}
+
+# =============================================================================
+# ECS Workload: ClickHouse migration (one-shot task definition、Service なし)
+# =============================================================================
+# - enable_data_warehouse のときだけ作る (流すかどうかの判定は module.clickhouse の secret の有無)
+# - イメージは DB migration と同じで、command で ClickHouse の migration コマンドを起動する
+
+module "ecs_dwh_migration" {
+  source = "../../modules/ecs-workload"
+  count  = var.enable_data_warehouse ? 1 : 0
+
+  name    = "${local.name_prefix}-dwh-migration"
+  image   = "${data.aws_ecr_repository.migration.repository_url}:latest"
+  cpu     = 256
+  memory  = 512
+  command = ["pnpm", "--filter", "@repo/data-warehouse", "dwh:migrate:run"]
+
+  cluster_arn        = local.ecs_common.cluster_arn
+  execution_role_arn = local.ecs_common.execution_role_arn
+  subnets            = local.ecs_common.subnets
+  security_groups    = local.ecs_common.security_groups
+
+  additional_secrets = local.data_warehouse_secrets
+  environment = {
+    /** CDC を張っていない環境では CDC の view を作らない */
+    DATA_WAREHOUSE_CDC = var.enable_cdc ? "clickpipes" : "none"
+    /** logger を JSON 出力にする (未設定だと development 扱いで色付きのテキストになる) */
+    NODE_ENV = "production"
+  }
 
   create_service        = false
   log_retention_in_days = var.log_retention_days

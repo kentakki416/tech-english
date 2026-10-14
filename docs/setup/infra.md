@@ -15,9 +15,10 @@ AWS デプロイ用 Infrastructure as Code (Terraform) の **初回セットア�
   - [4. backend.tf の bucket を bootstrap 出力に差し替え](#4-backendtf-の-bucket-を-bootstrap-出力に差し替え)
   - [5. account (ECR + GitHub Actions OIDC)](#5-account-ecr--github-actions-oidc)
   - [6. GitHub Environments の作成と AWS\_ROLE\_ARN 登録](#6-github-environments-の作成と-aws_role_arn-登録)
-  - [7. env/prd と env/dev を apply](#7-envprd-と-envdev-を-apply)
-  - [8. seed-secrets.sh で外部 Secret を投入](#8-seed-secretssh-で外部-secret-を投入)
-  - [9. deploy workflow で ECR にイメージを push](#9-deploy-workflow-で-ecr-にイメージを-push)
+  - [7. ClickHouse Cloud の準備](#7-clickhouse-cloud-の準備)
+  - [8. env/prd と env/dev を apply](#8-envprd-と-envdev-を-apply)
+  - [9. seed-secrets.sh で外部 Secret を投入](#9-seed-secretssh-で外部-secret-を投入)
+  - [10. deploy workflow で ECR にイメージを push](#10-deploy-workflow-で-ecr-にイメージを-push)
 
 ## 前提条件
 
@@ -111,12 +112,29 @@ terraform output -raw github_actions_prd_role_arn
 
 dev は Blue/Green ではなく rolling 更新で承認ゲートを持たないため、`dev-api-approval` は不要。
 
-### 7. env/prd と env/dev を apply
+### 7. ClickHouse Cloud の準備
+
+行動イベントの書き込み先（ClickHouse Cloud のサービス）は、`aws/env/{dev,min,prd}/variables.tf` の `enable_data_warehouse` が `true` の環境にだけ Terraform が作る。既定は prd が `true`、dev / min が `false`。`false` の環境ではこの手順は要らない。Postgres から ClickHouse への CDC（ClickPipes）は `enable_cdc`（dev / prd。既定はどちらも `false`）を `true` にしたときだけ作られ、同じ API キーを使う。設計は [`docs/spec/clickhouse-migration/README.md`](../spec/clickhouse-migration/README.md)。
+
+- [ ] ClickHouse Cloud の organization を作る（Basic tier）。**dev / min / prd はそれぞれ別の organization にする。** API キーは organization 全体の Admin 権限で、dev の API キーは PR の CI（plan）にも渡るため、同じ organization だとほかの環境のサービスも消せてしまう。Basic tier は最低料金が無いので、分けても費用は増えない
+- [ ] organization の API キーを作る（権限は Admin。Terraform がサービスを作るため）
+- [ ] `enable_data_warehouse = true` にする環境の GitHub Environment（`dev` / `min-terraform` / `prd`）の **Secrets** に `CLICKHOUSE_ORG_ID` / `CLICKHOUSE_TOKEN_KEY` / `CLICKHOUSE_TOKEN_SECRET` を登録する。Terraform の workflow が `TF_VAR_clickhouse_*` として渡す。`true` から `false` に戻すときは、その apply が終わるまで消さない（サービスの削除と、その PR の CI の plan で API を呼ぶため）
+- [ ] ローカルから apply するときは、同じ値を環境変数で渡す
+
+```bash
+export TF_VAR_clickhouse_org_id=...
+export TF_VAR_clickhouse_token_key=...
+export TF_VAR_clickhouse_token_secret=...
+```
+
+認証情報が無いまま `enable_data_warehouse = true` で plan すると、サービスを作る前に precondition のエラーで止まる。既にサービスがある環境では、その前に既存のサービスを読みにいく段階で ClickHouse Cloud の API の認証エラーになる。
+
+### 8. env/prd と env/dev を apply
 
 - [ ] GitHub Actions の `terraform-aws-env-apply.yml` (workflow_dispatch) からも実行可能。CI 経由で流す場合は手順 6 の Environment 登録が完了している必要がある。
 
 ```bash
-# prd
+# prd (enable_data_warehouse = true なので手順 7 の TF_VAR_clickhouse_* が要る)
 cd infra/terraform/aws/env/prd
 terraform init
 terraform apply
@@ -129,7 +147,7 @@ terraform apply
 terraform output api_url
 ```
 
-### 8. seed-secrets.sh で外部 Secret を投入
+### 9. seed-secrets.sh で外部 Secret を投入
 
 - [ ] Terraform は「箱」（Secrets Manager の secret）と JWT 鍵だけ作る方針。`DATABASE_URL` / `REDIS_HOST` / `FRONTEND_URL` 等の環境変数は `scripts/deploy/seed-secrets.sh` でローカルから投入する。スクリプトは terraform output から RDS / Redis のエンドポイントを引いて `DATABASE_URL` / `REDIS_HOST` を組み立てる。
 
@@ -147,7 +165,7 @@ export FRONTEND_URL=https://my-app.com
 ./scripts/deploy/seed-secrets.sh prd
 ```
 
-### 9. deploy workflow で ECR にイメージを push
+### 10. deploy workflow で ECR にイメージを push
 
 - [ ] GitHub の **Actions タブ → `Deploy to AWS dev` workflow → `Run workflow`（`main` ブランチ）** で dev のデプロイを起動する
 - [ ] GitHub の **Actions タブ → `Deploy to AWS prd` workflow → `Run workflow`（`main` ブランチ）** で prd のデプロイを起動する。`approve-api` job で停止したら **Actions UI の "Review pending deployments"** から `prd-api-approval` の reviewer として Approve すると Blue/Green が本番トラフィックシフト + 5 分 bake に進む

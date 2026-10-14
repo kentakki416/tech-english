@@ -166,6 +166,7 @@ cd infra/terraform/aws/env/prd && terraform init && terraform apply
 作成物: VPC / RDS(Multi-AZ) / ElastiCache(TLS) / ALB(HTTPS+Blue/Green) /
 ECS cluster + api/worker/migration/cron / EventBridge スケジュール / Secrets(箱+JWT) /
 **ACM 証明書 `*.<your-domain>`（DNS 検証）+ HTTPS リスナー + `api.<your-domain>` の ALIAS Aレコード**。
+`enable_data_warehouse`（prd の既定は `true`）により、ClickHouse Cloud のサービスと ClickHouse の migration のタスク定義も作られる（ClickHouse Cloud の API キーが要る。[`docs/setup/infra.md`](../setup/infra.md) の手順 7）。Postgres からの CDC（`enable_cdc`）は既定で作らない。有効にするときは Phase 8 の deploy が終わってから（[`docs/tech-stack/clickhouse/cdc.md`](../tech-stack/clickhouse/cdc.md#clickhouse-cloud-の-cdcclickpipes)）。
 
 > ⚠️ この時点で ECS api/worker は **イメージ未 push のため起動失敗**する（後で deploy して正常化）。想定どおり。
 
@@ -208,9 +209,14 @@ Actions → **「Deploy to AWS prd」** を workflow_dispatch。
 フロー（`prd` ゲートを外していれば自動で流れる）:
 1. **build**: api / worker / cron / **migration** の4イメージを ECR へ push
 2. **migrate**: prod RDS に `drizzle-kit migrate`（migration イメージ = `packages/db/Dockerfile.migration`）
-3. **deploy-worker / deploy-cron**: 承認なしで完走
-4. **deploy-api**: Blue/Green の green を待機 TG に投入 → テストトラフィックを green に
-5. **`prd-api-approval` で承認待ち** ← ここで承認
+3. **migrate-dwh**: ClickHouse の migration（同じ migration イメージ。`enable_data_warehouse` の環境だけで、無ければ skip）。失敗すると deploy-worker は止まるが、api の deploy は続く
+4. **deploy-worker / deploy-cron**: 承認なしで完走
+5. **deploy-api**: Blue/Green の green を待機 TG に投入 → テストトラフィックを green に
+6. **`prd-api-approval` で承認待ち** ← ここで承認
+
+migrate が一時的なエラーで失敗したときなど、Postgres の migration だけを流し直したいときは、Actions → **「Postgres Migrate」** を `environment=prd` で実行する（最後に deploy した migration イメージで流す。新しい migration は deploy で流す）。
+
+ClickHouse の migration だけを流し直したいとき（CDC の対象を足して ClickPipe の初回の取り込みが終わった後、ClickPipe を Resync した後、Postgres に列を足してそのテーブルに書き込みがあった後）は、Actions → **「ClickHouse Migrate」** を `environment=prd` で実行する（手順は [`docs/tech-stack/clickhouse/cdc.md`](../tech-stack/clickhouse/cdc.md#cdc-の対象を変えるとき)）。
 
 **承認前に green を実機確認できる**（Blue/Green の利点）:
 ```bash
