@@ -5,6 +5,7 @@ import { cache } from "react"
 
 import { type ExpiredAttempt, getAttemptPathParamSchema, type GetAttemptResponse } from "@repo/api-schema"
 
+import { ClearAttemptProgress } from "@/components/features/attempt/ClearAttemptProgress"
 import { SolvingScreen } from "@/components/features/attempt/SolvingScreen"
 import { AppHeader } from "@/components/ui/AppHeader"
 import { attemptApi } from "@/features/attempt/attempt.api"
@@ -37,11 +38,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 /**
- * 期限切れ（開始から 24 時間たって提出されなかった）の挑戦。学習記録には数えず、開始確認から新しく始めてもらう
+ * 期限切れ（開始から 24 時間たって提出されなかった）の挑戦。学習記録には数えず、開始確認から新しく始めてもらう。
+ * もう提出できないので端末の途中経過を消す
  */
 function ExpiredAttemptNotice({ attempt }: { attempt: ExpiredAttempt }) {
   return (
     <>
+      <ClearAttemptProgress attemptId={attempt.id} />
       <AppHeader current="passages" />
       <main className="mx-auto max-w-xl px-4 py-10 sm:py-16">
         <Link className="text-sm text-fg-muted hover:text-fg" href="/passages">問題一覧に戻る</Link>

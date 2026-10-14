@@ -21,7 +21,8 @@ export type SourceDocument = {
    */
   etag: string | null
   /**
-   * null は未取得
+   * 最後に取得を試みた時刻。null は未取得。
+   * サイトは取得できなかったとき（ネットワークエラー・429 / 503）も試した時刻を入れる（待ち行列から外すため）
    */
   fetchedAt: Date | null
   /**

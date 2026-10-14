@@ -22,7 +22,11 @@ export const GET = async (req: NextRequest) => {
   try {
     return NextResponse.json(await dictionaryApi.lookup(parsed.data.word))
   } catch (error) {
-    /** 辞書に無い（404）はそのまま返し、クライアントが「見つかりませんでした」を出す */
+    /**
+     * 辞書に無い（api の 404）は正常な結果なので 200 の null にする（クライアントが「辞書に見つかりませんでした。」を出す）。
+     * 404 のまま返すと、押すたびにブラウザが console に読み込みの失敗として出してしまう
+     */
+    if (error instanceof ApiClientError && error.status === 404) return NextResponse.json(null)
     if (error instanceof ApiClientError) return NextResponse.json(error.body ?? {}, { status: error.status })
     throw error
   }
@@ -37,7 +41,7 @@ Server Component。`getAttemptPathParamSchema` で検証し、失敗・404 は `
 | --- | --- |
 | `in_progress` | `<SolvingScreen attempt={attempt} />`（共通ヘッダーは出さない） |
 | `submitted` | `redirect(\`/attempts/${id}/result\`)` |
-| `expired` | 「この挑戦は期限切れです」と「問題を開く」（`/passages/{passage.id}`）の簡単な画面 |
+| `expired` | 「この挑戦は期限切れです」と「問題を開く」（`/passages/{passage.id}`）の簡単な画面。もう提出できないので `ClearAttemptProgress`（結果画面と共通の Client Component）で端末の途中経過を消す |
 
 ### 3. 本文リーダーの拡張（`src/components/features/passage/PassageReader.tsx`）
 
@@ -101,12 +105,13 @@ export function useActiveSeconds({ initialSeconds, isRunning }: { initialSeconds
 **期限（24 時間）**
 
 - マウント時に `serverOffsetMs = Date.parse(attempt.server_now) - Date.now()` を求め、1 分ごとに `Date.now() + serverOffsetMs >= Date.parse(attempt.expires_at)` を確かめる。期限を過ぎたら `isExpired = true` にして `ExpiredDialog`（「この挑戦は期限切れになりました」と「問題を開く」）
+- 期限切れになったら（期限の確認・提出の 409 のどちらでも）`removeAttemptProgress(attempt.id)` で端末の途中経過を消し、それ以降は書かない（もう提出できないので、残すと localStorage に溜まるだけ）
 
 **アシスト**
 
 - 段落の「訳」：`translatedBlocks` を切り替え、`viewedTranslationBlocks` に足す。全文訳（ボタン / `T`）をオンにしたら code 以外の全ブロックを `viewedTranslationBlocks` に足す
 - 単語：`onLookupWord` で `wordLookups` に追加（同じ単語でも毎回足す。結果画面の一覧はサーバーが重複を除く）
-- 辞書は hook `useDictionaryLookup()`（`src/components/features/passage/use-dictionary-lookup.ts`。step7 の結果画面でも使う）が返す関数を `onLookupDictionary` に渡す。中身は `fetch(\`/api/dictionary?word=${encodeURIComponent(word)}\`)` で、200 は結果、404 は null。結果（null も含む）は `useRef<Map<string, ...>>` に画面を開いている間だけ持つ（[英和辞書](../README.md#英和辞書) のキャッシュ）。通信の失敗はキャッシュしない
+- 辞書は hook `useDictionaryLookup()`（`src/components/features/passage/use-dictionary-lookup.ts`。step7 の結果画面でも使う）が返す関数を `onLookupDictionary` に渡す。中身は `fetch(\`/api/dictionary?word=${encodeURIComponent(word)}\`)` で、200 は結果（辞書に無ければ Route Handler が 200 の null を返すので null）、400（api が単語として受け付けない形）も null。結果（null も含む）は `useRef<Map<string, ...>>` に画面を開いている間だけ持つ（[英和辞書](../README.md#英和辞書) のキャッシュ）。通信の失敗はキャッシュしない
 - ステータスバーの「和訳 n 段落」は `viewedTranslationBlocks.size`、「単語 n 回」は `wordLookups.length`
 
 **キーボード操作**（`useAttemptShortcuts`。モックの `handleKeydown` を移す）
@@ -136,13 +141,15 @@ export const submitAttemptAction = async (attemptId: number, input: SubmitAttemp
     if (error instanceof ApiClientError && error.status === 409) return { error: "expired" }
     return { error: "failed" }
   }
+  /** 解答画面のキャッシュを捨てる（「戻る」で提出済みの挑戦の解答画面を出さず、取り直して結果画面へ redirect させる） */
+  revalidatePath(`/attempts/${attemptId}`)
   redirect(`/attempts/${attemptId}/result`)
 }
 ```
 
 - `SubmitConfirmDialog` の「提出する」で、`answers`（全設問。未回答は `selected_choice_index: null`）・`active_seconds: elapsedSeconds`・`translated_block_count: viewedTranslationBlocks.size`・`word_lookups` を組み立てて呼ぶ。送信中はボタンを無効にし、タイマーを止める
 - `expired` は `ExpiredDialog`、`failed` はダイアログ内に「提出できませんでした。時間をおいて再度お試しください。」（回答は端末に残っているので再送できる。提出 API は冪等）
-- 端末の途中経過は結果画面（step7）が消す（ここで消すと、提出に失敗したときに回答が失われる）
+- 端末の途中経過は結果画面（step7）が消す（ここで消すと、提出に失敗したときに回答が失われる）。`expired` のときは解答画面が消す（上の「期限」）
 
 ## 動作確認
 
@@ -163,5 +170,6 @@ pnpm lint:fix
 - [ ] `1`〜`4` / `J` / `K` / `T` / `?` / `Esc` / `⌘` + `Enter` が README の表どおりに動く。一時停止中は効かない
 - [ ] スマホ幅では設問がシートになり、「Q3 を開く」で画面の 78% まで開く。提出はシートの中
 - [ ] 未回答があると「未回答の設問が 1 問あります」。提出すると `/attempts/{id}/result` に移る（結果画面は step7）。DB の `elapsed_seconds` が画面の経過秒数と合い、`translated_block_count`・`attempt_word_lookups` が操作どおり
-- [ ] 提出済みの挑戦の `/attempts/{id}` を開くと結果画面へ移る。`started_at` を 24 時間前にした挑戦は期限切れの表示
+- [ ] 提出済みの挑戦の `/attempts/{id}` を開くと結果画面へ移る。`started_at` を 24 時間前にした挑戦は期限切れの表示で、localStorage の `attempt-progress:{id}` が消える
+- [ ] 提出して結果画面に移ったあと、ブラウザの「戻る」で解答画面が出ず結果画面へ移る
 - [ ] スクリーンショットを `docs/screenshots/reading-practice-attempt/after.png` に撮る（新規ページのため before なし）

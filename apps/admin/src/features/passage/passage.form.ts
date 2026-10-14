@@ -14,11 +14,23 @@ type DetailGlossaryEntry = GetAdminPassageResponse["glossary"][number]
 type DetailQuestion = GetAdminPassageResponse["questions"][number]
 
 /**
- * 用語集の 1 語句。clientKey は保存済みなら `id-12`、追加分は `new-1`。設問の対象の語句はこれで指す
+ * 用語集の 1 語句。clientKey は保存済みなら `id-12`、追加分は `new-1`。設問の対象の語句はこれで指す。
+ * start_offset / end_offset は保存済みの本文（詳細の blocks[block_index].text）上の位置で、追加した語句と、語句・段落を変えた語句は null。
+ * プレビューの下線に使い、保存のリクエストには含めない（位置は API が保存時に求め直す）
  */
 export type PassageFormGlossaryEntry = Omit<DetailGlossaryEntry, "end_offset" | "id" | "start_offset"> & {
   clientKey: string
+  end_offset: number | null
   id: number | null
+  start_offset: number | null
+}
+
+/**
+ * 本文中の位置。生の本文（インラインコードのバッククォートを含む）上の UTF-16 の index で [startOffset, endOffset)
+ */
+export type SurfaceRange = {
+  endOffset: number
+  startOffset: number
 }
 
 /**
@@ -73,6 +85,8 @@ const TIME_LIMIT_PATTERN = /^(\d{1,3}):([0-5]\d)$/
  */
 const BACKQUOTE_PATTERN = /`/g
 
+const ALPHANUMERIC_PATTERN = /[A-Za-z0-9]/
+
 /**
  * 空白だけの文字列は null にする（API も空白だけの和訳・補足・品詞を未入力として保存する）
  */
@@ -104,14 +118,70 @@ export const numberParagraphs = (blocks: Pick<DetailBlock, "type">[]): (number |
 }
 
 /**
- * ブロックの表記（見出し / コード（lang） / 段落 N）
+ * ブロックごとの見出しの番号（1 始まり）。見出しだけを数え、それ以外は null。
+ * @repo/domain の numberHeadings と同じ規則（要確認の理由・公開の条件の「見出し 1」と対応する）
+ */
+export const numberHeadings = (blocks: Pick<DetailBlock, "type">[]): (number | null)[] => {
+  let count = 0
+  return blocks.map((block) => (block.type === "heading" ? ++count : null))
+}
+
+/**
+ * ブロックの表記（見出し N / コード（lang） / 段落 N）。見出しと段落の番号は API・cron のメッセージと同じ
  */
 export const formatBlockLabel = (blocks: Pick<DetailBlock, "lang" | "type">[], blockIndex: number): string => {
   const block = blocks[blockIndex]
   if (!block) return `ブロック ${blockIndex + 1}`
-  if (block.type === "heading") return "見出し"
+  if (block.type === "heading") return `見出し ${numberHeadings(blocks)[blockIndex]}`
   if (block.type === "code") return block.lang ? `コード（${block.lang}）` : "コード"
   return `段落 ${numberParagraphs(blocks)[blockIndex]}`
+}
+
+/**
+ * ブロックの表記に続きの文を付ける。表記の末尾が数字なら空白を挟む（「段落 2 の英文」「コード（jsx）の英文」。API と同じ）
+ */
+export const joinBlockLabel = (label: string, rest: string): string =>
+  (/\d$/.test(label) ? `${label} ${rest}` : `${label}${rest}`)
+
+/**
+ * text の index の文字が英数字かどうか。範囲の外は英数字ではない扱い
+ */
+const isAlphanumericAt = (text: string, index: number): boolean =>
+  index >= 0 && index < text.length && ALPHANUMERIC_PATTERN.test(text.charAt(index))
+
+/**
+ * surface を生の本文から探し、前後が英数字でない（単語の途中でない）最初の出現の位置を返す。大文字小文字は区別し、見つからなければ null。
+ * API が保存時に用語集の位置を求める @repo/domain の findSurfaceRange と同じ規則（admin は @repo/domain を import できないため写している。
+ * 規則を変えるときは domain と一緒に変える）。"It is cached in the cache." の cache は cached ではなく 2 つ目の cache を指す
+ */
+export const findSurfaceRange = (text: string, surface: string): SurfaceRange | null => {
+  if (surface.length === 0) return null
+  let startOffset = text.indexOf(surface)
+  while (startOffset !== -1) {
+    const endOffset = startOffset + surface.length
+    if (!isAlphanumericAt(text, startOffset - 1) && !isAlphanumericAt(text, endOffset)) {
+      return { endOffset, startOffset }
+    }
+    startOffset = text.indexOf(surface, startOffset + 1)
+  }
+  return null
+}
+
+/**
+ * プレビューで下線を引く語句の位置（生の本文上）。
+ * 本文が保存済みのまま（savedText と同じ）で、保存済みの位置にその表記があれば API の位置をそのまま使う。
+ * 追加した語句・本文を直したブロックの語句は、保存時に API が求める位置（findSurfaceRange）を返す
+ */
+export const locateGlossaryEntry = (
+  entry: Pick<PassageFormGlossaryEntry, "end_offset" | "start_offset" | "surface">,
+  text: string,
+  savedText: string | null,
+): SurfaceRange | null => {
+  const { end_offset: endOffset, start_offset: startOffset } = entry
+  if (startOffset !== null && endOffset !== null && text === savedText && text.slice(startOffset, endOffset) === entry.surface) {
+    return { endOffset, startOffset }
+  }
+  return findSurfaceRange(text, entry.surface)
 }
 
 /**
@@ -121,15 +191,6 @@ export const hasQuoteInText = (text: string, quote: string): boolean => {
   const normalizedQuote = quote.replace(BACKQUOTE_PATTERN, "")
   if (normalizedQuote.length === 0) return false
   return text.replace(BACKQUOTE_PATTERN, "").includes(normalizedQuote)
-}
-
-/**
- * 英単語数から目安の設問数を出す（〜300 語は 3 問、301〜450 語は 4 問、451 語〜は 5 問）
- */
-export const calculateRecommendedQuestionCount = (wordCount: number): number => {
-  if (wordCount <= 300) return 3
-  if (wordCount <= 450) return 4
-  return 5
 }
 
 /**
@@ -178,10 +239,7 @@ export const convertDetailToForm = (detail: GetAdminPassageResponse): PassageFor
   return {
     blocks: detail.blocks.map((block) => ({ text: block.text, translationJa: block.translation_ja })),
     difficulty: detail.difficulty ?? DEFAULT_DIFFICULTY,
-    glossary: detail.glossary.map(({ end_offset: _endOffset, start_offset: _startOffset, ...entry }) => ({
-      ...entry,
-      clientKey: `id-${entry.id}`,
-    })),
+    glossary: detail.glossary.map((entry) => ({ ...entry, clientKey: `id-${entry.id}` })),
     questions: detail.questions.map(({ order_index: _orderIndex, target_glossary_entry_id: targetId, ...question }) => ({
       ...question,
       clientKey: `id-${question.id}`,
@@ -241,7 +299,7 @@ export const listFormProblems = (form: PassageForm, blocks: Pick<DetailBlock, "l
   }
   form.blocks.forEach((block, index) => {
     if (block.text.trim().length > 0) return
-    problems.push({ code: "text_blank", message: `${formatBlockLabel(blocks, index)}の英文が空です`, path: ["blocks", index, "text"] })
+    problems.push({ code: "text_blank", message: joinBlockLabel(formatBlockLabel(blocks, index), "の英文が空です"), path: ["blocks", index, "text"] })
   })
   return problems
 }

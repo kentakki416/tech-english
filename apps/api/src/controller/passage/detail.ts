@@ -8,6 +8,8 @@ import { AuthRequest } from "../../middleware/auth"
 import { PassageRepository, ReadingAttemptRepository } from "../../repository"
 import * as service from "../../service"
 
+import { convertAttributionToResponse } from "./mapper"
+
 /**
  * 開始確認の概要API（公開中の問題だけ。本文は含まず、出典と期限内の挑戦中、サーバーの現在時刻を返す）
  */
@@ -32,16 +34,7 @@ export class PassageDetailController {
     const { attribution, inProgressAttempt, passage, questionCount, serverNow } = result.value
     const response = parseResponse(getPassageResponseSchema, {
       id: passage.id,
-      attribution: {
-        commit_sha: attribution.commitSha,
-        license_spdx: attribution.licenseSpdx,
-        license_url: attribution.licenseUrl,
-        page_url: attribution.pageUrl,
-        permalink_url: attribution.permalinkUrl,
-        retrieved_at: attribution.retrievedAt.toISOString(),
-        source_kind: attribution.sourceKind,
-        source_name: attribution.sourceName,
-      },
+      attribution: convertAttributionToResponse(attribution),
       difficulty: passage.difficulty,
       in_progress_attempt: inProgressAttempt
         ? {

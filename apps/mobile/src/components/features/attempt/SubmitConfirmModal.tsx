@@ -5,15 +5,18 @@ import { THEME_COLORS } from "@/const/design-theme"
 
 /**
  * 提出の確認。RN の Modal（transparent）の上のダイアログで、「提出する」を上、「戻って回答する」を下に縦に並べる。
- * 未回答があれば件数と「不正解として採点」を伝える。送信中は両方のボタンを無効にする
+ * 未回答があれば件数と「不正解として採点」を伝える。送信中は両方のボタンを無効にし、
+ * 失敗したらダイアログの中に理由を出す（web と同じ。回答は端末に残っているので再送できる）
  */
 export function SubmitConfirmModal({
+  errorMessage,
   isSubmitting,
   isVisible,
   unansweredCount,
   onCancel,
   onSubmit,
 }: {
+  errorMessage: string | null
   isSubmitting: boolean
   isVisible: boolean
   unansweredCount: number
@@ -38,6 +41,7 @@ export function SubmitConfirmModal({
           <Text style={styles.text}>
             {hasUnanswered ? "未回答の設問は不正解として採点されます。" : ""}提出すると回答は変更できません。
           </Text>
+          {errorMessage !== null && <Text accessibilityRole="alert" style={styles.error}>{errorMessage}</Text>}
           <View style={styles.submit}>
             <PrimaryButton isDisabled={isSubmitting} label={isSubmitting ? "提出しています…" : "提出する"} onPress={onSubmit} />
           </View>
@@ -82,6 +86,12 @@ const styles = StyleSheet.create({
   },
   disabled: {
     opacity: 0.5,
+  },
+  error: {
+    color: THEME_COLORS.wrong,
+    fontSize: 14,
+    lineHeight: 21,
+    marginTop: 12,
   },
   submit: {
     marginTop: 20,

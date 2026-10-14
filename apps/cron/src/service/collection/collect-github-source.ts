@@ -105,7 +105,8 @@ const collectFile = async (
  * 1. 最新コミットの SHA が前回（last_collected_commit_sha）と同じなら up_to_date で終える
  * 2. コミットのツリーから対象のファイルを列挙し、source_documents の blob SHA と比べて新規・変更されたものだけ残す
  * 3. 上限・rate limit・停止指示に掛かるまで、ファイルごとに本文を取得して本文候補を保存する
- * 4. 全件処理でき、ツリーも完全なら completed として commit SHA を記録する（それ以外は記録せず、次回に続きから処理する）
+ * 4. 全件処理でき、ツリーも完全なら completed として commit SHA を記録する（それ以外は記録せず、次回に続きから処理する）。
+ *    収集の途中で last_collected_commit_sha が変えられていたら記録しない（楽観ロック）
  *
  * 取得元から消えたファイルの source_documents / passages は何もしない（公開済みの問題は残す）
  */
@@ -146,9 +147,22 @@ export const collectGitHubSource = async (
    * ツリーが切り詰められていた場合は、列挙できなかったファイルが残っているので打ち切りと同じに扱う
    */
   const status = stopStatus ?? (isComplete ? "completed" : "limit_reached")
-  await repo.contentSourceRepository.markCollected(
+  /**
+   * commit SHA は、収集を始めたときに読んだ値のままのときだけ書く（楽観ロック）。
+   * 収集の途中で admin が収集の範囲を変えて null に戻していたら書かず、次回の実行で新しい範囲を収集する
+   */
+  const isRecorded = await repo.contentSourceRepository.markCollected(
     source.id,
-    status === "completed" ? { lastCollectedAt: now, lastCollectedCommitSha: commitSha } : { lastCollectedAt: now },
+    status === "completed"
+      ? { lastCollectedAt: now, lastCollectedCommitSha: { expected: source.lastCollectedCommitSha, next: commitSha } }
+      : { lastCollectedAt: now },
   )
+  if (status === "completed" && !isRecorded) {
+    logger.warn("last_collected_commit_sha was changed during the collection; the commit SHA is not recorded", {
+      commitSha,
+      expectedCommitSha: source.lastCollectedCommitSha,
+      sourceId: source.id,
+    })
+  }
   return { ...progress, status }
 }

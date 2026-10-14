@@ -118,6 +118,12 @@ export const isSurfaceAt = (text: string, entry: Pick<GlossaryEntry, "endOffset"
 export const hasQuote = (text: string, quote: string): boolean
 
 /**
+ * ブロックごとの見出しの番号（1 始まり）。heading だけを数え、それ以外は null。
+ * 要確認の理由・公開の条件の「見出し 2」と対応する（和訳の無い見出しが複数あっても理由を区別できるように）
+ */
+export const numberHeadings = (blocks: Pick<PassageBlock, "type">[]): (number | null)[]
+
+/**
  * ブロックごとの段落番号（1 始まり）。heading と code は数えず null。
  * 設問文の "paragraph 2"、要確認の理由・公開の条件の「段落 2」と対応する
  */
@@ -258,6 +264,7 @@ pnpm build
 - [ ] `findSurfaceRange`：バッククォートを含む本文でも生の文字列上の位置になる
 - [ ] `isSurfaceAt`：位置がずれていれば false
 - [ ] `hasQuote`：本文の `` `useEffect` `` と引用の `useEffect` が一致する / 含まれなければ false
+- [ ] `numberHeadings`：heading だけが 1 から連番、他は null
 - [ ] `numberParagraphs`：heading と code が null、他は 1 から連番
 
 DB の確認（psql か Drizzle Studio）：

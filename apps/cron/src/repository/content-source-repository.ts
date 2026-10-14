@@ -1,6 +1,20 @@
 import type { ContentSource } from "@repo/domain"
 
 /**
+ * 収集を終えたときに記録する値
+ */
+export type MarkCollectedInput = {
+  lastCollectedAt: Date
+  /**
+   * GitHub のみ。全件処理できたときだけ渡す（省略したら last_collected_commit_sha は変えない）。
+   * last_collected_commit_sha が expected（収集を始めたときに読んだ値。null は未収集）のままのときだけ next に書き換える楽観ロック。
+   * 収集の途中で admin が収集の範囲を変えて null に戻していたら、last_collected_at も含めて何も書かずに false を返す
+   * （古い SHA を書き戻すと、変えた範囲が次のコミットまで収集されないため）
+   */
+  lastCollectedCommitSha?: { expected: string | null; next: string }
+}
+
+/**
  * cron 側（collect-passages）で必要なソースの操作。
  * apps/api 側の ContentSourceRepository（管理画面の CRUD）とは操作のセットが違うので分けている
  */
@@ -12,7 +26,7 @@ export interface ContentSourceRepository {
    */
   findEnabled(): Promise<ContentSource[]>
   /**
-   * 収集を終えた時刻を記録する。lastCollectedCommitSha を省略したら変えない（全件処理できたときだけ渡す）
+   * 収集を終えた時刻を記録する。行を更新できたら true
    */
-  markCollected(id: number, input: { lastCollectedAt: Date; lastCollectedCommitSha?: string }): Promise<void>
+  markCollected(id: number, input: MarkCollectedInput): Promise<boolean>
 }

@@ -1,7 +1,11 @@
 import { contentSources, eq, passages, sourceDocuments } from "@repo/db"
-import type { PassageStatus } from "@repo/domain"
+import type { ContentSource, PassageStatus } from "@repo/domain"
 
-import type { ContentSourceInput, ContentSourceRepository } from "../../src/repository/content-source-repository"
+import type {
+  ContentSourceInput,
+  ContentSourceRepository,
+  ContentSourceUpdateOptions,
+} from "../../src/repository/content-source-repository"
 import { DrizzleContentSourceRepository } from "../../src/repository/drizzle/content-source-repository"
 import { PrismaContentSourceRepository } from "../../src/repository/prisma/content-source-repository"
 import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb, testPrisma } from "../controller/setup"
@@ -51,8 +55,58 @@ const WEBSITE_INPUT: WebsiteInput = {
   tags: ["go"],
 }
 
+/**
+ * 収集の状態を何も戻さない update の options
+ */
+const NO_RESET: ContentSourceUpdateOptions = { shouldResetCollectedCommit: false, shouldResetDocumentCache: false }
+
+/**
+ * create して作ったソースを返す（duplicate なら throw する）
+ */
+const createSource = async (repository: ContentSourceRepository, input: ContentSourceInput): Promise<ContentSource> => {
+  const result = await repository.create(input)
+  if (result.kind !== "saved") throw new Error(`Unexpected duplicate: ${input.name}`)
+  return result.source
+}
+
+/**
+ * update して更新したソースを返す（duplicate なら throw する）
+ */
+const updateSource = async (
+  repository: ContentSourceRepository,
+  id: number,
+  input: ContentSourceInput,
+  options: ContentSourceUpdateOptions,
+): Promise<ContentSource> => {
+  const result = await repository.update(id, input, options)
+  if (result.kind !== "saved") throw new Error(`Unexpected duplicate: id=${id}`)
+  return result.source
+}
+
 const insertSourceDocument = async (sourceId: number, path: string, httpStatus: number | null = null) => {
   const [row] = await testDb.insert(sourceDocuments).values({ httpStatus, path, sourceId }).returning()
+  return row
+}
+
+/**
+ * 取得済みのページ（ETag / Last-Modified / 本文のハッシュつき）を入れる
+ */
+const insertFetchedDocument = async (sourceId: number, path: string) => {
+  const [row] = await testDb.insert(sourceDocuments).values({
+    contentHash: `content-hash-${path}`,
+    etag: "\"v1\"",
+    fetchedAt: new Date("2026-10-10T03:00:00.000Z"),
+    httpStatus: 200,
+    lastModified: "Sat, 10 Oct 2026 00:00:00 GMT",
+    path,
+    sourceId,
+    title: "Title",
+  }).returning()
+  return row
+}
+
+const selectSourceDocument = async (id: number) => {
+  const [row] = await testDb.select().from(sourceDocuments).where(eq(sourceDocuments.id, id))
   return row
 }
 
@@ -97,7 +151,7 @@ afterAll(async () => {
 describe.each(implementations)("%s ContentSourceRepository", (_name, contentSourceRepository) => {
   describe("正常系", () => {
     it("github を create すると findById / findByRepository で同じ値が返る", async () => {
-      const created = await contentSourceRepository.create(GITHUB_INPUT)
+      const created = await createSource(contentSourceRepository, GITHUB_INPUT)
 
       expect(created).toEqual({
         ...GITHUB_INPUT,
@@ -112,7 +166,7 @@ describe.each(implementations)("%s ContentSourceRepository", (_name, contentSour
     })
 
     it("website を create すると findById / findBySiteUrl で同じ値が返る", async () => {
-      const created = await contentSourceRepository.create(WEBSITE_INPUT)
+      const created = await createSource(contentSourceRepository, WEBSITE_INPUT)
 
       expect(created).toEqual({
         ...WEBSITE_INPUT,
@@ -126,8 +180,8 @@ describe.each(implementations)("%s ContentSourceRepository", (_name, contentSour
     })
 
     it("findAll は id の昇順で返す", async () => {
-      const first = await contentSourceRepository.create(WEBSITE_INPUT)
-      const second = await contentSourceRepository.create(GITHUB_INPUT)
+      const first = await createSource(contentSourceRepository, WEBSITE_INPUT)
+      const second = await createSource(contentSourceRepository, GITHUB_INPUT)
 
       const found = await contentSourceRepository.findAll()
 
@@ -135,7 +189,7 @@ describe.each(implementations)("%s ContentSourceRepository", (_name, contentSour
     })
 
     it("github の update は渡した列を書き、shouldResetCollectedCommit: false なら last_collected_commit_sha を残す", async () => {
-      const created = await contentSourceRepository.create(GITHUB_INPUT)
+      const created = await createSource(contentSourceRepository, GITHUB_INPUT)
       await testDb.update(contentSources).set({ lastCollectedCommitSha: "abc123" }).where(eq(contentSources.id, created.id))
       const input: GitHubRepositoryInput = {
         ...GITHUB_INPUT,
@@ -149,7 +203,7 @@ describe.each(implementations)("%s ContentSourceRepository", (_name, contentSour
         tags: [],
       }
 
-      const updated = await contentSourceRepository.update(created.id, input, { shouldResetCollectedCommit: false })
+      const updated = await updateSource(contentSourceRepository, created.id, input, NO_RESET)
 
       expect(updated).toEqual({
         ...input,
@@ -164,11 +218,11 @@ describe.each(implementations)("%s ContentSourceRepository", (_name, contentSour
     })
 
     it("github の update は shouldResetCollectedCommit: true なら last_collected_commit_sha を null にする", async () => {
-      const created = await contentSourceRepository.create(GITHUB_INPUT)
+      const created = await createSource(contentSourceRepository, GITHUB_INPUT)
       await testDb.update(contentSources).set({ lastCollectedCommitSha: "abc123" }).where(eq(contentSources.id, created.id))
       const input: GitHubRepositoryInput = { ...GITHUB_INPUT, branch: "canary", includeGlobs: ["docs/**/*.md"] }
 
-      const updated = await contentSourceRepository.update(created.id, input, { shouldResetCollectedCommit: true })
+      const updated = await updateSource(contentSourceRepository, created.id, input, { ...NO_RESET, shouldResetCollectedCommit: true })
 
       expect(updated).toMatchObject({ branch: "canary", includeGlobs: ["docs/**/*.md"], lastCollectedCommitSha: null })
       const [row] = await testDb.select().from(contentSources).where(eq(contentSources.id, created.id))
@@ -176,7 +230,7 @@ describe.each(implementations)("%s ContentSourceRepository", (_name, contentSour
     })
 
     it("website の update は渡した列を書く", async () => {
-      const created = await contentSourceRepository.create(WEBSITE_INPUT)
+      const created = await createSource(contentSourceRepository, WEBSITE_INPUT)
       const input: WebsiteInput = {
         ...WEBSITE_INPUT,
         contentSelector: null,
@@ -188,7 +242,7 @@ describe.each(implementations)("%s ContentSourceRepository", (_name, contentSour
         startUrl: "https://go.dev/doc/",
       }
 
-      const updated = await contentSourceRepository.update(created.id, input, { shouldResetCollectedCommit: false })
+      const updated = await updateSource(contentSourceRepository, created.id, input, NO_RESET)
 
       expect(updated).toEqual({
         ...input,
@@ -200,9 +254,59 @@ describe.each(implementations)("%s ContentSourceRepository", (_name, contentSour
       expect(await contentSourceRepository.findById(created.id)).toEqual(updated)
     })
 
+    it("update は shouldResetDocumentCache なら、そのソースの source_documents の etag / last_modified / content_hash だけを null にする", async () => {
+      const website = await createSource(contentSourceRepository, WEBSITE_INPUT)
+      const other = await createSource(contentSourceRepository, { ...WEBSITE_INPUT, siteUrl: "https://docs.python.org" })
+      const document = await insertFetchedDocument(website.id, "/doc/a")
+      const otherDocument = await insertFetchedDocument(other.id, "/3/tutorial/")
+
+      await updateSource(
+        contentSourceRepository,
+        website.id,
+        { ...WEBSITE_INPUT, contentSelector: "main" },
+        { ...NO_RESET, shouldResetDocumentCache: true },
+      )
+
+      expect(await selectSourceDocument(document.id)).toMatchObject({
+        contentHash: null,
+        etag: null,
+        fetchedAt: new Date("2026-10-10T03:00:00.000Z"),
+        httpStatus: 200,
+        lastModified: null,
+        title: "Title",
+      })
+      expect(await selectSourceDocument(otherDocument.id)).toMatchObject({
+        contentHash: "content-hash-/3/tutorial/",
+        etag: "\"v1\"",
+        lastModified: "Sat, 10 Oct 2026 00:00:00 GMT",
+      })
+    })
+
+    it("update は shouldResetDocumentCache: false なら source_documents を変えない", async () => {
+      const website = await createSource(contentSourceRepository, WEBSITE_INPUT)
+      const document = await insertFetchedDocument(website.id, "/doc/a")
+
+      await updateSource(contentSourceRepository, website.id, { ...WEBSITE_INPUT, name: "Go Docs" }, NO_RESET)
+
+      expect(await selectSourceDocument(document.id)).toMatchObject({
+        contentHash: "content-hash-/doc/a",
+        etag: "\"v1\"",
+        lastModified: "Sat, 10 Oct 2026 00:00:00 GMT",
+      })
+    })
+
+    it("hasSourceDocuments は source_documents が 1 件でもあれば true、無ければ false", async () => {
+      const github = await createSource(contentSourceRepository, GITHUB_INPUT)
+      const website = await createSource(contentSourceRepository, WEBSITE_INPUT)
+      await insertSourceDocument(github.id, "src/content/learn/a.md")
+
+      expect(await contentSourceRepository.hasSourceDocuments(github.id)).toBe(true)
+      expect(await contentSourceRepository.hasSourceDocuments(website.id)).toBe(false)
+    })
+
     it("countPassagesBySource / countFailedPagesBySource / findFailedPages が source_documents と passages の内容と一致する", async () => {
-      const github = await contentSourceRepository.create(GITHUB_INPUT)
-      const website = await contentSourceRepository.create(WEBSITE_INPUT)
+      const github = await createSource(contentSourceRepository, GITHUB_INPUT)
+      const website = await createSource(contentSourceRepository, WEBSITE_INPUT)
       const learn = await insertSourceDocument(github.id, "src/content/learn/a.md")
       const reference = await insertSourceDocument(github.id, "src/content/reference/b.md")
       await insertPassages(learn.id, "collected", 2)
@@ -242,7 +346,7 @@ describe.each(implementations)("%s ContentSourceRepository", (_name, contentSour
     })
 
     it("本文候補も取得失敗も無ければ集計は空になる", async () => {
-      const github = await contentSourceRepository.create(GITHUB_INPUT)
+      const github = await createSource(contentSourceRepository, GITHUB_INPUT)
 
       expect(await contentSourceRepository.countPassagesBySource()).toEqual([])
       expect(await contentSourceRepository.countPassagesBySource(github.id)).toEqual([])
@@ -259,25 +363,53 @@ describe.each(implementations)("%s ContentSourceRepository", (_name, contentSour
 
     it("update は存在しない id で throw する", async () => {
       await expect(
-        contentSourceRepository.update(999999, GITHUB_INPUT, { shouldResetCollectedCommit: false }),
+        contentSourceRepository.update(999999, GITHUB_INPUT, NO_RESET),
       ).rejects.toThrow()
     })
 
     it("update は取得方法が違う行を対象にせず throw し、行は変わらない", async () => {
-      const created = await contentSourceRepository.create(GITHUB_INPUT)
+      const created = await createSource(contentSourceRepository, GITHUB_INPUT)
 
       await expect(
-        contentSourceRepository.update(created.id, WEBSITE_INPUT, { shouldResetCollectedCommit: false }),
+        contentSourceRepository.update(created.id, WEBSITE_INPUT, NO_RESET),
       ).rejects.toThrow()
       expect(await contentSourceRepository.findById(created.id)).toEqual(created)
     })
 
-    it("create は登録済みの repository / site_url で throw する（unique 制約）", async () => {
-      await contentSourceRepository.create(GITHUB_INPUT)
-      await contentSourceRepository.create(WEBSITE_INPUT)
+    it("create は登録済みの repository / site_url なら throw せず duplicate を返し、行を増やさない（unique 制約）", async () => {
+      await createSource(contentSourceRepository, GITHUB_INPUT)
+      await createSource(contentSourceRepository, WEBSITE_INPUT)
 
-      await expect(contentSourceRepository.create({ ...GITHUB_INPUT, name: "dup" })).rejects.toThrow()
-      await expect(contentSourceRepository.create({ ...WEBSITE_INPUT, name: "dup" })).rejects.toThrow()
+      expect(await contentSourceRepository.create({ ...GITHUB_INPUT, name: "dup" })).toEqual({ kind: "duplicate" })
+      expect(await contentSourceRepository.create({ ...WEBSITE_INPUT, name: "dup" })).toEqual({ kind: "duplicate" })
+      expect(await testDb.select().from(contentSources)).toHaveLength(2)
+    })
+
+    it("update は別のソースの repository / site_url にすると throw せず duplicate を返し、行は変わらない（unique 制約）", async () => {
+      await createSource(contentSourceRepository, GITHUB_INPUT)
+      await createSource(contentSourceRepository, WEBSITE_INPUT)
+      const otherGitHub = await createSource(contentSourceRepository, { ...GITHUB_INPUT, repository: "vercel/next.js" })
+      const otherWebsite = await createSource(contentSourceRepository, { ...WEBSITE_INPUT, siteUrl: "https://docs.python.org" })
+
+      expect(await contentSourceRepository.update(otherGitHub.id, GITHUB_INPUT, NO_RESET)).toEqual({ kind: "duplicate" })
+      expect(await contentSourceRepository.update(otherWebsite.id, WEBSITE_INPUT, NO_RESET)).toEqual({ kind: "duplicate" })
+      expect(await contentSourceRepository.findById(otherGitHub.id)).toEqual(otherGitHub)
+      expect(await contentSourceRepository.findById(otherWebsite.id)).toEqual(otherWebsite)
+    })
+
+    it("update が duplicate を返したときは shouldResetDocumentCache でも source_documents を変えない", async () => {
+      await createSource(contentSourceRepository, WEBSITE_INPUT)
+      const other = await createSource(contentSourceRepository, { ...WEBSITE_INPUT, siteUrl: "https://docs.python.org" })
+      const document = await insertFetchedDocument(other.id, "/3/tutorial/")
+
+      const result = await contentSourceRepository.update(
+        other.id,
+        { ...WEBSITE_INPUT, contentSelector: "div.body" },
+        { ...NO_RESET, shouldResetDocumentCache: true },
+      )
+
+      expect(result).toEqual({ kind: "duplicate" })
+      expect(await selectSourceDocument(document.id)).toMatchObject({ contentHash: "content-hash-/3/tutorial/", etag: "\"v1\"" })
     })
   })
 })
@@ -287,7 +419,7 @@ describe("実装間の互換性", () => {
     ["github", GITHUB_INPUT],
     ["website", WEBSITE_INPUT],
   ])("Drizzle で作った %s のソースを Prisma で読んでも同じ値になる", async (_label, input) => {
-    const created = await new DrizzleContentSourceRepository(testDb).create(input)
+    const created = await createSource(new DrizzleContentSourceRepository(testDb), input)
 
     const found = await new PrismaContentSourceRepository(testPrisma).findById(created.id)
 

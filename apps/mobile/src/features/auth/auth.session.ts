@@ -1,5 +1,7 @@
 import * as Localization from "expo-localization"
 
+import { useAttemptStore } from "@/features/attempt/attempt.store"
+
 import { authApi } from "./auth.api"
 import { clearStoredTokens, getStoredTokens, saveTokens } from "./auth.storage"
 import { useAuthStore } from "./auth.store"
@@ -67,11 +69,13 @@ export const signInAsDevUser = async (email: string): Promise<SignInResult> => {
  * ユーザーが押したログアウト。この端末のログイン状態だけを消す（他の端末はログインしたまま）
  *
  * refresh の失敗による強制ログアウト（`src/libs/api-client.ts` の `expireSession`）はここを通らない。
- * 通知の予約の取り消しは study-reminder step3 がここに足す（強制ログアウトでは取り消さない）
+ * 通知の予約の取り消しは study-reminder step3 がここに足す（強制ログアウトでは取り消さない）。
+ * メモリに持つ挑戦（attempt.store）は強制ログアウトと同じく空にする
  */
 export const signOut = async (): Promise<void> => {
   await revokeRefreshToken()
   await clearStoredTokens()
+  useAttemptStore.getState().clearStoreAttempts()
   useAuthStore.getState().setStatus("signedOut")
 }
 
