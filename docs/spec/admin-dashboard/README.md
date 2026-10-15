@@ -127,7 +127,7 @@
 - 比率は API で 0〜1 の小数にして返す（分母が 0 なら `null`）。表示の丸めは admin がする
 - 問題ごとの成績は、`reading_attempts` を `passage_id` で集計した結果に `passages`・`content_sources` を結び、並べ替えとページ分けまで SQL でする。並べ替えの列が集計の結果なので、ページ分けは cursor ではなく offset にする（問題は数百〜数千の想定で、offset でも十分速い）
 - 問題の分析は、その問題の期間内の提出済みの挑戦について `attempt_answers` を `question_id`・`selected_choice_index` で集計する
-- 「要確認」の判定は純関数（`apps/api/src/lib/`）にして、テストで境界（解答 4 件 / 5 件、同数）を確かめる
+- 「要確認」の判定と、画面で橙にする選択肢は `@repo/domain` の純関数（`rules/admin-stats.ts`）にして、テストで境界（解答 4 件 / 5 件、同数）を確かめる。API が判定の結果（`needs_review`・`misleading_choice_indexes`）を返し、画面は出すだけにする（admin は domain を import できないので、判定を書き直すとずれる）
 
 ### 期間と日の区切り
 

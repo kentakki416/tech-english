@@ -234,7 +234,7 @@ describe("UserRepository.findForAdmin", () => {
 
       const sorted = await userRepository.findForAdmin({ ...query, sort: "solved_attempts" })
 
-      expect(sorted.items.map((item) => [item.name, item.solvedAttempts])).toEqual([["twice", 2], ["once", 1], ["alsoOnce", 1], ["never", 0]])
+      expect(sorted.items.map((item) => [item.id, item.solvedAttempts])).toEqual([[twice.id, 2], [once.id, 1], [alsoOnce.id, 1], [never.id, 0]])
     })
   })
 

@@ -181,7 +181,11 @@ export const getAdminPassageStatsResponseSchema = z.object({
     correct_choice_index: z.number().int(),
     correct_rate: rateSchema,
     /**
-     * 正解でない選択肢が正解と同じかそれ以上選ばれ、解答が ADMIN_QUESTION_REVIEW_MIN_ANSWERS 件以上ある
+     * 正解でないのに、正解と同じかそれ以上選ばれた選択肢の番号（選択肢の順。画面で橙にする）。解答が ADMIN_QUESTION_REVIEW_MIN_ANSWERS 件より少なければ空
+     */
+    misleading_choice_indexes: z.array(z.number().int()),
+    /**
+     * 要確認（misleading_choice_indexes が空でない）
      */
     needs_review: z.boolean(),
     order_index: z.number().int(),

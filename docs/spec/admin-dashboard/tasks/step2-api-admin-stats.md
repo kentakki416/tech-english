@@ -179,7 +179,11 @@ export const getAdminPassageStatsResponseSchema = z.object({
     correct_choice_index: z.number().int(),
     correct_rate: rateSchema,
     /**
-     * 正解でない選択肢が正解と同じかそれ以上選ばれ、その設問の期間内の解答が ADMIN_QUESTION_REVIEW_MIN_ANSWERS 件以上ある
+     * 正解でないのに、正解と同じかそれ以上選ばれた選択肢の番号（画面で橙にする）。解答が ADMIN_QUESTION_REVIEW_MIN_ANSWERS 件より少なければ空
+     */
+    misleading_choice_indexes: z.array(z.number().int()),
+    /**
+     * 要確認（misleading_choice_indexes が空でない）
      */
     needs_review: z.boolean(),
     order_index: z.number().int(),
@@ -228,23 +232,30 @@ export const resolveStatsPeriod = (period: AdminStatsPeriod, now: Date): StatsPe
 
 ### 4. 「要確認」の判定（純関数）
 
-`@repo/domain` の `src/rules/admin-stats.ts`（業務ルールは domain の `rules/`。下限の定数と同じ場所）。テストは `packages/domain/test/rules/admin-stats.test.ts`。
+`@repo/domain` の `src/rules/admin-stats.ts`（業務ルールは domain の `rules/`。下限の定数と同じ場所）。テストは `packages/domain/test/rules/admin-stats.test.ts`。画面で橙にする選択肢も API が返す（admin は domain を import できないので、判定を画面で書き直さない）。
 
 ```typescript
 /** packages/domain/src/rules/admin-stats.ts */
 import { ADMIN_QUESTION_REVIEW_MIN_ANSWERS } from "../const/admin-stats"
 
+type QuestionChoiceCounts = { answerCount: number, choiceCounts: number[], correctChoiceIndex: number }
+
 /**
- * 正解でない選択肢が正解と同じかそれ以上選ばれている（その設問の期間内の解答が下限以上のときだけ）
+ * 正解でないのに、正解と同じかそれ以上選ばれた選択肢の番号（その設問の期間内の解答が下限より少なければ空。1 度も選ばれていない選択肢は数えない）
  */
-export const isQuestionNeedingReview = (input: { answerCount: number; choiceCounts: number[]; correctChoiceIndex: number }): boolean => {
-  if (input.answerCount < ADMIN_QUESTION_REVIEW_MIN_ANSWERS) return false
+export const findMisleadingChoiceIndexes = (input: QuestionChoiceCounts): number[] => {
+  if (input.answerCount < ADMIN_QUESTION_REVIEW_MIN_ANSWERS) return []
   const correctCount = input.choiceCounts[input.correctChoiceIndex] ?? 0
-  return input.choiceCounts.some((count, index) => index !== input.correctChoiceIndex && count > 0 && count >= correctCount)
+  return input.choiceCounts.flatMap((count, index) => (index !== input.correctChoiceIndex && count > 0 && count >= correctCount ? [index] : []))
 }
+
+/**
+ * 要確認の設問か（判定は findMisleadingChoiceIndexes と同じ）
+ */
+export const isQuestionNeedingReview = (input: QuestionChoiceCounts): boolean => findMisleadingChoiceIndexes(input).length > 0
 ```
 
-- テスト：解答 4 件は false・5 件は判定する、正解と同数は true、正解が最多なら false、誰も選んでいない選択肢（0 件）は正解が 0 件でも true にしない
+- テスト：解答 4 件は判定しない・5 件は判定する、正解と同数も含む、正解が最多なら空、誰も選んでいない選択肢（0 件）は正解が 0 件でも含めない
 
 ### 5. Repository
 
@@ -402,7 +413,7 @@ export const getAdminPassageStats = async (
 - 比率は `AttemptTotals` から求める共通の関数（`convertAttemptTotalsToRates`）にまとめる。分母が 0 なら `null`
 - 週ごとの推移の `fromDate`（最初のユーザーの登録日）と `toDate`（今日）は、その週の月曜にそろえてから Repository に渡す
 - 平均の解答時間は `elapsedSecondsSum / solvedAttempts`（0 回なら `null`）
-- テスト（`test/service/admin-stats-service/` に関数ごとのファイル、Repository は `vi.fn()`）：分母 0 の比率が `null`、all の `from` が最初の登録日・ユーザーがいなければ今日、最初の登録が水曜でも週ごとの推移の始まりが月曜になる、問題が無いと 404、`needs_review` が `isQuestionNeedingReview`（設問ごとの `answerCount`）の結果になる
+- テスト（`test/service/admin-stats-service/` に関数ごとのファイル、Repository は `vi.fn()`）：分母 0 の比率が `null`、all の `from` が最初の登録日・ユーザーがいなければ今日、最初の登録が水曜でも週ごとの推移の始まりが月曜になる、問題が無いと 404、`misleading_choice_indexes` が `findMisleadingChoiceIndexes`（設問ごとの `answerCount`）の結果になり、`needs_review` はそれが空でないとき true
 
 ### 7. Controller・Router・DI
 
@@ -428,7 +439,7 @@ dev の DB で API を叩く（トークンは `apps/api/.env.local` の `ADMIN_
 ```bash
 curl -s -H "X-Admin-Token: $ADMIN_API_TOKEN" "http://localhost:8080/api/admin/stats/overview?period=7d" | jq
 curl -s -H "X-Admin-Token: $ADMIN_API_TOKEN" "http://localhost:8080/api/admin/stats/passage?sort=correct_rate&order=asc" | jq '.passages[] | {title, solved_users, correct_rate}'
-curl -s -H "X-Admin-Token: $ADMIN_API_TOKEN" "http://localhost:8080/api/admin/stats/passage/119?period=all" | jq '.questions[] | {order_index, correct_rate, choice_rates, needs_review}'
+curl -s -H "X-Admin-Token: $ADMIN_API_TOKEN" "http://localhost:8080/api/admin/stats/passage/119?period=all" | jq '.questions[] | {order_index, correct_rate, choice_rates, misleading_choice_indexes, needs_review}'
 ```
 
 - [ ] 手元で問題を 1 回解くと、overview の `solved_attempts` と今日の推移が 1 増える

@@ -186,6 +186,7 @@ describe("GET /api/admin/stats/passage/:id", () => {
           choices: expect.any(Array),
           correct_choice_index: expect.any(Number),
           correct_rate: index === 0 ? 0 : 1,
+          misleading_choice_indexes: [],
           needs_review: false,
           order_index: index,
           prompt: expect.any(String),
@@ -203,7 +204,7 @@ describe("GET /api/admin/stats/passage/:id", () => {
 
       expect(res.status).toBe(200)
       expect(res.body.passage).toMatchObject({ average_elapsed_seconds: null, correct_rate: null, solved_attempts: 0, solved_users: 0 })
-      expect(res.body.questions[0]).toMatchObject({ answer_count: 0, choice_rates: [null, null, null, null], correct_rate: null, needs_review: false })
+      expect(res.body.questions[0]).toMatchObject({ answer_count: 0, choice_rates: [null, null, null, null], correct_rate: null, misleading_choice_indexes: [], needs_review: false })
     })
   })
 
