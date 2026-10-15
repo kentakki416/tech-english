@@ -32,7 +32,6 @@ export const PUBLIC_PATHS: readonly string[] = [
 
 /**
  * リクエストログを除外するパス
- * これらのパスではrequestLoggerがログを記録しません
  */
 export const LOG_EXCLUDE_PATHS = [
   "/api/health",

@@ -17,7 +17,7 @@ on:
       - develop
     paths:
       - 'infra/terraform/**'
-      - 'infra/clickhouse/cdc-tables.json' # ClickPipe の同期対象として Terraform が読む
+      - 'infra/clickhouse/cdc-tables.json'
       - '.github/workflows/terraform-aws-env-ci.yml'
   workflow_dispatch:
 
@@ -112,7 +112,6 @@ jobs:
 
       - name: Init TFLint plugins
         env:
-          # GITHUB_TOKEN は GitHub Actions が自動で発行する組み込みトークン
           # tflint --init が内部で GitHub Releases API を叩くため、レート制限回避用に渡す
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: tflint --init --config="$(pwd)/.tflint.hcl"

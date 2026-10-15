@@ -26,7 +26,6 @@ export const POST = async (req: NextRequest) => {
     const { accepted } = await eventApi.create(parsed.data)
     return NextResponse.json({ accepted })
   } catch {
-    /** 分析イベントの失敗はブラウザに伝えない */
     return new NextResponse(null, { status: 204 })
   }
 }

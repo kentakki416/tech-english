@@ -22,6 +22,7 @@ import * as service from "../../service"
  * 1. index.ts で本番時はインスタンス化しない
  * 2. auth-router.ts で controller 未指定ならルート登録しない
  * 3. ここでも NODE_ENV を見て 404 を返す
+ * 4. const/index.ts で本番時は PUBLIC_PATHS に含めない
  */
 export class AuthDevLoginController {
   constructor(

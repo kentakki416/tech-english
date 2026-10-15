@@ -36,7 +36,6 @@ export const generateAccessToken = (userId: number): string => {
 
 /**
  * Refresh Token を生成する
- * jti は Redis に保存し、ローテーション・ログアウト時に当該 jti を破棄する
  */
 export const generateRefreshToken = (userId: number): { jti: string; token: string } => {
   const jti = randomUUID()

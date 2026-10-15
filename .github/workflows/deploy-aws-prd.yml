@@ -14,18 +14,6 @@ name: Deploy to AWS prd
 # ecs-workload module 側で SSM Parameter (/{name}/deploy/approval) + Lambda hook
 # (POST_TEST_TRAFFIC_SHIFT) を作っている。本 workflow はその仕組みを GitHub UI
 # 承認と接続する。
-#
-# - deploy-api: Blue/Green を投入するだけで即抜ける (wait-for-service-stability=false)
-#
-# - approve-api: GitHub Environment `prd-api-approval` の Required reviewers で
-#   レビュアー承認を求める。承認されると SSM=approved を書いて ECS の bake/swap を進める
-#
-# - reject-api: approve-api が reject されたり失敗 / キャンセルされた時に
-#   SSM=rejected を書いて ECS Blue/Green を自動 rollback させる
-#
-# - deploy-worker: rolling deploy、approve-api には依存せず並列で完走する
-#
-# - migrate-dwh: ClickHouse の migration。失敗しても api は止めないが、worker の deploy は止める
 # =============================================================================
 
 on:
@@ -81,7 +69,7 @@ jobs:
   # =========================================================================
   # ClickHouse の有無 (= Terraform の enable_data_warehouse) を調べる
   # =========================================================================
-  # 判定の正本は Terraform のフラグだけ。フラグが true の環境にだけ接続情報の secret がある。
+  # 判定の正本は Terraform のフラグだけ。
   # dwh-migration のタスク定義では判定しない (deploy が register した revision が、フラグを
   # false にしても ACTIVE のまま残るため)。設計: docs/spec/clickhouse-migration/README.md
   detect:
@@ -159,7 +147,6 @@ jobs:
             --push \
             .
 
-      # migration image は本番 API イメージから分離 (drizzle-kit / devDeps を本番に混入させない)
       - name: Build & push migration image
         run: |
           IMAGE="${{ steps.ecr.outputs.registry }}/${{ env.ECR_MIGRATION_REPO }}"
@@ -297,7 +284,6 @@ jobs:
           echo "private_subnets=${PRIVATE_SUBNETS}" >> "$GITHUB_OUTPUT"
           echo "ecs_security_group=${ECS_SG}" >> "$GITHUB_OUTPUT"
 
-      # Drizzle と同じ migration イメージを、タスク定義の command で ClickHouse の migration として起動する
       - name: Run ClickHouse migration
         uses: ./.github/actions/run-one-shot-task
         with:
@@ -310,7 +296,6 @@ jobs:
   # =========================================================================
   # API service (Blue/Green)
   # =========================================================================
-  # API は Blue/Green デプロイで、SSM 承認待ちがあるため wait-for-service-stability=false
 
   deploy-api:
     name: Deploy API service
@@ -353,8 +338,7 @@ jobs:
   # API service の承認 (GitHub Environment Required reviewers)
   # =========================================================================
   # deploy-api 完了後、Actions UI に "Review pending deployments" ボタンが出る。
-  # 承認者がボタンを押すと本 job が実行され、SSM パラメータを approved に更新する
-  # → ECS の deployment_hook Lambda が SUCCEEDED 返却 → production traffic shift。
+  # 承認者がボタンを押すと本 job が実行され、SSM パラメータを approved に更新する。
   approve-api:
     name: Approve API deployment
     needs: deploy-api
@@ -450,7 +434,7 @@ jobs:
   # =========================================================================
   # cron は Service を持たず EventBridge Scheduler から RunTask される one-shot task。
   # traffic を捌かないため Blue/Green 承認は不要で、新 image の task definition revision を
-  # register するだけでよい。schedule 側は family 参照なので次回起動時に最新 revision が使われる。
+  # register するだけでよい。
   deploy-cron:
     name: Register cron task definition
     needs: [build, migrate]

@@ -90,7 +90,6 @@ export const verifyViewsMatchCdcTables = (cdcTables: string[], viewTables: strin
  *
  * CDC の無い環境（DATA_WAREHOUSE_CDC=none）や ClickPipe の初回の取り込みの前には pg_cdc が無く、
  * 参照する migration は失敗して deploy-worker まで止まるため、実行前にここで止める。
- * CDC のテーブルを消す DROP TABLE IF EXISTS pg_cdc.<table> だけは許す。
  */
 export const verifyMigrationsDoNotReferenceCdc = (migrations: MigrationDefinition[]): string[] =>
   migrations

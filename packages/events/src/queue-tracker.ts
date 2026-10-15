@@ -11,10 +11,6 @@ import type { EventTracker } from "./tracker"
  *
  * enqueue を await せず、失敗しても呼び出し元に伝播させない。
  * Redis が落ちていてもユーザーのリクエストは成功させるため。
- *
- * eventId は **ここで採番する**。BullMQ は at-least-once で同じジョブが
- * 再配信されうるが、worker 側で採番すると再配信のたびに別 ID になり
- * ClickHouse の ReplacingMergeTree が重複を畳めなくなる。
  */
 export class QueueEventTracker implements EventTracker {
   /** 送出中の enqueue。flush() で待つために保持する（失敗は catch 済み） */

@@ -39,15 +39,7 @@ module.exports = defineConfig([
   {
     ignores: ["dist/**", "node_modules/**"],
   },
-  /**
-   * @repo/db（Drizzle）の import 境界。詳細と限界は
-   * packages/eslint-config/db-boundary.js を参照。
-   */
   ...dbBoundary,
-  /**
-   * テストからだけ使う export（forTesting）をテスト以外から使わせない。
-   * 詳細は packages/eslint-config/test-only-exports.js を参照。
-   */
   ...testOnlyExports,
   {
     files: ["test/**/*.ts"],

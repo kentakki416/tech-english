@@ -32,10 +32,6 @@ export class PinoLogger implements ILogger {
         mixin: () => {
           return logContext.getStore() || {}
         },
-        /**
-         * accessToken / refreshToken / password 等を誤って metadata に含めても
-         * 平文で出さないよう、native redact でマスクする。
-         */
         redact: {
           censor: "[REDACTED]",
           paths: buildPinoRedactPaths(),

@@ -3,7 +3,9 @@
  * BullMQ 等の実装を直接触らない（別実装への差し替えを可能にするため）。
  */
 
-/** `attemptsMade` は 0 オリジン（初回実行時 0）。failed イベント側は 1 オリジンなので注意 */
+/**
+ * `attemptsMade` は 0 オリジン（初回実行時 0）
+ */
 export type JobMessage<T> = {
   attemptsMade: number
   data: T

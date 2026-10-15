@@ -175,7 +175,6 @@ jobs:
       # --provenance=false: buildx 既定の provenance は OCI image index になり、Lambda はこれを受け付けない。
       # api 以外も揃えて付ける。
       # push_only=true のときは api / worker に `initial` タグも付ける
-      # (env/min の bootstrap_image_tag。Lambda / worker の ECS Service の作成時だけ使う)
       - name: Build & push API image
         run: |
           IMAGE="${{ steps.ecr.outputs.registry }}/${{ env.ECR_API_REPO }}"
@@ -208,7 +207,6 @@ jobs:
             --push \
             .
 
-      # migration image は本番 API イメージから分離 (drizzle-kit / devDeps を本番に混入させない)
       - name: Build & push migration image
         run: |
           IMAGE="${{ steps.ecr.outputs.registry }}/${{ env.ECR_MIGRATION_REPO }}"
@@ -278,7 +276,6 @@ jobs:
           echo "public_subnets=${PUBLIC_SUBNETS}" >> "$GITHUB_OUTPUT"
           echo "ecs_security_group=${ECS_SG}" >> "$GITHUB_OUTPUT"
 
-      # migration task definition の image を build job の SHA タグに書き換えた revision で起動する。
       # NAT が無いので assignPublicIp=ENABLED で ECR / Secrets Manager / PlanetScale に出る
       - name: Run DB migration
         uses: ./.github/actions/run-one-shot-task
@@ -342,7 +339,6 @@ jobs:
           echo "public_subnets=${PUBLIC_SUBNETS}" >> "$GITHUB_OUTPUT"
           echo "ecs_security_group=${ECS_SG}" >> "$GITHUB_OUTPUT"
 
-      # Drizzle と同じ migration イメージを、タスク定義の command で ClickHouse の migration として起動する
       - name: Run ClickHouse migration
         uses: ./.github/actions/run-one-shot-task
         with:
@@ -395,7 +391,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          # worker が無ければイベントを捨てる (処理されないジョブを Upstash に溜めないため)
+          # worker が無ければイベントを捨てる
           if [ "${WORKER_ENABLED}" = "true" ]; then
             EVENT_TRACKER_TYPE=queue
           else

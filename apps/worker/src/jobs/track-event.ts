@@ -15,9 +15,6 @@ export type TrackEventDeps = {
  *
  * **ここでは await して失敗を伝播させる**（送出側の fire-and-forget と逆）。
  * 握りつぶすと BullMQ がジョブを成功扱いにしてリトライが効かなくなる。
- *
- * 冪等性: eventId は enqueue 側で採番済みなので、ジョブが再配信されても
- * ClickHouse の ReplacingMergeTree が同じ event_id を 1 件に畳む。
  */
 export const trackEvent = (
   deps: TrackEventDeps,

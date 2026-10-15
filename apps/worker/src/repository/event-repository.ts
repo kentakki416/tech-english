@@ -16,8 +16,7 @@ export type EventRow = {
 /**
  * 行動イベントの書き込みリポジトリ
  *
- * **引数・戻り値にデータウェアハウスの型を出さない。** どのバックエンドを使うかは
- * `src/index.ts` の `createDataWarehouse()` だけが決める。
+ * **引数・戻り値にデータウェアハウスの型を出さない。**
  */
 export interface EventRepository {
   insertAll(events: EventRow[]): Promise<void>

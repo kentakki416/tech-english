@@ -63,7 +63,7 @@ jobs:
   # =========================================================================
   # ClickHouse の有無 (= Terraform の enable_data_warehouse) を調べる
   # =========================================================================
-  # 判定の正本は Terraform のフラグだけ。フラグが true の環境にだけ接続情報の secret がある。
+  # 判定の正本は Terraform のフラグだけ。
   # dwh-migration のタスク定義では判定しない (deploy が register した revision が、フラグを
   # false にしても ACTIVE のまま残るため)。設計: docs/spec/clickhouse-migration/README.md
   detect:
@@ -95,8 +95,8 @@ jobs:
   build:
     name: Build & Push Docker Images
     runs-on: ubuntu-latest
-    # GitHub Environments で AWS_ROLE_ARN / AWS_PRIVATE_SUBNET_IDS / AWS_ECS_SECURITY_GROUP_ID を env-scope から取得
-    # prd 用は別ファイル deploy-aws-prd.yml を作る前提（承認ゲートやトリガーが本質的に違うため matrix にしない）
+    # GitHub Environments の env-scope から AWS_ROLE_ARN を取得
+    # prd は別ファイル deploy-aws-prd.yml（承認ゲートやトリガーが本質的に違うため matrix にしない）
     environment: dev
     outputs:
       image_tag: ${{ steps.meta.outputs.image_tag }}
@@ -142,7 +142,6 @@ jobs:
             --push \
             .
 
-      # migration image は本番 API イメージから分離 (drizzle-kit / devDeps を本番に混入させない)
       - name: Build & push migration image
         run: |
           IMAGE="${{ steps.ecr.outputs.registry }}/${{ env.ECR_MIGRATION_REPO }}"
@@ -280,7 +279,6 @@ jobs:
           echo "private_subnets=${PRIVATE_SUBNETS}" >> "$GITHUB_OUTPUT"
           echo "ecs_security_group=${ECS_SG}" >> "$GITHUB_OUTPUT"
 
-      # Drizzle と同じ migration イメージを、タスク定義の command で ClickHouse の migration として起動する
       - name: Run ClickHouse migration
         uses: ./.github/actions/run-one-shot-task
         with:
@@ -381,7 +379,6 @@ jobs:
   # =========================================================================
   # cron は Service を持たず EventBridge Scheduler から RunTask される one-shot task。
   # ここでは新 image の task definition revision を register するだけでよい。
-  # schedule 側は family 参照なので、次回起動時に自動で最新 revision が使われる。
   deploy-cron:
     name: Register cron task definition
     needs: [build, migrate]

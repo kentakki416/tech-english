@@ -56,7 +56,6 @@ describe("BullMQJobQueue / startBullMQWorker", () => {
       expect(await countFailedJobs(redis)).toBe(0)
     })
 
-    /** attemptsMade は processor 側では 0 オリジン（failed イベント側とは起点が違う） */
     it("初回実行時の attemptsMade は 0", async () => {
       const attempts: number[] = []
       consumer = startBullMQWorker<TestJobData>(redis, {
@@ -106,12 +105,6 @@ describe("BullMQJobQueue / startBullMQWorker", () => {
       expect(calls).toBe(3)
     })
 
-    /**
-     * UnrecoverableError は attempts の上限を待たず即 failed に入る。
-     *
-     * これが `isTerminalJobFailure` が試行回数だけで判定してはいけない理由で、
-     * 回数で見ると初回失敗が「まだリトライされる」に誤判定される。
-     */
     it("UnrecoverableError はリトライされず 1 回で failed に入る", async () => {
       let calls = 0
       consumer = startBullMQWorker<TestJobData>(redis, {

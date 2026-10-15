@@ -45,14 +45,11 @@ const apiEnvSchema = z.object({
 
   DATABASE_REPLICA_URL: z.string().url().optional(),
 
-  /**
-   * test 時に test DB へ切り替えるためのオーバーライド名
-   */
   DB_NAME: z.string().optional(),
 
   /**
    * 行動イベントの送出先。queue は Queue に enqueue し、apps/worker が ClickHouse に書き込む。
-   * none はイベントを捨てる（worker を動かさない環境で使う。minimal 構成で worker を作らない場合）。
+   * none はイベントを捨てる。
    * 既定値の queue は prd / dev の現在の挙動。
    */
   EVENT_TRACKER_TYPE: z.enum(["none", "queue"]).default("queue"),
@@ -120,7 +117,7 @@ const apiEnvSchema = z.object({
   PORT: z.coerce.number().int().positive().default(8080),
 
   /**
-   * Redis 接続 URL（未設定時は @repo/redis が localhost デフォルトを使う）
+   * Redis 接続 URL
    */
   REDIS_URL: z.string().url().optional(),
 })

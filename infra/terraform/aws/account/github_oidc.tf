@@ -56,10 +56,7 @@ resource "aws_iam_role" "github_actions_dev" {
  * prd 環境用 GitHub Actions IAM ロール（先行作成）。
  *
  * prd Environment が GitHub Settings に作成され、Required reviewers などのゲートが
- * 設定された後に、env/prd 用のワークフローからこの role を使う。dev と違い AdminAccess
- * は **意図的に付けない** ことで最小権限を強制する。当面 scoped policy (ecr_push +
- * ecs_deploy + ssm_deploy_approval) で足りない場合は、env/prd の terraform plan/apply
- * に必要な action を CloudTrail から抽出して scoped policy を拡充していくこと。
+ * 設定された後に、env/prd 用のワークフローからこの role を使う。
  *
  * 許可する GitHub Environment:
  * - prd: 通常の deploy / CI job 用
@@ -141,8 +138,7 @@ resource "aws_iam_role" "github_actions_min" {
 /**
  * minimal 環境用 GitHub Actions IAM ロール（terraform plan / apply 用）。
  *
- * dev / prd と同じく AdministratorAccess で運用する（下の TODO と共通）。deploy workflow から
- * 使われないよう、GitHub Environment が min-terraform のワークフローからのみ assume できるようにする。
+ * deploy workflow から使われないよう、GitHub Environment が min-terraform のワークフローからのみ assume できるようにする。
  * terraform-aws-env-ci.yml / terraform-aws-env-apply.yml は対象が min のとき min-terraform を使う。
  */
 data "aws_iam_policy_document" "github_actions_min_terraform_trust" {
@@ -316,8 +312,6 @@ resource "aws_iam_policy" "ssm_deploy_approval_prd" {
 # =============================================================================
 # prd role への policy attachment
 # =============================================================================
-# prd は AdminAccess を attach せず scoped policy のみで運用する。env/prd の plan / apply
-# を回す際に不足する権限があれば、scoped policy 側を拡充して対応する（最小権限の強制）。
 
 resource "aws_iam_role_policy_attachment" "ecr_push_prd" {
   role       = aws_iam_role.github_actions_prd.name
@@ -350,7 +344,6 @@ resource "aws_iam_role_policy_attachment" "github_actions_admin_prd" {
 # =============================================================================
 # min role (deploy 用) への policy attachment
 # =============================================================================
-# admin は付けず、deploy-aws-min.yml に必要な権限だけにする (ecr_push / ecs_deploy / deploy_min)。
 
 # deploy-aws-min.yml 専用のポリシー (min 専用)。
 # - api (Lambda) の環境変数の設定 → version の発行 → alias live の切り替え

@@ -29,9 +29,6 @@ export class LocalStorage implements Storage {
     try {
       await fs.unlink(this._resolveSafePath(key))
     } catch (err) {
-      /**
-       * ファイルが既に無い場合は無視 (二重削除等)
-       */
       if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err
     }
   }

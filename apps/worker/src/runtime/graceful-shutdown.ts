@@ -15,7 +15,6 @@ export type ShutdownDeps = {
  * SIGTERM (ECS deploy) / SIGINT (Ctrl-C) を受けたら:
  *
  *   1. 全 `JobConsumer.close()` を並列で呼ぶ
- *      → 新規ジョブ取得停止 + in-flight ジョブの完了を待機
  *   2. DB を $disconnect、Redis を quit
  *   3. process.exit(0)
  *

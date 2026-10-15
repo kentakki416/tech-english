@@ -5,8 +5,6 @@ import { createRedisClient, type Redis } from "@repo/redis"
  *
  * **実 Redis を使い、モックしない。** キー名・BullMQ の状態遷移・リトライの
  * 挙動は mock では検出できない（`apps/api/CLAUDE.md` のテスト方針）。
- *
- * BullMQ の Worker は `maxRetriesPerRequest: null` の接続が必須（BullMQ 5.x 要件）。
  */
 export const createTestRedis = (): Redis =>
   createRedisClient({

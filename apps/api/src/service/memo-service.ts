@@ -10,13 +10,8 @@ type MemoRepo = { memoRepository: MemoRepository }
 /**
  * 行動イベントの送出に必要な依存。
  *
- * 送出は fire-and-forget で、失敗しても Result には影響しない。
  * **操作が成功したときだけ記録する**（失敗を記録したい場合は別イベントにする。
  * 成功イベントに成否フラグを混ぜると集計時に必ず事故る）。
- *
- * `userId` が undefined なのは `/api/memo` が PUBLIC_PATHS に含まれ
- * 未ログインでも呼べるため。**匿名ユーザーは追跡しない方針**なので、
- * その場合は送出そのものをスキップする。
  */
 type EventDeps = { eventTracker: EventTracker; userId: number | undefined }
 

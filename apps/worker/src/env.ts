@@ -16,9 +16,7 @@ const workerEnvSchema = z
     /**
      * どのデータウェアハウスに書くか。`none` は何も書かない実装を使う。
      *
-     * 行動イベントの分析価値が無い環境のために ClickHouse を持つのはコストに
-     * 見合わないため、繋ぎ先を持たない選択肢を用意する。AWS では Terraform の
-     * enable_data_warehouse に合わせて入る。
+     * AWS では Terraform の enable_data_warehouse に合わせて入る。
      */
     DATA_WAREHOUSE_TYPE: z.enum(["clickhouse", "none"]).default("clickhouse"),
     /**

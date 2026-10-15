@@ -8,7 +8,6 @@ name: ClickHouse Migrate
 # - ClickPipe を Resync した後 (view を作り直す)
 # - Postgres に足した列を view に出す (そのテーブルに書き込みがあった後)
 #
-# 最後に deploy した migration イメージで起動する (.github/actions/run-deployed-migration)。
 # Postgres (Drizzle) の migration は postgres-migrate.yml。
 # =============================================================================
 

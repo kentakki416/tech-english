@@ -220,7 +220,7 @@ export type LoginAsDevUserSuccess = {
  * 開発環境専用ログイン
  *
  * email で seed 済みの dev ユーザーを引き当てて Access/Refresh Token を発行する。
- * production での誤実行を防ぐためのガードは呼び出し側（controller / index.ts / PUBLIC_PATHS）で行う。
+ * production での誤実行を防ぐためのガードは呼び出し側で行う。
  * このサービス関数自体は環境非依存。
  */
 export const loginAsDevUser = async (
@@ -370,7 +370,6 @@ export const logout = async (
 
   const payload = verifier(input.refreshToken)
   if (!payload) {
-    /** 無効なトークンでも成功扱いにして冪等性を保つ */
     return ok({ ok: true })
   }
   await repo.refreshTokenRepository.delete(payload.jti)
