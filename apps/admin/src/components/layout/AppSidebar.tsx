@@ -11,6 +11,7 @@ import {
   FolderIcon,
   GridIcon,
   HorizontaLDots,
+  ListIcon,
   UserCircleIcon,
 } from "@/icons"
 
@@ -40,6 +41,11 @@ const navItems: NavItem[] = [
     icon: <FolderIcon />,
     name: "ソース",
     path: "/content-sources",
+  },
+  {
+    icon: <ListIcon />,
+    name: "タグ",
+    path: "/tags",
   },
   {
     icon: <UserCircleIcon />,

@@ -50,7 +50,7 @@ MVP の管理者は 1〜2 人なので、共有シークレットで保護する
 
 admin は DB を直接触らず、必ず Express API を経由する。tech-english の画面（下の「接続済みの画面」）は API に接続済みで、それ以外は TailAdmin テンプレートの画面がそのまま入っている（API 未接続）。
 
-サイドバー（`components/layout/AppSidebar.tsx`）には tech-english の画面（ダッシュボード・問題・ソース・ユーザー）だけを並べる。テンプレートの画面（`/calendar`・`/ui/*` など。design-mock でデザインの参考に読む）とデザインモック（`/mock`）はメニューに出さず、URL を直接開いて見る。テンプレートの EC のダッシュボードの部品（`components/features/ecommerce/`）も参考として残している。左上のロゴとそのリンク先は `components/layout/AppLogo.tsx`（テンプレートのマークと「tech-english-admin」の文字。サイドバーとスマホ幅のヘッダーで使う）。
+サイドバー（`components/layout/AppSidebar.tsx`）には tech-english の画面（ダッシュボード・問題・ソース・タグ・ユーザー）だけを並べる。テンプレートの画面（`/calendar`・`/ui/*` など。design-mock でデザインの参考に読む）とデザインモック（`/mock`）はメニューに出さず、URL を直接開いて見る。テンプレートの EC のダッシュボードの部品（`components/features/ecommerce/`）も参考として残している。左上のロゴとそのリンク先は `components/layout/AppLogo.tsx`（テンプレートのマークと「tech-english-admin」の文字。サイドバーとスマホ幅のヘッダーで使う）。
 
 | ファイル | 役割 |
 | --- | --- |
@@ -69,6 +69,7 @@ admin は DB を直接触らず、必ず Express API を経由する。tech-engl
 | --- | --- | --- |
 | `/content-sources` | ソース一覧 | `app/(dashboard)/content-sources/page.tsx` + `components/features/content-source/SourceTable.tsx` |
 | `/content-sources/new`・`/content-sources/[id]` | ソースの登録・編集 | `SourceForm.tsx` + `app/(dashboard)/content-sources/actions.ts`（Server Action）+ `app/api/content-sources/license/route.ts`（ライセンス検出の中継） |
+| `/tags` | タグ | `app/(dashboard)/tags/page.tsx` + `components/features/tag/TagTable.tsx`（追加・編集は `TagFormModal`、削除の確認は `TagDeleteModal`）+ `app/(dashboard)/tags/actions.ts`（Server Action）。色付きのタグは `TagChip`（色 → クラスの対応表はここだけに置く） |
 | `/passages` | 問題一覧（`?status=` で状態を切り替え） | `app/(dashboard)/passages/page.tsx` + `components/features/passage/PassageTable.tsx` |
 | `/passages/[id]` | 問題の確認・修正 | `PassageReview.tsx`（タブは `QuestionsTab` / `TranslationsTab` / `GlossaryTab` / `BodyTab` / `BasicsTab`、プレビューは `PassagePreview`、読み上げの音声は `PassageAudioCard`）+ `app/(dashboard)/passages/[id]/actions.ts`（Server Action）。フォームの状態と変換は `features/passage/passage.form.ts`、ラベルは `passage.labels.ts` |
 | `/` | ダッシュボード（`?period=&sort=&order=&page=&q=`） | `app/(dashboard)/page.tsx` + `components/features/stats/`（`PeriodTabs`・`OverviewCards`・`OverviewChart`〈ApexCharts。Client〉・`AssistCard`・`PassageStatsTable`）。API は `features/stats/stats.api.ts`、URL のクエリは `stats.params.ts`（[admin-dashboard](../../docs/spec/admin-dashboard/README.md)） |

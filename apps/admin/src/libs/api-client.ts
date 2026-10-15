@@ -54,12 +54,18 @@ const requestApi = async (path: string, method: string, body?: unknown): Promise
 }
 
 /**
+ * 204（ボディなし）は undefined にする（削除の API が返す）
+ */
+const readJson = async <T>(res: Response): Promise<T> =>
+  (res.status === 204 ? undefined : await res.json()) as T
+
+/**
  * 戻り値はランタイム検証をしないので、検証が必要なら呼び出し側で @repo/api-schema の zod スキーマを使う
  */
 export const apiClient = {
   delete: async <T = unknown>(path: string): Promise<T> => {
     const res = await requestApi(path, "DELETE")
-    return res.json() as Promise<T>
+    return readJson<T>(res)
   },
 
   get: async <T>(path: string): Promise<T> => {
