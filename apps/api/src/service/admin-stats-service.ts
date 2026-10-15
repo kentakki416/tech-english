@@ -2,8 +2,8 @@ import {
   ADMIN_STATS_TIME_ZONE,
   type AdminPassageStatsSort,
   type AdminStatsPeriod,
+  findMisleadingChoiceIndexes,
   getWeekRange,
-  isQuestionNeedingReview,
   type QuestionType,
 } from "@repo/domain"
 import { err, notFoundError, ok, Result } from "@repo/errors"
@@ -56,6 +56,10 @@ export type AdminQuestionStats = {
   choices: string[]
   correctChoiceIndex: number
   correctRate: number | null
+  /**
+   * 正解でないのに、正解と同じかそれ以上選ばれた選択肢の番号（要確認でなければ空）
+   */
+  misleadingChoiceIndexes: number[]
   needsReview: boolean
   orderIndex: number
   prompt: string
@@ -176,18 +180,22 @@ export const getAdminPassageStats = async (
   return ok({
     passage: convertPassageStatsRowToStats(passage),
     period,
-    questions: questions.map((question) => ({
-      id: question.id,
-      answerCount: question.answerCount,
-      choiceRates: question.choiceCounts.map((count) => divideOrNull(count, question.answerCount)),
-      choices: question.choices,
-      correctChoiceIndex: question.correctChoiceIndex,
-      correctRate: divideOrNull(question.correctCount, question.answerCount),
-      needsReview: isQuestionNeedingReview(question),
-      orderIndex: question.orderIndex,
-      prompt: question.prompt,
-      type: question.type,
-      unansweredRate: divideOrNull(question.unansweredCount, question.answerCount),
-    })),
+    questions: questions.map((question) => {
+      const misleadingChoiceIndexes = findMisleadingChoiceIndexes(question)
+      return {
+        id: question.id,
+        answerCount: question.answerCount,
+        choiceRates: question.choiceCounts.map((count) => divideOrNull(count, question.answerCount)),
+        choices: question.choices,
+        correctChoiceIndex: question.correctChoiceIndex,
+        correctRate: divideOrNull(question.correctCount, question.answerCount),
+        misleadingChoiceIndexes,
+        needsReview: misleadingChoiceIndexes.length > 0,
+        orderIndex: question.orderIndex,
+        prompt: question.prompt,
+        type: question.type,
+        unansweredRate: divideOrNull(question.unansweredCount, question.answerCount),
+      }
+    }),
   })
 }

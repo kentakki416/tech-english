@@ -44,6 +44,7 @@ export class AdminPassageStatsDetailController {
         choices: question.choices,
         correct_choice_index: question.correctChoiceIndex,
         correct_rate: question.correctRate,
+        misleading_choice_indexes: question.misleadingChoiceIndexes,
         needs_review: question.needsReview,
         order_index: question.orderIndex,
         prompt: question.prompt,

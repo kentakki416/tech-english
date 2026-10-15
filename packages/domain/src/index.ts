@@ -33,7 +33,7 @@ export {
   VOCABULARY_REVIEW_INTERVAL_DAYS,
   VOCABULARY_SESSION_SIZE,
 } from "./const/vocabulary"
-export { isQuestionNeedingReview } from "./rules/admin-stats"
+export { findMisleadingChoiceIndexes, isQuestionNeedingReview } from "./rules/admin-stats"
 export { isAttemptStatus, isWordLookupSource } from "./rules/attempt"
 export { isAudioStatus } from "./rules/audio"
 export { isAllowedLicense, isSourceFetchType, isSourceKind } from "./rules/content-source"

@@ -21,8 +21,8 @@ describe("getAdminPassageStats", () => {
           passage: { id: 57 },
           period: "30d",
           questions: [
-            { id: 571, choiceRates: [0.5, 0.4, 0.1, 0], correctRate: 0.4, needsReview: true, unansweredRate: 0 },
-            { id: 572, choiceRates: [0.1, 0.7, 0, 0], correctRate: 0.7, needsReview: false, unansweredRate: 0.2 },
+            { id: 571, choiceRates: [0.5, 0.4, 0.1, 0], correctRate: 0.4, misleadingChoiceIndexes: [0], needsReview: true, unansweredRate: 0 },
+            { id: 572, choiceRates: [0.1, 0.7, 0, 0], correctRate: 0.7, misleadingChoiceIndexes: [], needsReview: false, unansweredRate: 0.2 },
           ],
         },
       })
@@ -52,8 +52,8 @@ describe("getAdminPassageStats", () => {
         ok: true,
         value: {
           questions: [
-            { needsReview: false },
-            { choiceRates: [null, null, null, null], correctRate: null, needsReview: false, unansweredRate: null },
+            { misleadingChoiceIndexes: [], needsReview: false },
+            { choiceRates: [null, null, null, null], correctRate: null, misleadingChoiceIndexes: [], needsReview: false, unansweredRate: null },
           ],
         },
       })
