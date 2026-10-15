@@ -10,6 +10,8 @@ import type {
   PassageCountRow,
 } from "../content-source-repository"
 
+import { isUniqueViolation } from "./pg-error"
+
 /**
  * Drizzleの型
  */
@@ -19,20 +21,6 @@ type ContentSourceRow = typeof contentSources.$inferSelect
  * 取得に失敗したとみなす HTTP ステータスの下限
  */
 const FAILED_HTTP_STATUS = 400
-
-/**
- * Postgres の unique 制約違反の SQLSTATE
- */
-const UNIQUE_VIOLATION = "23505"
-
-/**
- * unique 制約違反か。Drizzle は pg のエラーを DrizzleQueryError の cause に入れる。
- * content_sources の unique 制約は主キーと repository / site_url だけなので、重複の登録とみなせる
- */
-const isUniqueViolation = (error: unknown): boolean => {
-  const cause = typeof error === "object" && error !== null && "cause" in error ? error.cause : undefined
-  return typeof cause === "object" && cause !== null && "code" in cause && cause.code === UNIQUE_VIOLATION
-}
 
 /**
  * 入力から、取得方法ごとの列と共通の列の値を作る（fetch_type は含めない）

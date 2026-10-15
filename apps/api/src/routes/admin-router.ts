@@ -16,6 +16,10 @@ import { AdminPassageRestoreController } from "../controller/admin/passage/resto
 import { AdminPassageRetryAudioController } from "../controller/admin/passage/retry-audio"
 import { AdminPassageUnpublishController } from "../controller/admin/passage/unpublish"
 import { AdminPassageUpdateController } from "../controller/admin/passage/update"
+import { AdminTagCreateController } from "../controller/admin/tag/create"
+import { AdminTagDeleteController } from "../controller/admin/tag/delete"
+import { AdminTagListController } from "../controller/admin/tag/list"
+import { AdminTagUpdateController } from "../controller/admin/tag/update"
 import { adminAuthMiddleware } from "../middleware/admin-auth"
 
 /**
@@ -41,6 +45,12 @@ type AdminRouterControllers = {
     retryAudio?: AdminPassageRetryAudioController
     unpublish?: AdminPassageUnpublishController
     update?: AdminPassageUpdateController
+  }
+  tag?: {
+    create?: AdminTagCreateController
+    delete?: AdminTagDeleteController
+    list?: AdminTagListController
+    update?: AdminTagUpdateController
   }
 }
 
@@ -186,6 +196,40 @@ export const adminRouter = (controllers: AdminRouterControllers): Router => {
   if (passage.regenerateAudio) {
     const controller = passage.regenerateAudio
     router.post("/passage/:id/audio/regenerate", async (req, res) => controller.execute(req, res))
+  }
+
+  const tag = controllers.tag ?? {}
+
+  /**
+   * GET /api/admin/tag
+   */
+  if (tag.list) {
+    const controller = tag.list
+    router.get("/tag", async (req, res) => controller.execute(req, res))
+  }
+
+  /**
+   * POST /api/admin/tag
+   */
+  if (tag.create) {
+    const controller = tag.create
+    router.post("/tag", async (req, res) => controller.execute(req, res))
+  }
+
+  /**
+   * PUT /api/admin/tag/:id
+   */
+  if (tag.update) {
+    const controller = tag.update
+    router.put("/tag/:id", async (req, res) => controller.execute(req, res))
+  }
+
+  /**
+   * DELETE /api/admin/tag/:id
+   */
+  if (tag.delete) {
+    const controller = tag.delete
+    router.delete("/tag/:id", async (req, res) => controller.execute(req, res))
   }
 
   return router

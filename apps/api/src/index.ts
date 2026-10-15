@@ -29,6 +29,10 @@ import { AdminPassageRestoreController } from "./controller/admin/passage/restor
 import { AdminPassageRetryAudioController } from "./controller/admin/passage/retry-audio"
 import { AdminPassageUnpublishController } from "./controller/admin/passage/unpublish"
 import { AdminPassageUpdateController } from "./controller/admin/passage/update"
+import { AdminTagCreateController } from "./controller/admin/tag/create"
+import { AdminTagDeleteController } from "./controller/admin/tag/delete"
+import { AdminTagListController } from "./controller/admin/tag/list"
+import { AdminTagUpdateController } from "./controller/admin/tag/update"
 import { AttemptAudioController } from "./controller/attempt/audio"
 import { AttemptDetailController } from "./controller/attempt/detail"
 import { AttemptStartController } from "./controller/attempt/start"
@@ -81,6 +85,7 @@ import {
   DrizzlePassageRepository,
   DrizzleReadingAttemptRepository,
   DrizzleReminderSettingRepository,
+  DrizzleTagRepository,
   DrizzleTransactionRunner,
   DrizzleUserGoalRepository,
   DrizzleUserRepository,
@@ -126,6 +131,7 @@ const authAccountRepository = new DrizzleAuthAccountRepository(db)
 const transactionRunner = new DrizzleTransactionRunner(db)
 const memoRepository = new DrizzleMemoRepository(db)
 const contentSourceRepository = new DrizzleContentSourceRepository(db)
+const tagRepository = new DrizzleTagRepository(db)
 /**
  * reading-practice のユーザー向け API と共有する
  */
@@ -279,6 +285,10 @@ const adminPassageRestoreController = new AdminPassageRestoreController(passageR
 const adminPassageRetryAudioController = new AdminPassageRetryAudioController(passageAudioRepository)
 const adminPassageUnpublishController = new AdminPassageUnpublishController(passageRepository)
 const adminPassageUpdateController = new AdminPassageUpdateController(passageRepository)
+const adminTagCreateController = new AdminTagCreateController(tagRepository)
+const adminTagDeleteController = new AdminTagDeleteController(tagRepository)
+const adminTagListController = new AdminTagListController(tagRepository)
+const adminTagUpdateController = new AdminTagUpdateController(tagRepository)
 
 /**
  * ユーザー向けの問題（一覧・ランダムに 1 問・開始確認の概要）Controller のインスタンス化
@@ -415,6 +425,12 @@ app.use(
       retryAudio: adminPassageRetryAudioController,
       unpublish: adminPassageUnpublishController,
       update: adminPassageUpdateController,
+    },
+    tag: {
+      create: adminTagCreateController,
+      delete: adminTagDeleteController,
+      list: adminTagListController,
+      update: adminTagUpdateController,
     },
   })
 )
