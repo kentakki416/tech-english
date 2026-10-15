@@ -7,15 +7,6 @@ import { formatRate } from "@/libs/format-stats"
 type QuestionStats = GetAdminPassageStatsResponse["questions"][number]
 
 /**
- * index の選択肢が、正解でないのに正解と同じかそれ以上選ばれているか（1 度も選ばれていなければ false。要確認の設問で橙にする選択肢）
- */
-const isMisleadingChoice = (question: QuestionStats, index: number): boolean => {
-  const rate = question.choice_rates[index] ?? 0
-  const correctRate = question.choice_rates[question.correct_choice_index] ?? 0
-  return index !== question.correct_choice_index && rate > 0 && rate >= correctRate
-}
-
-/**
  * 選択肢 1 つの行。正解は緑、正解と同じかそれ以上選ばれた誤りは橙、ほかは灰色の横棒
  */
 function ChoiceRow({ isCorrect, isMisleading, label, rate, text }: { isCorrect: boolean, isMisleading: boolean, label: string, rate: number | null, text: string }) {
@@ -38,7 +29,8 @@ function ChoiceRow({ isCorrect, isMisleading, label, rate, text }: { isCorrect: 
 }
 
 /**
- * 設問 1 つの分析（種類・設問文・正答率・選択肢ごとの割合・未回答・要確認の印）。要確認の判定は API（needs_review）
+ * 設問 1 つの分析（種類・設問文・正答率・選択肢ごとの割合・未回答・要確認の印）。
+ * 要確認と橙にする選択肢の判定は API（needs_review・misleading_choice_indexes。ルールは domain）で、ここでは書き直さない
  */
 export function QuestionStatsCard({ question }: { question: QuestionStats }) {
   return (
@@ -61,7 +53,7 @@ export function QuestionStatsCard({ question }: { question: QuestionStats }) {
           <ChoiceRow
             key={index}
             isCorrect={index === question.correct_choice_index}
-            isMisleading={question.needs_review && isMisleadingChoice(question, index)}
+            isMisleading={question.misleading_choice_indexes.includes(index)}
             label={CHOICE_LETTERS[index] ?? String(index + 1)}
             rate={question.choice_rates[index] ?? null}
             text={choice}
