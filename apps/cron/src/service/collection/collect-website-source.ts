@@ -40,7 +40,7 @@ export type CollectWebsiteSourceInput = {
   source: WebsiteSource
 }
 
-type WebsiteCollectionDeps = Pick<CollectionDeps, "createWebPageClient" | "isShuttingDown">
+type WebsiteCollectionDeps = Pick<CollectionDeps, "createWebPageClient">
 
 type Progress = {
   createdPassageCount: number
@@ -249,7 +249,7 @@ const fetchPageRecordingThrottle = async (
 }
 
 /**
- * 取得待ちの行を順に取得する。停止指示・本文候補の上限で抜けたらその状態を、全部処理したら completed / limit_reached を返す。
+ * 取得待ちの行を順に取得する。本文候補の上限で抜けたら limit_reached を、全部処理したら completed / limit_reached を返す。
  *
  * 取得できなかった行（ネットワークエラー・429 / 503）も fetched_at に試した時刻を入れ、待ち行列から外す
  * （COLLECT_WEB_REFETCH_DAYS 日後に取り直す）。入れないと次回も同じ行が先頭に来て、取得できないページが残りのページを塞ぐ。
@@ -259,12 +259,10 @@ const fetchPageRecordingThrottle = async (
 const fetchQueuedDocuments = async (
   input: CollectWebsiteSourceInput & { client: IWebPageClient; progress: Progress; queue: SourceDocument[] },
   repo: CollectionRepo,
-  deps: WebsiteCollectionDeps,
 ): Promise<Exclude<SourceCollectionStatus, "crawl_delay_too_long" | "rate_limited" | "throttled" | "up_to_date">> => {
   const { client, now, progress, queue, source } = input
   let consecutiveNetworkErrorCount = 0
   for (const document of queue) {
-    if (deps.isShuttingDown()) return "interrupted"
     if (progress.createdPassageCount >= input.maxPassages) return "limit_reached"
 
     const url = buildPageUrl(source, document.path)
@@ -331,13 +329,13 @@ export const collectWebsiteSource = async (
       sourceId: source.id,
     })
     logger.info("website fetch queue loaded", { queuedDocumentCount: queue.length, sourceId: source.id })
-    status = await fetchQueuedDocuments({ ...input, client, progress, queue }, repo, deps)
+    status = await fetchQueuedDocuments({ ...input, client, progress, queue }, repo)
   } catch (error) {
     status = resolveAbortedStatus(error, now, source.id)
   }
 
   /**
-   * 429 / 503・Crawl-delay・停止指示で途中で終えたソースは進めない（最終収集の表示が実際より新しくならないように。
+   * 429 / 503・Crawl-delay で途中で終えたソースは進めない（最終収集の表示が実際より新しくならないように。
    * findEnabled は last_collected_at の古い順なので、次回の実行で先に処理される）
    */
   if (status === "completed" || status === "limit_reached") {

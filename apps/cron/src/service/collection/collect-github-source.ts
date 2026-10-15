@@ -34,7 +34,6 @@ const findStopStatus = (
   input: CollectGitHubSourceInput,
   deps: CollectionDeps,
 ): Exclude<SourceCollectionStatus, "completed" | "crawl_delay_too_long" | "throttled" | "up_to_date"> | null => {
-  if (deps.isShuttingDown()) return "interrupted"
   if (progress.fetchedDocumentCount >= input.maxDocuments || progress.createdPassageCount >= input.maxPassages) {
     return "limit_reached"
   }
@@ -104,7 +103,7 @@ const collectFile = async (
  *
  * 1. 最新コミットの SHA が前回（last_collected_commit_sha）と同じなら up_to_date で終える
  * 2. コミットのツリーから対象のファイルを列挙し、source_documents の blob SHA と比べて新規・変更されたものだけ残す
- * 3. 上限・rate limit・停止指示に掛かるまで、ファイルごとに本文を取得して本文候補を保存する
+ * 3. 上限・rate limit に掛かるまで、ファイルごとに本文を取得して本文候補を保存する
  * 4. 全件処理でき、ツリーも完全なら completed として commit SHA を記録する（それ以外は記録せず、次回に続きから処理する）。
  *    収集の途中で last_collected_commit_sha が変えられていたら記録しない（楽観ロック）
  *

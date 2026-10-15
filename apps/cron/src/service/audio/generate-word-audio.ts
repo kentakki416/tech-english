@@ -22,10 +22,6 @@ const MILLIS_PER_MINUTE = 60 * 1000
 
 export type GenerateWordAudioInput = {
   /**
-   * 停止指示を受けたか。各語の頭で見て、true なら残りを処理せずに終える（確保済みの残りは 30 分後に回収される）
-   */
-  isShuttingDown: () => boolean
-  /**
    * 1 回の実行で確保する語の上限（WORD_AUDIO_MAX_PER_RUN）
    */
   maxWordsPerRun: number
@@ -163,7 +159,6 @@ export const generateWordAudio = async (
   logger.info("word audio targets claimed", { count: claims.length })
 
   for (const [index, claim] of claims.entries()) {
-    if (input.isShuttingDown()) break
     /**
      * Polly は文字数で課金するので、見出し語の文字数を見込みにする（SSML は使わない）
      */

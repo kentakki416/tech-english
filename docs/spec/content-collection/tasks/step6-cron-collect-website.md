@@ -151,7 +151,7 @@ markResponse(id: number, input: { fetchedAt: Date; httpStatus: number | null }):
 export const collectWebsiteSource = async (
   input: { maxDocuments: number; maxPassages: number; now: Date; refetchDays: number; source: WebsiteSource },
   repo: CollectionRepo,
-  deps: { createWebPageClient: (origin: string) => IWebPageClient; isShuttingDown: () => boolean },
+  deps: { createWebPageClient: (origin: string) => IWebPageClient },
 ): Promise<SourceCollectionResult>
 ```
 
@@ -161,7 +161,7 @@ export const collectWebsiteSource = async (
 2. `sitemapUrl` があれば `fetchSitemapUrls` → 取得してよい URL に絞って `upsertDiscovered(..., { shouldReviveGone: false })`
 3. `startUrl` があれば、その path を `upsertDiscovered`（毎回入れても冪等。対象パスに合わなくてもリンクをたどるために入れる）
 4. `queue = findFetchQueue({ limit: maxDocuments, refetchBefore: now - refetchDays 日, sourceId })`
-5. 行ごとに（ループの先頭で `isShuttingDown()` と `createdPassageCount >= maxPassages` を確認。上限は step5 と同じく文書の単位）：
+5. 行ごとに（ループの先頭で `createdPassageCount >= maxPassages` を確認。上限は step5 と同じく文書の単位）：
 
 | `fetchPage` の結果 | 処理 |
 | --- | --- |
@@ -180,7 +180,7 @@ export const collectWebsiteSource = async (
 - それ以外は本文候補を `{ sourceCommitSha: null, sourcePath: path, sourceRetrievedAt: now, ... }` で `insertIgnoringDuplicates`
 - 最後に `markFetched(id, { blobSha: null, commitSha: null, contentHash, etag, fetchedAt: now, httpStatus: status, lastModified, title })`
 
-6. `queue.length === maxDocuments` なら `limit_reached`、そうでなければ `completed`。**`completed` / `limit_reached` のときだけ** `markCollected(id, { lastCollectedAt: now })`（取得を最後まで終えたときだけ最終収集を進める。`throttled` / `crawl_delay_too_long` / `interrupted` は進めない。`findEnabled` は `last_collected_at` の古い順なので次回の実行で先に処理される）
+6. `queue.length === maxDocuments` なら `limit_reached`、そうでなければ `completed`。**`completed` / `limit_reached` のときだけ** `markCollected(id, { lastCollectedAt: now })`（取得を最後まで終えたときだけ最終収集を進める。`throttled` / `crawl_delay_too_long` と、シグナルで中断されたときは進めない。`findEnabled` は `last_collected_at` の古い順なので次回の実行で先に処理される）
 
 `BlockedUrlError` と robots.txt の読込み失敗は throw のまま（`collectPassages` がソースの失敗として扱い exit 1）。
 
@@ -223,7 +223,7 @@ pnpm lint:fix
   - [ ] 本文の抽出が throw したページは `markFetched` せず `markResponse(200)`（`ETag` などを保存しない）
   - [ ] リダイレクトの行き先が除外パス・対象パスの外・ページでない拡張子なら本文候補を作らず、リンクの発見と `markFetched` は続ける
   - [ ] 404 は `markResponse(404)`。throttled で残りの行を取得せずに `throttled` を返し、その行を `markResponse(429)` する。`network_error` の行は `markResponse(null)`。3 回続くと throw、間に `ok` を挟むと数え直す
-  - [ ] `completed` / `limit_reached` だけ `markCollected` し、`throttled` / `crawl_delay_too_long` / `interrupted` では呼ばない
+  - [ ] `completed` / `limit_reached` だけ `markCollected` し、`throttled` / `crawl_delay_too_long` では呼ばない
   - [ ] `BlockedUrlError` はそのまま throw される
 - [ ] `collectPassages` が website のソースを処理し、`throttled` を失敗に数えない
 - [ ] `previewSource`（website）が Repository の書き込みメソッドを呼ばず、取得するページが 5 件以下

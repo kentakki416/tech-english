@@ -167,19 +167,6 @@ describe("collectPassages", () => {
       expect(repo.contentSourceRepository.findEnabled).not.toHaveBeenCalled()
       expect(collectGitHubSourceMock.mock.calls[0][0].source).toBe(source)
     })
-
-    it("停止指示を受けたら次のソースへ進まない", async () => {
-      const repo = createFakeRepo({ enabledSources: [buildGitHubSource({ id: 1 }), buildGitHubSource({ id: 2 })] })
-      let isShuttingDown = false
-      collectGitHubSourceMock.mockImplementationOnce(async () => {
-        isShuttingDown = true
-        return buildCompletedResult(1)
-      })
-
-      await collectPassages(buildInput(), repo, createDeps(createFakeGitHubClient(), () => isShuttingDown))
-
-      expect(collectGitHubSourceMock).toHaveBeenCalledTimes(1)
-    })
   })
 
   describe("異常系", () => {

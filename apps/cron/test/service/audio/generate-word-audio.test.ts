@@ -30,7 +30,6 @@ const buildClaim = (overrides: Partial<ClaimedWordAudio> = {}): ClaimedWordAudio
 })
 
 const buildInput = (overrides: Partial<GenerateWordAudioInput> = {}): GenerateWordAudioInput => ({
-  isShuttingDown: () => false,
   maxWordsPerRun: 300,
   monthlyCharacterLimit: 1_800_000,
   now: () => NOW,
@@ -213,15 +212,6 @@ describe("generateWordAudio", () => {
 
       await expect(generateWordAudio(buildInput(), createFakeRepo({ claims }), temporary)).resolves.toEqual(expect.objectContaining({ readyCount: 1 }))
       await expect(generateWordAudio(buildInput(), createFakeRepo({ claims }), fatal)).rejects.toBe(noBucket)
-    })
-
-    it("停止指示を受けたら、残りの語を処理しない", async () => {
-      const repo = createFakeRepo({ claims: [buildClaim(), buildClaim({ id: 8, lemma: "cache" })] })
-      let calls = 0
-
-      await generateWordAudio(buildInput({ isShuttingDown: () => calls++ > 0 }), repo, createDeps())
-
-      expect(repo.wordAudioRepository.completeClaim).toHaveBeenCalledTimes(1)
     })
   })
 })

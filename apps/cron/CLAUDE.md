@@ -28,7 +28,7 @@ pnpm test              # Vitest（DB client を mock するので DB 不要）
 
 参考実装: `src/task/cleanup-old-memos.ts` / `src/service/memo/cleanup-old-memos.ts` / `src/repository/drizzle/memo-repository.ts`。
 
-- **`task/<name>.ts`**: cron 1 本 = 1 ファイル。env を読んで DB client（Drizzle）と Repository を生成し service に DI するだけ。**閾値計算や件数集計などのドメインロジックを書かない**。サブディレクトリは切らない
+- **`task/<name>.ts`**: cron 1 本 = 1 ファイル。`runTask` で包み、受け取った DB client（Drizzle）で Repository を生成して service に DI するだけ。**閾値計算や件数集計などのドメインロジックを書かない**。サブディレクトリは切らない
 - **`service/<domain>/`**: 業務ロジック。`export const` のアロー関数で、Repository は単一でも `repo: { xxxRepository }` のオブジェクト引数で受ける（将来増えてもシグネチャを変えずに済む）。**Repository class を service の中に書かない**
 - **`repository/`**: interface は `repository/<name>.ts`、実装は `repository/drizzle/`。interface の引数・戻り値は `@repo/domain` の型か素の値にする。Drizzle の型は実装クラスの内側に閉じる（`@repo/eslint-config/db-boundary` が lint で強制）
 - **`lib/`**（任意）: env も DB も知らない純関数のみ
@@ -70,7 +70,7 @@ Markdown / MDX / HTML から本文を抽出し、200〜600 語の本文候補に
 | `repository/{content-source,source-document,passage}-repository.ts` | cron 用の Repository（api の CRUD 用とは別） |
 
 - **冪等**：`markFetched`（blob SHA の記録）は本文候補の挿入の後。途中で落ちても次回同じファイルをやり直し、挿入済みの本文候補は `passages.content_hash` の unique で弾く（`insertIgnoringDuplicates`）
-- **`last_collected_commit_sha` は `completed` のときだけ更新**する。文書数・本文候補数の上限、rate limit、停止指示、ツリーの切り詰めで打ち切った場合は更新せず、次回は未処理（blob SHA が違う）ファイルだけを続きから処理する。上限は文書単位で判定し、1 文書の本文候補は途中で切らない。更新は収集を始めたときに読んだ値のままのときだけ行う（`markCollected` の楽観ロック）。収集の途中で admin が収集の範囲を変えて api が null に戻していたら書き戻さず、warn を出す
+- **`last_collected_commit_sha` は `completed` のときだけ更新**する。文書数・本文候補数の上限、rate limit、ツリーの切り詰めで打ち切った場合（シグナルで中断された場合も）は更新せず、次回は未処理（blob SHA が違う）ファイルだけを続きから処理する。上限は文書単位で判定し、1 文書の本文候補は途中で切らない。更新は収集を始めたときに読んだ値のままのときだけ行う（`markCollected` の楽観ロック）。収集の途中で admin が収集の範囲を変えて api が null に戻していたら書き戻さず、warn を出す
 - **rate limit**：`x-ratelimit-remaining` が閾値（token ありは 100、token なしは 10。`const/collection.ts`）を切ったらそのソースを `rate_limited` で打ち切り、以降の GitHub のソースも飛ばす（rate limit は token 単位）。`GitHubRateLimitError` も失敗にしない
 - 取得元から消えたファイルの `source_documents` / `passages` は何もしない（公開済みの問題は残す）
 
@@ -81,7 +81,7 @@ Markdown / MDX / HTML から本文を抽出し、200〜600 語の本文候補に
 - **抽出の失敗**：本文の抽出が throw したページ（不正な CSS セレクタなど）は `ETag` / `Last-Modified` / ハッシュを保存せず `markResponse` する（保存すると 304 で止まり、セレクタを直しても抽出し直されない）。api はセレクタが変わったソースの `etag` / `last_modified` / `content_hash` を消す
 - **404 / 410** は `http_status` に記録して待ち行列から外す。sitemap の lastmod が新しくなるか、200 のページのリンクで再び見つかったら `http_status` を NULL に戻す
 - **429 / 503**（`WebSourceThrottledError`）はそのソースを `throttled` で打ち切る（失敗にしない。`Retry-After` は待たずに次回の実行で再開する）。**取得できなかった行**（429 / 503 とネットワークエラー）も `fetched_at` に試した時刻を入れて待ち行列から外す（`COLLECT_WEB_REFETCH_DAYS` 日後に取り直す。入れないと同じ行が毎回先頭に来て、取得できないページがソース全体を止める）。ネットワークエラーが `MAX_CONSECUTIVE_NETWORK_ERRORS`（3）回続いたらソースの失敗にする
-- **`last_collected_at`**：サイトは `completed` / `limit_reached` のときだけ進める（`throttled` / `crawl_delay_too_long` / `interrupted` では進めない）
+- **`last_collected_at`**：サイトは `completed` / `limit_reached` のときだけ進める（`throttled` / `crawl_delay_too_long` と、シグナルで中断されたときは進めない）
 - **礼儀正しさ**：robots.txt を毎回読んで守る（照合名は `TechEnglishBot`。4xx は全許可、5xx・ネットワークエラーは throw、429 / 503 は throttled）。同じオリジンへのリクエストは直列で、前回の開始から `max(COLLECT_WEB_REQUEST_INTERVAL_MS, Crawl-delay)` 空ける。`Crawl-delay` が `MAX_CRAWL_DELAY_SECONDS`（30 秒。`const/collection.ts`）を超えるサイトは、従うと処理が長時間止まるので warn を出してそのソースを `crawl_delay_too_long` で打ち切る（失敗にしない。`CrawlDelayTooLongError`。試し実行では throw してエラーを表示する）。タイムアウト 10 秒、`text/html` かつ 2MB 以下だけ受け取る。User-Agent は `TechEnglishBot/1.0 (+COLLECT_WEB_CONTACT_URL)`（未設定なら `TechEnglishBot/1.0`。GitHub API も同じ）
 - **取得先の制限（SSRF 対策）**：① リクエストの前（リダイレクト先も）に https かつ `site_url` と同じオリジンかを確かめる（IP アドレスのホストはここで範囲も確かめる。net.connect は IP アドレスに lookup を呼ばないため）② undici の `Agent` の `connect.lookup` に `createSafeLookup` を渡し、接続のときに名前解決した全アドレスがプライベート・ループバック・リンクローカルでないかを確かめる（DNS rebinding 対策）③ リダイレクトは `redirect: "manual"` で自分でたどり、同じオリジンの中で最大 3 回。違反は `BlockedUrlError` でソースの失敗にする
 - fetch はグローバルではなく undici のもの（npm の undici の `Agent` をグローバルの fetch に渡すと版の違いで動かないことがあるため）。undici は Node 20 で動く v7 に固定している（v8 は Node 22.19 以上が必要）
@@ -121,7 +121,7 @@ Markdown / MDX / HTML から本文を抽出し、200〜600 語の本文候補に
 | `repository/passage-repository.ts` | `claimNextCollected`（collected の最も古い 1 行を `FOR UPDATE SKIP LOCKED` で選び、同じ UPDATE で generating に）/ `saveDraft`（passages の更新と questions / glossary の入れ直しを 1 トランザクション）/ `recordGenerationFailure` / `markRejectedByLlm` / `releaseClaim` / `releaseStaleGenerating` / `countByStatus` / `findStatusById` |
 
 - **claim のガード**：取得した行の更新（`saveDraft` / `markRejectedByLlm` / `recordGenerationFailure` / `releaseClaim`）は `WHERE id = ? AND status = 'generating' AND generation_started_at = ?`。`generation_started_at` を取得のトークンにして、30 分を超えて別の実行に回収・再取得された行を古い実行が上書きしない（0 行なら warn を出して数えない）
-- **1 件ずつ取る**：最初にまとめて取らず、1 件ごとに `claimNextCollected` で取ってから処理する。まとめて取ると全件に同じ `generation_started_at` が入り、1 回の実行が 30 分を超えたときに後半の行（まだ処理していない行）が別の実行に回収・再取得され、LLM の費用が二重にかかるため。各行の `generation_started_at` はその行を取った時刻になる。停止指示は次の行を取る前に見るので、取ったまま処理していない行は残らない
+- **1 件ずつ取る**：最初にまとめて取らず、1 件ごとに `claimNextCollected` で取ってから処理する。まとめて取ると全件に同じ `generation_started_at` が入り、1 回の実行が 30 分を超えたときに後半の行（まだ処理していない行）が別の実行に回収・再取得され、LLM の費用が二重にかかるため。各行の `generation_started_at` はその行を取った時刻になる。シグナルで中断されても `generating` のまま残るのは処理中の 1 行だけで、30 分を過ぎた後の実行で `collected` に戻る（`releaseStaleGenerating`）
 - **失敗の扱い**：API エラー（SDK のリトライ後）・拒否・2 回目の不合格・想定外の例外は `recordGenerationFailure`（回数 +1、3 回目で `failed`、`generation_error` に「種類: メッセージ」）。失敗した件は warn（`passage generation failed`）でログに出す。JSON でない出力は「不合格」として再生成する。出力が `max_tokens` で切れた（`LlmOutputTruncatedError`）ら、同じ上限ですぐに作り直しても切れやすいので再生成せず、一時的な失敗として `recordGenerationFailure` する（次の実行に回す。3 回目で `failed`）。warn に `outputTokens`（`usage.output_tokens`）・`maxTokens`・`stopReason` を出す。`isSuitable = false` は `rejected`（理由が無ければ「LLM が題材に不向きと判定」）
 - **設定の誤り（`isFatalLlmError`）**：生成で起きたら失敗回数を増やさずに `releaseClaim` して throw（タスクは exit 1。まだ取っていない行は collected のまま残る）。検証モデルで起きたら、生成の費用を無駄にしないよう下書きを検証なしで保存してから throw する
 - **検証モデルの失敗**：API エラー・回答の件数が設問数と合わない・設問番号の重複 / 範囲外は、生成を捨てず `verificationChoiceIndex = null` で保存し、要確認に「検証モデルでの確認に失敗しました」を入れる
@@ -193,9 +193,21 @@ cron は CommonJS でビルドするが、unified / remark / rehype は ESM 専�
 
 run-once モデルなので、**処理の途中でシグナルを受けて終了した場合はタスクが未完了**を意味する。ここで exit 0 を返すとスケジューラが成功と誤認し、削除が途中で止まっても次回まで気付けない。
 
-`src/runtime/graceful-shutdown.ts` は中断時に **非 0（`128 + シグナル番号`。SIGTERM=143 / SIGINT=130）で終了する**。戻り値の `isShuttingDown` は長時間ループや batch で各 iteration の頭をチェックして自発的に break するために使う。
+task は `src/run-task.ts` の `runTask(name, async ({ db }) => { ... })` で包む。DB client の生成・切断、シグナルの受信、終了コードは `runTask` が持つので、task 側には書かない。
 
-タスク失敗時は `throw` してプロセスを exit code 1 で終わらせ、スケジューラに通知する。
+| 結果 | 終了コード |
+| --- | --- |
+| 成功 | 0 |
+| 失敗（task が throw、または DB の切断に失敗） | 1 |
+| 中断（SIGTERM / SIGINT） | `128 + シグナル番号`（SIGTERM=143 / SIGINT=130） |
+
+中断時は task の完了を待たずに終了する（実行中のクエリ・トランザクションの完了を待ってから切断する）。**task / service の中でシグナルを見てループを break する処理は書かない**（JS は実行中の処理を外から止められず、チェックが回る前にプロセスが終わる）。代わりに、途中で止まっても次の実行で続きから拾い直せる処理にする。
+
+- `collect:passages`：`markFetched` は本文候補の挿入の後なので、途中の文書は次の実行でやり直す（挿入済みの本文候補は `content_hash` の unique で弾く）。`last_collected_commit_sha` / `last_collected_at` は進まない
+- `generate:questions` / `generate:audio` / `generate:word-audio`：確保した行は `generation_started_at` が 30 分を過ぎると、次の実行で回収・再確保される
+- `cleanup:old-memos`：1 回の `DELETE` なので途中の状態は残らない
+
+引数や env の検査（`generate:questions` の `ANTHROPIC_API_KEY` など）は task の先頭で throw すればよい。DB の Pool は最初のクエリで接続するので、それより前に throw すれば DB に接続しない。
 
 ## 環境変数
 
