@@ -1,23 +1,23 @@
 "use client"
 
 /**
- * 並べ替えのできる列の見出し。押すと、その列で並べ替える（同じ列なら向きを逆にする）。今の列には向きの矢印を出す
+ * 並べ替えの向き。null（値が無い行）はどちらの向きでも最後に置く
  */
-export function SortHeader({ isActive, label, onClick, order }: { isActive: boolean, label: string, onClick: () => void, order: "asc" | "desc" }) {
-  return (
-    <button
-      aria-label={`${label}で並べ替える`}
-      className={`inline-flex items-center gap-1 whitespace-nowrap hover:text-gray-800 dark:hover:text-white/90 ${isActive ? "text-gray-800 dark:text-white/90" : ""}`}
-      onClick={onClick}
-      type="button"
-    >
-      {label}
-      <span aria-hidden className={`text-[10px] ${isActive ? "" : "text-gray-300 dark:text-gray-600"}`}>
-        {isActive ? (order === "desc" ? "▼" : "▲") : "▼"}
-      </span>
-    </button>
-  )
-}
+export type SortOrder = "asc" | "desc"
+
+/**
+ * key の値で並べ替える。null はどちらの向きでも最後、同じ値は ID の順（本実装の SQL の NULLS LAST・p.id と同じ）
+ */
+export const sortRowsWithNullsLast = <T extends { id: number }>(rows: T[], key: keyof T, order: SortOrder): T[] =>
+  [...rows].sort((a, b) => {
+    const left = a[key]
+    const right = b[key]
+    if (left === null && right === null) return a.id - b.id
+    if (left === null) return 1
+    if (right === null) return -1
+    const compared = typeof left === "string" ? left.localeCompare(String(right)) : Number(left) - Number(right)
+    return (order === "asc" ? compared : -compared) || a.id - b.id
+  })
 
 /**
  * 表の枠・見出し・セルのクラス（テンプレートの DataTable と同じ見た目）
@@ -30,12 +30,33 @@ export const tableHeadCellClass = "px-5 py-3 text-start text-theme-xs font-mediu
 
 export const tableCellClass = "px-5 py-4 text-theme-sm whitespace-nowrap text-gray-500 tabular-nums dark:text-gray-400"
 
-export const searchInputClass = "h-10 w-full rounded-lg border border-gray-300 bg-white pr-4 pl-10 text-sm text-gray-700 focus:border-brand-500 focus:outline-none sm:w-[250px] dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400"
+const searchInputClass = "h-10 w-full rounded-lg border border-gray-300 bg-white pr-4 pl-10 text-sm text-gray-700 focus:border-brand-500 focus:outline-none sm:w-[250px] dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400"
+
+/**
+ * 並べ替えのできる列の見出し。押すと、その列で並べ替える（同じ列なら向きを逆にする）。
+ * 今の列には向きの矢印と aria-sort を付け、読み上げにも並べ替えの状態を伝える
+ */
+export function SortableHeaderCell({ isActive, label, order, onClick }: { isActive: boolean, label: string, order: SortOrder, onClick: () => void }) {
+  return (
+    <th aria-sort={isActive ? (order === "desc" ? "descending" : "ascending") : "none"} className={tableHeadCellClass}>
+      <button
+        className={`inline-flex items-center gap-1 whitespace-nowrap hover:text-gray-800 dark:hover:text-white/90 ${isActive ? "text-gray-800 dark:text-white/90" : ""}`}
+        type="button"
+        onClick={onClick}
+      >
+        {label}
+        <span aria-hidden className={`text-[10px] ${isActive ? "" : "text-gray-300 dark:text-gray-600"}`}>
+          {isActive && order === "asc" ? "▲" : "▼"}
+        </span>
+      </button>
+    </th>
+  )
+}
 
 /**
  * 表の上の絞り込みの入力欄（虫めがねのアイコン付き）
  */
-export function SearchField({ onChange, placeholder, value }: { onChange: (value: string) => void, placeholder: string, value: string }) {
+export function SearchField({ placeholder, value, onChange }: { placeholder: string, value: string, onChange: (value: string) => void }) {
   return (
     <div className="relative w-full sm:w-auto">
       <svg aria-hidden className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
@@ -44,10 +65,10 @@ export function SearchField({ onChange, placeholder, value }: { onChange: (value
       <input
         aria-label={placeholder}
         className={searchInputClass}
-        onChange={event => onChange(event.target.value)}
         placeholder={placeholder}
         type="search"
         value={value}
+        onChange={event => onChange(event.target.value)}
       />
     </div>
   )

@@ -5,14 +5,21 @@ import { useState } from "react"
 
 import Badge from "@/components/ui/badge/Badge"
 import Pagination from "@/components/ui/table/Pagination"
-import { type AdminStatsPeriod, PASSAGE_STATUS_LABELS, type PassageStatsRow } from "@/libs/mock-data"
+import { type AdminStatsPeriod, DIFFICULTY_LABELS, PASSAGE_STATUS_LABELS, type PassageStatsRow } from "@/libs/mock-data"
 
-import { formatCount, formatElapsedWithLimit, formatRate } from "../_components/stats-format"
-import { SearchField, SortHeader, tableCellClass, tableFrameClass, tableHeadCellClass, tableToolbarClass } from "../_components/TableParts"
+import { EMPTY_VALUE, formatCount, formatElapsedWithLimit, formatRate } from "../_components/stats-format"
+import {
+  SearchField,
+  SortableHeaderCell,
+  type SortOrder,
+  sortRowsWithNullsLast,
+  tableCellClass,
+  tableFrameClass,
+  tableHeadCellClass,
+  tableToolbarClass,
+} from "../_components/TableParts"
 
 type SortKey = "averageElapsedSeconds" | "correctRate" | "overtimeRate" | "publishedAt" | "solvedAttempts" | "solvedUsers"
-
-const DIFFICULTY_LABELS = { 1: "Easy", 2: "Normal", 3: "Hard" }
 
 /**
  * 1 ページの件数（本実装と同じ）
@@ -25,28 +32,14 @@ const PAGE_SIZE = 50
 const LOW_CORRECT_RATE = 0.5
 
 /**
- * 並べ替え。null（解かれていない）はどちらの向きでも最後、同じ値は ID の順
- */
-const sortRows = (rows: PassageStatsRow[], key: SortKey, order: "asc" | "desc"): PassageStatsRow[] =>
-  [...rows].sort((a, b) => {
-    const left = a[key]
-    const right = b[key]
-    if (left === null && right === null) return a.id - b.id
-    if (left === null) return 1
-    if (right === null) return -1
-    const compared = typeof left === "string" ? left.localeCompare(String(right)) : left - Number(right)
-    return (order === "asc" ? compared : -compared) || a.id - b.id
-  })
-
-/**
  * 問題ごとの成績の表（モック）。本実装では並べ替え・絞り込み・ページ送りを URL のクエリにして API に任せる
  */
 export function PassageStatsTable({ period, rows }: { period: AdminStatsPeriod, rows: PassageStatsRow[] }) {
-  const [sort, setSort] = useState<{ key: SortKey, order: "asc" | "desc" }>({ key: "solvedUsers", order: "desc" })
+  const [sort, setSort] = useState<{ key: SortKey, order: SortOrder }>({ key: "solvedUsers", order: "desc" })
   const [query, setQuery] = useState("")
   const [page, setPage] = useState(1)
 
-  const filtered = sortRows(
+  const filtered = sortRowsWithNullsLast(
     rows.filter(row => row.title.toLowerCase().includes(query.trim().toLowerCase())),
     sort.key,
     sort.order,
@@ -58,26 +51,26 @@ export function PassageStatsTable({ period, rows }: { period: AdminStatsPeriod, 
     setSort(previous => ({ key, order: previous.key === key && previous.order === "desc" ? "asc" : "desc" }))
     setPage(1)
   }
-  const renderSortHeader = (key: SortKey, label: string) => (
-    <SortHeader isActive={sort.key === key} label={label} onClick={() => changeSort(key)} order={sort.order} />
+  const renderSortableHeader = (key: SortKey, label: string) => (
+    <SortableHeaderCell isActive={sort.key === key} label={label} order={sort.order} onClick={() => changeSort(key)} />
   )
 
   return (
     <div className="space-y-3">
       <div>
         <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">問題ごとの成績</h3>
-        <p className="mt-1 text-theme-sm text-gray-500 dark:text-gray-400">公開中の問題と、期間内に解かれた問題。行を押すと設問ごとの分析を開きます。</p>
+        <p className="mt-1 text-theme-sm text-gray-500 dark:text-gray-400">公開中の問題と、期間内に解かれた問題。タイトルを押すと設問ごとの分析を開きます。</p>
       </div>
       <div className={tableFrameClass}>
         <div className={tableToolbarClass}>
           <span className="text-theme-sm text-gray-500 dark:text-gray-400">{formatCount(filtered.length)} 件</span>
           <SearchField
+            placeholder="タイトルで絞り込む"
+            value={query}
             onChange={(value) => {
               setQuery(value)
               setPage(1)
             }}
-            placeholder="タイトルで絞り込む"
-            value={query}
           />
         </div>
         <div className="custom-scrollbar overflow-x-auto">
@@ -87,13 +80,13 @@ export function PassageStatsTable({ period, rows }: { period: AdminStatsPeriod, 
                 <th className={tableHeadCellClass}>タイトル</th>
                 <th className={tableHeadCellClass}>状態</th>
                 <th className={tableHeadCellClass}>難易度</th>
-                <th className={tableHeadCellClass}>{renderSortHeader("solvedUsers", "解いた人数")}</th>
-                <th className={tableHeadCellClass}>{renderSortHeader("solvedAttempts", "解いた回数")}</th>
-                <th className={tableHeadCellClass}>{renderSortHeader("correctRate", "正答率")}</th>
-                <th className={tableHeadCellClass}>{renderSortHeader("averageElapsedSeconds", "平均時間 / 制限")}</th>
-                <th className={tableHeadCellClass}>{renderSortHeader("overtimeRate", "時間超過")}</th>
+                {renderSortableHeader("solvedUsers", "解いた人数")}
+                {renderSortableHeader("solvedAttempts", "解いた回数")}
+                {renderSortableHeader("correctRate", "正答率")}
+                {renderSortableHeader("averageElapsedSeconds", "平均時間 / 制限")}
+                {renderSortableHeader("overtimeRate", "時間超過")}
                 <th className={tableHeadCellClass}>アシスト（和訳 / 単語 / 読み上げ）</th>
-                <th className={tableHeadCellClass}>{renderSortHeader("publishedAt", "公開日")}</th>
+                {renderSortableHeader("publishedAt", "公開日")}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-white/5">
@@ -121,7 +114,7 @@ export function PassageStatsTable({ period, rows }: { period: AdminStatsPeriod, 
                   <td className={tableCellClass}>
                     {formatRate(row.assistRates.translated)} / {formatRate(row.assistRates.lookedUp)} / {formatRate(row.assistRates.listened)}
                   </td>
-                  <td className={tableCellClass}>{row.publishedAt ?? "—"}</td>
+                  <td className={tableCellClass}>{row.publishedAt ?? EMPTY_VALUE}</td>
                 </tr>
               ))}
             </tbody>
@@ -137,7 +130,7 @@ export function PassageStatsTable({ period, rows }: { period: AdminStatsPeriod, 
           <span className="text-theme-sm text-gray-500 dark:text-gray-400">
             {filtered.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1}〜{Math.min(page * PAGE_SIZE, filtered.length)} 件目 / {formatCount(filtered.length)} 件
           </span>
-          <Pagination currentPage={page} onPageChange={setPage} totalPages={totalPages} />
+          <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
         </div>
       </div>
     </div>

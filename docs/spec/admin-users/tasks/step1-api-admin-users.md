@@ -12,7 +12,7 @@
 
 ### 1. `@repo/domain`
 
-`src/const/admin-user.ts` を足し、`src/index.ts` に名前を列挙して export する。
+値は `src/const/admin-user.ts`、型は `src/types/admin-user.ts`（値から導出）に足し、`src/index.ts` に名前を列挙して export する。
 
 ```typescript
 /** packages/domain/src/const/admin-user.ts */
@@ -21,6 +21,12 @@
  * ユーザー一覧の並べ替えの列
  */
 export const ADMIN_USER_SORTS = ["created_at", "last_studied_date", "solved_attempts"] as const
+```
+
+```typescript
+/** packages/domain/src/types/admin-user.ts */
+import type { ADMIN_USER_SORTS } from "../const/admin-user"
+
 export type AdminUserSort = (typeof ADMIN_USER_SORTS)[number]
 ```
 
@@ -42,8 +48,6 @@ import {
   getUserStatsResponseSchema,
 } from "../learning-record"
 import { getVocabularySummaryResponseSchema } from "../vocabulary"
-
-export type AdminUserSort = (typeof ADMIN_USER_SORTS)[number]
 
 const adminUserBaseSchema = z.object({
   id: z.number().int(),
@@ -75,6 +79,8 @@ export const getAdminUserListQueryStringSchema = z.object({
   sort: z.enum(ADMIN_USER_SORTS).default("created_at"),
 })
 
+export type AdminUserSort = z.infer<typeof getAdminUserListQueryStringSchema>["sort"]
+
 export const getAdminUserListResponseSchema = z.object({
   limit: z.number().int(),
   page: z.number().int(),
@@ -98,7 +104,13 @@ export const getAdminUserPathParamSchema = z.object({
 
 export const getAdminUserResponseSchema = z.object({
   stats: getUserStatsResponseSchema,
-  user: adminUserBaseSchema.extend({ timezone: z.string() }),
+  user: adminUserBaseSchema.extend({
+    /**
+     * 最後に問題を解いた・単語帳で答えた日（一覧と同じ。学習していなければ null）
+     */
+    last_studied_date: z.string().nullable(),
+    timezone: z.string(),
+  }),
   vocabulary: getVocabularySummaryResponseSchema,
 })
 
@@ -112,8 +124,8 @@ export const getAdminUserAttemptsQueryStringSchema = getUserAttemptsQueryStringS
 export const getAdminUserAttemptsResponseSchema = getUserAttemptsResponseSchema
 ```
 
-- `auth_accounts.provider` は DB でも domain でも値の集合を決めていない文字列なので、`z.string()` で返す。表示名（GitHub・Google など）への変換は admin がする（知らない値はそのまま出す）
-- 型は `z.infer` して export する
+- `providers` は `auth_accounts.provider` の文字列の配列（`z.string()`）。表示名（GitHub・Google など）への変換は admin（step2 の `user.labels.ts`）
+- 型は `z.infer` して export する（`AdminUserSort` も admin が使う）
 
 ### 3. Repository
 
@@ -166,7 +178,7 @@ LIMIT $limit OFFSET $offset
 
 - 並べ替えの列は `Record<AdminUserSort, SQL>` で対応させる（文字列を SQL に埋め込まない）
 - `q` は `%`・`_`・`\` をエスケープしてから `%q%` にする。admin-dashboard の問題ごとの成績と同じ関数を使う（`src/repository/drizzle/` の共通の関数にする）
-- ページの範囲外は `items` が空、`total` は 0 になる（`count(*) OVER ()` は行が無いと取れない）。範囲外のときは件数だけ別に数え直す
+- ページの範囲外（行が 0 件）のときは、件数だけ別の `count(*)` で数え直す
 
 テスト（`test/repository/user-repository.test.ts` に足す、実 DB）：
 
@@ -195,26 +207,47 @@ export const getAdminUserList = async (
 ): Promise<Result<AdminUserList>> => { /** offset = (page - 1) * limit */ }
 
 /**
- * ユーザーの詳細。基本の情報・ログイン方法に、マイページと同じ学習のまとめ・単語帳の枚数を足す。ユーザーが居なければ notFoundError
+ * ユーザーの詳細。基本の情報・ログイン方法・最後に学習した日に、マイページと同じ学習のまとめ・単語帳の枚数を足す。ユーザーが居なければ notFoundError
  */
 export const getAdminUser = async (
   userId: number,
   repo: AdminUserRepo,
   deps: { now: Date },
 ): Promise<Result<AdminUserDetail>> => {
-  /** findById → 無ければ 404。getUserStats と getVocabularySummary を Promise.all で呼び、どちらかが err ならそれを返す */
+  /** findById → 無ければ notFoundError。getUserStats・getVocabularySummary・findProvidersByUserId・findStudyDates を Promise.all で呼び、err があればそれを返す */
 }
+
+/**
+ * 学習カレンダー。ユーザーが居なければ notFoundError（居れば learningRecord.getUserCalendar をそのまま返す）
+ */
+export const getAdminUserCalendar = async (
+  userId: number,
+  range: { from?: string; to?: string },
+  repo: { learningRecordRepository: LearningRecordRepository; userRepository: UserRepository },
+  deps: { now: Date },
+): Promise<Result<UserCalendar>> => { /** … */ }
+
+/**
+ * 学習履歴。ユーザーが居なければ notFoundError（居れば learningRecord.getUserAttempts をそのまま返す）
+ */
+export const getAdminUserAttempts = async (
+  userId: number,
+  query: { cursor?: number; date?: string; limit: number },
+  repo: { learningRecordRepository: LearningRecordRepository; userRepository: UserRepository },
+): Promise<Result<UserAttempts>> => { /** … */ }
 ```
 
-- カレンダー・学習履歴は Service を足さず、admin の Controller から `learningRecord.getUserCalendar`・`getUserAttempts` を直接呼ぶ
-- ログイン方法は `AuthAccountRepository` に `findProvidersByUserId(userId)` が無ければ足す
-- テスト（`test/service/admin-user-service.test.ts`、Repository は `vi.fn()`）：offset の計算、ユーザーが居ないと 404、学習のまとめの err をそのまま返す
+- マイページの Service（`getUserStats`・`getUserCalendar`・`getUserAttempts`・`getVocabularySummary`）はユーザーが居ないと `unauthorizedError`（401）を返すので、admin の Service が先に `userRepository.findById` で確かめ、居なければ `notFoundError`（404）を返す
+- 戻り値と `repo` の型（`AdminUserList`・`AdminUserDetail`・`AdminUserRepo`）は同じファイルで定義する。`AdminUserRepo` は `getUserStats` と `getVocabularySummary` が使う Repository（`learningRecordRepository`・`userGoalRepository`・`userRepository`・単語帳の Repository）に `authAccountRepository` を足したもの
+- 最後に学習した日は `learningRecordRepository.findStudyDates(userId)` の最後の日（学習していなければ null）
+- ログイン方法は `AuthAccountRepository` に `findProvidersByUserId(userId): Promise<string[]>`（名前順・重複なし）を新しく足す。`test/repository/` に実 DB のテストも足す
+- テスト（`test/service/admin-user-service.test.ts`、Repository は `vi.fn()`）：offset の計算、詳細・カレンダー・学習履歴でユーザーが居ないと 404、学習のまとめの err をそのまま返す
 
 ### 6. Controller・Router・DI
 
-- `src/controller/admin/user/list.ts`・`detail.ts`・`calendar.ts`・`attempts.ts`（`AdminUserListController` など）。calendar と attempts は `src/controller/user/calendar.ts`・`attempts.ts` と同じ処理を、`req.userId` の代わりにパスの `:id` で行う
+- `src/controller/admin/user/list.ts`・`detail.ts`・`calendar.ts`・`attempts.ts`（`AdminUserListController` など）。calendar と attempts は `src/controller/user/calendar.ts`・`attempts.ts` と同じレスポンスを、`req.userId` の代わりにパスの `:id` で `adminUser.getAdminUserCalendar`・`getAdminUserAttempts` から作る
 - `admin-router.ts` の `AdminRouterControllers` に `user?: { attempts?; calendar?; detail?; list? }` を足し、`GET /user`・`GET /user/:id`・`GET /user/:id/calendar`・`GET /user/:id/attempts` を登録する
-- `src/index.ts` で、既存の `userRepository`・`learningRecordRepository`・`vocabulary` の Repository を渡す
+- `src/index.ts` で、既存の `userRepository`・`learningRecordRepository`・`userGoalRepository`・`authAccountRepository`・単語帳の Repository を渡す（`UserStatsController` と同じ組み合わせに `authAccountRepository` を足す）
 
 テスト（`test/controller/admin/user/*.test.ts`、supertest）：
 

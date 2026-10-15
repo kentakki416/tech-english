@@ -63,6 +63,7 @@ const SCREENS: { description: string, href: string, spec: string, states: { href
     states: [
       { href: "/mock/analytics/passages/57?state=few", label: "解いた回数が 5 回未満" },
       { href: "/mock/analytics/passages/57?state=unsolved", label: "期間内に解かれていない" },
+      { href: "/mock/analytics/passages/57?state=not-found", label: "問題が見つからない" },
     ],
     title: "問題の分析",
   },

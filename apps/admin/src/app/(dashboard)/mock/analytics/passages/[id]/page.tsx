@@ -3,23 +3,27 @@ import Link from "next/link"
 import PageBreadcrumb from "@/components/layout/PageBreadCrumb"
 import Alert from "@/components/ui/alert/Alert"
 import Badge from "@/components/ui/badge/Badge"
-import { type AdminStatsPeriod, MOCK_PASSAGE_STATS, MOCK_QUESTION_STATS, PASSAGE_STATUS_LABELS, STATS_PERIOD_LABELS } from "@/libs/mock-data"
+import {
+  convertToStatsPeriod,
+  DIFFICULTY_LABELS,
+  MOCK_PASSAGE_STATS,
+  MOCK_QUESTION_STATS,
+  PASSAGE_STATUS_LABELS,
+  STATS_PERIOD_LABELS,
+} from "@/libs/mock-data"
 
 import { MockStatePanel } from "../../../_components/MockStatePanel"
 import { PeriodTabs } from "../../../_components/PeriodTabs"
-import { formatCount, formatElapsedWithLimit, formatRate } from "../../../_components/stats-format"
-import { outlineButtonClass } from "../../../_components/ui"
+import { EMPTY_VALUE, formatCount, formatElapsedWithLimit, formatRate } from "../../../_components/stats-format"
+import { cardClass, outlineButtonClass } from "../../../_components/ui"
 
-import { QuestionStatsCard } from "./QuestionStatsCard"
-
-const DIFFICULTY_LABELS = { 1: "Easy", 2: "Normal", 3: "Hard" }
+import { QuestionStatsCard, REVIEW_MIN_ATTEMPTS } from "./QuestionStatsCard"
 
 /**
- * 解いた回数がこれより少ないと「要確認」の印を付けない（本実装は ADMIN_QUESTION_REVIEW_MIN_ATTEMPTS）
+ * 「解いた回数が少ない」状態で出す解いた回数・人数（REVIEW_MIN_ATTEMPTS より少なく、要確認の印が付かない）。
+ * 設問の数は挑戦があると変えられないので、どの設問の解答の数も解いた回数と同じ
  */
-const FEW_ATTEMPTS = 3
-
-const parsePeriod = (value: string | undefined): AdminStatsPeriod => (value === "7d" || value === "all" ? value : "30d")
+const FEW_STATE_SOLVED_ATTEMPTS = REVIEW_MIN_ATTEMPTS - 2
 
 /**
  * 問題の分析（モック）。設問は What Is Ownership? のものを、どの問題でも出す
@@ -33,34 +37,50 @@ export default async function MockPassageAnalyticsPage({
 }) {
   const { id } = await params
   const { period: rawPeriod, state } = await searchParams
-  const period = parsePeriod(rawPeriod)
-  const current = state === "few" || state === "unsolved" ? state : "normal"
+  const period = convertToStatsPeriod(rawPeriod)
+  const current = state === "few" || state === "unsolved" || state === "not-found" ? state : "normal"
   const basePath = `/mock/analytics/passages/${id}`
-  const found = MOCK_PASSAGE_STATS[period].find(row => row.id === Number(id)) ?? MOCK_PASSAGE_STATS[period][0]
-  const solvedAttempts = current === "unsolved" ? 0 : current === "few" ? FEW_ATTEMPTS : found.solvedAttempts
-  const isSolved = solvedAttempts > 0
-  const passage = {
-    ...found,
-    solvedAttempts,
-    solvedUsers: current === "unsolved" ? 0 : current === "few" ? FEW_ATTEMPTS : found.solvedUsers,
-  }
+  const passageRow = MOCK_PASSAGE_STATS[period].find(row => row.id === Number(id))
 
   const states = [
     { href: `${basePath}?period=${period}`, key: "normal", label: "通常（Q2・Q4 が要確認）" },
-    { href: `${basePath}?period=${period}&state=few`, key: "few", label: "解いた回数が 5 回未満（要確認を出さない）" },
+    { href: `${basePath}?period=${period}&state=few`, key: "few", label: `解いた回数が ${REVIEW_MIN_ATTEMPTS} 回未満（要確認を出さない）` },
     { href: `${basePath}?period=${period}&state=unsolved`, key: "unsolved", label: "期間内に解かれていない" },
+    { href: `${basePath}?period=${period}&state=not-found`, key: "not-found", label: "問題が見つからない" },
   ]
+
+  if (current === "not-found" || !passageRow) {
+    return (
+      <>
+        <PageBreadcrumb pageTitle="問題の分析" />
+        <div className={`${cardClass} px-6 py-16 text-center`}>
+          <p className="text-base font-medium text-gray-800 dark:text-white/90">問題が見つかりません</p>
+          <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">ID が違います。本実装では 404 の画面になります。</p>
+          <Link className="mt-4 inline-block text-sm font-medium text-brand-500 hover:text-brand-600" href={`/mock/dashboard?period=${period}`}>ダッシュボードに戻る</Link>
+        </div>
+        <MockStatePanel current="not-found" states={states} />
+      </>
+    )
+  }
+
+  const solvedAttempts = current === "unsolved" ? 0 : current === "few" ? FEW_STATE_SOLVED_ATTEMPTS : passageRow.solvedAttempts
+  const isSolved = solvedAttempts > 0
+  const passage = {
+    ...passageRow,
+    solvedAttempts,
+    solvedUsers: current === "unsolved" ? 0 : current === "few" ? FEW_STATE_SOLVED_ATTEMPTS : passageRow.solvedUsers,
+  }
   const summaryItems = [
     { label: "解いた人数", value: formatCount(passage.solvedUsers) },
     { label: "解いた回数", value: formatCount(passage.solvedAttempts) },
-    { label: "正答率", value: isSolved ? formatRate(passage.correctRate) : "—" },
-    { label: "平均時間 / 制限", value: isSolved ? formatElapsedWithLimit(passage.averageElapsedSeconds, passage.timeLimitSeconds) : "—" },
-    { label: "時間超過", value: isSolved ? formatRate(passage.overtimeRate) : "—" },
+    { label: "正答率", value: isSolved ? formatRate(passage.correctRate) : EMPTY_VALUE },
+    { label: "平均時間 / 制限", value: isSolved ? formatElapsedWithLimit(passage.averageElapsedSeconds, passage.timeLimitSeconds) : EMPTY_VALUE },
+    { label: "時間超過", value: isSolved ? formatRate(passage.overtimeRate) : EMPTY_VALUE },
     {
       label: "アシスト（和訳 / 単語 / 読み上げ）",
       value: isSolved
         ? `${formatRate(passage.assistRates.translated)} / ${formatRate(passage.assistRates.lookedUp)} / ${formatRate(passage.assistRates.listened)}`
-        : "—",
+        : EMPTY_VALUE,
     },
   ]
 
@@ -72,7 +92,7 @@ export default async function MockPassageAnalyticsPage({
           <Link className="text-theme-sm font-medium text-brand-500 hover:text-brand-600" href={`/mock/dashboard?period=${period}`}>
             ← ダッシュボードに戻る
           </Link>
-          <PeriodTabs basePath={basePath} current={period} />
+          <PeriodTabs basePath={basePath} current={period} extraQuery={current === "normal" ? undefined : `state=${current}`} />
         </div>
 
         <section className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 dark:border-gray-800 dark:bg-white/3">
@@ -86,7 +106,7 @@ export default async function MockPassageAnalyticsPage({
               </div>
               <h2 className="mt-2 text-xl font-semibold text-gray-800 dark:text-white/90">{passage.title}</h2>
               <p className="mt-1 text-theme-sm text-gray-500 dark:text-gray-400">
-                {passage.sourceName}・公開日 {passage.publishedAt ?? "—"}
+                {passage.sourceName}・公開日 {passage.publishedAt ?? EMPTY_VALUE}
               </p>
             </div>
             <Link className={outlineButtonClass} href="/mock/passages/42">確認・修正を開く</Link>
@@ -110,7 +130,7 @@ export default async function MockPassageAnalyticsPage({
 
         <div className="grid grid-cols-1 gap-4 md:gap-6 xl:grid-cols-2">
           {MOCK_QUESTION_STATS.map(question => (
-            <QuestionStatsCard key={question.id} isSolved={isSolved} question={question} solvedAttempts={passage.solvedAttempts} />
+            <QuestionStatsCard key={question.id} isSolved={isSolved} answerCount={passage.solvedAttempts} question={question} />
           ))}
         </div>
       </div>

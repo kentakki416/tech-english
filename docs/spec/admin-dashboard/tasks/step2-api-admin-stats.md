@@ -12,7 +12,7 @@
 
 ### 1. `@repo/domain`
 
-`src/const/admin-stats.ts` を足し、`src/index.ts` に名前を列挙して export する（名前順）。api-schema の `z.enum` はここから作る。
+値は `src/const/admin-stats.ts`、型は `src/types/admin-stats.ts`（値から導出）に足し、`src/index.ts` に名前を列挙して export する（名前順。`packages/domain/README.md` の const / types の分け方）。api-schema の `z.enum` はここから作る。
 
 ```typescript
 /** packages/domain/src/const/admin-stats.ts */
@@ -21,7 +21,6 @@
  * ダッシュボードの期間（直近 7 日・直近 30 日・全期間）
  */
 export const ADMIN_STATS_PERIODS = ["7d", "30d", "all"] as const
-export type AdminStatsPeriod = (typeof ADMIN_STATS_PERIODS)[number]
 
 /**
  * 問題ごとの成績の並べ替えの列
@@ -34,12 +33,19 @@ export const ADMIN_PASSAGE_STATS_SORTS = [
   "solved_attempts",
   "solved_users",
 ] as const
-export type AdminPassageStatsSort = (typeof ADMIN_PASSAGE_STATS_SORTS)[number]
 
 /**
- * 問題の分析で「要確認」の印を付けるのに要る、期間内の解いた回数の下限
+ * 問題の分析で「要確認」の印を付けるのに要る、設問の期間内の解答の数の下限
  */
-export const ADMIN_QUESTION_REVIEW_MIN_ATTEMPTS = 5
+export const ADMIN_QUESTION_REVIEW_MIN_ANSWERS = 5
+```
+
+```typescript
+/** packages/domain/src/types/admin-stats.ts */
+import type { ADMIN_PASSAGE_STATS_SORTS, ADMIN_STATS_PERIODS } from "../const/admin-stats"
+
+export type AdminStatsPeriod = (typeof ADMIN_STATS_PERIODS)[number]
+export type AdminPassageStatsSort = (typeof ADMIN_PASSAGE_STATS_SORTS)[number]
 ```
 
 ### 2. API スキーマ
@@ -66,15 +72,13 @@ const assistRatesSchema = z.object({
   translated: rateSchema,
 })
 
-const periodQuerySchema = z.object({
-  period: z.enum(ADMIN_STATS_PERIODS).default("30d"),
-})
-
 // ========================================================
 // GET /api/admin/stats/overview - 全体の利用状況
 // ========================================================
 
-export const getAdminStatsOverviewQueryStringSchema = periodQuerySchema
+export const getAdminStatsOverviewQueryStringSchema = z.object({
+  period: z.enum(ADMIN_STATS_PERIODS).default("30d"),
+})
 
 export const getAdminStatsOverviewResponseSchema = z.object({
   active_users: z.number().int(),
@@ -111,7 +115,7 @@ export const getAdminStatsOverviewResponseSchema = z.object({
 // GET /api/admin/stats/passage - 問題ごとの成績
 // ========================================================
 
-export const getAdminPassageStatsListQueryStringSchema = periodQuerySchema.extend({
+export const getAdminPassageStatsListQueryStringSchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(50),
   order: z.enum(["asc", "desc"]).default("desc"),
   page: z.coerce.number().int().min(1).default(1),
@@ -119,13 +123,14 @@ export const getAdminPassageStatsListQueryStringSchema = periodQuerySchema.exten
    * タイトルの部分一致
    */
   q: z.string().trim().min(1).max(200).optional(),
+  period: z.enum(ADMIN_STATS_PERIODS).default("30d"),
   sort: z.enum(ADMIN_PASSAGE_STATS_SORTS).default("solved_users"),
 })
 
 /**
  * 問題ごとの成績の 1 行（問題の分析の上部にも使う）
  */
-export const adminPassageStatsSchema = z.object({
+export const adminPassageStatsRowSchema = z.object({
   id: z.number().int(),
   assist_rates: assistRatesSchema,
   average_elapsed_seconds: z.number().nullable(),
@@ -144,7 +149,7 @@ export const adminPassageStatsSchema = z.object({
 export const getAdminPassageStatsListResponseSchema = z.object({
   limit: z.number().int(),
   page: z.number().int(),
-  passages: z.array(adminPassageStatsSchema),
+  passages: z.array(adminPassageStatsRowSchema),
   total: z.number().int(),
 })
 
@@ -156,10 +161,12 @@ export const getAdminPassageStatsPathParamSchema = z.object({
   id: z.coerce.number().int().positive(),
 })
 
-export const getAdminPassageStatsQueryStringSchema = periodQuerySchema
+export const getAdminPassageStatsQueryStringSchema = z.object({
+  period: z.enum(ADMIN_STATS_PERIODS).default("30d"),
+})
 
 export const getAdminPassageStatsResponseSchema = z.object({
-  passage: adminPassageStatsSchema,
+  passage: adminPassageStatsRowSchema,
   period: z.enum(ADMIN_STATS_PERIODS),
   questions: z.array(z.object({
     id: z.number().int(),
@@ -172,7 +179,7 @@ export const getAdminPassageStatsResponseSchema = z.object({
     correct_choice_index: z.number().int(),
     correct_rate: rateSchema,
     /**
-     * 正解でない選択肢が正解と同じかそれ以上選ばれ、期間内に ADMIN_QUESTION_REVIEW_MIN_ATTEMPTS 回以上解かれている
+     * 正解でない選択肢が正解と同じかそれ以上選ばれ、その設問の期間内の解答が ADMIN_QUESTION_REVIEW_MIN_ANSWERS 件以上ある
      */
     needs_review: z.boolean(),
     order_index: z.number().int(),
@@ -183,7 +190,7 @@ export const getAdminPassageStatsResponseSchema = z.object({
 })
 ```
 
-型（`GetAdminStatsOverviewResponse` など）も同じファイルで `z.infer` して export する。admin は `@repo/domain` を import できないので、期間と並べ替えの型も `export type AdminStatsPeriod = z.infer<typeof …>`・`AdminPassageStatsSort` としてここから export する。`pnpm --filter @repo/api-schema build`。
+型（`GetAdminStatsOverviewResponse` など）も同じファイルで `z.infer` して export する。期間と並べ替えの型（`AdminStatsPeriod`・`AdminPassageStatsSort`）も `z.infer` でここから export する（admin はこちらを使う）。`pnpm --filter @repo/api-schema build`。
 
 ### 3. 期間の解釈（純関数）
 
@@ -225,23 +232,23 @@ export const resolveStatsPeriod = (period: AdminStatsPeriod, now: Date): StatsRa
 
 ```typescript
 /** apps/api/src/lib/is-question-needing-review.ts */
-import { ADMIN_QUESTION_REVIEW_MIN_ATTEMPTS } from "@repo/domain"
+import { ADMIN_QUESTION_REVIEW_MIN_ANSWERS } from "@repo/domain"
 
 /**
- * 正解でない選択肢が正解と同じかそれ以上選ばれている（期間内の解いた回数が下限以上のときだけ）
+ * 正解でない選択肢が正解と同じかそれ以上選ばれている（その設問の期間内の解答が下限以上のときだけ）
  */
-export const isQuestionNeedingReview = (input: { choiceCounts: number[]; correctChoiceIndex: number; solvedAttempts: number }): boolean => {
-  if (input.solvedAttempts < ADMIN_QUESTION_REVIEW_MIN_ATTEMPTS) return false
+export const isQuestionNeedingReview = (input: { answerCount: number; choiceCounts: number[]; correctChoiceIndex: number }): boolean => {
+  if (input.answerCount < ADMIN_QUESTION_REVIEW_MIN_ANSWERS) return false
   const correctCount = input.choiceCounts[input.correctChoiceIndex] ?? 0
   return input.choiceCounts.some((count, index) => index !== input.correctChoiceIndex && count > 0 && count >= correctCount)
 }
 ```
 
-- テスト：解いた回数 4 回は false・5 回は判定する、正解と同数は true、正解が最多なら false、誰も選んでいない選択肢（0 件）は正解が 0 件でも true にしない
+- テスト：解答 4 件は false・5 件は判定する、正解と同数は true、正解が最多なら false、誰も選んでいない選択肢（0 件）は正解が 0 件でも true にしない
 
 ### 5. Repository
 
-`src/repository/admin-stats-repository.ts`（interface）と `src/repository/drizzle/admin-stats-repository.ts`（実装）。`src/repository/index.ts` のバレルに足す。
+`src/repository/admin-stats-repository.ts`（interface）と `src/repository/drizzle/admin-stats-repository.ts`（実装）。`src/repository/index.ts` と `src/repository/drizzle/index.ts` の両方のバレルに足す。
 
 ```typescript
 /** apps/api/src/repository/admin-stats-repository.ts */
@@ -278,6 +285,10 @@ export type PassageStatsRow = AttemptTotals & {
 
 export type QuestionStatsRow = {
   id: number
+  /**
+   * 期間内の提出済みの挑戦での、この設問の解答の数（未回答を含む）
+   */
+  answerCount: number
   /**
    * choices と同じ長さ。期間内の提出済みの挑戦で、その選択肢を選んだ解答の数
    */
@@ -332,20 +343,21 @@ export interface AdminStatsRepository {
 - 日本時間への変換は `(col AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Tokyo'`（timestamp は UTC で保存している。`packages/db` の `columns.ts`）。SQL の断片は `src/repository/drizzle/` 内の定数にまとめる
 - 期間は `submitted_at >= from AND submitted_at < to`（`from` が null なら下限なし）。`status = 'submitted'` を必ず付ける（部分インデックスを使うため）
 - 学習したユーザーは `reading_attempts`（提出済み・期間内）と `vocabulary_reviews`（`created_at` が期間内）の `user_id` を `UNION` してから数える
-- 推移は `generate_series(fromDate::date, toDate::date, '1 day' | '1 week')` に、日本時間の日（`date_trunc('day' | 'week', …)`）で束ねた集計を left join する。週の `date_trunc('week')` は月曜始まり
-- 問題ごとの成績は、期間内の提出を `passage_id` で束ねた CTE を `passages`（`source_documents` → `content_sources` でソース名）に left join し、`WHERE p.status = 'published' OR a.solved_attempts > 0`。並べ替えは `sort` を列の対応表（`Record<AdminPassageStatsSort, SQL>`）で SQL に直し、`NULLS LAST`・同じ値は `p.id` の順。`total` は同じ条件の `count(*) OVER ()` で一緒に取る
+- 推移は `generate_series(fromDate::date, toDate::date, '1 day' | '1 week')` に、日本時間の日（`date_trunc('day' | 'week', …)`）で束ねた集計を left join する。週の `date_trunc('week')` は月曜始まりなので、週ごとのときは Service が `fromDate`・`toDate` をその週の月曜（`@repo/domain` の `getWeekRange(date).start`）にそろえてから渡す（そろえないと系列の日付と束ねた週がずれ、すべて 0 になる）
+- 期間の比較は Drizzle の `gte` / `lt`（列の型で UTC に直して送る）を使う。生の `sql` に `Date` を埋め込むときは `toISOString()` を渡す（`Date` のままだと Node のタイムゾーンのずれが入る）
+- 問題ごとの成績は、期間内の提出を `passage_id` で束ねた CTE を `passages`（`source_documents` → `content_sources` でソース名）に left join し、`WHERE p.status = 'published' OR a.solved_attempts > 0`。並べ替えは `sort` を列の対応表（`Record<AdminPassageStatsSort, SQL>`）で SQL に直し、`NULLS LAST`・同じ値は `p.id` の順。`total` は同じ条件の `count(*) OVER ()` で一緒に取る。ページの範囲外（行が 0 件）のときは、件数だけ別の `count(*)` で数え直す
 - 比率の並べ替え（`correct_rate` など）は SQL の中で `correct_count::float / NULLIF(question_count, 0)` を計算して並べる
 - `q` は `ILIKE` の `%`・`_`・`\` をエスケープしてから `%q%` にする
 - 問題の分析は、その問題の期間内の提出済みの挑戦の `attempt_answers` を `question_id`・`selected_choice_index` で束ね、`questions` に left join する（解かれていない設問も返す）。`choiceCounts` は `choices` の長さの配列に詰め直す
 
-テスト（`test/repository/drizzle/admin-stats-repository.test.ts`、実 DB）：
+テスト（`test/repository/admin-stats-repository.test.ts`、実 DB）：
 
 - 期間の境界：`from` ちょうどの提出は入り、`to` ちょうどは入らない
 - `in_progress`・`expired` は数えない。同じ人の 2 回の提出は解いた回数 2・解いた人数 1
 - 学習したユーザー：問題だけ・単語帳だけ・両方の人がそれぞれ 1 人に数えられる
-- 推移：提出の無い日が 0 で返る。日本時間の 23:59 と翌 0:00 の提出が別の日になる。週は月曜で区切られる
-- 問題ごとの成績：期間内に解かれていない公開中の問題は 0 で入り、解かれていない下書きは入らない、非公開に戻した問題は解かれていれば入る。各 `sort` で並ぶ・`NULLS LAST`・`q` の `%` がそのままの文字として扱われる・`total` と `offset`
-- 問題の分析：未回答（`selected_choice_index` が NULL）は `unansweredCount` に入る、解かれていない設問も返る
+- 推移：提出の無い日が 0 で返る。日本時間の 23:59 と翌 0:00 の提出が別の日になる。週は月曜で区切られる（月曜にそろえた `fromDate` を渡す）
+- 問題ごとの成績：期間内に解かれていない公開中の問題は 0 で入り、解かれていない下書きは入らない、非公開に戻した問題は解かれていれば入る。各 `sort` で並ぶ・`NULLS LAST`・`q` の `%` がそのままの文字として扱われる・`total` と `offset`・範囲外のページでも `total` が正しい
+- 問題の分析：未回答（`selected_choice_index` が NULL）は `unansweredCount` に入る（`answerCount` にも数える）、解かれていない設問も返る
 - 挑戦は `test/fixture/learning-record.ts` の `createSubmittedAttempt`、単語帳の復習は `test/fixture/vocabulary.ts` の関数で入れる。`createSubmittedAttempt` は選んだ選択肢を正誤から決めている（正解 1・不正解 0）ので、`selectedChoiceIndexes?: (number | null)[]`（null は未回答）を足して選択肢の割合を試せるようにする
 
 ### 6. Service
@@ -386,9 +398,11 @@ export const getAdminPassageStats = async (
 ): Promise<Result<AdminPassageStatsDetail>> => { /** … */ }
 ```
 
+- 戻り値の型（`AdminStatsOverview`・`AdminPassageStatsList`・`AdminPassageStatsDetail`）は同じファイルで定義する（Repository の数を比率に直したもの・推移・期間の日付）
 - 比率は `AttemptTotals` から求める共通の関数（`convertAttemptTotalsToRates`）にまとめる。分母が 0 なら `null`
+- 週ごとの推移の `fromDate`（最初のユーザーの登録日）と `toDate`（今日）は、その週の月曜にそろえてから Repository に渡す
 - 平均の解答時間は `elapsedSecondsSum / solvedAttempts`（0 回なら `null`）
-- テスト（`test/service/admin-stats-service.test.ts`、Repository は `vi.fn()`）：分母 0 の比率が `null`、all の `from` が最初の登録日・ユーザーがいなければ今日、問題が無いと 404、`needs_review` が `isQuestionNeedingReview` の結果になる
+- テスト（`test/service/admin-stats-service.test.ts`、Repository は `vi.fn()`）：分母 0 の比率が `null`、all の `from` が最初の登録日・ユーザーがいなければ今日、最初の登録が水曜でも週ごとの推移の始まりが月曜になる、問題が無いと 404、`needs_review` が `isQuestionNeedingReview`（設問ごとの `answerCount`）の結果になる
 
 ### 7. Controller・Router・DI
 
