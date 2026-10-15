@@ -288,21 +288,6 @@ describe("collectGitHubSource", () => {
       expect(repo.passageRepository.insertIgnoringDuplicates).not.toHaveBeenCalled()
       expect(repo.sourceDocumentRepository.markFetched).not.toHaveBeenCalled()
     })
-
-    it("停止指示を受けたら次の文書の前で抜けて interrupted で終え、commit SHA を更新しない", async () => {
-      const client = createFakeGitHubClient(buildGitHubOptions(["docs/a.md", "docs/b.md"]))
-      const repo = createFakeRepo()
-      let isShuttingDown = false
-      client.getFileContent.mockImplementationOnce(async () => {
-        isShuttingDown = true
-        return buildMarkdown(["Alpha"])
-      })
-
-      const result = await collectGitHubSource(buildInput(), repo, createDeps(client, () => isShuttingDown))
-
-      expect(result).toEqual({ createdPassageCount: 1, fetchedDocumentCount: 1, status: "interrupted" })
-      expect(repo.contentSourceRepository.markCollected).toHaveBeenCalledWith(1, { lastCollectedAt: NOW })
-    })
   })
 
   describe("異常系", () => {

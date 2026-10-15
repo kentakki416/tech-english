@@ -68,7 +68,6 @@ export const collectPassages = async (
   let isGitHubRateLimited = false
 
   for (const source of sources) {
-    if (deps.isShuttingDown()) break
     const remainingPassages = input.maxPassagesPerRun - createdPassageCount
     if (remainingPassages <= 0) {
       logger.info("passage limit per run reached; remaining sources are skipped", { sourceId: source.id })

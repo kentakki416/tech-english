@@ -153,7 +153,6 @@ const VERIFICATION_MAX_TOKENS = 2000
 
 export type GenerateQuestionsInput = {
   generationModel: string
-  isShuttingDown: () => boolean
   maxPassagesPerRun: number
   maxPendingDrafts: number
   now: () => Date
@@ -179,7 +178,7 @@ export const generateQuestions = async (
 
 1. `passageId` が無いとき：下書きの件数が `maxPendingDrafts` 以上なら `skippedReason: "pending_drafts_limit"` で何もせず返す。取る件数は `min(maxPassagesPerRun, maxPendingDrafts - 下書きの件数)`。`--passage-id` の手動実行では上限を見ない（1 件）
 2. `releaseStaleGenerating(now - 30 分)`
-3. 取る件数まで、1 件ずつ「`claimNextCollected({ now: input.now(), passageId })` → 処理」を繰り返す。取る前に `isShuttingDown()` なら break（取ったまま処理していない行は残らない）。`null` なら終える（`passageId` 指定で `null` なら throw。collected でない。状態をメッセージに含める）。**1 件の失敗で他の件は止めない**
+3. 取る件数まで、1 件ずつ「`claimNextCollected({ now: input.now(), passageId })` → 処理」を繰り返す（シグナルで中断されても、generating のまま残るのは処理中の 1 件だけで、30 分後の実行で collected に戻る）。`null` なら終える（`passageId` 指定で `null` なら throw。collected でない。状態をメッセージに含める）。**1 件の失敗で他の件は止めない**
    - 生成：`buildGenerateQuestionsUserContent` → `createStructuredMessage`（`adaptiveThinking: { effort: "high" }`）→ `validateGeneratedOutput`。不合格（`LlmInvalidJsonError` を含む）なら `retryErrors` を付けて 1 回だけ再生成。2 回目も不合格 → `recordGenerationFailure`
    - 出力が `max_tokens` で切れた（`LlmOutputTruncatedError`）→ 再生成せず `recordGenerationFailure`（一時的な失敗。次の実行に回す）。warn（`passage generation failed`）に `outputTokens`・`maxTokens`・`stopReason` を出す
    - `isSuitable = false` → `markRejectedByLlm`（理由が null なら「LLM が題材に不向きと判定」）
@@ -194,9 +193,9 @@ export const generateQuestions = async (
 `cleanup-old-memos.ts` と同じ形で、env 読み込みと DI だけ。
 
 - `env.ts` に `GENERATE_MAX_PASSAGES_PER_RUN`（既定 10）・`GENERATE_MAX_PENDING_DRAFTS`（既定 50）を `z.coerce.number().int().positive()` で足す。`ANTHROPIC_API_KEY` が無ければ throw
-- `parseGenerateQuestionsArgs(process.argv.slice(2))`、`setupGracefulShutdown(db)` の `isShuttingDown` を渡す。`now: () => new Date()`、`random: Math.random`
+- `runTask("generate-questions", async ({ db }) => { ... })` で包む。`parseGenerateQuestionsArgs(process.argv.slice(2))`、`now: () => new Date()`、`random: Math.random`
 - `DrizzlePassageRepository(db)`、`new AnthropicClient(new Anthropic({ apiKey, maxRetries: 2, timeout }))`
-- 結果をログに出し、**`describeRunFailure(result)` が理由を返したら throw して exit code 1**（`failedCount > 0`、または `draftCount + rejectedCount === 0 && retryLaterCount > 0`＝取得した全件が一時的な失敗。判定は `lib/question-generation/describe-run-failure.ts` の純関数に置き、task に件数の判定を書かない）。`finally` で `db.$disconnect()`
+- 結果をログに出し、**`describeRunFailure(result)` が理由を返したら throw して exit code 1**（`failedCount > 0`、または `draftCount + rejectedCount === 0 && retryLaterCount > 0`＝取得した全件が一時的な失敗。判定は `lib/question-generation/describe-run-failure.ts` の純関数に置き、task に件数の判定を書かない）。DB の切断と終了コードは `runTask` が持つ
 - `package.json` に `"generate:questions": "dotenvx run -f .env.local -- tsx src/task/generate-questions.ts"`、`CLAUDE.md` のタスクと環境変数の表に追記。スケジュール（`collect:passages` の 1 時間後）の登録は [step7-infra-cron-schedules](./step7-infra-cron-schedules.md)
 
 ## 動作確認

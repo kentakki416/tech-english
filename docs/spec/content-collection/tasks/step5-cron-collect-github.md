@@ -157,7 +157,7 @@ export type SourceCollectionResult = {
 export const collectGitHubSource = async (
   input: { maxDocuments: number; maxPassages: number; now: Date; source: GitHubRepositorySource },
   repo: CollectionRepo,
-  deps: { githubContentClient: IGitHubContentClient; isShuttingDown: () => boolean },
+  deps: { githubContentClient: IGitHubContentClient },
 ): Promise<SourceCollectionResult>
 ```
 
@@ -167,7 +167,7 @@ flowchart TD
     B -- yes --> U[up_to_date]
     B -- no --> C[対象ファイルの一覧]
     C --> D[source_documents の blob_sha と比べて<br/>新規・変更だけ残す]
-    D --> E{上限・残り 100 未満・停止指示?}
+    D --> E{上限・残り 100 未満?}
     E -- yes --> L[limit_reached / rate_limited]
     E -- no --> F[本文を取得 → extractDocument]
     F --> G[upsertByPath → passages を挿入 → markFetched]
@@ -188,7 +188,7 @@ flowchart TD
 ### 7. 全ソースの実行（`collectPassages`）
 
 - `sourceId` 指定時は `findById`。無ければ throw、無効なら throw（無効のソースは `--dry-run` でだけ扱える）。指定が無ければ `findEnabled()`
-- ソースを順に処理し、残りの本文候補数（`maxPassagesPerRun - 作成済み`）を `maxPassages` として渡す。0 以下になったら残りのソースは処理しない（失敗ではない）。`isShuttingDown()` なら抜ける
+- ソースを順に処理し、残りの本文候補数（`maxPassagesPerRun - 作成済み`）を `maxPassages` として渡す。0 以下になったら残りのソースは処理しない（失敗ではない）
 - ソースごとに try-catch する。`GitHubRateLimitError` は失敗にせず、以降の GitHub のソースを飛ばす（rate limit は token 単位のため）。それ以外の例外は `logger.error` して `failedSourceIds` に入れ、次のソースへ進む
 - この step では `website` のソースは `logger.warn` して飛ばす（step6 で置き換える）
 - 戻り値 `{ createdPassageCount, failedSourceIds, results }`。ソースごとの `status` と件数を `logger.info` に出す
@@ -201,33 +201,26 @@ flowchart TD
 
 ```ts
 /** src/task/collect-passages.ts（cleanup-old-memos.ts と同じ形） */
-const main = async (): Promise<void> => {
+runTask("collect-passages", async ({ db }) => {
   const args = parseCollectArgs(process.argv.slice(2))
-  const db = createDrizzleClient({ onError: (error) => logger.error("db idle client error", error), url: env.DATABASE_URL })
-  const { isShuttingDown } = setupGracefulShutdown(db)
   const repo = {
     contentSourceRepository: new DrizzleContentSourceRepository(db),
     passageRepository: new DrizzlePassageRepository(db),
     sourceDocumentRepository: new DrizzleSourceDocumentRepository(db),
   }
-  const deps = { githubContentClient: new GitHubContentClient({ token: env.GITHUB_CONTENT_TOKEN, userAgent: COLLECTOR_USER_AGENT }), isShuttingDown }
-  try {
-    if (args.dryRun && args.sourceId !== null) {
-      process.stdout.write(formatDryRun(await service.collection.previewSource({ maxDocuments: DRY_RUN_MAX_DOCUMENTS, sourceId: args.sourceId }, repo, deps)))
-      return
-    }
-    const result = await service.collection.collectPassages({
-      maxDocumentsPerSource: env.COLLECT_MAX_DOCUMENTS_PER_SOURCE,
-      maxPassagesPerRun: env.COLLECT_MAX_PASSAGES_PER_RUN,
-      now: new Date(),
-      sourceId: args.sourceId,
-    }, repo, deps)
-    /** 1 件でも失敗があれば exit 1 でスケジューラに通知する */
-    if (result.failedSourceIds.length > 0) throw new Error(`collect-passages failed: ${result.failedSourceIds.join(", ")}`)
-  } finally {
-    await db.$disconnect()
+  const deps = { githubContentClient: new GitHubContentClient({ token: env.GITHUB_CONTENT_TOKEN, userAgent: COLLECTOR_USER_AGENT }) }
+  if (args.dryRun && args.sourceId !== null) {
+    process.stdout.write(formatDryRun(await service.collection.previewSource({ maxDocuments: DRY_RUN_MAX_DOCUMENTS, sourceId: args.sourceId }, repo, deps)))
+    return
   }
-}
+  const result = await service.collection.collectPassages({
+    maxDocumentsPerSource: env.COLLECT_MAX_DOCUMENTS_PER_SOURCE,
+    maxPassagesPerRun: env.COLLECT_MAX_PASSAGES_PER_RUN,
+    now: new Date(),
+    sourceId: args.sourceId,
+  }, repo, deps)
+  if (result.failedSourceIds.length > 0) throw new Error(`collect-passages failed: ${result.failedSourceIds.join(", ")}`)
+})
 ```
 
 本番は ECS RunTask で `node dist/task/collect-passages.js` を起動する。EventBridge Scheduler への登録（command の上書き）と、Secrets Manager の `GITHUB_CONTENT_TOKEN` を cron の `secret_keys` に足す作業は [question-generation step7-infra-cron-schedules](../../question-generation/tasks/step7-infra-cron-schedules.md) が行う。

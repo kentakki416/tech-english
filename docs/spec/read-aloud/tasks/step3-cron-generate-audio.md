@@ -134,7 +134,7 @@ const STALE_CLAIM_MINUTES = 30
 const MAX_AUDIO_ATTEMPTS = 3
 
 export type GenerateAudioInput = {
-  isShuttingDown: () => boolean; maxPassagesPerRun: number; monthlyCharacterLimit: number; now: () => Date; voiceId: string
+  maxPassagesPerRun: number; monthlyCharacterLimit: number; now: () => Date; voiceId: string
 }
 export type GenerateAudioResult = {
   failedCount: number; isMonthlyLimitReached: boolean; lostClaimCount: number; purgedCount: number
@@ -151,7 +151,7 @@ export const generateAudio = async (
 1. `calculateTextHash = (blocks) => calculateAudioTextHash({ blocks, voiceId })` を作る。`staleBefore = now - 30 分` で `releaseStaleGenerating(staleBefore)`
 2. 却下の問題の音声を消す：`findRejected(staleBefore)` の行ごとに、`listUnusedAudioKeys(manifest, null)`（マニフェストのすべてのキー）を `audioStorage.delete` し、すべて消せたら `deleteByPassageId`（`purgedCount` を数える）。一時的な失敗（S3 の 5xx・throttling など）は `logger.warn` を出して行を残し、次の問題へ（次の実行でやり直す）。保存先の設定の誤り（`isFatalAudioGenerationError`）は throw（確保の前なので行は戻さなくてよい）
 3. `claimTargets({ calculateTextHash, limit: maxPassagesPerRun, maxAttempts: MAX_AUDIO_ATTEMPTS, now, staleBefore, voiceId })`
-4. 確保した問題を 1 件ずつ（各回の頭で `isShuttingDown()` なら break。残りは 30 分後に回収される。**1 件の失敗で他の件は止めない**）、方針を決める（`planPassageAudio`。非公開の関数）
+4. 確保した問題を 1 件ずつ（シグナルで中断されたら、残りは 30 分後に回収される。**1 件の失敗で他の件は止めない**）、方針を決める（`planPassageAudio`。非公開の関数）
    - `textHash = calculateTextHash(target.blocks)`。`target.previous` の `manifest` が null でなく、`textHash` が同じで、`isRegenerationRequested` でなければ（状態は問わない）`unchanged`。`manifest` がある行の `text_hash` はその `manifest` のもので、その mp3 は別の生成が成功して置き換わるまで消さないので、そのまま使える
    - それ以外は作る。見込みの課金文字数は `estimateBilledCharacters(target.blocks)`（`src/lib/audio/billed-characters.ts`。読み上げるブロックのパートの文字数〈UTF-16〉の合計 × 2）。作り直しの依頼で `textHash` が前と同じときは、保存キーの `revision` を確保の時刻のミリ秒にする（`buildAudioKey` が `passages/{id}/{textHash}-r{revision}/...` にする。同じキーに上書きすると CloudFront と端末のキャッシュ〈1 年・immutable〉に前の音声が残るため）
 5. 作るときは、まず月の上限を確かめる：`sumCharactersSinceFromPrimary(getBillingMonthStart(input.now()))`（UTC の暦月の初め）+ 見込み > `monthlyCharacterLimit` なら、`logger.error` を出し、この問題と残りの確保をすべて `releaseClaim` して（失敗の回数は増やさない）`isMonthlyLimitReached = true` で終える。`unchanged` は Polly を呼ばないので上限を見ない
@@ -197,8 +197,8 @@ throttling・5xx（Polly の `ServiceFailureException`、S3 の `InternalError` 
 - voice は `buildAudioVoiceId({ provider: env.TTS_PROVIDER, voiceId: env.TTS_VOICE_ID })`（`src/lib/audio/audio-voice-id.ts`）。`polly` は `TTS_VOICE_ID` のまま、`fake` は `fake:<TTS_VOICE_ID>`（例 `fake:Joanna`）。Polly と同じ値にすると、fake で `ready` にした問題を polly に切り替えても voice も hash も同じで作り直されず（`unchanged`）、保存キーも同じなので CloudFront の長期キャッシュに無音の mp3 が残るため。この値を service の `voiceId` に渡す（`passage_audios.voice_id`・`text_hash`・音声合成のすべてに使う。`FakeTtsClient` は voice を見ない）
 - `TTS_PROVIDER=fake` なら `new FakeTtsClient()`。`polly` なら `new PollyClient({ region: env.AWS_REGION })` を作り、資格情報を解決できるか確かめる（`client.config.credentials()` を呼ぶ等。方法は実装時に確認）。解決できなければ、`production` では throw、それ以外は「AWS の資格情報が無いので音声を作らない」と `logger.warn` して何もせず終わる（exit 0）
 - `audioStorage`：`s3` は `` createStorage({ bucket, cacheControl: AUDIO_CACHE_CONTROL, publicUrlBase: `s3://${bucket}`, region: env.AWS_REGION, type: "s3" }) ``、`local` は `createStorage({ baseDir: resolve(env.AUDIO_STORAGE_LOCAL_DIR), publicUrlPrefix: "/media", type: "local" })`。`save` の戻り値の URL は使わない（マニフェストにはキーだけを保存し、URL は api が組み立てる）
-- `setupGracefulShutdown(db)` の `isShuttingDown`、`now: () => new Date()`、`monthlyCharacterLimit: env.AUDIO_MONTHLY_CHARACTER_LIMIT`、`DrizzlePassageAudioRepository(db)`・`DrizzleAudioSynthesisUsageRepository(db)` を渡す
-- 結果をログに出し、**`isMonthlyLimitReached` か `failedCount + retryLaterCount > 0` なら throw して exit 1**（`text_changed`・`lost_claim` は失敗に数えない）。`finally` で `db.$disconnect()`
+- `runTask("generate-audio", async ({ db }) => { ... })` で包み、`now: () => new Date()`、`monthlyCharacterLimit: env.AUDIO_MONTHLY_CHARACTER_LIMIT`、`DrizzlePassageAudioRepository(db)`・`DrizzleAudioSynthesisUsageRepository(db)` を渡す
+- 結果をログに出し、**`isMonthlyLimitReached` か `failedCount + retryLaterCount > 0` なら throw して exit 1**（`text_changed`・`lost_claim` は失敗に数えない）。DB の切断と終了コードは `runTask` が持つ
 - `package.json` の dependencies に `@repo/storage`、scripts に `"generate:audio": "dotenvx run -f .env.local -- tsx src/task/generate-audio.ts"`。`CLAUDE.md` のタスクの表に追記
 - リポジトリ直下の `.gitignore` に `.storage/` を足す
 
@@ -229,7 +229,6 @@ pnpm --filter cron lint
 - [ ] 設定の誤り（音声合成の `CredentialsProviderError`、保存の `AccessDenied` / `NoSuchBucket` / `InvalidAccessKeyId` / `SignatureDoesNotMatch` / `ExpiredToken`）→ `releaseClaim` が呼ばれ、`completeClaim` は呼ばれず、generateAudio が throw する（2 件目の音声合成は呼ばない）
 - [ ] 前の mp3 の `delete` が `AccessDenied` → generateAudio が throw し、2 件目は処理しない（`releaseClaim` は呼ばない）
 - [ ] voice が違う（別の Polly の voice・`fake:Joanna` で作った）`ready` の行は作り直す
-- [ ] `isShuttingDown` が true になったら残りを処理しない
 - [ ] 作り直しの依頼があれば hash が同じでも作り直し、保存キーが `<hash>-r<確保の時刻のミリ秒>` で、前の（同じ hash の）キーが消される。hash が違えばふつうのキー
 - [ ] `ready` のまま確保した行（`claimedStatus: "ready"`）も作り直し、`completeClaim`・設定の誤りの `releaseClaim` にその確保が渡る
 - [ ] 課金文字数を Polly のリクエストごとに `record` する（0 は記録しない）

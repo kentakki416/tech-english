@@ -42,12 +42,11 @@ const buildInput = (overrides: Partial<CollectWebsiteSourceInput> = {}): Collect
 
 const setup = (options: {
   client?: FakeWebPageClientOptions
-  isShuttingDown?: () => boolean
   queue?: ReturnType<typeof buildSourceDocument>[]
 } = {}) => {
   const client = createFakeWebPageClient(options.client)
   const repo = createFakeRepo({ queue: options.queue ?? [] })
-  const deps = createDeps(createFakeGitHubClient(), options.isShuttingDown, client)
+  const deps = createDeps(createFakeGitHubClient(), client)
   return { client, deps, repo }
 }
 
@@ -411,16 +410,6 @@ describe("collectWebsiteSource", () => {
 
       expect(result).toEqual({ createdPassageCount: 2, fetchedDocumentCount: 1, status: "limit_reached" })
       expect(client.fetchPage).toHaveBeenCalledTimes(1)
-    })
-
-    it("停止指示を受けたら interrupted で、last_collected_at は進めない", async () => {
-      const { client, deps, repo } = setup({ isShuttingDown: () => true, queue: [buildQueuedDocument(1, "/doc/a")] })
-
-      const result = await collectWebsiteSource(buildInput(), repo, deps)
-
-      expect(result.status).toBe("interrupted")
-      expect(client.fetchPage).not.toHaveBeenCalled()
-      expect(repo.contentSourceRepository.markCollected).not.toHaveBeenCalled()
     })
   })
 

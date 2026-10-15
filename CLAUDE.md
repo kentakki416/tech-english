@@ -45,7 +45,7 @@ Turborepo + pnpm モノレポ。
 - Web → `apps/web/CLAUDE.md`
 - Admin → `apps/admin/CLAUDE.md`
 - Mobile → `apps/mobile/CLAUDE.md`
-- Cron → `apps/cron/CLAUDE.md`（task / repository 構造 / env 検証 / graceful shutdown / Docker / 本番起動想定）
+- Cron → `apps/cron/CLAUDE.md`（task / repository 構造 / env 検証 / runTask と終了コード / Docker / 本番起動想定）
 - Worker → `apps/worker/CLAUDE.md`（Queue 抽象 / BullMQ → 他実装への切り替え方 / 新 Queue の追加手順 / 冪等性）
 - スキーマ → `packages/schema/CLAUDE.md`（スキーマ命名規則）
 - Terraform → `infra/terraform/CLAUDE.md`

@@ -151,8 +151,6 @@ export interface WordAudioRepository {
 /** apps/cron/src/service/audio/generate-word-audio.ts */
 
 export type GenerateWordAudioInput = {
-  /** 停止指示を受けたか。各語の頭で見て、true なら残りを処理せずに終える（確保済みの残りは 30 分後に回収される） */
-  isShuttingDown: () => boolean
   /** 1 回の実行で確保する語の上限（WORD_AUDIO_MAX_PER_RUN） */
   maxWordsPerRun: number
   /** 今月（UTC の暦月）に Polly で課金してよい文字数（AUDIO_MONTHLY_CHARACTER_LIMIT。読み上げと合算） */

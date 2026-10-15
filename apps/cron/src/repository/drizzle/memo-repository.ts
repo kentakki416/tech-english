@@ -2,9 +2,6 @@ import { DrizzleClient, lt, memos } from "@repo/db"
 
 import type { MemoRepository } from "../memo-repository"
 
-/**
- * Drizzle 実装の MemoRepository
- */
 export class DrizzleMemoRepository implements MemoRepository {
   private _db: DrizzleClient
 
