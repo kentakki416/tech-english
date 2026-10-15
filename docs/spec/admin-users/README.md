@@ -94,7 +94,7 @@ MVP では **見るだけ** にする。ユーザーの情報の変更・削除�
 - `users` に、ユーザーごとに束ねた解いた回数・最後に学習した日・ログイン方法を left join して 1 回の SQL で返す（SQL は [step1](./tasks/step1-api-admin-users.md)）
 - 並べ替えの列が集計の結果なので、ページ分けは offset（ユーザーは 1 万人規模の想定で十分速い）。全体の件数は `count(*) OVER ()` で一緒に取る
 - 絞り込みは `name ILIKE` または `email ILIKE`（`%`・`_`・`\` はエスケープする）。1 万人なら全件を走査しても速いので、インデックス（`pg_trgm`）は足さない
-- 既存のインデックス（`reading_attempts (user_id, study_date)`・`vocabulary_reviews (user_id, study_date)`）で束ねられるので、インデックスは足さない
+- インデックスは足さない。全員分を束ねるので、`reading_attempts`・`vocabulary_reviews` は全件を読んでハッシュで束ねる（1 万人・挑戦 50 万件・答え 200 万件で約 0.4 秒。実装時に計測）
 - 最後に学習した日は `study_date`（ユーザーのタイムゾーンの日付）を使う。ダッシュボード（日本時間で区切る）とは基準が違うが、ユーザーごとの値なので本人のマイページに揃える方を取る
 - 絞り込みの文字は GET のクエリ（`?q=`）で送る。api のリクエストログ（`request-logger.ts`）と admin の認証のログはパスだけを出してクエリを出さないので、メールアドレスはログに残らない。Service・Repository でも `q` をログに出さない
 

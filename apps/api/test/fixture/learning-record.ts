@@ -25,6 +25,10 @@ type CreateSubmittedAttemptInput = {
    * 回答（attempt_answers）を入れる設問。question_count はこの数になる
    */
   questionIds: number[]
+  /**
+   * 設問ごとの選んだ選択肢（questionIds と同じ順。null は未回答）。省略すると正解は 1・不正解は 0
+   */
+  selectedChoiceIndexes?: (number | null)[]
   studyDate: string
   /**
    * 省略すると study_date の 03:00Z（JST の 12:00）
@@ -62,7 +66,7 @@ export const createSubmittedAttempt = async (input: CreateSubmittedAttemptInput)
         attemptId: attempt.id,
         isCorrect: correctness[index] ?? false,
         questionId,
-        selectedChoiceIndex: correctness[index] ? 1 : 0,
+        selectedChoiceIndex: input.selectedChoiceIndexes ? input.selectedChoiceIndexes[index] ?? null : correctness[index] ? 1 : 0,
       })),
     )
   }
