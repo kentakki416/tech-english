@@ -50,7 +50,7 @@ MVP の管理者は 1〜2 人なので、共有シークレットで保護する
 
 admin は DB を直接触らず、必ず Express API を経由する。tech-english の画面（下の「接続済みの画面」）は API に接続済みで、それ以外は TailAdmin テンプレートの画面がそのまま入っている（API 未接続）。
 
-サイドバー（`components/layout/AppSidebar.tsx`）には tech-english の画面だけを並べる。テンプレートの画面（`/`・`/calendar`・`/ui/*` など。design-mock でデザインの参考に読む）とデザインモック（`/mock`）はメニューに出さず、URL を直接開いて見る。左上のロゴとそのリンク先は `components/layout/AppLogo.tsx`（テンプレートのマークと「tech-english-admin」の文字。サイドバーとスマホ幅のヘッダーで使う）。
+サイドバー（`components/layout/AppSidebar.tsx`）には tech-english の画面（ダッシュボード・問題・ソース・ユーザー）だけを並べる。テンプレートの画面（`/calendar`・`/ui/*` など。design-mock でデザインの参考に読む）とデザインモック（`/mock`）はメニューに出さず、URL を直接開いて見る。テンプレートの EC のダッシュボードの部品（`components/features/ecommerce/`）も参考として残している。左上のロゴとそのリンク先は `components/layout/AppLogo.tsx`（テンプレートのマークと「tech-english-admin」の文字。サイドバーとスマホ幅のヘッダーで使う）。
 
 | ファイル | 役割 |
 | --- | --- |
@@ -58,7 +58,10 @@ admin は DB を直接触らず、必ず Express API を経由する。tech-engl
 | `src/libs/api-client.ts` | `env.API_URL` を叩く `get` / `post` / `put` / `delete`。`X-Admin-Token` を付け、`!res.ok` なら `ApiClientError`（`status` / `body`）を投げる。`server-only` |
 | `src/features/{feature}/{feature}.api.ts` | 機能ごとの API 呼び出し層（`server-only`）。レスポンスを `@repo/api-schema` のスキーマで parse して返す |
 | `src/libs/ui-classes.ts` | 入力欄・カード・ボタンの共通クラス（テンプレートと同じ見た目）。デザインモックの `mock/_components/ui.ts` と同じ値で、本番の画面はこちらを使う（`mock/` を import しない） |
-| `src/libs/format-date.ts` | `formatDateTime`：日時を日本時間の `2026-10-10 03:00` にする（Server Component は UTC で動くためタイムゾーンを明示） |
+| `src/libs/format-date.ts` | `formatDateTime`：日時を `2026-10-10 03:00` にする（既定は日本時間。Server Component は UTC で動くためタイムゾーンを明示。ユーザーの学習履歴はユーザーのタイムゾーンを渡す）、`formatDate`：日本時間の `2026-10-10` |
+| `src/libs/format-stats.ts` | ダッシュボード・ユーザー管理の数字の表示（比率 `72%`・件数 `1,284`・時間 `5:12 / 6:00`・値が無いときの `―`） |
+| `src/components/ui/table/LinkTableParts.tsx` | 並べ替え・絞り込み・ページ送りを URL のクエリで行う表の部品（`SortableHeaderCell`・`TableSearchForm`〈`next/form`〉・`PaginationLinks`）。ダッシュボードとユーザー一覧で使う（画面内で並べ替える表はテンプレートの `DataTable`） |
+| `src/libs/search-params.ts` | URL のクエリを API のクエリのスキーマの項目で読む（不正なら既定値）・絞り込みの文字を API の上限で切り詰める。`features/*/*.params.ts`（`server-only`）から使う |
 
 接続済みの画面：
 
@@ -68,6 +71,10 @@ admin は DB を直接触らず、必ず Express API を経由する。tech-engl
 | `/content-sources/new`・`/content-sources/[id]` | ソースの登録・編集 | `SourceForm.tsx` + `app/(dashboard)/content-sources/actions.ts`（Server Action）+ `app/api/content-sources/license/route.ts`（ライセンス検出の中継） |
 | `/passages` | 問題一覧（`?status=` で状態を切り替え） | `app/(dashboard)/passages/page.tsx` + `components/features/passage/PassageTable.tsx` |
 | `/passages/[id]` | 問題の確認・修正 | `PassageReview.tsx`（タブは `QuestionsTab` / `TranslationsTab` / `GlossaryTab` / `BodyTab` / `BasicsTab`、プレビューは `PassagePreview`、読み上げの音声は `PassageAudioCard`）+ `app/(dashboard)/passages/[id]/actions.ts`（Server Action）。フォームの状態と変換は `features/passage/passage.form.ts`、ラベルは `passage.labels.ts` |
+| `/` | ダッシュボード（`?period=&sort=&order=&page=&q=`） | `app/(dashboard)/page.tsx` + `components/features/stats/`（`PeriodTabs`・`OverviewCards`・`OverviewChart`〈ApexCharts。Client〉・`AssistCard`・`PassageStatsTable`）。API は `features/stats/stats.api.ts`、URL のクエリは `stats.params.ts`（[admin-dashboard](../../docs/spec/admin-dashboard/README.md)） |
+| `/analytics/passages/[id]` | 問題の分析（`?period=`） | `app/(dashboard)/analytics/passages/[id]/page.tsx` + `QuestionStatsCard`。サイドバーでは「ダッシュボード」を選択中にする |
+| `/users` | ユーザー一覧（`?sort=&order=&page=&q=`） | `app/(dashboard)/users/page.tsx` + `components/features/user/UserTable.tsx`。API は `features/user/user.api.ts`、URL のクエリは `user.params.ts`（[admin-users](../../docs/spec/admin-users/README.md)） |
+| `/users/[id]` | ユーザーの詳細 | `UserProfileCard`・`UserLearningCards`・`UserCalendar`・`UserAttemptList`（「さらに読み込む」は `app/(dashboard)/users/[id]/actions.ts` の Server Action） |
 
 問題の画面のメモ：
 
@@ -82,6 +89,7 @@ admin は DB を直接触らず、必ず Express API を経由する。tech-engl
 2. レスポンスは `@repo/api-schema` のスキーマで parse する。**独自に型を書かない**
 3. client component にデータが必要な場合は Server Component で取得して props で渡す。Zod のスキーマ（値）を client component で import すると bundle に入るので、選択肢などの値も Server Component から props で渡す
 4. 登録・更新は Server Action（`actions.ts`。先頭に `"use server"` と `import "server-only"`）。404 / 409 は `ApiClientError` の `status` で見分ける。フォームは `useActionState` を使い、`<form action>` ではなく `onSubmit` から `startTransition(() => formAction(formData))` で呼ぶ（`<form action>` だと React が送信後にフォームをリセットし、入力エラーのときに値が消える）
+5. 画面を開いた後に続きを読む（ユーザーの詳細の「さらに読み込む」など）ときも Server Action にする（admin の API はトークンが要り、ブラウザから直接呼べないため）。引数は API と同じスキーマで検証し、一時的な失敗は throw せずに失敗の結果で返す（throw すると error boundary に送られ、読み込んだ分ごと画面が消える）
 
 `@repo/*` のうち admin が import できるのは `@repo/api-schema` だけで、これは lint で強制している（`@repo/eslint-config/frontend-boundary`）。
 

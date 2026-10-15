@@ -4,9 +4,9 @@ import Link from "next/link"
 const APP_NAME = "tech-english-admin"
 
 /**
- * ロゴを押したときの移り先。ダッシュボードを / に作るまでは問題一覧
+ * ロゴを押したときの移り先（ダッシュボード）
  */
-const HOME_PATH = "/passages"
+const HOME_PATH = "/"
 
 /**
  * 左上のロゴ（マークと「tech-english-admin」の文字。押すと HOME_PATH へ）。サイドバーとスマホ幅のヘッダーで使う。

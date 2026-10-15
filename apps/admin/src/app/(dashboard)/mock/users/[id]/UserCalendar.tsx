@@ -6,10 +6,10 @@ const LEVEL_CLASSES = [
   "bg-brand-700 dark:bg-brand-400",
 ]
 
-const WEEKDAY_LABELS = ["", "月", "", "水", "", "金", ""]
+const WEEKDAY_LABELS = ["月", "", "水", "", "金", "", ""]
 
 /**
- * 学習カレンダーの草（直近 53 週、日曜始まり）。マイページと同じ並びを admin の色で出す
+ * 学習カレンダーの草（直近 53 週、月曜始まり）。マイページと同じ並びを admin の色で出す
  */
 export function UserCalendar({ days, studiedDayCount }: { days: { date: string, level: number }[], studiedDayCount: number }) {
   const weeks = Array.from({ length: Math.ceil(days.length / 7) }, (_, index) => days.slice(index * 7, index * 7 + 7))
