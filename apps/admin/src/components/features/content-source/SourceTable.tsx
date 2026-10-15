@@ -4,6 +4,7 @@ import Link from "next/link"
 
 import type { GetContentSourceListResponse } from "@repo/api-schema"
 
+import { TagChip } from "@/components/features/tag/TagChip"
 import Badge from "@/components/ui/badge/Badge"
 import { type Column, DataTable, type FilterConfig } from "@/components/ui/table"
 import { formatDateTime } from "@/libs/format-date"
@@ -36,6 +37,11 @@ const COLUMNS: Column<SourceRow>[] = [
           {row.name}
         </Link>
         <p className="mt-0.5 font-mono text-theme-xs text-gray-400">{row.origin}</p>
+        {row.tags.length > 0 && (
+          <div className="mt-1.5 flex flex-wrap gap-1">
+            {row.tags.map((tag) => <TagChip key={tag.id} color={tag.color} name={tag.name} />)}
+          </div>
+        )}
       </div>
     ),
   },

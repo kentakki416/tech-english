@@ -50,12 +50,12 @@ MVP の管理者は 1〜2 人なので、共有シークレットで保護する
 
 admin は DB を直接触らず、必ず Express API を経由する。tech-english の画面（下の「接続済みの画面」）は API に接続済みで、それ以外は TailAdmin テンプレートの画面がそのまま入っている（API 未接続）。
 
-サイドバー（`components/layout/AppSidebar.tsx`）には tech-english の画面（ダッシュボード・問題・ソース・ユーザー）だけを並べる。テンプレートの画面（`/calendar`・`/ui/*` など。design-mock でデザインの参考に読む）とデザインモック（`/mock`）はメニューに出さず、URL を直接開いて見る。テンプレートの EC のダッシュボードの部品（`components/features/ecommerce/`）も参考として残している。左上のロゴとそのリンク先は `components/layout/AppLogo.tsx`（テンプレートのマークと「tech-english-admin」の文字。サイドバーとスマホ幅のヘッダーで使う）。
+サイドバー（`components/layout/AppSidebar.tsx`）には tech-english の画面（ダッシュボード・問題・ソース・タグ・ユーザー）だけを並べる。テンプレートの画面（`/calendar`・`/ui/*` など。design-mock でデザインの参考に読む）とデザインモック（`/mock`）はメニューに出さず、URL を直接開いて見る。テンプレートの EC のダッシュボードの部品（`components/features/ecommerce/`）も参考として残している。左上のロゴとそのリンク先は `components/layout/AppLogo.tsx`（テンプレートのマークと「tech-english-admin」の文字。サイドバーとスマホ幅のヘッダーで使う）。
 
 | ファイル | 役割 |
 | --- | --- |
 | `src/env.ts` | `API_URL` / `ADMIN_API_TOKEN` / Basic 認証の資格情報を Zod で検証。`server-only`。`api-client.ts` から import され、API を呼ぶ画面の読み込み時に検証が走る |
-| `src/libs/api-client.ts` | `env.API_URL` を叩く `get` / `post` / `put` / `delete`。`X-Admin-Token` を付け、`!res.ok` なら `ApiClientError`（`status` / `body`）を投げる。`server-only` |
+| `src/libs/api-client.ts` | `env.API_URL` を叩く `get` / `post` / `put` / `delete`。`X-Admin-Token` を付け、`!res.ok` なら `ApiClientError`（`status` / `body`）を投げる。204 は `undefined` を返す（JSON をパースしない）。`server-only` |
 | `src/features/{feature}/{feature}.api.ts` | 機能ごとの API 呼び出し層（`server-only`）。レスポンスを `@repo/api-schema` のスキーマで parse して返す |
 | `src/libs/ui-classes.ts` | 入力欄・カード・ボタンの共通クラス（テンプレートと同じ見た目）。デザインモックの `mock/_components/ui.ts` と同じ値で、本番の画面はこちらを使う（`mock/` を import しない） |
 | `src/libs/format-date.ts` | `formatDateTime`：日時を `2026-10-10 03:00` にする（既定は日本時間。Server Component は UTC で動くためタイムゾーンを明示。ユーザーの学習履歴はユーザーのタイムゾーンを渡す）、`formatDate`：日本時間の `2026-10-10` |
@@ -68,7 +68,8 @@ admin は DB を直接触らず、必ず Express API を経由する。tech-engl
 | パス | 画面 | 実装 |
 | --- | --- | --- |
 | `/content-sources` | ソース一覧 | `app/(dashboard)/content-sources/page.tsx` + `components/features/content-source/SourceTable.tsx` |
-| `/content-sources/new`・`/content-sources/[id]` | ソースの登録・編集 | `SourceForm.tsx` + `app/(dashboard)/content-sources/actions.ts`（Server Action）+ `app/api/content-sources/license/route.ts`（ライセンス検出の中継） |
+| `/content-sources/new`・`/content-sources/[id]` | ソースの登録・編集 | `SourceForm.tsx` + `app/(dashboard)/content-sources/actions.ts`（Server Action）+ `app/api/content-sources/license/route.ts`（ライセンス検出の中継）。技術タグの選択は `TagPicker`（選んだ id を hidden の `tag_ids` で送る） |
+| `/tags` | タグ | `app/(dashboard)/tags/page.tsx` + `components/features/tag/TagTable.tsx`（追加・編集は `TagFormModal`、削除の確認は `TagDeleteModal`）+ `app/(dashboard)/tags/actions.ts`（Server Action）。色付きのタグは `TagChip`（色 → クラスの対応表はここだけに置く） |
 | `/passages` | 問題一覧（`?status=` で状態を切り替え） | `app/(dashboard)/passages/page.tsx` + `components/features/passage/PassageTable.tsx` |
 | `/passages/[id]` | 問題の確認・修正 | `PassageReview.tsx`（タブは `QuestionsTab` / `TranslationsTab` / `GlossaryTab` / `BodyTab` / `BasicsTab`、プレビューは `PassagePreview`、読み上げの音声は `PassageAudioCard`）+ `app/(dashboard)/passages/[id]/actions.ts`（Server Action）。フォームの状態と変換は `features/passage/passage.form.ts`、ラベルは `passage.labels.ts` |
 | `/` | ダッシュボード（`?period=&sort=&order=&page=&q=`） | `app/(dashboard)/page.tsx` + `components/features/stats/`（`PeriodTabs`・`OverviewCards`・`OverviewChart`〈ApexCharts。Client〉・`AssistCard`・`PassageStatsTable`）。API は `features/stats/stats.api.ts`、URL のクエリは `stats.params.ts`（[admin-dashboard](../../docs/spec/admin-dashboard/README.md)） |
