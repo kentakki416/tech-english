@@ -1,6 +1,7 @@
 "use client"
 
 import { Fragment, memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { createPortal } from "react-dom"
 
 import type { AttemptBlock, AttemptGlossaryEntry, PassageSegmentResponse } from "@repo/api-schema"
 
@@ -410,6 +411,8 @@ function WordCard({ card, onClose }: { card: WordCardState, onClose: () => void 
  * - 単語を押すと、用語集の語句（glossary_entry_id）は「この文での意味」、それ以外は onLookupDictionary で英和辞書を引く
  * - onLookupWord は意味が見つかったときだけ呼ぶ（解答画面が調べた単語として記録する）
  * - readAloud を渡すと段落の再生ボタンと読み上げ中の単語の印を出す。読み上げ中の段落は、和訳中・全文訳でも英文で出す
+ * - 単語のカードは body に描画する（祖先に transform があると fixed の位置の基準がその祖先になり、位置がずれて切れるため。ログイン画面のデモはカードを傾ける）。
+ *   カードは押した後にだけ描画するので、document はブラウザで必ずある
  */
 export function PassageReader({
   blocks,
@@ -422,6 +425,7 @@ export function PassageReader({
   onLookupDictionary,
   onLookupWord,
   onToggleTranslation,
+  onWordCardOpenChange,
 }: {
   blocks: AttemptBlock[]
   fontSize?: ReaderFontSize
@@ -439,6 +443,10 @@ export function PassageReader({
   onLookupDictionary: LookupDictionary
   onLookupWord?: (lookup: WordLookupRecord) => void
   onToggleTranslation?: (blockIndex: number) => void
+  /**
+   * 単語のカードを開いた・閉じたとき（ログイン画面のデモが、開いている間はカードの傾きを止める）
+   */
+  onWordCardOpenChange?: (isOpen: boolean) => void
 }) {
   const [card, setCard] = useState<WordCardState | null>(null)
   const activeWordRef = useRef<HTMLElement | null>(null)
@@ -477,6 +485,11 @@ export function PassageReader({
   useEffect(() => {
     if (activeWordRef.current) activeWordRef.current.dataset.active = card ? "true" : "false"
   }, [card])
+
+  const isCardOpen = card !== null
+  useEffect(() => {
+    onWordCardOpenChange?.(isCardOpen)
+  }, [isCardOpen, onWordCardOpenChange])
 
   const showDictionaryMeaning = async (requestId: number, surface: string) => {
     const isCurrent = () => requestIdRef.current === requestId
@@ -556,7 +569,7 @@ export function PassageReader({
           )
         })}
       </article>
-      {card && <WordCard card={card} onClose={closeCard} />}
+      {card && createPortal(<WordCard card={card} onClose={closeCard} />, document.body)}
     </>
   )
 }
