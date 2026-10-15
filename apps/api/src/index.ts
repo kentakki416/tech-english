@@ -113,16 +113,12 @@ import { passageRouter } from "./routes/passage-router"
 import { userRouter } from "./routes/user-router"
 import { vocabularyRouter } from "./routes/vocabulary-router"
 
-/**
- * インフラ client はプロセス起動時に 1 回だけ生成する。
- */
 const db = createDrizzleClient({
   onError: (error) => {
     logger.error("db idle client error", error)
   },
 })
 /**
- * onError を渡さないと factory 既定の console.error に落ち、構造化ログに乗らない。
  * Redis は refresh token と queue の両方を載せているため、障害は error として残す。
  */
 const redis = createRedisClient({
@@ -249,7 +245,6 @@ const userPutReminderController = new UserPutReminderController(reminderSettingR
 
 /**
  * dev-login Controller は production 以外でのみ生成する
- * （本番では auth-router でルート自体が登録されない）
  */
 const authDevLoginController = process.env.NODE_ENV !== "production"
   ? new AuthDevLoginController(userRepository, refreshTokenRepository)
@@ -262,7 +257,6 @@ const memoListController = new MemoListController(memoRepository)
 const memoDetailController = new MemoDetailController(memoRepository)
 /**
  * 行動イベントの送出先は EVENT_TRACKER_TYPE で選ぶ。
- * queue なら enqueue するだけで、ClickHouse への書き込みは apps/worker が行う
  */
 const eventTracker: EventTracker = env.EVENT_TRACKER_TYPE === "queue"
   ? new QueueEventTracker(new BullMQJobQueue(redis, TRACK_EVENT_QUEUE_NAME))
@@ -422,7 +416,6 @@ if (env.NODE_ENV !== "production") {
   app.use("/media", mediaRouter({ audioDir: resolve(env.AUDIO_STORAGE_LOCAL_DIR) }))
 }
 /**
- * レート制限を API 全体に適用する（検証できたトークンのユーザー単位、無ければ IP 単位）。
  * refresh の body の refresh token でユーザーを見分けるため、express.json() より後に登録する。
  * ヘルスチェック（/api/health）はロードバランサの死活監視で高頻度に叩かれるため、本ミドル
  * ウェアより前に登録して対象外にしている（制限に巻き込むと target が unhealthy 判定される恐れ）。
@@ -548,8 +541,6 @@ app.use(
 )
 
 /**
- * 想定外例外を捕捉する Express の最終エラーハンドラ
- * 業務 4xx エラーは Controller の sendError 経由で返却されるため、ここを通らない
  * ルーティング定義の最後に登録する必要がある
  */
 app.use(unhandledExceptionHandler)
