@@ -50,10 +50,13 @@ export const userApi = {
 - `app/(dashboard)/users/[id]/page.tsx`。詳細・カレンダー・学習履歴の 1 ページ目を `Promise.all` で取る。`userApi` の 3 つはどれも 404 なら null を返し、詳細が null なら `notFound()`
 - `components/features/user/`：
   - `UserProfileCard.tsx`：アイコン・名前・メールアドレス・ユーザー ID・ログイン方法・登録日時（日本時間。`formatDateTime`）・タイムゾーン・最後に学習した日
-  - `UserStatsCards.tsx`：連続学習日数・解いた回数と問題の数・正答率・学習時間・種類ごとの正答率・アシストなしの正答率・週の目標（単位は `weekly_metric` で「問」「分」、達成していれば「達成」のバッジ、棒は 100% まで）
-  - `UserCalendar.tsx`：学習カレンダーの草（直近 1 年）
-  - `UserAttemptList.tsx`（`"use client"`）：学習履歴。「さらに読み込む」は Server Action（`app/(dashboard)/users/[id]/actions.ts` の `loadMoreAttemptsAction`）で次の cursor を読む。問題名は `/passages/[id]` へのリンク
-  - `UserVocabularyCard.tsx`：単語帳の枚数（学習中・覚えた・まだ出ていない）、今日やる枚数、次に出る日
+  - `UserLearningCards.tsx`：
+    - `UserStatCards`：連続学習日数・解いた回数と問題の数・正答率とアシストなしの正答率・学習時間
+    - `UserTypeAccuracyCard`：種類ごとの正答率
+    - `UserGoalCard`：週の目標（単位は `weekly_metric` で「問」「分」、達成していれば「達成」のバッジ、棒は 100% まで）
+    - `UserVocabularyCard`：単語帳の枚数（学習中・覚えた・まだ出ていない）、今日やる枚数、次に出る日
+  - `UserCalendar.tsx`：学習カレンダーの草（直近 1 年）。横にスクロールするときは右端（直近の週）から見せる
+  - `UserAttemptList.tsx`（`"use client"`）：学習履歴（時間と「超過」のバッジ、アシストは `used_assist` で「使った」「なし」）。「さらに読み込む」は Server Action（`app/(dashboard)/users/[id]/actions.ts` の `loadMoreUserAttemptsAction`）で次の cursor を読む。問題名は `/passages/[id]` へのリンク
 - パンくずは「Home > ユーザーの詳細」（`PageBreadCrumb` の `pageTitle`）。上に「← ユーザー一覧に戻る」
 
 ### 4. サイドバー

@@ -5,7 +5,7 @@ admin のトップ（`/`）をダッシュボードにし、問題の分析（`/
 ## 前提
 
 - [step2-api-admin-stats](./step2-api-admin-stats.md)
-- 見た目は README の [UI 設計](../README.md#ui-設計) とモック（`apps/admin/src/app/(dashboard)/mock/dashboard/`・`mock/analytics/`）に従う。モックの部品（`PeriodTabs`・`TableParts`・`stats-format`・`OverviewCards`・`OverviewChart`・`AssistCard`・`PassageStatsTable`・`QuestionStatsCard`）は本実装の `components/features/stats/`・`src/libs/format-stats.ts` に移して使う（`mock/` は import しない）
+- 見た目は README の [UI 設計](../README.md#ui-設計) とモック（`apps/admin/src/app/(dashboard)/mock/dashboard/`・`mock/analytics/`）に従う。モックの部品（`PeriodTabs`・`TableParts`・`stats-format`・`OverviewCards`・`OverviewChart`・`AssistCard`・`PassageStatsTable`・`QuestionStatsCard`）は本実装の `components/features/stats/`・`src/libs/format-stats.ts` に移して使う（`mock/` は import しない）。URL のクエリで並べ替え・絞り込み・ページ送りをする表の部品は、ユーザー一覧（admin-users の step2）でも使うので `components/ui/table/LinkTableParts.tsx` に置く
 - admin の画面の作り方は `apps/admin/CLAUDE.md` の「API 接続の下地」（Server Component から `features/*.api.ts` → `apiClient`、レスポンスは `@repo/api-schema` で parse）
 
 ## 対応内容

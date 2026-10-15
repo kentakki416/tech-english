@@ -9,7 +9,9 @@ import {
   ChevronDownIcon,
   DocsIcon,
   FolderIcon,
+  GridIcon,
   HorizontaLDots,
+  UserCircleIcon,
 } from "@/icons"
 
 type NavItem = {
@@ -20,10 +22,15 @@ type NavItem = {
 }
 
 /**
- * tech-english の管理画面だけを並べる。TailAdmin テンプレートの画面（/・/calendar・/ui/* など。デザインの参考）と
+ * tech-english の管理画面だけを並べる。TailAdmin テンプレートの画面（/calendar・/ui/* など。デザインの参考）と
  * デザインモック（/mock）はメニューに出さず、URL を直接開いて見る
  */
 const navItems: NavItem[] = [
+  {
+    icon: <GridIcon />,
+    name: "ダッシュボード",
+    path: "/",
+  },
   {
     icon: <DocsIcon />,
     name: "問題",
@@ -34,7 +41,17 @@ const navItems: NavItem[] = [
     name: "ソース",
     path: "/content-sources",
   },
+  {
+    icon: <UserCircleIcon />,
+    name: "ユーザー",
+    path: "/users",
+  },
 ]
+
+/**
+ * メニューに無い下の階層のページを、対応するメニューに寄せる（問題の分析はダッシュボードから開く）
+ */
+const MENU_PATH_ALIASES: { menuPath: string, prefix: string }[] = [{ menuPath: "/", prefix: "/analytics/" }]
 
 /**
  * 開いているサブメニューの navItems の位置
@@ -51,9 +68,11 @@ const MENU_PATHS = navItems.flatMap((nav) => [
 
 /**
  * 今のページに対応するメニューのリンク先。下の階層のページ（/content-sources/new など）は、前方一致するうち最も長いものにする
+ * （`/` は `${path}/` の前方一致が `//` になるので、完全一致のときだけ当たる）。MENU_PATH_ALIASES のページはその寄せ先
  */
 const findActiveMenuPath = (pathname: string): string | null =>
-  MENU_PATHS
+  MENU_PATH_ALIASES.find((alias) => pathname.startsWith(alias.prefix))?.menuPath
+  ?? MENU_PATHS
     .filter((path) => pathname === path || pathname.startsWith(`${path}/`))
     .reduce<string | null>((longest, path) => (longest === null || path.length > longest.length ? path : longest), null)
 
