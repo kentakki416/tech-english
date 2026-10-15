@@ -64,8 +64,8 @@ describe("PUT /api/admin/tag/:id", () => {
       expect(await selectTag(react.id)).toEqual(react)
     })
 
-    it("id が数値でないと 400 を返す", async () => {
-      const res = await put("abc", { color: "blue", name: "React" })
+    it.each(["abc", "2147483648"])("id が %s なら 400 を返す", async (id) => {
+      const res = await put(id, { color: "blue", name: "React" })
 
       expect(res.status).toBe(400)
     })

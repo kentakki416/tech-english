@@ -177,6 +177,7 @@ describe("POST /api/admin/content-source", () => {
       ["tag_ids に重複がある", { ...GITHUB_REQUEST, tag_ids: [1, 1] }],
       ["tag_ids が 11 個", { ...GITHUB_REQUEST, tag_ids: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] }],
       ["tag_ids が 0", { ...GITHUB_REQUEST, tag_ids: [0] }],
+      ["tag_ids が DB の integer の上限を超える", { ...GITHUB_REQUEST, tag_ids: [2147483648] }],
       ["tag_ids が無い（古い形の tags だけ）", { ...omitTagIds(GITHUB_REQUEST), tags: ["react"] }],
     ])("%sなら 400 を返し、DB に保存しない", async (_label, body) => {
       const res = await request(app)

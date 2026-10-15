@@ -55,8 +55,8 @@ describe("DELETE /api/admin/tag/:id", () => {
       expect(res.status).toBe(404)
     })
 
-    it("id が数値でないと 400 を返す", async () => {
-      const res = await del("abc")
+    it.each(["abc", "2147483648"])("id が %s なら 400 を返す", async (id) => {
+      const res = await del(id)
 
       expect(res.status).toBe(400)
     })
