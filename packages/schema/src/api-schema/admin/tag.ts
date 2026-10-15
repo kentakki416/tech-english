@@ -2,11 +2,9 @@ import { z } from "zod"
 
 import { TAG_COLORS } from "@repo/domain"
 
-/**
- * ========================================================
- * 共通: タグの入力・出力の部品
- * ========================================================
- */
+// ========================================================
+// 共通: タグの入力・出力の部品
+// ========================================================
 
 /**
  * タグの色のスキーマ。admin の色の選択肢は tagColorSchema.options から作る
@@ -35,11 +33,9 @@ export const tagSchema = z.object({
 
 export type TagResponse = z.infer<typeof tagSchema>
 
-/**
- * ========================================================
- * GET /api/admin/tag - タグの一覧
- * ========================================================
- */
+// ========================================================
+// GET /api/admin/tag - タグの一覧
+// ========================================================
 
 /**
  * タグの一覧のレスポンススキーマ。名前の順（大文字・小文字を区別しない）
@@ -57,11 +53,9 @@ export const getTagListResponseSchema = z.object({
 
 export type GetTagListResponse = z.infer<typeof getTagListResponseSchema>
 
-/**
- * ========================================================
- * POST /api/admin/tag - タグの作成
- * ========================================================
- */
+// ========================================================
+// POST /api/admin/tag - タグの作成
+// ========================================================
 
 /**
  * タグの作成のリクエストスキーマ。color を省くと api が自動で割り当てる
@@ -79,11 +73,9 @@ export const createTagResponseSchema = tagSchema
 export type CreateTagRequest = z.infer<typeof createTagRequestSchema>
 export type CreateTagResponse = z.infer<typeof createTagResponseSchema>
 
-/**
- * ========================================================
- * PUT /api/admin/tag/:id - タグの名前と色の変更
- * ========================================================
- */
+// ========================================================
+// PUT /api/admin/tag/:id - タグの名前と色の変更
+// ========================================================
 
 /**
  * タグの更新のパスパラメータスキーマ
@@ -109,11 +101,9 @@ export type UpdateTagPathParam = z.infer<typeof updateTagPathParamSchema>
 export type UpdateTagRequest = z.infer<typeof updateTagRequestSchema>
 export type UpdateTagResponse = z.infer<typeof updateTagResponseSchema>
 
-/**
- * ========================================================
- * DELETE /api/admin/tag/:id - タグの削除
- * ========================================================
- */
+// ========================================================
+// DELETE /api/admin/tag/:id - タグの削除
+// ========================================================
 
 /**
  * タグの削除のパスパラメータスキーマ。成功は 204（ボディなし）なのでレスポンススキーマは無い
