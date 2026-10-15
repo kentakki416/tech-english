@@ -13,7 +13,7 @@ import { users } from "./user"
 /**
  * 調べた単語。結果画面の一覧と、将来の単語帳・単語問題に使う
  *
- * users と reading_attempts の削除で cascade する。制約・index 名は `{table}_{columns}_key` / `_idx` / `_fkey` の命名にそろえている。
+ * users と reading_attempts の削除で cascade する。
  */
 export const attemptWordLookups = pgTable(
   "attempt_word_lookups",
@@ -24,15 +24,9 @@ export const attemptWordLookups = pgTable(
      * 用語集から引いた場合だけ
      */
     glossaryEntryId: integer("glossary_entry_id"),
-    /**
-     * 見出し語
-     */
     lemma: text("lemma").notNull(),
     passageId: integer("passage_id").notNull(),
     source: text("source", { enum: WORD_LOOKUP_SOURCES }).notNull(),
-    /**
-     * 本文中の表記
-     */
     surface: text("surface").notNull(),
     userId: integer("user_id").notNull(),
     ...timestamps,

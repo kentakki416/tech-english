@@ -23,7 +23,6 @@ resource "aws_acm_certificate" "wildcard" {
 
 # ACM が「ドメイン所有者である」ことを確認するための検証用 CNAME を Route 53 に自動投入する。
 # - ACM が aws_acm_certificate.domain_validation_options で「このレコードを書いてくれ」と要求する値が入っている
-# - そのレコードを実際に DNS に書くのが本リソースの役割
 # - ACM が DNS を引いて期待値が返れば証明書が ISSUED になる
 # - 複数ドメイン (SAN) に対応するため for_each でループ
 resource "aws_route53_record" "cert_validation" {

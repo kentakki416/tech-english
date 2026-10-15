@@ -1,6 +1,3 @@
-/**
- * メモドメイン型
- */
 export type Memo = {
   id: number
   title: string

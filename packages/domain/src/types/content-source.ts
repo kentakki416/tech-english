@@ -1,18 +1,9 @@
 import type { ALLOWED_LICENSES, SOURCE_FETCH_TYPES, SOURCE_KINDS } from "../const/content-source"
 
-/**
- * ソースの種別
- */
 export type SourceKind = (typeof SOURCE_KINDS)[number]
 
-/**
- * ソースの取得方法
- */
 export type SourceFetchType = (typeof SOURCE_FETCH_TYPES)[number]
 
-/**
- * 登録を許可するライセンス（SPDX 識別子）
- */
 export type AllowedLicense = (typeof ALLOWED_LICENSES)[number]
 
 /**
@@ -36,9 +27,6 @@ type ContentSourceBase = {
    * ライセンスの記載がある URL
    */
   licenseUrl: string
-  /**
-   * 表示名
-   */
   name: string
   createdAt: Date
   updatedAt: Date

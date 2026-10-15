@@ -138,8 +138,8 @@ resource "aws_ecs_service" "this" {
 
       advanced_configuration {
         alternate_target_group_arn = var.alternate_target_group_arn
-        production_listener_rule   = var.production_listener_rule_arn # ユーザートラフィック用のリスナーarn
-        test_listener_rule         = var.test_listener_rule_arn       # 車内確認トラフィック用のリスナーarn
+        production_listener_rule   = var.production_listener_rule_arn
+        test_listener_rule         = var.test_listener_rule_arn
         role_arn                   = aws_iam_role.ecs_alb_service[0].arn
       }
     }

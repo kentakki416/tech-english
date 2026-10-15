@@ -1,8 +1,3 @@
-# =============================================================================
-# Account-scoped Outputs
-# =============================================================================
-
-# ECR
 output "ecr_api_repository_url" {
   description = "API (tech-english-api-server) の ECR リポジトリ URL"
   value       = aws_ecr_repository.api.repository_url
@@ -23,7 +18,6 @@ output "ecr_cron_repository_url" {
   value       = aws_ecr_repository.cron.repository_url
 }
 
-# GitHub Actions OIDC
 output "github_actions_dev_role_arn" {
   description = "GitHub Actions dev 環境用 IAM ロールの ARN (GitHub Environments の dev → AWS_ROLE_ARN に登録)"
   value       = aws_iam_role.github_actions_dev.arn

@@ -3,9 +3,6 @@
  * DB と通信を知らない（drizzle/ejdict.test.ts が node:test で検証する）
  */
 
-/**
- * dictionary_entries に入れる 1 行
- */
 export type EjdictEntry = {
   headword: string
   meaningJa: string

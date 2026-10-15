@@ -8,8 +8,6 @@ export type TrackEventDeps = {
 }
 
 /**
- * `track-event` ジョブハンドラ
- *
  * 1 ジョブに複数イベントが入っているので、まとめて 1 回の INSERT にする。
  * ClickHouse は小さな INSERT を大量に受けるとマージ負荷で劣化するため。
  *

@@ -1,8 +1,5 @@
 import type { ClickHouseClient } from "@clickhouse/client"
 
-/**
- * 指定したテーブルのうち、database に存在するものの名前を返す
- */
 export const findExistingTables = async (
   client: ClickHouseClient,
   database: string,

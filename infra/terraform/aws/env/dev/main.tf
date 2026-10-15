@@ -2,9 +2,7 @@
 # Dev Environment - Main Configuration
 # =============================================================================
 
-# 共通設定とローカル変数
 locals {
-  # 基本設定
   name_prefix = "${var.project_name}-${var.environment}"
 
   /**
@@ -28,7 +26,6 @@ locals {
   private_subnet_keys  = [for az in var.availability_zones : "private${substr(az, length(az) - 2, 1)}-${substr(az, length(az) - 1, 1)}"]
   isolated_subnet_keys = [for az in var.availability_zones : "isolated${substr(az, length(az) - 2, 1)}-${substr(az, length(az) - 1, 1)}"]
 
-  # 共通タグ
   common_tags = merge(
     {
       Project     = var.project_name
@@ -43,12 +40,10 @@ locals {
 # ネットワーク設定 (VPC, サブネット, セキュリティグループ)
 # =============================================================================
 
-# VPCモジュール呼び出し
 # - NAT Gateway 1 個（dev コスト優先）
 module "vpc" {
   source = "../../modules/vpc"
 
-  # === 基本設定 ===
   name                    = local.name_prefix
   cidr_block              = var.vpc_cidr
   enable_dns_support      = true
@@ -57,9 +52,7 @@ module "vpc" {
   create_nat_gateway      = true
   nat_gateway_subnet_key  = local.public_subnet_keys[0]
 
-  # === サブネット設定 ===
   subnets = merge(
-    /** public subnet: ALB + NAT Gateway 配置 */
     {
       for i, az in var.availability_zones :
       local.public_subnet_keys[i] => {
@@ -68,7 +61,6 @@ module "vpc" {
         subnet_type       = "public"
       }
     },
-    /** private subnet: ECS task 配置 */
     {
       for i, az in var.availability_zones :
       local.private_subnet_keys[i] => {
@@ -77,7 +69,6 @@ module "vpc" {
         subnet_type       = "private"
       }
     },
-    /** isolated subnet: RDS / ElastiCache 配置 */
     {
       for i, az in var.availability_zones :
       local.isolated_subnet_keys[i] => {
@@ -88,7 +79,6 @@ module "vpc" {
     },
   )
 
-  # === セキュリティグループ定義 ===
   security_groups = {
     alb = {
       name        = "${local.name_prefix}-alb"
@@ -108,9 +98,7 @@ module "vpc" {
     }
   }
 
-  # === セキュリティグループルール ===
   security_group_rules = [
-    # ALB Ingress - インターネットからHTTPS を受け付ける
     {
       security_group_name = "alb"
       type                = "ingress"
@@ -130,7 +118,6 @@ module "vpc" {
       cidr_blocks         = ["0.0.0.0/0"]
       description         = "HTTP from internet (placeholder for future redirect listener)"
     },
-    # ALB Egress
     {
       security_group_name = "alb"
       type                = "egress"
@@ -140,7 +127,6 @@ module "vpc" {
       cidr_blocks         = ["0.0.0.0/0"]
       description         = "All outbound traffic"
     },
-    # ECS Ingress - ALBからのみアプリポートを受け付ける
     {
       security_group_name        = "ecs"
       type                       = "ingress"
@@ -160,7 +146,6 @@ module "vpc" {
       cidr_blocks         = ["0.0.0.0/0"]
       description         = "All outbound traffic via NAT"
     },
-    # RDS Ingress - ECS から 5432 のみ許可
     {
       security_group_name        = "rds"
       type                       = "ingress"
@@ -170,7 +155,6 @@ module "vpc" {
       source_security_group_name = "ecs"
       description                = "Postgres from ECS"
     },
-    # Redis Ingress - ECS から 6379 のみ許可
     {
       security_group_name        = "redis"
       type                       = "ingress"
@@ -265,16 +249,10 @@ module "app_secrets" {
 # =============================================================================
 # RDS Postgres 16
 # =============================================================================
-# - isolated subnet に配置、SG は ECS のみから 5432 許可 (step1 で定義済み)
-# - master password は app secret の DB_PASSWORD を唯一の情報源とし、ephemeral 経由で
-#   password_wo (write-only) に渡す。tfstate / plan に平文は残らない
-# - DATABASE_URL は apply 後に scripts/deploy/seed-secrets.sh で /tech-english-dev/app に追加する
-#   (modules/secrets の ignore_changes により Terraform からは触れないため)
+# - isolated subnet に配置
 
 # app secret から DB マスターパスワードを読む。ephemeral resource なので
 # 読んだ値は plan / state のどちらにも保存されない。
-# seeded_secret_id (secret_version 経由) を参照することで、新規環境の初回 apply でも
-# initial_values の投入後に読まれることが保証される。
 ephemeral "aws_secretsmanager_secret_version" "app" {
   secret_id = module.app_secrets.seeded_secret_id
 }
@@ -436,7 +414,6 @@ module "cdc" {
 # コンテナレジストリ (ECR)
 # =============================================================================
 
-# account/ で作成済みの ECR リポジトリを参照
 data "aws_ecr_repository" "api" {
   name = "${var.project_name}-api-server"
 }
@@ -485,32 +462,26 @@ module "acm" {
 # ロードバランサー設定 (Application Load Balancer)
 # =============================================================================
 
-# ALBモジュール呼び出し
 # - インターネットからの通信を受けてECSに振り分け
 module "alb" {
   source = "../../modules/alb"
 
-  # === 基本設定 ===
   name            = "${local.name_prefix}-alb"
   vpc_id          = module.vpc.vpc_id
   security_groups = [module.vpc.security_groups["alb"].id]
   subnets         = [for k in local.public_subnet_keys : module.vpc.subnets[k].id]
 
-  # === ターゲットグループ設定 ===
   target_group_name_prefix = "${local.name_prefix}-api"
   target_group_port        = var.app_port
   listener_port            = "80"
 
-  # === HTTPS 化 ===
   # ACM ワイルドカード (*.dev.tech-english.com) を HTTPS listener (443) にアタッチ
   enable_https    = true
   certificate_arn = module.acm.certificate_arn
 
-  # === Blue/Greenデプロイ設定 ===
   # dev は通常 (rolling) デプロイで運用する。Blue/Green は prd のみ。
   enable_blue_green = false
 
-  # === タグ設定 ===
   tags = merge(
     local.common_tags,
     {
@@ -558,10 +529,7 @@ locals {
   }
 
   # Secrets Manager のキーを workload ごとに宣言する。
-  #
-  # 以前は全 workload で 1 つの集合を共有していたが、DATA_WAREHOUSE_* のように
-  # 1 つの workload しか使わないキーが出てきたため分割した。各 app が実際に読む
-  # env は apps/{app}/src/env.ts が正典なので、増減時はそちらと突き合わせる。
+  # 各 app が実際に読む env は apps/{app}/src/env.ts が正典なので、増減時はそちらと突き合わせる。
   #
   # **ここに足すキーは Secrets Manager 側に値が存在していること。** ECS は存在
   # しないキーを valueFrom で参照するとタスクの起動自体に失敗する
@@ -604,7 +572,6 @@ module "ecs_api" {
   secrets_arn = local.ecs_common.secrets_arn
   secret_keys = local.secret_keys.api
 
-  # ALB (通常 rolling デプロイ)
   target_group_arn  = module.alb.target_group_a_arn
   enable_blue_green = false
 
@@ -651,8 +618,6 @@ module "ecs_worker" {
 # ECS Workload: DB migration (one-shot task definition、Service なし)
 # =============================================================================
 # - GHA から `aws ecs run-task --task-definition <family>` で起動する想定
-# - 本番 API イメージに devDependencies が混入するのを避けるため、専用 ECR
-#   (tech-english-migration) + 専用 Dockerfile (packages/db/Dockerfile.migration) を使う
 # - Dockerfile の CMD = `pnpm --filter @repo/db db:migrate` (drizzle-kit migrate) を
 #   そのまま使うので command override は不要
 

@@ -3,7 +3,6 @@ import { S3Storage } from "./s3-storage"
 import type { Storage } from "./storage"
 
 /**
- * ストレージ選択の設定（strategy のキー）。
  * 新しいバックエンド（GCS 等）は Storage を実装し、この union を増やすだけで追加できる。
  */
 export type StorageConfig =
@@ -25,7 +24,6 @@ export type StorageConfig =
 
 /**
  * config.type に応じて Storage 実装を選択する factory（strategy）。
- * 利用側（worker / api）は env からこの config を組み立てて呼ぶだけでよい。
  */
 export const createStorage = (config: StorageConfig): Storage => {
   switch (config.type) {

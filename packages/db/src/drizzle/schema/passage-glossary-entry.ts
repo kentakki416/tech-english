@@ -9,7 +9,7 @@ import { passages } from "./passage"
  *
  * 位置は passages.blocks[block_index].text（インラインコードのバッククォートを含む生の文字列）上の
  * UTF-16 の index で、[start_offset, end_offset)。管理者が英文を修正すると位置がずれるので、保存時に再計算する。
- * 列の正本は docs/spec/question-generation/README.md の「必要な DB 設計」。制約・index 名は `{table}_{columns}_key` / `_idx` / `_fkey` の命名にそろえている。
+ * 列の正本は docs/spec/question-generation/README.md の「必要な DB 設計」。
  */
 export const passageGlossaryEntries = pgTable(
   "passage_glossary_entries",
@@ -20,21 +20,12 @@ export const passageGlossaryEntries = pgTable(
      * end は含まない
      */
     endOffset: integer("end_offset").notNull(),
-    /**
-     * 見出し語
-     */
     lemma: text("lemma").notNull(),
-    /**
-     * 文脈での意味
-     */
     meaningJa: text("meaning_ja").notNull(),
     noteJa: text("note_ja"),
     partOfSpeech: text("part_of_speech"),
     passageId: integer("passage_id").notNull(),
     startOffset: integer("start_offset").notNull(),
-    /**
-     * 本文中の表記
-     */
     surface: text("surface").notNull(),
     ...timestamps,
   },

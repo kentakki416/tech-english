@@ -85,9 +85,6 @@ resource "aws_ecr_repository_policy" "api_lambda_pull" {
   policy     = data.aws_iam_policy_document.api_lambda_pull.json
 }
 
-/**
- * worker (BullMQ ジョブ消化用) のコンテナイメージ用 ECR
- */
 resource "aws_ecr_repository" "worker" {
   name                 = "${var.project_name}-worker"
   image_tag_mutability = "MUTABLE"
@@ -193,9 +190,6 @@ resource "aws_ecr_lifecycle_policy" "migration" {
   })
 }
 
-/**
- * cron (EventBridge Scheduler から定期実行する one-shot タスク用) のコンテナイメージ用 ECR
- */
 resource "aws_ecr_repository" "cron" {
   name                 = "${var.project_name}-cron"
   image_tag_mutability = "MUTABLE"

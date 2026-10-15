@@ -7,8 +7,7 @@ const db = createDrizzleClient()
 /**
  * dev-login で使う開発用ユーザー
  *
- * `/api/auth/dev-login` および web の sign-in 画面の「Login as alice/bob」
- * ボタン経由でログインできる。production 環境では seed 自体スキップする。
+ * production 環境では seed 自体スキップする。
  */
 type DevUserSeed = {
   email: string

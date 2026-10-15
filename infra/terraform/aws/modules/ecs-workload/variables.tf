@@ -137,10 +137,6 @@ variable "target_group_arn" {
 # =============================================================================
 # Blue/Green デプロイ (optional)
 # =============================================================================
-# 有効化すると以下が追加で作成される:
-#   - SSM パラメータ (deploy approval)
-#   - Lambda function (POST_TEST_TRAFFIC_SHIFT 時に承認待機)
-#   - IAM roles: lambda 実行 / ECS lifecycle hook / ECS ALB service role
 # 詳細は docs/spec/aws-deploy/step6-terraform-alb-https.md と
 # modules/ecs-workload/lambda/deployment_hook.mjs を参照。
 

@@ -59,9 +59,6 @@ export const getVocabularySessionResponseSchema = z.object({
        * 答える前の段階（0〜3）。新しい単語は null
        */
       stage: z.number().int().min(0).max(3).nullable(),
-      /**
-       * 本文中の表記
-       */
       surface: z.string(),
     }),
   ),

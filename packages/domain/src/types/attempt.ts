@@ -1,13 +1,7 @@
 import type { ATTEMPT_STATUSES, WORD_LOOKUP_SOURCES } from "../const/attempt"
 
-/**
- * 挑戦の状態
- */
 export type AttemptStatus = (typeof ATTEMPT_STATUSES)[number]
 
-/**
- * 調べた単語の出どころ
- */
 export type WordLookupSource = (typeof WORD_LOOKUP_SOURCES)[number]
 
 /**

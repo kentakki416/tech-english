@@ -17,9 +17,6 @@ export const authAccounts = pgTable(
      * "google" | "github" | "credentials" | "dev" など
      */
     provider: text("provider").notNull(),
-    /**
-     * プロバイダー側のユーザー ID
-     */
     providerAccountId: text("provider_account_id").notNull(),
     userId: integer("user_id").notNull(),
     ...timestamps,

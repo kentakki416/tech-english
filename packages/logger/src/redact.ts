@@ -27,9 +27,6 @@ const REDACT_KEYS_LOWER = new Set<string>(
 export const buildPinoRedactPaths = (): string[] =>
   REDACT_KEYS.flatMap((key) => [key, `*.${key}`])
 
-/**
- * 機密キーに該当する値を再帰的に `[REDACTED]` へ置き換える内部ヘルパ。
- */
 const redactValue = (value: unknown): unknown => {
   if (Array.isArray(value)) {
     return value.map((item) => redactValue(item))

@@ -17,7 +17,6 @@ const DEFAULT_URL = "redis://localhost:6380"
 const resolveUrlFromEnv = (): string => process.env.REDIS_URL ?? DEFAULT_URL
 
 /**
- * 各 app の src/index.ts で 1 回呼んで Repository に DI する。
  * BullMQ や Pub/Sub の subscriber は別接続が必須なので用途ごとに呼ぶ。
  */
 export const createRedisClient = (params: CreateRedisClientOptions = {}): Redis => {
@@ -29,9 +28,6 @@ export const createRedisClient = (params: CreateRedisClientOptions = {}): Redis 
   return client
 }
 
-/**
- * url / 環境変数のいずれかから ioredis インスタンスを生成する内部ヘルパ。
- */
 const instantiateRedisClient = (params: CreateRedisClientOptions): Redis => {
   const url = params.url ?? resolveUrlFromEnv()
   return new Redis(url, params.options ?? {})

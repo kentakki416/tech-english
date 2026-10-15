@@ -9,7 +9,6 @@ import { joinSqlValues } from "./sql-values"
 /**
  * 見出し語ごとの発音の音声（1 語 1 行）。列の正本は docs/spec/vocabulary-pronunciation/README.md の「必要な DB 設計」。
  * ユーザーに紐づかないので、アカウント削除の cascade の対象外。問題の却下でも消さない（単語の発音は本文ではないため）。
- * 制約・index 名は `{table}_{columns}_key` / `_idx` / `_check` の命名にそろえている。
  */
 export const wordAudios = pgTable(
   "word_audios",

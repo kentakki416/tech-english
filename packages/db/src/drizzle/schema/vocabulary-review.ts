@@ -12,7 +12,7 @@ import { vocabularyCards } from "./vocabulary-card"
  * 単語帳の 1 枚ごとの答え。学習記録の集計（学習した日・学習時間）と、答えの保存の冪等の判定に使う
  *
  * 列の正本は docs/spec/vocabulary-cards/README.md の「必要な DB 設計」。
- * users と vocabulary_cards の削除で cascade する。制約・index 名は `{table}_{columns}_key` / `_idx` / `_fkey` の命名にそろえている。
+ * users と vocabulary_cards の削除で cascade する。
  */
 export const vocabularyReviews = pgTable(
   "vocabulary_reviews",

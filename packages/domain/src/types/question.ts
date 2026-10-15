@@ -1,8 +1,5 @@
 import type { QUESTION_TYPES } from "../const/question"
 
-/**
- * 設問の種類
- */
 export type QuestionType = (typeof QUESTION_TYPES)[number]
 
 /**

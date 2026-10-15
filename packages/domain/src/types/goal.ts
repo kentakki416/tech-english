@@ -1,8 +1,5 @@
 import type { GOAL_METRICS } from "../const/goal"
 
-/**
- * 週の目標の指標
- */
 export type GoalMetric = (typeof GOAL_METRICS)[number]
 
 /**

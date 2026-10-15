@@ -10,7 +10,6 @@ import { wordAudios } from "./word-audio"
  * generate:audio（読み上げ）は音声と単語の時刻のリクエストごと、generate:word-audio（単語の発音）は mp3 のリクエストごとに 1 行書き、
  * 今月（UTC の暦月）の合計（読み上げと単語の発音の合算）で AUDIO_MONTHLY_CHARACTER_LIMIT を超えないようにする。
  * 列の正本は docs/spec/read-aloud/README.md の「必要な DB 設計」（word_audio_id は docs/spec/vocabulary-pronunciation/README.md）。
- * 制約・index 名は `{table}_{columns}_key` / `_idx` / `_fkey` の命名にそろえている。
  */
 export const audioSynthesisUsages = pgTable(
   "audio_synthesis_usages",

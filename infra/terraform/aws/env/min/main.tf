@@ -154,7 +154,6 @@ locals {
 # コンテナレジストリ (ECR) / DNS / 証明書
 # =============================================================================
 
-# account/ で作成済みの ECR リポジトリを参照
 data "aws_ecr_repository" "api" {
   name = "${var.project_name}-api-server"
 }

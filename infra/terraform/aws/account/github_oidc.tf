@@ -9,9 +9,9 @@ data "aws_caller_identity" "current" {}
 
 # GitHub OIDC プロバイダー
 resource "aws_iam_openid_connect_provider" "github" {
-  url             = "https://token.actions.githubusercontent.com" # Github Actions OIDCトークン発行元URL
-  client_id_list  = ["sts.amazonaws.com"]                         # OIDCトークンのaudience（対象者）
-  thumbprint_list = ["ffffffffffffffffffffffffffffffffffffffff"]  # ダミーデータでOK
+  url             = "https://token.actions.githubusercontent.com"
+  client_id_list  = ["sts.amazonaws.com"]
+  thumbprint_list = ["ffffffffffffffffffffffffffffffffffffffff"] # ダミーデータでOK
 }
 
 /**
@@ -139,7 +139,6 @@ resource "aws_iam_role" "github_actions_min" {
  * minimal 環境用 GitHub Actions IAM ロール（terraform plan / apply 用）。
  *
  * deploy workflow から使われないよう、GitHub Environment が min-terraform のワークフローからのみ assume できるようにする。
- * terraform-aws-env-ci.yml / terraform-aws-env-apply.yml は対象が min のとき min-terraform を使う。
  */
 data "aws_iam_policy_document" "github_actions_min_terraform_trust" {
   statement {
@@ -171,7 +170,6 @@ resource "aws_iam_role" "github_actions_min_terraform" {
   assume_role_policy = data.aws_iam_policy_document.github_actions_min_terraform_trust.json
 }
 
-# ECR プッシュポリシー
 data "aws_iam_policy_document" "ecr_push" {
   statement {
     sid       = "GetAuthorizationToken"
@@ -208,7 +206,6 @@ resource "aws_iam_policy" "ecr_push" {
   policy      = data.aws_iam_policy_document.ecr_push.json
 }
 
-# ECS デプロイ用ポリシー
 data "aws_iam_policy_document" "ecs_deploy" {
   statement {
     sid    = "EcsDeploy"
@@ -244,7 +241,7 @@ data "aws_iam_policy_document" "ecs_deploy" {
   }
 
   /**
-   * migration RunTask 失敗時のログ取得用 (step8 deploy-aws-dev workflow)
+   * migration RunTask 失敗時のログ取得用
    */
   statement {
     sid       = "ReadMigrationTaskLogs"
@@ -277,11 +274,6 @@ resource "aws_iam_role_policy_attachment" "ecs_deploy_dev" {
 # GitHub Actions から terraform plan / apply を実行するために AdministratorAccess を attach。
 # plan は管理対象リソースの read、apply は read/write がそれぞれ必要で、追加するたびに
 # policy を細かく更新していくのは dev では運用負荷が大きいため admin で運用する。
-#
-# 含まれる権限:
-# - tfstate アクセス (S3 のみ。state lock は use_lockfile で同 bucket 内のロックファイル)
-# - VPC / EC2 / ALB / ECS / ECR / RDS / ElastiCache / Route53 / ACM /
-#   Secrets Manager / CloudWatch Logs / IAM など、step1〜10 で必要になる全リソース
 #
 # TODO: prd 環境の運用開始タイミングで CloudTrail から実使用 action を抽出して
 #       scoped policy を作成し、prd / dev 両方をそちらに切り替えて本 attachment は剥がす。
@@ -334,8 +326,7 @@ resource "aws_iam_role_policy_attachment" "ssm_deploy_approval_prd" {
 # 意味のある scoped policy は事実上 admin 相当になりメンテ負荷が高い。当面 dev と同様に
 # admin で運用し、CI plan/apply を通す。
 #
-# TODO: dev (github_actions_admin_dev) と合わせて CloudTrail から実使用 action を抽出し、
-#       dev / prd 共通の scoped policy に切り替えて本 attachment は両方剥がす。
+# TODO は github_actions_admin_dev と共通。
 resource "aws_iam_role_policy_attachment" "github_actions_admin_prd" {
   role       = aws_iam_role.github_actions_prd.name
   policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess"

@@ -14,8 +14,6 @@ export type EventRow = {
 }
 
 /**
- * 行動イベントの書き込みリポジトリ
- *
  * **引数・戻り値にデータウェアハウスの型を出さない。**
  */
 export interface EventRepository {

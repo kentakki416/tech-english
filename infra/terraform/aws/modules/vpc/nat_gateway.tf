@@ -1,7 +1,3 @@
-# =============================================================================
-# NAT Gateway
-# =============================================================================
-
 resource "aws_nat_gateway" "nat" {
   count = var.create_nat_gateway ? 1 : 0
 
@@ -14,10 +10,6 @@ resource "aws_nat_gateway" "nat" {
 
   depends_on = [aws_internet_gateway.igw]
 }
-
-# =============================================================================
-# Elastic IP for NAT Gateway
-# =============================================================================
 
 resource "aws_eip" "nat" {
   count = var.create_nat_gateway ? 1 : 0

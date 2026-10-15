@@ -29,9 +29,7 @@
  * ときだけで、テーブルが増えても触る必要はない。
  */
 const ALLOWED_DB_IMPORT_NAMES = [
-  /** composition root で client を生成する factory */
   "createDrizzleClient",
-  /** 上記 factory の options 型 */
   "CreateDrizzleClientOptions",
   /** DI の型注釈 / graceful shutdown の $disconnect() で必要 */
   "DrizzleClient",

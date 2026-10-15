@@ -18,9 +18,6 @@ const convertDateToUtcMilliseconds = (date: string): number => {
   return Date.UTC(year, month - 1, day)
 }
 
-/**
- * 日付に日数を足す（負の数で過去へ）
- */
 export const addDaysToDate = (date: string, days: number): string =>
   new Date(convertDateToUtcMilliseconds(date) + days * MILLISECONDS_PER_DAY).toISOString().slice(0, 10)
 

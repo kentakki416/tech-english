@@ -217,8 +217,6 @@ jobs:
           echo "private_subnets=${PRIVATE_SUBNETS}" >> "$GITHUB_OUTPUT"
           echo "ecs_security_group=${ECS_SG}" >> "$GITHUB_OUTPUT"
 
-      # migration task definition の image を build job の SHA タグに書き換えた revision で起動する。
-      # migration は専用イメージ (tech-english-migration) を参照 — drizzle-kit を本番 API に混入させないため。
       - name: Run DB migration
         uses: ./.github/actions/run-one-shot-task
         with:
@@ -248,8 +246,6 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      # Terraform output や GitHub Secrets で固定化せず、AWS リソースのタグから動的に解決する。
-      # 環境を destroy / apply し直しても (subnet ID / SG ID が変わっても) 自動で追従する。
       - name: Resolve network configuration from tags
         id: network
         run: |
@@ -386,7 +382,6 @@ jobs:
   # =========================================================================
   # worker service (rolling)
   # =========================================================================
-  # worker は rolling deploy なので wait-for-service-stability=true で完走を待つ。
   # migrate-dwh が skip (ClickHouse の無い環境) でも進めるため、needs の結果で条件を書く。
   # detect の失敗で migrate-dwh が skip になったときは進めない
   deploy-worker:

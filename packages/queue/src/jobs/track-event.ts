@@ -1,9 +1,6 @@
 /**
  * `track-event` Queue: ユーザー行動イベントを ClickHouse へ書き込む job。
  *
- * Producer (apps/api) は `@repo/events` の QueueEventTracker 経由で enqueue する。
- * Consumer (apps/worker) は `JobProcessor<TrackEventJobData>` を実装する。
- *
  * 設計: docs/spec/user-behavior-events/README.md
  */
 export const TRACK_EVENT_QUEUE_NAME = "track-event"

@@ -1,8 +1,6 @@
 import { z } from "zod"
 
 /**
- * apps/worker の環境変数スキーマ
- *
  * このモジュールが import された時点で safeParse が走り、
  * 不正な env の場合は stderr にエラーを出力して process.exit(1) で停止する。
  */
@@ -10,7 +8,6 @@ const workerEnvSchema = z
   .object({
     /** DB の接続文字列。NODE_ENV !== "test" のときは必須 */
     DATABASE_URL: z.string().url().optional(),
-    /** データウェアハウスの DB 名 */
     DATA_WAREHOUSE_DATABASE: z.string().default("tech_english"),
     DATA_WAREHOUSE_PASSWORD: z.string().default("password"),
     /**
@@ -27,7 +24,6 @@ const workerEnvSchema = z
     DATA_WAREHOUSE_URL: z.string().url().optional(),
     DATA_WAREHOUSE_USER: z.string().default("default"),
     LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
-    /** ロガー実装の選択 */
     LOGGER_TYPE: z
       .enum(["pino", "winston", "console", "silent"])
       .default("pino"),
@@ -36,7 +32,6 @@ const workerEnvSchema = z
       .default("development"),
     /** Redis 接続 URL (BullMQ 用)。NODE_ENV !== "test" のときは必須 */
     REDIS_URL: z.string().optional(),
-    /** Worker の並行ジョブ数 */
     WORKER_CONCURRENCY: z.coerce.number().int().positive().default(10),
   })
   .superRefine((env, ctx) => {

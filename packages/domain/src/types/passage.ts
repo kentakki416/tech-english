@@ -1,18 +1,9 @@
 import type { PASSAGE_BLOCK_TYPES, PASSAGE_DIFFICULTIES, PASSAGE_STATUSES } from "../const/passage"
 
-/**
- * 本文候補 / 問題の状態
- */
 export type PassageStatus = (typeof PASSAGE_STATUSES)[number]
 
-/**
- * 難易度
- */
 export type PassageDifficulty = (typeof PASSAGE_DIFFICULTIES)[number]
 
-/**
- * 本文のブロックの種別
- */
 export type PassageBlockType = (typeof PASSAGE_BLOCK_TYPES)[number]
 
 /**

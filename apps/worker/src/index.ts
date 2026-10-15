@@ -11,16 +11,6 @@ import { setupGracefulShutdown } from "./runtime/graceful-shutdown"
 import { startProcessMemoWorker } from "./workers/process-memo-worker"
 import { startTrackEventWorker } from "./workers/track-event-worker"
 
-/**
- * apps/worker のエントリポイント。
- *
- * 各 Worker は `startXxxWorker(...)` で起動し、返り値の `JobConsumer` を
- * graceful shutdown に登録する。新しい queue を増やすときは:
- *   1. `packages/queue` に Job 型と queue 名を追加
- *   2. `src/jobs/<name>.ts` に純粋なハンドラを書く
- *   3. `src/workers/<name>-worker.ts` で組み立てる
- *   4. ここで `startXxxWorker(...)` を呼んで `consumers` に push
- */
 const main = (): void => {
   const db = createDrizzleClient({
     onError: (error) => {

@@ -1,7 +1,3 @@
-# =============================================================================
-# Security Groups
-# =============================================================================
-
 locals {
   security_group_definitions = {
     for sg_name, sg in var.security_groups :
@@ -21,10 +17,6 @@ resource "aws_security_group" "security_groups" {
     Name = "${var.name}-${each.key}"
   }
 }
-
-# =============================================================================
-# Security Group Rules
-# =============================================================================
 
 resource "aws_security_group_rule" "security_group_rules" {
   for_each = {

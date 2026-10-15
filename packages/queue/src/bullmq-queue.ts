@@ -154,7 +154,4 @@ export const startBullMQWorker = <T>(
   }
 }
 
-/**
- * テストからだけ使う
- */
 export const forTesting = { isTerminalJobFailure }

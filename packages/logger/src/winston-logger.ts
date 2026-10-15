@@ -9,9 +9,6 @@ type NodeEnv = typeof NODE_ENV[keyof typeof NODE_ENV]
 
 const { combine, timestamp, errors, json, simple, colorize } = format
 
-/**
- * Winston Logger
- */
 export class WinstonLogger implements ILogger {
   private _logger: ReturnType<typeof createLogger>
 
@@ -44,9 +41,6 @@ export class WinstonLogger implements ILogger {
     })
   }
 
-  /**
-   * コンテキスト（requestId, userId）を含むchild loggerを取得
-   */
   private _getLogger(): ReturnType<typeof createLogger> {
     const context = logContext.getStore()
     if (context) {

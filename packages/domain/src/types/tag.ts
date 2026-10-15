@@ -1,8 +1,5 @@
 import type { TAG_COLORS } from "../const/tag"
 
-/**
- * タグの色
- */
 export type TagColor = (typeof TAG_COLORS)[number]
 
 /**
