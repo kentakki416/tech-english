@@ -10,11 +10,9 @@ import { redirectIfSessionRejected } from "@/libs/session"
 /**
  * 認証中ユーザー（自分自身）を Server 側で取得する。
  *
- * ブラウザから Express API を直接 fetch せず、server-only な apiClient 経由で
- * 取得する。apiClient が cookie の access token を付与する（期限が近ければ proxy が先に更新している）。
+ * apiClient が cookie の access token を付与する。
  * React の cache で包み、同じリクエスト内のページと共通ヘッダー（AppHeader）で 1 回の取得にする。
- *
- * 期限内の access token を api が 401 で拒んだら（別の端末でアカウントを削除した等）、cookie を消してログイン画面へ移す（redirectIfSessionRejected）
+ * 期限内の access token を api が 401 で拒んだときは redirectIfSessionRejected でログイン画面へ移す
  */
 export const getUser = cache(async (): Promise<GetUserResponse> =>
   apiClient.get<GetUserResponse>("/api/user").catch(redirectIfSessionRejected))

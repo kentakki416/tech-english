@@ -1,9 +1,5 @@
 import Link from "next/link"
 
-/**
- * 404 ページ。存在しない URL や notFound() 呼び出し時に表示する。
- * error.tsx と同じトーンで揃える（Server Component で良い）。
- */
 export default function NotFound() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-zinc-50 px-6 dark:bg-black">

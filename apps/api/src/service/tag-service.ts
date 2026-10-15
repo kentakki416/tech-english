@@ -13,9 +13,6 @@ const DUPLICATE_TAG_MESSAGE = "Tag already exists"
  */
 export type CreateTagInput = { color: TagColor | null; name: string }
 
-/**
- * タグの一覧（使っているソースの数つき）
- */
 export const getTags = async (repo: TagRepo): Promise<Result<TagWithSourceCount[]>> =>
   ok(await repo.tagRepository.findAll())
 

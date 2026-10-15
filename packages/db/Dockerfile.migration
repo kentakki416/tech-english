@@ -10,7 +10,6 @@
 #   同じイメージに同梱し、タスク定義の command で `pnpm --filter @repo/data-warehouse dwh:migrate:run` を起動する
 #   (設計: docs/spec/clickhouse-migration/README.md)
 #
-# turbo prune で 2 つの workspace に必要なものだけを抽出する。
 # drizzle-kit / clickhouse-migrations / tsx は devDependency なので --prod にせず全 install する。
 
 # ==============================================================================

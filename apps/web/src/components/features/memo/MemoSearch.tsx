@@ -8,7 +8,7 @@ import { useMemoStore } from "@/features/memo/memo.store"
 
 /**
  * メモ検索ボックス。入力を debounce して /api/memos?q= を叩き、
- * 結果を store に書き込む（一覧の表示は MemoList が store を購読して行う）
+ * 結果を store に書き込む
  */
 export function MemoSearch() {
   const query = useMemoStore((s) => s.query)
@@ -19,9 +19,6 @@ export function MemoSearch() {
 
   useEffect(() => {
     const controller = new AbortController()
-    /**
-     * デバウンス：入力が止まって300ms後に検索する
-     */
     const timer = setTimeout(async () => {
       setStoreIsLoading(true)
       try {

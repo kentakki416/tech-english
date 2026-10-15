@@ -10,9 +10,6 @@ import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb } from "
 type QuestionInsert = typeof questions.$inferInsert
 type GlossaryEntryInsert = typeof passageGlossaryEntries.$inferInsert
 
-/**
- * Postgres のエラーコード（SQLSTATE）
- */
 const CHECK_VIOLATION = "23514"
 const UNIQUE_VIOLATION = "23505"
 

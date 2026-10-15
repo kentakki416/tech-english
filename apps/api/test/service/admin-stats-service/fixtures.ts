@@ -1,10 +1,6 @@
 import type { AdminStatsRepository, OverviewTotals, PassageStatsRow, QuestionStatsRow } from "../../../src/repository"
 
 /**
- * admin-stats-service のユニットテストで共有する値とモック
- */
-
-/**
  * 日本時間では 2026-10-15（木）の 12:00
  */
 export const FIXED_NOW = new Date("2026-10-15T03:00:00.000Z")

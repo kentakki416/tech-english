@@ -16,9 +16,6 @@ const rotatedTokensSchema = z.object({
   refreshToken: z.string(),
 })
 
-/**
- * ioredis 実装の Refresh Token リポジトリ
- */
 export class IoRedisRefreshTokenRepository implements RefreshTokenRepository {
   private _redis: Redis
 

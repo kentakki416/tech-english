@@ -26,7 +26,6 @@ import { joinSqlValues } from "./sql-values"
  * 列の正本は docs/spec/question-generation/README.md の「必要な DB 設計」。
  * source_path / source_commit_sha / source_retrieved_at を source_documents と別に持つのは、
  * source_documents が次回の収集で最新の状態に上書きされても、問題が取得した時点を指し続けるため。
- * 制約・index 名は `{table}_{columns}_key` / `_idx` / `_fkey` の命名にそろえている。
  */
 export const passages = pgTable(
   "passages",

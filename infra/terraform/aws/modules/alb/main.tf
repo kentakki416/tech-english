@@ -2,7 +2,6 @@
 # Application Load Balancer Resources
 # =============================================================================
 
-# Application Load Balancer
 resource "aws_lb" "main" {
   name               = var.name
   internal           = var.internal
@@ -17,9 +16,6 @@ resource "aws_lb" "main" {
   tags = var.tags
 }
 
-/**
- * ALB Target Group (a / b)
- */
 resource "aws_lb_target_group" "a" {
   name        = "${var.target_group_name_prefix}-tg-a"
   port        = var.target_group_port
@@ -66,9 +62,8 @@ resource "aws_lb_target_group" "b" {
   tags = var.tags
 }
 
-# ALB HTTP Listener
 resource "aws_lb_listener" "main" {
-  count = var.enable_https ? 0 : 1 # enable_https = trueならば作成しない
+  count = var.enable_https ? 0 : 1
 
   load_balancer_arn = aws_lb.main.arn
   port              = var.listener_port
@@ -104,9 +99,8 @@ resource "aws_lb_listener" "main" {
   }
 }
 
-# HTTP Listener Rule for Blue/Green deployment
 resource "aws_lb_listener_rule" "production" {
-  count = var.enable_blue_green && !var.enable_https ? 1 : 0 # enable_https = trueならば作成しない
+  count = var.enable_blue_green && !var.enable_https ? 1 : 0
 
   listener_arn = aws_lb_listener.main[0].arn
   priority     = 1
@@ -183,7 +177,6 @@ resource "aws_lb_listener" "https" {
   }
 }
 
-# HTTPS 用の production listener rule
 resource "aws_lb_listener_rule" "production_https" {
   count = var.enable_blue_green && var.enable_https ? 1 : 0
 
@@ -231,11 +224,7 @@ resource "aws_lb_listener" "test" {
   protocol          = var.listener_protocol
 
   /**
-   * default_action は priority=1 の `/*` ルールにマッチしなかった想定外パス向けの fallback。
-   * 通常は priority=1 が全リクエストを吸うので到達しないが、ルール消失時の事故を防ぐため
-   * 明示的に 503 を返す。
-   * ECS Native Blue/Green が書き換えるのは listener rule の forward action のみで、
-   * default_action は触らないため ignore_changes は不要。
+   * default_action は HTTP listener と同じ理由で 503 を返す（priority=1 の `/*` ルールにマッチしなかった想定外パス向け）。
    */
   default_action {
     type = "fixed-response"

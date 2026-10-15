@@ -4,9 +4,6 @@ import { THEME_COLORS } from "@/const/design-theme"
 
 import { type PassageSourceKind, SOURCE_KIND_LABELS } from "./labels"
 
-/**
- * 取得元の種別（GitHub / Docs）とソース名
- */
 export function SourceMeta({ kind, name }: { kind: PassageSourceKind, name: string }) {
   return (
     <View style={styles.sourceMeta}>

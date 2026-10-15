@@ -51,8 +51,7 @@ const resolveWeeklyTarget = (goal: Goal, metric: GoalMetric): string =>
 const convertBlankToNull = (value: string): string | null => (value.trim() === "" ? null : value.trim())
 
 /**
- * 目標のフォーム（目標・目標日・週の目標）。初期値は親が取得した目標（null なら空と「設定しない」）。
- * 「目標を保存」で本文を組み立てて検証し、PUT /api/user/goal で保存する
+ * 初期値は親が取得した目標（null なら空と「設定しない」）
  */
 export function GoalForm({ goal }: { goal: Goal }) {
   const [goalText, setGoalText] = useState(goal?.goal_text ?? "")

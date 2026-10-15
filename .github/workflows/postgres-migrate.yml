@@ -6,7 +6,6 @@ name: Postgres Migrate
 # 使いどころ:
 # - deploy の migrate が一時的なエラーで失敗したとき、イメージを作り直さずに流し直す
 #
-# 最後に deploy した migration イメージで起動する (.github/actions/run-deployed-migration)。
 # 新しい migration を適用するときは、今までどおり deploy で流す (migration イメージに入るため)。
 # ClickHouse の migration は clickhouse-migrate.yml。
 # =============================================================================

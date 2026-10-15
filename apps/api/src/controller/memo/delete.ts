@@ -9,9 +9,6 @@ import { sendError } from "../../lib/send-error"
 import { MemoRepository } from "../../repository"
 import * as service from "../../service"
 
-/**
- * メモ削除API
- */
 export class MemoDeleteController {
   constructor(
     private _memoRepository: MemoRepository,

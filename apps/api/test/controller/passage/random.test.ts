@@ -33,9 +33,6 @@ app.use(
 )
 attachUnhandledExceptionHandler(app)
 
-/**
- * 同じソースの公開中の問題を count 件入れる
- */
 const insertPublishedPassages = async (count: number, tags = ["react"]) => {
   const source = await insertPassageSource({ tags })
   const document = await insertPassageDocument(source.id)

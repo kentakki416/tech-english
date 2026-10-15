@@ -16,9 +16,6 @@ const NAV_ITEMS: { href: string, key: NavKey, label: string }[] = [
   { href: "/settings", key: "settings", label: "設定" },
 ]
 
-/**
- * ログイン後の共通ヘッダー（解答画面以外）。右端は GitHub のアバター（無ければ名前の頭文字）
- */
 export async function AppHeader({ current }: { current: NavKey }) {
   /**
    * ヘッダーの取得失敗でページ全体を落とさない（アバターの代わりに空の丸を出す）。

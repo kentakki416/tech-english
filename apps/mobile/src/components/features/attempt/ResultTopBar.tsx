@@ -5,7 +5,6 @@ import { Pressable, StyleSheet, Text, View } from "react-native"
 import { THEME_COLORS } from "@/const/design-theme"
 
 /**
- * 結果画面の上部バー（「‹ 問題一覧」と「マイページへ」。どちらも控えめ）。
  * 結果画面はタブの上のスタックに積まれているので、スタックにあるタブまで戻してそのタブを開く
  * （replace だとタブがスタックに 2 つ積まれる）
  */

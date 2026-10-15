@@ -9,8 +9,6 @@ import { readingAttempts } from "./reading-attempt"
 
 /**
  * 設問ごとの回答と正誤。提出時点の正誤を固定して保存する（後から管理者が正解を直しても過去の点数は変わらない）
- *
- * 制約・index 名は `{table}_{columns}_key` / `_idx` / `_fkey` の命名にそろえている。
  */
 export const attemptAnswers = pgTable(
   "attempt_answers",

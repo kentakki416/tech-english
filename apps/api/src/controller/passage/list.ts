@@ -9,9 +9,6 @@ import { PassageRepository, ReadingAttemptRepository } from "../../repository"
 import * as service from "../../service"
 import type { PassageListItem } from "../../service/passage-service"
 
-/**
- * 一覧の 1 件 → レスポンス
- */
 const convertPassageListItemToResponse = (item: PassageListItem): PassageListItemResponse => ({
   id: item.passage.id,
   difficulty: item.passage.difficulty,

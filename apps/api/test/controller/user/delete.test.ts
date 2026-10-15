@@ -78,9 +78,6 @@ const createRefreshToken = async (userId: number): Promise<{ jti: string; token:
   return refreshToken
 }
 
-/**
- * ユーザーの行が残っているか
- */
 const hasUserRow = async (userId: number): Promise<boolean> =>
   (await testDb.$count(users, eq(users.id, userId))) > 0
 

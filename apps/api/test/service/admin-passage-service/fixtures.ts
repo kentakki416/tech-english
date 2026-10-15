@@ -1,6 +1,3 @@
-/**
- * admin-passage-service のユニットテストで共有する Repository のモック（passage-service と共有するので test/fixture に置いている）
- */
 export { createMockPassageAudioRepository, createMockPassageRepository } from "../../fixture/passage-repository-mock"
 
 /**

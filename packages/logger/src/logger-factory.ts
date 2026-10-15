@@ -5,16 +5,9 @@ import { PinoLogger } from "./pino-logger"
 import { SilentLogger } from "./silent-logger"
 import { WinstonLogger } from "./winston-logger"
 
-/**
- * Logger Factory
- * 環境変数に基づいて適切な Logger インスタンスを生成
- */
 export class LoggerFactory {
   private static _instance: ILogger | null = null
 
-  /**
-   * Logger インスタンスを取得（シングルトン）
-   */
   public static getLogger(): ILogger {
     if (this._instance) {
       return this._instance
@@ -26,10 +19,6 @@ export class LoggerFactory {
     return this._instance
   }
 
-  /**
-   * Logger インスタンスを明示的に作成
-   * テスト時などに使用
-   */
   public static createLogger(type: LoggerType): ILogger {
     switch (type) {
     case LOGGER_TYPE.CONSOLE:
@@ -45,9 +34,6 @@ export class LoggerFactory {
     }
   }
 
-  /**
-   * シングルトンインスタンスをリセット
-   */
   public static reset(): void {
     this._instance = null
   }

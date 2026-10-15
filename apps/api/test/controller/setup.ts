@@ -2,11 +2,6 @@ import { createDrizzleClient, sql } from "@repo/db"
 import { createRedisClient } from "@repo/redis"
 
 /**
- * DB_NAME / REDIS_URL / JWT 系の環境変数は test/vitest.setup.ts で
- * setupFiles 経由で先に設定されているため、ここで再設定する必要はない。
- * createDrizzleClient / createRedisClient は process.env を読むので、
- * setupFiles で設定済みの値を拾ってテスト用 DB / Redis DB 1 に接続する。
- *
  * testDb は本番と同じ実装で、テストデータの投入・確認にも使う。
  */
 const db = createDrizzleClient()
@@ -52,16 +47,10 @@ export const cleanupTestRedis = async (): Promise<void> => {
   await redis.flushdb()
 }
 
-/**
- * テスト終了時にDB接続を切断する
- */
 export const disconnectTestDb = async (): Promise<void> => {
   await db.$disconnect()
 }
 
-/**
- * テスト終了時にRedis接続を切断する
- */
 export const disconnectTestRedis = async (): Promise<void> => {
   await redis.quit()
 }

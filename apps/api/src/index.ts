@@ -131,23 +131,14 @@ const redis = createRedisClient({
   },
 })
 
-/**
- * Repository の DI assembly
- */
 const userRepository = new DrizzleUserRepository(db)
 const authAccountRepository = new DrizzleAuthAccountRepository(db)
 const transactionRunner = new DrizzleTransactionRunner(db)
 const memoRepository = new DrizzleMemoRepository(db)
 const contentSourceRepository = new DrizzleContentSourceRepository(db)
 const tagRepository = new DrizzleTagRepository(db)
-/**
- * reading-practice のユーザー向け API と共有する
- */
 const passageRepository = new DrizzlePassageRepository(db)
 const readingAttemptRepository = new DrizzleReadingAttemptRepository(db)
-/**
- * 読み上げ（read-aloud）の音声。挑戦の音声 API・admin の公開・再試行・作り直しと、単語帳のカードの 1 文の読み上げで共有する
- */
 const passageAudioRepository = new DrizzlePassageAudioRepository(db)
 const dictionaryRepository = new DrizzleDictionaryRepository(db)
 /**
@@ -175,9 +166,6 @@ const databaseHealthRepository = new DrizzleDatabaseHealthRepository(db)
 const redisHealthRepository = new IoRedisHealthRepository(redis)
 const refreshTokenRepository = new IoRedisRefreshTokenRepository(redis)
 
-/**
- * 外部 SaaS client の DI assembly
- */
 const gitHubOAuthClient = new GitHubOAuthClient(env.GITHUB_OAUTH_CLIENT_ID, env.GITHUB_OAUTH_CLIENT_SECRET)
 const googleOAuthClient = new GoogleOAuthClient(env.GOOGLE_CLIENT_ID, env.GOOGLE_CLIENT_SECRET)
 const gitHubLicenseClient = new GitHubLicenseClient(env.GITHUB_LICENSE_TOKEN)
@@ -195,15 +183,9 @@ if (audioPublicUrlBase === null) {
   logger.warn("AUDIO_PUBLIC_URL_BASE is not set; read-aloud audio is reported as pending")
 }
 
-/**
- * Health Controller のインスタンス化
- */
 const healthLivenessController = new HealthLivenessController()
 const healthReadinessController = new HealthReadinessController(databaseHealthRepository, redisHealthRepository)
 
-/**
- * Auth Controller のインスタンス化
- */
 const authGitHubController = new AuthGitHubController(
   authAccountRepository,
   userRepository,
@@ -255,9 +237,6 @@ const authDevLoginController = process.env.NODE_ENV !== "production"
   ? new AuthDevLoginController(userRepository, refreshTokenRepository)
   : undefined
 
-/**
- * Memo Controller のインスタンス化
- */
 const memoListController = new MemoListController(memoRepository)
 const memoDetailController = new MemoDetailController(memoRepository)
 /**
@@ -372,9 +351,6 @@ app.set("trust proxy", 1)
  */
 app.use(helmet())
 
-/**
- * cors設定のミドルウェア
- */
 app.use(
   cors({
     credentials: true,
@@ -382,31 +358,16 @@ app.use(
   })
 )
 
-/**
- * jsonを変換するミドルウェア
- */
 app.use(express.json())
 
-/**
- * 認証ミドルウェア
- */
 app.use(authMiddleware)
 
-/**
- * リクエストのロギングミドルウェア
- */
 app.use(requestLogger)
 
-/**
- * Lambda ではレスポンス後に実行環境が凍結されるため、送出中のイベントを先に送り切る
- */
 if (env.FLUSH_EVENTS_BEFORE_RESPONSE) {
   app.use(flushEventsBeforeResponse(eventTracker))
 }
 
-/**
- * ルーティング
- */
 app.use(
   "/api/health",
   healthRouter({
@@ -554,9 +515,6 @@ app.use(
  */
 app.use(unhandledExceptionHandler)
 
-/**
- * サーバー起動
- */
 const server = app.listen(env.PORT, () => {
   logger.info("API server running", {
     environment: env.NODE_ENV,

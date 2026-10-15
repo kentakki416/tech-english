@@ -2,9 +2,7 @@
 # Dev Environment - Main Configuration
 # =============================================================================
 
-# 共通設定とローカル変数
 locals {
-  # 基本設定
   name_prefix = "${var.project_name}-${var.environment}"
 
   /**
@@ -28,7 +26,6 @@ locals {
   private_subnet_keys  = [for az in var.availability_zones : "private${substr(az, length(az) - 2, 1)}-${substr(az, length(az) - 1, 1)}"]
   isolated_subnet_keys = [for az in var.availability_zones : "isolated${substr(az, length(az) - 2, 1)}-${substr(az, length(az) - 1, 1)}"]
 
-  # 共通タグ
   common_tags = merge(
     {
       Project     = var.project_name
@@ -43,13 +40,10 @@ locals {
 # ネットワーク設定 (VPC, サブネット, セキュリティグループ)
 # =============================================================================
 
-# VPCモジュール呼び出し
-# - public (ALB / NAT) / private (ECS) / isolated (RDS / Redis) の 3 階層
 # - NAT Gateway 1 個（dev コスト優先）
 module "vpc" {
   source = "../../modules/vpc"
 
-  # === 基本設定 ===
   name                    = local.name_prefix
   cidr_block              = var.vpc_cidr
   enable_dns_support      = true
@@ -58,9 +52,7 @@ module "vpc" {
   create_nat_gateway      = true
   nat_gateway_subnet_key  = local.public_subnet_keys[0]
 
-  # === サブネット設定 ===
   subnets = merge(
-    /** public subnet: ALB + NAT Gateway 配置 */
     {
       for i, az in var.availability_zones :
       local.public_subnet_keys[i] => {
@@ -69,7 +61,6 @@ module "vpc" {
         subnet_type       = "public"
       }
     },
-    /** private subnet: ECS task 配置 */
     {
       for i, az in var.availability_zones :
       local.private_subnet_keys[i] => {
@@ -78,7 +69,6 @@ module "vpc" {
         subnet_type       = "private"
       }
     },
-    /** isolated subnet: RDS / ElastiCache 配置 (module 制約で subnet_type=private) */
     {
       for i, az in var.availability_zones :
       local.isolated_subnet_keys[i] => {
@@ -89,7 +79,6 @@ module "vpc" {
     },
   )
 
-  # === セキュリティグループ定義 ===
   security_groups = {
     alb = {
       name        = "${local.name_prefix}-alb"
@@ -109,9 +98,7 @@ module "vpc" {
     }
   }
 
-  # === セキュリティグループルール ===
   security_group_rules = [
-    # ALB Ingress - インターネットからHTTPS を受け付ける
     {
       security_group_name = "alb"
       type                = "ingress"
@@ -131,7 +118,6 @@ module "vpc" {
       cidr_blocks         = ["0.0.0.0/0"]
       description         = "HTTP from internet (placeholder for future redirect listener)"
     },
-    # ALB Egress
     {
       security_group_name = "alb"
       type                = "egress"
@@ -141,7 +127,6 @@ module "vpc" {
       cidr_blocks         = ["0.0.0.0/0"]
       description         = "All outbound traffic"
     },
-    # ECS Ingress - ALBからのみアプリポートを受け付ける
     {
       security_group_name        = "ecs"
       type                       = "ingress"
@@ -161,7 +146,6 @@ module "vpc" {
       cidr_blocks         = ["0.0.0.0/0"]
       description         = "All outbound traffic via NAT"
     },
-    # RDS Ingress - ECS から 5432 のみ許可
     {
       security_group_name        = "rds"
       type                       = "ingress"
@@ -171,7 +155,6 @@ module "vpc" {
       source_security_group_name = "ecs"
       description                = "Postgres from ECS"
     },
-    # Redis Ingress - ECS から 6379 のみ許可
     {
       security_group_name        = "redis"
       type                       = "ingress"
@@ -195,7 +178,6 @@ module "vpc" {
 #
 # 鍵が変わると既存トークンが全部 invalid になりユーザーが一斉ログアウトするため、
 # 引数 (length / special 等) の意図しない変更で再生成されないよう ignore_changes でガード。
-# 意図的に rotate したいときは `terraform taint random_password.jwt_xxx_secret` を使う。
 resource "random_password" "jwt_access_secret" {
   length  = 64
   special = false
@@ -214,9 +196,7 @@ resource "random_password" "jwt_refresh_secret" {
   }
 }
 
-# DB マスターパスワードの初期値。新規環境の初回 apply でのみ実際に使われる。
-# 以降の実値は app secret 側が正 (modules/secrets の ignore_changes のため、
-# secret 側でローテーションしても Terraform は上書きしない)。
+# DB マスターパスワードの初期値。
 # RDS の禁止文字 (スラッシュ / アットマーク / ダブルクォート / スペース) を避けた記号のみ使う。
 resource "random_password" "db_master" {
   length           = 28
@@ -231,7 +211,6 @@ resource "random_password" "db_master" {
 # Application secrets
 # 「箱だけ Terraform で管理 + JWT のみ初回投入」方針:
 # - 初回 apply で JWT (random_password) と基本定数のみ Secrets Manager に書く
-# - 以降は modules/secrets 側の ignore_changes で Terraform は secret_string に触らない
 # - DATABASE_URL / REDIS_HOST / GOOGLE_* / LIVEKIT_* / FRONTEND_URL は scripts/deploy/seed-secrets.sh で投入
 # - JWT を rotate するときは `terraform taint random_password.jwt_xxx` 後、
 #   Secrets Manager Console で JWT_ACCESS_SECRET / JWT_REFRESH_SECRET を新値で上書き
@@ -270,16 +249,10 @@ module "app_secrets" {
 # =============================================================================
 # RDS Postgres 16
 # =============================================================================
-# - isolated subnet に配置、SG は ECS のみから 5432 許可 (step1 で定義済み)
-# - master password は app secret の DB_PASSWORD を唯一の情報源とし、ephemeral 経由で
-#   password_wo (write-only) に渡す。tfstate / plan に平文は残らない
-# - DATABASE_URL は apply 後に scripts/deploy/seed-secrets.sh で /tech-english-dev/app に追加する
-#   (modules/secrets の ignore_changes により Terraform からは触れないため)
+# - isolated subnet に配置
 
 # app secret から DB マスターパスワードを読む。ephemeral resource なので
 # 読んだ値は plan / state のどちらにも保存されない。
-# seeded_secret_id (secret_version 経由) を参照することで、新規環境の初回 apply でも
-# initial_values の投入後に読まれることが保証される。
 ephemeral "aws_secretsmanager_secret_version" "app" {
   secret_id = module.app_secrets.seeded_secret_id
 }
@@ -345,9 +318,7 @@ module "rds" {
 # =============================================================================
 # ElastiCache Redis 7
 # =============================================================================
-# - isolated subnet に配置、SG は ECS のみから 6379 許可
-# - dev は 1 ノード / Multi-AZ なし / snapshot なし / TLS なしで最小コスト
-# - REDIS_HOST は apply 後に scripts/deploy/seed-secrets.sh で Secrets Manager に投入する
+# - isolated subnet に配置
 
 module "elasticache" {
   source = "../../modules/elasticache"
@@ -384,8 +355,6 @@ module "elasticache" {
 # =============================================================================
 # - 接続情報 (DATA_WAREHOUSE_*) は /<prefix>/data-warehouse の secret に入れ、worker と
 #   dwh-migration にだけ渡す
-# - deploy workflow はこの secret の有無で ClickHouse の migration を流すかを判定する
-#   (判定の正本はこのフラグだけ)
 # - 接続を許すのは、worker と migration のタスクが外へ出る NAT の IP と、
 #   clickhouse_additional_ip_access_cidrs に足した IP (分析ツールなど) だけ
 # 設計: docs/spec/clickhouse-migration/README.md
@@ -399,7 +368,6 @@ module "clickhouse" {
   secret_name     = "/${local.name_prefix}/data-warehouse"
   ip_access_cidrs = concat(["${module.vpc.nat_gateway_public_ip}/32"], var.clickhouse_additional_ip_access_cidrs)
 
-  # ClickHouse の default ユーザーのパスワードを作り直したら +1 する (手順は modules/clickhouse-service/main.tf)
   password_version = 1
 
   credentials_configured = alltrue([
@@ -419,7 +387,6 @@ locals {
 # =============================================================================
 # - ClickPipes が SSH bastion 経由で RDS の論理レプリケーションを読み、pg_cdc に取り込む
 # - 同期の対象は infra/clickhouse/cdc-tables.json。変えたら apply で ClickPipe に反映する
-# 設計: docs/spec/clickhouse-migration/README.md
 
 module "cdc" {
   source = "../../modules/clickpipes-postgres-cdc"
@@ -447,7 +414,6 @@ module "cdc" {
 # コンテナレジストリ (ECR)
 # =============================================================================
 
-# account/ で作成済みの ECR リポジトリを参照
 data "aws_ecr_repository" "api" {
   name = "${var.project_name}-api-server"
 }
@@ -496,32 +462,26 @@ module "acm" {
 # ロードバランサー設定 (Application Load Balancer)
 # =============================================================================
 
-# ALBモジュール呼び出し
 # - インターネットからの通信を受けてECSに振り分け
 module "alb" {
   source = "../../modules/alb"
 
-  # === 基本設定 ===
   name            = "${local.name_prefix}-alb"
   vpc_id          = module.vpc.vpc_id
   security_groups = [module.vpc.security_groups["alb"].id]
   subnets         = [for k in local.public_subnet_keys : module.vpc.subnets[k].id]
 
-  # === ターゲットグループ設定 ===
   target_group_name_prefix = "${local.name_prefix}-api"
   target_group_port        = var.app_port
   listener_port            = "80"
 
-  # === HTTPS 化 ===
   # ACM ワイルドカード (*.dev.tech-english.com) を HTTPS listener (443) にアタッチ
   enable_https    = true
   certificate_arn = module.acm.certificate_arn
 
-  # === Blue/Greenデプロイ設定 ===
   # dev は通常 (rolling) デプロイで運用する。Blue/Green は prd のみ。
   enable_blue_green = false
 
-  # === タグ設定 ===
   tags = merge(
     local.common_tags,
     {
@@ -547,16 +507,12 @@ module "route53_api" {
 # =============================================================================
 # ECS Fargate Cluster
 # =============================================================================
-# 全 workload (API / worker / migration / 将来追加) が共有する cluster と
-# task execution role を作る。各 workload はこの cluster と role を参照する。
 
 module "ecs_cluster" {
   source = "../../modules/ecs-cluster"
 
   name = "${local.name_prefix}-cluster"
 
-  # Task execution role に Secrets Manager Get 権限を持たせる対象 ARN を渡す。
-  # ここで一元管理し、各 workload の task definition は valueFrom で個別キーを引くだけ。
   secret_arns_readable = concat([module.app_secrets.secret_arn], module.clickhouse[*].secret_arn)
 
   tags = local.common_tags
@@ -573,10 +529,7 @@ locals {
   }
 
   # Secrets Manager のキーを workload ごとに宣言する。
-  #
-  # 以前は全 workload で 1 つの集合を共有していたが、DATA_WAREHOUSE_* のように
-  # 1 つの workload しか使わないキーが出てきたため分割した。各 app が実際に読む
-  # env は apps/{app}/src/env.ts が正典なので、増減時はそちらと突き合わせる。
+  # 各 app が実際に読む env は apps/{app}/src/env.ts が正典なので、増減時はそちらと突き合わせる。
   #
   # **ここに足すキーは Secrets Manager 側に値が存在していること。** ECS は存在
   # しないキーを valueFrom で参照するとタスクの起動自体に失敗する
@@ -619,7 +572,6 @@ module "ecs_api" {
   secrets_arn = local.ecs_common.secrets_arn
   secret_keys = local.secret_keys.api
 
-  # ALB (通常 rolling デプロイ)
   target_group_arn  = module.alb.target_group_a_arn
   enable_blue_green = false
 
@@ -648,7 +600,6 @@ module "ecs_worker" {
   secret_keys        = local.secret_keys.worker
   additional_secrets = local.data_warehouse_secrets
 
-  # enable_data_warehouse = false なら、何も書き込まない実装を使わせる。
   # 秘密情報ではないので secrets ではなく平文の environment で渡す。
   environment = {
     DATA_WAREHOUSE_TYPE = var.enable_data_warehouse ? "clickhouse" : "none"
@@ -667,8 +618,6 @@ module "ecs_worker" {
 # ECS Workload: DB migration (one-shot task definition、Service なし)
 # =============================================================================
 # - GHA から `aws ecs run-task --task-definition <family>` で起動する想定
-# - 本番 API イメージに devDependencies が混入するのを避けるため、専用 ECR
-#   (tech-english-migration) + 専用 Dockerfile (packages/db/Dockerfile.migration) を使う
 # - Dockerfile の CMD = `pnpm --filter @repo/db db:migrate` (drizzle-kit migrate) を
 #   そのまま使うので command override は不要
 
@@ -696,7 +645,7 @@ module "ecs_migration" {
 # =============================================================================
 # ECS Workload: ClickHouse migration (one-shot task definition、Service なし)
 # =============================================================================
-# - enable_data_warehouse のときだけ作る (流すかどうかの判定は module.clickhouse の secret の有無)
+# - enable_data_warehouse のときだけ作る
 # - イメージは DB migration と同じで、command で ClickHouse の migration コマンドを起動する
 
 module "ecs_dwh_migration" {
@@ -716,7 +665,6 @@ module "ecs_dwh_migration" {
 
   additional_secrets = local.data_warehouse_secrets
   environment = {
-    /** CDC を張っていない環境では CDC の view を作らない */
     DATA_WAREHOUSE_CDC = var.enable_cdc ? "clickpipes" : "none"
     /** logger を JSON 出力にする (未設定だと development 扱いで色付きのテキストになる) */
     NODE_ENV = "production"
@@ -732,7 +680,6 @@ module "ecs_dwh_migration" {
 # =============================================================================
 # - task definition のみ作成し、起動は下の cron_schedule (EventBridge Scheduler) が行う
 # - Dockerfile の CMD (cleanup-old-memos) をそのまま使うので command override は不要
-# - deploy workflow が image を差し替えた新 revision を register し、schedule は最新を追従する
 
 module "ecs_cron" {
   source = "../../modules/ecs-workload"

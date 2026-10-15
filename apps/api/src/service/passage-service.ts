@@ -20,14 +20,8 @@ type PassageRepo = { passageRepository: PassageRepository; readingAttemptReposit
  */
 export type PassageFilterInput = Omit<PublishedPassageFilter, "unattemptedByUserId">
 
-/**
- * 自分の挑戦状況
- */
 export type PassageMyStatus = Omit<PassageAttemptSummary, "passageId">
 
-/**
- * 問題一覧の 1 件
- */
 export type PassageListItem = PublishedPassageSummary & { myStatus: PassageMyStatus }
 
 /**
@@ -163,9 +157,6 @@ export const getPassageOverview = async (
     return err(notFoundError("Passage not found"))
   }
 
-  /**
-   * passages は物理削除しない（reading_attempts の外部キーは restrict）ので、挑戦があれば問題もある
-   */
   const content = await repo.passageRepository.findAttemptContentById(input.passageId)
   if (!content) throw new Error(`Passage of attempt not found: attemptId=${attempt.id}, passageId=${input.passageId}`)
   const { passage } = content

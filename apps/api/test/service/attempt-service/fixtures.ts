@@ -3,10 +3,6 @@ import type { AttemptAnswer, Passage, ReadingAttempt, User } from "@repo/domain"
 import type { AttemptContent, UserRepository, WordLookupWithMeaning } from "../../../src/repository"
 import { buildGlossaryEntries, buildPassage, buildQuestions, PASSAGE_BLOCKS, QUESTION_ITEMS } from "../../fixture/passage-content"
 
-/**
- * attempt-service のユニットテストで共有する値。問題・挑戦の Repository のモックは test/fixture/passage-repository-mock.ts を使う
- */
-
 export const FIXED_NOW = new Date("2026-10-13T00:00:00.000Z")
 
 /**

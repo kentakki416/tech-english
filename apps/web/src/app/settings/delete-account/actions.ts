@@ -7,9 +7,6 @@ import { DELETE_ACCOUNT_CONFIRMATION_TEXT } from "@repo/api-schema"
 import { userApi } from "@/features/user/user.api"
 import { clearAuthCookies, getRefreshToken } from "@/libs/auth"
 
-/**
- * useActionState に返す削除のフォームの状態
- */
 export type DeleteAccountState = { isFailed: boolean }
 
 /**

@@ -141,9 +141,6 @@ describe("UserRepository", () => {
 describe("UserRepository.findForAdmin", () => {
   const query = { limit: 50, offset: 0, order: "desc" as const, sort: "created_at" as const }
 
-  /**
-   * 登録日時を決めてユーザーを入れる
-   */
   const insertUser = async (values: { createdAt: string; email?: string | null; name?: string | null }) => {
     const [user] = await testDb
       .insert(users)

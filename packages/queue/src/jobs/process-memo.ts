@@ -1,10 +1,5 @@
 /**
  * `process-memo` Queue: memo を非同期に処理するサンプル job。
- *
- * Producer (api / cron / 他の worker など) はこの module の
- * `PROCESS_MEMO_QUEUE_NAME` と `ProcessMemoJobData` 型を import して enqueue する。
- * Consumer (apps/worker) は同じ型を import し、`JobProcessor<ProcessMemoJobData>` の
- * 形で処理関数を実装する。
  */
 export const PROCESS_MEMO_QUEUE_NAME = "process-memo"
 

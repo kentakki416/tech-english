@@ -122,8 +122,7 @@ module "app_secrets" {
 # =============================================================================
 # ClickHouse Cloud (enable_data_warehouse のときだけ)
 # =============================================================================
-# prd と同じ (deploy workflow はこの secret の有無で ClickHouse の migration を流すかを判定する)。
-# ただし NAT が無く、worker と migration のタスクの public IP は起動のたびに変わるため、
+# NAT が無く、worker と migration のタスクの public IP は起動のたびに変わるため、
 # 接続元は絞らずパスワードで守る。
 # 設計: docs/spec/clickhouse-migration/README.md
 
@@ -136,7 +135,6 @@ module "clickhouse" {
   secret_name     = "/${local.name_prefix}/data-warehouse"
   ip_access_cidrs = ["0.0.0.0/0"]
 
-  # ClickHouse の default ユーザーのパスワードを作り直したら +1 する (手順は modules/clickhouse-service/main.tf)
   password_version = 1
 
   credentials_configured = alltrue([
@@ -155,7 +153,6 @@ locals {
 # コンテナレジストリ (ECR) / DNS / 証明書
 # =============================================================================
 
-# account/ で作成済みの ECR リポジトリを参照
 data "aws_ecr_repository" "api" {
   name = "${var.project_name}-api-server"
 }
@@ -193,7 +190,7 @@ module "acm" {
 # =============================================================================
 # api: Lambda (Lambda Web Adapter) + API Gateway HTTP API
 # =============================================================================
-# 同じ api イメージを Lambda で動かす。環境変数・イメージ・alias の向き先は deploy workflow が更新する。
+# 同じ api イメージを Lambda で動かす。
 
 module "lambda_api" {
   source = "../../modules/lambda-function"
@@ -277,7 +274,6 @@ locals {
 # ECS Workload: worker (BullMQ 常駐。enable_worker のときだけ Fargate Spot で作る)
 # =============================================================================
 # - enable_worker = false (既定) なら作らない。そのとき api は EVENT_TRACKER_TYPE=none でイベントを捨てる
-#   (deploy workflow が worker の Service の有無を見て切り替える)
 # - ALB は付けない (inbound が要らない)。Spot の中断は SIGTERM で通知され、graceful shutdown で
 #   処理中のジョブを終えるか、BullMQ が止まったジョブとして拾い直す
 
@@ -301,7 +297,7 @@ module "ecs_worker" {
   secret_keys        = local.secret_keys.worker
   additional_secrets = local.data_warehouse_secrets
 
-  # prd と同じ (enable_data_warehouse = false なら何も書き込まない実装を使わせる)
+  # 秘密情報ではないので secrets ではなく平文の environment で渡す
   environment = {
     DATA_WAREHOUSE_TYPE = var.enable_data_warehouse ? "clickhouse" : "none"
   }

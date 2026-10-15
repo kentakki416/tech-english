@@ -12,7 +12,7 @@ export type TranslationPart = {
 const INLINE_CODE_PATTERN = /(`[^`\n]+`)/
 
 /**
- * 和訳（translation_ja）をインラインコードとそれ以外に分ける（web の `passage-text.ts` と同じ）。
+ * 和訳（translation_ja）をインラインコードとそれ以外に分ける。
  * 和訳は単語を押せないので api はセグメントに分けずに返す。コードの見た目にするためだけの表示の処理
  */
 export const splitInlineCode = (text: string): TranslationPart[] =>

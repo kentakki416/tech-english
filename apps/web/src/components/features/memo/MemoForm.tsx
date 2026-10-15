@@ -13,9 +13,6 @@ type Props = {
   submitLabel: string
 }
 
-/**
- * メモ用のフォーム
- */
 export function MemoForm({ action, defaultValues, submitLabel = "保存する" }: Props) {
   const [state, formAction] = useActionState(action, {})
 

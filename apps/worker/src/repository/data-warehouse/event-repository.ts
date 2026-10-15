@@ -8,8 +8,6 @@ const SCHEMA_VERSION = 1
 const EVENTS_TABLE = "events"
 
 /**
- * データウェアハウス実装の EventRepository
- *
  * `received_at` と `schema_version` はここで付与する。
  * `received_at` は送出側の `occurred_at` と突き合わせて、
  * 遅延やクライアントの時計ずれを調査するために使う。

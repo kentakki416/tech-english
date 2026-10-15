@@ -21,9 +21,6 @@ const convertToNotificationPermission = (result: Notifications.NotificationPermi
   status: result.ios?.status === Notifications.IosAuthorizationStatus.PROVISIONAL ? Notifications.PermissionStatus.GRANTED : result.status,
 })
 
-/**
- * 通知が届く状態か
- */
 export const isNotificationPermissionGranted = (permission: NotificationPermission | null): boolean =>
   permission?.status === Notifications.PermissionStatus.GRANTED
 

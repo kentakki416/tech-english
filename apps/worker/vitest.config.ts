@@ -1,8 +1,6 @@
 import { defineConfig } from "vitest/config"
 
 /**
- * apps/worker 用 Vitest 設定
- *
  * Repository / job ハンドラの unit test は DB / Redis を mock するため DB / Redis 不要。
  * 並列実行（デフォルト）で問題ない。
  */

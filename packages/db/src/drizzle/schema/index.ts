@@ -1,3 +1,6 @@
+/**
+ * 制約・index 名は `{table}_{columns}_key` / `_idx` / `_fkey` / `_check` の命名にそろえる。
+ */
 export * from "./attempt-answer"
 export * from "./attempt-word-lookup"
 export * from "./audio-synthesis-usage"

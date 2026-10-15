@@ -8,10 +8,6 @@ import { buildGitHubCallbackUrl } from "@/libs/github-oauth"
 
 const API_BASE_URL = env.API_URL
 
-/**
- * GitHub OAuth コールバックを受け取り、state を照合して code と code_verifier を Express API に渡し、
- * 返ってきた Access/Refresh Token を Cookie に保存した上でリダイレクトする
- */
 export const GET = async (req: NextRequest) => {
   const code = req.nextUrl.searchParams.get("code")
   const state = req.nextUrl.searchParams.get("state")

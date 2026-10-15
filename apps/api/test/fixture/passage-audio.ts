@@ -1,9 +1,5 @@
 import type { PassageAudio, PassageAudioManifest } from "@repo/domain"
 
-/**
- * 読み上げの音声（read-aloud）のテスト用の値。DB への投入は test/fixture/passage.ts の insertPassageAudio を使う
- */
-
 export const AUDIO_TEXT_HASH = "3dd12695a4c5039773bbd6cb2e2f0223c3e95233ad3ae35986420cb1656f7565"
 
 /**

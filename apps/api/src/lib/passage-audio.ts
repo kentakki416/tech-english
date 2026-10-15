@@ -1,7 +1,7 @@
 import type { AudioStatus, Passage, PassageAudio } from "@repo/domain"
 
 /**
- * 読み上げの音声の状態と URL（docs/spec/read-aloud/README.md「音声の保存と配信」）。admin と利用者向けの API で共有する
+ * 読み上げの音声の状態と URL（docs/spec/read-aloud/README.md「音声の保存と配信」）
  */
 
 /**
@@ -31,9 +31,6 @@ export const resolveAudioStatus = (
 export const convertToUserAudioStatus = (status: AudioStatus): Exclude<AudioStatus, "generating"> =>
   status === "generating" ? "pending" : status
 
-/**
- * 末尾のスラッシュを除いた base と、先頭のスラッシュを除いたキーをつなぐ
- */
 export const buildAudioUrl = (baseUrl: string, key: string): string =>
   `${baseUrl.replace(/\/+$/, "")}/${key.replace(/^\/+/, "")}`
 

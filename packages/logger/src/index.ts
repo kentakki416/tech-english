@@ -1,6 +1,3 @@
-/**
- * Logger モジュールのエントリーポイント
- */
 export { ConsoleLogger } from "./console-logger"
 export { LOG_LEVEL, LOGGER_TYPE, NODE_ENV } from "./const"
 export type { LoggerType } from "./const"

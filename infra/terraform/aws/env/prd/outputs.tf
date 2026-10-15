@@ -41,9 +41,6 @@ output "redis_security_group_id" {
 }
 
 # Route53 / DNS
-# hosted zone は Route 53 Domains 購入時に AWS が自動作成するものを使う
-# (Terraform 管理外。env/* は data "aws_route53_zone" "primary" で参照するだけ)
-
 output "api_url" {
   description = "API の HTTPS URL"
   value       = "https://${var.api_subdomain}.${var.domain_name}"

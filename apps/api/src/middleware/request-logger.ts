@@ -13,12 +13,8 @@ import type { AuthRequest } from "./auth"
  * - 受信時 / 完了時 / 異常切断時の 3 イベントを info / warn で記録する
  * - ステータスコードによる level 分岐はしない（エラー詳細は出さず status / latency / path のみ）
  * - エラーの内容ログは sendError ヘルパ（業務 4xx）と unhandled-exception-handler（想定外例外）の責務
- * - requestId を AsyncLocalStorage に積み、同一リクエストの全ログに自動付与する
  */
 export const requestLogger = (req: Request, res: Response, next: NextFunction) => {
-  /**
-   * ヘルスチェック等はログ除外
-   */
   if (LOG_EXCLUDE_PATHS.some(path => path === req.path)) {
     return next()
   }
@@ -33,9 +29,6 @@ export const requestLogger = (req: Request, res: Response, next: NextFunction) =
    * この中で実行される全てのログに自動的に requestId / userId が含まれる
    */
   logContext.run({ requestId, userId }, () => {
-    /**
-     * リクエスト受信時のログ
-     */
     logger.info("API Request Received", {
       duration: 0,
       ip: req.ip,

@@ -35,8 +35,6 @@ export const authRouter = (controllers: AuthRouterControllers): Router => {
 
   /**
    * POST /api/auth/dev-login（NODE_ENV !== "production" のみ）
-   * index.ts で本番時は controllers.devLogin に undefined を渡すため
-   * ルート自体が登録されない
    */
   if (controllers.devLogin) {
     const controller = controllers.devLogin

@@ -2,9 +2,6 @@ import type { Tag } from "@repo/domain"
 
 import type { TagRepository } from "../../../src/repository"
 
-/**
- * tag-service のユニットテストで共有する Repository のモックと値
- */
 export const createMockTagRepository = () => ({
   create: vi.fn<TagRepository["create"]>(),
   delete: vi.fn<TagRepository["delete"]>(),

@@ -2,9 +2,6 @@ import type { GetPassageListQueryString } from "@repo/api-schema"
 
 import { buildQueryString } from "@/libs/query-string"
 
-/**
- * 絞り込みの条件（問題一覧の API・ランダムに 1 問で共通）
- */
 export type PassageFilterQuery = {
   difficulty: GetPassageListQueryString["difficulty"]
   kind: NonNullable<GetPassageListQueryString["kind"]> | null
@@ -14,9 +11,6 @@ export type PassageFilterQuery = {
 
 export type PassageListQuery = PassageFilterQuery & { cursor?: string }
 
-/**
- * 絞り込みなし
- */
 export const EMPTY_PASSAGE_FILTER: PassageFilterQuery = {
   difficulty: [],
   kind: null,
@@ -24,9 +18,6 @@ export const EMPTY_PASSAGE_FILTER: PassageFilterQuery = {
   unattemptedOnly: false,
 }
 
-/**
- * 絞り込みの条件が 1 つでも付いているか（一覧が空のときに「絞り込みを解除する」を出すかの判定）
- */
 export const isPassageFilterActive = (filter: PassageFilterQuery): boolean =>
   filter.kind !== null || filter.unattemptedOnly || filter.difficulty.length > 0 || filter.tag.length > 0
 

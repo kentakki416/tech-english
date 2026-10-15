@@ -15,7 +15,7 @@ type SessionState =
   | { cards: VocabularyCard[], kind: "ready", nextDueDate: string | null }
 
 /**
- * 単語帳の 1 回分（単語帳のタブの「はじめる」から開くスタックの全画面）。1 回分を取り、カードが無ければ次の復習の日も取る
+ * カードが無ければ次の復習の日も取る
  */
 export default function VocabularySessionScreen() {
   const [state, setState] = useState<SessionState>({ kind: "loading" })

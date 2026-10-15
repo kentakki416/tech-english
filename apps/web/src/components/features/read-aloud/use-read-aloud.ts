@@ -33,9 +33,6 @@ export type ReadAloudPlayback = {
   wordIndex: number
 }
 
-/**
- * 読み上げ中の単語のハイライト（PassageReader に渡す）
- */
 export type ReadAloudReading = {
   blockIndex: number
   segmentEnd: number

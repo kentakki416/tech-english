@@ -14,9 +14,6 @@ export type CreateAuthAccountInput = {
   userId: number
 }
 
-/**
- * 認証アカウントリポジトリのインターフェース
- */
 export interface AuthAccountRepository {
   create(data: CreateAuthAccountInput, tx?: TransactionContext): Promise<AuthAccount>
   findByProvider(

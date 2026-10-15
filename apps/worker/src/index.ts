@@ -11,16 +11,6 @@ import { setupGracefulShutdown } from "./runtime/graceful-shutdown"
 import { startProcessMemoWorker } from "./workers/process-memo-worker"
 import { startTrackEventWorker } from "./workers/track-event-worker"
 
-/**
- * apps/worker のエントリポイント。
- *
- * 各 Worker は `startXxxWorker(...)` で起動し、返り値の `JobConsumer` を
- * graceful shutdown に登録する。新しい queue を増やすときは:
- *   1. `packages/queue` に Job 型と queue 名を追加
- *   2. `src/jobs/<name>.ts` に純粋なハンドラを書く
- *   3. `src/workers/<name>-worker.ts` で組み立てる
- *   4. ここで `startXxxWorker(...)` を呼んで `consumers` に push
- */
 const main = (): void => {
   const db = createDrizzleClient({
     onError: (error) => {
@@ -28,9 +18,6 @@ const main = (): void => {
     },
     url: env.DATABASE_URL,
   })
-  /**
-   * BullMQ Worker は `maxRetriesPerRequest: null` の Redis 接続が必須 (BullMQ 5.x 要件)
-   */
   const redis = createRedisClient({
     onError: (error) => {
       logger.error("redis connection error", error)
@@ -42,9 +29,6 @@ const main = (): void => {
   /**
    * どのデータウェアハウスを使うかを決めるのはここだけ。
    * Repository 以降は DataWarehouse 抽象にしか依存しない。
-   *
-   * `none` は何も書かない実装になる。ClickHouse を持たない環境
-   * （Terraform の enable_data_warehouse = false）のための選択肢で、env.ts 側で URL の必須判定も外れる。
    */
   const dataWarehouse = env.DATA_WAREHOUSE_TYPE === "none"
     ? createDataWarehouse({ type: "none" })

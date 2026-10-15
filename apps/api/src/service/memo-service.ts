@@ -10,13 +10,8 @@ type MemoRepo = { memoRepository: MemoRepository }
 /**
  * 行動イベントの送出に必要な依存。
  *
- * 送出は fire-and-forget で、失敗しても Result には影響しない。
  * **操作が成功したときだけ記録する**（失敗を記録したい場合は別イベントにする。
  * 成功イベントに成否フラグを混ぜると集計時に必ず事故る）。
- *
- * `userId` が undefined なのは `/api/memo` が PUBLIC_PATHS に含まれ
- * 未ログインでも呼べるため。**匿名ユーザーは追跡しない方針**なので、
- * その場合は送出そのものをスキップする。
  */
 type EventDeps = { eventTracker: EventTracker; userId: number | undefined }
 
@@ -34,9 +29,6 @@ const trackIfSignedIn = (
   })
 }
 
-/**
- * メモ一覧を取得
- */
 export const getAllMemos = async (
   repo: MemoRepo
 ): Promise<Result<Memo[]>> => {
@@ -46,9 +38,6 @@ export const getAllMemos = async (
   return ok(memos)
 }
 
-/**
- * メモをIDで取得
- */
 export const getMemoById = async (
   id: number,
   repo: MemoRepo
@@ -62,9 +51,6 @@ export const getMemoById = async (
   return ok(memo)
 }
 
-/**
- * メモを作成
- */
 export const createMemo = async (
   data: CreateMemoInput,
   repo: MemoRepo,
@@ -79,9 +65,6 @@ export const createMemo = async (
   return ok(memo)
 }
 
-/**
- * メモを更新
- */
 export const updateMemo = async (
   id: number,
   data: UpdateMemoInput,
@@ -102,9 +85,6 @@ export const updateMemo = async (
   return ok(memo)
 }
 
-/**
- * メモを削除
- */
 export const deleteMemo = async (
   id: number,
   repo: MemoRepo,

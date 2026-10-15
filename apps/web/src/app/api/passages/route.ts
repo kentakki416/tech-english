@@ -5,9 +5,7 @@ import { passageApi } from "@/features/passage/passage.api"
 import { ApiClientError } from "@/libs/api-client"
 
 /**
- * GET /api/passages?kind=&tag=&difficulty=&unattempted_only=&cursor=
- *
- * 問題一覧の 2 ページ目以降（「さらに表示」）を Client Component から取得する BFF。
+ * 問題一覧の 2 ページ目以降（「さらに表示」）を Client Component から取得する。
  * 絞り込みは画面の URL と同じく parsePassageSearchParams で解釈し、cursor は API がそのまま検証する
  */
 export const GET = async (req: NextRequest) => {

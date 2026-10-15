@@ -14,9 +14,6 @@ import {
 
 import { apiClient } from "@/libs/api-client"
 
-/**
- * 挑戦の API 通信層
- */
 export const attemptApi = {
   /**
    * 挑戦の問題の読み上げの音声。準備中・失敗は status だけ。他人の挑戦・存在しない ID は API が 404（ApiClientError）

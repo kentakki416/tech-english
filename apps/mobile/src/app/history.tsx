@@ -36,10 +36,6 @@ const groupAttemptsByStudyDate = (attempts: LearningRecordAttemptResponse[]): Hi
   return Array.from(groups, ([date, data]) => ({ data, date }))
 }
 
-/**
- * 学習履歴（マイページの「すべて見る」から開くスタックの画面）。提出した挑戦を日付ごとに並べ、
- * 下端までスクロールすると続き（next_cursor）を取得して後ろに足す
- */
 export default function HistoryScreen() {
   const router = useRouter()
   const [attempts, setAttempts] = useState<LearningRecordAttemptResponse[]>([])

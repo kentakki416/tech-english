@@ -19,9 +19,6 @@ type SubmitButtonProps = {
  *
  * useFormStatus の制約上、必ず <form> の子孫として描画すること
  * （form の外に置くと pending が常に false になる）。
- *
- * ラベルはドメイン非依存にするため props で受け取る:
- *   <SubmitButton pendingLabel="作成中…">作成する</SubmitButton>
  */
 export function SubmitButton({ children, className = DEFAULT_CLASS_NAME, pendingLabel = "送信中..." }: SubmitButtonProps) {
   const { pending } = useFormStatus()

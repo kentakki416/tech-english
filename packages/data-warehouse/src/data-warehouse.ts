@@ -14,8 +14,5 @@ export interface DataWarehouse {
    * 行をまとめて挿入する。空配列のときは何もしない。
    */
   insertAll(table: string, rows: Record<string, unknown>[]): Promise<void>
-  /**
-   * 接続を閉じる。graceful shutdown から呼ぶ。
-   */
   close(): Promise<void>
 }

@@ -2,9 +2,6 @@ import { StyleSheet } from "react-native"
 
 import { THEME_COLORS } from "@/const/design-theme"
 
-/**
- * 画面をまたいで使うスタイル（画面の地・カード・注記・区切り線・区画の見出し）
- */
 export const appStyles = StyleSheet.create({
   card: {
     backgroundColor: THEME_COLORS.surface,

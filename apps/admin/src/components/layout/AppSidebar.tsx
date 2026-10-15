@@ -232,7 +232,6 @@ export default function AppSidebar() {
   }
 
   useEffect(() => {
-    // Set the height of the submenu items when the submenu is opened
     if (openSubmenu !== null) {
       if (subMenuRefs.current[openSubmenu]) {
         setSubMenuHeight((prevHeights) => ({

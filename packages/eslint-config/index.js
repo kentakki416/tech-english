@@ -9,7 +9,6 @@
  *   module.exports = [...baseConfig, { ignores: ["generated/**"] }]
  *
  * 全プロジェクト共通のルールは ./common-rules.js に集約してある。
- * apps/* の eslint.config.* からも同じルールを spread することで一元管理する。
  */
 const { defineConfig } = require("eslint/config")
 const typescriptEslint = require("@typescript-eslint/eslint-plugin")

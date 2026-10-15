@@ -52,9 +52,6 @@ export const rebuildLocalCdc = async (client: ClickHouseClient, params: LocalCdc
 
 /**
  * 既にある pg_cdc が、このプロジェクトの Postgres を取り込むものか確かめる。違えば消さずに止める。
- *
- * 同じテンプレートから作った別プロジェクトの ClickHouse が同じポート（8124）で動いていると、
- * 接続先を取り違えたまま別プロジェクトの CDC を消してしまうため。
  */
 const verifyExistingCdcDatabaseIsOwn = async (
   client: ClickHouseClient,

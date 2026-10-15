@@ -27,9 +27,6 @@ export const createPkcePair = (): { codeChallenge: string, codeVerifier: string 
   }
 }
 
-/**
- * GitHub の認可画面の URL を組み立てる
- */
 export const buildGitHubAuthorizeUrl = (input: { codeChallenge: string, redirectUri: string, state: string }): string => {
   const params = new URLSearchParams({
     client_id: env.GITHUB_OAUTH_CLIENT_ID,

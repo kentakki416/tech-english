@@ -119,9 +119,6 @@ export const convertAdminPassageDetailToResponse = (detail: AdminPassageDetail):
   }
 }
 
-/**
- * 保存のリクエスト（snake_case）→ service の入力（camelCase）
- */
 export const convertUpdateAdminPassageRequestToInput = (request: UpdateAdminPassageRequest): AdminPassageEditInput => ({
   blocks: request.blocks.map((block) => ({ text: block.text, translationJa: block.translation_ja })),
   difficulty: request.difficulty,

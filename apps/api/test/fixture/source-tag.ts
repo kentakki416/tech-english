@@ -6,10 +6,6 @@ import { testDb } from "../controller/setup"
 type TagRow = typeof tags.$inferSelect
 
 /**
- * ソースのタグ（tags / content_source_tags）を DB に入れるテスト用のヘルパー。Repository のテストと Controller のインテグレーションテストで使う
- */
-
-/**
  * タグを入れる（ソースには付けない）。色は TAG_COLORS を names の順に使う。
  * 同じ名前（大文字・小文字を区別しない）のタグがあれば作らずにそれを使う。タグの行を names の順で返す
  */

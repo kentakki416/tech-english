@@ -22,9 +22,6 @@ let selectedFontSize: ReaderFontSize | null = null
 
 const isReaderFontSize = (value: unknown): value is ReaderFontSize => FONT_SIZES.includes(value as ReaderFontSize)
 
-/**
- * このタブで選んだサイズ → 保存したサイズ → 「中」の順
- */
 const readFontSize = (): ReaderFontSize => {
   if (selectedFontSize !== null) return selectedFontSize
   try {
@@ -32,7 +29,7 @@ const readFontSize = (): ReaderFontSize => {
     if (isReaderFontSize(stored)) return stored
   } catch {
     /**
-     * 読めなければ「中」
+     * 読めない（プライベートブラウズ等）ときは既定値にする
      */
   }
   return DEFAULT_FONT_SIZE
@@ -50,9 +47,6 @@ const subscribeFontSize = (listener: () => void) => {
   }
 }
 
-/**
- * 本文の文字サイズと、それを変えて保存する関数
- */
 export function useReaderFontSize(): [ReaderFontSize, (fontSize: ReaderFontSize) => void] {
   const fontSize = useSyncExternalStore(subscribeFontSize, readFontSize, readServerFontSize)
 

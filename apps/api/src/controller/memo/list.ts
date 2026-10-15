@@ -7,11 +7,6 @@ import { sendError } from "../../lib/send-error"
 import { MemoRepository } from "../../repository"
 import * as service from "../../service"
 
-/**
- * メモ一覧取得API
- * 業務エラーは Result の statusCode をそのまま返却
- * 予期しない例外はグローバルエラーハンドラに委譲（throw を catch しない）
- */
 export class MemoListController {
   constructor(private _memoRepository: MemoRepository) {}
 

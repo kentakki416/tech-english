@@ -61,10 +61,8 @@ const commonRules = {
    */
   "@stylistic/indent": ["error", 2, { SwitchCase: 0 }],
 
-  /** Console */
   "no-console": ["warn", { allow: ["warn", "error"] }],
 
-  /** 未使用変数 */
   "@typescript-eslint/no-unused-vars": [
     "warn",
     {
@@ -75,7 +73,6 @@ const commonRules = {
     },
   ],
 
-  /** コードスタイル */
   "@stylistic/object-curly-spacing": ["error", "always"],
   "@stylistic/quotes": ["error", "double"],
   "@stylistic/semi": ["error", "never"],
@@ -84,7 +81,6 @@ const commonRules = {
   "@stylistic/no-trailing-spaces": "error",
   "@stylistic/no-multi-spaces": "error",
 
-  /** Import 順序 */
   "import/order": [
     "error",
     {
@@ -113,7 +109,6 @@ const commonRules = {
   ],
   "import/no-duplicates": ["error", { "prefer-inline": true }],
 
-  /** TypeScript: 型安全性 */
   "@typescript-eslint/no-empty-function": "error",
   "@typescript-eslint/no-explicit-any": "warn",
   "@typescript-eslint/no-unnecessary-type-assertion": "error",
@@ -130,7 +125,6 @@ const commonRules = {
    */
   "@typescript-eslint/return-await": "error",
 
-  /** TypeScript: クラスメンバーのアクセス修飾子を明示（constructor は除外） */
   "@typescript-eslint/explicit-member-accessibility": [
     "error",
     {
@@ -141,10 +135,8 @@ const commonRules = {
     },
   ],
 
-  /** TypeScript: 命名規則（private メンバーには _ プレフィックス必須） */
   "@typescript-eslint/naming-convention": ["error", ...commonNamingConvention],
 
-  /** コード品質 */
   eqeqeq: ["error", "always"],
   "no-unneeded-ternary": "error",
   "no-var": "error",

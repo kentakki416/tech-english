@@ -15,7 +15,6 @@ type Props = {
   params: Promise<{ id: string }>
 }
 
-/** URLの:idを検証し、なければnotFound() */
 async function loadMemo(params: Props["params"]) {
   const parsed = getMemoPathParamSchema.safeParse(await params)
   if (!parsed.success) notFound()
@@ -28,7 +27,6 @@ async function loadMemo(params: Props["params"]) {
   }
 }
 
-/** paramsのような動的なページのtitleを作る */
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const parsed = getMemoPathParamSchema.safeParse(await params)
   if (!parsed.success) return { title: "メモが見つかりません" }
@@ -36,9 +34,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return { title: memo ? memo.title : "メモが見つかりません" }
 }
 
-/**
- * メモ詳細ページ
- */
 export default async function MemoDetailPage({ params }: Props) {
   const memo = await loadMemo(params)
 

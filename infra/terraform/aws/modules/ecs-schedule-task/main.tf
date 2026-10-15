@@ -7,7 +7,6 @@ locals {
   /**
    * ecs:RunTask の対象となる task definition ARN。
    * family の全 revision を許可するため revision 部分を wildcard にする
-   * (実行時に最新 ACTIVE revision が選ばれる)。
    */
   task_definition_arn_wildcard = "arn:aws:ecs:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:task-definition/${var.task_definition_family}:*"
 }

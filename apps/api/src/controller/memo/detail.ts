@@ -7,9 +7,6 @@ import { sendError } from "../../lib/send-error"
 import { MemoRepository } from "../../repository"
 import * as service from "../../service"
 
-/**
- * メモ詳細取得API
- */
 export class MemoDetailController {
   constructor(private _memoRepository: MemoRepository) {}
 

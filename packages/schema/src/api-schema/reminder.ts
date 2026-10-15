@@ -57,13 +57,7 @@ export type UpdateUserReminderRequest = z.infer<typeof updateUserReminderRequest
  */
 export const updateUserReminderResponseSchema = z.object({
   is_enabled: z.boolean(),
-  /**
-   * "HH:mm"（端末の時刻、15 分刻み）
-   */
   time: z.string().regex(REMINDER_TIME_PATTERN),
-  /**
-   * ISO の曜日番号（1 = 月曜 〜 7 = 日曜）の昇順の配列
-   */
   weekdays: z.array(z.number().int().min(1).max(7)),
 })
 

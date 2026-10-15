@@ -57,9 +57,6 @@ export type ContentSourceUpdateOptions = {
   shouldResetDocumentCache: boolean
 }
 
-/**
- * 英文の取得元（content_sources）のリポジトリ
- */
 export interface ContentSourceRepository {
   /**
    * ソースごとの取得失敗のページ数。0 件のソースは行が無い

@@ -1,9 +1,6 @@
 import { TAG_COLORS } from "../const/tag"
 import type { TagColor } from "../types/tag"
 
-/**
- * タグの色の値かどうか
- */
 export const isTagColor = (value: string): value is TagColor =>
   (TAG_COLORS as readonly string[]).includes(value)
 

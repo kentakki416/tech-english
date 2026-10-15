@@ -8,9 +8,6 @@ export const metadata: Metadata = {
   title: "メモ一覧"
 }
 
-/**
- * メモ一覧ページ
- */
 export default async function MemosPage() {
   const { memos } = await memoApi.getList()
 

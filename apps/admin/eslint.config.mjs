@@ -71,15 +71,7 @@ const eslintConfig = defineConfig([
       "tailwindcss/classnames-order": "off",
     },
   },
-  /**
-   * フロントが import してよい @repo パッケージの制限。
-   * 詳細は packages/eslint-config/frontend-boundary.js を参照。
-   */
   ...frontendBoundary,
-  /**
-   * テストからだけ使う export（forTesting）をテスト以外から使わせない。
-   * 詳細は packages/eslint-config/test-only-exports.js を参照。
-   */
   ...testOnlyExports,
 ])
 

@@ -11,9 +11,6 @@ import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb } from "
 type ContentSourceInsert = typeof contentSources.$inferInsert
 type PassageInsert = typeof passages.$inferInsert
 
-/**
- * Postgres のエラーコード（SQLSTATE）
- */
 const CHECK_VIOLATION = "23514"
 const FOREIGN_KEY_VIOLATION = "23503"
 const UNIQUE_VIOLATION = "23505"
@@ -65,9 +62,6 @@ const insertSourceDocument = async (sourceId: number, path = "src/content/learn/
   return row
 }
 
-/**
- * passages を必須列だけで入れる
- */
 const insertPassage = async (sourceDocumentId: number, overrides: Partial<PassageInsert> = {}) => {
   const [row] = await testDb
     .insert(passages)

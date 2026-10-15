@@ -19,9 +19,6 @@ const MIN_STEM_LENGTH = 2
  */
 const SHORT_VOWEL_ENDING_PATTERN = /(?:^|[^aeiou])[aeiou][^aeiouwxy]$/
 
-/**
- * 語幹の末尾で同じ子音が重なっているか（runn・stopp）
- */
 const DOUBLED_CONSONANT_PATTERN = /([^aeiou])\1$/
 
 /**

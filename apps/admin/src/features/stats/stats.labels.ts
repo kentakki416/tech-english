@@ -1,9 +1,5 @@
 import type { AdminStatsPeriod } from "@repo/api-schema"
 
-/**
- * ダッシュボードの表示ラベル（admin-dashboard の UI 設計）
- */
-
 const STATS_PERIOD_LABELS: Record<AdminStatsPeriod, string> = {
   "30d": "直近 30 日",
   "7d": "直近 7 日",

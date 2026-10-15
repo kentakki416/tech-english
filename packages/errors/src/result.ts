@@ -8,7 +8,7 @@ export type ApiErrorDetail = {
    */
   code: string
   /**
-   * 利用者向けの説明
+   * そのまま利用者に表示する説明（admin の画面に出る）
    */
   message: string
   /**
@@ -22,9 +22,6 @@ export type ApiErrorDetail = {
  * 例外 (throw) ではなく、戻り値として返すことで呼び出し側が型安全に扱える
  */
 export type ApiError = {
-  /**
-   * 原因の詳細。無ければ省略する
-   */
   details?: ApiErrorDetail[]
   /**
    * HTTP ステータスコード（4xx 系）
@@ -35,14 +32,11 @@ export type ApiError = {
    */
   type: ApiErrorType
   /**
-   * ユーザー向けのエラーメッセージ
+   * レスポンスの `error` にそのまま入る。内部情報を含めない
    */
   message: string
 }
 
-/**
- * 業務エラーのタグ一覧
- */
 export type ApiErrorType =
   | "BAD_REQUEST"
   | "CONFLICT"
@@ -60,14 +54,8 @@ export type Result<T> =
   | { ok: true; value: T }
   | { error: ApiError; ok: false }
 
-/**
- * 成功の Result を生成する
- */
 export const ok = <T>(value: T): Result<T> => ({ ok: true, value })
 
-/**
- * 業務エラーの Result を生成する
- */
 export const err = <T = never>(error: ApiError): Result<T> => ({ error, ok: false })
 
 /**
@@ -80,36 +68,24 @@ export const badRequestError = (message: string, details?: ApiErrorDetail[]): Ap
   type: "BAD_REQUEST",
 })
 
-/**
- * 404 Not Found のエラーを生成する
- */
 export const notFoundError = (message: string): ApiError => ({
   message,
   statusCode: 404,
   type: "NOT_FOUND",
 })
 
-/**
- * 409 Conflict のエラーを生成する
- */
 export const conflictError = (message: string): ApiError => ({
   message,
   statusCode: 409,
   type: "CONFLICT",
 })
 
-/**
- * 401 Unauthorized のエラーを生成する
- */
 export const unauthorizedError = (message: string): ApiError => ({
   message,
   statusCode: 401,
   type: "UNAUTHORIZED",
 })
 
-/**
- * 403 Forbidden のエラーを生成する
- */
 export const forbiddenError = (message: string): ApiError => ({
   message,
   statusCode: 403,

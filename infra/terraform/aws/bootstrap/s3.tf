@@ -1,8 +1,3 @@
-# =============================================================================
-# S3 Bucket for Terraform State
-# =============================================================================
-
-# Terraform state用のS3バケット
 resource "aws_s3_bucket" "terraform_state" {
   bucket        = var.s3_bucket_name
   force_destroy = true
@@ -12,7 +7,6 @@ resource "aws_s3_bucket" "terraform_state" {
   }
 }
 
-# バケットのバージョニングを有効化
 resource "aws_s3_bucket_versioning" "terraform_state" {
   bucket = aws_s3_bucket.terraform_state.id
   versioning_configuration {
@@ -20,7 +14,6 @@ resource "aws_s3_bucket_versioning" "terraform_state" {
   }
 }
 
-# バケットの暗号化を設定
 resource "aws_s3_bucket_server_side_encryption_configuration" "terraform_state" {
   bucket = aws_s3_bucket.terraform_state.id
 
@@ -32,7 +25,6 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "terraform_state" 
   }
 }
 
-# パブリックアクセスをブロック
 resource "aws_s3_bucket_public_access_block" "terraform_state" {
   bucket = aws_s3_bucket.terraform_state.id
 

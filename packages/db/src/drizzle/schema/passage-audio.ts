@@ -21,7 +21,7 @@ import { joinSqlValues } from "./sql-values"
 
 /**
  * 問題ごとの読み上げの音声（1 問 1 行）。列の正本は docs/spec/read-aloud/README.md の「必要な DB 設計」。
- * ユーザーに紐づかないので、アカウント削除の cascade の対象外。制約・index 名は `{table}_{columns}_key` / `_idx` / `_fkey` の命名にそろえている。
+ * ユーザーに紐づかないので、アカウント削除の cascade の対象外。
  */
 export const passageAudios = pgTable(
   "passage_audios",

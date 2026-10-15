@@ -18,8 +18,6 @@ resource "aws_cloudwatch_log_group" "this" {
 # - command は与えられたら Dockerfile の CMD を上書き
 # - deploy(CD) は describe-task-definition で latest を取って image を SHA に差し替えて
 #   別リビジョンとして再 register する設計。
-# - terraform applyでtask-definition(latest参照)が新しく作られても、ecs-service側のignore_chagesにより、
-#   実行コンテナは変わらない
 
 resource "aws_ecs_task_definition" "this" {
   family                   = var.name
@@ -140,8 +138,8 @@ resource "aws_ecs_service" "this" {
 
       advanced_configuration {
         alternate_target_group_arn = var.alternate_target_group_arn
-        production_listener_rule   = var.production_listener_rule_arn # ユーザートラフィック用のリスナーarn
-        test_listener_rule         = var.test_listener_rule_arn       # 車内確認トラフィック用のリスナーarn
+        production_listener_rule   = var.production_listener_rule_arn
+        test_listener_rule         = var.test_listener_rule_arn
         role_arn                   = aws_iam_role.ecs_alb_service[0].arn
       }
     }
@@ -227,8 +225,6 @@ resource "aws_iam_role_policy_attachment" "ecs_alb_service" {
 # =============================================================================
 # Blue/Green: SSM Parameter (deploy approval flag)
 # =============================================================================
-# 承認: aws ssm put-parameter --name "<param>" --value "approved" --overwrite
-# 拒否: aws ssm put-parameter --name "<param>" --value "rejected" --overwrite
 
 resource "aws_ssm_parameter" "deploy_approval" {
   count = var.enable_blue_green ? 1 : 0

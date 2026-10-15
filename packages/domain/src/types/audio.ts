@@ -1,8 +1,5 @@
 import type { AUDIO_STATUSES } from "../const/audio"
 
-/**
- * 読み上げの音声の状態
- */
 export type AudioStatus = (typeof AUDIO_STATUSES)[number]
 
 /**

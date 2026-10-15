@@ -55,10 +55,6 @@ export default defineConfig({
       reportsDirectory: "coverage",
     },
 
-    /**
-     * 環境変数の初期化はテストモジュールの import より前に行う必要があるため
-     * setupFiles で実行する（src/ 配下が読み込まれる前に DB_NAME 等を確定させる）
-     */
     setupFiles: [resolve(__dirname, "test/vitest.setup.ts")],
   },
 })

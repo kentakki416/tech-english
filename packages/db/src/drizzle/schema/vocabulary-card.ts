@@ -11,7 +11,7 @@ import { users } from "./user"
  *
  * 表と裏の中身（語句・1 文・意味）は持たず、出すたびに attempt_word_lookups / passage_glossary_entries から組み立てる。
  * 列の正本は docs/spec/vocabulary-cards/README.md の「必要な DB 設計」。
- * users の削除で cascade する。制約・index 名は `{table}_{columns}_key` / `_idx` / `_fkey` の命名にそろえている。
+ * users の削除で cascade する。
  */
 export const vocabularyCards = pgTable(
   "vocabulary_cards",

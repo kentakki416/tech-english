@@ -21,9 +21,6 @@ const KIND_OPTIONS: { key: KindOption, label: string }[] = [
   ...SOURCE_KIND_ORDER.map(kind => ({ key: kind, label: SOURCE_KIND_LABELS[kind] })),
 ]
 
-/**
- * 選んでいれば外し、選んでいなければ足す
- */
 const toggleItem = <T, >(list: T[], item: T): T[] => (list.includes(item) ? list.filter(value => value !== item) : [...list, item])
 
 function ItemSeparator() {

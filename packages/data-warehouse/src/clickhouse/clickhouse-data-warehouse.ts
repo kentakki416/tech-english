@@ -11,9 +11,6 @@ export type ClickHouseConfig = {
   username: string
 }
 
-/**
- * ClickHouse 実装
- */
 export class ClickHouseDataWarehouse implements DataWarehouse {
   private readonly _client: ClickHouseClient
 

@@ -8,7 +8,7 @@ import { users } from "./user"
  *
  * weekdays の値域（1〜7・1 つ以上・重複なし）と time の 15 分刻みは API の Zod で検証する。
  * 既定値は DB に持たせない（未保存のユーザーには API が既定値を返す。既定値を 2 か所に書かない）。
- * users の削除で cascade する（アカウント削除で設定も消すため）。制約・index 名は `{table}_{columns}_key` / `_idx` / `_fkey` の命名にそろえている。
+ * users の削除で cascade する（アカウント削除で設定も消すため）。
  */
 export const reminderSettings = pgTable(
   "reminder_settings",

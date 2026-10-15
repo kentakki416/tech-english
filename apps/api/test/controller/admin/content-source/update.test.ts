@@ -52,9 +52,6 @@ const insertFetchedDocument = async (sourceId: number, path: string) => {
   return row
 }
 
-/**
- * ソースに付いているタグの id（昇順）
- */
 const selectSourceTagIds = async (sourceId: number): Promise<number[]> => {
   const rows = await testDb
     .select({ tagId: contentSourceTags.tagId })

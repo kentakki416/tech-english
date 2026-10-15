@@ -27,7 +27,6 @@ function SectionTitle({ children }: { children: string }) {
 }
 
 /**
- * 設定（タブ）。区画の順は「目標 → リマインダー → タイムゾーン → アカウント → 危険な操作」。
  * 目標とタイムゾーンはフォーカスのたびに取り直す（取り直した値で目標のフォームを作り直す）
  */
 export default function SettingsScreen() {

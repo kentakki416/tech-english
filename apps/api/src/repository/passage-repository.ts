@@ -19,9 +19,6 @@ import type { TransactionContext } from "./transaction"
  */
 export type AdminPassageListCursor = { id: number; needsAttention: boolean; updatedAt: Date }
 
-/**
- * admin の問題一覧の条件
- */
 export type AdminPassageListQuery = {
   cursor: AdminPassageListCursor | null
   /**
@@ -38,9 +35,6 @@ export type AdminPassageListQuery = {
  */
 export type AdminPassageSource = { id: number; name: string }
 
-/**
- * admin の問題一覧の 1 行
- */
 export type AdminPassageListItem = {
   /**
    * 挑戦の件数（状態を問わない）
@@ -159,9 +153,6 @@ export type PassageOverview = Pick<Passage, "id" | "sourceCommitSha" | "sourcePa
   timeLimitSeconds: number
 }
 
-/**
- * 公開中の問題の一覧・概要の 1 件
- */
 export type PublishedPassageSummary = { passage: PassageOverview; questionCount: number; source: PassageSource }
 
 /**
@@ -169,9 +160,6 @@ export type PublishedPassageSummary = { passage: PassageOverview; questionCount:
  */
 export type AttemptContent = { glossary: GlossaryEntry[]; passage: Passage; questions: Question[]; source: PassageSource }
 
-/**
- * 問題（passages と、その設問・用語集）のリポジトリ。admin の API（findAdmin* など）と reading-practice のユーザー向け API（*Published*）で共有する
- */
 export interface PassageRepository {
   /**
    * 要確認の印を外す（needs_attention = false、attention_reasons = []）。状態は問わず、外れていても書く。行が無ければ false

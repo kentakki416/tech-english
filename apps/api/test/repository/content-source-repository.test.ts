@@ -48,9 +48,6 @@ const WEBSITE_INPUT: WebsiteInput = {
   tagIds: [],
 }
 
-/**
- * 収集の状態を何も戻さない update の options
- */
 const NO_RESET: ContentSourceUpdateOptions = { shouldResetCollectedCommit: false, shouldResetDocumentCache: false }
 
 /**
@@ -86,9 +83,6 @@ const insertTag = async (name: string, color: TagColor = "blue") => {
   return row
 }
 
-/**
- * ソースに付いているタグの id（昇順）
- */
 const selectSourceTagIds = async (sourceId: number): Promise<number[]> => {
   const rows = await testDb
     .select({ tagId: contentSourceTags.tagId })

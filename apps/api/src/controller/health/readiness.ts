@@ -25,10 +25,6 @@ export class HealthReadinessController {
       redisHealthRepository: this._redisHealthRepository,
     })
 
-    /**
-     * checkReadiness は常に ok: true を返す（個別サービス失敗は status: "error" に集約される）
-     * 予期しない throw はグローバルエラーハンドラが 500 で返す
-     */
     if (!result.ok) {
       return res.status(503).json({ error: result.error.message, status_code: 503 })
     }

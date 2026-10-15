@@ -43,9 +43,6 @@ export type TagResponse = z.infer<typeof tagSchema>
 export const getTagListResponseSchema = z.object({
   tags: z.array(
     tagSchema.extend({
-      /**
-       * このタグを付けているソースの数
-       */
       source_count: z.number().int(),
     }),
   ),

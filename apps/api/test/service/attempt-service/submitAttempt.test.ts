@@ -58,9 +58,6 @@ const extractView = (result: Awaited<ReturnType<typeof submitAttempt>>): Submitt
   return result.value
 }
 
-/**
- * markSubmitted に渡した値
- */
 const extractSubmitInput = () => readingAttemptRepository.markSubmitted.mock.calls[0]?.[0]
 
 describe("submitAttempt", () => {

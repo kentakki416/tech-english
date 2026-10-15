@@ -25,9 +25,6 @@ const tryParseJson = (text: string): unknown => {
   }
 }
 
-/**
- * admin の問題一覧のカーソルを、JSON を base64url にした文字列にする
- */
 export const encodeAdminPassageCursor = (cursor: AdminPassageListCursor): string =>
   Buffer.from(
     JSON.stringify({ id: cursor.id, na: cursor.needsAttention, ua: cursor.updatedAt.toISOString() }),

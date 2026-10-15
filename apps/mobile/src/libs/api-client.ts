@@ -26,12 +26,6 @@ const REQUEST_TIMEOUT_MS = 15_000
  */
 type RetryableRequestConfig = InternalAxiosRequestConfig & { isRetry?: boolean }
 
-/**
- * api を呼ぶ HTTP クライアント。各機能の `*.api.ts` はこれを使う
- *
- * - 保存済みの access token を Bearer で付ける
- * - 401 なら refresh token でトークンを更新し、同じリクエストを 1 回だけ再送する
- */
 export const apiClient = createAxiosInstance({ baseURL: env.EXPO_PUBLIC_API_URL, timeout: REQUEST_TIMEOUT_MS })
 
 apiClient.interceptors.request.use(async (config) => {

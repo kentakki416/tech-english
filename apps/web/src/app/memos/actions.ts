@@ -7,15 +7,11 @@ import { createMemoRequestSchema, updateMemoRequestSchema } from "@repo/api-sche
 
 import { memoApi } from "@/features/memo/memo.api"
 
-/** useActionStateに返すフォームの状態 */
 export type MemoFormState = {
   errors?: { title?: string[], body?: string[] }
   message?: string
 }
 
-/**
- * メモ作成のServer Action
- */
 export const createMemoAction = async (
   _prev: MemoFormState,
   formData: FormData,
@@ -35,13 +31,10 @@ export const createMemoAction = async (
     return { message: "作成に失敗しました。時間をおいて再度お試しください。" }
   }
 
-  revalidatePath("/memos") // 一覧キャッシュを無効化 -> 次のアクセスで最新にする
-  redirect("/memos") // 一覧へ遷移 ⚠️ redirectはNEXT_REDIRECTという特別な例外処理によって実現しているので必ずtry catchの外に記載する
+  revalidatePath("/memos")
+  redirect("/memos") // redirectはNEXT_REDIRECTという特別な例外処理によって実現しているので必ずtry catchの外に記載する
 }
 
-/**
- * メモ更新用のServer Action
- */
 export const updateMemoAction = async (
   id: number,
   _prev: MemoFormState,
@@ -67,9 +60,6 @@ export const updateMemoAction = async (
   redirect(`/memos/${id}`)
 }
 
-/**
- * メモ削除用のServer Action
- */
 export const deleteMemoAction = async (id: number): Promise<void> => {
   await memoApi.delete(id)
   revalidatePath("/memos")

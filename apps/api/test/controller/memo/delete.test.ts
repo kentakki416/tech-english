@@ -67,10 +67,6 @@ describe("DELETE /api/memo/:id", () => {
 
 describe("公開パスでの optional 認証と行動イベント", () => {
   describe("正常系", () => {
-    /**
-     * /api/memo は PUBLIC_PATHS に含まれるが、トークンが付いていれば
-     * userId を解決して行動イベントを記録する（optional 認証）。
-     */
     it("トークン付きで削除すると memo_deleted を userId 付きで記録する", async () => {
       const { token, user } = await createTestUser()
       const [memo] = await testDb.insert(memos).values({ body: "b", title: "t" }).returning()
@@ -85,7 +81,6 @@ describe("公開パスでの optional 認証と行動イベント", () => {
       ])
     })
 
-    /** 未認証アクセスは従来どおり通る（401 にしない）が、イベントは記録しない */
     it("トークンなしでも削除は成功し、イベントは記録されない", async () => {
       const [memo] = await testDb.insert(memos).values({ body: "b", title: "t" }).returning()
 
@@ -95,7 +90,6 @@ describe("公開パスでの optional 認証と行動イベント", () => {
       expect(eventTracker.inputs).toHaveLength(0)
     })
 
-    /** 不正なトークンでも 401 にせず未ログイン扱いにする */
     it("不正なトークンでも削除は成功し、イベントは記録されない", async () => {
       const [memo] = await testDb.insert(memos).values({ body: "b", title: "t" }).returning()
 

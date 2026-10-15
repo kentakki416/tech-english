@@ -1,8 +1,6 @@
 # =============================================================================
 # コンテナイメージの Lambda 関数 + alias live
 # =============================================================================
-# - image_uri / environment は deploy workflow が正本。Terraform は作成時の値だけを入れる
-# - alias live の向き先 (function_version) も deploy workflow が切り替える (切り戻しも alias の付け替え)
 # 設計: docs/spec/minimal-deploy/README.md「api を Lambda で動かす」
 
 resource "aws_cloudwatch_log_group" "this" {

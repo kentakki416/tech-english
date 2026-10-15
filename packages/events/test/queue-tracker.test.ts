@@ -75,7 +75,6 @@ describe("QueueEventTracker", () => {
     })
 
     /**
-     * 分析イベントの失敗でユーザーのリクエストを失敗させないための不変条件。
      * service 層のテストは FakeEventTracker を使うため、ここでしか検証できない。
      */
     it("enqueue が reject しても呼び出し元に例外を伝播させない", async () => {

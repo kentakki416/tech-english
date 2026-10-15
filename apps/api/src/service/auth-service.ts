@@ -152,9 +152,6 @@ export const authenticateWithGitHub = async (
   if (!gitHubUser) {
     return err(unauthorizedError("GitHub authorization code is invalid"))
   }
-  /**
-   * email (PII) はログに残さず、突合に必要な githubId のみ出力する。
-   */
   logger.debug("AuthService: Retrieved GitHub user info", {
     githubId: gitHubUser.id,
   })
@@ -181,9 +178,6 @@ export const authenticateWithGitHub = async (
    * users.email の unique 衝突だけを避け、衝突する場合は email を持たないユーザーとして作る
    */
   const emailOwner = gitHubUser.email ? await repo.userRepository.findByEmail(gitHubUser.email) : null
-  /**
-   * User と AuthAccount を 1 トランザクションで作成。どちらか片方だけが残る不整合を防ぐ。
-   */
   const user = await repo.transactionRunner.run(async (tx) => {
     const newUser = await repo.userRepository.create(
       {
@@ -220,7 +214,7 @@ export type LoginAsDevUserSuccess = {
  * 開発環境専用ログイン
  *
  * email で seed 済みの dev ユーザーを引き当てて Access/Refresh Token を発行する。
- * production での誤実行を防ぐためのガードは呼び出し側（controller / index.ts / PUBLIC_PATHS）で行う。
+ * production での誤実行を防ぐためのガードは呼び出し側で行う。
  * このサービス関数自体は環境非依存。
  */
 export const loginAsDevUser = async (
@@ -370,7 +364,6 @@ export const logout = async (
 
   const payload = verifier(input.refreshToken)
   if (!payload) {
-    /** 無効なトークンでも成功扱いにして冪等性を保つ */
     return ok({ ok: true })
   }
   await repo.refreshTokenRepository.delete(payload.jti)

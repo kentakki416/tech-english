@@ -25,7 +25,7 @@ import { users } from "./user"
  * 挑戦。提出時に採点結果と時間を入れる（in_progress / expired の間は NULL）
  *
  * 列の正本は docs/spec/reading-practice/README.md の「必要な DB 設計」。
- * users の削除で cascade する（アカウント削除で学習の記録をすべて消すため）。制約・index 名は `{table}_{columns}_key` / `_idx` / `_fkey` の命名にそろえている。
+ * users の削除で cascade する（アカウント削除で学習の記録をすべて消すため）。
  */
 export const readingAttempts = pgTable(
   "reading_attempts",

@@ -41,17 +41,11 @@ const GAP = 3
  */
 const getMondayBasedWeekday = (date: string): number => (new Date(`${date}T00:00:00Z`).getUTCDay() + 6) % 7
 
-/**
- * `YYYY-MM` の日数
- */
 const countDaysInMonth = (month: string): number => {
   const [year, monthNumber] = month.split("-").map(Number)
   return new Date(Date.UTC(year, monthNumber, 0)).getUTCDate()
 }
 
-/**
- * `YYYY-MM` を offset か月ずらす
- */
 const shiftMonth = (month: string, offset: number): string => {
   const [year, monthNumber] = month.split("-").map(Number)
   const value = new Date(Date.UTC(year, monthNumber - 1 + offset, 1))

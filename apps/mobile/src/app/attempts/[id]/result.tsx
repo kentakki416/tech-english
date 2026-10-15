@@ -30,10 +30,6 @@ const readInitialState = (attemptId: number | null): LoadState => {
   return attempt?.status === "submitted" ? { attempt, kind: "ready" } : { kind: "loading" }
 }
 
-/**
- * 結果・解説。挑戦を読み込み、提出済みなら結果画面の本体（ResultScreen）を出す。
- * 挑戦中なら解答画面に置き換え、期限切れなら問題一覧へ戻る。提出済みを表示したら端末の途中経過を消す
- */
 export default function AttemptResultScreen() {
   const router = useRouter()
   const params = useLocalSearchParams<{ id: string }>()

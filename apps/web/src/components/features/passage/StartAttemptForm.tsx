@@ -7,9 +7,6 @@ import { SubmitButton } from "@/components/ui/SubmitButton"
 
 type StartAttemptAction = (prev: StartAttemptState, formData: FormData) => Promise<StartAttemptState>
 
-/**
- * 開始確認の「開始する」/「再開する」。送信中は無効にし、失敗したらボタンの下に理由を出す
- */
 export function StartAttemptForm({ action, isResume }: { action: StartAttemptAction, isResume: boolean }) {
   const [state, formAction] = useActionState(action, {})
 

@@ -15,9 +15,6 @@ import { apiClient, ApiClientError } from "@/libs/api-client"
 
 const BASE_PATH = "/api/admin/stats"
 
-/**
- * ダッシュボードの API 通信層（admin-dashboard）
- */
 export const statsApi = {
   getOverview: async (period: AdminStatsPeriod): Promise<GetAdminStatsOverviewResponse> => {
     const raw = await apiClient.get<unknown>(`${BASE_PATH}/overview?period=${period}`)
