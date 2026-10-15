@@ -65,6 +65,12 @@ export const contentSources = pgTable(
      * サイトのみ。開始ページの URL
      */
     startUrl: text("start_url"),
+    /**
+     * 注意: DB には tags 列（jsonb）がまだ残っている（source-tags の step6 で削除する）。
+     * step6 より前に db:generate すると `ALTER TABLE "content_sources" DROP COLUMN "tags"` が出る。
+     * 別機能の migration に混ざったら、その行を消す（新 api と同じデプロイで落とすと、デプロイ中の旧 api が壊れる）。
+     * docs/spec/source-tags/tasks/step6-db-drop-content-sources-tags.md
+     */
     ...timestamps,
   },
   (table) => [
