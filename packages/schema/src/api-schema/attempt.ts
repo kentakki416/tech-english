@@ -2,6 +2,7 @@ import { z } from "zod"
 
 import {
   MAX_QUESTIONS_PER_PASSAGE,
+  MAX_SERIAL_ID,
   PASSAGE_BLOCK_TYPES,
   PASSAGE_SEGMENT_KINDS,
   QUESTION_CHOICE_COUNT,
@@ -221,7 +222,7 @@ export type SubmittedAttempt = z.infer<typeof submittedAttemptSchema>
  * 挑戦の開始のパスパラメータスキーマ（問題の ID）
  */
 export const startAttemptPathParamSchema = z.object({
-  id: z.coerce.number().int().positive(),
+  id: z.coerce.number().int().positive().max(MAX_SERIAL_ID),
 })
 
 /**
@@ -240,7 +241,7 @@ export type StartAttemptResponse = z.infer<typeof startAttemptResponseSchema>
  * 挑戦の取得のパスパラメータスキーマ（挑戦の ID）
  */
 export const getAttemptPathParamSchema = z.object({
-  id: z.coerce.number().int().positive(),
+  id: z.coerce.number().int().positive().max(MAX_SERIAL_ID),
 })
 
 /**
@@ -264,7 +265,7 @@ export type GetAttemptResponse = z.infer<typeof getAttemptResponseSchema>
  * 提出のパスパラメータスキーマ（挑戦の ID）
  */
 export const submitAttemptPathParamSchema = z.object({
-  id: z.coerce.number().int().positive(),
+  id: z.coerce.number().int().positive().max(MAX_SERIAL_ID),
 })
 
 /**
@@ -288,7 +289,7 @@ export const submitAttemptRequestSchema = z.object({
   answers: z
     .array(
       z.object({
-        question_id: z.number().int().positive(),
+        question_id: z.number().int().positive().max(MAX_SERIAL_ID),
         /**
          * null は未回答
          */
@@ -312,7 +313,7 @@ export const submitAttemptRequestSchema = z.object({
     .array(
       z
         .object({
-          glossary_entry_id: z.number().int().positive().nullable(),
+          glossary_entry_id: z.number().int().positive().max(MAX_SERIAL_ID).nullable(),
           lemma: z.string().trim().min(1).max(SUBMIT_ATTEMPT_MAX_WORD_LENGTH),
           source: z.enum(WORD_LOOKUP_SOURCES),
           surface: z.string().trim().min(1).max(SUBMIT_ATTEMPT_MAX_WORD_LENGTH),
@@ -345,7 +346,7 @@ export type SubmitAttemptResponse = z.infer<typeof submitAttemptResponseSchema>
  * 挑戦の音声のパスパラメータスキーマ（挑戦の ID）
  */
 export const getAttemptAudioPathParamSchema = z.object({
-  id: z.coerce.number().int().positive(),
+  id: z.coerce.number().int().positive().max(MAX_SERIAL_ID),
 })
 
 /**

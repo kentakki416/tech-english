@@ -1,6 +1,6 @@
 import { z } from "zod"
 
-import { ADMIN_PASSAGE_STATS_SORTS, ADMIN_STATS_PERIODS, PASSAGE_STATUSES, QUESTION_TYPES } from "@repo/domain"
+import { ADMIN_PASSAGE_STATS_SORTS, ADMIN_STATS_PERIODS, MAX_SERIAL_ID, PASSAGE_STATUSES, QUESTION_TYPES } from "@repo/domain"
 
 import { passageDifficultySchema } from "../passage"
 
@@ -151,7 +151,7 @@ export type GetAdminPassageStatsListResponse = z.infer<typeof getAdminPassageSta
  * 問題の分析のパスパラメータスキーマ
  */
 export const getAdminPassageStatsPathParamSchema = z.object({
-  id: z.coerce.number().int().positive(),
+  id: z.coerce.number().int().positive().max(MAX_SERIAL_ID),
 })
 
 /**

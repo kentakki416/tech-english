@@ -3,6 +3,7 @@ import { z } from "zod"
 import {
   AUDIO_STATUSES,
   MAX_QUESTIONS_PER_PASSAGE,
+  MAX_SERIAL_ID,
   PASSAGE_BLOCK_TYPES,
   PASSAGE_DIFFICULTIES,
   PASSAGE_STATUSES,
@@ -209,7 +210,7 @@ export const getAdminPassageListQueryStringSchema = z.object({
     .enum(["true", "false"])
     .optional()
     .transform((value) => (value === undefined ? undefined : value === "true")),
-  source_id: z.coerce.number().int().positive().optional(),
+  source_id: z.coerce.number().int().positive().max(MAX_SERIAL_ID).optional(),
   status: adminPassageStatusSchema.default("draft"),
 })
 
@@ -234,7 +235,7 @@ export type GetAdminPassageListResponse = z.infer<typeof getAdminPassageListResp
  * 問題の詳細のパスパラメータスキーマ
  */
 export const getAdminPassagePathParamSchema = z.object({
-  id: z.coerce.number().int().positive(),
+  id: z.coerce.number().int().positive().max(MAX_SERIAL_ID),
 })
 
 /**
@@ -253,7 +254,7 @@ export type GetAdminPassageResponse = z.infer<typeof getAdminPassageResponseSche
  * 下書きの保存のパスパラメータスキーマ
  */
 export const updateAdminPassagePathParamSchema = z.object({
-  id: z.coerce.number().int().positive(),
+  id: z.coerce.number().int().positive().max(MAX_SERIAL_ID),
 })
 
 /**
@@ -280,7 +281,7 @@ export const updateAdminPassageRequestSchema = z.object({
   glossary: z
     .array(
       z.object({
-        id: z.number().int().positive().nullable(),
+        id: z.number().int().positive().max(MAX_SERIAL_ID).nullable(),
         block_index: z.number().int().nonnegative(),
         lemma: z.string().max(200),
         meaning_ja: z.string().max(1000),
@@ -293,7 +294,7 @@ export const updateAdminPassageRequestSchema = z.object({
   questions: z
     .array(
       z.object({
-        id: z.number().int().positive().nullable(),
+        id: z.number().int().positive().max(MAX_SERIAL_ID).nullable(),
         choices: z.array(z.string().max(1000)).length(QUESTION_CHOICE_COUNT),
         correct_choice_index: z
           .number()
@@ -333,7 +334,7 @@ export type UpdateAdminPassageResponse = z.infer<typeof updateAdminPassageRespon
  * 公開のパスパラメータスキーマ。公開の条件を満たさなければ 400 で、満たしていない条件を details に返す
  */
 export const publishAdminPassagePathParamSchema = z.object({
-  id: z.coerce.number().int().positive(),
+  id: z.coerce.number().int().positive().max(MAX_SERIAL_ID),
 })
 
 /**
@@ -352,7 +353,7 @@ export type PublishAdminPassageResponse = z.infer<typeof publishAdminPassageResp
  * 却下のパスパラメータスキーマ
  */
 export const rejectAdminPassagePathParamSchema = z.object({
-  id: z.coerce.number().int().positive(),
+  id: z.coerce.number().int().positive().max(MAX_SERIAL_ID),
 })
 
 /**
@@ -379,7 +380,7 @@ export type RejectAdminPassageResponse = z.infer<typeof rejectAdminPassageRespon
  * 非公開に戻すのパスパラメータスキーマ
  */
 export const unpublishAdminPassagePathParamSchema = z.object({
-  id: z.coerce.number().int().positive(),
+  id: z.coerce.number().int().positive().max(MAX_SERIAL_ID),
 })
 
 /**
@@ -398,7 +399,7 @@ export type UnpublishAdminPassageResponse = z.infer<typeof unpublishAdminPassage
  * 再生成のパスパラメータスキーマ。生成した内容を消して collected に戻す（挑戦が 1 件でもあれば 409）
  */
 export const regenerateAdminPassagePathParamSchema = z.object({
-  id: z.coerce.number().int().positive(),
+  id: z.coerce.number().int().positive().max(MAX_SERIAL_ID),
 })
 
 /**
@@ -418,7 +419,7 @@ export type RegenerateAdminPassageResponse = z.infer<typeof regenerateAdminPassa
  * 設問があれば draft、無ければ collected に戻す
  */
 export const restoreAdminPassagePathParamSchema = z.object({
-  id: z.coerce.number().int().positive(),
+  id: z.coerce.number().int().positive().max(MAX_SERIAL_ID),
 })
 
 /**
@@ -437,7 +438,7 @@ export type RestoreAdminPassageResponse = z.infer<typeof restoreAdminPassageResp
  * 要確認の解除のパスパラメータスキーマ。needs_attention を false、attention_reasons を空にする（状態は問わない。解除済みでも 200）
  */
 export const resolveAdminPassageAttentionPathParamSchema = z.object({
-  id: z.coerce.number().int().positive(),
+  id: z.coerce.number().int().positive().max(MAX_SERIAL_ID),
 })
 
 /**
@@ -460,7 +461,7 @@ export type ResolveAdminPassageAttentionResponse = z.infer<typeof resolveAdminPa
  * 音声の再試行のパスパラメータスキーマ。音声が failed のときだけ pending に戻す（それ以外は 409）
  */
 export const retryAdminPassageAudioPathParamSchema = z.object({
-  id: z.coerce.number().int().positive(),
+  id: z.coerce.number().int().positive().max(MAX_SERIAL_ID),
 })
 
 /**
@@ -482,7 +483,7 @@ export type RetryAdminPassageAudioResponse = z.infer<typeof retryAdminPassageAud
  * 音声の作り直しの依頼のパスパラメータスキーマ。音声が ready（作成済み）のときだけ依頼を入れる（それ以外は 409）
  */
 export const regenerateAdminPassageAudioPathParamSchema = z.object({
-  id: z.coerce.number().int().positive(),
+  id: z.coerce.number().int().positive().max(MAX_SERIAL_ID),
 })
 
 /**

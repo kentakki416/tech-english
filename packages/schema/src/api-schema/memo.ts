@@ -1,5 +1,7 @@
 import { z } from "zod"
 
+import { MAX_SERIAL_ID } from "@repo/domain"
+
 // ===========================
 // メモ共通スキーマ
 // ===========================
@@ -31,7 +33,7 @@ export type GetMemoListResponse = z.infer<typeof getMemoListResponseSchema>
  * string → number に coerce してから int/positive の制約を掛ける
  */
 export const getMemoPathParamSchema = z.object({
-  id: z.coerce.number().int().positive(),
+  id: z.coerce.number().int().positive().max(MAX_SERIAL_ID),
 })
 
 export const getMemoResponseSchema = memoSchema
@@ -61,7 +63,7 @@ export type CreateMemoResponse = z.infer<typeof createMemoResponseSchema>
  * 路径パラメータ `:id` を検証するスキーマ
  */
 export const updateMemoPathParamSchema = z.object({
-  id: z.coerce.number().int().positive(),
+  id: z.coerce.number().int().positive().max(MAX_SERIAL_ID),
 })
 
 export const updateMemoRequestSchema = z.object({
@@ -83,7 +85,7 @@ export type UpdateMemoResponse = z.infer<typeof updateMemoResponseSchema>
  * 路径パラメータ `:id` を検証するスキーマ
  */
 export const deleteMemoPathParamSchema = z.object({
-  id: z.coerce.number().int().positive(),
+  id: z.coerce.number().int().positive().max(MAX_SERIAL_ID),
 })
 
 export const deleteMemoResponseSchema = z.object({
