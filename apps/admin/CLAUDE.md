@@ -48,7 +48,9 @@ MVP の管理者は 1〜2 人なので、共有シークレットで保護する
 
 ## API 接続の下地
 
-admin は DB を直接触らず、必ず Express API を経由する。tech-english の画面（サイドバーの「tech-english」）は API に接続済みで、それ以外は TailAdmin テンプレートの画面がそのまま入っている（API 未接続）。
+admin は DB を直接触らず、必ず Express API を経由する。tech-english の画面（下の「接続済みの画面」）は API に接続済みで、それ以外は TailAdmin テンプレートの画面がそのまま入っている（API 未接続）。
+
+サイドバー（`components/layout/AppSidebar.tsx`）には tech-english の画面だけを並べる。テンプレートの画面（`/`・`/calendar`・`/ui/*` など。design-mock でデザインの参考に読む）とデザインモック（`/mock`）はメニューに出さず、URL を直接開いて見る。左上のロゴは `components/layout/AppLogo.tsx`（テンプレートのマークと「tech-english-admin」の文字）。
 
 | ファイル | 役割 |
 | --- | --- |

@@ -1,10 +1,10 @@
 "use client"
-import Image from "next/image"
 import Link from "next/link"
 import React, { useState ,useEffect,useRef } from "react"
 
 import NotificationDropdown from "@/components/features/header/NotificationDropdown"
 import UserDropdown from "@/components/features/header/UserDropdown"
+import { AppLogo } from "@/components/layout/AppLogo"
 import { ThemeToggleButton } from "@/components/layout/ThemeToggleButton"
 import { useSidebar } from "@/features/sidebar/sidebar.context"
 
@@ -84,21 +84,8 @@ export default function AppHeader() {
             {/* Cross Icon */}
           </button>
 
-          <Link href="/" className="lg:hidden">
-            <Image
-              width={154}
-              height={32}
-              className="dark:hidden"
-              src="/images/logo/logo.svg"
-              alt="Logo"
-            />
-            <Image
-              width={154}
-              height={32}
-              className="hidden dark:block"
-              src="/images/logo/logo-dark.svg"
-              alt="Logo"
-            />
+          <Link href="/passages" className="lg:hidden">
+            <AppLogo />
           </Link>
 
           <button
