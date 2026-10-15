@@ -5,7 +5,7 @@ admin のトップ（`/`）をダッシュボードにし、問題の分析（`/
 ## 前提
 
 - [step2-api-admin-stats](./step2-api-admin-stats.md)
-- 見た目は README の [UI 設計](../README.md#ui-設計) とモック（`apps/admin/src/app/(dashboard)/mock/dashboard/`・`mock/analytics/`）に従う。モックの部品（`PeriodTabs`・`TableParts`・`stats-format`）は本実装の `components/features/stats/`・`src/libs/format-stats.ts` に移して使う（`mock/` は import しない）
+- 見た目は README の [UI 設計](../README.md#ui-設計) とモック（`apps/admin/src/app/(dashboard)/mock/dashboard/`・`mock/analytics/`）に従う。モックの部品（`PeriodTabs`・`TableParts`・`stats-format`・`OverviewCards`・`OverviewChart`・`AssistCard`・`PassageStatsTable`・`QuestionStatsCard`）は本実装の `components/features/stats/`・`src/libs/format-stats.ts` に移して使う（`mock/` は import しない）
 - admin の画面の作り方は `apps/admin/CLAUDE.md` の「API 接続の下地」（Server Component から `features/*.api.ts` → `apiClient`、レスポンスは `@repo/api-schema` で parse）
 
 ## 対応内容
@@ -39,7 +39,7 @@ export const statsApi = {
 }
 ```
 
-- `AdminStatsPeriod`・`AdminPassageStatsSort` の型は api-schema から re-export しておく（admin は `@repo/domain` を import できない）
+- `AdminStatsPeriod`・`AdminPassageStatsSort` の型は `@repo/api-schema` から import する（step2 で export したもの）
 
 ### 2. 期間・並べ替えの読み取り
 
@@ -50,10 +50,11 @@ export const statsApi = {
 - `app/(dashboard)/page.tsx` を置き換える（TailAdmin の EC のダッシュボード。`components/features/ecommerce/` は消さない）。`await connection()` で動的にし、`overview` と `passage` の一覧を `Promise.all` で取る
 - `components/features/stats/`：
   - `PeriodTabs.tsx`：期間の切り替え（リンク。`?period=` を変え、並べ替えは保つ）
-  - `OverviewCards.tsx`：数字のカード（登録ユーザー・学習したユーザー・解いた回数・正答率・アシストの利用率）
+  - `OverviewCards.tsx`：数字のカード 4 枚（登録ユーザー・学習したユーザー・解いた回数・正答率）
+  - `AssistCard.tsx`：アシストの利用率の横棒（和訳・単語・読み上げ）。推移の横に置く
   - `OverviewChart.tsx`（`"use client"`）：推移のグラフ。`react-apexcharts` を `next/dynamic`（`ssr: false`）で読む。テンプレートの `MonthlySalesChart` と同じ読み方
   - `PassageStatsTable.tsx`：問題ごとの成績の表。列の見出しが並べ替えのリンク、タイトルの絞り込み（`?q=`。GET の form）、ページ送り。行は `/analytics/passages/[id]?period=…` へのリンク
-  - 表示の整形（比率 → `72%`、秒 → `4:12`、`null` → `—`）は `src/libs/format-stats.ts` の純関数にする
+  - 表示の整形（比率 → `72%`、秒 → `4:12`、`null` → `―`）は `src/libs/format-stats.ts` の純関数にする
 - `metadata.title` は「ダッシュボード | tech-english admin」
 
 ### 4. 問題の分析（`/analytics/passages/[id]`）
@@ -67,7 +68,7 @@ export const statsApi = {
 ### 5. サイドバーとロゴ
 
 - `src/components/layout/AppSidebar.tsx` の `navItems` の先頭に `{ icon: <GridIcon />, name: "ダッシュボード", path: "/" }` を足す
-- `/` は前方一致で全ページに当たらないよう、`findActiveMenuPath` で `/` だけは完全一致にする（`/analytics/*` を開いたときは「ダッシュボード」を選択中にする）
+- 今の `findActiveMenuPath` は `${path}/` の前方一致なので、`/` は完全一致にしか当たらない。`/analytics/*` を開いたときも「ダッシュボード」を選択中にするよう、`/analytics` を `/` に対応させる規則を足す
 - 左上のロゴのリンク先（`src/components/layout/AppLogo.tsx` の `HOME_PATH`）を `/passages` から `/` に変える
 - `apps/admin/CLAUDE.md` の「接続済みの画面」の表にダッシュボードと問題の分析を足す。同じファイルと `AppSidebar.tsx` の `navItems` のコメントで「テンプレートの画面」の例に挙げている `/` を外す（`/` はダッシュボードになるため）
 

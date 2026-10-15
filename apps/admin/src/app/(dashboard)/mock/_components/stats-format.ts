@@ -5,9 +5,14 @@ import { formatSeconds } from "@/libs/mock-data"
  */
 
 /**
- * 比率（0〜1）を「72%」に。null（分母が 0）は「—」
+ * 値が無い（分母が 0・未設定）ときに出す文字。既存の admin の画面（問題一覧など）と同じ
  */
-export const formatRate = (rate: number | null): string => (rate === null ? "—" : `${Math.round(rate * 100)}%`)
+export const EMPTY_VALUE = "―"
+
+/**
+ * 比率（0〜1）を「72%」に。null（分母が 0）は EMPTY_VALUE
+ */
+export const formatRate = (rate: number | null): string => (rate === null ? EMPTY_VALUE : `${Math.round(rate * 100)}%`)
 
 /**
  * 件数を「1,284」に
@@ -20,10 +25,10 @@ export const formatCount = (value: number): string => value.toLocaleString("en-U
 export const formatShortDate = (date: string): string => `${Number(date.slice(5, 7))}/${Number(date.slice(8, 10))}`
 
 /**
- * 平均の解答時間を制限時間と並べて「5:12 / 6:00」に。null は「—」
+ * 平均の解答時間を制限時間と並べて「5:12 / 6:00」に。null は EMPTY_VALUE
  */
 export const formatElapsedWithLimit = (elapsedSeconds: number | null, timeLimitSeconds: number): string =>
-  elapsedSeconds === null ? "—" : `${formatSeconds(elapsedSeconds)} / ${formatSeconds(timeLimitSeconds)}`
+  elapsedSeconds === null ? EMPTY_VALUE : `${formatSeconds(elapsedSeconds)} / ${formatSeconds(timeLimitSeconds)}`
 
 /**
  * 学習時間（秒）を「7 時間 54 分」に

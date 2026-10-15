@@ -481,6 +481,13 @@ export const STATS_PERIOD_LABELS: Record<AdminStatsPeriod, string> = {
 }
 
 /**
+ * URL の ?period= を期間にする。不正・未指定は直近 30 日
+ */
+export const convertToStatsPeriod = (value: string | undefined): AdminStatsPeriod => (value === "7d" || value === "all" ? value : "30d")
+
+export const DIFFICULTY_LABELS = { 1: "Easy", 2: "Normal", 3: "Hard" }
+
+/**
  * アシストの利用率（解いたうち、和訳を開いた・単語を調べた・読み上げを聞いた割合）
  */
 export type AssistRates = { listened: number | null, lookedUp: number | null, translated: number | null }
@@ -513,7 +520,7 @@ const addDays = (date: string, days: number): string => {
 const MOCK_TODAY = "2026-10-15"
 
 /**
- * 日ごとの推移。土日（index が 2・3 の倍数の日）に少し下がる波にする
+ * 日ごとの推移。土日に少し下がる波にする
  */
 const buildDailyPoints = (dayCount: number): OverviewPoint[] =>
   Array.from({ length: dayCount }, (_, index) => {
@@ -623,14 +630,15 @@ export type PassageStatsRow = {
 }
 
 /**
- * 問題ごとの成績（直近 30 日）。公開中の問題と、非公開に戻したが期間内に解かれた問題（Errors are values）
+ * 問題ごとの成績のもと。期間ごとに、解いた回数の合計が数字のカードの解いた回数と同じになるよう増減させる。
+ * 公開中の問題と、非公開に戻したが解かれた問題（Errors are values）
  */
-const PASSAGE_STATS_30D: PassageStatsRow[] = [
+const PASSAGE_STATS_BASE: PassageStatsRow[] = [
   {
     id: 57,
     assistRates: { listened: 0.18, lookedUp: 0.66, translated: 0.41 },
     averageElapsedSeconds: 312,
-    correctRate: 0.58,
+    correctRate: 0.56,
     difficulty: 2,
     overtimeRate: 0.21,
     publishedAt: "2026-09-28",
@@ -725,34 +733,46 @@ const PASSAGE_STATS_30D: PassageStatsRow[] = [
 ]
 
 /**
- * 期間ごとの問題ごとの成績。7 日・全期間は 30 日の数を倍率で増減させる（解いた回数が 0 になった行は比率を null にする）
+ * 解いた回数を factor 倍にする（0 になった行は比率を null にする）。解かれていない下書きは除く（API と同じく、公開中か解かれた問題だけ）
  */
 const scalePassageStats = (rows: PassageStatsRow[], factor: number): PassageStatsRow[] =>
-  rows.map((row) => {
-    const solvedAttempts = Math.round(row.solvedAttempts * factor)
-    if (solvedAttempts === 0) {
-      return {
-        ...row,
-        assistRates: { listened: null, lookedUp: null, translated: null },
-        averageElapsedSeconds: null,
-        correctRate: null,
-        overtimeRate: null,
-        solvedAttempts: 0,
-        solvedUsers: 0,
+  rows
+    .map((row) => {
+      const solvedAttempts = Math.round(row.solvedAttempts * factor)
+      if (solvedAttempts === 0) {
+        return {
+          ...row,
+          assistRates: { listened: null, lookedUp: null, translated: null },
+          averageElapsedSeconds: null,
+          correctRate: null,
+          overtimeRate: null,
+          solvedAttempts: 0,
+          solvedUsers: 0,
+        }
       }
-    }
-    return { ...row, solvedAttempts, solvedUsers: Math.max(1, Math.round(row.solvedUsers * factor)) }
-  })
+      return { ...row, solvedAttempts, solvedUsers: Math.max(1, Math.round(row.solvedUsers * factor)) }
+    })
+    .filter(row => row.status === "published" || row.solvedAttempts > 0)
 
 /**
- * まだ誰も解いていない状態の問題ごとの成績（解いた回数 0・比率は null）
+ * 解いた回数の合計が total になるよう増減させる（丸めの差は先頭の行で埋める）
+ */
+const scalePassageStatsToTotal = (rows: PassageStatsRow[], total: number): PassageStatsRow[] => {
+  const baseTotal = rows.reduce((sum, row) => sum + row.solvedAttempts, 0)
+  const scaled = scalePassageStats(rows, total / baseTotal)
+  const difference = total - scaled.reduce((sum, row) => sum + row.solvedAttempts, 0)
+  return scaled.map((row, index) => (index === 0 ? { ...row, solvedAttempts: row.solvedAttempts + difference } : row))
+}
+
+/**
+ * まだ誰も解いていない状態の問題ごとの成績（公開中の問題だけが、解いた回数 0・比率は null で並ぶ）
  */
 export const convertToUnsolvedPassageStats = (rows: PassageStatsRow[]): PassageStatsRow[] => scalePassageStats(rows, 0)
 
 export const MOCK_PASSAGE_STATS: Record<AdminStatsPeriod, PassageStatsRow[]> = {
-  "30d": PASSAGE_STATS_30D,
-  "7d": scalePassageStats(PASSAGE_STATS_30D, 0.24),
-  all: scalePassageStats(PASSAGE_STATS_30D, 3.1),
+  "30d": scalePassageStatsToTotal(PASSAGE_STATS_BASE, MOCK_OVERVIEWS["30d"].solvedAttempts),
+  "7d": scalePassageStatsToTotal(PASSAGE_STATS_BASE, MOCK_OVERVIEWS["7d"].solvedAttempts),
+  all: scalePassageStatsToTotal(PASSAGE_STATS_BASE, MOCK_OVERVIEWS.all.solvedAttempts),
 }
 
 export type QuestionStats = {
@@ -769,7 +789,7 @@ export type QuestionStats = {
 }
 
 /**
- * 問題の分析（What Is Ownership?、直近 30 日）。Q2 は誤りの選択肢が正解より多く選ばれている（要確認）
+ * 問題の分析（What Is Ownership?、直近 30 日）。Q2・Q4 は誤りの選択肢が正解より多く選ばれている（要確認）
  */
 export const MOCK_QUESTION_STATS: QuestionStats[] = [
   {
@@ -875,18 +895,30 @@ const USER_NAMES = [
  */
 const MOCK_ALICE_SOLVED_ATTEMPTS = 87
 
+/**
+ * alice（ID 1）の登録日。カレンダーはこの日より前を学習なしにする
+ */
+const MOCK_ALICE_CREATED_DATE = "2026-04-06"
+
+/**
+ * alice の連続学習日数（今日を含む）。カレンダーの直近の日と学習履歴をこれに合わせる
+ */
+const MOCK_ALICE_STREAK_DAYS = 6
+
 export const MOCK_USERS: MockUser[] = USER_NAMES.map((name, index): MockUser => {
   const hasStudied = index % 6 !== 4
+  const createdDate = addDays("2026-04-06", index * 7)
+  const studiedDate = addDays(MOCK_TODAY, -((index * 5) % 40))
   return {
     id: index + 1,
     avatarUrl: index % 3 === 2 ? null : `/images/user/user-${String((index % 9) + 1).padStart(2, "0")}.jpg`,
     email: index === 7 ? null : `${name.replace(/[._]/g, "")}@example.com`,
-    lastStudiedDate: hasStudied ? addDays(MOCK_TODAY, -((index * 5) % 40)) : null,
+    lastStudiedDate: hasStudied ? (studiedDate < createdDate ? createdDate : studiedDate) : null,
     name: index === 11 ? null : name,
     providers: index < 2 ? ["dev"] : index % 5 === 0 ? ["github", "google"] : ["github"],
     solvedAttempts: index === 0 ? MOCK_ALICE_SOLVED_ATTEMPTS : hasStudied ? 1 + ((index * 29) % 160) : 0,
     timezone: index % 8 === 3 ? "America/Los_Angeles" : "Asia/Tokyo",
-    createdAt: `${addDays("2026-04-06", index * 7)} ${String(9 + (index % 12)).padStart(2, "0")}:${String((index * 13) % 60).padStart(2, "0")}`,
+    createdAt: `${createdDate} ${String(9 + (index % 12)).padStart(2, "0")}:${String((index * 13) % 60).padStart(2, "0")}`,
   }
 })
 
@@ -896,7 +928,7 @@ export const MOCK_USERS: MockUser[] = USER_NAMES.map((name, index): MockUser => 
 export const MOCK_USER_STATS = {
   goal: { isWeeklyAchieved: false, weeklyMetric: "passages" as const, weeklyProgress: 3, weeklyTarget: 5 },
   noAssistRate: 0.66,
-  streak: { current: 6, longest: 19 },
+  streak: { current: MOCK_ALICE_STREAK_DAYS, longest: 19 },
   totals: { attemptCount: MOCK_ALICE_SOLVED_ATTEMPTS, correctRate: 0.74, passageCount: 61, studySeconds: 28_440 },
   typeAccuracy: [
     { rate: 0.86, type: "main_idea" as const },
@@ -909,16 +941,17 @@ export const MOCK_USER_STATS = {
 }
 
 /**
- * 学習カレンダー（直近 53 週、日曜始まり）。level は 0（学習なし）〜 4
+ * 学習カレンダー（直近 53 週、日曜始まり）。level は 0（学習なし）〜 4。
+ * 直近 MOCK_ALICE_STREAK_DAYS 日は学習あり、その前の日は学習なしにして、連続学習日数とそろえる
  */
 export const MOCK_USER_CALENDAR: { date: string, level: 0 | 1 | 2 | 3 | 4 }[] = Array.from({ length: 53 * 7 }, (_, index) => {
   const start = addDays(MOCK_TODAY, -(52 * 7 + new Date(`${MOCK_TODAY}T00:00:00Z`).getUTCDay()))
   const date = addDays(start, index)
   const seed = (index * 37 + Math.floor(index / 7) * 11) % 17
-  const isFuture = date > MOCK_TODAY
-  const isEarly = index < 120
-  const level = isFuture || isEarly ? 0 : seed < 7 ? 0 : seed < 10 ? 1 : seed < 13 ? 2 : seed < 15 ? 3 : 4
-  return { date, level: level }
+  const streakStart = addDays(MOCK_TODAY, -(MOCK_ALICE_STREAK_DAYS - 1))
+  if (date > MOCK_TODAY || date < MOCK_ALICE_CREATED_DATE || date === addDays(streakStart, -1)) return { date, level: 0 }
+  if (date >= streakStart) return { date, level: seed < 6 ? 1 : seed < 11 ? 2 : seed < 15 ? 3 : 4 }
+  return { date, level: seed < 7 ? 0 : seed < 10 ? 1 : seed < 13 ? 2 : seed < 15 ? 3 : 4 }
 })
 
 export type MockUserAttempt = {
@@ -934,9 +967,9 @@ export type MockUserAttempt = {
 }
 
 /**
- * 学習履歴（新しい順。「さらに読み込む」を見せるため 14 件）
+ * 学習履歴（新しい順。「さらに読み込む」を見せるため 14 件。1 日 3 件ずつ、連続学習日数の範囲に収める）
  */
-export const MOCK_USER_ATTEMPTS: MockUserAttempt[] = PASSAGE_STATS_30D
+export const MOCK_USER_ATTEMPTS: MockUserAttempt[] = PASSAGE_STATS_BASE
   .filter(row => row.solvedAttempts > 0)
   .slice(0, 14)
   .map((row, index): MockUserAttempt => ({
@@ -946,7 +979,7 @@ export const MOCK_USER_ATTEMPTS: MockUserAttempt[] = PASSAGE_STATS_30D
     elapsedSeconds: Math.round(row.timeLimitSeconds * (0.6 + (index % 5) / 10)),
     passageId: row.id,
     questionCount: 4,
-    submittedAt: `${addDays(MOCK_TODAY, -Math.floor(index / 2))} ${index % 2 === 0 ? "21" : "18"}:${String((index * 17) % 60).padStart(2, "0")}`,
+    submittedAt: `${addDays(MOCK_TODAY, -Math.floor(index / 3))} ${["21", "18", "12"][index % 3]}:${String((index * 17) % 60).padStart(2, "0")}`,
     timeLimitSeconds: row.timeLimitSeconds,
     title: row.title,
   }))

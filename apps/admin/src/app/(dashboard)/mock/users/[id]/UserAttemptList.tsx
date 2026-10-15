@@ -30,7 +30,7 @@ const formatAssists = (assists: MockUserAttempt["assists"]): string => {
  */
 export function UserAttemptList({ attempts }: { attempts: MockUserAttempt[] }) {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
-  const visible = attempts.slice(0, visibleCount)
+  const visibleAttempts = attempts.slice(0, visibleCount)
 
   return (
     <section className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/3">
@@ -53,7 +53,7 @@ export function UserAttemptList({ attempts }: { attempts: MockUserAttempt[] }) {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 text-theme-sm text-gray-500 dark:divide-white/5 dark:text-gray-400">
-              {visible.map(attempt => (
+              {visibleAttempts.map(attempt => (
                 <tr key={attempt.id}>
                   <td className="px-5 py-3 whitespace-nowrap tabular-nums sm:px-6">{attempt.submittedAt}</td>
                   <td className="min-w-56 px-5 py-3">
@@ -72,7 +72,7 @@ export function UserAttemptList({ attempts }: { attempts: MockUserAttempt[] }) {
       )}
       <div className="flex justify-center px-5 py-4 sm:px-6">
         {visibleCount < attempts.length && (
-          <button className={outlineButtonClass} onClick={() => setVisibleCount(count => count + PAGE_SIZE)} type="button">
+          <button className={outlineButtonClass} type="button" onClick={() => setVisibleCount(count => count + PAGE_SIZE)}>
             さらに読み込む
           </button>
         )}

@@ -13,7 +13,7 @@ import {
 } from "@/libs/mock-data"
 
 import { MockStatePanel } from "../../_components/MockStatePanel"
-import { formatCount, formatRate, formatStudyTime } from "../../_components/stats-format"
+import { EMPTY_VALUE, formatCount, formatRate, formatStudyTime } from "../../_components/stats-format"
 import { cardClass } from "../../_components/ui"
 import { UserAvatar } from "../UserAvatar"
 
@@ -21,9 +21,9 @@ import { UserAttemptList } from "./UserAttemptList"
 import { UserCalendar } from "./UserCalendar"
 
 /**
- * 学習していないユーザー（モックの ID 5）の数字
+ * まだ学習していないユーザーの数字
  */
-const EMPTY_STATS = {
+const UNSTUDIED_USER_STATS = {
   goal: null,
   noAssistRate: null,
   streak: { current: 0, longest: 0 },
@@ -31,6 +31,11 @@ const EMPTY_STATS = {
   typeAccuracy: MOCK_USER_STATS.typeAccuracy.map(accuracy => ({ ...accuracy, rate: null })),
   vocabulary: { dueCount: 0, learningCount: 0, masteredCount: 0, newCount: 0, nextDueDate: null },
 }
+
+/**
+ * 週の目標の単位（GOAL_METRICS：解いた問題の数 / 学習した分）
+ */
+const GOAL_METRIC_UNITS = { minutes: "分", passages: "問" }
 
 /**
  * 数字のカード 1 枚
@@ -64,9 +69,21 @@ export default async function MockUserDetailPage({ params, searchParams }: { par
   const { id } = await params
   const { state } = await searchParams
   const current = state === "unstudied" || state === "not-found" ? state : "normal"
-  const user = MOCK_USERS.find(item => item.id === (current === "unstudied" ? 5 : Number(id))) ?? MOCK_USERS[0]
-  const isStudied = current === "normal"
-  const stats = isStudied ? MOCK_USER_STATS : EMPTY_STATS
+  const user = MOCK_USERS.find(item => item.id === Number(id))
+  const isStudied = current === "normal" && user !== undefined && user.solvedAttempts > 0
+  /**
+   * 学習のまとめはどのユーザーも alice の数字を使い、解いた回数だけ一覧の値に合わせる
+   */
+  const stats = isStudied
+    ? {
+      ...MOCK_USER_STATS,
+      totals: {
+        ...MOCK_USER_STATS.totals,
+        attemptCount: user.solvedAttempts,
+        passageCount: Math.min(MOCK_USER_STATS.totals.passageCount, user.solvedAttempts),
+      },
+    }
+    : UNSTUDIED_USER_STATS
   const calendar = isStudied ? MOCK_USER_CALENDAR : MOCK_USER_CALENDAR.map(day => ({ ...day, level: 0 }))
 
   const states = [
@@ -75,7 +92,7 @@ export default async function MockUserDetailPage({ params, searchParams }: { par
     { href: `/mock/users/${id}?state=not-found`, key: "not-found", label: "ユーザーが見つからない" },
   ]
 
-  if (current === "not-found") {
+  if (current === "not-found" || !user) {
     return (
       <>
         <PageBreadcrumb pageTitle="ユーザーの詳細" />
@@ -84,7 +101,7 @@ export default async function MockUserDetailPage({ params, searchParams }: { par
           <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">退会したか、ID が違います。</p>
           <Link className="mt-4 inline-block text-sm font-medium text-brand-500 hover:text-brand-600" href="/mock/users">ユーザー一覧に戻る</Link>
         </div>
-        <MockStatePanel current={current} states={states} />
+        <MockStatePanel current="not-found" states={states} />
       </>
     )
   }
@@ -93,7 +110,7 @@ export default async function MockUserDetailPage({ params, searchParams }: { par
     { label: "ユーザー ID", value: String(user.id) },
     { label: "登録日時", value: `${user.createdAt}（日本時間）` },
     { label: "タイムゾーン", value: user.timezone },
-    { label: "最後に学習した日", value: isStudied ? (user.lastStudiedDate ?? "—") : "—" },
+    { label: "最後に学習した日", value: isStudied ? (user.lastStudiedDate ?? EMPTY_VALUE) : EMPTY_VALUE },
   ]
 
   return (
@@ -137,7 +154,7 @@ export default async function MockUserDetailPage({ params, searchParams }: { par
               <ul className="space-y-3">
                 {stats.typeAccuracy.map(accuracy => (
                   <li key={accuracy.type} className="grid grid-cols-[7rem_minmax(0,1fr)_3rem] items-center gap-3 text-theme-sm">
-                    <span className="text-gray-700 dark:text-gray-300">{QUESTION_TYPE_OPTIONS.find(option => option.value === accuracy.type)?.label}</span>
+                    <span className="text-gray-700 dark:text-gray-300">{QUESTION_TYPE_OPTIONS.find(option => option.value === accuracy.type)?.label ?? accuracy.type}</span>
                     <span className="h-2 rounded-full bg-gray-100 dark:bg-gray-800">
                       <span className="block h-2 rounded-full bg-brand-500" style={{ width: `${Math.round((accuracy.rate ?? 0) * 100)}%` }} />
                     </span>
@@ -151,12 +168,17 @@ export default async function MockUserDetailPage({ params, searchParams }: { par
             <SideCard title="週の目標">
               {stats.goal ? (
                 <>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">今週 {stats.goal.weeklyTarget} 問</p>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      今週 {stats.goal.weeklyTarget} {GOAL_METRIC_UNITS[stats.goal.weeklyMetric]}
+                    </p>
+                    {stats.goal.isWeeklyAchieved && <Badge color="success" size="sm">達成</Badge>}
+                  </div>
                   <p className="mt-1 text-title-sm font-bold text-gray-800 tabular-nums dark:text-white/90">
                     {stats.goal.weeklyProgress} / {stats.goal.weeklyTarget}
                   </p>
                   <div className="mt-3 h-2 rounded-full bg-gray-100 dark:bg-gray-800">
-                    <div className="h-2 rounded-full bg-success-500" style={{ width: `${Math.round((stats.goal.weeklyProgress / stats.goal.weeklyTarget) * 100)}%` }} />
+                    <div className="h-2 rounded-full bg-success-500" style={{ width: `${Math.min(100, Math.round((stats.goal.weeklyProgress / stats.goal.weeklyTarget) * 100))}%` }} />
                   </div>
                 </>
               ) : (
@@ -177,7 +199,7 @@ export default async function MockUserDetailPage({ params, searchParams }: { par
                   </div>
                 ))}
               </dl>
-              <p className="mt-4 text-theme-xs text-gray-400">次に出る日 {stats.vocabulary.nextDueDate ?? "—"}</p>
+              <p className="mt-4 text-theme-xs text-gray-400">次に出る日 {stats.vocabulary.nextDueDate ?? EMPTY_VALUE}</p>
             </SideCard>
           </div>
         </div>

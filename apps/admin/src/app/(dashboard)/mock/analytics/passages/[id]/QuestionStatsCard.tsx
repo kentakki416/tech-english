@@ -1,17 +1,22 @@
 import Badge from "@/components/ui/badge/Badge"
 import { QUESTION_TYPE_OPTIONS, type QuestionStats } from "@/libs/mock-data"
 
-import { formatRate } from "../../../_components/stats-format"
+import { EMPTY_VALUE, formatRate } from "../../../_components/stats-format"
 
 const CHOICE_LETTERS = ["A", "B", "C", "D"]
 
 /**
- * 正解でない選択肢が、正解と同じかそれ以上選ばれているか（本実装は API の isQuestionNeedingReview）
+ * 設問の解答の数（期間内）がこれより少ないと「要確認」の印を付けない（本実装は ADMIN_QUESTION_REVIEW_MIN_ATTEMPTS）
  */
-const hasMisleadingChoice = (question: QuestionStats): boolean => {
-  const correctRate = question.choiceRates[question.correctChoiceIndex]
-  return question.choiceRates.some((rate, index) => index !== question.correctChoiceIndex && rate > 0 && rate >= correctRate)
-}
+export const REVIEW_MIN_ATTEMPTS = 5
+
+/**
+ * index の選択肢が、正解でないのに正解と同じかそれ以上選ばれているか（1 度も選ばれていなければ false）
+ */
+const isMisleadingChoice = (question: QuestionStats, index: number): boolean =>
+  index !== question.correctChoiceIndex
+  && question.choiceRates[index] > 0
+  && question.choiceRates[index] >= question.choiceRates[question.correctChoiceIndex]
 
 /**
  * 選択肢 1 つの行。正解は緑、正解と同じかそれ以上選ばれた誤りは橙、ほかは灰色の横棒
@@ -36,10 +41,10 @@ function ChoiceRow({ isCorrect, isMisleading, label, rate, text }: { isCorrect: 
 }
 
 /**
- * 設問 1 つの分析（種類・設問文・正答率・選択肢ごとの割合・未回答・要確認の印）
+ * 設問 1 つの分析（種類・設問文・正答率・選択肢ごとの割合・未回答・要確認の印）。answerCount はこの設問の期間内の解答の数
  */
-export function QuestionStatsCard({ isSolved, question, solvedAttempts }: { isSolved: boolean, question: QuestionStats, solvedAttempts: number }) {
-  const needsReview = isSolved && solvedAttempts >= 5 && hasMisleadingChoice(question)
+export function QuestionStatsCard({ isSolved, answerCount, question }: { isSolved: boolean, answerCount: number, question: QuestionStats }) {
+  const needsReview = isSolved && answerCount >= REVIEW_MIN_ATTEMPTS && question.choices.some((_, index) => isMisleadingChoice(question, index))
   const typeLabel = QUESTION_TYPE_OPTIONS.find(option => option.value === question.type)?.label ?? question.type
 
   return (
@@ -50,7 +55,7 @@ export function QuestionStatsCard({ isSolved, question, solvedAttempts }: { isSo
         {needsReview && <Badge color="warning" size="sm">要確認</Badge>}
         <span className="ml-auto text-theme-sm text-gray-500 dark:text-gray-400">
           正答率
-          <span className="ml-1.5 text-lg font-semibold text-gray-800 tabular-nums dark:text-white/90">{isSolved ? formatRate(question.correctRate) : "—"}</span>
+          <span className="ml-1.5 text-lg font-semibold text-gray-800 tabular-nums dark:text-white/90">{isSolved ? formatRate(question.correctRate) : EMPTY_VALUE}</span>
         </span>
       </div>
       <p className="mt-3 text-theme-sm text-gray-800 dark:text-white/90">{question.prompt}</p>
@@ -60,9 +65,9 @@ export function QuestionStatsCard({ isSolved, question, solvedAttempts }: { isSo
       <ul className="mt-4 space-y-3">
         {question.choices.map((choice, index) => (
           <ChoiceRow
-            key={choice}
+            key={index}
             isCorrect={index === question.correctChoiceIndex}
-            isMisleading={needsReview && index !== question.correctChoiceIndex && question.choiceRates[index] >= question.choiceRates[question.correctChoiceIndex]}
+            isMisleading={needsReview && isMisleadingChoice(question, index)}
             label={CHOICE_LETTERS[index]}
             rate={isSolved ? question.choiceRates[index] : null}
             text={choice}
@@ -70,7 +75,7 @@ export function QuestionStatsCard({ isSolved, question, solvedAttempts }: { isSo
         ))}
       </ul>
       <p className="mt-4 border-t border-gray-100 pt-3 text-theme-xs text-gray-500 dark:border-gray-800 dark:text-gray-400">
-        未回答 {isSolved ? formatRate(question.unansweredRate) : "—"}
+        未回答 {isSolved ? formatRate(question.unansweredRate) : EMPTY_VALUE}
       </p>
     </section>
   )

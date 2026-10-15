@@ -45,7 +45,7 @@
 pnpm --filter @repo/db db:generate --name add_admin_stats_indexes
 ```
 
-生成された SQL が `CREATE INDEX` 3 つだけ（部分インデックスの 2 つは `WHERE "status" = 'submitted'` 付き）であることを確かめる。本番のデータは少ないうちに入れるので `CONCURRENTLY` は使わない（drizzle の migration は 1 つのトランザクションで流れ、`CONCURRENTLY` を使えないため）。
+生成された SQL が `CREATE INDEX` 3 つだけ（部分インデックスの 2 つは `WHERE "status" = 'submitted'` 付き）であることを確かめる。`CONCURRENTLY` は付けない（README の [インデックス](../README.md#インデックス)）。
 
 ## 動作確認
 

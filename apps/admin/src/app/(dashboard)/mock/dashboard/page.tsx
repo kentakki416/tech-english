@@ -1,5 +1,5 @@
 import PageBreadcrumb from "@/components/layout/PageBreadCrumb"
-import { type AdminStatsPeriod, MOCK_EMPTY_OVERVIEW, MOCK_OVERVIEWS, MOCK_PASSAGE_STATS, convertToUnsolvedPassageStats } from "@/libs/mock-data"
+import { convertToStatsPeriod, convertToUnsolvedPassageStats, MOCK_EMPTY_OVERVIEW, MOCK_OVERVIEWS, MOCK_PASSAGE_STATS } from "@/libs/mock-data"
 
 import { MockStatePanel } from "../_components/MockStatePanel"
 import { PeriodTabs } from "../_components/PeriodTabs"
@@ -16,15 +16,13 @@ const STATES = [
   { href: "/mock/dashboard?state=empty", key: "empty", label: "まだ誰も学習していない" },
 ]
 
-const parsePeriod = (value: string | undefined): AdminStatsPeriod => (value === "7d" || value === "all" ? value : "30d")
-
 /**
  * ダッシュボード（モック）。本実装では admin のトップ（/）に置く
  */
 export default async function MockDashboardPage({ searchParams }: { searchParams: Promise<{ period?: string, state?: string }> }) {
   const { period: rawPeriod, state } = await searchParams
   const isEmpty = state === "empty"
-  const period = parsePeriod(rawPeriod)
+  const period = convertToStatsPeriod(rawPeriod)
   const overview = isEmpty ? MOCK_EMPTY_OVERVIEW : MOCK_OVERVIEWS[period]
   const rows = isEmpty ? convertToUnsolvedPassageStats(MOCK_PASSAGE_STATS["30d"]) : MOCK_PASSAGE_STATS[period]
 

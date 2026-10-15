@@ -7,8 +7,17 @@ import Badge from "@/components/ui/badge/Badge"
 import Pagination from "@/components/ui/table/Pagination"
 import { AUTH_PROVIDER_LABELS, type MockUser } from "@/libs/mock-data"
 
-import { formatCount } from "../_components/stats-format"
-import { SearchField, SortHeader, tableCellClass, tableFrameClass, tableHeadCellClass, tableToolbarClass } from "../_components/TableParts"
+import { EMPTY_VALUE, formatCount } from "../_components/stats-format"
+import {
+  SearchField,
+  SortableHeaderCell,
+  type SortOrder,
+  sortRowsWithNullsLast,
+  tableCellClass,
+  tableFrameClass,
+  tableHeadCellClass,
+  tableToolbarClass,
+} from "../_components/TableParts"
 
 import { UserAvatar } from "./UserAvatar"
 
@@ -20,29 +29,15 @@ type SortKey = "createdAt" | "lastStudiedDate" | "solvedAttempts"
 const PAGE_SIZE = 50
 
 /**
- * 並べ替え。null（学習していない）はどちらの向きでも最後、同じ値は ID の順
- */
-const sortUsers = (users: MockUser[], key: SortKey, order: "asc" | "desc"): MockUser[] =>
-  [...users].sort((a, b) => {
-    const left = a[key]
-    const right = b[key]
-    if (left === null && right === null) return a.id - b.id
-    if (left === null) return 1
-    if (right === null) return -1
-    const compared = typeof left === "string" ? left.localeCompare(String(right)) : left - Number(right)
-    return (order === "asc" ? compared : -compared) || a.id - b.id
-  })
-
-/**
  * ユーザー一覧の表（モック）。本実装では並べ替え・絞り込み・ページ送りを URL のクエリにして API に任せる
  */
 export function UserTable({ initialQuery, users }: { initialQuery: string, users: MockUser[] }) {
-  const [sort, setSort] = useState<{ key: SortKey, order: "asc" | "desc" }>({ key: "createdAt", order: "desc" })
+  const [sort, setSort] = useState<{ key: SortKey, order: SortOrder }>({ key: "createdAt", order: "desc" })
   const [query, setQuery] = useState(initialQuery)
   const [page, setPage] = useState(1)
 
   const normalizedQuery = query.trim().toLowerCase()
-  const filtered = sortUsers(
+  const filtered = sortRowsWithNullsLast(
     users.filter(user => normalizedQuery === "" || [user.name, user.email].some(value => value?.toLowerCase().includes(normalizedQuery))),
     sort.key,
     sort.order,
@@ -54,8 +49,8 @@ export function UserTable({ initialQuery, users }: { initialQuery: string, users
     setSort(previous => ({ key, order: previous.key === key && previous.order === "desc" ? "asc" : "desc" }))
     setPage(1)
   }
-  const renderSortHeader = (key: SortKey, label: string) => (
-    <SortHeader isActive={sort.key === key} label={label} onClick={() => changeSort(key)} order={sort.order} />
+  const renderSortableHeader = (key: SortKey, label: string) => (
+    <SortableHeaderCell isActive={sort.key === key} label={label} order={sort.order} onClick={() => changeSort(key)} />
   )
 
   return (
@@ -63,12 +58,12 @@ export function UserTable({ initialQuery, users }: { initialQuery: string, users
       <div className={tableToolbarClass}>
         <span className="text-theme-sm text-gray-500 dark:text-gray-400">{formatCount(filtered.length)} 人</span>
         <SearchField
+          placeholder="名前・メールで絞り込む"
+          value={query}
           onChange={(value) => {
             setQuery(value)
             setPage(1)
           }}
-          placeholder="名前・メールで絞り込む"
-          value={query}
         />
       </div>
       <div className="custom-scrollbar overflow-x-auto">
@@ -78,9 +73,9 @@ export function UserTable({ initialQuery, users }: { initialQuery: string, users
               <th className={tableHeadCellClass}>ユーザー</th>
               <th className={tableHeadCellClass}>メールアドレス</th>
               <th className={tableHeadCellClass}>ログイン方法</th>
-              <th className={tableHeadCellClass}>{renderSortHeader("createdAt", "登録日")}</th>
-              <th className={tableHeadCellClass}>{renderSortHeader("lastStudiedDate", "最後に学習した日")}</th>
-              <th className={tableHeadCellClass}>{renderSortHeader("solvedAttempts", "解いた回数")}</th>
+              {renderSortableHeader("createdAt", "登録日")}
+              {renderSortableHeader("lastStudiedDate", "最後に学習した日")}
+              {renderSortableHeader("solvedAttempts", "解いた回数")}
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 dark:divide-white/5">
@@ -97,7 +92,7 @@ export function UserTable({ initialQuery, users }: { initialQuery: string, users
                     </span>
                   </Link>
                 </td>
-                <td className={tableCellClass}>{user.email ?? "—"}</td>
+                <td className={tableCellClass}>{user.email ?? EMPTY_VALUE}</td>
                 <td className={tableCellClass}>
                   <span className="flex gap-1">
                     {user.providers.map(provider => (
@@ -106,7 +101,7 @@ export function UserTable({ initialQuery, users }: { initialQuery: string, users
                   </span>
                 </td>
                 <td className={tableCellClass}>{user.createdAt.slice(0, 10)}</td>
-                <td className={tableCellClass}>{user.lastStudiedDate ?? "—"}</td>
+                <td className={tableCellClass}>{user.lastStudiedDate ?? EMPTY_VALUE}</td>
                 <td className={`${tableCellClass} font-medium text-gray-800 dark:text-white/90`}>{formatCount(user.solvedAttempts)}</td>
               </tr>
             ))}
@@ -123,7 +118,7 @@ export function UserTable({ initialQuery, users }: { initialQuery: string, users
         <span className="text-theme-sm text-gray-500 dark:text-gray-400">
           {filtered.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1}〜{Math.min(page * PAGE_SIZE, filtered.length)} 人目 / {formatCount(filtered.length)} 人
         </span>
-        <Pagination currentPage={page} onPageChange={setPage} totalPages={totalPages} />
+        <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
       </div>
     </div>
   )

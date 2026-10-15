@@ -1,7 +1,7 @@
 import Image from "next/image"
 
 /**
- * ユーザーのアイコン。画像が無ければ名前の頭文字（名前も無ければ「?」）を丸に出す
+ * ユーザーのアイコン。画像が無ければ名前の頭文字（絵文字なども 1 文字として扱う。名前が無い・空なら「?」）を丸に出す
  */
 export function UserAvatar({ avatarUrl, name, size }: { avatarUrl: string | null, name: string | null, size: number }) {
   if (avatarUrl) {
@@ -13,7 +13,7 @@ export function UserAvatar({ avatarUrl, name, size }: { avatarUrl: string | null
       className="flex shrink-0 items-center justify-center rounded-full bg-brand-100 font-semibold text-brand-600 uppercase dark:bg-brand-500/20 dark:text-brand-400"
       style={{ fontSize: size * 0.4, height: size, width: size }}
     >
-      {name?.slice(0, 1) ?? "?"}
+      {Array.from(name ?? "")[0] ?? "?"}
     </span>
   )
 }

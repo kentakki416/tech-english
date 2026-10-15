@@ -24,7 +24,13 @@ export const userApi = {
    * ユーザーが居なければ null（404）
    */
   getDetail: async (id: number) => { /** GET /api/admin/user/:id */ },
+  /**
+   * ユーザーが居なければ null（404）
+   */
   getCalendar: async (id: number, range?: { from: string; to: string }) => { /** GET /api/admin/user/:id/calendar */ },
+  /**
+   * ユーザーが居なければ null（404）
+   */
   getAttempts: async (id: number, query: { cursor?: number; limit: number }) => { /** GET /api/admin/user/:id/attempts */ },
 }
 ```
@@ -36,19 +42,19 @@ export const userApi = {
 
 - `app/(dashboard)/users/page.tsx`（`await connection()`）と `components/features/user/UserTable.tsx`
 - 列の見出しが並べ替えのリンク、名前・メールアドレスの絞り込み（`?q=`。GET の form）、ページ送り、全体の件数
-- 行は `/users/[id]` へのリンク。名前が無ければ「（名前なし）」、最後に学習した日が無ければ「—」
+- ユーザーの欄（アイコン・名前）は `/users/[id]` へのリンク。名前が無ければ「（名前なし）」、メールアドレス・最後に学習した日が無ければ「―」
 - `metadata.title` は「ユーザー | tech-english admin」
 
 ### 3. ユーザーの詳細（`/users/[id]`）
 
-- `app/(dashboard)/users/[id]/page.tsx`。詳細・カレンダー・学習履歴の 1 ページ目を `Promise.all` で取る。ユーザーが居なければ `notFound()`
+- `app/(dashboard)/users/[id]/page.tsx`。詳細・カレンダー・学習履歴の 1 ページ目を `Promise.all` で取る。`userApi` の 3 つはどれも 404 なら null を返し、詳細が null なら `notFound()`
 - `components/features/user/`：
-  - `UserProfileCard.tsx`：アイコン・名前・メールアドレス・ユーザー ID・ログイン方法・登録日時（日本時間。`formatDateTime`）・タイムゾーン
-  - `UserStatsCards.tsx`：連続学習日数・解いた回数と問題の数・正答率・学習時間・種類ごとの正答率・アシストなしの正答率・週の目標
+  - `UserProfileCard.tsx`：アイコン・名前・メールアドレス・ユーザー ID・ログイン方法・登録日時（日本時間。`formatDateTime`）・タイムゾーン・最後に学習した日
+  - `UserStatsCards.tsx`：連続学習日数・解いた回数と問題の数・正答率・学習時間・種類ごとの正答率・アシストなしの正答率・週の目標（単位は `weekly_metric` で「問」「分」、達成していれば「達成」のバッジ、棒は 100% まで）
   - `UserCalendar.tsx`：学習カレンダーの草（直近 1 年）
   - `UserAttemptList.tsx`（`"use client"`）：学習履歴。「さらに読み込む」は Server Action（`app/(dashboard)/users/[id]/actions.ts` の `loadMoreAttemptsAction`）で次の cursor を読む。問題名は `/passages/[id]` へのリンク
   - `UserVocabularyCard.tsx`：単語帳の枚数（学習中・覚えた・まだ出ていない）、今日やる枚数、次に出る日
-- パンくずは「ユーザー > {名前}」
+- パンくずは「Home > ユーザーの詳細」（`PageBreadCrumb` の `pageTitle`）。上に「← ユーザー一覧に戻る」
 
 ### 4. サイドバー
 

@@ -13,6 +13,11 @@ import { formatShortDate } from "../_components/stats-format"
 const Chart = dynamic(async () => import("react-apexcharts"), { ssr: false })
 
 /**
+ * 横軸のラベルの数の上限。点がこの 2 倍より多い（30 日の日ごと・全期間の週ごと）ときは、ラベルが重ならないよう 8 つまでに間引く（7 日はすべて出す）
+ */
+const MAX_X_LABELS = 8
+
+/**
  * 推移の折れ線（学習したユーザー数・解いた回数・新規登録数）。7 日・30 日は日ごと、全期間は週ごと
  */
 export function OverviewChart({ overview }: { overview: MockOverview }) {
@@ -31,7 +36,7 @@ export function OverviewChart({ overview }: { overview: MockOverview }) {
       axisTicks: { show: false },
       categories,
       labels: { hideOverlappingLabels: true, rotate: 0, style: { colors: "#6B7280", fontSize: "12px" } },
-      tickAmount: overview.points.length > 10 ? 8 : undefined,
+      tickAmount: overview.points.length > MAX_X_LABELS * 2 ? MAX_X_LABELS : undefined,
       tooltip: { enabled: false },
     },
     yaxis: { labels: { style: { colors: ["#6B7280"], fontSize: "12px" } }, min: 0 },
