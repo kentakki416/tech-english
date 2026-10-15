@@ -160,6 +160,9 @@ export const getPassageOverview = async (
   const content = await repo.passageRepository.findAttemptContentById(input.passageId)
   if (!content) throw new Error(`Passage of attempt not found: attemptId=${attempt.id}, passageId=${input.passageId}`)
   const { passage } = content
+  /**
+   * 挑戦がある問題は一度公開されているので難易度を必ず持つ（公開の条件。非公開に戻しても消えない）
+   */
   if (passage.difficulty === null) throw new Error(`Passage with an attempt has no difficulty: id=${passage.id}`)
   logger.debug("PassageService: Overview of unpublished passage for resuming", { attemptId: attempt.id, passageId: passage.id })
   return ok({

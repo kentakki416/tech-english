@@ -364,9 +364,6 @@ app.use(authMiddleware)
 
 app.use(requestLogger)
 
-/**
- * Lambda ではレスポンス後に実行環境が凍結されるため、送出中のイベントを先に送り切る
- */
 if (env.FLUSH_EVENTS_BEFORE_RESPONSE) {
   app.use(flushEventsBeforeResponse(eventTracker))
 }

@@ -28,6 +28,9 @@ const readRate = (): ReadAloudRate => {
     const stored = Number(window.localStorage.getItem(RATE_STORAGE_KEY))
     if (isReadAloudRate(stored)) return stored
   } catch {
+    /**
+     * 読めない（プライベートブラウズ等）ときは既定値にする
+     */
   }
   return DEFAULT_RATE
 }

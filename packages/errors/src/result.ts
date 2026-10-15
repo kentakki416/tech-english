@@ -7,6 +7,9 @@ export type ApiErrorDetail = {
    * 原因の種類を識別するコード（例: "evidence_not_found"）
    */
   code: string
+  /**
+   * そのまま利用者に表示する説明（admin の画面に出る）
+   */
   message: string
   /**
    * 原因の場所（例: ["questions", 1, "evidence"]）。全体に関わるものは空配列
@@ -28,6 +31,9 @@ export type ApiError = {
    * エラーの種類を識別するタグ（ログ・分岐用）
    */
   type: ApiErrorType
+  /**
+   * レスポンスの `error` にそのまま入る。内部情報を含めない
+   */
   message: string
 }
 

@@ -122,8 +122,7 @@ module "app_secrets" {
 # =============================================================================
 # ClickHouse Cloud (enable_data_warehouse のときだけ)
 # =============================================================================
-# prd と同じ。
-# ただし NAT が無く、worker と migration のタスクの public IP は起動のたびに変わるため、
+# NAT が無く、worker と migration のタスクの public IP は起動のたびに変わるため、
 # 接続元は絞らずパスワードで守る。
 # 設計: docs/spec/clickhouse-migration/README.md
 
@@ -298,7 +297,7 @@ module "ecs_worker" {
   secret_keys        = local.secret_keys.worker
   additional_secrets = local.data_warehouse_secrets
 
-  # prd と同じ
+  # 秘密情報ではないので secrets ではなく平文の environment で渡す
   environment = {
     DATA_WAREHOUSE_TYPE = var.enable_data_warehouse ? "clickhouse" : "none"
   }

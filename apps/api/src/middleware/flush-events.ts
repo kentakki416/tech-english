@@ -23,9 +23,8 @@ const waitForFlush = async (eventTracker: EventTracker): Promise<void> => {
 }
 
 /**
- * レスポンスを返す前に、送出中の行動イベントを送り切る middleware。
- *
- * res.end を包んで flush を待ってから返す。
+ * Lambda はレスポンスを返した時点で実行環境を凍結するため、service が await せずに投げた enqueue が失われうる。
+ * res.end を包んで flush を待ってから返す（ECS ではプロセスが動き続けるので不要）。
  * service 側の「送出は await しない」という規約はそのまま（待つのはここだけ）。
  *
  * 設計: docs/spec/minimal-deploy/README.md「Lambda の凍結とイベント送出」

@@ -16,7 +16,9 @@ import {
 
 import { apiClient } from "@/libs/api-client"
 
-/** 値が undefined の項目は除く */
+/**
+ * 値が undefined の項目は除く
+ */
 const buildSearchParams = (query: Record<string, number | string | undefined>): URLSearchParams => {
   const params = new URLSearchParams()
   for (const [key, value] of Object.entries(query)) {

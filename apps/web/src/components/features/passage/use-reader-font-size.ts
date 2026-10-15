@@ -28,6 +28,9 @@ const readFontSize = (): ReaderFontSize => {
     const stored = window.localStorage.getItem(FONT_SIZE_STORAGE_KEY)
     if (isReaderFontSize(stored)) return stored
   } catch {
+    /**
+     * 読めない（プライベートブラウズ等）ときは既定値にする
+     */
   }
   return DEFAULT_FONT_SIZE
 }
