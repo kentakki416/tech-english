@@ -1,9 +1,9 @@
 {
   "version": "8",
   "dialect": "postgres",
-  "id": "4efdad32-080b-4a5a-aeac-e116485596db",
+  "id": "ee81eea9-e800-44e1-994c-d1659940d8a1",
   "prevIds": [
-    "d2498be9-e94d-401e-bba1-dc69aabbf23c"
+    "28d44b31-5fd5-46ea-9c15-32efcb711cb4"
   ],
   "ddl": [
     {
@@ -3501,6 +3501,55 @@
       "nameExplicit": true,
       "columns": [
         {
+          "value": "submitted_at",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": "\"status\" = 'submitted'",
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "reading_attempts_submitted_at_idx",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "reading_attempts"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "passage_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        },
+        {
+          "value": "submitted_at",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": "\"status\" = 'submitted'",
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "reading_attempts_passage_id_submitted_at_idx",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "reading_attempts"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
           "value": "user_id",
           "isExpression": false,
           "asc": true,
@@ -3766,6 +3815,27 @@
       "method": "btree",
       "concurrently": false,
       "name": "vocabulary_reviews_card_id_idx",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "vocabulary_reviews"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "created_at",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "vocabulary_reviews_created_at_idx",
       "entityType": "indexes",
       "schema": "public",
       "table": "vocabulary_reviews"
