@@ -33,12 +33,9 @@ const fetchOrNullOnNotFound = async <T>(path: string, parse: (raw: unknown) => T
   }
 }
 
-/**
- * ユーザー管理の API 通信層（admin-users）
- */
 export const userApi = {
   /**
-   * 学習履歴の 1 ページ（新しい順）。ユーザーが居なければ null
+   * 学習履歴の 1 ページ（新しい順）
    */
   getAttempts: async (id: number, query: { cursor?: number, limit: number }): Promise<GetAdminUserAttemptsResponse | null> => {
     const params = new URLSearchParams({ limit: String(query.limit) })
@@ -47,13 +44,13 @@ export const userApi = {
   },
 
   /**
-   * 学習カレンダー（期間を省くとマイページと同じ直近 1 年）。ユーザーが居なければ null
+   * 学習カレンダー（期間を省くとマイページと同じ直近 1 年）
    */
   getCalendar: async (id: number): Promise<GetAdminUserCalendarResponse | null> =>
     fetchOrNullOnNotFound(`${BASE_PATH}/${id}/calendar`, raw => getAdminUserCalendarResponseSchema.parse(raw)),
 
   /**
-   * 基本の情報・学習のまとめ・単語帳の数。ユーザーが居なければ null
+   * 基本の情報・学習のまとめ・単語帳の数
    */
   getDetail: async (id: number): Promise<GetAdminUserResponse | null> =>
     fetchOrNullOnNotFound(`${BASE_PATH}/${id}`, raw => getAdminUserResponseSchema.parse(raw)),

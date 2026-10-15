@@ -1,9 +1,5 @@
 import type { GetAdminUserResponse } from "@repo/api-schema"
 
-/**
- * ユーザー管理の表示ラベル（一覧・詳細で使う）
- */
-
 const AUTH_PROVIDER_LABELS: Record<string, string> = {
   dev: "dev",
   github: "GitHub",

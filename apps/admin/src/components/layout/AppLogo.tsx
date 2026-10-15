@@ -3,14 +3,10 @@ import Link from "next/link"
 
 const APP_NAME = "tech-english-admin"
 
-/**
- * ロゴを押したときの移り先（ダッシュボード）
- */
 const HOME_PATH = "/"
 
 /**
- * 左上のロゴ（マークと「tech-english-admin」の文字。押すと HOME_PATH へ）。サイドバーとスマホ幅のヘッダーで使う。
- * サイドバーを畳んだときは isCompact でマークだけにする
+ * 左上のロゴ。サイドバーを畳んだとき（isCompact）はマークだけにする
  */
 export function AppLogo({ className, isCompact = false }: { className?: string, isCompact?: boolean }) {
   return (
