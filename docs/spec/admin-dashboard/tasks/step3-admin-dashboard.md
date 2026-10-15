@@ -59,7 +59,7 @@ export const statsApi = {
 
 ### 4. 問題の分析（`/analytics/passages/[id]`）
 
-- `app/(dashboard)/analytics/passages/[id]/page.tsx`。URL の id は `/^\d+$/` と `getAdminPassageStatsPathParamSchema` で読み、正の整数でないか問題が無ければ `notFound()`
+- `app/(dashboard)/analytics/passages/[id]/page.tsx`。URL の id は `/^\d+$/` と `getAdminPassageStatsPathParamSchema` で読み、正の整数でない・DB の ID の上限を超えるか、問題が無ければ `notFound()`
 - 上部：タイトル・状態・ソース・公開日と、問題ごとの成績と同じ数字。「確認・修正を開く」は `/passages/[id]` へ
 - 設問ごと（`components/features/stats/QuestionStatsCard.tsx`）：種類・設問文・正答率・選択肢ごとの割合の横棒（正解に印）・未回答の割合・「要確認」の印
 - 注意書き（非公開に戻して直した問題は、直す前の解答も同じ位置の選択肢として数える）を設問の上に出す

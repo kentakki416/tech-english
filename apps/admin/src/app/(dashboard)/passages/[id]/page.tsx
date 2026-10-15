@@ -16,7 +16,7 @@ type Props = {
 }
 
 /**
- * URL の id で問題を取る。正の整数でない id（`abc`・`0`・`1e3` など）と、API が 404 を返す id は notFound
+ * URL の id で問題を取る。正の整数でない id（`abc`・`0`・`1e3` など）、DB の ID の上限を超える id と、API が 404 を返す id は notFound
  */
 const loadPassage = async (id: string) => {
   if (!/^\d+$/.test(id)) notFound()

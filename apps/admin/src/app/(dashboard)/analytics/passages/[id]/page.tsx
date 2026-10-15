@@ -29,7 +29,7 @@ type Props = {
 }
 
 /**
- * URL の id を問題の ID にする。正の整数でない id（`abc`・`0`・`1e3`・`0x10` など）は null（問題の確認・修正の画面と同じ読み方）
+ * URL の id を問題の ID にする。正の整数でない id（`abc`・`0`・`1e3`・`0x10` など）と、DB の ID の上限を超える id は null（問題の確認・修正の画面と同じ読み方）
  */
 const convertPathIdToPassageId = (id: string): number | null => {
   if (!/^\d+$/.test(id)) return null

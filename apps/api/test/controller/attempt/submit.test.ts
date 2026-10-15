@@ -416,6 +416,7 @@ describe("POST /api/attempt/:id/submit", () => {
 
     it.each([
       ["selected_choice_index が 4", { answers: [{ question_id: 1, selected_choice_index: 4 }] }],
+      ["question_id が DB の integer の上限を超える", { answers: [{ question_id: 2147483648, selected_choice_index: 0 }] }],
       ["active_seconds が負", { active_seconds: -1 }],
       ["active_seconds が小数", { active_seconds: 1.5 }],
       ["listened_block_count が負", { listened_block_count: -1 }],
