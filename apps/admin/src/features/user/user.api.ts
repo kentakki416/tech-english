@@ -1,7 +1,6 @@
 import "server-only"
 
 import {
-  type AdminUserSort,
   type GetAdminUserAttemptsResponse,
   getAdminUserAttemptsResponseSchema,
   type GetAdminUserCalendarResponse,
@@ -12,6 +11,7 @@ import {
   getAdminUserResponseSchema,
 } from "@repo/api-schema"
 
+import type { UserListQuery } from "@/features/user/user.params"
 import { apiClient, ApiClientError } from "@/libs/api-client"
 
 const BASE_PATH = "/api/admin/user"
@@ -58,7 +58,10 @@ export const userApi = {
   getDetail: async (id: number): Promise<GetAdminUserResponse | null> =>
     fetchOrNullOnNotFound(`${BASE_PATH}/${id}`, raw => getAdminUserResponseSchema.parse(raw)),
 
-  getList: async (query: { order: "asc" | "desc", page: number, q?: string, sort: AdminUserSort }): Promise<GetAdminUserListResponse> => {
+  /**
+   * ユーザー一覧（1 ページ。件数は API の既定値）
+   */
+  getList: async (query: UserListQuery): Promise<GetAdminUserListResponse> => {
     const params = new URLSearchParams({ order: query.order, page: String(query.page), sort: query.sort })
     if (query.q) params.set("q", query.q)
     const raw = await apiClient.get<unknown>(`${BASE_PATH}?${params.toString()}`)

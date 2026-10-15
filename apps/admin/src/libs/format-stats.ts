@@ -8,9 +8,20 @@
 export const EMPTY_VALUE = "―"
 
 /**
+ * 比率（0〜1）を表示する整数の %（0.495 → 50）。色分けの判定も表示と同じ値でする
+ */
+export const convertRateToPercent = (rate: number): number => Math.round(rate * 100)
+
+/**
  * 比率（0〜1）を「72%」に。null（分母が 0）は EMPTY_VALUE
  */
-export const formatRate = (rate: number | null): string => (rate === null ? EMPTY_VALUE : `${Math.round(rate * 100)}%`)
+export const formatRate = (rate: number | null): string => (rate === null ? EMPTY_VALUE : `${convertRateToPercent(rate)}%`)
+
+/**
+ * アシストの利用率を「和訳 / 単語 / 読み上げ」の順に「12% / 40% / 8%」に（問題ごとの成績と問題の分析で同じ並び）
+ */
+export const formatAssistRates = (rates: { listened: number | null, looked_up: number | null, translated: number | null }): string =>
+  `${formatRate(rates.translated)} / ${formatRate(rates.looked_up)} / ${formatRate(rates.listened)}`
 
 /**
  * 件数を「1,284」に
@@ -41,10 +52,20 @@ export const formatElapsedWithLimit = (elapsedSeconds: number | null, timeLimitS
 }
 
 /**
- * 学習時間（秒）を「7 時間 54 分」に
+ * 学習時間（秒）を「7 時間 54 分」に。分は切り捨て、0 秒より多く 60 秒未満は「1 分未満」（web のマイページの formatStudyTime と同じ）
  */
 export const formatStudyTime = (seconds: number): string => {
+  if (seconds > 0 && seconds < 60) return "1 分未満"
   const hours = Math.floor(seconds / 3600)
   const minutes = Math.floor((seconds % 3600) / 60)
   return hours > 0 ? `${hours} 時間 ${minutes} 分` : `${minutes} 分`
+}
+
+/**
+ * 表の下の「1〜50 件目 / 1,284 件」。行が無い（0 件・範囲外のページ）ときは「0〜0 件目」。unit は「件」「人」
+ */
+export const formatRowRange = (range: { limit: number, page: number, rowCount: number, total: number }, unit: string): string => {
+  const first = range.rowCount === 0 ? 0 : (range.page - 1) * range.limit + 1
+  const last = range.rowCount === 0 ? 0 : (range.page - 1) * range.limit + range.rowCount
+  return `${formatCount(first)}〜${formatCount(last)} ${unit}目 / ${formatCount(range.total)} ${unit}`
 }

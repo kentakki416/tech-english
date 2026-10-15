@@ -1,63 +1,69 @@
-import { type AdminPassageStatsSort, adminPassageStatsSortSchema, type AdminStatsPeriod, adminStatsPeriodSchema } from "@repo/api-schema"
+import "server-only"
+
+import { type AdminStatsPeriod, type GetAdminPassageStatsListQueryString, getAdminPassageStatsListQueryStringSchema } from "@repo/api-schema"
+
+import { convertSearchParamBySchema, convertSearchParamToKeyword, type SearchParams, type SearchParamValue } from "@/libs/search-params"
 
 /**
- * ダッシュボードの URL のクエリ（?period=&sort=&order=&page=&q=）。Server Component で読む（Zod のスキーマを使うので Client Component からは使わない）
+ * ダッシュボードの URL のクエリ（?period=&sort=&order=&page=&q=）。項目・既定値・検証は API のクエリのスキーマに従い、件数（limit）は API の既定値に任せる。
+ * Zod のスキーマを使うので server-only（Client Component から import するとビルドで落ちる）
  */
-export type DashboardQuery = {
-  order: "asc" | "desc"
-  page: number
-  period: AdminStatsPeriod
-  q?: string
-  sort: AdminPassageStatsSort
-}
+export type DashboardQuery = Omit<GetAdminPassageStatsListQueryString, "limit">
 
-type SearchParams = Record<string, string | string[] | undefined>
-
-const DEFAULT_QUERY: DashboardQuery = { order: "desc", page: 1, period: "30d", sort: "solved_users" }
+const QUERY_FIELDS = getAdminPassageStatsListQueryStringSchema.shape
 
 /**
- * 同じ名前のクエリが 2 つ以上あれば最初の値を使う
+ * 既定値（直近 30 日・解いた人数の多い順・1 ページ目）
  */
-const pickFirst = (value: string | string[] | undefined): string | undefined => (Array.isArray(value) ? value[0] : value)
+const DEFAULT_QUERY: DashboardQuery = getAdminPassageStatsListQueryStringSchema.omit({ limit: true }).parse({})
 
 /**
- * URL の期間を読む。不正・未指定は直近 30 日
+ * URL の期間を読む。不正・未指定は既定値
  */
-export const convertSearchParamToPeriod = (value: string | string[] | undefined): AdminStatsPeriod => {
-  const parsed = adminStatsPeriodSchema.safeParse(pickFirst(value))
-  return parsed.success ? parsed.data : DEFAULT_QUERY.period
-}
+export const convertSearchParamToPeriod = (value: SearchParamValue): AdminStatsPeriod =>
+  convertSearchParamBySchema(QUERY_FIELDS.period, value, DEFAULT_QUERY.period)
 
 /**
- * URL のクエリを読む。不正・未指定は既定値（直近 30 日・解いた人数の多い順・1 ページ目）
+ * URL のクエリを読む。不正・未指定は既定値、絞り込みの文字は API の上限で切り詰める
  */
-export const convertSearchParamsToDashboardQuery = (params: SearchParams): DashboardQuery => {
-  const sort = adminPassageStatsSortSchema.safeParse(pickFirst(params.sort))
-  const page = Number(pickFirst(params.page))
-  const q = pickFirst(params.q)?.trim()
-  return {
-    order: pickFirst(params.order) === "asc" ? "asc" : "desc",
-    page: Number.isInteger(page) && page >= 1 && page <= 10_000 ? page : DEFAULT_QUERY.page,
-    period: convertSearchParamToPeriod(params.period),
-    q: q ? q.slice(0, 200) : undefined,
-    sort: sort.success ? sort.data : DEFAULT_QUERY.sort,
-  }
-}
+export const convertSearchParamsToDashboardQuery = (params: SearchParams): DashboardQuery => ({
+  order: convertSearchParamBySchema(QUERY_FIELDS.order, params.order, DEFAULT_QUERY.order),
+  page: convertSearchParamBySchema(QUERY_FIELDS.page, params.page, DEFAULT_QUERY.page),
+  period: convertSearchParamToPeriod(params.period),
+  q: convertSearchParamToKeyword(params.q, QUERY_FIELDS.q.unwrap().maxLength),
+  sort: convertSearchParamBySchema(QUERY_FIELDS.sort, params.sort, DEFAULT_QUERY.sort),
+})
 
 /**
- * ダッシュボードの URL。既定値のクエリは省く
+ * ダッシュボードの URL のクエリ。既定値の項目は省く（渡さなかった項目は既定値）
  */
-export const buildDashboardHref = (query: DashboardQuery): string => {
-  const params = new URLSearchParams({ period: query.period })
-  if (query.sort !== DEFAULT_QUERY.sort) params.set("sort", query.sort)
-  if (query.order !== DEFAULT_QUERY.order) params.set("order", query.order)
-  if (query.q) params.set("q", query.q)
-  if (query.page !== DEFAULT_QUERY.page) params.set("page", String(query.page))
-  return `/?${params.toString()}`
+const buildDashboardSearchParams = (query: Partial<DashboardQuery>): URLSearchParams => {
+  const merged = { ...DEFAULT_QUERY, ...query }
+  const params = new URLSearchParams()
+  if (merged.period !== DEFAULT_QUERY.period) params.set("period", merged.period)
+  if (merged.sort !== DEFAULT_QUERY.sort) params.set("sort", merged.sort)
+  if (merged.order !== DEFAULT_QUERY.order) params.set("order", merged.order)
+  if (merged.q) params.set("q", merged.q)
+  if (merged.page !== DEFAULT_QUERY.page) params.set("page", String(merged.page))
+  return params
 }
 
 /**
- * 問題の分析の URL（ダッシュボードと同じ期間）
+ * ダッシュボードの URL（`/?period=7d&sort=correct_rate`）。既定値の項目は省く
+ */
+export const buildDashboardHref = (query: Partial<DashboardQuery>): string => {
+  const search = buildDashboardSearchParams(query).toString()
+  return search ? `/?${search}` : "/"
+}
+
+/**
+ * 絞り込みのフォームで残すクエリ（期間・並べ替え。既定値は省く。ページは 1 に戻す）
+ */
+export const buildDashboardSearchFormValues = (query: DashboardQuery): Record<string, string> =>
+  Object.fromEntries(buildDashboardSearchParams({ ...query, page: DEFAULT_QUERY.page, q: undefined }))
+
+/**
+ * 問題の分析の URL（ダッシュボードと同じ期間。既定値なら省く）
  */
 export const buildPassageAnalyticsHref = (passageId: number, period: AdminStatsPeriod): string =>
-  `/analytics/passages/${passageId}?period=${period}`
+  period === DEFAULT_QUERY.period ? `/analytics/passages/${passageId}` : `/analytics/passages/${passageId}?period=${period}`

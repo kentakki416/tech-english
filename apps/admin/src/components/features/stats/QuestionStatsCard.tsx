@@ -1,12 +1,10 @@
 import type { GetAdminPassageStatsResponse } from "@repo/api-schema"
 
 import Badge from "@/components/ui/badge/Badge"
-import { QUESTION_TYPE_LABELS } from "@/features/passage/passage.labels"
-import { EMPTY_VALUE, formatRate } from "@/libs/format-stats"
+import { CHOICE_LETTERS, QUESTION_TYPE_LABELS } from "@/features/passage/passage.labels"
+import { formatRate } from "@/libs/format-stats"
 
 type QuestionStats = GetAdminPassageStatsResponse["questions"][number]
-
-const CHOICE_LETTERS = ["A", "B", "C", "D"]
 
 /**
  * index の選択肢が、正解でないのに正解と同じかそれ以上選ばれているか（1 度も選ばれていなければ false。要確認の設問で橙にする選択肢）
@@ -71,7 +69,7 @@ export function QuestionStatsCard({ question }: { question: QuestionStats }) {
         ))}
       </ul>
       <p className="mt-4 border-t border-gray-100 pt-3 text-theme-xs text-gray-500 dark:border-gray-800 dark:text-gray-400">
-        未回答 {question.answer_count === 0 ? EMPTY_VALUE : formatRate(question.unanswered_rate)}
+        未回答 {formatRate(question.unanswered_rate)}
       </p>
     </section>
   )

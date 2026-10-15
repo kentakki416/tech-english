@@ -1,3 +1,4 @@
+import Form from "next/form"
 import Link from "next/link"
 import type { ReactNode } from "react"
 
@@ -17,9 +18,9 @@ export const tableCellClass = "px-5 py-4 text-theme-sm whitespace-nowrap text-gr
 const searchInputClass = "h-10 w-full rounded-lg border border-gray-300 bg-white pr-4 pl-10 text-sm text-gray-700 focus:border-brand-500 focus:outline-none sm:w-[250px] dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400"
 
 /**
- * 並べ替えのできる列の見出し。押すとその列で多い順、今の列なら向きを逆にした URL へ移る。今の列には向きの矢印と aria-sort を付ける
+ * 並べ替えのできる列の見出しのセル（th）。中身は href へのリンク（並べ替えの向きは呼び出し側が href で決める）。今の列には向きの矢印と aria-sort を付ける
  */
-export function SortableHeaderLink({ href, isActive, label, order }: { href: string, isActive: boolean, label: string, order: "asc" | "desc" }) {
+export function SortableHeaderCell({ href, isActive, label, order }: { href: string, isActive: boolean, label: string, order: "asc" | "desc" }) {
   return (
     <th aria-sort={isActive ? (order === "desc" ? "descending" : "ascending") : "none"} className={tableHeadCellClass}>
       <Link
@@ -37,11 +38,12 @@ export function SortableHeaderLink({ href, isActive, label, order }: { href: str
 }
 
 /**
- * 表の上の絞り込みの入力欄。GET の form で送り、今の期間・並べ替えは hidden で残す（ページは 1 に戻す）
+ * 表の上の絞り込みの入力欄。next/form で action の URL にクエリを付けて移る（ページ全体は読み直さない）。
+ * 今の期間・並べ替えは hiddenValues で残し、ページは送らない（1 ページ目に戻る）
  */
 export function TableSearchForm({ action, hiddenValues, placeholder, query }: { action: string, hiddenValues: Record<string, string>, placeholder: string, query?: string }) {
   return (
-    <form action={action} className="relative w-full sm:w-auto" method="get" role="search">
+    <Form action={action} className="relative w-full sm:w-auto" role="search" scroll={false}>
       {Object.entries(hiddenValues).map(([name, value]) => (
         <input key={name} name={name} type="hidden" value={value} />
       ))}
@@ -49,7 +51,7 @@ export function TableSearchForm({ action, hiddenValues, placeholder, query }: { 
         <path d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
       <input aria-label={placeholder} className={searchInputClass} defaultValue={query} name="q" placeholder={placeholder} type="search" />
-    </form>
+    </Form>
   )
 }
 

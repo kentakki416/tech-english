@@ -1,8 +1,6 @@
 import type { Metadata } from "next"
 import { connection } from "next/server"
 
-import type { AdminStatsPeriod } from "@repo/api-schema"
-
 import { AssistCard } from "@/components/features/stats/AssistCard"
 import { OverviewCards } from "@/components/features/stats/OverviewCards"
 import { OverviewChart } from "@/components/features/stats/OverviewChart"
@@ -11,13 +9,14 @@ import { PeriodTabs } from "@/components/features/stats/PeriodTabs"
 import PageBreadcrumb from "@/components/layout/PageBreadCrumb"
 import { statsApi } from "@/features/stats/stats.api"
 import { buildDashboardHref, convertSearchParamsToDashboardQuery } from "@/features/stats/stats.params"
+import type { SearchParams } from "@/libs/search-params"
 
 export const metadata: Metadata = {
   title: "ダッシュボード | tech-english admin",
 }
 
 type Props = {
-  searchParams: Promise<Record<string, string | string[] | undefined>>
+  searchParams: Promise<SearchParams>
 }
 
 /**
@@ -27,16 +26,13 @@ export default async function DashboardPage({ searchParams }: Props) {
   await connection()
   const query = convertSearchParamsToDashboardQuery(await searchParams)
   const [overview, list] = await Promise.all([statsApi.getOverview(query.period), statsApi.getPassageList(query)])
-  const hrefByPeriod = Object.fromEntries(
-    (["7d", "30d", "all"] as const).map(period => [period, buildDashboardHref({ ...query, page: 1, period })]),
-  ) as Record<AdminStatsPeriod, string>
 
   return (
     <>
       <PageBreadcrumb pageTitle="ダッシュボード" />
       <div className="space-y-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <PeriodTabs current={query.period} hrefByPeriod={hrefByPeriod} />
+          <PeriodTabs buildHref={period => buildDashboardHref({ ...query, page: 1, period })} current={query.period} />
           <p className="text-theme-sm text-gray-500 dark:text-gray-400">
             {overview.from} 〜 {overview.to}（日本時間）
           </p>

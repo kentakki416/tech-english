@@ -1,7 +1,7 @@
 import type { GetAdminUserResponse } from "@repo/api-schema"
 
 import Badge from "@/components/ui/badge/Badge"
-import { formatAuthProvider } from "@/features/user/user.labels"
+import { formatAuthProvider, formatUserName, hasUserName } from "@/features/user/user.labels"
 import { formatDateTime } from "@/libs/format-date"
 import { EMPTY_VALUE } from "@/libs/format-stats"
 
@@ -22,7 +22,7 @@ export function UserProfileCard({ user }: { user: GetAdminUserResponse["user"] }
       <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
         <UserAvatar avatarUrl={user.avatar_url} name={user.name} size={72} />
         <div className="min-w-0">
-          <h2 className={`text-lg font-semibold ${user.name ? "text-gray-800 dark:text-white/90" : "text-gray-400"}`}>{user.name ?? "（名前なし）"}</h2>
+          <h2 className={`text-lg font-semibold ${hasUserName(user.name) ? "text-gray-800 dark:text-white/90" : "text-gray-400"}`}>{formatUserName(user.name)}</h2>
           <p className="mt-1 text-sm break-all text-gray-500 dark:text-gray-400">{user.email ?? "メールアドレスなし"}</p>
           <div className="mt-2 flex gap-1">
             {user.providers.map(provider => <Badge key={provider} color="light" size="sm">{formatAuthProvider(provider)}</Badge>)}

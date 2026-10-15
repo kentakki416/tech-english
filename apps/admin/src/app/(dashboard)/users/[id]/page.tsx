@@ -3,6 +3,8 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { connection } from "next/server"
 
+import { getAdminUserPathParamSchema } from "@repo/api-schema"
+
 import { UserAttemptList } from "@/components/features/user/UserAttemptList"
 import { UserCalendar } from "@/components/features/user/UserCalendar"
 import { UserGoalCard, UserStatCards, UserTypeAccuracyCard, UserVocabularyCard } from "@/components/features/user/UserLearningCards"
@@ -19,13 +21,21 @@ type Props = {
 }
 
 /**
+ * URL の id をユーザーの ID にする。正の整数でない id（`abc`・`0`・`1e3`・`0x10` など）は null（問題の確認・修正の画面と同じ読み方）
+ */
+const convertPathIdToUserId = (id: string): number | null => {
+  if (!/^\d+$/.test(id)) return null
+  const parsed = getAdminUserPathParamSchema.safeParse({ id })
+  return parsed.success ? parsed.data.id : null
+}
+
+/**
  * ユーザーの詳細（admin-users の UI 設計）。学習のまとめ・カレンダー・学習履歴・単語帳はマイページと同じ数字。ユーザーが居なければ 404
  */
 export default async function UserDetailPage({ params }: Props) {
   await connection()
-  const { id } = await params
-  const userId = Number(id)
-  if (!Number.isInteger(userId) || userId <= 0) notFound()
+  const userId = convertPathIdToUserId((await params).id)
+  if (userId === null) notFound()
   const [detail, calendar, attempts] = await Promise.all([
     userApi.getDetail(userId),
     userApi.getCalendar(userId),
@@ -50,7 +60,7 @@ export default async function UserDetailPage({ params }: Props) {
             <UserVocabularyCard vocabulary={detail.vocabulary} />
           </div>
         </div>
-        <UserAttemptList initialPage={attempts} userId={userId} />
+        <UserAttemptList initialPage={attempts} timeZone={detail.user.timezone} userId={userId} />
       </div>
     </>
   )

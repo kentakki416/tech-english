@@ -1,5 +1,9 @@
 import type { GetAdminUserCalendarResponse } from "@repo/api-schema"
 
+import { formatStudyTime } from "@/libs/format-stats"
+
+type CalendarDay = GetAdminUserCalendarResponse["days"][number]
+
 const LEVEL_CLASSES = [
   "bg-gray-100 dark:bg-gray-800",
   "bg-brand-100 dark:bg-brand-500/25",
@@ -8,20 +12,32 @@ const LEVEL_CLASSES = [
   "bg-brand-700 dark:bg-brand-400",
 ]
 
-const WEEKDAY_LABELS = ["", "月", "", "水", "", "金", ""]
+/**
+ * 左の曜日のラベル（月曜始まりの 7 段のうち、月・水・金だけ）
+ */
+const WEEKDAY_LABELS = ["月", "", "水", "", "金", "", ""]
 
 /**
- * 日曜始まりの週に並べる。始まりの日の前は空のマス（null）で埋める
+ * 月曜を 0 とした曜日（web のマイページの学習カレンダーと同じ）
  */
-const groupDaysIntoWeeks = (days: GetAdminUserCalendarResponse["days"]): (GetAdminUserCalendarResponse["days"][number] | null)[][] => {
+const getMondayBasedWeekday = (date: string): number => (new Date(`${date}T00:00:00Z`).getUTCDay() + 6) % 7
+
+/**
+ * 月曜始まりの週に並べる。始まりの日の前は空のマス（null）で埋める（API の既定の期間は月曜始まりの 53 列に収まる）
+ */
+const groupDaysIntoWeeks = (days: CalendarDay[]): (CalendarDay | null)[][] => {
   if (days.length === 0) return []
-  const leadingBlanks = new Date(`${days[0].date}T00:00:00Z`).getUTCDay()
-  const cells = [...Array.from({ length: leadingBlanks }, () => null), ...days]
+  const cells = [...Array.from({ length: getMondayBasedWeekday(days[0].date) }, () => null), ...days]
   return Array.from({ length: Math.ceil(cells.length / 7) }, (_, index) => cells.slice(index * 7, index * 7 + 7))
 }
 
 /**
- * 学習カレンダーの草（マイページと同じ範囲・段階。日曜始まり）を admin の色で出す。
+ * マスのツールチップ（「2026-10-15・1 問・12 枚・7 分」。色の段階は学習時間で決まるので時間も出す）
+ */
+const formatDayTitle = (day: CalendarDay): string => `${day.date}・${day.attempt_count} 問・${day.card_count} 枚・${formatStudyTime(day.study_seconds)}`
+
+/**
+ * 学習カレンダーの草（マイページと同じ範囲・段階。月曜始まり）を admin の色で出す。月のラベル・今日の強調・日を選ぶ操作は出さない。
  * 幅が足りないときに直近の週が見えるよう、横スクロールの始まりを右端にする（dir="rtl"。中の並びは左から右のまま）
  */
 export function UserCalendar({ calendar }: { calendar: GetAdminUserCalendarResponse }) {
@@ -33,7 +49,7 @@ export function UserCalendar({ calendar }: { calendar: GetAdminUserCalendarRespo
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <h3 className="shrink-0 text-lg font-semibold text-gray-800 dark:text-white/90">学習カレンダー</h3>
         <span className="text-theme-sm text-gray-500 dark:text-gray-400">
-          {calendar.from} 〜 {calendar.to} で {studiedDayCount} 日
+          直近 1 年で {studiedDayCount} 日
         </span>
       </div>
       <div className="custom-scrollbar mt-4 overflow-x-auto pb-1" dir="rtl">
@@ -46,7 +62,7 @@ export function UserCalendar({ calendar }: { calendar: GetAdminUserCalendarRespo
               {week.map((day, dayIndex) =>
                 day === null
                   ? <span key={`blank-${dayIndex}`} className="size-[11px]" />
-                  : <span key={day.date} className={`size-[11px] rounded-[2px] ${LEVEL_CLASSES[day.level] ?? LEVEL_CLASSES[0]}`} title={`${day.date}・${day.attempt_count} 問・${day.card_count} 枚`} />,
+                  : <span key={day.date} className={`size-[11px] rounded-[2px] ${LEVEL_CLASSES[day.level] ?? LEVEL_CLASSES[0]}`} title={formatDayTitle(day)} />,
               )}
             </div>
           ))}

@@ -24,7 +24,10 @@ function StatCard({ label, note, value }: { label: string, note: string, value: 
   )
 }
 
-function SideCard({ children, title }: { children: ReactNode, title: string }) {
+/**
+ * 見出し付きのカード（種類ごとの正答率・週の目標・単語帳）
+ */
+function SectionCard({ children, title }: { children: ReactNode, title: string }) {
   return (
     <section className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3">
       <h3 className="text-base font-semibold text-gray-800 dark:text-white/90">{title}</h3>
@@ -52,7 +55,7 @@ export function UserStatCards({ stats }: { stats: UserStats }) {
  */
 export function UserTypeAccuracyCard({ typeAccuracy }: { typeAccuracy: UserStats["type_accuracy"] }) {
   return (
-    <SideCard title="設問の種類ごとの正答率">
+    <SectionCard title="設問の種類ごとの正答率">
       <ul className="space-y-3">
         {typeAccuracy.map(accuracy => (
           <li key={accuracy.type} className="grid grid-cols-[7rem_minmax(0,1fr)_3rem] items-center gap-3 text-theme-sm">
@@ -64,7 +67,7 @@ export function UserTypeAccuracyCard({ typeAccuracy }: { typeAccuracy: UserStats
           </li>
         ))}
       </ul>
-    </SideCard>
+    </SectionCard>
   )
 }
 
@@ -72,28 +75,31 @@ export function UserTypeAccuracyCard({ typeAccuracy }: { typeAccuracy: UserStats
  * 週の目標と今週の進み具合。単位は目標の種類で「問」か「分」、棒は 100% で止める
  */
 export function UserGoalCard({ goal }: { goal: UserStats["goal"] }) {
-  const hasWeeklyGoal = goal !== null && goal.weekly_metric !== null && goal.weekly_target !== null
-  return (
-    <SideCard title="週の目標">
-      {hasWeeklyGoal ? (
-        <>
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              今週 {goal.weekly_target} {GOAL_METRIC_UNITS[goal.weekly_metric!]}
-            </p>
-            {goal.is_weekly_achieved && <Badge color="success" size="sm">達成</Badge>}
-          </div>
-          <p className="mt-1 text-title-sm font-bold text-gray-800 tabular-nums dark:text-white/90">
-            {goal.weekly_progress ?? 0} / {goal.weekly_target}
-          </p>
-          <div className="mt-3 h-2 rounded-full bg-gray-100 dark:bg-gray-800">
-            <div className="h-2 rounded-full bg-success-500" style={{ width: `${Math.min(100, Math.round(((goal.weekly_progress ?? 0) / goal.weekly_target!) * 100))}%` }} />
-          </div>
-        </>
-      ) : (
+  const metric = goal?.weekly_metric ?? null
+  const target = goal?.weekly_target ?? null
+  if (goal === null || metric === null || target === null) {
+    return (
+      <SectionCard title="週の目標">
         <p className="text-sm text-gray-500 dark:text-gray-400">目標は設定されていません</p>
-      )}
-    </SideCard>
+      </SectionCard>
+    )
+  }
+  const progress = goal.weekly_progress ?? 0
+  return (
+    <SectionCard title="週の目標">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-gray-500 dark:text-gray-400">
+          今週 {target} {GOAL_METRIC_UNITS[metric]}
+        </p>
+        {goal.is_weekly_achieved && <Badge color="success" size="sm">達成</Badge>}
+      </div>
+      <p className="mt-1 text-title-sm font-bold text-gray-800 tabular-nums dark:text-white/90">
+        {progress} / {target}
+      </p>
+      <div className="mt-3 h-2 rounded-full bg-gray-100 dark:bg-gray-800">
+        <div className="h-2 rounded-full bg-success-500" style={{ width: `${Math.min(100, Math.round((progress / target) * 100))}%` }} />
+      </div>
+    </SectionCard>
   )
 }
 
@@ -108,7 +114,7 @@ export function UserVocabularyCard({ vocabulary }: { vocabulary: GetAdminUserRes
     { label: "まだ出ていない", value: vocabulary.new_count },
   ]
   return (
-    <SideCard title="単語帳">
+    <SectionCard title="単語帳">
       <dl className="grid grid-cols-2 gap-4">
         {items.map(item => (
           <div key={item.label}>
@@ -118,6 +124,6 @@ export function UserVocabularyCard({ vocabulary }: { vocabulary: GetAdminUserRes
         ))}
       </dl>
       <p className="mt-4 text-theme-xs text-gray-400">次に出る日 {vocabulary.next_due_date ?? EMPTY_VALUE}</p>
-    </SideCard>
+    </SectionCard>
   )
 }

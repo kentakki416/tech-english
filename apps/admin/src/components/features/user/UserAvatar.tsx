@@ -13,7 +13,7 @@ export function UserAvatar({ avatarUrl, name, size }: { avatarUrl: string | null
       className="flex shrink-0 items-center justify-center rounded-full bg-brand-100 font-semibold text-brand-600 uppercase dark:bg-brand-500/20 dark:text-brand-400"
       style={{ fontSize: size * 0.4, height: size, width: size }}
     >
-      {Array.from(name ?? "")[0] ?? "?"}
+      {Array.from(name?.trim() ?? "")[0] ?? "?"}
     </span>
   )
 }

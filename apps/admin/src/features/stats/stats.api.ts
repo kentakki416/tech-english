@@ -1,7 +1,6 @@
 import "server-only"
 
 import {
-  type AdminPassageStatsSort,
   type AdminStatsPeriod,
   type GetAdminPassageStatsListResponse,
   getAdminPassageStatsListResponseSchema,
@@ -11,6 +10,7 @@ import {
   getAdminStatsOverviewResponseSchema,
 } from "@repo/api-schema"
 
+import type { DashboardQuery } from "@/features/stats/stats.params"
 import { apiClient, ApiClientError } from "@/libs/api-client"
 
 const BASE_PATH = "/api/admin/stats"
@@ -37,13 +37,10 @@ export const statsApi = {
     }
   },
 
-  getPassageList: async (query: {
-    order: "asc" | "desc"
-    page: number
-    period: AdminStatsPeriod
-    q?: string
-    sort: AdminPassageStatsSort
-  }): Promise<GetAdminPassageStatsListResponse> => {
+  /**
+   * 問題ごとの成績（1 ページ。件数は API の既定値）
+   */
+  getPassageList: async (query: DashboardQuery): Promise<GetAdminPassageStatsListResponse> => {
     const params = new URLSearchParams({ order: query.order, page: String(query.page), period: query.period, sort: query.sort })
     if (query.q) params.set("q", query.q)
     const raw = await apiClient.get<unknown>(`${BASE_PATH}/passage?${params.toString()}`)

@@ -13,10 +13,8 @@ import {
   type PassageForm,
   type PassageFormQuestion,
 } from "@/features/passage/passage.form"
-import { type AdminQuestionType, QUESTION_TYPE_LABELS, QUESTION_TYPE_ORDER } from "@/features/passage/passage.labels"
+import { type AdminQuestionType, CHOICE_LETTERS, QUESTION_TYPE_LABELS, QUESTION_TYPE_ORDER } from "@/features/passage/passage.labels"
 import { hintClass, inputClass, labelClass, outlineButtonClass, selectClass, textareaClass } from "@/libs/ui-classes"
-
-const CHOICE_LETTERS = ["A", "B", "C", "D"]
 
 /**
  * 1 つの問題の設問数の上限・下限（保存できる範囲。公開には 3〜5 問が必要）

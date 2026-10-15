@@ -27,7 +27,7 @@ export const userApi = {
   /**
    * ユーザーが居なければ null（404）
    */
-  getCalendar: async (id: number, range?: { from: string; to: string }) => { /** GET /api/admin/user/:id/calendar */ },
+  getCalendar: async (id: number) => { /** GET /api/admin/user/:id/calendar（期間は省いてマイページと同じ直近 1 年） */ },
   /**
    * ユーザーが居なければ null（404）
    */
@@ -35,8 +35,8 @@ export const userApi = {
 }
 ```
 
-- `searchParams` の検証（不正・未指定は `created_at`・`desc`・1 ページ目）は `src/features/user/user.params.ts` の純関数にする
-- ログイン方法の表示名（`github` → GitHub、`google` → Google、`dev` → dev、知らない値はそのまま）は `src/features/user/user.labels.ts`
+- `searchParams` の検証（不正・未指定は `created_at`・`desc`・1 ページ目）は `src/features/user/user.params.ts` の純関数にする（`server-only`）。型は `Omit<GetAdminUserListQueryString, "limit">`、項目の検証と既定値は `getAdminUserListQueryStringSchema` の各項目で行い、上限などを書き写さない。ダッシュボードと共通の読み方は `src/libs/search-params.ts`
+- ログイン方法の表示名（`github` → GitHub、`google` → Google、`dev` → dev、知らない値はそのまま）と名前の表示（null・空白だけなら「（名前なし）」）は `src/features/user/user.labels.ts`
 
 ### 2. ユーザー一覧（`/users`）
 
@@ -47,7 +47,7 @@ export const userApi = {
 
 ### 3. ユーザーの詳細（`/users/[id]`）
 
-- `app/(dashboard)/users/[id]/page.tsx`。詳細・カレンダー・学習履歴の 1 ページ目を `Promise.all` で取る。`userApi` の 3 つはどれも 404 なら null を返し、詳細が null なら `notFound()`
+- `app/(dashboard)/users/[id]/page.tsx`。URL の id は `/^\d+$/` と `getAdminUserPathParamSchema` で読み、正の整数でなければ `notFound()`（問題の確認・修正と同じ）。詳細・カレンダー・学習履歴の 1 ページ目を `Promise.all` で取る。`userApi` の 3 つはどれも 404 なら null を返し、どれかが null なら `notFound()`（取る間に退会したときも 404 にする）
 - `components/features/user/`：
   - `UserProfileCard.tsx`：アイコン・名前・メールアドレス・ユーザー ID・ログイン方法・登録日時（日本時間。`formatDateTime`）・タイムゾーン・最後に学習した日
   - `UserLearningCards.tsx`：

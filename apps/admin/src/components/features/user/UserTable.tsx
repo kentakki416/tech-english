@@ -5,17 +5,17 @@ import type { AdminUserSort, GetAdminUserListResponse } from "@repo/api-schema"
 import Badge from "@/components/ui/badge/Badge"
 import {
   PaginationLinks,
-  SortableHeaderLink,
+  SortableHeaderCell,
   tableCellClass,
   tableFrameClass,
   tableHeadCellClass,
   TableSearchForm,
   tableToolbarClass,
 } from "@/components/ui/table/LinkTableParts"
-import { formatAuthProvider } from "@/features/user/user.labels"
-import { buildUserListHref, type UserListQuery } from "@/features/user/user.params"
-import { formatDateTime } from "@/libs/format-date"
-import { EMPTY_VALUE, formatCount } from "@/libs/format-stats"
+import { formatAuthProvider, formatUserName, hasUserName } from "@/features/user/user.labels"
+import { buildUserListHref, buildUserListSearchFormValues, type UserListQuery } from "@/features/user/user.params"
+import { formatDate } from "@/libs/format-date"
+import { EMPTY_VALUE, formatCount, formatRowRange } from "@/libs/format-stats"
 
 import { UserAvatar } from "./UserAvatar"
 
@@ -33,11 +33,9 @@ const buildEmptyMessage = (total: number, q: string | undefined): { description:
  */
 export function UserTable({ list, query }: { list: GetAdminUserListResponse, query: UserListQuery }) {
   const totalPages = Math.max(1, Math.ceil(list.total / list.limit))
-  const firstIndex = list.users.length === 0 ? 0 : (list.page - 1) * list.limit + 1
-  const lastIndex = (list.page - 1) * list.limit + list.users.length
   const emptyMessage = buildEmptyMessage(list.total, query.q)
   const renderSortableHeader = (sort: AdminUserSort, label: string) => (
-    <SortableHeaderLink
+    <SortableHeaderCell
       href={buildUserListHref({ ...query, order: query.sort === sort && query.order === "desc" ? "asc" : "desc", page: 1, sort })}
       isActive={query.sort === sort}
       label={label}
@@ -49,7 +47,7 @@ export function UserTable({ list, query }: { list: GetAdminUserListResponse, que
     <div className={tableFrameClass}>
       <div className={tableToolbarClass}>
         <span className="text-theme-sm text-gray-500 dark:text-gray-400">{formatCount(list.total)} 人</span>
-        <TableSearchForm action="/users" hiddenValues={{ order: query.order, sort: query.sort }} placeholder="名前・メールで絞り込む" query={query.q} />
+        <TableSearchForm action="/users" hiddenValues={buildUserListSearchFormValues(query)} placeholder="名前・メールで絞り込む" query={query.q} />
       </div>
       <div className="custom-scrollbar overflow-x-auto">
         <table className="min-w-full">
@@ -70,8 +68,8 @@ export function UserTable({ list, query }: { list: GetAdminUserListResponse, que
                   <Link className="flex items-center gap-3" href={`/users/${user.id}`}>
                     <UserAvatar avatarUrl={user.avatar_url} name={user.name} size={36} />
                     <span>
-                      <span className={`block font-medium whitespace-nowrap hover:text-brand-500 ${user.name ? "text-gray-800 dark:text-white/90" : "text-gray-400"}`}>
-                        {user.name ?? "（名前なし）"}
+                      <span className={`block font-medium whitespace-nowrap hover:text-brand-500 ${hasUserName(user.name) ? "text-gray-800 dark:text-white/90" : "text-gray-400"}`}>
+                        {formatUserName(user.name)}
                       </span>
                       <span className="block text-theme-xs text-gray-400">ID {user.id}</span>
                     </span>
@@ -85,7 +83,7 @@ export function UserTable({ list, query }: { list: GetAdminUserListResponse, que
                     ))}
                   </span>
                 </td>
-                <td className={tableCellClass}>{formatDateTime(user.created_at).slice(0, 10)}</td>
+                <td className={tableCellClass}>{formatDate(user.created_at)}</td>
                 <td className={tableCellClass}>{user.last_studied_date ?? EMPTY_VALUE}</td>
                 <td className={`${tableCellClass} font-medium text-gray-800 dark:text-white/90`}>{formatCount(user.solved_attempts)}</td>
               </tr>
@@ -101,7 +99,7 @@ export function UserTable({ list, query }: { list: GetAdminUserListResponse, que
       )}
       <div className="flex flex-col items-center justify-between gap-4 border-t border-gray-100 px-5 py-4 xl:flex-row dark:border-white/5">
         <span className="text-theme-sm text-gray-500 dark:text-gray-400">
-          {formatCount(firstIndex)}〜{formatCount(lastIndex)} 人目 / {formatCount(list.total)} 人
+          {formatRowRange({ limit: list.limit, page: list.page, rowCount: list.users.length, total: list.total }, "人")}
         </span>
         <PaginationLinks buildHref={page => buildUserListHref({ ...query, page })} page={list.page} totalPages={totalPages} />
       </div>

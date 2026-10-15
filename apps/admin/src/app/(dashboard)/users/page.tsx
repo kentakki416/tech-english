@@ -5,13 +5,14 @@ import { UserTable } from "@/components/features/user/UserTable"
 import PageBreadcrumb from "@/components/layout/PageBreadCrumb"
 import { userApi } from "@/features/user/user.api"
 import { convertSearchParamsToUserListQuery } from "@/features/user/user.params"
+import type { SearchParams } from "@/libs/search-params"
 
 export const metadata: Metadata = {
   title: "ユーザー | tech-english admin",
 }
 
 type Props = {
-  searchParams: Promise<Record<string, string | string[] | undefined>>
+  searchParams: Promise<SearchParams>
 }
 
 /**

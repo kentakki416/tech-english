@@ -5,7 +5,9 @@ import dynamic from "next/dynamic"
 
 import type { GetAdminStatsOverviewResponse } from "@repo/api-schema"
 
-import { formatShortDate } from "@/libs/format-stats"
+import { formatCount, formatShortDate } from "@/libs/format-stats"
+
+type SeriesPoint = GetAdminStatsOverviewResponse["series"]["points"][number]
 
 /**
  * ApexCharts はブラウザでしか動かないので、テンプレートの StatisticsChart と同じく ssr: false で読む
@@ -13,18 +15,24 @@ import { formatShortDate } from "@/libs/format-stats"
 const Chart = dynamic(async () => import("react-apexcharts"), { ssr: false })
 
 /**
- * 横軸のラベルの数の上限。点がこの 2 倍より多い（30 日の日ごと・全期間の週ごと）ときは、ラベルが重ならないよう 8 つまでに間引く（7 日はすべて出す）
+ * 横軸のラベルを間引くときの目安の数。点がこの 2 倍より多い（30 日の日ごと・全期間の週ごと）ときは ApexCharts の tickAmount に渡して間引く
+ * （間隔は ApexCharts が点の数から決めるので、出るラベルはおおよそこの数〜少し多い。7 日はすべて出す）
  */
 const MAX_X_LABELS = 8
+
+/**
+ * 縦軸の最大値がこれより小さいときは、目盛りを 1 刻みにする（人数・回数なので 0.5 などの小数の目盛りを出さない）
+ */
+const MIN_NICE_SCALE_MAX = 5
 
 /**
  * 折れ線 3 本の名前・線の色（ApexCharts）・凡例の点の色（同じ色の Tailwind のクラス）
  */
 const SERIES_STYLES = [
-  { color: "#465FFF", dotClass: "bg-brand-500", name: "学習したユーザー" },
-  { color: "#12B76A", dotClass: "bg-success-500", name: "解いた回数" },
-  { color: "#F79009", dotClass: "bg-warning-500", name: "新規登録" },
-] as const
+  { color: "#465FFF", dotClass: "bg-brand-500", key: "active_users", name: "学習したユーザー" },
+  { color: "#12B76A", dotClass: "bg-success-500", key: "solved_attempts", name: "解いた回数" },
+  { color: "#F79009", dotClass: "bg-warning-500", key: "new_users", name: "新規登録" },
+] as const satisfies readonly { color: string, dotClass: string, key: keyof Omit<SeriesPoint, "date">, name: string }[]
 
 /**
  * 推移の折れ線（学習したユーザー数・解いた回数・新規登録数）。7 日・30 日は日ごと、全期間は週ごと。
@@ -33,6 +41,19 @@ const SERIES_STYLES = [
  */
 export function OverviewChart({ series }: { series: GetAdminStatsOverviewResponse["series"] }) {
   const categories = series.points.map(point => (series.bucket === "week" ? `${formatShortDate(point.date)}〜` : formatShortDate(point.date)))
+  const chartSeries = SERIES_STYLES.map(style => ({ data: series.points.map(point => point[style.key]), name: style.name }))
+  const maxValue = Math.max(0, ...chartSeries.flatMap(item => item.data))
+  /**
+   * 小さい値は 1 刻みの目盛り（最大は 1 以上）。大きい値は ApexCharts のきりのよい目盛りにし、ラベルは整数に丸める
+   */
+  const yAxisScale = maxValue < MIN_NICE_SCALE_MAX ? { max: Math.max(1, maxValue), tickAmount: Math.max(1, maxValue) } : { forceNiceScale: true }
+  /**
+   * ツールチップの見出し。横軸のラベルは年を省くので、年の付いた日付（週ごとは「2026-10-12 の週」。月曜の日付）を出す
+   */
+  const formatTooltipDate = (_value: number, options?: { dataPointIndex?: number }): string => {
+    const date = series.points[options?.dataPointIndex ?? -1]?.date ?? ""
+    return series.bucket === "week" ? `${date} の週` : date
+  }
   const options: ApexOptions = {
     chart: { fontFamily: "Outfit, sans-serif", toolbar: { show: false }, type: "line", zoom: { enabled: false } },
     colors: SERIES_STYLES.map(style => style.color),
@@ -44,7 +65,7 @@ export function OverviewChart({ series }: { series: GetAdminStatsOverviewRespons
      */
     markers: { hover: { size: 5 }, size: series.points.length === 1 ? 5 : 0, strokeColors: "#fff", strokeWidth: 2 },
     stroke: { curve: "smooth", width: 2 },
-    tooltip: { shared: true },
+    tooltip: { shared: true, x: { formatter: formatTooltipDate } },
     xaxis: {
       axisBorder: { show: false },
       axisTicks: { show: false },
@@ -53,13 +74,12 @@ export function OverviewChart({ series }: { series: GetAdminStatsOverviewRespons
       tickAmount: series.points.length > MAX_X_LABELS * 2 ? MAX_X_LABELS : undefined,
       tooltip: { enabled: false },
     },
-    yaxis: { labels: { style: { colors: ["#6B7280"], fontSize: "12px" } }, min: 0 },
+    yaxis: {
+      ...yAxisScale,
+      labels: { formatter: (value: number) => formatCount(Math.round(value)), style: { colors: ["#6B7280"], fontSize: "12px" } },
+      min: 0,
+    },
   }
-  const chartSeries = [
-    { data: series.points.map(point => point.active_users), name: SERIES_STYLES[0].name },
-    { data: series.points.map(point => point.solved_attempts), name: SERIES_STYLES[1].name },
-    { data: series.points.map(point => point.new_users), name: SERIES_STYLES[2].name },
-  ]
 
   return (
     <div className="rounded-2xl border border-gray-200 bg-white px-5 pt-5 pb-3 sm:px-6 sm:pt-6 dark:border-gray-800 dark:bg-white/3">
