@@ -68,7 +68,7 @@ admin は DB を直接触らず、必ず Express API を経由する。tech-engl
 | パス | 画面 | 実装 |
 | --- | --- | --- |
 | `/content-sources` | ソース一覧 | `app/(dashboard)/content-sources/page.tsx` + `components/features/content-source/SourceTable.tsx` |
-| `/content-sources/new`・`/content-sources/[id]` | ソースの登録・編集 | `SourceForm.tsx` + `app/(dashboard)/content-sources/actions.ts`（Server Action）+ `app/api/content-sources/license/route.ts`（ライセンス検出の中継） |
+| `/content-sources/new`・`/content-sources/[id]` | ソースの登録・編集 | `SourceForm.tsx` + `app/(dashboard)/content-sources/actions.ts`（Server Action）+ `app/api/content-sources/license/route.ts`（ライセンス検出の中継）。技術タグの選択は `TagPicker`（選んだ id を hidden の `tag_ids` で送る） |
 | `/tags` | タグ | `app/(dashboard)/tags/page.tsx` + `components/features/tag/TagTable.tsx`（追加・編集は `TagFormModal`、削除の確認は `TagDeleteModal`）+ `app/(dashboard)/tags/actions.ts`（Server Action）。色付きのタグは `TagChip`（色 → クラスの対応表はここだけに置く） |
 | `/passages` | 問題一覧（`?status=` で状態を切り替え） | `app/(dashboard)/passages/page.tsx` + `components/features/passage/PassageTable.tsx` |
 | `/passages/[id]` | 問題の確認・修正 | `PassageReview.tsx`（タブは `QuestionsTab` / `TranslationsTab` / `GlossaryTab` / `BodyTab` / `BasicsTab`、プレビューは `PassagePreview`、読み上げの音声は `PassageAudioCard`）+ `app/(dashboard)/passages/[id]/actions.ts`（Server Action）。フォームの状態と変換は `features/passage/passage.form.ts`、ラベルは `passage.labels.ts` |

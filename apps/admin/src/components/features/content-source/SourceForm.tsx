@@ -3,13 +3,14 @@
 import Link from "next/link"
 import { type FormEvent, startTransition, useActionState, useRef, useState } from "react"
 
-import type { DetectContentSourceLicenseResponse, GetContentSourceResponse } from "@repo/api-schema"
+import type { DetectContentSourceLicenseResponse, GetContentSourceResponse, GetTagListResponse } from "@repo/api-schema"
 
 import {
   type ContentSourceFormState,
   createContentSourceAction,
   updateContentSourceAction,
 } from "@/app/(dashboard)/content-sources/actions"
+import { TagPicker } from "@/components/features/content-source/TagPicker"
 import Badge from "@/components/ui/badge/Badge"
 import { formatDateTime } from "@/libs/format-date"
 import {
@@ -123,7 +124,15 @@ function LicenseDetectionMessage({ detection }: { detection: LicenseDetection })
  * allowedLicenses はライセンス欄の選択肢（@repo/api-schema の許可リスト）。
  * Client Component で Zod のスキーマを import すると bundle に入るため、Server Component から渡す
  */
-export function SourceForm({ allowedLicenses, detail }: { allowedLicenses: readonly string[], detail: GetContentSourceResponse | null }) {
+export function SourceForm({
+  allowedLicenses,
+  detail,
+  tags,
+}: {
+  allowedLicenses: readonly string[]
+  detail: GetContentSourceResponse | null
+  tags: GetTagListResponse["tags"]
+}) {
   const source = detail?.source ?? null
   const githubSource = source?.fetch_type === "github_repository" ? source : null
   const websiteSource = source?.fetch_type === "website" ? source : null
@@ -239,8 +248,8 @@ export function SourceForm({ allowedLicenses, detail }: { allowedLicenses: reado
               ))}
             </div>
           </Field>
-          <Field error={getFieldError("tags")} hint="カンマ区切り。ユーザーの問題一覧の絞り込みに使います。" htmlFor="tags" label="技術タグ">
-            <input className={inputClass} defaultValue={source?.tags.join(", ")} id="tags" name="tags" placeholder="例：react, frontend" />
+          <Field error={getFieldError("tag_ids")} hint="ユーザーの問題一覧の絞り込みに使います。タグはタグの画面で登録します。" label="技術タグ">
+            <TagPicker defaultSelectedIds={source?.tags.map((tag) => tag.id) ?? []} tags={tags} />
           </Field>
         </Section>
 

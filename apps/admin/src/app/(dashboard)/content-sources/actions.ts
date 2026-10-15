@@ -5,7 +5,7 @@ import "server-only"
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 
-import { createContentSourceRequestSchema, updateContentSourceRequestSchema } from "@repo/api-schema"
+import { createContentSourceRequestSchema, errorResponseSchema, updateContentSourceRequestSchema } from "@repo/api-schema"
 
 import { contentSourceApi } from "@/features/content-source/content-source.api"
 import { convertFormDataToContentSourceRequest } from "@/features/content-source/content-source.form"
@@ -23,11 +23,24 @@ const DUPLICATE_MESSAGE = "同じリポジトリ・サイトがすでに登録�
 
 const ORIGIN_LOCKED_MESSAGE = "取得した文書があるソースは、リポジトリ・サイトの URL を変えられません。変えたいときは別のソースとして登録してください。"
 
+const MISSING_TAG_MESSAGE = "選んだタグのうち、削除されたものがあります。画面を再読み込みしてタグを選び直してください。"
+
+/**
+ * API の 400 が、存在しないタグの id（tag_ids）によるものか。details の path で見分ける（api が path: ["tag_ids"] を付ける）
+ */
+const isMissingTagError = (error: ApiClientError): boolean => {
+  const body = errorResponseSchema.safeParse(error.body)
+  return body.success && (body.data.details ?? []).some((detail) => detail.path[0] === "tag_ids")
+}
+
 /**
  * API の失敗をフォームの文言にする。409 は重複、それ以外は再試行を促す
  */
 const convertApiErrorToFormState = (error: unknown, fallbackMessage: string): ContentSourceFormState => {
   if (error instanceof ApiClientError && error.status === 409) return { message: DUPLICATE_MESSAGE }
+  if (error instanceof ApiClientError && error.status === 400 && isMissingTagError(error)) {
+    return { errors: { tag_ids: [MISSING_TAG_MESSAGE] } }
+  }
   console.error("Content source request failed", error)
   return { message: fallbackMessage }
 }
@@ -72,9 +85,9 @@ export const updateContentSourceAction = async (
   } catch (error) {
     if (error instanceof ApiClientError && error.status === 404) return { message: "このソースは見つかりませんでした。" }
     /**
-     * フォームの値はここで検証済みなので、API の 400 は取得した文書があるソースの取得元（リポジトリ・サイトの URL）の変更
+     * 存在しないタグ以外の 400 は、取得した文書があるソースの取得元（リポジトリ・サイトの URL）の変更
      */
-    if (error instanceof ApiClientError && error.status === 400) return { message: ORIGIN_LOCKED_MESSAGE }
+    if (error instanceof ApiClientError && error.status === 400 && !isMissingTagError(error)) return { message: ORIGIN_LOCKED_MESSAGE }
     return convertApiErrorToFormState(error, "保存に失敗しました。時間をおいて再度お試しください。")
   }
 

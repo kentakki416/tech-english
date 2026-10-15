@@ -4,6 +4,7 @@ import Link from "next/link"
 
 import type { GetContentSourceListResponse } from "@repo/api-schema"
 
+import { TagChip } from "@/components/features/tag/TagChip"
 import Badge from "@/components/ui/badge/Badge"
 import { type Column, DataTable, type FilterConfig } from "@/components/ui/table"
 import { formatDateTime } from "@/libs/format-date"
@@ -38,6 +39,17 @@ const COLUMNS: Column<SourceRow>[] = [
         <p className="mt-0.5 font-mono text-theme-xs text-gray-400">{row.origin}</p>
       </div>
     ),
+  },
+  {
+    header: "タグ",
+    render: (row) =>
+      row.tags.length > 0 ? (
+        <div className="flex max-w-60 flex-wrap gap-1.5">
+          {row.tags.map((tag) => <TagChip key={tag.id} color={tag.color} name={tag.name} />)}
+        </div>
+      ) : (
+        <span className="text-gray-300 dark:text-gray-600">―</span>
+      ),
   },
   {
     header: "取得方法",
