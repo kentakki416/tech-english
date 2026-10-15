@@ -102,7 +102,7 @@ GitHub に Markdown のソースがあるドキュメントは GitHub から取�
 | 除外パス | | `/doc/devel/**` | glob。複数指定可 |
 | ライセンス | ✅ | `CC-BY-4.0` | 許可リストから選ぶ |
 | ライセンスの記載がある URL | ✅ | LICENSE ファイル、またはライセンスが書かれたページ | 出典表示に出す |
-| 技術タグ | | `go`, `backend` | 問題一覧の絞り込みに使う |
+| 技術タグ | | `go`, `backend` | admin の「タグ」で登録したタグから選ぶ（[source-tags](../source-tags/README.md)）。問題一覧の絞り込みに使う |
 | 有効 / 無効 | ✅ | 有効 | 無効にすると次回から収集しない。既に公開済みの問題は残る |
 
 **取得方法が `github_repository` のときの項目**
@@ -409,7 +409,7 @@ api は許可リストに無いライセンスでの登録を 400 で拒否す�
 │   取得方法 ┌──────────────┐┌──────────────┐      │ [収9][下2][公19][却2]   │ ← 取得方法はカードで選ぶ（編集時は変更不可）
 │            │GitHub        ││サイト ✓      │      │ 取得に失敗しているページ│
 │            └──────────────┘└──────────────┘      │ /run/docs/legacy… 404   │
-│   技術タグ [gcp, infra                    ]      │ /run/docs/fit-fo… 404   │
+│   技術タグ (gcp)(infra)(go)(python)…             │ /run/docs/fit-fo… 404   │
 │──────────────────────────────────────────────────│─────────────────────────│
 │ 取得元（サイト）                                 │ 試し実行                │
 │   サイトの URL [https://cloud.google.com ]       │ ┌─────────────────────┐ │
@@ -432,7 +432,7 @@ api は許可リストに無いライセンスでの登録を 400 で拒否す�
 
 | カード | 項目 |
 | --- | --- |
-| 基本情報 | 表示名、種別（ラジオ：公式ドキュメント / GitHub の文書）、取得方法（2 枚のカードから選ぶ。選択中は `brand-500` の枠。**編集時は変更不可**で、選ばれていない方を薄く表示）、技術タグ（カンマ区切り） |
+| 基本情報 | 表示名、種別（ラジオ：公式ドキュメント / GitHub の文書）、取得方法（2 枚のカードから選ぶ。選択中は `brand-500` の枠。**編集時は変更不可**で、選ばれていない方を薄く表示）、技術タグ（登録済みのタグを押して選ぶ。[source-tags](../source-tags/README.md)） |
 | 取得元（GitHub リポジトリ） | リポジトリ（`owner/name`）と「ライセンスを検出」、ブランチ、対象パス・除外パス（テキストエリア。1 行に 1 つ）、公開ページの URL 規則と取り除くプレフィックス（URL 規則があるときは変換の例を表示） |
 | 取得元（サイト） | サイトの URL、ページの見つけ方（ラジオ：sitemap / 開始ページからリンクをたどる。選んだ方の URL の入力欄を出す）、対象パス・除外パス、本文の CSS セレクタ（未設定なら自動で推定）、除外する CSS セレクタ |
 | ライセンス | ライセンス（許可リストのセレクト）、ライセンスの記載がある URL。サイトのときは上に warning の囲み「サイトのライセンスは自動で判定できません」（フッター等の記載・利用規約・robots.txt を確認するよう案内） |
@@ -472,7 +472,7 @@ cron タスク：
 
 | テーブル | 主要カラム | 説明 |
 | --- | --- | --- |
-| `content_sources` | 共通：`id`, `name`, `kind`, `fetch_type`, `include_globs(jsonb)`, `exclude_globs(jsonb)`, `license_spdx`, `license_url`, `tags(jsonb)`, `is_enabled`, `last_collected_at`<br/>GitHub：`repository`, `branch`, `public_url_template`, `public_url_strip_prefix`, `last_collected_commit_sha`<br/>サイト：`site_url`, `sitemap_url`, `start_url`, `content_selector`, `exclude_selectors(jsonb)` | 取得元。管理者が登録する |
+| `content_sources` | 共通：`id`, `name`, `kind`, `fetch_type`, `include_globs(jsonb)`, `exclude_globs(jsonb)`, `license_spdx`, `license_url`, `is_enabled`, `last_collected_at`<br/>GitHub：`repository`, `branch`, `public_url_template`, `public_url_strip_prefix`, `last_collected_commit_sha`<br/>サイト：`site_url`, `sitemap_url`, `start_url`, `content_selector`, `exclude_selectors(jsonb)` | 取得元。管理者が登録する。技術タグは `content_source_tags` で `tags` に紐付ける（[source-tags](../source-tags/README.md#必要な-db-設計)） |
 | `source_documents` | `id`, `source_id`, `path`, `title`, `fetched_at`, `content_hash`<br/>GitHub：`blob_sha`, `commit_sha`<br/>サイト：`etag`, `last_modified`, `sitemap_lastmod`, `http_status` | 取得した文書。差分検出・出典の組み立て・サイトのクロールの待ち行列に使う |
 | `passages` | ― | 本文候補 / 問題。**列定義の正本は [question-generation](../question-generation/README.md#必要な-db-設計)**。この spec では `source_document_id` / `source_path` / `source_commit_sha`（GitHub のみ）/ `source_retrieved_at` / `title` / `blocks` / `word_count` / `content_hash` / `status = collected` を埋めて作る |
 
@@ -489,7 +489,6 @@ erDiagram
         jsonb exclude_globs "string[]"
         text license_spdx "ALLOWED_LICENSES"
         text license_url
-        jsonb tags "string[]"
         boolean is_enabled
         timestamp last_collected_at "nullable"
         text repository "GitHub のみ。owner/name"
