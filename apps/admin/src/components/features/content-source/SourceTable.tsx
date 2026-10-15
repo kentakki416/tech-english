@@ -37,19 +37,13 @@ const COLUMNS: Column<SourceRow>[] = [
           {row.name}
         </Link>
         <p className="mt-0.5 font-mono text-theme-xs text-gray-400">{row.origin}</p>
+        {row.tags.length > 0 && (
+          <div className="mt-1.5 flex flex-wrap gap-1">
+            {row.tags.map((tag) => <TagChip key={tag.id} color={tag.color} name={tag.name} />)}
+          </div>
+        )}
       </div>
     ),
-  },
-  {
-    header: "タグ",
-    render: (row) =>
-      row.tags.length > 0 ? (
-        <div className="flex max-w-60 flex-wrap gap-1.5">
-          {row.tags.map((tag) => <TagChip key={tag.id} color={tag.color} name={tag.name} />)}
-        </div>
-      ) : (
-        <span className="text-gray-300 dark:text-gray-600">―</span>
-      ),
   },
   {
     header: "取得方法",
