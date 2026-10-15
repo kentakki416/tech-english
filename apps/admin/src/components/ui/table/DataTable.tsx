@@ -314,42 +314,44 @@ export default function DataTable<T>({
       )}
 
       {/* テーブル */}
-      <Table>
-        <TableHeader className="border-b border-gray-100 dark:border-white/5">
-          <TableRow>
-            {columns.map((col) => (
-              <TableCell
-                key={String(col.key ?? col.header)}
-                isHeader
-                className="px-5 py-3 text-start text-theme-xs font-medium whitespace-nowrap text-gray-500 dark:text-gray-400"
-              >
-                {col.header}
-              </TableCell>
-            ))}
-          </TableRow>
-        </TableHeader>
-        <TableBody className="divide-y divide-gray-100 dark:divide-white/5">
-          {displayData.map((row) => (
-            <TableRow key={getRowKey(row)}>
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader className="border-b border-gray-100 dark:border-white/5">
+            <TableRow>
               {columns.map((col) => (
                 <TableCell
                   key={String(col.key ?? col.header)}
-                  className={
-                    col.className ??
-                    "px-5 py-4 text-theme-sm text-gray-500 dark:text-gray-400"
-                  }
+                  isHeader
+                  className="px-5 py-3 text-start text-theme-xs font-medium whitespace-nowrap text-gray-500 dark:text-gray-400"
                 >
-                  {col.render
-                    ? col.render(row)
-                    : col.key !== null && col.key !== undefined
-                      ? String(row[col.key] ?? "")
-                      : null}
+                  {col.header}
                 </TableCell>
               ))}
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody className="divide-y divide-gray-100 dark:divide-white/5">
+            {displayData.map((row) => (
+              <TableRow key={getRowKey(row)}>
+                {columns.map((col) => (
+                  <TableCell
+                    key={String(col.key ?? col.header)}
+                    className={
+                      col.className ??
+                    "px-5 py-4 text-theme-sm text-gray-500 dark:text-gray-400"
+                    }
+                  >
+                    {col.render
+                      ? col.render(row)
+                      : col.key !== null && col.key !== undefined
+                        ? String(row[col.key] ?? "")
+                        : null}
+                  </TableCell>
+                ))}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
 
       {displayData.length === 0 && emptyMessage && (
         <div className="px-5 py-12 text-center">{emptyMessage}</div>
