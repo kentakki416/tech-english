@@ -67,7 +67,7 @@ export default function AppSidebar() {
   const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar()
   const pathname = usePathname()
 
-  const renderMenuItems = (navItems: NavItem[]) => (
+  const renderMenuItems = () => (
     <ul className="flex flex-col gap-4">
       {navItems.map((nav, index) => (
         <li key={nav.name}>
@@ -242,9 +242,7 @@ export default function AppSidebar() {
           !isExpanded && !isHovered ? "lg:justify-center" : "justify-start"
         }`}
       >
-        <Link href="/passages">
-          <AppLogo isCompact={!isExpanded && !isHovered && !isMobileOpen} />
-        </Link>
+        <AppLogo isCompact={!isExpanded && !isHovered && !isMobileOpen} />
       </div>
       <div className="flex flex-col overflow-y-auto duration-300 ease-linear no-scrollbar">
         <nav className="mb-6">
@@ -263,7 +261,7 @@ export default function AppSidebar() {
                   <HorizontaLDots />
                 )}
               </h2>
-              {renderMenuItems(navItems)}
+              {renderMenuItems()}
             </div>
           </div>
         </nav>

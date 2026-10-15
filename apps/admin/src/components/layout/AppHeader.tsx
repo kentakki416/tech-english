@@ -1,5 +1,4 @@
 "use client"
-import Link from "next/link"
 import React, { useState ,useEffect,useRef } from "react"
 
 import NotificationDropdown from "@/components/features/header/NotificationDropdown"
@@ -84,9 +83,7 @@ export default function AppHeader() {
             {/* Cross Icon */}
           </button>
 
-          <Link href="/passages" className="lg:hidden">
-            <AppLogo />
-          </Link>
+          <AppLogo className="lg:hidden" />
 
           <button
             onClick={toggleApplicationMenu}
