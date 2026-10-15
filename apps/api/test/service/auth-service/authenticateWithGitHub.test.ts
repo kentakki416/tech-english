@@ -24,6 +24,7 @@ const mockAuthAccountCreate = vi.fn<(
 const mockAuthAccountRepository: AuthAccountRepository = {
   create: mockAuthAccountCreate as never,
   findByProvider: mockFindByProvider,
+  findProvidersByUserId: vi.fn(),
 }
 
 const mockUserCreate = vi.fn<(
@@ -37,6 +38,7 @@ const mockUserRepository: UserRepository = {
   deleteById: vi.fn(),
   findByEmail: mockFindByEmail,
   findById: vi.fn(),
+  findForAdmin: vi.fn(),
   updateProfile: mockUpdateProfile,
   updateTimezone: vi.fn(),
 }

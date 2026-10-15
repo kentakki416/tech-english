@@ -16,6 +16,13 @@ import { AdminPassageRestoreController } from "../controller/admin/passage/resto
 import { AdminPassageRetryAudioController } from "../controller/admin/passage/retry-audio"
 import { AdminPassageUnpublishController } from "../controller/admin/passage/unpublish"
 import { AdminPassageUpdateController } from "../controller/admin/passage/update"
+import { AdminStatsOverviewController } from "../controller/admin/stats/overview"
+import { AdminPassageStatsDetailController } from "../controller/admin/stats/passage-detail"
+import { AdminPassageStatsListController } from "../controller/admin/stats/passage-list"
+import { AdminUserAttemptsController } from "../controller/admin/user/attempts"
+import { AdminUserCalendarController } from "../controller/admin/user/calendar"
+import { AdminUserDetailController } from "../controller/admin/user/detail"
+import { AdminUserListController } from "../controller/admin/user/list"
 import { adminAuthMiddleware } from "../middleware/admin-auth"
 
 /**
@@ -41,6 +48,17 @@ type AdminRouterControllers = {
     retryAudio?: AdminPassageRetryAudioController
     unpublish?: AdminPassageUnpublishController
     update?: AdminPassageUpdateController
+  }
+  stats?: {
+    overview?: AdminStatsOverviewController
+    passageDetail?: AdminPassageStatsDetailController
+    passageList?: AdminPassageStatsListController
+  }
+  user?: {
+    attempts?: AdminUserAttemptsController
+    calendar?: AdminUserCalendarController
+    detail?: AdminUserDetailController
+    list?: AdminUserListController
   }
 }
 
@@ -186,6 +204,66 @@ export const adminRouter = (controllers: AdminRouterControllers): Router => {
   if (passage.regenerateAudio) {
     const controller = passage.regenerateAudio
     router.post("/passage/:id/audio/regenerate", async (req, res) => controller.execute(req, res))
+  }
+
+  const stats = controllers.stats ?? {}
+
+  /**
+   * GET /api/admin/stats/overview
+   */
+  if (stats.overview) {
+    const controller = stats.overview
+    router.get("/stats/overview", async (req, res) => controller.execute(req, res))
+  }
+
+  /**
+   * GET /api/admin/stats/passage
+   */
+  if (stats.passageList) {
+    const controller = stats.passageList
+    router.get("/stats/passage", async (req, res) => controller.execute(req, res))
+  }
+
+  /**
+   * GET /api/admin/stats/passage/:id
+   */
+  if (stats.passageDetail) {
+    const controller = stats.passageDetail
+    router.get("/stats/passage/:id", async (req, res) => controller.execute(req, res))
+  }
+
+  const user = controllers.user ?? {}
+
+  /**
+   * GET /api/admin/user
+   */
+  if (user.list) {
+    const controller = user.list
+    router.get("/user", async (req, res) => controller.execute(req, res))
+  }
+
+  /**
+   * GET /api/admin/user/:id
+   */
+  if (user.detail) {
+    const controller = user.detail
+    router.get("/user/:id", async (req, res) => controller.execute(req, res))
+  }
+
+  /**
+   * GET /api/admin/user/:id/calendar
+   */
+  if (user.calendar) {
+    const controller = user.calendar
+    router.get("/user/:id/calendar", async (req, res) => controller.execute(req, res))
+  }
+
+  /**
+   * GET /api/admin/user/:id/attempts
+   */
+  if (user.attempts) {
+    const controller = user.attempts
+    router.get("/user/:id/attempts", async (req, res) => controller.execute(req, res))
   }
 
   return router

@@ -5,7 +5,7 @@ admin のトップ（`/`）をダッシュボードにし、問題の分析（`/
 ## 前提
 
 - [step2-api-admin-stats](./step2-api-admin-stats.md)
-- 見た目は README の [UI 設計](../README.md#ui-設計) とモック（`apps/admin/src/app/(dashboard)/mock/dashboard/`・`mock/analytics/`）に従う。モックの部品（`PeriodTabs`・`TableParts`・`stats-format`・`OverviewCards`・`OverviewChart`・`AssistCard`・`PassageStatsTable`・`QuestionStatsCard`）は本実装の `components/features/stats/`・`src/libs/format-stats.ts` に移して使う（`mock/` は import しない）
+- 見た目は README の [UI 設計](../README.md#ui-設計) とモック（`apps/admin/src/app/(dashboard)/mock/dashboard/`・`mock/analytics/`）に従う。モックの部品（`PeriodTabs`・`TableParts`・`stats-format`・`OverviewCards`・`OverviewChart`・`AssistCard`・`PassageStatsTable`・`QuestionStatsCard`）は本実装の `components/features/stats/`・`src/libs/format-stats.ts` に移して使う（`mock/` は import しない）。URL のクエリで並べ替え・絞り込み・ページ送りをする表の部品は、ユーザー一覧（admin-users の step2）でも使うので `components/ui/table/LinkTableParts.tsx` に置く
 - admin の画面の作り方は `apps/admin/CLAUDE.md` の「API 接続の下地」（Server Component から `features/*.api.ts` → `apiClient`、レスポンスは `@repo/api-schema` で parse）
 
 ## 対応内容
@@ -43,13 +43,13 @@ export const statsApi = {
 
 ### 2. 期間・並べ替えの読み取り
 
-`src/features/stats/stats.params.ts`（純関数）。`searchParams` を検証し、不正・未指定は既定値（`30d`・`solved_users`・`desc`・1 ページ目）にする。`adminPassageStatusSchema.safeParse` で状態を読む問題一覧と同じ考え方。リンクを作る関数（期間を保ったまま並べ替え・ページを変える）も同じファイルに置く。
+`src/features/stats/stats.params.ts`（純関数。Zod のスキーマを使うので `server-only`）。`searchParams` を検証し、不正・未指定は既定値（`30d`・`solved_users`・`desc`・1 ページ目）にする。型は `Omit<GetAdminPassageStatsListQueryString, "limit">`、項目の検証と既定値は `getAdminPassageStatsListQueryStringSchema` の各項目で行い、上限などを書き写さない（ユーザー一覧と共通の読み方は `src/libs/search-params.ts`）。リンクを作る関数（期間を保ったまま並べ替え・ページを変える。既定値の項目は URL から省く）も同じファイルに置く。期間のラベルと並び、問題ごとの成績の項目名は `stats.labels.ts`。
 
 ### 3. ダッシュボード（`/`）
 
 - `app/(dashboard)/page.tsx` を置き換える（TailAdmin の EC のダッシュボード。`components/features/ecommerce/` は消さない）。`await connection()` で動的にし、`overview` と `passage` の一覧を `Promise.all` で取る
 - `components/features/stats/`：
-  - `PeriodTabs.tsx`：期間の切り替え（リンク。`?period=` を変え、並べ替えは保つ）
+  - `PeriodTabs.tsx`：期間の切り替え（リンク。`buildHref(period)` を受け取り、ダッシュボードでは `?period=` を変えて並べ替え・絞り込みは保つ）
   - `OverviewCards.tsx`：数字のカード 4 枚（登録ユーザー・学習したユーザー・解いた回数・正答率）
   - `AssistCard.tsx`：アシストの利用率の横棒（和訳・単語・読み上げ）。推移の横に置く
   - `OverviewChart.tsx`（`"use client"`）：推移のグラフ。`react-apexcharts` を `next/dynamic`（`ssr: false`）で読む。テンプレートの `MonthlySalesChart` と同じ読み方
@@ -59,7 +59,7 @@ export const statsApi = {
 
 ### 4. 問題の分析（`/analytics/passages/[id]`）
 
-- `app/(dashboard)/analytics/passages/[id]/page.tsx`。問題が無ければ `notFound()`
+- `app/(dashboard)/analytics/passages/[id]/page.tsx`。URL の id は `/^\d+$/` と `getAdminPassageStatsPathParamSchema` で読み、正の整数でないか問題が無ければ `notFound()`
 - 上部：タイトル・状態・ソース・公開日と、問題ごとの成績と同じ数字。「確認・修正を開く」は `/passages/[id]` へ
 - 設問ごと（`components/features/stats/QuestionStatsCard.tsx`）：種類・設問文・正答率・選択肢ごとの割合の横棒（正解に印）・未回答の割合・「要確認」の印
 - 注意書き（非公開に戻して直した問題は、直す前の解答も同じ位置の選択肢として数える）を設問の上に出す

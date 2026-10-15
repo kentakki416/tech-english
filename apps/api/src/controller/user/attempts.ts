@@ -8,7 +8,7 @@ import { AuthRequest } from "../../middleware/auth"
 import { LearningRecordRepository, UserRepository } from "../../repository"
 import * as service from "../../service"
 
-import { convertLearningRecordAttemptToResponse } from "./learning-record-mapper"
+import { convertUserAttemptsToResponse } from "./learning-record-mapper"
 
 /**
  * 提出した挑戦の一覧API（GET /api/user/attempts?date=&cursor=&limit=）。新しい順、cursor ページング。
@@ -33,10 +33,7 @@ export class UserAttemptsController {
       return sendError(req, res, result.error)
     }
 
-    const response = parseResponse(getUserAttemptsResponseSchema, {
-      attempts: result.value.attempts.map(convertLearningRecordAttemptToResponse),
-      next_cursor: result.value.nextCursor,
-    })
+    const response = parseResponse(getUserAttemptsResponseSchema, convertUserAttemptsToResponse(result.value))
     return res.status(200).json(response)
   }
 }

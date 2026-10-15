@@ -27,9 +27,9 @@
 | clickhouse-migration | 設計中 | ClickHouse のテーブル・view を版管理して local / dev / min / prd に適用する migration コマンドを用意し、deploy に組み込む。ClickHouse と CDC（Postgres → ClickHouse）を作るかを環境ごとに Terraform のフラグ（`enable_data_warehouse` / `enable_cdc`）で選ぶ | [./clickhouse-migration/README.md](./clickhouse-migration/README.md) |
 | vocabulary-cards | 完了 | 単語帳。解答中に調べた単語と、解いた問題の用語集の単語をカードで復習する。表で意味を思い出してめくり、「覚えた / まだ」で次に出す日を延ばす（間隔反復）。web と mobile。単語帳で答えた日も学習した日に数える | [./vocabulary-cards/README.md](./vocabulary-cards/README.md) |
 | vocabulary-pronunciation | 実装中 | 単語帳のカードで単語の発音と本文の 1 文を音声で聞く。単語は見出し語ごとに Amazon Polly で作り置いて全ユーザーで使い回し（cron で 1 時間ごと）、1 文は読み上げの段落の音声から区間を切り出す。ボタンを押したときだけ鳴らす。web と mobile。残りは step6（cron の S3 の権限と 1 時間ごとのスケジュール。AWS の設定の後） | [./vocabulary-pronunciation/README.md](./vocabulary-pronunciation/README.md) |
-| admin-dashboard | 設計中 | admin のトップのダッシュボード。全体の利用状況（登録・学習したユーザー・解いた回数・正答率・アシストの利用率と推移）、問題ごとの成績、設問ごとの選択肢の割合と要確認の印。期間は直近 7 日・30 日・全期間。Postgres をその場で集計する | [./admin-dashboard/README.md](./admin-dashboard/README.md) |
+| admin-dashboard | 完了 | admin のトップのダッシュボード。全体の利用状況（登録・学習したユーザー・解いた回数・正答率・アシストの利用率と推移）、問題ごとの成績、設問ごとの選択肢の割合と要確認の印。期間は直近 7 日・30 日・全期間。Postgres をその場で集計する | [./admin-dashboard/README.md](./admin-dashboard/README.md) |
 | source-tags | 設計中 | ソースの技術タグを admin の「タグ」で登録したものから選ぶようにし、`React` と `react` のような表記ゆれを防ぐ（大文字・小文字を区別せずに一意）。タグの色は 10 色のパレットから自動で割り当て、admin でだけ色付きで出す。web / mobile は変えない | [./source-tags/README.md](./source-tags/README.md) |
-| admin-users | 設計中 | admin のユーザー管理（見るだけ）。ユーザー一覧（絞り込み・並べ替え）と、1 人の学習の状況（マイページと同じ集計を使い回す）。利用停止・削除は MVP 対象外 | [./admin-users/README.md](./admin-users/README.md) |
+| admin-users | 完了 | admin のユーザー管理（見るだけ）。ユーザー一覧（絞り込み・並べ替え）と、1 人の学習の状況（マイページと同じ集計を使い回す）。利用停止・削除は MVP 対象外 | [./admin-users/README.md](./admin-users/README.md) |
 | dev-login | 完了 | 開発環境専用ログイン。Google OAuth を介さず seed 済み dev ユーザー（alice/bob）として 1 クリックでログインできる | [./dev-login/README.md](./dev-login/README.md) |
 
 ## ステータスの定義
