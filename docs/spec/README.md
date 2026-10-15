@@ -30,6 +30,7 @@
 | admin-dashboard | 完了 | admin のトップのダッシュボード。全体の利用状況（登録・学習したユーザー・解いた回数・正答率・アシストの利用率と推移）、問題ごとの成績、設問ごとの選択肢の割合と要確認の印。期間は直近 7 日・30 日・全期間。Postgres をその場で集計する | [./admin-dashboard/README.md](./admin-dashboard/README.md) |
 | source-tags | 完了 | ソースの技術タグを admin の「タグ」で登録したものから選ぶようにし、`React` と `react` のような表記ゆれを防ぐ（大文字・小文字を区別せずに一意）。タグの色は 10 色のパレットから自動で割り当て、admin でだけ色付きで出す。web / mobile は変えない | [./source-tags/README.md](./source-tags/README.md) |
 | admin-users | 完了 | admin のユーザー管理（見るだけ）。ユーザー一覧（絞り込み・並べ替え）と、1 人の学習の状況（マイページと同じ集計を使い回す）。利用停止・削除は MVP 対象外 | [./admin-users/README.md](./admin-users/README.md) |
+| admin-template | 設計中 | admin を project-template の管理画面に揃える。TailAdmin のデモを `/demo` に分け、Basic 認証と `X-Admin-Token` を `admins` テーブル + admin 専用の JWT + Google のサインインに置き換え、ヘッダー・マイページ・Tooltip を足す。ユーザー管理は tech-english のものを残す | [./admin-template/README.md](./admin-template/README.md) |
 | dev-login | 完了 | 開発環境専用ログイン。Google OAuth を介さず seed 済み dev ユーザー（alice/bob）として 1 クリックでログインできる | [./dev-login/README.md](./dev-login/README.md) |
 
 ## ステータスの定義
