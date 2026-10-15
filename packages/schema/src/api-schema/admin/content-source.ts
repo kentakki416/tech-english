@@ -2,6 +2,8 @@ import { z } from "zod"
 
 import { ALLOWED_LICENSES, PASSAGE_STATUSES, SOURCE_FETCH_TYPES, SOURCE_KINDS } from "@repo/domain"
 
+import { tagSchema } from "./tag"
+
 // ========================================================
 // 共通: ソースの入力・出力の部品
 // ========================================================
@@ -60,6 +62,14 @@ const globListSchema = z.array(z.string().trim().min(1).max(200)).max(50)
 const nullableTextSchema = z.string().trim().min(1).max(500).nullable()
 
 /**
+ * 付けるタグの id（登録済みのタグから選ぶ）。重複は許さない。存在するかは service が確かめて 400 にする
+ */
+const tagIdListSchema = z
+  .array(z.number().int().positive())
+  .max(10)
+  .refine((ids) => new Set(ids).size === ids.length, { message: "tag_ids must not contain duplicate ids" })
+
+/**
  * 取得方法によらない共通の入力
  */
 const sourceInputBaseSchema = z.object({
@@ -72,7 +82,7 @@ const sourceInputBaseSchema = z.object({
   license_spdx: allowedLicenseSchema,
   license_url: webUrlSchema,
   name: z.string().trim().min(1).max(100),
-  tags: z.array(z.string().trim().min(1).max(30)).max(10),
+  tag_ids: tagIdListSchema,
 })
 
 /**
@@ -160,7 +170,7 @@ const contentSourceBaseSchema = z.object({
   license_spdx: allowedLicenseSchema,
   license_url: z.string(),
   name: z.string(),
-  tags: z.array(z.string()),
+  tags: z.array(tagSchema),
   created_at: z.string(),
   updated_at: z.string(),
 })
@@ -219,6 +229,7 @@ export const getContentSourceListResponseSchema = z.object({
       passage_counts: passageCountsSchema,
       repository: z.string().nullable(),
       site_url: z.string().nullable(),
+      tags: z.array(tagSchema),
     }),
   ),
 })

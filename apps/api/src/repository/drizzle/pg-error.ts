@@ -12,3 +12,16 @@ export const isUniqueViolation = (error: unknown): boolean => {
   const cause = typeof error === "object" && error !== null && "cause" in error ? error.cause : undefined
   return typeof cause === "object" && cause !== null && "code" in cause && cause.code === UNIQUE_VIOLATION
 }
+
+/**
+ * Postgres の外部キー制約違反の SQLSTATE
+ */
+const FOREIGN_KEY_VIOLATION = "23503"
+
+/**
+ * 外部キー制約違反か。Drizzle は pg のエラーを DrizzleQueryError の cause に入れる
+ */
+export const isForeignKeyViolation = (error: unknown): boolean => {
+  const cause = typeof error === "object" && error !== null && "cause" in error ? error.cause : undefined
+  return typeof cause === "object" && cause !== null && "code" in cause && cause.code === FOREIGN_KEY_VIOLATION
+}

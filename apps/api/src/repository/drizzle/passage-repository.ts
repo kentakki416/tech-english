@@ -2,6 +2,7 @@ import {
   and,
   asc,
   contentSources,
+  contentSourceTags,
   count,
   desc,
   DrizzleClient,
@@ -20,6 +21,7 @@ import {
   readingAttempts,
   sourceDocuments,
   sql,
+  tags,
 } from "@repo/db"
 import { type GlossaryEntry, type Passage, PASSAGE_STATUSES, type PassageStatus, type Question } from "@repo/domain"
 
@@ -56,8 +58,8 @@ type PassageOverviewRow = Pick<
 >
 type PassageSourceRow = Pick<
   ContentSourceRow,
-  "branch" | "fetchType" | "kind" | "licenseSpdx" | "licenseUrl" | "name" | "publicUrlStripPrefix" | "publicUrlTemplate" | "repository" | "siteUrl" | "tags"
->
+  "branch" | "fetchType" | "kind" | "licenseSpdx" | "licenseUrl" | "name" | "publicUrlStripPrefix" | "publicUrlTemplate" | "repository" | "siteUrl"
+> & { tags: string[] }
 
 /**
  * 挑戦の件数（状態を問わない）。passages を FROM に持つクエリの select で使う
@@ -68,6 +70,17 @@ const ATTEMPT_COUNT_SQL = sql<number>`(SELECT count(*) FROM ${readingAttempts} W
  * 設問の数。passages を FROM に持つクエリの select で使う
  */
 const QUESTION_COUNT_SQL = sql<number>`(SELECT count(*) FROM ${questions} WHERE ${questions.passageId} = ${passages.id})`.mapWith(Number)
+
+/**
+ * ソースのタグの名前（lower(name) → id の順）。content_sources を FROM に持つクエリの select で使う。
+ * 相関サブクエリなので、問題の行ごとに別のクエリを投げない（N+1 にならない）。text[] は pg が string[] にする
+ */
+const SOURCE_TAG_NAMES_SQL = sql<string[]>`ARRAY(
+  SELECT ${tags.name} FROM ${contentSourceTags}
+  INNER JOIN ${tags} ON ${tags.id} = ${contentSourceTags.tagId}
+  WHERE ${contentSourceTags.contentSourceId} = ${contentSources.id}
+  ORDER BY lower(${tags.name}), ${tags.id}
+)`
 
 /**
  * 出典と一覧の表示に使うソースの列。passages → source_documents → content_sources を結合したクエリで使う
@@ -83,7 +96,7 @@ const PASSAGE_SOURCE_COLUMNS = {
   publicUrlTemplate: contentSources.publicUrlTemplate,
   repository: contentSources.repository,
   siteUrl: contentSources.siteUrl,
-  tags: contentSources.tags,
+  tags: SOURCE_TAG_NAMES_SQL,
 }
 
 /**
@@ -427,21 +440,24 @@ export class DrizzlePassageRepository implements PassageRepository {
   }
 
   public async findPublishedTags(): Promise<string[]> {
-    const tag = sql<string>`jsonb_array_elements_text(${contentSources.tags})`.as("tag")
+    /**
+     * tags を FROM にするので、タグ 1 行につき 1 回しか出ない（DISTINCT は要らない）
+     */
     const rows = await this._db
-      .selectDistinct({ tag })
-      .from(contentSources)
+      .select({ name: tags.name })
+      .from(tags)
       .where(
         exists(
           this._db
             .select({ id: passages.id })
             .from(passages)
             .innerJoin(sourceDocuments, eq(passages.sourceDocumentId, sourceDocuments.id))
-            .where(and(eq(sourceDocuments.sourceId, contentSources.id), eq(passages.status, "published"))),
+            .innerJoin(contentSourceTags, eq(contentSourceTags.contentSourceId, sourceDocuments.sourceId))
+            .where(and(eq(contentSourceTags.tagId, tags.id), eq(passages.status, "published"))),
         ),
       )
-      .orderBy(sql`tag`)
-    return rows.map((row) => row.tag)
+      .orderBy(sql`lower(${tags.name})`, asc(tags.id))
+    return rows.map((row) => row.name)
   }
 
   public async findRandomPublishedId(filter: PublishedPassageFilter): Promise<number | null> {
@@ -606,11 +622,17 @@ export class DrizzlePassageRepository implements PassageRepository {
       filter.kind === null ? undefined : eq(contentSources.kind, filter.kind),
       filter.difficulties.length === 0 ? undefined : inArray(passages.difficulty, filter.difficulties),
       /**
-       * jsonb の ?| は、配列のどれかの文字列がトップレベルの要素にあれば true
+       * ソースにどれかのタグ（名前の完全一致）が付いていれば当てはまる
        */
       filter.tags.length === 0
         ? undefined
-        : sql`${contentSources.tags} ?| array[${sql.join(filter.tags.map((tag) => sql`${tag}`), sql`, `)}]::text[]`,
+        : exists(
+          this._db
+            .select({ tagId: contentSourceTags.tagId })
+            .from(contentSourceTags)
+            .innerJoin(tags, eq(contentSourceTags.tagId, tags.id))
+            .where(and(eq(contentSourceTags.contentSourceId, contentSources.id), inArray(tags.name, filter.tags))),
+        ),
       unattemptedByUserId === null
         ? undefined
         : notExists(

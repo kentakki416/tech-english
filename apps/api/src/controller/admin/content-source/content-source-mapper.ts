@@ -1,7 +1,7 @@
 import type { ContentSourceResponse, CreateContentSourceRequest, UpdateContentSourceRequest } from "@repo/api-schema"
-import type { ContentSource } from "@repo/domain"
 
-import type { ContentSourceInput } from "../../../repository"
+import type { ContentSourceInput, ContentSourceWithTags } from "../../../repository"
+import { convertTagToResponse } from "../tag/tag-mapper"
 
 /**
  * 登録・更新のリクエスト（snake_case）→ Repository の入力（camelCase）
@@ -16,7 +16,7 @@ export const convertContentSourceRequestToInput = (
     licenseSpdx: request.license_spdx,
     licenseUrl: request.license_url,
     name: request.name,
-    tags: request.tags,
+    tagIds: request.tag_ids,
   }
   if (request.fetch_type === "github_repository") {
     return {
@@ -45,9 +45,9 @@ export const convertContentSourceRequestToInput = (
 }
 
 /**
- * ドメインの ContentSource → レスポンス（snake_case、日時は ISO 8601）
+ * タグつきのソース → レスポンス（snake_case、日時は ISO 8601）
  */
-export const convertContentSourceToResponse = (source: ContentSource): ContentSourceResponse => {
+export const convertContentSourceToResponse = (source: ContentSourceWithTags): ContentSourceResponse => {
   const base = {
     id: source.id,
     exclude_globs: source.excludeGlobs,
@@ -58,7 +58,7 @@ export const convertContentSourceToResponse = (source: ContentSource): ContentSo
     license_spdx: source.licenseSpdx,
     license_url: source.licenseUrl,
     name: source.name,
-    tags: source.tags,
+    tags: source.tags.map(convertTagToResponse),
     created_at: source.createdAt.toISOString(),
     updated_at: source.updatedAt.toISOString(),
   }

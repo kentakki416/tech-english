@@ -1,4 +1,4 @@
-import { asc, eq, passageGlossaryEntries, passages, questions } from "@repo/db"
+import { asc, eq, passageGlossaryEntries, passages, questions, tags } from "@repo/db"
 
 import { DrizzlePassageRepository } from "../../src/repository/drizzle/passage-repository"
 import { DrizzleTransactionRunner } from "../../src/repository/drizzle/transaction-runner"
@@ -592,7 +592,7 @@ describe("PassageRepository", () => {
             publicUrlStripPrefix: "src/content/",
             publicUrlTemplate: "https://react.dev/{path}",
             repository: reactSource.repository,
-            tags: ["react", "frontend"],
+            tags: ["frontend", "react"],
           },
         })
       })
@@ -611,6 +611,15 @@ describe("PassageRepository", () => {
         const rows = await passageRepository.findPublishedPage({ ...NO_FILTER, ...filter }, { cursor: null, limit: 10 })
 
         expect(rows.map((row) => row.passage.id)).toEqual(expected.map((name) => idByName[name]))
+      })
+
+      it("source.tags はソースのタグの名前を lower(name) の順で返す", async () => {
+        const source = await insertPassageSource({ tags: ["react", "TypeScript", "Frontend"] })
+        await insertPublishedPassage((await insertPassageDocument(source.id)).id)
+
+        const [row] = await passageRepository.findPublishedPage(NO_FILTER, { cursor: null, limit: 10 })
+
+        expect(row?.source.tags).toEqual(["Frontend", "react", "TypeScript"])
       })
 
       it("unattemptedByUserId を指定すると、そのユーザーが提出済みの問題だけを除く（挑戦中・期限切れ・他人の提出は除かない）", async () => {
@@ -646,6 +655,17 @@ describe("PassageRepository", () => {
 
         expect(page1.map((row) => row.passage.id)).toEqual([second.id, first.id])
         expect(page2.map((row) => row.passage.id)).toEqual([first.id, oldest.id])
+      })
+    })
+
+    describe("異常系", () => {
+      it("tags の絞り込みは名前の完全一致で、大文字・小文字だけが違うタグには当てはまらない", async () => {
+        const source = await insertPassageSource({ tags: ["React"] })
+        await insertPublishedPassage((await insertPassageDocument(source.id)).id)
+
+        expect(await passageRepository.findPublishedPage({ ...NO_FILTER, tags: ["react"] }, { cursor: null, limit: 10 })).toEqual([])
+        expect(await passageRepository.countPublished({ ...NO_FILTER, tags: ["react"] })).toBe(0)
+        expect(await passageRepository.findRandomPublishedId({ ...NO_FILTER, tags: ["react"] })).toBeNull()
       })
     })
   })
@@ -779,18 +799,27 @@ describe("PassageRepository", () => {
 
   describe("findPublishedTags", () => {
     describe("正常系", () => {
-      it("公開中の問題があるソースのタグを重複なしで昇順に返す（下書きだけのソースのタグは含めない）", async () => {
+      it("公開中の問題があるソースのタグの名前を lower(name) の順に返し、2 つのソースに付いたタグは 1 回だけ返す", async () => {
         await insertPublishedSet()
-        const otherReactSource = await insertPassageSource({ tags: ["react", "hooks"] })
+        const otherReactSource = await insertPassageSource({ tags: ["react", "TypeScript"] })
         await insertPublishedPassage((await insertPassageDocument(otherReactSource.id)).id)
 
-        expect(await passageRepository.findPublishedTags()).toEqual(["frontend", "go", "hooks", "react", "rust"])
+        expect(await passageRepository.findPublishedTags()).toEqual(["frontend", "go", "react", "rust", "TypeScript"])
       })
 
       it("公開中の問題が無ければ空配列を返す", async () => {
         await insertGeneratedPassage()
 
         expect(await passageRepository.findPublishedTags()).toEqual([])
+      })
+    })
+
+    describe("異常系", () => {
+      it("下書きだけのソースのタグと、どのソースにも付いていないタグは返さない", async () => {
+        await insertPublishedSet()
+        await testDb.insert(tags).values({ color: "teal", name: "vue" })
+
+        expect(await passageRepository.findPublishedTags()).toEqual(["frontend", "go", "react", "rust"])
       })
     })
   })

@@ -1,7 +1,7 @@
 /* eslint-disable no-console */
 import { createHash } from "node:crypto"
 
-import { and, eq, gte, lt, or } from "drizzle-orm"
+import { and, eq, gte, inArray, lt, or, sql } from "drizzle-orm"
 
 import {
   calculateTimeLimitSeconds,
@@ -11,21 +11,30 @@ import {
   type PassageStatus,
   QUESTION_CHOICE_COUNT,
   type QuestionType,
+  type TagColor,
 } from "@repo/domain"
 
 import { createDrizzleClient, type DrizzleTransaction } from "../src/drizzle/client"
-import { contentSources, passageGlossaryEntries, passages, questions, sourceDocuments } from "../src/drizzle/schema"
+import {
+  contentSources,
+  contentSourceTags,
+  passageGlossaryEntries,
+  passages,
+  questions,
+  sourceDocuments,
+  tags,
+} from "../src/drizzle/schema"
 
 /**
  * 開発用のサンプル問題を投入する（admin の問題の確認・公開と、reading-practice の画面をローカルで確かめるため）。
  *
  * - 本文・設問・用語集・和訳は web のモック（apps/web/src/libs/mock-data.ts）のダミーデータ。英文はモック用に書いたもので
  *   実在の文書の引用ではないため、ソースはこのリポジトリ自身（開発用サンプル）にしている
- * - ソース 1 件（収集で GitHub を呼ばないよう無効）・取得文書 1 件と、問題 3 件（公開 1 件・下書き 2 件）を入れる
+ * - ソース 1 件（収集で GitHub を呼ばないよう無効。タグ react / frontend つき）・取得文書 1 件と、問題 3 件（公開 1 件・下書き 2 件）を入れる
  *   - 公開：本文全体（7 ブロック・4 問・用語集 10 語）。reading-practice で解く用
  *   - 下書き（Part 1）：前半 5 ブロック・3 問。要確認の印つきで、公開の条件は満たす
  *   - 下書き（Part 2）：後半 2 ブロック・1 問。設問数と和訳が足りず、公開すると 400 になる
- * - 何度流しても同じ結果になる。ソース・取得文書は既存を使い、問題は content_hash で upsert して状態・内容を初期値に戻す。
+ * - 何度流しても同じ結果になる。ソース・取得文書・タグ（名前の大文字・小文字を区別しない）は既存を使い、問題は content_hash で upsert して状態・内容を初期値に戻す。
  *   用語集は消して入れ直し、設問は (passage_id, order_index) で upsert して余分な設問を消す（挑戦が指す設問の id は変わらない）
  * - 挑戦の記録は消さない。サンプルの範囲外の設問に回答がある場合は、設問を消せずに失敗する
  * - NODE_ENV=production では実行できない
@@ -82,8 +91,15 @@ const SOURCE = {
   publicUrlStripPrefix: null,
   publicUrlTemplate: null,
   repository: "kentakki416/tech-english",
-  tags: ["react", "frontend"],
 }
+
+/**
+ * サンプルのソースに付けるタグ。admin で同じ名前（大文字・小文字を区別しない）のタグを作っていれば、そちらを使う
+ */
+const SOURCE_TAGS: { color: TagColor; name: string }[] = [
+  { color: "blue", name: "react" },
+  { color: "rose", name: "frontend" },
+]
 
 const DOCUMENT_PATH = "docs/sample/synchronizing-with-effects.md"
 
@@ -371,12 +387,29 @@ const verifySampleQuestions = (sample: SamplePassage): void => {
 const db = createDrizzleClient()
 
 /**
+ * サンプルのソースにタグを付ける。tags は lower(name) の unique index に当たれば何もしない（既存のタグを使う）。
+ * onConflictDoNothing に target を付けないのは、lower(name) が式の index で列を target に書けないため
+ */
+const ensureSourceTags = async (tx: DrizzleTransaction, sourceId: number): Promise<void> => {
+  await tx.insert(tags).values(SOURCE_TAGS).onConflictDoNothing()
+  const rows = await tx
+    .select({ id: tags.id })
+    .from(tags)
+    .where(inArray(sql`lower(${tags.name})`, SOURCE_TAGS.map((tag) => tag.name.toLowerCase())))
+  await tx
+    .insert(contentSourceTags)
+    .values(rows.map((row) => ({ contentSourceId: sourceId, tagId: row.id })))
+    .onConflictDoNothing()
+}
+
+/**
  * ソースと取得文書は既存があればそれを使う（admin から同じリポジトリを登録していても壊さない）
  */
 const ensureSourceDocument = async (tx: DrizzleTransaction): Promise<number> => {
   await tx.insert(contentSources).values(SOURCE).onConflictDoNothing({ target: contentSources.repository })
   const [source] = await tx.select({ id: contentSources.id }).from(contentSources).where(eq(contentSources.repository, SOURCE.repository))
   if (!source) throw new Error(`Failed to find source: ${SOURCE.repository}`)
+  await ensureSourceTags(tx, source.id)
 
   await tx
     .insert(sourceDocuments)

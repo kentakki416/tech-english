@@ -265,11 +265,11 @@ const memoDeleteController = new MemoDeleteController(memoRepository, eventTrack
 /**
  * Admin のソース管理 Controller のインスタンス化
  */
-const adminContentSourceCreateController = new AdminContentSourceCreateController(contentSourceRepository)
+const adminContentSourceCreateController = new AdminContentSourceCreateController(contentSourceRepository, tagRepository)
 const adminContentSourceDetailController = new AdminContentSourceDetailController(contentSourceRepository)
 const adminContentSourceDetectLicenseController = new AdminContentSourceDetectLicenseController(gitHubLicenseClient)
 const adminContentSourceListController = new AdminContentSourceListController(contentSourceRepository)
-const adminContentSourceUpdateController = new AdminContentSourceUpdateController(contentSourceRepository)
+const adminContentSourceUpdateController = new AdminContentSourceUpdateController(contentSourceRepository, tagRepository)
 
 /**
  * Admin の問題の確認・公開 Controller のインスタンス化

@@ -1,23 +1,33 @@
 import request from "supertest"
 
-import { contentSources, eq, sourceDocuments } from "@repo/db"
+import { asc, contentSources, contentSourceTags, eq, sourceDocuments } from "@repo/db"
 
 import { AdminContentSourceUpdateController } from "../../../../src/controller/admin/content-source/update"
 import { env } from "../../../../src/env"
 import { ADMIN_TOKEN_HEADER } from "../../../../src/middleware/admin-auth"
 import { DrizzleContentSourceRepository } from "../../../../src/repository/drizzle/content-source-repository"
+import { DrizzleTagRepository } from "../../../../src/repository/drizzle/tag-repository"
 import { adminRouter } from "../../../../src/routes/admin-router"
+import { insertSourceTags, insertTags } from "../../../fixture/source-tag"
 import { attachUnhandledExceptionHandler, createTestApp } from "../../helper"
 import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb } from "../../setup"
 
-import { GITHUB_REQUEST, insertGitHubSource, insertSourceDocument, insertWebsiteSource, WEBSITE_REQUEST } from "./fixtures"
+import {
+  GITHUB_REQUEST,
+  insertGitHubSource,
+  insertSourceDocument,
+  insertWebsiteSource,
+  omitTagIds,
+  WEBSITE_REQUEST,
+} from "./fixtures"
 
 const contentSourceRepository = new DrizzleContentSourceRepository(testDb)
+const tagRepository = new DrizzleTagRepository(testDb)
 
 const app = createTestApp()
 
 app.use("/api/admin", adminRouter({
-  contentSource: { update: new AdminContentSourceUpdateController(contentSourceRepository) },
+  contentSource: { update: new AdminContentSourceUpdateController(contentSourceRepository, tagRepository) },
 }))
 attachUnhandledExceptionHandler(app)
 
@@ -42,6 +52,18 @@ const insertFetchedDocument = async (sourceId: number, path: string) => {
   return row
 }
 
+/**
+ * ソースに付いているタグの id（昇順）
+ */
+const selectSourceTagIds = async (sourceId: number): Promise<number[]> => {
+  const rows = await testDb
+    .select({ tagId: contentSourceTags.tagId })
+    .from(contentSourceTags)
+    .where(eq(contentSourceTags.contentSourceId, sourceId))
+    .orderBy(asc(contentSourceTags.tagId))
+  return rows.map((row) => row.tagId)
+}
+
 const selectSourceDocument = async (id: number) => {
   const [row] = await testDb.select().from(sourceDocuments).where(eq(sourceDocuments.id, id))
   return row
@@ -59,8 +81,9 @@ afterAll(async () => {
 
 describe("PUT /api/admin/content-source/:id", () => {
   describe("正常系", () => {
-    it("website の内容と is_enabled を更新して 200 を返す", async () => {
+    it("website の内容と is_enabled とタグを更新して 200 を返す", async () => {
       const website = await insertWebsiteSource()
+      const [go, backend] = await insertTags(["go", "backend"])
       const body = {
         ...WEBSITE_REQUEST,
         content_selector: null,
@@ -69,7 +92,7 @@ describe("PUT /api/admin/content-source/:id", () => {
         name: "Go Docs",
         sitemap_url: null,
         start_url: "https://go.dev/doc/",
-        tags: ["go", "backend"],
+        tag_ids: [go.id, backend.id],
       }
 
       const res = await request(app)
@@ -79,9 +102,13 @@ describe("PUT /api/admin/content-source/:id", () => {
 
       expect(res.status).toBe(200)
       expect(res.body).toEqual({
-        ...body,
+        ...omitTagIds(body),
         id: website.id,
         last_collected_at: null,
+        tags: [
+          { id: backend.id, color: backend.color, name: "backend" },
+          { id: go.id, color: go.color, name: "go" },
+        ],
         created_at: expect.any(String),
         updated_at: expect.any(String),
       })
@@ -92,8 +119,43 @@ describe("PUT /api/admin/content-source/:id", () => {
         name: "Go Docs",
         sitemapUrl: null,
         startUrl: "https://go.dev/doc/",
-        tags: ["go", "backend"],
       })
+      expect(await selectSourceTagIds(website.id)).toEqual([go.id, backend.id])
+    })
+
+    it("tag_ids を変えると 200 で、レスポンスと content_source_tags が新しいタグになる（ほかのソースのタグは変わらない）", async () => {
+      const github = await insertGitHubSource()
+      const other = await insertWebsiteSource()
+      const [react, frontend] = await insertSourceTags(github.id, ["react", "frontend"])
+      await insertSourceTags(other.id, ["react", "frontend"])
+      const [hooks] = await insertTags(["Hooks"])
+
+      const res = await request(app)
+        .put(`/api/admin/content-source/${github.id}`)
+        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .send({ ...GITHUB_REQUEST, tag_ids: [react.id, hooks.id] })
+
+      expect(res.status).toBe(200)
+      expect(res.body.tags).toEqual([
+        { id: hooks.id, color: hooks.color, name: "Hooks" },
+        { id: react.id, color: react.color, name: "react" },
+      ])
+      expect(await selectSourceTagIds(github.id)).toEqual([react.id, hooks.id])
+      expect(await selectSourceTagIds(other.id)).toEqual([react.id, frontend.id])
+    })
+
+    it("tag_ids: [] で送るとソースのタグが全部外れる", async () => {
+      const github = await insertGitHubSource()
+      await insertSourceTags(github.id, ["react", "frontend"])
+
+      const res = await request(app)
+        .put(`/api/admin/content-source/${github.id}`)
+        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .send({ ...GITHUB_REQUEST, tag_ids: [] })
+
+      expect(res.status).toBe(200)
+      expect(res.body.tags).toEqual([])
+      expect(await selectSourceTagIds(github.id)).toEqual([])
     })
 
     it("github の include_globs を変えると DB の last_collected_commit_sha が null になる", async () => {
@@ -192,6 +254,43 @@ describe("PUT /api/admin/content-source/:id", () => {
       expect(await selectSource(github.id)).toMatchObject({ fetchType: "github_repository", siteUrl: null })
     })
 
+    it("存在しない tag の id なら 400 と tag_ids の details を返し、ソースもタグも変わらない", async () => {
+      const github = await insertGitHubSource()
+      const [react] = await insertSourceTags(github.id, ["react"])
+      const before = await selectSource(github.id)
+
+      const res = await request(app)
+        .put(`/api/admin/content-source/${github.id}`)
+        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .send({ ...GITHUB_REQUEST, name: "React Docs", tag_ids: [react.id + 1000] })
+
+      expect(res.status).toBe(400)
+      expect(res.body).toEqual({
+        details: [{ code: "tag_not_found", message: expect.any(String), path: ["tag_ids"] }],
+        error: expect.any(String),
+        status_code: 400,
+      })
+      expect(await selectSource(github.id)).toEqual(before)
+      expect(await selectSourceTagIds(github.id)).toEqual([react.id])
+    })
+
+    it.each([
+      ["tag_ids に重複がある", { ...GITHUB_REQUEST, tag_ids: [1, 1] }],
+      ["tag_ids が 11 個", { ...GITHUB_REQUEST, tag_ids: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] }],
+      ["tag_ids が無い（古い形の tags だけ）", { ...omitTagIds(GITHUB_REQUEST), tags: ["react"] }],
+    ])("%sなら 400 を返し、タグは変わらない", async (_label, body) => {
+      const github = await insertGitHubSource()
+      const [react] = await insertSourceTags(github.id, ["react"])
+
+      const res = await request(app)
+        .put(`/api/admin/content-source/${github.id}`)
+        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .send(body)
+
+      expect(res.status).toBe(400)
+      expect(await selectSourceTagIds(github.id)).toEqual([react.id])
+    })
+
     it("website で is_enabled が無ければ 400 を返す", async () => {
       const website = await insertWebsiteSource()
 
@@ -250,7 +349,7 @@ describe("PUT /api/admin/content-source/:id", () => {
           id: website.id,
         }
       }],
-    ])("取得した文書があるソースの %s を変えると 400 を返し、DB は変わらない", async (_label, arrange) => {
+    ])("取得した文書があるソースの %s を変えると 400（details なし。admin がタグの 400 と見分ける）を返し、DB は変わらない", async (_label, arrange) => {
       const { body, id } = await arrange()
       const before = await selectSource(id)
 

@@ -40,10 +40,6 @@ type ContentSourceBase = {
    * 表示名
    */
   name: string
-  /**
-   * 技術タグ
-   */
-  tags: string[]
   createdAt: Date
   updatedAt: Date
 }

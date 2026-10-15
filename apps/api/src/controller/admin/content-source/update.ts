@@ -8,7 +8,7 @@ import {
 
 import { parseRequest, parseResponse } from "../../../lib/parse-schema"
 import { sendError } from "../../../lib/send-error"
-import { ContentSourceRepository } from "../../../repository"
+import { ContentSourceRepository, TagRepository } from "../../../repository"
 import * as service from "../../../service"
 
 import { convertContentSourceRequestToInput, convertContentSourceToResponse } from "./content-source-mapper"
@@ -17,7 +17,7 @@ import { convertContentSourceRequestToInput, convertContentSourceToResponse } fr
  * admin のソース更新API（有効 / 無効の切り替えを含む）。取得方法は変えられない
  */
 export class AdminContentSourceUpdateController {
-  constructor(private _contentSourceRepository: ContentSourceRepository) {}
+  constructor(private _contentSourceRepository: ContentSourceRepository, private _tagRepository: TagRepository) {}
 
   public async execute(req: Request, res: Response) {
     const { id } = parseRequest(updateContentSourcePathParamSchema, req.params)
@@ -25,6 +25,7 @@ export class AdminContentSourceUpdateController {
 
     const result = await service.contentSource.updateContentSource(id, convertContentSourceRequestToInput(data), {
       contentSourceRepository: this._contentSourceRepository,
+      tagRepository: this._tagRepository,
     })
 
     if (!result.ok) {

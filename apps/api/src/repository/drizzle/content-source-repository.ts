@@ -1,16 +1,33 @@
-import { and, asc, contentSources, count, DrizzleClient, eq, gte, passages, sourceDocuments } from "@repo/db"
-import type { ContentSource } from "@repo/domain"
+import {
+  and,
+  asc,
+  contentSources,
+  contentSourceTags,
+  count,
+  DrizzleClient,
+  type DrizzleTransaction,
+  eq,
+  gte,
+  inArray,
+  passages,
+  sourceDocuments,
+  sql,
+  tags,
+} from "@repo/db"
+import type { ContentSource, Tag } from "@repo/domain"
 
 import type {
   ContentSourceInput,
   ContentSourceRepository,
   ContentSourceSaveResult,
   ContentSourceUpdateOptions,
+  ContentSourceWithTags,
   FailedPage,
   PassageCountRow,
 } from "../content-source-repository"
 
-import { isUniqueViolation } from "./pg-error"
+import { isForeignKeyViolation, isUniqueViolation } from "./pg-error"
+import { convertTagRowToDomain } from "./tag-row"
 
 /**
  * Drizzleの型
@@ -34,7 +51,6 @@ const buildColumnValues = (input: ContentSourceInput) => {
     licenseSpdx: input.licenseSpdx,
     licenseUrl: input.licenseUrl,
     name: input.name,
-    tags: input.tags,
   }
   if (input.fetchType === "github_repository") {
     return {
@@ -53,6 +69,58 @@ const buildColumnValues = (input: ContentSourceInput) => {
     siteUrl: input.siteUrl,
     startUrl: input.startUrl,
   }
+}
+
+/**
+ * ソースごとのタグ（lower(name) → id の順）。1 回のクエリで全ソース分を取る（一覧で N+1 にしない）
+ */
+const findTagsBySourceIds = async (
+  db: DrizzleClient | DrizzleTransaction,
+  sourceIds: number[],
+): Promise<Map<number, Tag[]>> => {
+  const tagsBySourceId = new Map<number, Tag[]>(sourceIds.map((sourceId) => [sourceId, []]))
+  if (sourceIds.length === 0) return tagsBySourceId
+  const rows = await db
+    .select({ sourceId: contentSourceTags.contentSourceId, tag: tags })
+    .from(contentSourceTags)
+    .innerJoin(tags, eq(contentSourceTags.tagId, tags.id))
+    .where(inArray(contentSourceTags.contentSourceId, sourceIds))
+    .orderBy(sql`lower(${tags.name})`, asc(tags.id))
+  for (const row of rows) tagsBySourceId.get(row.sourceId)?.push(convertTagRowToDomain(row.tag))
+  return tagsBySourceId
+}
+
+/**
+ * ソースにタグを付けて返す
+ */
+const attachTags = async (
+  db: DrizzleClient | DrizzleTransaction,
+  sources: ContentSource[],
+): Promise<ContentSourceWithTags[]> => {
+  const tagsBySourceId = await findTagsBySourceIds(db, sources.map((source) => source.id))
+  return sources.map((source) => ({ ...source, tags: tagsBySourceId.get(source.id) ?? [] }))
+}
+
+/**
+ * このソースの content_source_tags を tagIds に付け替える（消してから入れ直す）。create / update のトランザクションの中で呼ぶ
+ */
+const replaceSourceTags = async (tx: DrizzleTransaction, sourceId: number, tagIds: number[]): Promise<void> => {
+  await tx.delete(contentSourceTags).where(eq(contentSourceTags.contentSourceId, sourceId))
+  if (tagIds.length === 0) return
+  await tx.insert(contentSourceTags).values(tagIds.map((tagId) => ({ contentSourceId: sourceId, tagId })))
+}
+
+/**
+ * create / update の書き込みの失敗を結果に変換する。どちらでもなければ throw し直す。
+ * - unique 制約違反は重複の登録（duplicate）とみなせる。content_sources の unique 制約は主キーと repository / site_url だけで、
+ *   content_source_tags はこのソースの分を消してから入れ直す（tag_ids の重複は api-schema が弾く）ため
+ * - 外部キー制約違反はタグが消された（missing_tags）とみなせる。content_sources は外部キーを持たず、
+ *   content_source_tags の content_source_id は同じトランザクションで作った・確かめた行を指すので、違反するのは tag_id だけのため
+ */
+const convertWriteErrorToResult = (error: unknown): ContentSourceSaveResult => {
+  if (isUniqueViolation(error)) return { kind: "duplicate" }
+  if (isForeignKeyViolation(error)) return { kind: "missing_tags" }
+  throw error
 }
 
 /**
@@ -84,25 +152,31 @@ export class DrizzleContentSourceRepository implements ContentSourceRepository {
 
   public async create(input: ContentSourceInput): Promise<ContentSourceSaveResult> {
     try {
-      const [row] = await this._db
-        .insert(contentSources)
-        .values({ ...buildColumnValues(input), fetchType: input.fetchType })
-        .returning()
-      return { kind: "saved", source: this._toDomain(row) }
+      const source = await this._db.transaction(async (tx) => {
+        const [row] = await tx
+          .insert(contentSources)
+          .values({ ...buildColumnValues(input), fetchType: input.fetchType })
+          .returning()
+        await replaceSourceTags(tx, row.id, input.tagIds)
+        const [created] = await attachTags(tx, [this._toDomain(row)])
+        return created
+      })
+      return { kind: "saved", source }
     } catch (error) {
-      if (isUniqueViolation(error)) return { kind: "duplicate" }
-      throw error
+      return convertWriteErrorToResult(error)
     }
   }
 
-  public async findAll(): Promise<ContentSource[]> {
+  public async findAll(): Promise<ContentSourceWithTags[]> {
     const rows = await this._db.select().from(contentSources).orderBy(asc(contentSources.id))
-    return rows.map((row) => this._toDomain(row))
+    return attachTags(this._db, rows.map((row) => this._toDomain(row)))
   }
 
-  public async findById(id: number): Promise<ContentSource | null> {
+  public async findById(id: number): Promise<ContentSourceWithTags | null> {
     const [row] = await this._db.select().from(contentSources).where(eq(contentSources.id, id))
-    return row ? this._toDomain(row) : null
+    if (!row) return null
+    const [source] = await attachTags(this._db, [this._toDomain(row)])
+    return source
   }
 
   public async findByRepository(repository: string): Promise<ContentSource | null> {
@@ -148,7 +222,7 @@ export class DrizzleContentSourceRepository implements ContentSourceRepository {
     options: ContentSourceUpdateOptions,
   ): Promise<ContentSourceSaveResult> {
     try {
-      const row = await this._db.transaction(async (tx) => {
+      const source = await this._db.transaction(async (tx) => {
         const [updated] = await tx
           .update(contentSources)
           .set({
@@ -164,12 +238,13 @@ export class DrizzleContentSourceRepository implements ContentSourceRepository {
             .set({ contentHash: null, etag: null, lastModified: null })
             .where(eq(sourceDocuments.sourceId, id))
         }
-        return updated
+        await replaceSourceTags(tx, id, input.tagIds)
+        const [saved] = await attachTags(tx, [this._toDomain(updated)])
+        return saved
       })
-      return { kind: "saved", source: this._toDomain(row) }
+      return { kind: "saved", source }
     } catch (error) {
-      if (isUniqueViolation(error)) return { kind: "duplicate" }
-      throw error
+      return convertWriteErrorToResult(error)
     }
   }
 
@@ -187,7 +262,6 @@ export class DrizzleContentSourceRepository implements ContentSourceRepository {
       licenseSpdx: row.licenseSpdx,
       licenseUrl: row.licenseUrl,
       name: row.name,
-      tags: row.tags,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     }

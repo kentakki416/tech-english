@@ -1,23 +1,26 @@
 import request from "supertest"
 
-import { contentSources, eq } from "@repo/db"
+import { contentSources, contentSourceTags, eq } from "@repo/db"
 
 import { AdminContentSourceCreateController } from "../../../../src/controller/admin/content-source/create"
 import { env } from "../../../../src/env"
 import { ADMIN_TOKEN_HEADER } from "../../../../src/middleware/admin-auth"
 import { DrizzleContentSourceRepository } from "../../../../src/repository/drizzle/content-source-repository"
+import { DrizzleTagRepository } from "../../../../src/repository/drizzle/tag-repository"
 import { adminRouter } from "../../../../src/routes/admin-router"
+import { insertTags } from "../../../fixture/source-tag"
 import { attachUnhandledExceptionHandler, createTestApp } from "../../helper"
 import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb } from "../../setup"
 
-import { GITHUB_REQUEST, insertGitHubSource, insertWebsiteSource, WEBSITE_REQUEST } from "./fixtures"
+import { GITHUB_REQUEST, insertGitHubSource, insertWebsiteSource, omitTagIds, WEBSITE_REQUEST } from "./fixtures"
 
 const contentSourceRepository = new DrizzleContentSourceRepository(testDb)
+const tagRepository = new DrizzleTagRepository(testDb)
 
 const app = createTestApp()
 
 app.use("/api/admin", adminRouter({
-  contentSource: { create: new AdminContentSourceCreateController(contentSourceRepository) },
+  contentSource: { create: new AdminContentSourceCreateController(contentSourceRepository, tagRepository) },
 }))
 attachUnhandledExceptionHandler(app)
 
@@ -41,10 +44,11 @@ describe("POST /api/admin/content-source", () => {
 
       expect(res.status).toBe(201)
       expect(res.body).toEqual({
-        ...GITHUB_REQUEST,
+        ...omitTagIds(GITHUB_REQUEST),
         id: expect.any(Number),
         last_collected_at: null,
         last_collected_commit_sha: null,
+        tags: [],
         created_at: expect.any(String),
         updated_at: expect.any(String),
       })
@@ -60,8 +64,46 @@ describe("POST /api/admin/content-source", () => {
         publicUrlTemplate: "https://react.dev/{path}",
         repository: "reactjs/react.dev",
         siteUrl: null,
-        tags: ["react"],
       })
+      expect(await testDb.$count(contentSourceTags)).toBe(0)
+    })
+
+    it("tag_ids を渡すと 201 と tags（{ id, color, name } の名前の順）を返し、content_source_tags に入る", async () => {
+      const [react, frontend] = await insertTags(["react", "Frontend"])
+
+      const res = await request(app)
+        .post("/api/admin/content-source")
+        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .send({ ...GITHUB_REQUEST, tag_ids: [react.id, frontend.id] })
+
+      expect(res.status).toBe(201)
+      expect(res.body).toEqual({
+        ...omitTagIds(GITHUB_REQUEST),
+        id: expect.any(Number),
+        last_collected_at: null,
+        last_collected_commit_sha: null,
+        tags: [
+          { id: frontend.id, color: frontend.color, name: "Frontend" },
+          { id: react.id, color: react.color, name: "react" },
+        ],
+        created_at: expect.any(String),
+        updated_at: expect.any(String),
+      })
+      const rows = await testDb.select().from(contentSourceTags).where(eq(contentSourceTags.contentSourceId, res.body.id))
+      expect(rows.map((row) => row.tagId).sort((left, right) => left - right)).toEqual([react.id, frontend.id])
+    })
+
+    it("tag_ids は 10 個まで受け付ける（境界値）", async () => {
+      const tenTags = await insertTags(["t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9", "t10"])
+
+      const res = await request(app)
+        .post("/api/admin/content-source")
+        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .send({ ...GITHUB_REQUEST, tag_ids: tenTags.map((tag) => tag.id) })
+
+      expect(res.status).toBe(201)
+      expect(res.body.tags).toHaveLength(10)
+      expect(await testDb.$count(contentSourceTags)).toBe(10)
     })
 
     it("website は is_enabled: true を送っても無効で作り、site_url をオリジンにそろえる", async () => {
@@ -72,11 +114,12 @@ describe("POST /api/admin/content-source", () => {
 
       expect(res.status).toBe(201)
       expect(res.body).toEqual({
-        ...WEBSITE_REQUEST,
+        ...omitTagIds(WEBSITE_REQUEST),
         id: expect.any(Number),
         is_enabled: false,
         last_collected_at: null,
         site_url: "https://go.dev",
+        tags: [],
         created_at: expect.any(String),
         updated_at: expect.any(String),
       })
@@ -131,6 +174,10 @@ describe("POST /api/admin/content-source", () => {
       ["website で sitemap_url が URL でない", { ...WEBSITE_REQUEST, sitemap_url: "not a url" }],
       ["website で glob が / で始まらない", { ...WEBSITE_REQUEST, include_globs: ["doc/**"] }],
       ["website で exclude_globs が / で始まらない", { ...WEBSITE_REQUEST, exclude_globs: ["doc/devel/**"] }],
+      ["tag_ids に重複がある", { ...GITHUB_REQUEST, tag_ids: [1, 1] }],
+      ["tag_ids が 11 個", { ...GITHUB_REQUEST, tag_ids: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] }],
+      ["tag_ids が 0", { ...GITHUB_REQUEST, tag_ids: [0] }],
+      ["tag_ids が無い（古い形の tags だけ）", { ...omitTagIds(GITHUB_REQUEST), tags: ["react"] }],
     ])("%sなら 400 を返し、DB に保存しない", async (_label, body) => {
       const res = await request(app)
         .post("/api/admin/content-source")
@@ -140,6 +187,24 @@ describe("POST /api/admin/content-source", () => {
       expect(res.status).toBe(400)
       expect(res.body).toEqual({ error: expect.any(String), status_code: 400 })
       expect(await testDb.$count(contentSources)).toBe(0)
+    })
+
+    it("存在しない tag の id なら 400 と tag_ids の details を返し、DB に保存しない", async () => {
+      const [react] = await insertTags(["react"])
+
+      const res = await request(app)
+        .post("/api/admin/content-source")
+        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .send({ ...GITHUB_REQUEST, tag_ids: [react.id, react.id + 1000] })
+
+      expect(res.status).toBe(400)
+      expect(res.body).toEqual({
+        details: [{ code: "tag_not_found", message: expect.any(String), path: ["tag_ids"] }],
+        error: expect.any(String),
+        status_code: 400,
+      })
+      expect(await testDb.$count(contentSources)).toBe(0)
+      expect(await testDb.$count(contentSourceTags)).toBe(0)
     })
 
     it("登録済みの repository なら 409 を返し、DB に保存しない", async () => {

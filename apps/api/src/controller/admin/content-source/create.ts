@@ -4,7 +4,7 @@ import { createContentSourceRequestSchema, createContentSourceResponseSchema } f
 
 import { parseRequest, parseResponse } from "../../../lib/parse-schema"
 import { sendError } from "../../../lib/send-error"
-import { ContentSourceRepository } from "../../../repository"
+import { ContentSourceRepository, TagRepository } from "../../../repository"
 import * as service from "../../../service"
 
 import { convertContentSourceRequestToInput, convertContentSourceToResponse } from "./content-source-mapper"
@@ -13,13 +13,14 @@ import { convertContentSourceRequestToInput, convertContentSourceToResponse } fr
  * admin のソース登録API。website は無効の状態で作る
  */
 export class AdminContentSourceCreateController {
-  constructor(private _contentSourceRepository: ContentSourceRepository) {}
+  constructor(private _contentSourceRepository: ContentSourceRepository, private _tagRepository: TagRepository) {}
 
   public async execute(req: Request, res: Response) {
     const data = parseRequest(createContentSourceRequestSchema, req.body)
 
     const result = await service.contentSource.createContentSource(convertContentSourceRequestToInput(data), {
       contentSourceRepository: this._contentSourceRepository,
+      tagRepository: this._tagRepository,
     })
 
     if (!result.ok) {

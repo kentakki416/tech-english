@@ -69,7 +69,6 @@ export class DrizzleContentSourceRepository implements ContentSourceRepository {
       licenseSpdx: row.licenseSpdx,
       licenseUrl: row.licenseUrl,
       name: row.name,
-      tags: row.tags,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     }

@@ -6,6 +6,7 @@ import { parseResponse } from "../../../lib/parse-schema"
 import { sendError } from "../../../lib/send-error"
 import { ContentSourceRepository } from "../../../repository"
 import * as service from "../../../service"
+import { convertTagToResponse } from "../tag/tag-mapper"
 
 /**
  * admin のソース一覧取得API（状態別の本文候補件数と取得失敗のページ数つき）
@@ -38,6 +39,7 @@ export class AdminContentSourceListController {
          */
         repository: source.fetchType === "github_repository" ? source.repository : null,
         site_url: source.fetchType === "website" ? source.siteUrl : null,
+        tags: source.tags.map(convertTagToResponse),
       })),
     })
     return res.status(200).json(response)

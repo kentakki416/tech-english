@@ -20,7 +20,6 @@ const insertSource = async (repository: string) => {
       publicUrlStripPrefix: "",
       publicUrlTemplate: "https://example.com/{path}",
       repository,
-      tags: [],
     })
     .returning()
   return row

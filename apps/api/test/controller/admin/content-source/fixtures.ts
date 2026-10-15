@@ -21,7 +21,7 @@ export const GITHUB_REQUEST = {
   public_url_strip_prefix: "src/content/",
   public_url_template: "https://react.dev/{path}",
   repository: "reactjs/react.dev",
-  tags: ["react"],
+  tag_ids: [],
 }
 
 export const WEBSITE_REQUEST = {
@@ -37,8 +37,13 @@ export const WEBSITE_REQUEST = {
   sitemap_url: "https://go.dev/sitemap.xml",
   site_url: "https://go.dev",
   start_url: null,
-  tags: ["go"],
+  tag_ids: [],
 }
+
+/**
+ * リクエストのうちレスポンスにそのまま返る項目（tag_ids はレスポンスでは tags になるので外す）
+ */
+export const omitTagIds = <Body extends { tag_ids: number[] }>({ tag_ids: tagIds, ...fields }: Body) => fields
 
 export const insertGitHubSource = async (overrides: Partial<ContentSourceInsert> = {}) => {
   const [row] = await testDb
@@ -56,7 +61,6 @@ export const insertGitHubSource = async (overrides: Partial<ContentSourceInsert>
       publicUrlStripPrefix: "src/content/",
       publicUrlTemplate: "https://react.dev/{path}",
       repository: "reactjs/react.dev",
-      tags: ["react"],
       ...overrides,
     })
     .returning()
@@ -78,7 +82,6 @@ export const insertWebsiteSource = async (overrides: Partial<ContentSourceInsert
       name: "Go 公式ドキュメント",
       sitemapUrl: "https://go.dev/sitemap.xml",
       siteUrl: "https://go.dev",
-      tags: ["go"],
       ...overrides,
     })
     .returning()

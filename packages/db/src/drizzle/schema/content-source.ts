@@ -65,7 +65,6 @@ export const contentSources = pgTable(
      * サイトのみ。開始ページの URL
      */
     startUrl: text("start_url"),
-    tags: jsonb("tags").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
     ...timestamps,
   },
   (table) => [
