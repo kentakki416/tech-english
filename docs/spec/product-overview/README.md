@@ -274,7 +274,7 @@ flowchart TD
 | reading-practice step5・step8（問題一覧） | `components/ui/AppHeader.tsx`・`ScoreSquares.tsx`、`src/libs/format.ts`、`components/features/passage/labels.ts`・`SourceMeta`・`DifficultyMeter`、`/passages/random` | タブのレイアウト、`components/ui/` のボタン・`Segment`・`Chip`・`ScoreSquares`、`src/libs/format.ts`、`labels.ts`・`SourceMeta`・`DifficultyMeter`、`passages/random`（マイページとリマインダーの通知の入口） |
 
 - 設定画面は learning-record step4（web）・step5（mobile）が作る。アカウント削除の画面（github-auth step6・step7）とリマインダーの区画（study-reminder step3）はその後
-- **後片付け**：全画面の本実装が終わったら、モックの画面とダミーデータを削除する（web の `src/app/mock/**`・`src/libs/mock-data.ts`・`src/proxy.ts` の `/mock`、admin の `src/app/(dashboard)/mock/**`・`src/libs/mock-data.ts`・サイドバーの「tech-english モック」、mobile の `src/app/mock/**`・`src/components/mock/**`・`src/const/mock-theme.ts`・`src/libs/mock-data.ts`・ルートレイアウトの `mock` の画面）。メモの画面は各 step で置き換え済み。`memos` テーブルと api のメモの実装を消すかは別途判断する
+- **後片付け**：全画面の本実装が終わったら、モックの画面とダミーデータを削除する（web の `src/app/mock/**`・`src/libs/mock-data.ts`・`src/proxy.ts` の `/mock`、admin の `src/app/(dashboard)/mock/**`・`src/libs/mock-data.ts`、mobile の `src/app/mock/**`・`src/components/mock/**`・`src/const/mock-theme.ts`・`src/libs/mock-data.ts`・ルートレイアウトの `mock` の画面）。メモの画面は各 step で置き換え済み。`memos` テーブルと api のメモの実装を消すかは別途判断する
 
 ### MVP 対象外（将来検討）
 
@@ -524,7 +524,7 @@ admin（`apps/admin`）は **既存の TailAdmin テンプレートのデザイ�
 
 例外として、問題の確認・修正画面のプレビューだけは **ユーザーの解答画面と同じ見た目**（ダーク・Literata・琥珀）にする。管理者が公開前に、ユーザーにどう見えるかを確かめるため（[question-generation](../question-generation/README.md#問題の確認修正)）。
 
-admin の画面のモックは `apps/admin/src/app/(dashboard)/mock/**`（`/mock` で画面一覧、サイドバーの「tech-english モック」）、ダミーデータは `apps/admin/src/libs/mock-data.ts`。
+admin の画面のモックは `apps/admin/src/app/(dashboard)/mock/**`（`/mock` で画面一覧。サイドバーには出さないので URL を直接開く）、ダミーデータは `apps/admin/src/libs/mock-data.ts`。
 
 ## 必要な API
 
