@@ -66,7 +66,7 @@ pnpm test         # テスト
 
 ## Code Style
 
-ESLint v9 flat config。**ファイル変更後は `pnpm lint:fix` を実行する。** ルールの実体は `packages/eslint-config/`。セミコロン / クォート / インデント / import 順 / 命名（case）/ クラスメンバーの修飾子と `_` プレフィックス / `@repo/db`（Drizzle）と `@repo/*` の import 境界は**すべて lint が強制する**ので、ここには列挙しない。
+ESLint v9 flat config。**ファイル変更後は `pnpm lint:fix` を実行し、コミットの前に `coding-style` skill で lint が見ない規約（以下）を差分に対して見直す。** ルールの実体は `packages/eslint-config/`。セミコロン / クォート / インデント / import 順 / 命名（case）/ クラスメンバーの修飾子と `_` プレフィックス / `@repo/db`（Drizzle）と `@repo/*` の import 境界は**すべて lint が強制する**ので、ここには列挙しない。
 
 lint で強制できていない規約は以下。
 
@@ -78,6 +78,10 @@ lint で強制できていない規約は以下。
 - **バレルエクスポート（index.ts）はファイル名順**
 - **React JSX props**: callbacks last, shorthand first, reserved first
 - **Function style**: api / cron / worker は `const` + アロー関数、web / admin / mobile のコンポーネントは `function`
+- **コメントに書くのは「名前と型から読めない挙動」か「なぜその選択にしたか（採らなかった案・外部の制約）」だけ**。書きたくなったら、先に名前で表せないか考える
+  - 名前の言い換え・呼び出し元や置き場所・変更の経緯（コミット / PR に書く）はコメントにしない
+  - 同じ制約・理由は、その制約を持つ定義の側に 1 か所だけ書く。呼び出し側では繰り返さない
+  - 内部関数が外側の変数を読み書きするときは、その挙動（何度呼んでも 1 回しか動かない など）を 1 行で書く。引数と戻り値に出ないため
 - **ブロックコメントは `/** */`**（`//` は使わない）。1 行の内容でも複数行形式で書く
 - **web / admin で server 側の処理（API 呼び出し・env 参照）を書くモジュールは先頭に `import "server-only"` を置く**。client component から import されたらビルドが落ちるようにするため（lint では検出できない）
 - **テストのためだけに export する関数・定数は、ファイル末尾の `export const forTesting = { ... }` にまとめる**。個別に `export` しない。テスト側は `const { xxx } = forTesting` で取り出す
