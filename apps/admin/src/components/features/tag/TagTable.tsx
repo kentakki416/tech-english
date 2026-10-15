@@ -29,8 +29,8 @@ const buildColumns = (openModal: (modal: OpenModal) => void): Column<TagListItem
     header: "",
     render: (row) => (
       <div className="flex justify-end gap-4">
-        <button className="font-medium text-brand-500 hover:text-brand-600" onClick={() => openModal({ kind: "edit", tag: row })} type="button">編集</button>
-        <button className="font-medium text-error-600 hover:text-error-700 dark:text-error-500" onClick={() => openModal({ kind: "delete", tag: row })} type="button">削除</button>
+        <button aria-label={`${row.name} を編集`} className="font-medium text-brand-500 hover:text-brand-600" onClick={() => openModal({ kind: "edit", tag: row })} type="button">編集</button>
+        <button aria-label={`${row.name} を削除`} className="font-medium text-error-600 hover:text-error-700 dark:text-error-500" onClick={() => openModal({ kind: "delete", tag: row })} type="button">削除</button>
       </div>
     ),
   },

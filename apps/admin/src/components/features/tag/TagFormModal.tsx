@@ -25,6 +25,13 @@ export function TagFormModal({ colors, onClose, tag }: { colors: readonly TagCol
   const [failure, setFailure] = useState<Extract<TagActionResult, { ok: false }> | null>(null)
   const [isPending, startTransition] = useTransition()
 
+  /**
+   * 送信中に閉じると、遅れて届いた成功が別のモーダルを閉じてしまうので、送信中は閉じさせない
+   */
+  const handleClose = () => {
+    if (!isPending) onClose()
+  }
+
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     startTransition(async () => {
@@ -43,7 +50,7 @@ export function TagFormModal({ colors, onClose, tag }: { colors: readonly TagCol
   const nameError = failure?.errors?.name?.[0]
 
   return (
-    <Modal className="m-4 max-w-[520px] p-6 lg:p-8" isOpen onClose={onClose}>
+    <Modal className="m-4 max-w-[520px] p-6 lg:p-8" isOpen onClose={handleClose}>
       <form noValidate onSubmit={handleSubmit}>
         <h4 className="text-lg font-semibold text-gray-800 dark:text-white/90">{tag ? "タグを編集" : "タグを追加"}</h4>
 
@@ -56,6 +63,8 @@ export function TagFormModal({ colors, onClose, tag }: { colors: readonly TagCol
         <div className="mt-6">
           <label className={labelClass} htmlFor="tag-name">名前</label>
           <input
+            autoFocus
+            aria-describedby={nameError ? "tag-name-hint tag-name-error" : "tag-name-hint"}
             aria-invalid={nameError ? true : undefined}
             className={inputClass}
             id="tag-name"
@@ -63,8 +72,8 @@ export function TagFormModal({ colors, onClose, tag }: { colors: readonly TagCol
             onChange={(event) => setName(event.target.value)}
             value={name}
           />
-          <p className={hintClass}>大文字・小文字だけが違う名前は同じタグとみなします。カンマは使えません。</p>
-          {nameError && <p className="mt-1.5 text-xs text-error-500" role="alert">{nameError}</p>}
+          <p className={hintClass} id="tag-name-hint">大文字・小文字だけが違う名前は同じタグとみなします。カンマは使えません。</p>
+          {nameError && <p className="mt-1.5 text-xs text-error-500" id="tag-name-error" role="alert">{nameError}</p>}
         </div>
 
         <div className="mt-6">
@@ -94,7 +103,7 @@ export function TagFormModal({ colors, onClose, tag }: { colors: readonly TagCol
         </div>
 
         <div className="mt-6 flex justify-end gap-3">
-          <button className={outlineButtonClass} onClick={onClose} type="button">キャンセル</button>
+          <button className={outlineButtonClass} onClick={handleClose} type="button">キャンセル</button>
           <button className={primaryButtonClass} disabled={isPending} type="submit">{isPending ? "保存中…" : tag ? "保存する" : "追加する"}</button>
         </div>
       </form>

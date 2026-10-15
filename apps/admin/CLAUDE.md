@@ -55,7 +55,7 @@ admin は DB を直接触らず、必ず Express API を経由する。tech-engl
 | ファイル | 役割 |
 | --- | --- |
 | `src/env.ts` | `API_URL` / `ADMIN_API_TOKEN` / Basic 認証の資格情報を Zod で検証。`server-only`。`api-client.ts` から import され、API を呼ぶ画面の読み込み時に検証が走る |
-| `src/libs/api-client.ts` | `env.API_URL` を叩く `get` / `post` / `put` / `delete`。`X-Admin-Token` を付け、`!res.ok` なら `ApiClientError`（`status` / `body`）を投げる。`server-only` |
+| `src/libs/api-client.ts` | `env.API_URL` を叩く `get` / `post` / `put` / `delete`。`X-Admin-Token` を付け、`!res.ok` なら `ApiClientError`（`status` / `body`）を投げる。204 は `undefined` を返す（JSON をパースしない）。`server-only` |
 | `src/features/{feature}/{feature}.api.ts` | 機能ごとの API 呼び出し層（`server-only`）。レスポンスを `@repo/api-schema` のスキーマで parse して返す |
 | `src/libs/ui-classes.ts` | 入力欄・カード・ボタンの共通クラス（テンプレートと同じ見た目）。デザインモックの `mock/_components/ui.ts` と同じ値で、本番の画面はこちらを使う（`mock/` を import しない） |
 | `src/libs/format-date.ts` | `formatDateTime`：日時を `2026-10-10 03:00` にする（既定は日本時間。Server Component は UTC で動くためタイムゾーンを明示。ユーザーの学習履歴はユーザーのタイムゾーンを渡す）、`formatDate`：日本時間の `2026-10-10` |

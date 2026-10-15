@@ -78,16 +78,18 @@ function Field({
   hint,
   htmlFor,
   label,
+  labelId,
 }: {
   children: React.ReactNode
   error?: string
   hint?: string
   htmlFor?: string
   label: string
+  labelId?: string
 }) {
   return (
     <div>
-      <label className={labelClass} htmlFor={htmlFor}>{label}</label>
+      <label className={labelClass} htmlFor={htmlFor} id={labelId}>{label}</label>
       {children}
       {hint && <p className={hintClass}>{hint}</p>}
       {error && <p className={errorHintClass}>{error}</p>}
@@ -248,7 +250,7 @@ export function SourceForm({
               ))}
             </div>
           </Field>
-          <Field error={getFieldError("tag_ids")} hint="ユーザーの問題一覧の絞り込みに使います。タグはタグの画面で登録します。" label="技術タグ">
+          <Field error={getFieldError("tag_ids")} hint="ユーザーの問題一覧の絞り込みに使います。タグはタグの画面で登録します。" label="技術タグ" labelId="source-tags-label">
             <TagPicker defaultSelectedIds={source?.tags.map((tag) => tag.id) ?? []} tags={tags} />
           </Field>
         </Section>

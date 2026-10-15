@@ -337,7 +337,7 @@ export default function DataTable<T>({
                     key={String(col.key ?? col.header)}
                     className={
                       col.className ??
-                    "px-5 py-4 text-theme-sm text-gray-500 dark:text-gray-400"
+                      "px-5 py-4 text-theme-sm text-gray-500 dark:text-gray-400"
                     }
                   >
                     {col.render

@@ -25,7 +25,7 @@ export const TAG_COLOR_CLASSES: Record<TagColor, { chip: string, swatch: string 
 export function TagChip({ color, isMuted = false, name }: { color: TagColor, isMuted?: boolean, name: string }) {
   return (
     <span
-      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-theme-xs font-medium ring-1 ring-inset transition-opacity ${TAG_COLOR_CLASSES[color].chip} ${isMuted ? "opacity-40" : ""}`}
+      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-theme-xs font-medium ring-1 ring-inset transition-opacity ${TAG_COLOR_CLASSES[color].chip} ${isMuted ? "opacity-60" : ""}`}
     >
       {name}
     </span>

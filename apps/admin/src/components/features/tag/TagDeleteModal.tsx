@@ -18,6 +18,13 @@ export function TagDeleteModal({ onClose, tag }: { onClose: () => void, tag: Tag
   const [message, setMessage] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
+  /**
+   * 送信中に閉じると、遅れて届いた成功が別のモーダルを閉じてしまうので、送信中は閉じさせない
+   */
+  const handleClose = () => {
+    if (!isPending) onClose()
+  }
+
   const handleDelete = () => {
     startTransition(async () => {
       const result = await deleteTagAction(tag.id)
@@ -30,7 +37,7 @@ export function TagDeleteModal({ onClose, tag }: { onClose: () => void, tag: Tag
   }
 
   return (
-    <Modal className="m-4 max-w-[520px] p-6 lg:p-8" isOpen onClose={onClose}>
+    <Modal className="m-4 max-w-[520px] p-6 lg:p-8" isOpen onClose={handleClose}>
       <h4 className="text-lg font-semibold text-gray-800 dark:text-white/90">タグを削除</h4>
       {message && (
         <div className="mt-4 rounded-xl border border-error-500 bg-error-50 p-4 text-sm dark:border-error-500/30 dark:bg-error-500/15" role="alert">
@@ -46,7 +53,7 @@ export function TagDeleteModal({ onClose, tag }: { onClose: () => void, tag: Tag
           : "このタグはどのソースにも使われていません。"}
       </p>
       <div className="mt-6 flex justify-end gap-3">
-        <button className={outlineButtonClass} onClick={onClose} type="button">キャンセル</button>
+        <button autoFocus className={outlineButtonClass} onClick={handleClose} type="button">キャンセル</button>
         <button className={dangerOutlineButtonClass} disabled={isPending} onClick={handleDelete} type="button">{isPending ? "削除中…" : "削除する"}</button>
       </div>
     </Modal>

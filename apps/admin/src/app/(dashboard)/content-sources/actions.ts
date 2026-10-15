@@ -34,11 +34,13 @@ const isMissingTagError = (error: ApiClientError): boolean => {
 }
 
 /**
- * API の失敗をフォームの文言にする。409 は重複、それ以外は再試行を促す
+ * API の失敗をフォームの文言にする。409 は重複、400（存在しないタグ）はタグの欄のエラー、それ以外は再試行を促す。
+ * 存在しないタグのときは、ピッカーの tags が古いので revalidatePaths の画面を作り直させる
  */
-const convertApiErrorToFormState = (error: unknown, fallbackMessage: string): ContentSourceFormState => {
+const convertApiErrorToFormState = (error: unknown, fallbackMessage: string, revalidatePaths: string[]): ContentSourceFormState => {
   if (error instanceof ApiClientError && error.status === 409) return { message: DUPLICATE_MESSAGE }
   if (error instanceof ApiClientError && error.status === 400 && isMissingTagError(error)) {
+    revalidatePaths.forEach((path) => revalidatePath(path))
     return { errors: { tag_ids: [MISSING_TAG_MESSAGE] } }
   }
   console.error("Content source request failed", error)
@@ -59,7 +61,7 @@ export const createContentSourceAction = async (
   try {
     id = (await contentSourceApi.create(parsed.data)).id
   } catch (error) {
-    return convertApiErrorToFormState(error, "登録に失敗しました。時間をおいて再度お試しください。")
+    return convertApiErrorToFormState(error, "登録に失敗しました。時間をおいて再度お試しください。", ["/content-sources/new"])
   }
 
   revalidatePath("/content-sources")
@@ -88,7 +90,7 @@ export const updateContentSourceAction = async (
      * 存在しないタグ以外の 400 は、取得した文書があるソースの取得元（リポジトリ・サイトの URL）の変更
      */
     if (error instanceof ApiClientError && error.status === 400 && !isMissingTagError(error)) return { message: ORIGIN_LOCKED_MESSAGE }
-    return convertApiErrorToFormState(error, "保存に失敗しました。時間をおいて再度お試しください。")
+    return convertApiErrorToFormState(error, "保存に失敗しました。時間をおいて再度お試しください。", [`/content-sources/${id}`])
   }
 
   revalidatePath("/content-sources")

@@ -44,7 +44,11 @@ const revalidateTagPaths = () => {
  * タグの作成。color が null（「自動」）なら送らず、api に割り当てさせる
  */
 export const createTagAction = async (input: { color: string | null, name: string }): Promise<TagActionResult> => {
-  const parsed = createTagRequestSchema.safeParse(input.color === null ? { name: input.name } : input)
+  /**
+   * Server Action の引数はブラウザから届くので、形が不正でも例外にせず検証エラーにする
+   */
+  const isObject = typeof input === "object" && input !== null
+  const parsed = createTagRequestSchema.safeParse(isObject && input.color === null ? { name: input.name } : input)
   if (!parsed.success) return { errors: { name: [NAME_ERROR] }, ok: false }
 
   try {

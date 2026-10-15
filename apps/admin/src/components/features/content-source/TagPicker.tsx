@@ -31,22 +31,26 @@ export function TagPicker({ defaultSelectedIds, tags }: { defaultSelectedIds: nu
     )
   }
 
-  const isFull = selectedIds.length >= MAX_SOURCE_TAGS
+  /**
+   * 削除されたタグの id が選択に残っていても、送らず数えない（tags は表示時点の最新）
+   */
+  const validSelectedIds = selectedIds.filter((id) => tags.some((tag) => tag.id === id))
+  const isFull = validSelectedIds.length >= MAX_SOURCE_TAGS
   const toggleTag = (id: number) =>
     setSelectedIds((current) => (current.includes(id) ? current.filter((selectedId) => selectedId !== id) : [...current, id]))
 
   return (
-    <div>
-      {selectedIds.map((id) => <input key={id} name="tag_ids" type="hidden" value={id} />)}
+    <div aria-labelledby="source-tags-label" role="group">
+      {validSelectedIds.map((id) => <input key={id} name="tag_ids" type="hidden" value={id} />)}
       <div className="flex flex-wrap gap-2">
         {tags.map((tag) => {
-          const isSelected = selectedIds.includes(tag.id)
+          const isSelected = validSelectedIds.includes(tag.id)
           return (
             <button
               key={tag.id}
               disabled={!isSelected && isFull}
               aria-pressed={isSelected}
-              className="rounded-full focus-visible:ring-3 focus-visible:ring-brand-500/20 focus-visible:outline-hidden disabled:cursor-not-allowed"
+              className="rounded-full focus-visible:ring-3 focus-visible:ring-brand-500/20 focus-visible:outline-hidden disabled:cursor-not-allowed disabled:opacity-60"
               onClick={() => toggleTag(tag.id)}
               type="button"
             >
@@ -55,7 +59,7 @@ export function TagPicker({ defaultSelectedIds, tags }: { defaultSelectedIds: nu
           )
         })}
       </div>
-      <p className={hintClass}>{selectedIds.length} / {MAX_SOURCE_TAGS} 個を選択中</p>
+      <p className={hintClass}>{validSelectedIds.length} / {MAX_SOURCE_TAGS} 個を選択中</p>
     </div>
   )
 }
