@@ -87,3 +87,8 @@ export const QUESTION_TYPE_ORDER = [
   "inference",
   "purpose",
 ] as const satisfies readonly AdminQuestionType[]
+
+/**
+ * 選択肢の記号（選択肢は 4 つ。生成と保存で 4 つと検査している）
+ */
+export const CHOICE_LETTERS = ["A", "B", "C", "D"] as const

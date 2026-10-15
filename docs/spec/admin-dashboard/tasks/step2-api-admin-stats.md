@@ -118,7 +118,7 @@ export const getAdminStatsOverviewResponseSchema = z.object({
 export const getAdminPassageStatsListQueryStringSchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(50),
   order: z.enum(["asc", "desc"]).default("desc"),
-  page: z.coerce.number().int().min(1).default(1),
+  page: z.coerce.number().int().min(1).max(10_000).default(1),
   /**
    * タイトルの部分一致
    */
@@ -179,7 +179,11 @@ export const getAdminPassageStatsResponseSchema = z.object({
     correct_choice_index: z.number().int(),
     correct_rate: rateSchema,
     /**
-     * 正解でない選択肢が正解と同じかそれ以上選ばれ、その設問の期間内の解答が ADMIN_QUESTION_REVIEW_MIN_ANSWERS 件以上ある
+     * 正解でないのに、正解と同じかそれ以上選ばれた選択肢の番号（画面で橙にする）。解答が ADMIN_QUESTION_REVIEW_MIN_ANSWERS 件より少なければ空
+     */
+    misleading_choice_indexes: z.array(z.number().int()),
+    /**
+     * 要確認（misleading_choice_indexes が空でない）
      */
     needs_review: z.boolean(),
     order_index: z.number().int(),
@@ -203,7 +207,7 @@ import type { AdminStatsPeriod } from "@repo/domain"
 /**
  * 期間の範囲。from は日本時間の始まりの日の 0 時（UTC の Date）。all は null（最初から）
  */
-export type StatsRange = {
+export type StatsPeriodRange = {
   bucket: "day" | "week"
   from: Date | null
   /**
@@ -217,34 +221,41 @@ export type StatsRange = {
 /**
  * 7d / 30d は今日を含む 7 日・30 日（日ごと）、all は全期間（週ごと）
  */
-export const resolveStatsPeriod = (period: AdminStatsPeriod, now: Date): StatsRange => {
+export const resolveStatsPeriod = (period: AdminStatsPeriod, now: Date): StatsPeriodRange => {
   /** formatDateInTimeZone(now, "Asia/Tokyo") で今日、addDaysToDate で始まりの日を求め、その日の日本時間 0 時を UTC の Date にする */
 }
 ```
 
-- 日付は既存の `src/lib/time-zone.ts` の `formatDateInTimeZone` と `@repo/domain` の `addDaysToDate` を使う。日本時間の日付の 0 時を UTC の `Date` にする関数（日本は夏時間が無いので `${date}T00:00:00+09:00`）は `src/lib/time-zone.ts` に足す
-- 日本時間（`"Asia/Tokyo"`）は定数 `ADMIN_TIME_ZONE` にして、Repository の SQL と同じ値を使う
+- 日付は既存の `src/lib/time-zone.ts` の `formatDateInTimeZone` と `@repo/domain` の `addDaysToDate` を使う。日付の 0 時を UTC の `Date` にする `convertDateToStartInstant(date, utcOffset)` を `src/lib/time-zone.ts` に足し、`@repo/domain` の `ADMIN_STATS_UTC_OFFSET`（`+09:00`。日本は夏時間が無い）を渡す。`ADMIN_STATS_TIME_ZONE` と食い違わないことをテストで確かめる
+- 日本時間（`"Asia/Tokyo"`）は `@repo/domain` の `ADMIN_STATS_TIME_ZONE`（`const/admin-stats.ts`）にして、Repository の SQL と同じ値を使う
 - テスト（`test/lib/resolve-stats-period.test.ts`）：日本時間の 0 時の前後（UTC 14:59 / 15:00）で今日が変わる、7d の from は 6 日前の 0 時、all の from は null で bucket が week
 
 ### 4. 「要確認」の判定（純関数）
 
-`src/lib/is-question-needing-review.ts`。
+`@repo/domain` の `src/rules/admin-stats.ts`（業務ルールは domain の `rules/`。下限の定数と同じ場所）。テストは `packages/domain/test/rules/admin-stats.test.ts`。画面で橙にする選択肢も API が返す（admin は domain を import できないので、判定を画面で書き直さない）。
 
 ```typescript
-/** apps/api/src/lib/is-question-needing-review.ts */
-import { ADMIN_QUESTION_REVIEW_MIN_ANSWERS } from "@repo/domain"
+/** packages/domain/src/rules/admin-stats.ts */
+import { ADMIN_QUESTION_REVIEW_MIN_ANSWERS } from "../const/admin-stats"
+
+type QuestionChoiceCounts = { answerCount: number, choiceCounts: number[], correctChoiceIndex: number }
 
 /**
- * 正解でない選択肢が正解と同じかそれ以上選ばれている（その設問の期間内の解答が下限以上のときだけ）
+ * 正解でないのに、正解と同じかそれ以上選ばれた選択肢の番号（その設問の期間内の解答が下限より少なければ空。1 度も選ばれていない選択肢は数えない）
  */
-export const isQuestionNeedingReview = (input: { answerCount: number; choiceCounts: number[]; correctChoiceIndex: number }): boolean => {
-  if (input.answerCount < ADMIN_QUESTION_REVIEW_MIN_ANSWERS) return false
+export const findMisleadingChoiceIndexes = (input: QuestionChoiceCounts): number[] => {
+  if (input.answerCount < ADMIN_QUESTION_REVIEW_MIN_ANSWERS) return []
   const correctCount = input.choiceCounts[input.correctChoiceIndex] ?? 0
-  return input.choiceCounts.some((count, index) => index !== input.correctChoiceIndex && count > 0 && count >= correctCount)
+  return input.choiceCounts.flatMap((count, index) => (index !== input.correctChoiceIndex && count > 0 && count >= correctCount ? [index] : []))
 }
+
+/**
+ * 要確認の設問か（判定は findMisleadingChoiceIndexes と同じ）
+ */
+export const isQuestionNeedingReview = (input: QuestionChoiceCounts): boolean => findMisleadingChoiceIndexes(input).length > 0
 ```
 
-- テスト：解答 4 件は false・5 件は判定する、正解と同数は true、正解が最多なら false、誰も選んでいない選択肢（0 件）は正解が 0 件でも true にしない
+- テスト：解答 4 件は判定しない・5 件は判定する、正解と同数も含む、正解が最多なら空、誰も選んでいない選択肢（0 件）は正解が 0 件でも含めない
 
 ### 5. Repository
 
@@ -347,7 +358,7 @@ export interface AdminStatsRepository {
 - 期間の比較は Drizzle の `gte` / `lt`（列の型で UTC に直して送る）を使う。生の `sql` に `Date` を埋め込むときは `toISOString()` を渡す（`Date` のままだと Node のタイムゾーンのずれが入る）
 - 問題ごとの成績は、期間内の提出を `passage_id` で束ねた CTE を `passages`（`source_documents` → `content_sources` でソース名）に left join し、`WHERE p.status = 'published' OR a.solved_attempts > 0`。並べ替えは `sort` を列の対応表（`Record<AdminPassageStatsSort, SQL>`）で SQL に直し、`NULLS LAST`・同じ値は `p.id` の順。`total` は同じ条件の `count(*) OVER ()` で一緒に取る。ページの範囲外（行が 0 件）のときは、件数だけ別の `count(*)` で数え直す
 - 比率の並べ替え（`correct_rate` など）は SQL の中で `correct_count::float / NULLIF(question_count, 0)` を計算して並べる
-- `q` は `ILIKE` の `%`・`_`・`\` をエスケープしてから `%q%` にする
+- `q` は `ILIKE` の `%`・`_`・`\` をエスケープしてから `%q%` にする（`src/repository/drizzle/like-pattern.ts` の `buildContainsLikePattern`。admin-users の一覧と共有。SQL は `ESCAPE '\'`）
 - 問題の分析は、その問題の期間内の提出済みの挑戦の `attempt_answers` を `question_id`・`selected_choice_index` で束ね、`questions` に left join する（解かれていない設問も返す）。`choiceCounts` は `choices` の長さの配列に詰め直す
 
 テスト（`test/repository/admin-stats-repository.test.ts`、実 DB）：
@@ -402,7 +413,7 @@ export const getAdminPassageStats = async (
 - 比率は `AttemptTotals` から求める共通の関数（`convertAttemptTotalsToRates`）にまとめる。分母が 0 なら `null`
 - 週ごとの推移の `fromDate`（最初のユーザーの登録日）と `toDate`（今日）は、その週の月曜にそろえてから Repository に渡す
 - 平均の解答時間は `elapsedSecondsSum / solvedAttempts`（0 回なら `null`）
-- テスト（`test/service/admin-stats-service.test.ts`、Repository は `vi.fn()`）：分母 0 の比率が `null`、all の `from` が最初の登録日・ユーザーがいなければ今日、最初の登録が水曜でも週ごとの推移の始まりが月曜になる、問題が無いと 404、`needs_review` が `isQuestionNeedingReview`（設問ごとの `answerCount`）の結果になる
+- テスト（`test/service/admin-stats-service/` に関数ごとのファイル、Repository は `vi.fn()`）：分母 0 の比率が `null`、all の `from` が最初の登録日・ユーザーがいなければ今日、最初の登録が水曜でも週ごとの推移の始まりが月曜になる、問題が無いと 404、`misleading_choice_indexes` が `findMisleadingChoiceIndexes`（設問ごとの `answerCount`）の結果になり、`needs_review` はそれが空でないとき true
 
 ### 7. Controller・Router・DI
 
@@ -428,7 +439,7 @@ dev の DB で API を叩く（トークンは `apps/api/.env.local` の `ADMIN_
 ```bash
 curl -s -H "X-Admin-Token: $ADMIN_API_TOKEN" "http://localhost:8080/api/admin/stats/overview?period=7d" | jq
 curl -s -H "X-Admin-Token: $ADMIN_API_TOKEN" "http://localhost:8080/api/admin/stats/passage?sort=correct_rate&order=asc" | jq '.passages[] | {title, solved_users, correct_rate}'
-curl -s -H "X-Admin-Token: $ADMIN_API_TOKEN" "http://localhost:8080/api/admin/stats/passage/119?period=all" | jq '.questions[] | {order_index, correct_rate, choice_rates, needs_review}'
+curl -s -H "X-Admin-Token: $ADMIN_API_TOKEN" "http://localhost:8080/api/admin/stats/passage/119?period=all" | jq '.questions[] | {order_index, correct_rate, choice_rates, misleading_choice_indexes, needs_review}'
 ```
 
 - [ ] 手元で問題を 1 回解くと、overview の `solved_attempts` と今日の推移が 1 増える

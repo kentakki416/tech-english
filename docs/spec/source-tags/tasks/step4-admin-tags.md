@@ -434,17 +434,19 @@ export const deleteTagAction = async (id: number): Promise<TagActionResult> => {
 
 ### サイドバー
 
-`src/components/layout/AppSidebar.tsx` の `navItems` の「ソース」の後に「タグ」を足す。アイコンは `@/icons` の `ListIcon`（タグのアイコンは無い）。
+`src/components/layout/AppSidebar.tsx` の `navItems` の「ソース」の後に「タグ」を足す。アイコンは `@/icons` の `ListIcon`（タグのアイコンは無い）。並びは「ダッシュボード」「問題」「ソース」「タグ」「ユーザー」（「ダッシュボード」と「ユーザー」は [admin-dashboard](../../admin-dashboard/README.md)・[admin-users](../../admin-users/README.md) で入っている）。
 
 ```tsx
 const navItems: NavItem[] = [
+  { icon: <GridIcon />, name: "ダッシュボード", path: "/" },
   { icon: <DocsIcon />, name: "問題", path: "/passages" },
   { icon: <FolderIcon />, name: "ソース", path: "/content-sources" },
   { icon: <ListIcon />, name: "タグ", path: "/tags" },
+  { icon: <UserCircleIcon />, name: "ユーザー", path: "/users" },
 ]
 ```
 
-- [admin-dashboard](../../admin-dashboard/README.md) の「ダッシュボード」（先頭）と [admin-users](../../admin-users/README.md) の「ユーザー」（末尾）も `navItems` に足される。先にどちらが入っていても、並びは「ダッシュボード」「問題」「ソース」「タグ」「ユーザー」にする（「タグ」は「ソース」の直後）
+- 既存の `navItems` は 1 項目を複数行のオブジェクトで書いているので、それに合わせる（上は並びを示すための省略形）
 - 選択中の判定（`findActiveMenuPath`）は前方一致なので、`/tags` のほかに足すものは無い
 
 ### `apps/admin/CLAUDE.md`

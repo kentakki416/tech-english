@@ -27,7 +27,7 @@ export const userApi = {
   /**
    * ユーザーが居なければ null（404）
    */
-  getCalendar: async (id: number, range?: { from: string; to: string }) => { /** GET /api/admin/user/:id/calendar */ },
+  getCalendar: async (id: number) => { /** GET /api/admin/user/:id/calendar（期間は省いてマイページと同じ直近 1 年） */ },
   /**
    * ユーザーが居なければ null（404）
    */
@@ -35,8 +35,8 @@ export const userApi = {
 }
 ```
 
-- `searchParams` の検証（不正・未指定は `created_at`・`desc`・1 ページ目）は `src/features/user/user.params.ts` の純関数にする
-- ログイン方法の表示名（`github` → GitHub、`google` → Google、`dev` → dev、知らない値はそのまま）は `src/features/user/user.labels.ts`
+- `searchParams` の検証（不正・未指定は `created_at`・`desc`・1 ページ目）は `src/features/user/user.params.ts` の純関数にする（`server-only`）。型は `Omit<GetAdminUserListQueryString, "limit">`、項目の検証と既定値は `getAdminUserListQueryStringSchema` の各項目で行い、上限などを書き写さない。ダッシュボードと共通の読み方は `src/libs/search-params.ts`
+- ログイン方法の表示名（`github` → GitHub、`google` → Google、`dev` → dev、知らない値はそのまま）と名前の表示（null・空白だけなら「（名前なし）」）は `src/features/user/user.labels.ts`
 
 ### 2. ユーザー一覧（`/users`）
 
@@ -47,13 +47,16 @@ export const userApi = {
 
 ### 3. ユーザーの詳細（`/users/[id]`）
 
-- `app/(dashboard)/users/[id]/page.tsx`。詳細・カレンダー・学習履歴の 1 ページ目を `Promise.all` で取る。`userApi` の 3 つはどれも 404 なら null を返し、詳細が null なら `notFound()`
+- `app/(dashboard)/users/[id]/page.tsx`。URL の id は `/^\d+$/` と `getAdminUserPathParamSchema` で読み、正の整数でなければ `notFound()`（問題の確認・修正と同じ）。詳細・カレンダー・学習履歴の 1 ページ目を `Promise.all` で取る。`userApi` の 3 つはどれも 404 なら null を返し、どれかが null なら `notFound()`（取る間に退会したときも 404 にする）
 - `components/features/user/`：
   - `UserProfileCard.tsx`：アイコン・名前・メールアドレス・ユーザー ID・ログイン方法・登録日時（日本時間。`formatDateTime`）・タイムゾーン・最後に学習した日
-  - `UserStatsCards.tsx`：連続学習日数・解いた回数と問題の数・正答率・学習時間・種類ごとの正答率・アシストなしの正答率・週の目標（単位は `weekly_metric` で「問」「分」、達成していれば「達成」のバッジ、棒は 100% まで）
-  - `UserCalendar.tsx`：学習カレンダーの草（直近 1 年）
-  - `UserAttemptList.tsx`（`"use client"`）：学習履歴。「さらに読み込む」は Server Action（`app/(dashboard)/users/[id]/actions.ts` の `loadMoreAttemptsAction`）で次の cursor を読む。問題名は `/passages/[id]` へのリンク
-  - `UserVocabularyCard.tsx`：単語帳の枚数（学習中・覚えた・まだ出ていない）、今日やる枚数、次に出る日
+  - `UserLearningCards.tsx`：
+    - `UserStatCards`：連続学習日数・解いた回数と問題の数・正答率とアシストなしの正答率・学習時間
+    - `UserTypeAccuracyCard`：種類ごとの正答率
+    - `UserGoalCard`：週の目標（単位は `weekly_metric` で「問」「分」、達成していれば「達成」のバッジ、棒は 100% まで）
+    - `UserVocabularyCard`：単語帳の枚数（学習中・覚えた・まだ出ていない）、今日やる枚数、次に出る日
+  - `UserCalendar.tsx`：学習カレンダーの草（直近 1 年）。横にスクロールするときは右端（直近の週）から見せる
+  - `UserAttemptList.tsx`（`"use client"`）：学習履歴（時間と「超過」のバッジ、アシストは `used_assist` で「使った」「なし」）。「さらに読み込む」は Server Action（`app/(dashboard)/users/[id]/actions.ts` の `loadMoreUserAttemptsAction`）で次の cursor を読む。問題名は `/passages/[id]` へのリンク
 - パンくずは「Home > ユーザーの詳細」（`PageBreadCrumb` の `pageTitle`）。上に「← ユーザー一覧に戻る」
 
 ### 4. サイドバー

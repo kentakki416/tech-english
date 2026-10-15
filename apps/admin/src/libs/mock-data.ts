@@ -941,11 +941,11 @@ export const MOCK_USER_STATS = {
 }
 
 /**
- * 学習カレンダー（直近 53 週、日曜始まり）。level は 0（学習なし）〜 4。
+ * 学習カレンダー（直近 53 週、月曜始まり）。level は 0（学習なし）〜 4。
  * 直近 MOCK_ALICE_STREAK_DAYS 日は学習あり、その前の日は学習なしにして、連続学習日数とそろえる
  */
 export const MOCK_USER_CALENDAR: { date: string, level: 0 | 1 | 2 | 3 | 4 }[] = Array.from({ length: 53 * 7 }, (_, index) => {
-  const start = addDays(MOCK_TODAY, -(52 * 7 + new Date(`${MOCK_TODAY}T00:00:00Z`).getUTCDay()))
+  const start = addDays(MOCK_TODAY, -(52 * 7 + (new Date(`${MOCK_TODAY}T00:00:00Z`).getUTCDay() + 6) % 7))
   const date = addDays(start, index)
   const seed = (index * 37 + Math.floor(index / 7) * 11) % 17
   const streakStart = addDays(MOCK_TODAY, -(MOCK_ALICE_STREAK_DAYS - 1))

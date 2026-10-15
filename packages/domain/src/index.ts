@@ -1,3 +1,11 @@
+export {
+  ADMIN_PASSAGE_STATS_SORTS,
+  ADMIN_QUESTION_REVIEW_MIN_ANSWERS,
+  ADMIN_STATS_PERIODS,
+  ADMIN_STATS_TIME_ZONE,
+  ADMIN_STATS_UTC_OFFSET,
+} from "./const/admin-stats"
+export { ADMIN_USER_SORTS } from "./const/admin-user"
 export { ATTEMPT_EXPIRY_SECONDS, ATTEMPT_STATUSES, WORD_LOOKUP_SOURCES } from "./const/attempt"
 export { AUDIO_STATUSES } from "./const/audio"
 export { ALLOWED_LICENSES, SOURCE_FETCH_TYPES, SOURCE_KINDS } from "./const/content-source"
@@ -26,6 +34,7 @@ export {
   VOCABULARY_REVIEW_INTERVAL_DAYS,
   VOCABULARY_SESSION_SIZE,
 } from "./const/vocabulary"
+export { findMisleadingChoiceIndexes, isQuestionNeedingReview } from "./rules/admin-stats"
 export { isAttemptStatus, isWordLookupSource } from "./rules/attempt"
 export { isAudioStatus } from "./rules/audio"
 export { isAllowedLicense, isSourceFetchType, isSourceKind } from "./rules/content-source"
@@ -44,6 +53,8 @@ export { findSurfaceRange, hasQuote, isSurfaceAt, numberHeadings, numberParagrap
 export { isQuestionType } from "./rules/question"
 export { isTagColor, selectTagColor } from "./rules/tag"
 export { isVocabularyCardDue, isVocabularyGrade, normalizeVocabularyLemma, scheduleVocabularyReview } from "./rules/vocabulary"
+export type { AdminPassageStatsSort, AdminStatsPeriod } from "./types/admin-stats"
+export type { AdminUserSort } from "./types/admin-user"
 export type {
   AttemptAnswer,
   AttemptStatus,

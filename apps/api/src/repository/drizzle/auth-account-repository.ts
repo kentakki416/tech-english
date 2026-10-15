@@ -1,4 +1,4 @@
-import { and, authAccounts, DrizzleClient, eq, users } from "@repo/db"
+import { and, asc, authAccounts, DrizzleClient, eq, users } from "@repo/db"
 import { AuthAccount, AuthAccountWithUser, User } from "@repo/domain"
 
 import type { AuthAccountRepository, CreateAuthAccountInput } from "../auth-account-repository"
@@ -46,6 +46,15 @@ export class DrizzleAuthAccountRepository implements AuthAccountRepository {
       ...this._toDomainAuthAccount(row.authAccount),
       user: this._toDomainUser(row.user),
     }
+  }
+
+  public async findProvidersByUserId(userId: number): Promise<string[]> {
+    const rows = await this._db
+      .selectDistinct({ provider: authAccounts.provider })
+      .from(authAccounts)
+      .where(eq(authAccounts.userId, userId))
+      .orderBy(asc(authAccounts.provider))
+    return rows.map((row) => row.provider)
   }
 
   public async create(data: CreateAuthAccountInput, tx?: TransactionContext): Promise<AuthAccount> {

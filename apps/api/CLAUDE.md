@@ -79,7 +79,8 @@ admin（`apps/admin`）のサーバー側だけが呼ぶ API。
 - すべて `/api/admin/` 配下に置き、`src/routes/admin-router.ts` にマッピングする（`src/index.ts` で `app.use("/api/admin", adminRouter(...))`）。コントローラーはリソースごとに `controllers.contentSource` / `controllers.passage` のようにネストして渡し、既存の router と同じく渡されたものだけを登録する
 - **認証は `X-Admin-Token` ヘッダ**。`adminAuthMiddleware`（`src/middleware/admin-auth.ts`）が `ADMIN_API_TOKEN` と定数時間で比較する（`src/lib/admin-token.ts`。SHA-256 にしてから `timingSafeEqual`）。ヘッダが無い・違う・空文字はすべて同じ 401 で、トークンの値はログに出さない
 - ユーザーの JWT 認証の対象外にするため `/api/admin` を `PUBLIC_PATHS` に入れている。**`/api/admin` 配下のルートは必ず admin-router に足す**（別の router に足すと無認証で公開される）
-- Controller は `src/controller/admin/{resource}/{action}.ts`、Service は `src/service/{content-source,admin-passage}-service.ts`。ユーザー向けと同じ Repository を使う
+- Controller は `src/controller/admin/{resource}/{action}.ts`、Service は `src/service/{content-source,admin-passage,admin-stats,admin-user}-service.ts`。ユーザー向けと同じ Repository を使う（ダッシュボードの集計だけは admin 専用の `AdminStatsRepository`。生の SQL で Postgres をその場で集計する。[admin-dashboard](../../docs/spec/admin-dashboard/README.md)）
+- ユーザー管理（`/api/admin/user/*`）はマイページの Service を使い回す。マイページの Service はユーザーが居ないと 401 を返すので、admin の Service（`admin-user-service.ts`）が先に存在を確かめて 404 にする
 - スキーマは `@repo/api-schema` の `admin/` に集約。既存と同一なら re-export し、Admin 固有のレスポンスが必要になった時点で新規定義する
 - `ADMIN_USE_DUMMY=true` で DB 不要のダミーモードになる
 - 管理者が増えたら GitHub ログイン + 権限管理に移行する（[question-generation の 管理画面のアクセス制御](../../docs/spec/question-generation/README.md#管理画面のアクセス制御)）

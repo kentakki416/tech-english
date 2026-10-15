@@ -29,10 +29,17 @@ import { AdminPassageRestoreController } from "./controller/admin/passage/restor
 import { AdminPassageRetryAudioController } from "./controller/admin/passage/retry-audio"
 import { AdminPassageUnpublishController } from "./controller/admin/passage/unpublish"
 import { AdminPassageUpdateController } from "./controller/admin/passage/update"
+import { AdminStatsOverviewController } from "./controller/admin/stats/overview"
+import { AdminPassageStatsDetailController } from "./controller/admin/stats/passage-detail"
+import { AdminPassageStatsListController } from "./controller/admin/stats/passage-list"
 import { AdminTagCreateController } from "./controller/admin/tag/create"
 import { AdminTagDeleteController } from "./controller/admin/tag/delete"
 import { AdminTagListController } from "./controller/admin/tag/list"
 import { AdminTagUpdateController } from "./controller/admin/tag/update"
+import { AdminUserAttemptsController } from "./controller/admin/user/attempts"
+import { AdminUserCalendarController } from "./controller/admin/user/calendar"
+import { AdminUserDetailController } from "./controller/admin/user/detail"
+import { AdminUserListController } from "./controller/admin/user/list"
 import { AttemptAudioController } from "./controller/attempt/audio"
 import { AttemptDetailController } from "./controller/attempt/detail"
 import { AttemptStartController } from "./controller/attempt/start"
@@ -75,6 +82,7 @@ import { apiRateLimiter } from "./middleware/rate-limit"
 import { requestLogger } from "./middleware/request-logger"
 import { unhandledExceptionHandler } from "./middleware/unhandled-exception-handler"
 import {
+  DrizzleAdminStatsRepository,
   DrizzleAuthAccountRepository,
   DrizzleContentSourceRepository,
   DrizzleDatabaseHealthRepository,
@@ -159,6 +167,10 @@ const vocabularyRepository = new DrizzleVocabularyRepository(db)
  * 単語帳のカードの発音の音声（vocabulary-pronunciation。読み取りだけ）
  */
 const wordAudioRepository = new DrizzleWordAudioRepository(db)
+/**
+ * admin のダッシュボード（admin-dashboard）の集計。読み取りだけ
+ */
+const adminStatsRepository = new DrizzleAdminStatsRepository(db)
 const databaseHealthRepository = new DrizzleDatabaseHealthRepository(db)
 const redisHealthRepository = new IoRedisHealthRepository(redis)
 const refreshTokenRepository = new IoRedisRefreshTokenRepository(redis)
@@ -289,6 +301,23 @@ const adminTagCreateController = new AdminTagCreateController(tagRepository)
 const adminTagDeleteController = new AdminTagDeleteController(tagRepository)
 const adminTagListController = new AdminTagListController(tagRepository)
 const adminTagUpdateController = new AdminTagUpdateController(tagRepository)
+
+/**
+ * admin のダッシュボード（admin-dashboard）と、ユーザー管理（admin-users。マイページと同じ Repository を使う）の Controller のインスタンス化
+ */
+const adminStatsOverviewController = new AdminStatsOverviewController(adminStatsRepository)
+const adminPassageStatsListController = new AdminPassageStatsListController(adminStatsRepository)
+const adminPassageStatsDetailController = new AdminPassageStatsDetailController(adminStatsRepository)
+const adminUserListController = new AdminUserListController(userRepository)
+const adminUserDetailController = new AdminUserDetailController(
+  authAccountRepository,
+  learningRecordRepository,
+  userGoalRepository,
+  userRepository,
+  vocabularyRepository,
+)
+const adminUserCalendarController = new AdminUserCalendarController(learningRecordRepository, userRepository)
+const adminUserAttemptsController = new AdminUserAttemptsController(learningRecordRepository, userRepository)
 
 /**
  * ユーザー向けの問題（一覧・ランダムに 1 問・開始確認の概要）Controller のインスタンス化
@@ -426,11 +455,22 @@ app.use(
       unpublish: adminPassageUnpublishController,
       update: adminPassageUpdateController,
     },
+    stats: {
+      overview: adminStatsOverviewController,
+      passageDetail: adminPassageStatsDetailController,
+      passageList: adminPassageStatsListController,
+    },
     tag: {
       create: adminTagCreateController,
       delete: adminTagDeleteController,
       list: adminTagListController,
       update: adminTagUpdateController,
+    },
+    user: {
+      attempts: adminUserAttemptsController,
+      calendar: adminUserCalendarController,
+      detail: adminUserDetailController,
+      list: adminUserListController,
     },
   })
 )

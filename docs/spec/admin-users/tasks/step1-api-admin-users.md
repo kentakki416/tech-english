@@ -64,6 +64,13 @@ const adminUserBaseSchema = z.object({
   providers: z.array(z.string()),
 })
 
+/**
+ * ユーザー一覧の並べ替えの列（admin は @repo/domain を import できないので、domain の AdminUserSort と同じ集合の型をここからも出す）
+ */
+export const adminUserSortSchema = z.enum(ADMIN_USER_SORTS)
+
+export type AdminUserSort = z.infer<typeof adminUserSortSchema>
+
 // ========================================================
 // GET /api/admin/user - ユーザー一覧
 // ========================================================
@@ -71,15 +78,14 @@ const adminUserBaseSchema = z.object({
 export const getAdminUserListQueryStringSchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(50),
   order: z.enum(["asc", "desc"]).default("desc"),
-  page: z.coerce.number().int().min(1).default(1),
+  page: z.coerce.number().int().min(1).max(10_000).default(1),
   /**
    * 名前・メールアドレスの部分一致
    */
   q: z.string().trim().min(1).max(200).optional(),
-  sort: z.enum(ADMIN_USER_SORTS).default("created_at"),
+  sort: adminUserSortSchema.default("created_at"),
 })
 
-export type AdminUserSort = z.infer<typeof getAdminUserListQueryStringSchema>["sort"]
 
 export const getAdminUserListResponseSchema = z.object({
   limit: z.number().int(),
@@ -118,8 +124,10 @@ export const getAdminUserResponseSchema = z.object({
 // GET /api/admin/user/:id/calendar・/attempts - ユーザー向けと同じ
 // ========================================================
 
+export const getAdminUserCalendarPathParamSchema = z.object({ id: z.coerce.number().int().positive() })
 export const getAdminUserCalendarQueryStringSchema = getUserCalendarQueryStringSchema
 export const getAdminUserCalendarResponseSchema = getUserCalendarResponseSchema
+export const getAdminUserAttemptsPathParamSchema = z.object({ id: z.coerce.number().int().positive() })
 export const getAdminUserAttemptsQueryStringSchema = getUserAttemptsQueryStringSchema
 export const getAdminUserAttemptsResponseSchema = getUserAttemptsResponseSchema
 ```
@@ -177,7 +185,7 @@ LIMIT $limit OFFSET $offset
 ```
 
 - 並べ替えの列は `Record<AdminUserSort, SQL>` で対応させる（文字列を SQL に埋め込まない）
-- `q` は `%`・`_`・`\` をエスケープしてから `%q%` にする。admin-dashboard の問題ごとの成績と同じ関数を使う（`src/repository/drizzle/` の共通の関数にする）
+- `q` は `%`・`_`・`\` をエスケープしてから `%q%` にする。admin-dashboard の問題ごとの成績と同じ `src/repository/drizzle/like-pattern.ts` の `buildContainsLikePattern` を使う
 - ページの範囲外（行が 0 件）のときは、件数だけ別の `count(*)` で数え直す
 
 テスト（`test/repository/user-repository.test.ts` に足す、実 DB）：
@@ -237,11 +245,11 @@ export const getAdminUserAttempts = async (
 ): Promise<Result<UserAttempts>> => { /** … */ }
 ```
 
-- マイページの Service（`getUserStats`・`getUserCalendar`・`getUserAttempts`・`getVocabularySummary`）はユーザーが居ないと `unauthorizedError`（401）を返すので、admin の Service が先に `userRepository.findById` で確かめ、居なければ `notFoundError`（404）を返す
+- マイページの Service（`getUserStats`・`getUserCalendar`・`getUserAttempts`・`getVocabularySummary`）はユーザーが居ないと `unauthorizedError`（401）を返すので、admin の Service が先に `userRepository.findById` で確かめ、居なければ `notFoundError`（404）を返す。確かめた後に退会して中の Service が 401 を返したときも 404 に読み替える
 - 戻り値と `repo` の型（`AdminUserList`・`AdminUserDetail`・`AdminUserRepo`）は同じファイルで定義する。`AdminUserRepo` は `getUserStats` と `getVocabularySummary` が使う Repository（`learningRecordRepository`・`userGoalRepository`・`userRepository`・単語帳の Repository）に `authAccountRepository` を足したもの
 - 最後に学習した日は `learningRecordRepository.findStudyDates(userId)` の最後の日（学習していなければ null）
 - ログイン方法は `AuthAccountRepository` に `findProvidersByUserId(userId): Promise<string[]>`（名前順・重複なし）を新しく足す。`test/repository/` に実 DB のテストも足す
-- テスト（`test/service/admin-user-service.test.ts`、Repository は `vi.fn()`）：offset の計算、詳細・カレンダー・学習履歴でユーザーが居ないと 404、学習のまとめの err をそのまま返す
+- テスト（`test/service/admin-user-service/` に関数ごとのファイル、Repository は `vi.fn()`）：offset の計算、詳細・カレンダー・学習履歴でユーザーが居ないと 404、学習のまとめの err をそのまま返す
 
 ### 6. Controller・Router・DI
 
@@ -252,7 +260,7 @@ export const getAdminUserAttempts = async (
 テスト（`test/controller/admin/user/*.test.ts`、supertest）：
 
 - 正常系：4 つとも 200 とスキーマどおりのボディ。詳細の `stats` がユーザー向けの `GET /api/user/stats`（同じユーザー・同じ時刻）と同じになる
-- 異常系：`X-Admin-Token` が無いと 401、`sort=name`・`page=0`・`limit=101` は 400、存在しないユーザーは 4 つとも 404
+- 異常系：`X-Admin-Token` が無いと 401、`sort=name`・`page=0`・`page=10001`・`limit=101` は 400、存在しないユーザーは詳細・カレンダー・学習履歴の 3 つとも 404
 
 ## 動作確認
 

@@ -23,4 +23,8 @@ export interface AuthAccountRepository {
     provider: string,
     providerAccountId: string
   ): Promise<AuthAccountWithUser | null>
+  /**
+   * そのユーザーのログイン方法（provider）。名前順・重複なし。無ければ空の配列
+   */
+  findProvidersByUserId(userId: number): Promise<string[]>
 }

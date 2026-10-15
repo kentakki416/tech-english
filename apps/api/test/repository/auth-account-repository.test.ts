@@ -45,3 +45,25 @@ describe("AuthAccountRepository", () => {
     })
   })
 })
+
+describe("AuthAccountRepository.findProvidersByUserId", () => {
+  describe("正常系", () => {
+    it("そのユーザーのログイン方法を名前順で返す（他のユーザーのものは含めない）", async () => {
+      const user = await userRepository.create({ email: "test@example.com", name: "Test User" })
+      const other = await userRepository.create({ email: "other@example.com", name: "Other" })
+      await authAccountRepository.create({ provider: "google", providerAccountId: "g-1", userId: user.id })
+      await authAccountRepository.create({ provider: "github", providerAccountId: "h-1", userId: user.id })
+      await authAccountRepository.create({ provider: "dev", providerAccountId: "d-1", userId: other.id })
+
+      expect(await authAccountRepository.findProvidersByUserId(user.id)).toEqual(["github", "google"])
+    })
+  })
+
+  describe("異常系", () => {
+    it("ログイン方法が無ければ空の配列", async () => {
+      const user = await userRepository.create({ email: "test@example.com", name: "Test User" })
+
+      expect(await authAccountRepository.findProvidersByUserId(user.id)).toEqual([])
+    })
+  })
+})

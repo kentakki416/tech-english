@@ -99,5 +99,17 @@ export const readingAttempts = pgTable(
      * 問題一覧の挑戦状況
      */
     index("reading_attempts_user_id_passage_id_idx").on(table.userId, table.passageId),
+    /**
+     * admin のダッシュボード：期間内の提出（全体の利用状況）
+     */
+    index("reading_attempts_submitted_at_idx")
+      .on(table.submittedAt)
+      .where(sql`${table.status} = 'submitted'`),
+    /**
+     * admin のダッシュボード：問題ごとの成績・問題の分析
+     */
+    index("reading_attempts_passage_id_submitted_at_idx")
+      .on(table.passageId, table.submittedAt)
+      .where(sql`${table.status} = 'submitted'`),
   ],
 )
