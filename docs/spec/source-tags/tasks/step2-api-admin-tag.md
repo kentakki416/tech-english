@@ -585,7 +585,7 @@ if (tag.delete) {
 ## 動作確認
 
 ```bash
-pnpm --filter @repo/domain build && cd packages/schema && pnpm build && cd -
+pnpm --filter @repo/domain build && pnpm --filter @repo/api-schema build
 pnpm --filter api test      # vitest を直接叩かない（dev DB が消える）
 pnpm lint:fix
 ```

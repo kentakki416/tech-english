@@ -240,7 +240,7 @@ export default async function EditContentSourcePage({ params }: Props) {
 
 ```bash
 pnpm --filter @repo/api-schema build
-cd apps/admin && pnpm build
+pnpm --filter admin build
 pnpm lint:fix
 ```
 

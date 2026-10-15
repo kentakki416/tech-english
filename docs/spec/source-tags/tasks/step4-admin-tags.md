@@ -99,7 +99,7 @@ export const tagApi = {
 
 - 色の名前ごとのクラスを **そのまま書いた対応表** を持つ。Tailwind はソースに書かれたクラス名しか CSS にしないので、`` `bg-${color}-50` `` のように組み立てない
 - 対応表の型を `Record<TagColor, ...>` にして、`TAG_COLORS` に色を足したら型エラーで気づけるようにする。`TagColor` は `@repo/api-schema` のレスポンスの型から取る（admin は `@repo/domain` を import できない）
-- Tailwind の既定のパレット（`rose`・`emerald` など）は admin の `globals.css` の `@theme` で消していない（`--color-*: initial` が無い）。`pink`・`sky`・`blue` は既に admin で使っていて `eslint-plugin-tailwindcss` の `no-custom-classname` に引っかかっていない。ほかの色で警告が出たら `globals.css` の冒頭のコメントの手順で直す
+- Tailwind の既定のパレット（`rose`・`emerald` など）は admin の `globals.css` の `@theme` で消していない（`--color-*: initial` が無い）。`pink`・`sky`・`blue` は既に admin で使っていて `eslint-plugin-tailwindcss` の `no-custom-classname` に引っかかっていない。ほかの色で警告が出たら、`globals.css` の `@utility` の定義の前にあるコメント（`no-custom-classname` の warning の解決方法）の手順で直す
 - `isMuted` は step5 のタグの選択で「選んでいない」を薄く出すため
 
 ```tsx
@@ -459,7 +459,7 @@ const navItems: NavItem[] = [
 
 ```bash
 pnpm --filter @repo/api-schema build
-cd apps/admin && pnpm build
+pnpm --filter admin build
 pnpm lint:fix
 ```
 

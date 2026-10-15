@@ -82,6 +82,7 @@
 - 今ソースに付いているタグは、この機能を入れるときにタグとして自動で登録し、ソースとの紐付けも残す
 - 大文字・小文字だけが違うものは 1 つにまとめる。書き方は最も古く登録されたソースでの書き方を採る
 - 色は名前の順にパレットを順番に割り当てる
+- 書き方がまとまったタグ（`react` が `React` になった など）は、古い書き方の絞り込みの URL（`?tag=react`）では問題が出なくなる
 
 ---
 
@@ -102,7 +103,7 @@
 - `tags` に `lower(name)` の unique index を張り、大文字・小文字だけが違う名前を DB で拒否する。api-schema の検証（trim・1〜30 文字・カンマ禁止）を通った後の重複は、この index の一意制約違反を Repository が `duplicate` として返し、api が 409 にする（同時に 2 人が登録しても DB が止める）
 - 名前のルール（前後の空白なし・1〜30 文字・カンマなし）は、DB の CHECK 制約 `tags_name_check` でも守る。api を通らない書き込み（移行・seed）でも崩れないようにするため。移行で既存のタグがこの制約に掛かれば、migration 全体が戻ってデプロイが止まる（黙って捨てない）
 - 大文字・小文字以外の揺れ（`Next.js` と `NextJS` など）は防がない（[MVP 対象外](#mvp-対象外将来検討)）
-- ユーザーの問題一覧のタグでの絞り込みは、タグの名前を大文字・小文字を区別せずに比べる（`lower(name)`）。URL に `?tag=react` と書かれていても `React` のタグで絞り込める
+- ユーザーの問題一覧のタグでの絞り込みは、今までどおりタグの名前の完全一致で比べる。web の絞り込みのチップは API が返すタグの名前から URL を作るので、画面から操作する限り表記はそろう。大文字・小文字を区別せずに比べると、URL の `?tag=react` と API の `React` が別のチップとして 2 つ出てしまい、web を変えずには済まないため
 
 ### 色の持ち方と自動の割り当て
 
@@ -122,7 +123,9 @@
 expand → contract の 2 段に分け、**別々のデプロイで出す**。deploy workflow は migration をアプリより先に流すので、列を消す migration を新しい api と同じデプロイに入れると、その間だけ古い api が消えた列を読んで失敗する（ユーザー向けの問題一覧も含む）。
 
 1. **追加と移行**（step1。api・admin の変更と同じデプロイ）：`tags` と `content_source_tags` を作り、`content_sources.tags` の名前を `lower(trim(name))` ごとに 1 つにまとめて `tags` に入れ、紐付けを `content_source_tags` に入れる。書き方は id が最小のソースのもの、色は `lower(name)` の順にパレットを順番に割り当てる。`db:generate` で作った SQL に移行の SQL を書き足す（SQL は [step1](./tasks/step1-db-tags.md)）
-2. **古い列の削除**（step6。1 のデプロイの後の、別のデプロイ）：api と cron が `content_sources.tags` を読まなくなったことが本番で確かになってから、列を消す migration を出す（[step6](./tasks/step6-db-drop-content-sources-tags.md)）。それまで列は使わずに残す
+2. **古い列の削除**（step6。1 のデプロイの後の、別のデプロイ）：列を消す migration を出す（[step6](./tasks/step6-db-drop-content-sources-tags.md)）
+
+1 のデプロイの api と cron が `content_sources.tags` を SQL に書かないよう、step3 で Drizzle のスキーマから列の定義だけを外す（migration は作らず、DB の列は残す。insert には DB の既定値が入る）。Drizzle の `select()`・`returning()` はスキーマにある全列を SQL に書くので、スキーマに残すと列を消した後に古い api の admin のソース API と cron の収集が失敗するため。step3 から step6 までの間は、スキーマと DB がずれている。その間にほかの機能で `db:generate` を流すと列を消す SQL が混ざるので、流さない（混ざったら消す）
 
 移行は step1 の migration を流した時点の `content_sources.tags` を写す。migration から新しい api・admin が出るまでの間に古い admin でソースのタグを変えると写らないので、デプロイの間はソースを編集しない（管理者は 1 人）。
 
@@ -271,7 +274,7 @@ PR は 3 つに分ける。
 | --- | --- |
 | [step1-db-tags](./tasks/step1-db-tags.md) | `@repo/domain` の `TAG_COLORS`・`Tag` 型・`selectTagColor`、`tags` / `content_source_tags` のスキーマと、既存のタグを移す migration |
 | [step2-api-admin-tag](./tasks/step2-api-admin-tag.md) | タグの CRUD の API（`/api/admin/tag`） |
-| [step3-api-content-source-tags](./tasks/step3-api-content-source-tags.md) | ソースの API の `tag_ids`・`tags` の形の変更、問題一覧の絞り込みとタグ一覧を中間テーブルから読む、cron・seed の修正。`content_sources.tags` 列は使わずに残す |
+| [step3-api-content-source-tags](./tasks/step3-api-content-source-tags.md) | ソースの API の `tag_ids`・`tags` の形の変更、問題一覧の絞り込みとタグ一覧を中間テーブルから読む、cron・seed の修正。Drizzle のスキーマから `content_sources.tags` の定義を外す（DB の列は step6 まで残す） |
 | [step4-admin-tags](./tasks/step4-admin-tags.md) | admin のサイドバーの「タグ」、`/tags` の画面、`TagChip` |
 | [step5-admin-content-source-tags](./tasks/step5-admin-content-source-tags.md) | ソースの登録・編集フォームのタグの選択、ソース一覧のタグ |
 | [step6-db-drop-content-sources-tags](./tasks/step6-db-drop-content-sources-tags.md) | `content_sources.tags` 列を消す migration と、列に依存するテストの片付け |

@@ -247,13 +247,14 @@ WITH "source_tag_names" AS (
   FROM "source_tag_names"
   ORDER BY lower("name"), "source_id", "position"
 )
-INSERT INTO "tags" ("name", "color", "updated_at")
+INSERT INTO "tags" ("name", "color", "created_at", "updated_at")
 SELECT
   "name",
   (ARRAY['blue', 'rose', 'emerald', 'amber', 'violet', 'teal', 'orange', 'pink', 'lime', 'sky'])[
     ((row_number() OVER (ORDER BY lower("name")) - 1) % 10) + 1
   ],
-  now()
+  now() AT TIME ZONE 'UTC',
+  now() AT TIME ZONE 'UTC'
 FROM "canonical_names";
 --> statement-breakpoint
 /*
@@ -269,7 +270,7 @@ WHERE btrim("tag"."name") <> '';
 ```
 
 - 既存のタグは今の api-schema（`trim`・1〜30 文字）と admin のフォーム（カンマで分ける）を通っているので、`tags_name_check` には掛からない。もし掛かれば migration 全体がロールバックされ、デプロイが止まる（黙って捨てない）
-- `updated_at` は DB の default を持たない（`columns.ts`）ので `now()` を入れる
+- `created_at`・`updated_at` は `now() AT TIME ZONE 'UTC'` を明示する。日時の列は `timestamp`（タイムゾーン無し）を UTC として扱うが、セッションを UTC に固定しているのはアプリの client（`packages/db/src/drizzle/client.ts`）だけで、drizzle-kit migrate のセッションは固定していない。`created_at` の default の `now()` や素の `now()` に任せると、ローカル（docker-compose は `TZ=Asia/Tokyo`）では 9 時間ずれて入る。`updated_at` はもともと DB の default を持たない（`columns.ts`）
 - `db:migrate` は未適用の migration を 1 トランザクションで流すので、表の作成と移行は一緒に成功するか一緒に戻る
 
 ```bash
@@ -319,7 +320,7 @@ api のテストは必ず `pnpm --filter api test`（= `DB_NAME=tech-english_tes
 
 `apps/api/test/schema/source-tags-migration.test.ts`（実 DB。migration の移行の SQL を取り出して流す）：
 
-`packages/db/drizzle/migrations/*_add_tags/migration.sql` を読み、`-- source-tags: 既存のタグの移行（ここから）` から `（ここまで）` までを `--> statement-breakpoint` で分けて、`testDb.execute(sql.raw(statement))` で順に流す。test DB は migration を適用済み（`tags` は空）なので、`cleanupTestData` の後に `content_sources` を入れてから流す。**このテストは `content_sources.tags` 列を前提にするので、[step6](./step6-db-drop-content-sources-tags.md) で列を消すときに一緒に消す。**
+`packages/db/drizzle/migrations/*_add_tags/migration.sql` を読み、`-- source-tags: 既存のタグの移行（ここから）` から `（ここまで）` までを `--> statement-breakpoint` で分けて、`testDb.execute(sql.raw(statement))` で順に流す。test DB は migration を適用済み（`tags` は空）なので、`cleanupTestData` の後に `content_sources` を入れてから流す。`content_sources` は `` testDb.execute(sql`INSERT INTO content_sources (..., tags) VALUES (...)`) `` の生の SQL で入れる（[step3](./step3-api-content-source-tags.md) で Drizzle のスキーマから `tags` の定義を外しても、このテストを直さずに済むように）。**このテストは `content_sources.tags` 列を前提にするので、[step6](./step6-db-drop-content-sources-tags.md) で列を消すときに一緒に消す。**
 
 - 正常系
   - [ ] ソース A（id 小）`["React", "frontend"]`・ソース B `["react", " Go ", ""]`・ソース C `["go", "Frontend"]` を入れて流すと、`tags` が `React`・`frontend`・`Go` の 3 行になる（書き方は id が最小のソースのもの、前後の空白は除く、空文字は移さない）

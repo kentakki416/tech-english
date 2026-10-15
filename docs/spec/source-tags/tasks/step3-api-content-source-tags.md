@@ -1,6 +1,6 @@
 # step3-api-content-source-tags
 
-ソースの API を、タグの名前の配列（`tags`）ではなく id の配列（`tag_ids`）で受け取り、タグを `{ id, name, color }` で返すように変える。ユーザー向けの問題一覧の絞り込みとタグ一覧を、`content_sources.tags`（jsonb）ではなく中間テーブル `content_source_tags` から読むように直す。cron と seed を直す。`content_sources.tags` 列はこの step では消さず、使わない列として残す（消すのは [step6](./step6-db-drop-content-sources-tags.md)）。仕様は [README の api の変更点](../README.md#api-の変更点) と [必要な API](../README.md#必要な-api)。
+ソースの API を、タグの名前の配列（`tags`）ではなく id の配列（`tag_ids`）で受け取り、タグを `{ id, name, color }` で返すように変える。ユーザー向けの問題一覧の絞り込みとタグ一覧を、`content_sources.tags`（jsonb）ではなく中間テーブル `content_source_tags` から読むように直す。cron と seed を直す。`content_sources.tags` は Drizzle のスキーマから消すが、migration は作らず DB の列は残す（列を消すのは [step6](./step6-db-drop-content-sources-tags.md)）。仕様は [README の api の変更点](../README.md#api-の変更点) と [必要な API](../README.md#必要な-api)。
 
 ## 前提
 
@@ -17,7 +17,7 @@
 | PUT | `/api/admin/content-source/:id` | 登録と同じ | 400（同上） |
 | GET | `/api/admin/content-source` | 各ソースに `tags`（`{ id, name, color }[]`）を足す | ― |
 | GET | `/api/admin/content-source/:id` | `source.tags` → `{ id, name, color }[]` | ― |
-| GET | `/api/passage`・`/api/passage/random` | 形は変えない。`?tag=` を大文字・小文字を区別せずに比べる。各問題の `source.tags` を名前の順（`lower(name)`）にする | ― |
+| GET | `/api/passage`・`/api/passage/random` | 形は変えない。`?tag=` は今までどおりタグの名前の完全一致（大文字・小文字も区別する）。各問題の `source.tags` を名前の順（`lower(name)`）にする | ― |
 
 タグの並びはどの API も `lower(name)` → `id` の順にする。
 
@@ -33,7 +33,7 @@
 | `apps/api/src/repository/passage-repository.ts`・`drizzle/passage-repository.ts` | `PassageSource` の `tags`、絞り込み、`findPublishedTags` |
 | `apps/cron/src/repository/drizzle/content-source-repository.ts` | `_toDomain` から `tags` を消す |
 | `packages/db/drizzle/seed-sample-passages.ts` | タグを `tags`・`content_source_tags` に入れる |
-| `packages/db/src/drizzle/schema/content-source.ts` | `tags` 列は残し、使わない旨のコメントにする（[列は残す](#content_sourcestags-は残す)。消すのは step6） |
+| `packages/db/src/drizzle/schema/content-source.ts` | `tags` の定義を消す。migration は作らない（[スキーマからだけ消す](#content_sourcestags-はスキーマからだけ消す)。DB の列を消すのは step6） |
 | テスト | 下の [動作確認](#動作確認) |
 
 `apps/admin` の `content-source.form.ts`・`SourceForm.tsx` はこの step では直さない（[step5](./step5-admin-content-source-tags.md)）。この step の時点での admin への影響は [admin への影響](#admin-への影響この-step-では直さない) にまとめる。ユーザー向けの `api-schema/passage.ts`・web・mobile は変えない。
@@ -62,6 +62,9 @@ const sourceInputBaseSchema = z.object({
   exclude_globs: globListSchema,
   include_globs: globListSchema.min(1),
   kind: z.enum(SOURCE_KINDS),
+  /**
+   * 許可リスト外のライセンスはここで 400 になる
+   */
   license_spdx: allowedLicenseSchema,
   license_url: webUrlSchema,
   name: z.string().trim().min(1).max(100),
@@ -124,7 +127,9 @@ export interface ContentSourceRepository {
    * options の収集の状態も含めて 1 トランザクションで行う。対象が無い（id が無い・取得方法が違う）ときは throw する
    */
   update(id: number, input: ContentSourceInput, options: ContentSourceUpdateOptions): Promise<ContentSourceSaveResult>
-  // countFailedPagesBySource / countPassagesBySource / findFailedPages / hasSourceDocuments は変えない
+  /**
+   * countFailedPagesBySource / countPassagesBySource / findFailedPages / hasSourceDocuments は変えない
+   */
 }
 ```
 
@@ -150,6 +155,16 @@ import {
   tags,
 } from "@repo/db"
 import type { ContentSource, Tag } from "@repo/domain"
+
+import type {
+  ContentSourceInput,
+  ContentSourceRepository,
+  ContentSourceSaveResult,
+  ContentSourceUpdateOptions,
+  ContentSourceWithTags,
+  FailedPage,
+  PassageCountRow,
+} from "../content-source-repository"
 
 import { isForeignKeyViolation, isUniqueViolation } from "./pg-error"
 import { convertTagRowToDomain } from "./tag-row"
@@ -213,7 +228,8 @@ export const isForeignKeyViolation = (error: unknown): boolean => {
 
 - `create` / `update` の unique 制約違反は、今までどおり重複の登録（`duplicate`）とみなせる。`content_sources` の unique 制約は主キーと `repository` / `site_url` だけで、`content_source_tags` はこのソースの分を消してから入れ直す（`tag_ids` の重複は api-schema が弾く）ため。呼び出し側のコメントにこの理由を書く
 - 外部キー制約違反は `missing_tags` とみなせる。`content_sources` は外部キーを持たず、`content_source_tags` の `content_source_id` は同じトランザクションで作った・確かめた行を指すので、違反するのは `tag_id`（タグが消された）だけのため
-- `buildColumnValues` から `tags: input.tags` を消す（`tagIds` は `content_sources` の列ではない）。`_toDomain` から `tags: row.tags` を消す
+- 既存の `import type { … } from "../content-source-repository"` に `ContentSourceWithTags` を足す（上の抜粋）
+- `buildColumnValues` から `tags: input.tags` を消す（`tagIds` は `content_sources` の列ではない）。`_toDomain` から `tags: row.tags` を消す（スキーマから `tags` を消すので `ContentSourceRow` にも無くなる）
 - `create`：`this._db.transaction` の中で `insert(contentSources)...returning()` → `replaceSourceTags(tx, row.id, input.tagIds)` → `attachTags(tx, [this._toDomain(row)])`。今の `create` はトランザクションを使っていないので、ここで包む
 - `update`：今のトランザクションの中で、`shouldResetDocumentCache` の処理の後に `replaceSourceTags(tx, id, input.tagIds)` を呼び、最後に `attachTags(tx, [this._toDomain(updated)])` で返す。`content_sources` の更新が unique 制約違反で落ちたら、タグの付け替えもまとめて巻き戻る
 - `create` / `update` の `catch`：`isUniqueViolation` なら `{ kind: "duplicate" }`、`isForeignKeyViolation` なら `{ kind: "missing_tags" }`、それ以外は throw し直す
@@ -294,27 +310,20 @@ const findMissingTagIds = async (tagIds: number[], repo: ContentSourceWriteRepo)
 
 ### Controller・mapper・DI
 
+タグのレスポンス（`{ id, color, name }`）への変換は、step2 の `src/controller/admin/tag/tag-mapper.ts` の `convertTagToResponse` を使い回す（ソースのレスポンスの `tags` の要素は step2 の `tagSchema` と同じ形）。
+
 `content-source-mapper.ts`：
 
 ```ts
 import type { ContentSourceResponse, CreateContentSourceRequest, UpdateContentSourceRequest } from "@repo/api-schema"
-import type { Tag } from "@repo/domain"
 
 import type { ContentSourceInput, ContentSourceWithTags } from "../../../repository"
-
-/**
- * ドメインの Tag → ソースのレスポンスのタグ（色は名前のまま返し、admin がクラスに変える）
- */
-export const convertSourceTagToResponse = (tag: Tag): ContentSourceResponse["tags"][number] => ({
-  id: tag.id,
-  color: tag.color,
-  name: tag.name,
-})
+import { convertTagToResponse } from "../tag/tag-mapper"
 ```
 
 - `convertContentSourceRequestToInput`：`tags: request.tags` → `tagIds: request.tag_ids`（`base` のキーの順で `name` の後）
-- `convertContentSourceToResponse(source: ContentSourceWithTags)`：`tags: source.tags.map(convertSourceTagToResponse)`
-- `list.ts`：各ソースに `tags: source.tags.map(convertSourceTagToResponse)` を足す（`site_url` の後）
+- `convertContentSourceToResponse(source: ContentSourceWithTags)`：`tags: source.tags.map(convertTagToResponse)`
+- `list.ts`：各ソースに `tags: source.tags.map(convertTagToResponse)` を足す（`site_url` の後。`../tag/tag-mapper` から import）
 - `create.ts` / `update.ts`：コンストラクタを `constructor(private _contentSourceRepository: ContentSourceRepository, private _tagRepository: TagRepository) {}` にし、service に `{ contentSourceRepository: this._contentSourceRepository, tagRepository: this._tagRepository }` を渡す
 - `src/index.ts`：`new AdminContentSourceCreateController(contentSourceRepository, tagRepository)`・`new AdminContentSourceUpdateController(contentSourceRepository, tagRepository)`（`tagRepository` は step2 で作ってある）
 
@@ -341,7 +350,7 @@ export type PassageSource =
   | (Pick<WebsiteSource, "fetchType" | "kind" | "licenseSpdx" | "licenseUrl" | "name" | "siteUrl"> & PassageSourceTags)
 ```
 
-- `PublishedPassageFilter.tags` のコメントを「タグの名前。大文字・小文字を区別せずに比べる」にする
+- `PublishedPassageFilter.tags` のコメントに「タグの名前の完全一致（大文字・小文字も区別する）」を足す
 - `findPublishedTags` のコメントを「公開中の問題があるソースのタグの名前を、重複なしで lower(name) → id の順に返す」にする
 
 `src/repository/drizzle/passage-repository.ts`：
@@ -358,18 +367,30 @@ const SOURCE_TAG_NAMES_SQL = sql<string[]>`ARRAY(
   ORDER BY lower(${tags.name}), ${tags.id}
 )`
 
+/**
+ * 出典と一覧の表示に使うソースの列。passages → source_documents → content_sources を結合したクエリで使う
+ */
 const PASSAGE_SOURCE_COLUMNS = {
-  // ...今の列（tags: contentSources.tags を除く）
+  branch: contentSources.branch,
+  fetchType: contentSources.fetchType,
+  kind: contentSources.kind,
+  licenseSpdx: contentSources.licenseSpdx,
+  licenseUrl: contentSources.licenseUrl,
+  name: contentSources.name,
+  publicUrlStripPrefix: contentSources.publicUrlStripPrefix,
+  publicUrlTemplate: contentSources.publicUrlTemplate,
+  repository: contentSources.repository,
+  siteUrl: contentSources.siteUrl,
   tags: SOURCE_TAG_NAMES_SQL,
 }
 ```
 
 - `PassageSourceRow` は `Pick<ContentSourceRow, ...>` から `"tags"` を外し、`& { tags: string[] }` にする。`convertPassageSourceRowToDomain` はそのまま `tags: row.tags`
-- 絞り込み（`_buildPublishedCondition`）の `?|` を、中間テーブルの `EXISTS` に直す。入力は小文字にして `lower(tags.name)` と比べる
+- 絞り込み（`_buildPublishedCondition`）の `?|` を、中間テーブルの `EXISTS` に直す。比べ方は今までどおり **名前の完全一致**（大文字・小文字も区別する）。web の絞り込みのチップは、API が返すタグの名前と URL の `?tag=` の値を完全一致で突き合わせて作る（`PassageFilters.tsx` の `new Set([...tags, ...filter.tag])` と `includes`）ため、大文字・小文字を区別せずに当てると `?tag=react` と `React` のチップが 2 つ出る
 
 ```ts
       /**
-       * ソースにどれかのタグ（大文字・小文字を区別しない）が付いていれば当てはまる
+       * ソースにどれかのタグ（名前の完全一致）が付いていれば当てはまる
        */
       filter.tags.length === 0
         ? undefined
@@ -378,12 +399,7 @@ const PASSAGE_SOURCE_COLUMNS = {
             .select({ tagId: contentSourceTags.tagId })
             .from(contentSourceTags)
             .innerJoin(tags, eq(contentSourceTags.tagId, tags.id))
-            .where(
-              and(
-                eq(contentSourceTags.contentSourceId, contentSources.id),
-                inArray(sql`lower(${tags.name})`, filter.tags.map((tagName) => tagName.toLowerCase())),
-              ),
-            ),
+            .where(and(eq(contentSourceTags.contentSourceId, contentSources.id), inArray(tags.name, filter.tags))),
         ),
 ```
 
@@ -410,12 +426,12 @@ const PASSAGE_SOURCE_COLUMNS = {
 ```
 
 - `@repo/db` からの import に `contentSourceTags`・`tags` を足す。ローカル変数に `tags` という名前を使わない（テーブルと紛れる）
-- 大文字・小文字の比較は、入力を JS の `toLowerCase()`、列を Postgres の `lower()` で小文字にする。タグの名前は英字が中心なので、両者の差（トルコ語の `İ` など）は問題にしない
+- `inArray(tags.name, filter.tags)` は Drizzle が `"tags"."name" IN (...)` にする（`= ANY(...)` と同じ意味）
 - 問題の `source.tags` は今まで jsonb に入れた順（`["react", "frontend"]`）だったが、名前の順（`["frontend", "react"]`）に変わる。web / mobile は受け取った順に出しているだけなので、表示の順だけが変わる
 
 ### cron
 
-`apps/cron/src/repository/drizzle/content-source-repository.ts` の `_toDomain` から `tags: row.tags` を消す。cron の型はドメインの `ContentSource` に従うので、ほかの変更は要らない。
+`apps/cron/src/repository/drizzle/content-source-repository.ts` の `_toDomain` から `tags: row.tags` を消す。cron の型はドメインの `ContentSource` に従うので、ほかの変更は要らない。スキーマから `tags` を消すので、cron の `select().from(contentSources)` も `"tags"` を SQL に書かなくなる（step6 で列を消しても動く）。
 
 ### seed（`packages/db/drizzle/seed-sample-passages.ts`）
 
@@ -455,13 +471,22 @@ const ensureSourceTags = async (tx: DrizzleTransaction, sourceId: number): Promi
 - `ensureSourceDocument` でソースの id を取った直後に `await ensureSourceTags(tx, source.id)` を呼ぶ
 - `onConflictDoNothing()` に target を付けない（`lower(name)` は式の index なので、列を target に書けない）
 
-### content_sources.tags は残す
+### content_sources.tags はスキーマからだけ消す
 
-deploy workflow は **migration をアプリのデプロイより先に流す**（[minimal-deploy の deploy](../../minimal-deploy/README.md#cron-と-migration)）。この step のコードと列の削除を同じデプロイに入れると、migration の後・新しい api のデプロイの前の間、古い api が `content_sources.tags` を読んで失敗する（ユーザー向けの問題一覧も含む）。そのため列はこの step では消さず、この step のコードが本番に出た後の [step6](./step6-db-drop-content-sources-tags.md) で消す。
+deploy workflow は **migration をアプリのデプロイより先に流す**（[minimal-deploy の deploy](../../minimal-deploy/README.md#cron-と-migration)）。この step のコードと列の削除を同じデプロイに入れると、migration の後・新しい api のデプロイの前の間、古い api が `content_sources.tags` を読んで失敗する（ユーザー向けの問題一覧も含む）。そのため DB の列は、この step のコードが本番に出た後の [step6](./step6-db-drop-content-sources-tags.md) で消す。
 
-- `packages/db/src/drizzle/schema/content-source.ts` の `tags` 列を残し、コメントを「使わない。source-tags の移行が済んだら消す（`content_source_tags` を使う）」にする
-- 新しいコードは読み書きしない（insert には既定値の `'[]'` が入る）
+一方で、Drizzle のスキーマに `tags` を残してはいけない。Drizzle の `select()`・`.returning()`・`insert` はスキーマにある全列を SQL に書くので、スキーマに残すと、この step の api（admin のソースの API の `select().from(contentSources)`・`.returning()`）と cron の `select()` が `"tags"` を読み続け、step6 で列を消した後〜新しい api のデプロイまでの間に同じく失敗する。
+
+- `packages/db/src/drizzle/schema/content-source.ts` から `tags` の定義を消す。**migration は作らない**（`db:generate` を流さない）。DB には列が残り、`content_sources` への insert には DB の既定値の `'[]'` が入る（`NOT NULL DEFAULT '[]'::jsonb`）
+- DB の列を消す migration は、step6 で `db:generate` するだけで出る（スキーマと最新の snapshot の差分になるため）
+- **この step から step6 までの間に、ほかの機能で `db:generate` を流さない。** 流すと `ALTER TABLE "content_sources" DROP COLUMN "tags";` がその migration に混ざる。混ざったら、その migration.sql から DROP の行を消す（snapshot には列が無いままなので、step6 の `db:generate` では出なくなる。そのときは step6 で DROP の migration を手で作る）
+- CI はスキーマと migration の一致を検査していない（`test.yml` / `lint.yml` に `drizzle-kit check` は無い）ので、この間も CI は落ちない
 - step1 の移行は、step1 の migration を流した時点の `content_sources.tags` を写す。移行から新しい api のデプロイまでの間に、古い admin でソースのタグを変えると写らない（管理者が 1 人なので、デプロイ中に編集しない運用で避ける）
+
+スキーマから消すことで直すテスト：
+
+- `apps/api/test/schema/source-tags-migration.test.ts`（step1）は直さなくてよい。step1 で `content_sources` を最初から生の SQL（`INSERT INTO content_sources (..., tags) VALUES (...)`）で入れているので、スキーマから消しても型・実行とも影響しない（DB には列がある）。テスト自体を消すのは step6
+- `apps/api/test/schema/content-collection.test.ts`：既定値のテストの期待値から `tags: []` を消す（スキーマから消すと `select` / `.returning()` の結果に `tags` が出ないため）
 
 ### admin への影響（この step では直さない）
 
@@ -477,8 +502,8 @@ deploy workflow は **migration をアプリのデプロイより先に流す**�
 
 ```bash
 pnpm build                      # domain → api-schema → 各 app の順に build（root で）
-cd apps/api && pnpm test        # vitest を直接叩かない（DB_NAME を付けずに走ると dev の DB が消える）
-cd apps/cron && pnpm test
+pnpm --filter api test          # vitest を直接叩かない（DB_NAME を付けずに走ると dev の DB が消える）
+pnpm --filter cron test
 pnpm --filter admin build       # 型が通ることだけ確かめる（画面は step5 まで壊れる）
 pnpm lint:fix
 ```
@@ -488,10 +513,19 @@ pnpm lint:fix
 ### テストの fixture
 
 - `apps/api/test/fixture/source-tag.ts` を作り、`insertSourceTags(sourceId, names)` を置く。`tags` に `onConflictDoNothing()` で入れてから `lower(name)` で引き、`content_source_tags` に紐付けて、付けたタグ（`Tag` の行）を返す。色は `TAG_COLORS` を名前の順に使う
-- `apps/api/test/fixture/passage.ts` の `insertPassageSource` は引数を `Partial<Omit<ContentSourceInsert, "tags">> & { tags?: string[] }` にし、`tags`（既定 `["react"]`）を `insertSourceTags` で付ける。呼び出し側（`insertPassageSource({ tags: ["react", "frontend"] })`）は変えなくてよい
+- `apps/api/test/fixture/passage.ts` の `insertPassageSource` は引数を `Partial<ContentSourceInsert> & { tags?: string[] }` にし（スキーマから消したので `ContentSourceInsert` に `tags` は無い）、`tags`（既定 `["react"]`）を `insertSourceTags` で付ける。呼び出し側（`insertPassageSource({ tags: ["react", "frontend"] })`）は変えなくてよい
 - `apps/api/test/controller/admin/content-source/fixtures.ts`：`GITHUB_REQUEST` / `WEBSITE_REQUEST` の `tags` を `tag_ids: []` にする。`insertGitHubSource` / `insertWebsiteSource` から `tags` を消し、タグが要るテストは `insertSourceTags` を呼ぶ
-- `apps/api/test/service/content-source-service/fixtures.ts`：`buildGitHubInput` / `buildWebsiteInput` の `tags` を `tagIds: []` に、`buildGitHubSource` / `buildWebsiteSource` は `tags: []`（`Tag[]`）を返す。`createMockTagRepository = () => ({ findByIds: vi.fn<TagRepository["findByIds"]>() })` と `buildTag(overrides)` を足す
+- `apps/api/test/controller/admin/content-source/{create,detail,update}.test.ts`：
+  - `tags` を文字列の配列で期待している箇所（`detail.test.ts` の `tags: ["react"]`・`["go"]`、`update.test.ts` の送信と DB の期待値の `tags: ["go", "backend"]` など）を、`tag_ids` の送信と `{ id, color, name }` の期待値・`content_source_tags` の行の確認に直す
+  - `new AdminContentSourceCreateController(contentSourceRepository)`・`new AdminContentSourceUpdateController(contentSourceRepository)` に `tagRepository`（`new DrizzleTagRepository(testDb)`）を足す
+- `apps/api/test/controller/passage/list.test.ts`：L96 付近の `source.tags` の期待値 `["react", "frontend"]` を名前の順の `["frontend", "react"]` に直す
+- `apps/api/test/repository/content-source-repository.test.ts`：`GITHUB_INPUT` / `WEBSITE_INPUT` の `tags` を `tagIds: []` にする（無いと `replaceSourceTags` の `tagIds.length` で TypeError）。`findById` などの期待値に `tags: []` を足す
+- `apps/api/test/service/content-source-service/fixtures.ts`：
+  - `buildGitHubInput` / `buildWebsiteInput` の `tags` を `tagIds: []` にする
+  - `buildGitHubSource` / `buildWebsiteSource` は `tags: []` を返す。overrides と戻り値の型は `Extract<ContentSourceWithTags, { fetchType: "github_repository" }>`（= `GitHubRepositorySource & { tags: Tag[] }`）・`Extract<ContentSourceWithTags, { fetchType: "website" }>` にする（`Partial<…>` の overrides で `tags` を渡せるように）
+  - `createMockTagRepository = () => ({ findByIds: vi.fn<TagRepository["findByIds"]>() })` と `buildTag(overrides)` を足す
 - `apps/api/test/schema/admin-content-source-schema.test.ts` のリクエストの `tags` を `tag_ids` にする
+- [スキーマからだけ消す](#content_sourcestags-はスキーマからだけ消す) の節の `content-collection.test.ts`（`tags: []` の期待値を消す）
 - `apps/cron/test/repository/drizzle/content-source-repository.test.ts`・`apps/cron/test/service/collection/helpers.ts` の `tags` を消す
 - ユーザー向けの `PassageSource` は `tags: string[]` のままなので、`test/fixture/passage.ts` の `PassageSource` の値・`test/lib/build-attribution.test.ts`・`test/service/{attempt,passage}-service/fixtures.ts` は変えない
 
@@ -567,7 +601,8 @@ describe("createContentSource", () => {
 | 分類 | ケース |
 | --- | --- |
 | 正常系 | 既存の絞り込みのケース（`insertPassageSource({ tags })` のまま）が通る。`source.tags` の期待値は名前の順（`["frontend", "react"]`）に直す |
-| 正常系 | 絞り込みは大文字・小文字を区別しない（`tags: ["REACT"]` で `react` のタグのソースの問題が返る） |
+| 正常系 | 絞り込みは中間テーブルのタグの名前で当てる（`tags: ["frontend"]` で、`react`・`frontend` の 2 つが付いたソースの問題が返る） |
+| 異常系 | 絞り込みは名前の完全一致（`React` のタグのソースの問題は `tags: ["react"]` では返らない） |
 | 正常系 | `findPublishedTags` は公開中の問題があるソースのタグだけを `lower(name)` の順で返す。2 つのソースに付いたタグは 1 回だけ |
 | 異常系 | `findPublishedTags` は、下書きだけのソースのタグ・どのソースにも付いていないタグを返さない |
 
@@ -583,14 +618,15 @@ describe("createContentSource", () => {
 | | 異常系 | 取得元の変更の 400 は `details` を持たない（admin が tag の 400 と見分けられる） |
 | `GET /api/admin/content-source` | 正常系 | 各ソースに `tags` が付く（タグの無いソースは `[]`） |
 | `GET /api/admin/content-source/:id` | 正常系 | `source.tags` が `{ id, color, name }` の配列 |
-| `GET /api/passage` | 正常系 | `?tag=REACT` で `react` のタグのソースの問題が返る。レスポンスの `tags` と各問題の `source.tags` が名前の順 |
-| `GET /api/passage/random` | 正常系 | `?tag=` が大文字・小文字を区別しない |
+| `GET /api/passage` | 正常系 | `?tag=react` で `react` のタグのソースの問題が返る。レスポンスの `tags` と各問題の `source.tags` が名前の順 |
+| | 異常系 | `?tag=REACT` では `react` のタグのソースの問題は返らない（完全一致） |
+| `GET /api/passage/random` | 正常系 | `?tag=` が中間テーブルのタグの名前で当たる |
 
 ### 手で確かめる
 
 ```bash
-cd apps/api && pnpm db:migrate && pnpm db:seed:sample-passages && pnpm db:seed:sample-passages   # 2 回流しても同じ（content_source_tags が増えない）
+pnpm --filter api db:migrate && pnpm --filter api db:seed:sample-passages && pnpm --filter api db:seed:sample-passages   # 2 回流しても同じ（content_source_tags が増えない）
 ```
 
-- `GET /api/admin/content-source`（`X-Admin-Token` 付き）で、サンプルのソースに `tags: [{ color: "rose", name: "frontend" }, { color: "blue", name: "react" }]` が付いている
-- `GET /api/passage?tag=React` で、サンプルの公開中の問題が返る
+- `GET /api/admin/content-source`（`X-Admin-Token` 付き）で、サンプルのソースに `frontend`・`react` のタグが名前の順で付き、どちらにも `TAG_COLORS` の色が入っている。色の値は確かめない（dev の DB では step1 の移行がサンプルのソースの jsonb から先にタグを作るので、seed の `SOURCE_TAGS` の色にはならない）
+- `GET /api/passage?tag=react` で、サンプルの公開中の問題が返る
