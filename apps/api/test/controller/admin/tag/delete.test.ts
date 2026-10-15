@@ -60,5 +60,14 @@ describe("DELETE /api/admin/tag/:id", () => {
 
       expect(res.status).toBe(400)
     })
+
+    it.each([
+      ["DB の integer の上限ちょうどは検証を通って 404", "2147483647", 404],
+      ["上限を超えると 400", "2147483648", 400],
+    ])("id が %s", async (_label, id, status) => {
+      const res = await del(id)
+
+      expect(res.status).toBe(status)
+    })
   })
 })

@@ -45,6 +45,7 @@ describe("admin content-source schema", () => {
       ["空", []],
       ["2 個", [1, 2]],
       ["10 個（境界値）", buildSequence(10)],
+      ["DB の integer の上限ちょうど（境界値）", [2147483647]],
     ])("登録・更新のリクエストの tag_ids は%sなら通る", (_label, tagIds) => {
       expect(createContentSourceRequestSchema.parse({ ...GITHUB_REQUEST, tag_ids: tagIds })).toMatchObject({ tag_ids: tagIds })
       expect(updateContentSourceRequestSchema.parse({ ...GITHUB_REQUEST, tag_ids: tagIds })).toMatchObject({ tag_ids: tagIds })
@@ -73,6 +74,7 @@ describe("admin content-source schema", () => {
       ["負の数", { ...GITHUB_REQUEST, tag_ids: [-1] }],
       ["小数", { ...GITHUB_REQUEST, tag_ids: [1.5] }],
       ["文字列", { ...GITHUB_REQUEST, tag_ids: ["1"] }],
+      ["DB の integer の上限を超える", { ...GITHUB_REQUEST, tag_ids: [2147483648] }],
       ["省略（古い形の tags だけ）", { ...GITHUB_REQUEST, tag_ids: undefined, tags: ["react"] }],
     ])("登録・更新のリクエストの tag_ids が%sなら失敗する", (_label, body) => {
       expect(createContentSourceRequestSchema.safeParse(body).success).toBe(false)

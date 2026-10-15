@@ -1,6 +1,6 @@
 import { z } from "zod"
 
-import { TAG_COLORS } from "@repo/domain"
+import { MAX_SERIAL_ID, TAG_COLORS } from "@repo/domain"
 
 // ========================================================
 // 共通: タグの入力・出力の部品
@@ -81,7 +81,7 @@ export type CreateTagResponse = z.infer<typeof createTagResponseSchema>
  * タグの更新のパスパラメータスキーマ
  */
 export const updateTagPathParamSchema = z.object({
-  id: z.coerce.number().int().positive(),
+  id: z.coerce.number().int().positive().max(MAX_SERIAL_ID),
 })
 
 /**
@@ -109,7 +109,7 @@ export type UpdateTagResponse = z.infer<typeof updateTagResponseSchema>
  * タグの削除のパスパラメータスキーマ。成功は 204（ボディなし）なのでレスポンススキーマは無い
  */
 export const deleteTagPathParamSchema = z.object({
-  id: z.coerce.number().int().positive(),
+  id: z.coerce.number().int().positive().max(MAX_SERIAL_ID),
 })
 
 export type DeleteTagPathParam = z.infer<typeof deleteTagPathParamSchema>

@@ -70,6 +70,15 @@ describe("PUT /api/admin/tag/:id", () => {
       expect(res.status).toBe(400)
     })
 
+    it.each([
+      ["DB の integer の上限ちょうどは検証を通って 404", "2147483647", 404],
+      ["上限を超えると 400", "2147483648", 400],
+    ])("id が %s", async (_label, id, status) => {
+      const res = await put(id, { color: "blue", name: "React" })
+
+      expect(res.status).toBe(status)
+    })
+
     it("存在しない id なら 404 を返す", async () => {
       const res = await put(999999, { color: "blue", name: "React" })
 

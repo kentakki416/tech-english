@@ -51,7 +51,7 @@ import { tagSchema } from "./tag"
  * 付けるタグの id（登録済みのタグから選ぶ）。重複は許さない。存在するかは service が確かめて 400 にする
  */
 const tagIdListSchema = z
-  .array(z.number().int().positive())
+  .array(z.number().int().positive().max(MAX_SERIAL_ID))
   .max(10)
   .refine((ids) => new Set(ids).size === ids.length, { message: "tag_ids must not contain duplicate ids" })
 
