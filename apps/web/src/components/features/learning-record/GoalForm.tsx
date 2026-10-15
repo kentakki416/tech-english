@@ -40,7 +40,7 @@ const resolveWeeklyTarget = (goal: Goal, metric: GoalMetric): string =>
   String(goal?.weekly_metric === metric && goal.weekly_target !== null ? goal.weekly_target : DEFAULT_WEEKLY_TARGETS[metric])
 
 /**
- * 目標のフォーム。保存は Server Action（useActionState）。指標のセグメントの値は hidden の input で送る
+ * 指標のセグメントの値は hidden の input で送る
  */
 export function GoalForm({ action, goal }: { action: SaveGoalAction, goal: Goal }) {
   const [state, formAction] = useActionState(action, { status: "idle" })

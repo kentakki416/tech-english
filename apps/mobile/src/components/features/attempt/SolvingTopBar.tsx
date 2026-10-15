@@ -27,7 +27,6 @@ const PROGRESS_COLORS: Record<TimerPhase, string> = {
 }
 
 /**
- * 解答画面の上部バー（「‹ 中断」・残り時間・全文訳・一時停止）と、その下端の残り時間の進捗線。
  * タイトル・出典・文字サイズは出さない（mobile の画面）。
  * isTimerPending の間（端末の経過を戻す前）は数字を出さない（保存していた値に飛ぶのを見せない）
  */

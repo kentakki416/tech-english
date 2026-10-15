@@ -1,7 +1,7 @@
 import type { AttemptQuestion, PassageListItemResponse } from "@repo/api-schema"
 
 /**
- * 問題の表示ラベル（web の `labels.ts` と同じ）。値の集合は `@repo/api-schema` の型で網羅を検査する
+ * 問題の表示ラベル。値の集合は `@repo/api-schema` の型で網羅を検査する
  */
 
 export type PassageDifficulty = PassageListItemResponse["difficulty"]
@@ -16,9 +16,6 @@ export const DIFFICULTY_LABELS: Record<PassageDifficulty, string> = {
   3: "Hard",
 }
 
-/**
- * 難易度の並び（絞り込みのチップ）
- */
 export const DIFFICULTY_ORDER = [1, 2, 3] as const satisfies readonly PassageDifficulty[]
 
 export const SOURCE_KIND_LABELS: Record<PassageSourceKind, string> = {
@@ -27,7 +24,7 @@ export const SOURCE_KIND_LABELS: Record<PassageSourceKind, string> = {
 }
 
 /**
- * 種別の並び（絞り込みのセグメント。先頭の「すべて」は含めない）
+ * 先頭の「すべて」は含めない
  */
 export const SOURCE_KIND_ORDER = ["github", "docs"] as const satisfies readonly PassageSourceKind[]
 

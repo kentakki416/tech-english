@@ -11,7 +11,7 @@ const syncStudyReminders = (): void => {
 
 /**
  * 起動時に通知チャンネルを作り、ログイン直後（起動時にログイン済みを含む）と前面に戻ったときに
- * GET /api/user/reminder の設定で予約を作り直す。ログインが切れたら前のユーザーの設定と権限を store から消す
+ * 取得した設定で予約を作り直す。ログインが切れたら前のユーザーの設定と権限を store から消す
  */
 export function useStudyReminderSync() {
   /**

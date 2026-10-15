@@ -28,9 +28,6 @@ type ResultHeaderProps = {
   onShowEvidence: (question: ResultQuestion) => void
 }
 
-/**
- * スコアと時間（surface の区画）。タイトル・36px の正誤のマス（順に灯る）・正答数・かかった時間と時間のバー・読む速さ・アシストの使用
- */
 function ResultSummary({ result }: { result: SubmittedAttempt }) {
   const { elapsed_seconds: elapsedSeconds, time_limit_seconds: timeLimitSeconds } = result
   const timeRatio = timeLimitSeconds > 0 ? Math.min(elapsedSeconds / timeLimitSeconds, TIME_BAR_MAX_RATIO) : TIME_BAR_MAX_RATIO
@@ -147,7 +144,6 @@ function AttributionSection({ attribution }: { attribution: PassageAttributionRe
 
 /**
  * 結果画面の本文より上の区画（本文の FlatList の ListHeaderComponent）。
- * スコアと時間 → 設問ごとの結果 → 調べた単語 → 出典 → 本文の見出し、の順に縦に並べる。
  * 不正解の設問は最初から開き、正解の設問は閉じておく（行を押すと開閉）
  */
 export function ResultHeader({ highlightQuestionId, result, onShowEvidence }: ResultHeaderProps) {

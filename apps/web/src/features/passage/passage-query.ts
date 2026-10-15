@@ -4,9 +4,6 @@ import { type GetPassageListQueryString, getPassageListQueryStringSchema } from 
  * 問題一覧の絞り込みと URL のクエリの変換。Client Component の絞り込みからも使うので `server-only` を付けない
  */
 
-/**
- * 絞り込みの条件（画面の URL・一覧の API・ランダムに 1 問で共通）
- */
 export type PassageFilterQuery = {
   difficulty: GetPassageListQueryString["difficulty"]
   kind: NonNullable<GetPassageListQueryString["kind"]> | null
@@ -16,9 +13,6 @@ export type PassageFilterQuery = {
 
 export type PassageListQuery = PassageFilterQuery & { cursor?: string }
 
-/**
- * 絞り込みなし
- */
 export const EMPTY_PASSAGE_FILTER: PassageFilterQuery = {
   difficulty: [],
   kind: null,
@@ -26,9 +20,6 @@ export const EMPTY_PASSAGE_FILTER: PassageFilterQuery = {
   unattemptedOnly: false,
 }
 
-/**
- * 絞り込みの条件が 1 つでも付いているか（一覧が空のときに「絞り込みを解除する」を出すかの判定）
- */
 export const isPassageFilterActive = (filter: PassageFilterQuery): boolean =>
   filter.kind !== null || filter.unattemptedOnly || filter.difficulty.length > 0 || filter.tag.length > 0
 
@@ -68,9 +59,6 @@ export const buildPassageSearchParams = (query: PassageListQuery): URLSearchPara
   return params
 }
 
-/**
- * 絞り込みの条件を付けた問題一覧の URL
- */
 export const buildPassageListPath = (filter: PassageFilterQuery): string => {
   const search = buildPassageSearchParams(filter).toString()
   return search ? `/passages?${search}` : "/passages"

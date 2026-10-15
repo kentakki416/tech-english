@@ -31,10 +31,6 @@ const readInitialState = (attemptId: number | null): LoadState => {
   return attempt ? { attempt, kind: "ready" } : { kind: "loading" }
 }
 
-/**
- * 問題を解く画面。挑戦を読み込み、挑戦中なら解答画面の本体（SolvingScreen）を出す。
- * 提出済みなら結果画面に置き換え、期限切れなら期限切れの表示にする
- */
 export default function AttemptScreen() {
   const router = useRouter()
   const params = useLocalSearchParams<{ id: string }>()

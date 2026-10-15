@@ -33,7 +33,7 @@ export type ReaderHighlight = {
 }
 
 /**
- * 読み上げ（解答画面・結果画面だけ渡す。ログイン画面のデモは渡さない）。形は web の PassageReader と同じ
+ * 読み上げ（解答画面・結果画面だけ渡す。ログイン画面のデモは渡さない）
  */
 export type ReaderReadAloud = {
   /**

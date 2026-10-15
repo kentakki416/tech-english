@@ -12,9 +12,6 @@ const SHORTCUTS: { keys: string[], label: string }[] = [
   { keys: ["?"], label: "この一覧を表示" },
 ]
 
-/**
- * キーボードショートカットの一覧（`?` またはステータスバーの「ショートカット」で開く）
- */
 export function ShortcutsDialog({ onClose }: { onClose: () => void }) {
   return (
     <Dialog labelledBy="shortcuts-title">

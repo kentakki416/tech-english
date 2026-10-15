@@ -8,10 +8,6 @@ import { OAUTH_STATE_COOKIE, setAuthCookies } from "@/libs/auth"
 
 const API_BASE_URL = env.API_URL
 
-/**
- * Google OAuth コールバックを受け取り、Express API で code を検証して
- * Access/Refresh Token を Cookie に保存した上でリダイレクトする
- */
 export const GET = async (req: NextRequest) => {
   const url = new URL(req.url)
   const code = url.searchParams.get("code")

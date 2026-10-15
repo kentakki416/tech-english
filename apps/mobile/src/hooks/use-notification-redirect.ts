@@ -12,8 +12,7 @@ import { useStudyReminderStore } from "@/features/study-reminder/study-reminder.
  * 遷移先は store の pendingHref に入れ、ログイン済みになった時点で遷移する（遷移したら空にするので 1 回だけ開く）。
  * ログインが切れていれば Stack.Protected がログイン画面を出し、ログイン後にここで遷移する。
  * 起動時はトークンがあるだけでログイン中になるので、切れていたことは遷移先（passages/random）の取得で分かる。
- * その場合は遷移先の画面が pendingHref を戻し、ログイン後にもう一度ここで遷移する。
- * ナビゲーションの準備ができてから遷移するよう、ルートレイアウトの Stack より後に置いた部品で呼ぶ
+ * その場合は遷移先の画面が pendingHref を戻し、ログイン後にもう一度ここで遷移する
  */
 export function useNotificationRedirect() {
   /**

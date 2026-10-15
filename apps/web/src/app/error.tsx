@@ -4,9 +4,7 @@ import Link from "next/link"
 import { useEffect } from "react"
 
 /**
- * ルートセグメントのエラー境界。
- * SSR / レンダリング中に throw された想定外エラー（API が 5xx を返した等）を捕捉し、
- * Next.js デフォルトの汎用画面の代わりにブランドされた 500 ページを表示する。
+ * レンダリング中に throw された想定外エラー（API が 5xx を返した等）の 500 ページ。
  * Client Component 必須（reset で再試行できるようにするため）。
  */
 export default function Error({

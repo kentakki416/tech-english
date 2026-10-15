@@ -25,7 +25,7 @@ import { type CardAnswer, ProgressSquares, SessionReview } from "./SessionReview
 const HEADER_SIDE_WIDTH = 100
 
 /**
- * 1 回分の上部バー（「‹ 単語帳」・進み具合・効果音）。読み込み中は進み具合と効果音を出さない
+ * 読み込み中は進み具合と効果音を出さない
  */
 export function SessionTopBar({
   answeredCount,
@@ -66,9 +66,6 @@ export function SessionTopBar({
   )
 }
 
-/**
- * 今日の分が無いとき（カードが 0 枚で開いた）
- */
 function SessionDone({ nextDueDate }: { nextDueDate: string | null }) {
   const router = useRouter()
   return (

@@ -5,7 +5,6 @@ import { isAccessTokenUsable, refreshAuthTokens } from "@/libs/token-refresh"
 
 /**
  * production 以外でのみ公開する dev 専用パス
- * - `/api/dev/login?as=alice` を踏むだけでログイン状態にできる開発支援機能
  * - `/mock` はデザインモック（design-mock skill）。ダミーデータだけで描画し API を呼ばない
  */
 const DEV_ONLY_PUBLIC_PATHS = process.env.NODE_ENV !== "production"
@@ -54,16 +53,8 @@ const PUBLIC_TOKEN_REFRESH_SKIP_PATHS = [
 ]
 
 /**
- * 完全一致 or path セグメント境界での prefix 一致をチェックする。
- *
  * 単純な `pathname.startsWith(p)` は `/sign-in` が `/sign-in-foo` も通してしまうため、
- * 登録されたページと意図しないパスが衝突するリスクがある。`/` 区切り
- * (= path segment 境界) で一致するもののみ通す。
- *
- * 例 (p = "/sign-in"):
- * - "/sign-in"           → true (完全一致)
- * - "/sign-in/google"    → true (segment 境界の prefix)
- * - "/sign-in-foo"       → false (segment 境界ではない)
+ * `/` 区切り（path segment 境界）で一致するものだけ通す
  */
 const matchesPathPrefix = (pathname: string, p: string): boolean =>
   pathname === p || pathname.startsWith(`${p}/`)
@@ -110,7 +101,7 @@ const forwardWithoutAuthCookies = (req: NextRequest): NextResponse => {
  *
  * access token が無い（ブラウザが期限で消した）か期限が近ければ、ここで refresh する。
  * Server Component は cookie を書き換えられないので、描画より前のここで更新し、
- * 新しい cookie をこのリクエスト（Server Component / Server Action / Route Handler が読む）とブラウザの両方に渡す。
+ * 新しい cookie は forwardRefreshedTokens で渡す。
  * public なパス（`/api/events` など）でも、refresh cookie があれば更新だけは行う（ログインは求めない）。
  * - refresh token が使えない（refresh API が 401 / 400）: cookie を消してログイン画面へ（Route Handler は 401）。public なパスは cookie を消すだけで通す
  * - api の障害・レート制限（429）・timeout: 更新せずに通す（ログアウトさせず、ページ側のエラー表示に任せる）
@@ -144,9 +135,6 @@ export const proxy = async (req: NextRequest) => {
 }
 
 export const config = {
-  /**
-   * _next, _next/static, _next/image, favicon, public 配下を除外
-   */
   matcher: [
     "/((?!_next/static|_next/image|favicon.ico|public/).*)",
   ],

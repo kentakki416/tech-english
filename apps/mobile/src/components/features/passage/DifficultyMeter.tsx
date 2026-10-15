@@ -4,9 +4,6 @@ import { THEME_COLORS } from "@/const/design-theme"
 
 import { DIFFICULTY_LABELS, DIFFICULTY_ORDER, type PassageDifficulty } from "./labels"
 
-/**
- * 難易度。3 本のバーのうち難易度の数だけ灯す
- */
 export function DifficultyMeter({ level }: { level: PassageDifficulty }) {
   return (
     <View accessibilityLabel={`難易度 ${DIFFICULTY_LABELS[level]}`} style={styles.difficulty}>

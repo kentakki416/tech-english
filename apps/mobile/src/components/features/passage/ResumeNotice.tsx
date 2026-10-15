@@ -6,7 +6,7 @@ import { formatSeconds } from "@/libs/format"
 const HOUR_MS = 60 * 60 * 1000
 
 /**
- * 期限までの残りを時間に切り上げた文。1 時間未満は「1 時間以内」（web の ResumeNotice と同じ）
+ * 期限までの残りを時間に切り上げた文。1 時間未満は「1 時間以内」
  */
 const buildExpiryText = (remainingMs: number): string =>
   remainingMs < HOUR_MS
@@ -14,7 +14,7 @@ const buildExpiryText = (remainingMs: number): string =>
     : `あと ${Math.ceil(remainingMs / HOUR_MS)} 時間で期限切れになります。`
 
 /**
- * 公開を終了した問題（新しく始められない）の挑戦中に添える文（web の ResumeNotice と同じ）
+ * 公開を終了した問題（新しく始められない）の挑戦中に添える文
  */
 const UNPUBLISHED_TEXT = "この問題は公開を終了しています。この挑戦は再開して提出できますが、新しく始めることはできません。"
 

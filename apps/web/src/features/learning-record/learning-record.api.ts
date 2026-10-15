@@ -16,9 +16,7 @@ import {
 
 import { apiClient } from "@/libs/api-client"
 
-/**
- * 値が undefined の項目を除いてクエリ文字列にする
- */
+/** 値が undefined の項目は除く */
 const buildSearchParams = (query: Record<string, number | string | undefined>): URLSearchParams => {
   const params = new URLSearchParams()
   for (const [key, value] of Object.entries(query)) {
@@ -27,9 +25,6 @@ const buildSearchParams = (query: Record<string, number | string | undefined>): 
   return params
 }
 
-/**
- * 学習記録と目標の API 通信層
- */
 export const learningRecordApi = {
   /**
    * 提出した挑戦の一覧（新しい順・20 件ずつ）。date を渡すとその日の挑戦だけ

@@ -20,9 +20,6 @@ import { useAttemptStore } from "@/features/attempt/attempt.store"
 import { passageApi } from "@/features/passage/passage.api"
 import { formatSeconds } from "@/libs/format"
 
-/**
- * 再開の囲みに出す数字
- */
 type ResumeSummary = {
   answeredCount: number
   elapsedSeconds: number

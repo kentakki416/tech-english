@@ -18,7 +18,6 @@ const fetchDictionaryEntry = async (word: string): Promise<DictionaryLookupResul
 }
 
 /**
- * 英和辞書を引く関数を返す（PassageReader の onLookupDictionary に渡す）。解答画面と結果画面で使う。
  * 結果（見つからなかった null も含む）は画面を開いている間だけメモリに持ち、同じ単語の 2 回目は通信しない。
  * 通信中の Promise ごと持つので、結果を待つ間に同じ単語を押しても 1 回しか通信しない。通信の失敗はキャッシュしない
  */

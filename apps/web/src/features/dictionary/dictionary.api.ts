@@ -4,9 +4,6 @@ import { type LookupDictionaryResponse, lookupDictionaryResponseSchema } from "@
 
 import { apiClient } from "@/libs/api-client"
 
-/**
- * 英和辞書の API 通信層
- */
 export const dictionaryApi = {
   /**
    * 見つからなければ API が 404（ApiClientError）

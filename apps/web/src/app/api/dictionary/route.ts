@@ -6,9 +6,7 @@ import { dictionaryApi } from "@/features/dictionary/dictionary.api"
 import { ApiClientError } from "@/libs/api-client"
 
 /**
- * GET /api/dictionary?word=
- *
- * 解答画面・結果画面で、用語集に無い単語を押したときの辞書検索を Client Component から api に中継する BFF。
+ * 用語集に無い単語を押したときの辞書検索を Client Component から api に中継する。
  * 見つかれば { headword, meaning_ja }、辞書に無ければ null を 200 で返す
  */
 export const GET = async (req: NextRequest) => {

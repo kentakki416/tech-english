@@ -32,9 +32,6 @@ type HomeData = {
  */
 const RECENT_ATTEMPT_COUNT = 3
 
-/**
- * 上部のアイコン。GitHub のアバター（無ければ名前の頭文字）
- */
 function UserAvatar({ user }: { user: GetUserResponse | null }) {
   const label = user?.name ?? "ユーザー"
   if (user?.avatar_url) {

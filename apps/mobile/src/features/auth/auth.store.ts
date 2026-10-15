@@ -10,9 +10,6 @@ type AuthState = {
   status: AuthStatus
 }
 
-/**
- * ルートレイアウトの Stack.Protected がこの値で開ける画面を切り替える
- */
 export const useAuthStore = create<AuthState>((set) => ({
   setStatus: (status) => set({ status }),
   status: "loading",

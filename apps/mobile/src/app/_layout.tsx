@@ -116,15 +116,15 @@ export default function RootLayout() {
             <Stack.Screen name="attempts/[id]/index" options={{ headerShown: false }} />
             <Stack.Screen name="attempts/[id]/result" options={{ headerShown: false }} />
             {/**
-              * 学習履歴（マイページの「すべて見る」）。上部バーを画面が持つ
+              * 上部バーを画面が持つ
               */}
             <Stack.Screen name="history" options={{ headerShown: false }} />
             {/**
-              * 単語帳の 1 回分（単語帳のタブの「はじめる」）。上部バーを画面が持つ
+              * 上部バーを画面が持つ
               */}
             <Stack.Screen name="vocabulary/session" options={{ headerShown: false }} />
             {/**
-              * アカウント削除の確認（設定タブの「危険な操作」）。上部バーを画面が持つ
+              * 上部バーを画面が持つ
               */}
             <Stack.Screen name="settings/delete-account" options={{ headerShown: false }} />
           </Stack.Protected>

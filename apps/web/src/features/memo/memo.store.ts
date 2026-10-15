@@ -13,9 +13,6 @@ type MemoSearchState = {
   setStoreResults: (results: Memo[]) => void
 }
 
-/**
- * メモ検索のクライアント状態だけをもつストア
- */
 export const useMemoStore = create<MemoSearchState>((set) => ({
   isLoading: false,
   query: "",

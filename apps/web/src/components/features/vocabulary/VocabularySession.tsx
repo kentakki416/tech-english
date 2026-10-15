@@ -18,9 +18,6 @@ type Grade = ReviewVocabularyCardRequest["grade"]
 
 type ReviewAction = (input: ReviewVocabularyCardRequest) => Promise<ReviewVocabularyCardActionResult>
 
-/**
- * 1 回分の上部バー（「‹ 単語帳」・進み具合・効果音）
- */
 function SessionTopBar({
   answers,
   isSoundEnabled,
@@ -73,9 +70,6 @@ function SessionTopBar({
   )
 }
 
-/**
- * 今日の分が無いとき（カードが 0 枚で開いた）
- */
 function SessionDone({ nextDueDate }: { nextDueDate: string | null }) {
   return (
     <div className="mx-auto max-w-md text-center">

@@ -22,18 +22,12 @@ let selectedRate: ReadAloudRate | null = null
 
 const isReadAloudRate = (value: unknown): value is ReadAloudRate => READ_ALOUD_RATES.includes(value as ReadAloudRate)
 
-/**
- * このタブで選んだ速度 → 保存した速度 → 1 倍の順
- */
 const readRate = (): ReadAloudRate => {
   if (selectedRate !== null) return selectedRate
   try {
     const stored = Number(window.localStorage.getItem(RATE_STORAGE_KEY))
     if (isReadAloudRate(stored)) return stored
   } catch {
-    /**
-     * 読めなければ 1 倍
-     */
   }
   return DEFAULT_RATE
 }
@@ -50,9 +44,6 @@ const subscribeRate = (listener: () => void) => {
   }
 }
 
-/**
- * 読み上げの速度と、それを変えて保存する関数。サーバーと hydration 中・保存が無い・読めないときは 1 倍
- */
 export function useReadAloudRate(): [ReadAloudRate, (rate: ReadAloudRate) => void] {
   const rate = useSyncExternalStore(subscribeRate, readRate, readServerRate)
 

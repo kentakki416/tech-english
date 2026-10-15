@@ -3,10 +3,6 @@ import { NextRequest, NextResponse } from "next/server"
 import { memoApi } from "@/features/memo/memo.api"
 
 /**
- * GET /api/memos?q=キーワード
- * Client Componentから検索用エンドポイント
- * サーバー側でmemoApi(server-only)を使い、絞り込む
- *
  * NOTE: 本来であれば検索（絞り込み）は API サーバー側に委任すべき。
  * 現状は Express の一覧取得（GET /api/memo）で全件取得してから、この BFF 層で
  * JS の filter による部分一致で絞り込んでいる。件数が少ないうちは問題ないが、

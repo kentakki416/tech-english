@@ -1,5 +1,4 @@
 /**
- * 画面の中央に出すモーダルのダイアログ（提出の確認・ショートカット一覧・期限切れ）。
  * 背面の操作を止めるのは呼び出し側（背面を inert にする）。閉じ方（Esc・ボタン）も呼び出し側が持つ
  */
 export function Dialog({ children, labelledBy }: { children: React.ReactNode, labelledBy: string }) {

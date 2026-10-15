@@ -7,9 +7,6 @@ import { formatStudyTime } from "@/libs/format"
  */
 const formatAccuracy = (accuracyPercent: number | null): string => (accuracyPercent === null ? "—" : `${accuracyPercent}%`)
 
-/**
- * 累計（解いた問題・挑戦した回数・学習時間・正答率）と、アシストなしの正答率
- */
 export function StudyTotals({
   noAssist,
   totals,

@@ -5,7 +5,7 @@
 const WEEKDAY_LABELS = ["日", "月", "火", "水", "木", "金", "土"]
 
 /**
- * 秒を `m:ss` にする（負の値は `-m:ss`）
+ * 負の値は `-m:ss`
  */
 export const formatSeconds = (totalSeconds: number): string => {
   const sign = totalSeconds < 0 ? "-" : ""

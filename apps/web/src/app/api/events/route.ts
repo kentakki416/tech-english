@@ -5,11 +5,8 @@ import { createEventRequestSchema } from "@repo/api-schema"
 import { eventApi } from "@/features/event/event.api"
 
 /**
- * POST /api/events
- *
- * ブラウザから行動イベントを受け取り、Express API へ中継する BFF。
- * ブラウザは Express を直接叩けないため（認証 cookie は httpOnly で
- * apiClient 側でのみ扱う）、この Route Handler を経由する。
+ * ブラウザから行動イベントを受け取り、Express API へ中継する
+ * （認証 cookie は httpOnly で apiClient 側でのみ扱う）。
  *
  * **失敗しても 204 を返す。** 分析イベントの送信失敗をブラウザ側で
  * リトライさせる意味がなく、エラーを返すと sendBeacon のログが汚れるだけ。
