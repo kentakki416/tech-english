@@ -19,7 +19,7 @@ const SIGNAL_EXIT_CODES = {
 /**
  * task を 1 回実行して exit する。
  *
- * シグナルを受けたら task の完了は待たずに終了する（実行中の DB クエリの完了だけ待ってから切断する）。
+ * シグナルを受けたら task の完了は待たずに終了する（実行中のクエリ・トランザクションの完了を待ってから切断する）。
  * 中断はタスク未完了なので、exit 0 にするとスケジューラが成功と誤認する。よって非 0 で終了する。
  */
 export const runTask = (name: string, task: (context: TaskContext) => Promise<void>): void => {
@@ -32,7 +32,7 @@ export const runTask = (name: string, task: (context: TaskContext) => Promise<vo
 
   let disconnecting: Promise<void> | undefined
   /**
-   * 何度呼んでも切断は 1 回だけで、2 回目以降は 1 回目の完了を待つ
+   * pg の Pool.end() は 2 回目の呼び出しを reject するので、1 回目の Promise を使い回す
    */
   const disconnect = async (): Promise<void> => {
     disconnecting ??= db.$disconnect().catch((err: unknown) => {
@@ -46,9 +46,6 @@ export const runTask = (name: string, task: (context: TaskContext) => Promise<vo
   }
 
   let interrupted = false
-  /**
-   * interrupted を立てる。2 回目以降のシグナルは無視する
-   */
   const exitOnSignal = async (signal: keyof typeof SIGNAL_EXIT_CODES): Promise<void> => {
     if (interrupted) return
     interrupted = true

@@ -201,7 +201,7 @@ task は `src/run-task.ts` の `runTask(name, async ({ db }) => { ... })` で包
 | 失敗（task が throw、または DB の切断に失敗） | 1 |
 | 中断（SIGTERM / SIGINT） | `128 + シグナル番号`（SIGTERM=143 / SIGINT=130） |
 
-中断時は task の完了を待たずに終了する（実行中の DB クエリの完了だけ待ってから切断する）。**task / service の中でシグナルを見てループを break する処理は書かない**（JS は実行中の処理を外から止められず、チェックが回る前にプロセスが終わる）。代わりに、途中で止まっても次の実行で続きから拾い直せる処理にする。
+中断時は task の完了を待たずに終了する（実行中のクエリ・トランザクションの完了を待ってから切断する）。**task / service の中でシグナルを見てループを break する処理は書かない**（JS は実行中の処理を外から止められず、チェックが回る前にプロセスが終わる）。代わりに、途中で止まっても次の実行で続きから拾い直せる処理にする。
 
 - `collect:passages`：`markFetched` は本文候補の挿入の後なので、途中の文書は次の実行でやり直す（挿入済みの本文候補は `content_hash` の unique で弾く）。`last_collected_commit_sha` / `last_collected_at` は進まない
 - `generate:questions` / `generate:audio` / `generate:word-audio`：確保した行は `generation_started_at` が 30 分を過ぎると、次の実行で回収・再確保される
