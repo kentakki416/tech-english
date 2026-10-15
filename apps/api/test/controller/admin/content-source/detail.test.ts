@@ -120,7 +120,7 @@ describe("GET /api/admin/content-source/:id", () => {
       expect(res.body).toEqual({ error: expect.any(String), status_code: 404 })
     })
 
-    it.each(["abc", "0", "-1", "1.5"])(":id が %s なら 400 を返す", async (id) => {
+    it.each(["abc", "0", "-1", "1.5", "2147483648"])(":id が %s なら 400 を返す", async (id) => {
       const res = await request(app)
         .get(`/api/admin/content-source/${id}`)
         .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)

@@ -195,6 +195,7 @@ describe("GET /api/passage/:id", () => {
     it.each([
       ["数値でない", "abc"],
       ["0", "0"],
+      ["DB の integer の上限を超える", "2147483648"],
     ])("id が%sなら 400 を返す", async (_label, id) => {
       const { token } = await createTestUser()
 

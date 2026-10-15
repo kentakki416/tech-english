@@ -150,6 +150,15 @@ describe("GET /api/admin/user/:id", () => {
 
       expect(res.status).toBe(404)
     })
+
+    it.each([
+      ["DB の integer の上限ちょうどは検証を通って 404", "2147483647", 404],
+      ["上限を超えると 400", "2147483648", 400],
+    ])("ID が %s", async (_label, id, status) => {
+      const res = await request(app).get(`/api/admin/user/${id}`).set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+
+      expect(res.status).toBe(status)
+    })
   })
 })
 

@@ -1,6 +1,6 @@
 import { z } from "zod"
 
-import { PASSAGE_DIFFICULTIES, SOURCE_KINDS } from "@repo/domain"
+import { MAX_SERIAL_ID, PASSAGE_DIFFICULTIES, SOURCE_KINDS } from "@repo/domain"
 
 // ========================================================
 // 共通: 問題の部品
@@ -153,7 +153,7 @@ export type GetRandomPassageResponse = z.infer<typeof getRandomPassageResponseSc
  * 開始確認の概要のパスパラメータスキーマ
  */
 export const getPassagePathParamSchema = z.object({
-  id: z.coerce.number().int().positive(),
+  id: z.coerce.number().int().positive().max(MAX_SERIAL_ID),
 })
 
 /**

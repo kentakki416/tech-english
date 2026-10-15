@@ -1,6 +1,6 @@
 import { z } from "zod"
 
-import { ALLOWED_LICENSES, PASSAGE_STATUSES, SOURCE_FETCH_TYPES, SOURCE_KINDS } from "@repo/domain"
+import { ALLOWED_LICENSES, MAX_SERIAL_ID, PASSAGE_STATUSES, SOURCE_FETCH_TYPES, SOURCE_KINDS } from "@repo/domain"
 
 // ========================================================
 // 共通: ソースの入力・出力の部品
@@ -233,7 +233,7 @@ export type GetContentSourceListResponse = z.infer<typeof getContentSourceListRe
  * ソース詳細のパスパラメータスキーマ
  */
 export const getContentSourcePathParamSchema = z.object({
-  id: z.coerce.number().int().positive(),
+  id: z.coerce.number().int().positive().max(MAX_SERIAL_ID),
 })
 
 /**
@@ -280,7 +280,7 @@ export type CreateContentSourceResponse = z.infer<typeof createContentSourceResp
  * ソース更新のパスパラメータスキーマ
  */
 export const updateContentSourcePathParamSchema = z.object({
-  id: z.coerce.number().int().positive(),
+  id: z.coerce.number().int().positive().max(MAX_SERIAL_ID),
 })
 
 /**

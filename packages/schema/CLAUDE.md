@@ -47,13 +47,13 @@ export const getCategoryListResponseSchema = z.object({ ... })
 | レスポンス | `{action}{Domain}ResponseSchema` | `createMemoResponseSchema` |
 
 - **型は `z.infer` で自動生成**し、手書きの interface は使わない
-- **路径パラメータの ID 検証は `z.coerce.number().int().positive()`** で string → number の変換を Zod 側で行う（Controller で `Number()` しない）
+- **路径パラメータの ID 検証は `z.coerce.number().int().positive().max(MAX_SERIAL_ID)`** で string → number の変換を Zod 側で行う（Controller で `Number()` しない）。上限の `MAX_SERIAL_ID` は `@repo/domain` の `const/id.ts`。クエリ・ボディの ID（`cursor`・`source_id`・`question_id` など）も同じ
 - **すべてのリクエスト入力（body / params / query）は Zod で検証**する。`Number()` + `isNaN` や `parseInt` の inline 検証は使わない
 
 ## Zod 検証の適用範囲
 
 - **body**: 必ず Zod 検証（複雑な構造・型安全性のため）
-- **params (path)**: 必ず Zod 検証（`z.coerce.number().int().positive()` で数値変換も同時に）
+- **params (path)**: 必ず Zod 検証（`z.coerce.number().int().positive().max(MAX_SERIAL_ID)` で数値変換も同時に）
 - **query string**: 必ず Zod 検証（`z.coerce.number()` で coerce、`.min().max()` で範囲制約、`.optional()` / `.default()` で省略対応）
 
 一貫性のため例外を作らない。簡単な 1 フィールドでも Zod を通す。

@@ -10,6 +10,7 @@ export { ATTEMPT_EXPIRY_SECONDS, ATTEMPT_STATUSES, WORD_LOOKUP_SOURCES } from ".
 export { AUDIO_STATUSES } from "./const/audio"
 export { ALLOWED_LICENSES, SOURCE_FETCH_TYPES, SOURCE_KINDS } from "./const/content-source"
 export { GOAL_METRICS, GOAL_TEXT_MAX_LENGTH } from "./const/goal"
+export { MAX_SERIAL_ID } from "./const/id"
 export { MEMBERSHIP_TIERS } from "./const/membership-tier"
 export {
   PASSAGE_BLOCK_TYPES,

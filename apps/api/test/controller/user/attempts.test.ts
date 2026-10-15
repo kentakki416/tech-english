@@ -130,6 +130,7 @@ describe("GET /api/user/attempts", () => {
       ["limit が 0", { limit: 0 }],
       ["存在しない日付", { date: "2026-02-30" }],
       ["cursor が数でない", { cursor: "abc" }],
+      ["cursor が DB の integer の上限を超える", { cursor: "2147483648" }],
     ])("%s は 400", async (_label, query) => {
       const { token } = await createTestUser()
 

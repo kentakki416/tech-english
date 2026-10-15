@@ -1,6 +1,6 @@
 import { z } from "zod"
 
-import { ADMIN_USER_SORTS } from "@repo/domain"
+import { ADMIN_USER_SORTS, MAX_SERIAL_ID } from "@repo/domain"
 
 import {
   getUserAttemptsQueryStringSchema,
@@ -82,7 +82,7 @@ export type GetAdminUserListResponse = z.infer<typeof getAdminUserListResponseSc
  * ユーザーの詳細のパスパラメータスキーマ
  */
 export const getAdminUserPathParamSchema = z.object({
-  id: z.coerce.number().int().positive(),
+  id: z.coerce.number().int().positive().max(MAX_SERIAL_ID),
 })
 
 /**
@@ -107,7 +107,7 @@ export type GetAdminUserResponse = z.infer<typeof getAdminUserResponseSchema>
  * 学習カレンダーのパスパラメータスキーマ
  */
 export const getAdminUserCalendarPathParamSchema = z.object({
-  id: z.coerce.number().int().positive(),
+  id: z.coerce.number().int().positive().max(MAX_SERIAL_ID),
 })
 
 export const getAdminUserCalendarQueryStringSchema = getUserCalendarQueryStringSchema
@@ -117,7 +117,7 @@ export const getAdminUserCalendarResponseSchema = getUserCalendarResponseSchema
  * 学習履歴のパスパラメータスキーマ
  */
 export const getAdminUserAttemptsPathParamSchema = z.object({
-  id: z.coerce.number().int().positive(),
+  id: z.coerce.number().int().positive().max(MAX_SERIAL_ID),
 })
 
 export const getAdminUserAttemptsQueryStringSchema = getUserAttemptsQueryStringSchema

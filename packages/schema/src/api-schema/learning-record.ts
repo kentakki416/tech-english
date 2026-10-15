@@ -1,6 +1,6 @@
 import { z } from "zod"
 
-import { GOAL_METRICS, QUESTION_TYPES } from "@repo/domain"
+import { GOAL_METRICS, MAX_SERIAL_ID, QUESTION_TYPES } from "@repo/domain"
 
 // ========================================================
 // 共通: 学習記録の部品
@@ -172,7 +172,7 @@ export const getUserAttemptsQueryStringSchema = z.object({
   /**
    * 前のページの next_cursor（最後に返した挑戦の id）
    */
-  cursor: z.coerce.number().int().positive().optional(),
+  cursor: z.coerce.number().int().positive().max(MAX_SERIAL_ID).optional(),
   /**
    * 指定するとその日（学習した日）の挑戦だけ
    */

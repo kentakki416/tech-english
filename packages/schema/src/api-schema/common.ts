@@ -1,5 +1,7 @@
 import { z } from "zod"
 
+import { MAX_SERIAL_ID } from "@repo/domain"
+
 // ========================================================
 // 共通: エラーレスポンス
 // ========================================================
@@ -49,7 +51,7 @@ export type MessageResponse = z.infer<typeof messageResponseSchema>
  * `?cursor=10&limit=20`
  */
 export const cursorPaginationQueryStringSchema = z.object({
-  cursor: z.coerce.number().int().positive().optional(),
+  cursor: z.coerce.number().int().positive().max(MAX_SERIAL_ID).optional(),
   limit: z.coerce.number().int().positive().max(100).default(20),
 })
 
