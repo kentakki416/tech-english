@@ -467,3 +467,519 @@ export const calculateTimeLimitSeconds = (wordCount: number, difficulty: 1 | 2 |
 
 export const formatSeconds = (totalSeconds: number): string =>
   `${Math.floor(totalSeconds / 60)}:${String(totalSeconds % 60).padStart(2, "0")}`
+
+// ========================================================
+// ダッシュボード（admin-dashboard）
+// ========================================================
+
+export type AdminStatsPeriod = "30d" | "7d" | "all"
+
+export const STATS_PERIOD_LABELS: Record<AdminStatsPeriod, string> = {
+  "30d": "直近 30 日",
+  "7d": "直近 7 日",
+  all: "全期間",
+}
+
+/**
+ * URL の ?period= を期間にする。不正・未指定は直近 30 日
+ */
+export const convertToStatsPeriod = (value: string | undefined): AdminStatsPeriod => (value === "7d" || value === "all" ? value : "30d")
+
+export const DIFFICULTY_LABELS = { 1: "Easy", 2: "Normal", 3: "Hard" }
+
+/**
+ * アシストの利用率（解いたうち、和訳を開いた・単語を調べた・読み上げを聞いた割合）
+ */
+export type AssistRates = { listened: number | null, lookedUp: number | null, translated: number | null }
+
+export type OverviewPoint = { activeUsers: number, date: string, newUsers: number, solvedAttempts: number }
+
+export type MockOverview = {
+  activeUsers: number
+  assistRates: AssistRates
+  bucket: "day" | "week"
+  correctRate: number | null
+  from: string
+  newUsers: number
+  points: OverviewPoint[]
+  solvedAttempts: number
+  solvedUsers: number
+  to: string
+  totalUsers: number
+}
+
+/**
+ * 日付（YYYY-MM-DD）に日数を足す。モックの日付は 2026-10-15（木）を今日にする
+ */
+const addDays = (date: string, days: number): string => {
+  const value = new Date(`${date}T00:00:00Z`)
+  value.setUTCDate(value.getUTCDate() + days)
+  return value.toISOString().slice(0, 10)
+}
+
+const MOCK_TODAY = "2026-10-15"
+
+/**
+ * 日ごとの推移。土日に少し下がる波にする
+ */
+const buildDailyPoints = (dayCount: number): OverviewPoint[] =>
+  Array.from({ length: dayCount }, (_, index) => {
+    const date = addDays(MOCK_TODAY, index - dayCount + 1)
+    const weekday = new Date(`${date}T00:00:00Z`).getUTCDay()
+    const isWeekend = weekday === 0 || weekday === 6
+    const trend = Math.round((index / dayCount) * 18)
+    return {
+      activeUsers: 58 + trend + Math.round(9 * Math.sin(index / 1.7)) - (isWeekend ? 14 : 0),
+      date,
+      newUsers: 4 + ((index * 7) % 6) + (isWeekend ? 2 : 0),
+      solvedAttempts: 84 + trend + Math.round(14 * Math.sin(index / 1.3)) - (isWeekend ? 22 : 0),
+    }
+  })
+
+/**
+ * 週ごとの推移（日本時間の月曜始まり）。サービス開始の 2026-04-06 の週から
+ */
+const buildWeeklyPoints = (): OverviewPoint[] =>
+  Array.from({ length: 28 }, (_, index) => ({
+    activeUsers: Math.round(40 + index * 12 + 10 * Math.sin(index / 2)),
+    date: addDays("2026-04-06", index * 7),
+    newUsers: Math.round(25 + index * 1.2 + 8 * Math.sin(index / 3)),
+    solvedAttempts: Math.round(150 + index * 22 + 30 * Math.sin(index / 2.4)),
+  }))
+
+const sumPoints = (points: OverviewPoint[], key: "newUsers" | "solvedAttempts"): number =>
+  points.reduce((total, point) => total + point[key], 0)
+
+const DAILY_POINTS_30 = buildDailyPoints(30)
+const DAILY_POINTS_7 = DAILY_POINTS_30.slice(-7)
+const WEEKLY_POINTS = buildWeeklyPoints()
+
+export const MOCK_OVERVIEWS: Record<AdminStatsPeriod, MockOverview> = {
+  "30d": {
+    activeUsers: 412,
+    assistRates: { listened: 0.22, lookedUp: 0.61, translated: 0.34 },
+    bucket: "day",
+    correctRate: 0.72,
+    from: DAILY_POINTS_30[0].date,
+    newUsers: sumPoints(DAILY_POINTS_30, "newUsers"),
+    points: DAILY_POINTS_30,
+    solvedAttempts: sumPoints(DAILY_POINTS_30, "solvedAttempts"),
+    solvedUsers: 356,
+    to: MOCK_TODAY,
+    totalUsers: 1284,
+  },
+  "7d": {
+    activeUsers: 198,
+    assistRates: { listened: 0.25, lookedUp: 0.59, translated: 0.31 },
+    bucket: "day",
+    correctRate: 0.74,
+    from: DAILY_POINTS_7[0].date,
+    newUsers: sumPoints(DAILY_POINTS_7, "newUsers"),
+    points: DAILY_POINTS_7,
+    solvedAttempts: sumPoints(DAILY_POINTS_7, "solvedAttempts"),
+    solvedUsers: 171,
+    to: MOCK_TODAY,
+    totalUsers: 1284,
+  },
+  all: {
+    activeUsers: 1031,
+    assistRates: { listened: 0.18, lookedUp: 0.63, translated: 0.37 },
+    bucket: "week",
+    correctRate: 0.7,
+    from: "2026-04-06",
+    newUsers: 1284,
+    points: WEEKLY_POINTS,
+    solvedAttempts: sumPoints(WEEKLY_POINTS, "solvedAttempts"),
+    solvedUsers: 958,
+    to: MOCK_TODAY,
+    totalUsers: 1284,
+  },
+}
+
+/**
+ * サービスを始めたばかりで、まだ誰も学習していない状態
+ */
+export const MOCK_EMPTY_OVERVIEW: MockOverview = {
+  activeUsers: 0,
+  assistRates: { listened: null, lookedUp: null, translated: null },
+  bucket: "day",
+  correctRate: null,
+  from: DAILY_POINTS_30[0].date,
+  newUsers: 0,
+  points: DAILY_POINTS_30.map(point => ({ ...point, activeUsers: 0, newUsers: 0, solvedAttempts: 0 })),
+  solvedAttempts: 0,
+  solvedUsers: 0,
+  to: MOCK_TODAY,
+  totalUsers: 0,
+}
+
+export type PassageStatsRow = {
+  id: number
+  assistRates: AssistRates
+  averageElapsedSeconds: number | null
+  correctRate: number | null
+  difficulty: 1 | 2 | 3
+  overtimeRate: number | null
+  publishedAt: string | null
+  solvedAttempts: number
+  solvedUsers: number
+  sourceName: string
+  status: AdminPassageStatus
+  timeLimitSeconds: number
+  title: string
+}
+
+/**
+ * 問題ごとの成績のもと。期間ごとに、解いた回数の合計が数字のカードの解いた回数と同じになるよう増減させる。
+ * 公開中の問題と、非公開に戻したが解かれた問題（Errors are values）
+ */
+const PASSAGE_STATS_BASE: PassageStatsRow[] = [
+  {
+    id: 57,
+    assistRates: { listened: 0.18, lookedUp: 0.66, translated: 0.41 },
+    averageElapsedSeconds: 312,
+    correctRate: 0.56,
+    difficulty: 2,
+    overtimeRate: 0.21,
+    publishedAt: "2026-09-28",
+    solvedAttempts: 214,
+    solvedUsers: 168,
+    sourceName: "The Rust Programming Language",
+    status: "published",
+    timeLimitSeconds: 360,
+    title: "What Is Ownership?",
+  },
+  {
+    id: 75,
+    assistRates: { listened: 0.27, lookedUp: 0.52, translated: 0.29 },
+    averageElapsedSeconds: 268,
+    correctRate: 0.81,
+    difficulty: 2,
+    overtimeRate: 0.06,
+    publishedAt: "2026-09-21",
+    solvedAttempts: 251,
+    solvedUsers: 203,
+    sourceName: "Kubernetes ドキュメント",
+    status: "published",
+    timeLimitSeconds: 390,
+    title: "Pod Lifecycle",
+  },
+  {
+    id: 63,
+    assistRates: { listened: 0.12, lookedUp: 0.48, translated: 0.22 },
+    averageElapsedSeconds: 241,
+    correctRate: 0.77,
+    difficulty: 2,
+    overtimeRate: 0.04,
+    publishedAt: "2026-09-30",
+    solvedAttempts: 132,
+    solvedUsers: 117,
+    sourceName: "Go 公式ドキュメント",
+    status: "published",
+    timeLimitSeconds: 330,
+    title: "Working with errors in Go",
+  },
+  {
+    id: 64,
+    assistRates: { listened: 0.1, lookedUp: 0.7, translated: 0.5 },
+    averageElapsedSeconds: 355,
+    correctRate: 0.44,
+    difficulty: 3,
+    overtimeRate: 0.4,
+    publishedAt: null,
+    solvedAttempts: 10,
+    solvedUsers: 9,
+    sourceName: "Go 公式ドキュメント",
+    status: "draft",
+    timeLimitSeconds: 300,
+    title: "Errors are values",
+  },
+  {
+    id: 230,
+    assistRates: { listened: null, lookedUp: null, translated: null },
+    averageElapsedSeconds: null,
+    correctRate: null,
+    difficulty: 1,
+    overtimeRate: null,
+    publishedAt: "2026-10-15",
+    solvedAttempts: 0,
+    solvedUsers: 0,
+    sourceName: "React 公式ドキュメント",
+    status: "published",
+    timeLimitSeconds: 270,
+    title: "Responding to Events",
+  },
+  ...MOCK_PASSAGE_ROWS
+    .filter(row => row.status === "published" && row.id >= 200)
+    .map((row, index): PassageStatsRow => {
+      const solvedAttempts = 8 + ((index * 41) % 150)
+      const timeLimitSeconds = calculateTimeLimitSeconds(row.wordCount, row.difficulty ?? 2, row.questionCount ?? 4)
+      return {
+        id: row.id,
+        assistRates: { listened: ((index * 7) % 30) / 100, lookedUp: (40 + ((index * 11) % 35)) / 100, translated: (15 + ((index * 13) % 40)) / 100 },
+        averageElapsedSeconds: Math.round(timeLimitSeconds * (0.55 + ((index * 9) % 40) / 100)),
+        correctRate: (52 + ((index * 17) % 42)) / 100,
+        difficulty: row.difficulty ?? 2,
+        overtimeRate: ((index * 5) % 25) / 100,
+        publishedAt: `2026-09-${String(28 - (index % 20)).padStart(2, "0")}`,
+        solvedAttempts,
+        solvedUsers: Math.round(solvedAttempts * (0.72 + ((index * 3) % 20) / 100)),
+        sourceName: row.sourceName,
+        status: "published",
+        timeLimitSeconds,
+        title: row.title,
+      }
+    }),
+]
+
+/**
+ * 解いた回数を factor 倍にする（0 になった行は比率を null にする）。解かれていない下書きは除く（API と同じく、公開中か解かれた問題だけ）
+ */
+const scalePassageStats = (rows: PassageStatsRow[], factor: number): PassageStatsRow[] =>
+  rows
+    .map((row) => {
+      const solvedAttempts = Math.round(row.solvedAttempts * factor)
+      if (solvedAttempts === 0) {
+        return {
+          ...row,
+          assistRates: { listened: null, lookedUp: null, translated: null },
+          averageElapsedSeconds: null,
+          correctRate: null,
+          overtimeRate: null,
+          solvedAttempts: 0,
+          solvedUsers: 0,
+        }
+      }
+      return { ...row, solvedAttempts, solvedUsers: Math.max(1, Math.round(row.solvedUsers * factor)) }
+    })
+    .filter(row => row.status === "published" || row.solvedAttempts > 0)
+
+/**
+ * 解いた回数の合計が total になるよう増減させる（丸めの差は先頭の行で埋める）
+ */
+const scalePassageStatsToTotal = (rows: PassageStatsRow[], total: number): PassageStatsRow[] => {
+  const baseTotal = rows.reduce((sum, row) => sum + row.solvedAttempts, 0)
+  const scaled = scalePassageStats(rows, total / baseTotal)
+  const difference = total - scaled.reduce((sum, row) => sum + row.solvedAttempts, 0)
+  return scaled.map((row, index) => (index === 0 ? { ...row, solvedAttempts: row.solvedAttempts + difference } : row))
+}
+
+/**
+ * まだ誰も解いていない状態の問題ごとの成績（公開中の問題だけが、解いた回数 0・比率は null で並ぶ）
+ */
+export const convertToUnsolvedPassageStats = (rows: PassageStatsRow[]): PassageStatsRow[] => scalePassageStats(rows, 0)
+
+export const MOCK_PASSAGE_STATS: Record<AdminStatsPeriod, PassageStatsRow[]> = {
+  "30d": scalePassageStatsToTotal(PASSAGE_STATS_BASE, MOCK_OVERVIEWS["30d"].solvedAttempts),
+  "7d": scalePassageStatsToTotal(PASSAGE_STATS_BASE, MOCK_OVERVIEWS["7d"].solvedAttempts),
+  all: scalePassageStatsToTotal(PASSAGE_STATS_BASE, MOCK_OVERVIEWS.all.solvedAttempts),
+}
+
+export type QuestionStats = {
+  id: number
+  answerCount: number
+  choiceRates: number[]
+  choices: string[]
+  correctChoiceIndex: number
+  correctRate: number
+  orderIndex: number
+  prompt: string
+  type: AdminQuestion["type"]
+  unansweredRate: number
+}
+
+/**
+ * 問題の分析（What Is Ownership?、直近 30 日）。Q2・Q4 は誤りの選択肢が正解より多く選ばれている（要確認）
+ */
+export const MOCK_QUESTION_STATS: QuestionStats[] = [
+  {
+    id: 571,
+    answerCount: 214,
+    choiceRates: [0.07, 0.84, 0.05, 0.03],
+    choices: [
+      "To compare Rust's performance with other languages",
+      "To explain the rules Rust uses to manage memory without a garbage collector",
+      "To show how to install the Rust compiler",
+      "To argue that manual memory management is always better",
+    ],
+    correctChoiceIndex: 1,
+    correctRate: 0.84,
+    orderIndex: 0,
+    prompt: "What is the main purpose of this passage?",
+    type: "main_idea",
+    unansweredRate: 0.01,
+  },
+  {
+    id: 572,
+    answerCount: 214,
+    choiceRates: [0.46, 0.39, 0.09, 0.02],
+    choices: [
+      "The value is copied to the new variable",
+      "The first variable is no longer valid",
+      "Both variables point to different heap data",
+      "The compiler frees the memory immediately",
+    ],
+    correctChoiceIndex: 1,
+    correctRate: 0.39,
+    orderIndex: 1,
+    prompt: "According to the passage, what happens when a String is assigned to another variable?",
+    type: "detail",
+    unansweredRate: 0.04,
+  },
+  {
+    id: 573,
+    answerCount: 214,
+    choiceRates: [0.11, 0.06, 0.71, 0.1],
+    choices: [
+      "removed from the program",
+      "copied twice",
+      "transferred to another owner",
+      "locked for writing",
+    ],
+    correctChoiceIndex: 2,
+    correctRate: 0.71,
+    orderIndex: 2,
+    prompt: "In paragraph 4, the word \"moved\" is closest in meaning to",
+    type: "vocabulary",
+    unansweredRate: 0.02,
+  },
+  {
+    id: 574,
+    answerCount: 214,
+    choiceRates: [0.15, 0.28, 0.08, 0.38],
+    choices: [
+      "Because the heap is faster than the stack",
+      "Because it prevents double free errors",
+      "Because the stack cannot store integers",
+      "Because Rust does not support references",
+    ],
+    correctChoiceIndex: 1,
+    correctRate: 0.28,
+    orderIndex: 3,
+    prompt: "Why can the author say that Rust's approach avoids a whole class of bugs?",
+    type: "inference",
+    unansweredRate: 0.11,
+  },
+]
+
+// ========================================================
+// ユーザー管理（admin-users）
+// ========================================================
+
+export type MockUser = {
+  id: number
+  avatarUrl: string | null
+  email: string | null
+  lastStudiedDate: string | null
+  name: string | null
+  providers: string[]
+  solvedAttempts: number
+  timezone: string
+  createdAt: string
+}
+
+export const AUTH_PROVIDER_LABELS: Record<string, string> = {
+  dev: "dev",
+  github: "GitHub",
+  google: "Google",
+}
+
+const USER_NAMES = [
+  "alice", "bob", "kenta-f", "yuki.dev", "hanako", "taro-yamada", "mika_s", "shota", "riko.tech", "daichi",
+  "sakura", "ren-k", "aoi", "haruto", "mei", "sora.io", "kaito", "yui-n", "minato", "hina",
+  "takumi", "nana", "kou", "emi.codes", "ryo", "asahi",
+]
+
+/**
+ * alice（ID 1）の解いた回数。一覧と詳細の学習のまとめ（MOCK_USER_STATS）でそろえる
+ */
+const MOCK_ALICE_SOLVED_ATTEMPTS = 87
+
+/**
+ * alice（ID 1）の登録日。カレンダーはこの日より前を学習なしにする
+ */
+const MOCK_ALICE_CREATED_DATE = "2026-04-06"
+
+/**
+ * alice の連続学習日数（今日を含む）。カレンダーの直近の日と学習履歴をこれに合わせる
+ */
+const MOCK_ALICE_STREAK_DAYS = 6
+
+export const MOCK_USERS: MockUser[] = USER_NAMES.map((name, index): MockUser => {
+  const hasStudied = index % 6 !== 4
+  const createdDate = addDays("2026-04-06", index * 7)
+  const studiedDate = addDays(MOCK_TODAY, -((index * 5) % 40))
+  return {
+    id: index + 1,
+    avatarUrl: index % 3 === 2 ? null : `/images/user/user-${String((index % 9) + 1).padStart(2, "0")}.jpg`,
+    email: index === 7 ? null : `${name.replace(/[._]/g, "")}@example.com`,
+    lastStudiedDate: hasStudied ? (studiedDate < createdDate ? createdDate : studiedDate) : null,
+    name: index === 11 ? null : name,
+    providers: index < 2 ? ["dev"] : index % 5 === 0 ? ["github", "google"] : ["github"],
+    solvedAttempts: index === 0 ? MOCK_ALICE_SOLVED_ATTEMPTS : hasStudied ? 1 + ((index * 29) % 160) : 0,
+    timezone: index % 8 === 3 ? "America/Los_Angeles" : "Asia/Tokyo",
+    createdAt: `${createdDate} ${String(9 + (index % 12)).padStart(2, "0")}:${String((index * 13) % 60).padStart(2, "0")}`,
+  }
+})
+
+/**
+ * ユーザーの詳細の学習のまとめ（alice。マイページと同じ数字）
+ */
+export const MOCK_USER_STATS = {
+  goal: { isWeeklyAchieved: false, weeklyMetric: "passages" as const, weeklyProgress: 3, weeklyTarget: 5 },
+  noAssistRate: 0.66,
+  streak: { current: MOCK_ALICE_STREAK_DAYS, longest: 19 },
+  totals: { attemptCount: MOCK_ALICE_SOLVED_ATTEMPTS, correctRate: 0.74, passageCount: 61, studySeconds: 28_440 },
+  typeAccuracy: [
+    { rate: 0.86, type: "main_idea" as const },
+    { rate: 0.78, type: "detail" as const },
+    { rate: 0.71, type: "vocabulary" as const },
+    { rate: 0.62, type: "inference" as const },
+    { rate: 0.69, type: "purpose" as const },
+  ],
+  vocabulary: { dueCount: 12, learningCount: 48, masteredCount: 133, newCount: 9, nextDueDate: "2026-10-16" },
+}
+
+/**
+ * 学習カレンダー（直近 53 週、日曜始まり）。level は 0（学習なし）〜 4。
+ * 直近 MOCK_ALICE_STREAK_DAYS 日は学習あり、その前の日は学習なしにして、連続学習日数とそろえる
+ */
+export const MOCK_USER_CALENDAR: { date: string, level: 0 | 1 | 2 | 3 | 4 }[] = Array.from({ length: 53 * 7 }, (_, index) => {
+  const start = addDays(MOCK_TODAY, -(52 * 7 + new Date(`${MOCK_TODAY}T00:00:00Z`).getUTCDay()))
+  const date = addDays(start, index)
+  const seed = (index * 37 + Math.floor(index / 7) * 11) % 17
+  const streakStart = addDays(MOCK_TODAY, -(MOCK_ALICE_STREAK_DAYS - 1))
+  if (date > MOCK_TODAY || date < MOCK_ALICE_CREATED_DATE || date === addDays(streakStart, -1)) return { date, level: 0 }
+  if (date >= streakStart) return { date, level: seed < 6 ? 1 : seed < 11 ? 2 : seed < 15 ? 3 : 4 }
+  return { date, level: seed < 7 ? 0 : seed < 10 ? 1 : seed < 13 ? 2 : seed < 15 ? 3 : 4 }
+})
+
+export type MockUserAttempt = {
+  id: number
+  assists: { listened: number, lookedUp: number, translated: number }
+  correctCount: number
+  elapsedSeconds: number
+  passageId: number
+  questionCount: number
+  submittedAt: string
+  timeLimitSeconds: number
+  title: string
+}
+
+/**
+ * 学習履歴（新しい順。「さらに読み込む」を見せるため 14 件。1 日 3 件ずつ、連続学習日数の範囲に収める）
+ */
+export const MOCK_USER_ATTEMPTS: MockUserAttempt[] = PASSAGE_STATS_BASE
+  .filter(row => row.solvedAttempts > 0)
+  .slice(0, 14)
+  .map((row, index): MockUserAttempt => ({
+    id: 900 - index,
+    assists: { listened: index % 4 === 0 ? 2 : 0, lookedUp: (index * 3) % 5, translated: index % 3 === 0 ? 1 : 0 },
+    correctCount: 2 + (index % 3),
+    elapsedSeconds: Math.round(row.timeLimitSeconds * (0.6 + (index % 5) / 10)),
+    passageId: row.id,
+    questionCount: 4,
+    submittedAt: `${addDays(MOCK_TODAY, -Math.floor(index / 3))} ${["21", "18", "12"][index % 3]}:${String((index * 17) % 60).padStart(2, "0")}`,
+    timeLimitSeconds: row.timeLimitSeconds,
+    title: row.title,
+  }))

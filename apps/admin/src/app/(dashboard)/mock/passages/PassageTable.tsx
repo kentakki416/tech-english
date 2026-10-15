@@ -9,6 +9,7 @@ import { type Column, DataTable, type FilterConfig } from "@/components/ui/table
 import {
   type AdminPassageRow,
   type AdminPassageStatus,
+  DIFFICULTY_LABELS,
   MOCK_PASSAGE_ROWS,
   MOCK_PASSAGE_STATUS_COUNTS,
   MOCK_SOURCES,
@@ -29,8 +30,6 @@ const STATUS_BADGE_COLOR: Record<AdminPassageStatus, "dark" | "error" | "info" |
   published: "success",
   rejected: "dark",
 }
-
-const DIFFICULTY_LABELS = { 1: "Easy", 2: "Normal", 3: "Hard" }
 
 const NOTE_HEADER: Record<AdminPassageStatus, string> = {
   collected: "メモ",

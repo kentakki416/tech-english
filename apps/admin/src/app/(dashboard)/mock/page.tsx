@@ -45,6 +45,45 @@ const SCREENS: { description: string, href: string, spec: string, states: { href
     ],
     title: "問題の確認・修正",
   },
+  {
+    description: "期間の切り替え、全体の利用状況（数字・推移・アシスト）、問題ごとの成績。本実装では admin のトップ（/）",
+    href: "/mock/dashboard",
+    spec: "admin-dashboard",
+    states: [
+      { href: "/mock/dashboard?period=7d", label: "直近 7 日" },
+      { href: "/mock/dashboard?period=all", label: "全期間（週ごと）" },
+      { href: "/mock/dashboard?state=empty", label: "まだ誰も学習していない" },
+    ],
+    title: "ダッシュボード",
+  },
+  {
+    description: "1 つの問題の数字と、設問ごとの正答率・選択肢の割合・要確認の印",
+    href: "/mock/analytics/passages/57",
+    spec: "admin-dashboard",
+    states: [
+      { href: "/mock/analytics/passages/57?state=few", label: "解いた回数が 5 回未満" },
+      { href: "/mock/analytics/passages/57?state=unsolved", label: "期間内に解かれていない" },
+      { href: "/mock/analytics/passages/57?state=not-found", label: "問題が見つからない" },
+    ],
+    title: "問題の分析",
+  },
+  {
+    description: "名前・メールアドレスの絞り込み、登録日・最後に学習した日・解いた回数の並べ替え",
+    href: "/mock/users",
+    spec: "admin-users",
+    states: [{ href: "/mock/users?state=empty", label: "絞り込み結果が 0 件" }],
+    title: "ユーザー一覧",
+  },
+  {
+    description: "基本の情報、学習のまとめ（マイページと同じ数字）、学習カレンダー、学習履歴、単語帳",
+    href: "/mock/users/1",
+    spec: "admin-users",
+    states: [
+      { href: "/mock/users/1?state=unstudied", label: "まだ学習していない" },
+      { href: "/mock/users/1?state=not-found", label: "ユーザーが見つからない" },
+    ],
+    title: "ユーザーの詳細",
+  },
 ]
 
 /**
