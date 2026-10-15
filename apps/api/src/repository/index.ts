@@ -1,3 +1,4 @@
+export * from "./admin-stats-repository"
 export * from "./auth-account-repository"
 export * from "./content-source-repository"
 export * from "./database-health-repository"

@@ -64,6 +64,10 @@ export const vocabularyReviews = pgTable(
      */
     index("vocabulary_reviews_user_id_study_date_idx").on(table.userId, table.studyDate),
     index("vocabulary_reviews_card_id_idx").on(table.cardId),
+    /**
+     * admin のダッシュボード：期間内に単語帳で答えたユーザー
+     */
+    index("vocabulary_reviews_created_at_idx").on(table.createdAt),
     check("vocabulary_reviews_grade_check", sql`${table.grade} IN (${joinSqlValues(VOCABULARY_GRADES)})`),
     check(
       "vocabulary_reviews_active_seconds_check",

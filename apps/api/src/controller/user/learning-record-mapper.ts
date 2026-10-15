@@ -1,9 +1,20 @@
-import type { LearningRecordAttemptResponse } from "@repo/api-schema"
+import type {
+  GetUserAttemptsResponse,
+  GetUserCalendarResponse,
+  GetUserStatsResponse,
+  LearningRecordAttemptResponse,
+} from "@repo/api-schema"
 
-import type { Accuracy, LearningRecordAttemptView } from "../../service/learning-record-service"
+import type {
+  Accuracy,
+  LearningRecordAttemptView,
+  UserAttempts,
+  UserCalendar,
+  UserStats,
+} from "../../service/learning-record-service"
 
 /**
- * 学習記録の domain の形 → API の snake_case の形。stats と attempts（learning-record step2）で共有する
+ * 学習記録の domain の形 → API の snake_case の形。マイページ（/api/user/*）と admin のユーザーの詳細（/api/admin/user/:id/*）で共有する
  */
 
 export const convertAccuracyToResponse = (accuracy: Accuracy) => ({
@@ -24,4 +35,55 @@ export const convertLearningRecordAttemptToResponse = (attempt: LearningRecordAt
   submitted_time: attempt.submittedTime,
   title: attempt.title,
   used_assist: attempt.usedAssist,
+})
+
+export const convertUserStatsToResponse = (stats: UserStats): GetUserStatsResponse => ({
+  goal: stats.goal === null
+    ? null
+    : {
+      days_left: stats.goal.daysLeft,
+      goal_text: stats.goal.goalText,
+      is_weekly_achieved: stats.goal.isWeeklyAchieved,
+      target_date: stats.goal.targetDate,
+      weekly_metric: stats.goal.weeklyMetric,
+      weekly_progress: stats.goal.weeklyProgress,
+      weekly_target: stats.goal.weeklyTarget,
+    },
+  no_assist: convertAccuracyToResponse(stats.noAssist),
+  recent_attempts: stats.recentAttempts.map(convertLearningRecordAttemptToResponse),
+  streak: {
+    current: stats.streak.current,
+    longest: stats.streak.longest,
+    recent_days: stats.streak.recentDays.map((day) => ({ date: day.date, has_studied: day.hasStudied })),
+  },
+  today: stats.today,
+  totals: {
+    ...convertAccuracyToResponse(stats.totals),
+    attempt_count: stats.totals.attemptCount,
+    passage_count: stats.totals.passageCount,
+    study_seconds: stats.totals.studySeconds,
+  },
+  type_accuracy: stats.typeAccuracy.map((accuracy) => ({ ...convertAccuracyToResponse(accuracy), type: accuracy.type })),
+  weakest_question_type: stats.weakestQuestionType,
+})
+
+export const convertUserCalendarToResponse = (calendar: UserCalendar): GetUserCalendarResponse => ({
+  days: calendar.days.map((day) => ({
+    attempt_count: day.attemptCount,
+    card_count: day.cardCount,
+    correct_count: day.correctCount,
+    date: day.date,
+    level: day.level,
+    question_count: day.questionCount,
+    remembered_count: day.rememberedCount,
+    study_seconds: day.studySeconds,
+  })),
+  from: calendar.from,
+  to: calendar.to,
+  today: calendar.today,
+})
+
+export const convertUserAttemptsToResponse = (page: UserAttempts): GetUserAttemptsResponse => ({
+  attempts: page.attempts.map(convertLearningRecordAttemptToResponse),
+  next_cursor: page.nextCursor,
 })

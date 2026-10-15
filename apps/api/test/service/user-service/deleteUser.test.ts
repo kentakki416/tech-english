@@ -10,6 +10,7 @@ const mockUserRepository: UserRepository = {
   deleteById: mockDeleteById,
   findByEmail: vi.fn(),
   findById: mockFindById,
+  findForAdmin: vi.fn(),
   updateProfile: vi.fn(),
   updateTimezone: vi.fn(),
 }

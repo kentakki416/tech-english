@@ -177,7 +177,7 @@ LIMIT $limit OFFSET $offset
 ```
 
 - 並べ替えの列は `Record<AdminUserSort, SQL>` で対応させる（文字列を SQL に埋め込まない）
-- `q` は `%`・`_`・`\` をエスケープしてから `%q%` にする。admin-dashboard の問題ごとの成績と同じ関数を使う（`src/repository/drizzle/` の共通の関数にする）
+- `q` は `%`・`_`・`\` をエスケープしてから `%q%` にする。admin-dashboard の問題ごとの成績と同じ `src/repository/drizzle/like-pattern.ts` の `buildContainsLikePattern` を使う
 - ページの範囲外（行が 0 件）のときは、件数だけ別の `count(*)` で数え直す
 
 テスト（`test/repository/user-repository.test.ts` に足す、実 DB）：

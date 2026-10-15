@@ -27,6 +27,7 @@ export const createMockUserRepository = () => ({
   deleteById: vi.fn<UserRepository["deleteById"]>(),
   findByEmail: vi.fn<UserRepository["findByEmail"]>(),
   findById: vi.fn<UserRepository["findById"]>().mockResolvedValue(USER),
+  findForAdmin: vi.fn<UserRepository["findForAdmin"]>(),
   updateProfile: vi.fn<UserRepository["updateProfile"]>(),
   updateTimezone: vi.fn<UserRepository["updateTimezone"]>(),
 })

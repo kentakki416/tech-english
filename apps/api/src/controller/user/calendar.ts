@@ -8,6 +8,8 @@ import { AuthRequest } from "../../middleware/auth"
 import { LearningRecordRepository, UserRepository } from "../../repository"
 import * as service from "../../service"
 
+import { convertUserCalendarToResponse } from "./learning-record-mapper"
+
 /**
  * 学習カレンダーAPI（GET /api/user/calendar?from=&to=）。from〜to の全日の集計と色の段階、ユーザーのタイムゾーンでの today を返す。
  * from / to を省略すると年表示の範囲。片方だけ・from > to・366 日を超える期間は 400、ユーザーが存在しなければ 401
@@ -32,21 +34,7 @@ export class UserCalendarController {
       return sendError(req, res, result.error)
     }
 
-    const response = parseResponse(getUserCalendarResponseSchema, {
-      days: result.value.days.map((day) => ({
-        attempt_count: day.attemptCount,
-        card_count: day.cardCount,
-        correct_count: day.correctCount,
-        date: day.date,
-        level: day.level,
-        question_count: day.questionCount,
-        remembered_count: day.rememberedCount,
-        study_seconds: day.studySeconds,
-      })),
-      from: result.value.from,
-      to: result.value.to,
-      today: result.value.today,
-    })
+    const response = parseResponse(getUserCalendarResponseSchema, convertUserCalendarToResponse(result.value))
     return res.status(200).json(response)
   }
 }

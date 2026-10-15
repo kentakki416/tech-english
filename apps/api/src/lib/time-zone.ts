@@ -30,3 +30,8 @@ export const formatTimeInTimeZone = (instant: Date, timeZone: string): string =>
   }
   return `${findPart("hour")}:${findPart("minute")}`
 }
+
+/**
+ * 日本時間の日付（YYYY-MM-DD）の 0 時の時刻。日本は夏時間が無いので、オフセットを +09:00 に固定してよい（admin のダッシュボードの期間の始まり）
+ */
+export const convertTokyoDateToStartInstant = (date: string): Date => new Date(`${date}T00:00:00+09:00`)
