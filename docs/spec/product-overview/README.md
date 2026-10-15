@@ -116,6 +116,8 @@ web と mobile を同時に提供する。admin は web のみ。
 | リマインダー | ❌ | ✅ | ― |
 | ソースの登録 | ― | ― | ✅ |
 | 問題の確認・修正・公開 | ― | ― | ✅ |
+| ダッシュボード（利用状況・問題の成績） | ― | ― | ✅ |
+| ユーザー管理（見るだけ） | ― | ― | ✅ |
 
 ### 英文の権利の扱い
 
@@ -168,7 +170,7 @@ flowchart LR
 | --- | --- |
 | `apps/web` | ユーザー向け web。問題を解く画面、マイページ、目標設定 |
 | `apps/mobile` | ユーザー向け mobile。web と同じ機能に加えてリマインダー（端末内の通知予約） |
-| `apps/admin` | ソースの登録、生成された問題の確認・修正・公開 |
+| `apps/admin` | ソースの登録、生成された問題の確認・修正・公開、利用状況と問題の成績のダッシュボード、ユーザーの一覧と学習の状況（見るだけ） |
 | `apps/api` | すべての読み書きの窓口。web / mobile / admin は DB を直接触らない（既存方針） |
 | `apps/cron` | 英文の収集（`collect:passages`）と問題の生成（`generate:questions`）。どちらも run-once のタスク |
 | `apps/worker` | **本サービスでは使わない。** 長時間の処理はすべて cron に寄せる |
@@ -307,6 +309,8 @@ flowchart TD
 | ソース一覧・登録 | ― | ― | ✅ | content-collection |
 | 問題の確認待ち一覧 | ― | ― | ✅ | question-generation |
 | 問題の確認・修正 | ― | ― | ✅ | question-generation |
+| ダッシュボード・問題の分析 | ― | ― | ✅ | admin-dashboard |
+| ユーザー一覧・ユーザーの詳細 | ― | ― | ✅ | admin-users |
 
 ## UI 設計
 
@@ -319,6 +323,8 @@ flowchart TD
 | マイページ、学習履歴、設定 | [learning-record](../learning-record/README.md#ui-設計) |
 | （admin）ソース一覧、ソースの登録・編集 | [content-collection](../content-collection/README.md#ui-設計) |
 | （admin）問題一覧、問題の確認・修正 | [question-generation](../question-generation/README.md#ui-設計) |
+| （admin）ダッシュボード、問題の分析 | [admin-dashboard](../admin-dashboard/README.md#ui-設計) |
+| （admin）ユーザー一覧、ユーザーの詳細 | [admin-users](../admin-users/README.md#ui-設計) |
 
 ### モックの場所
 
@@ -540,6 +546,8 @@ admin の画面のモックは `apps/admin/src/app/(dashboard)/mock/**`（`/mock
 | `/api/user/reminder` | study-reminder |
 | `/api/admin/content-source/*` | content-collection |
 | `/api/admin/passage/*` | question-generation |
+| `/api/admin/stats/*` | admin-dashboard |
+| `/api/admin/user/*` | admin-users |
 
 ## 必要な DB 設計
 

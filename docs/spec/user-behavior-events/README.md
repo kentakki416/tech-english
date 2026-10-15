@@ -192,7 +192,7 @@ worker は queue から取り出したイベントを **まとめて 1 回の IN
 - **ログ経由の配送**（`logger` → Vector 等 → ClickHouse）。多言語化や serverless 化で常駐 worker が使えなくなったとき
 - **匿名ユーザーの追跡**（`anonymous_id`）。獲得ファネルを分析したくなったとき
 - **DB 状態のレプリケーション**（Postgres → ClickHouse）。DB にある状態はいつでも取り込めるため後回し
-- **admin への分析画面**
+- **admin への分析画面**（イベントを使うもの。Postgres の学習の記録から出す数字は [admin-dashboard](../admin-dashboard/README.md) で作る）
 
 ---
 
