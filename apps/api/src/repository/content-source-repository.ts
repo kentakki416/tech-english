@@ -1,9 +1,19 @@
-import type { ContentSource, GitHubRepositorySource, PassageStatus, WebsiteSource } from "@repo/domain"
+import type { ContentSource, GitHubRepositorySource, PassageStatus, Tag, WebsiteSource } from "@repo/domain"
 
 type SourceInputBase = Pick<
   ContentSource,
-  "excludeGlobs" | "includeGlobs" | "isEnabled" | "kind" | "licenseSpdx" | "licenseUrl" | "name" | "tags"
->
+  "excludeGlobs" | "includeGlobs" | "isEnabled" | "kind" | "licenseSpdx" | "licenseUrl" | "name"
+> & {
+  /**
+   * 付けるタグの id（重複なし。存在するかは service が確かめる）
+   */
+  tagIds: number[]
+}
+
+/**
+ * タグ（名前の順）つきのソース。admin のソースの API が返す
+ */
+export type ContentSourceWithTags = ContentSource & { tags: Tag[] }
 
 /**
  * ソースの登録・更新時の入力。取得方法（fetchType）ごとに書く列が違う
@@ -23,10 +33,14 @@ export type FailedPage = { httpStatus: number; path: string }
 export type PassageCountRow = { count: number; sourceId: number; status: PassageStatus }
 
 /**
- * 登録・更新の結果。repository / site_url の unique 制約に違反したら duplicate
- * （service の重複の事前検査と書き込みの間に、同じ取得元が別のリクエストで登録された場合）
+ * 登録・更新の結果。
+ * - duplicate：repository / site_url の unique 制約に違反した（service の重複の事前検査と書き込みの間に、同じ取得元が別のリクエストで登録された）
+ * - missing_tags：content_source_tags の外部キーに違反した（service がタグの存在を確かめた後、書き込みまでの間にタグが消された）
  */
-export type ContentSourceSaveResult = { kind: "duplicate" } | { kind: "saved"; source: ContentSource }
+export type ContentSourceSaveResult =
+  | { kind: "duplicate" }
+  | { kind: "missing_tags" }
+  | { kind: "saved"; source: ContentSourceWithTags }
 
 /**
  * 更新時に、ソースの列と一緒に戻す収集の状態
@@ -55,13 +69,22 @@ export interface ContentSourceRepository {
    * sourceId を省略すると全ソース分
    */
   countPassagesBySource(sourceId?: number): Promise<PassageCountRow[]>
+  /**
+   * ソースと content_source_tags（input.tagIds）を 1 トランザクションで作る
+   */
   create(input: ContentSourceInput): Promise<ContentSourceSaveResult>
   /**
-   * id の昇順
+   * id の昇順。各ソースのタグは名前の順
    */
-  findAll(): Promise<ContentSource[]>
-  findById(id: number): Promise<ContentSource | null>
+  findAll(): Promise<ContentSourceWithTags[]>
+  findById(id: number): Promise<ContentSourceWithTags | null>
+  /**
+   * 重複の検査に使うだけなのでタグは読まない
+   */
   findByRepository(repository: string): Promise<ContentSource | null>
+  /**
+   * 重複の検査に使うだけなのでタグは読まない
+   */
   findBySiteUrl(siteUrl: string): Promise<ContentSource | null>
   /**
    * path の昇順
@@ -72,8 +95,8 @@ export interface ContentSourceRepository {
    */
   hasSourceDocuments(sourceId: number): Promise<boolean>
   /**
-   * input.fetchType の列と共通の列だけを書く（取得方法は変えない）。options の収集の状態も同じトランザクションで戻す。
-   * 対象が無い（id が無い・取得方法が違う）ときは throw する
+   * input.fetchType の列と共通の列を書き（取得方法は変えない）、このソースの content_source_tags を input.tagIds に付け替える。
+   * options の収集の状態も含めて 1 トランザクションで行う。対象が無い（id が無い・取得方法が違う）ときは throw する
    */
   update(id: number, input: ContentSourceInput, options: ContentSourceUpdateOptions): Promise<ContentSourceSaveResult>
 }

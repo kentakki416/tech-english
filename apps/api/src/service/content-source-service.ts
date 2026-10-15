@@ -10,15 +10,34 @@ import { badRequestError, conflictError, err, notFoundError, ok, Result } from "
 import { logger } from "@repo/logger"
 
 import type { IGitHubLicenseClient } from "../client/github-license"
-import { ContentSourceInput, ContentSourceRepository, FailedPage, PassageCountRow } from "../repository"
+import {
+  ContentSourceInput,
+  ContentSourceRepository,
+  ContentSourceWithTags,
+  FailedPage,
+  PassageCountRow,
+  TagRepository,
+} from "../repository"
 
 type ContentSourceRepo = { contentSourceRepository: ContentSourceRepository }
+
+/**
+ * 登録・更新で使う Repository。タグは存在の確認にだけ使う
+ */
+type ContentSourceWriteRepo = ContentSourceRepo & { tagRepository: Pick<TagRepository, "findByIds"> }
 
 type GitHubRepositoryInput = Extract<ContentSourceInput, { fetchType: "github_repository" }>
 
 type WebsiteInput = Extract<ContentSourceInput, { fetchType: "website" }>
 
 const DUPLICATE_SOURCE_MESSAGE = "Content source already registered"
+
+const TAG_NOT_FOUND_MESSAGE = "Tag not found"
+
+/**
+ * 存在しないタグの id の詳細の code（既存の details の code と同じく `{対象}_not_found` の snake_case）
+ */
+const TAG_NOT_FOUND_CODE = "tag_not_found"
 
 /**
  * 本文候補の状態ごとの件数
@@ -46,6 +65,22 @@ const findDuplicateSource = async (
   input.fetchType === "github_repository"
     ? repo.contentSourceRepository.findByRepository(input.repository)
     : repo.contentSourceRepository.findBySiteUrl(input.siteUrl)
+
+/**
+ * 存在しないタグの id の 400。admin は details の path（["tag_ids"]）で、取得元の変更の 400 と見分けてタグの欄に出す
+ */
+const buildTagNotFoundError = (message: string) =>
+  badRequestError(TAG_NOT_FOUND_MESSAGE, [{ code: TAG_NOT_FOUND_CODE, message, path: ["tag_ids"] }])
+
+/**
+ * tagIds のうち tags に無い id（入力の順）。全部あれば空。
+ * admin のフォームは登録済みのタグしか出さないが、送信までの間にタグの画面で消されることがある
+ */
+const findMissingTagIds = async (tagIds: number[], repo: ContentSourceWriteRepo): Promise<number[]> => {
+  if (tagIds.length === 0) return []
+  const existingIds = new Set((await repo.tagRepository.findByIds(tagIds)).map((tag) => tag.id))
+  return tagIds.filter((tagId) => !existingIds.has(tagId))
+}
 
 /**
  * 2 つの文字列の配列が同じ順で同じ値を持つか
@@ -86,7 +121,7 @@ const hasExtractionChanged = (existing: WebsiteSource, input: WebsiteInput): boo
  */
 export const getContentSources = async (
   repo: ContentSourceRepo,
-): Promise<Result<{ failedPageCount: number; passageCounts: PassageCounts; source: ContentSource }[]>> => {
+): Promise<Result<{ failedPageCount: number; passageCounts: PassageCounts; source: ContentSourceWithTags }[]>> => {
   const [sources, passageCountRows, failedPageCountRows] = await Promise.all([
     repo.contentSourceRepository.findAll(),
     repo.contentSourceRepository.countPassagesBySource(),
@@ -106,7 +141,7 @@ export const getContentSources = async (
 export const getContentSourceById = async (
   id: number,
   repo: ContentSourceRepo,
-): Promise<Result<{ failedPages: FailedPage[]; passageCounts: PassageCounts; source: ContentSource }>> => {
+): Promise<Result<{ failedPages: FailedPage[]; passageCounts: PassageCounts; source: ContentSourceWithTags }>> => {
   const source = await repo.contentSourceRepository.findById(id)
   if (!source) {
     logger.debug("ContentSourceService: Content source not found", { id })
@@ -124,8 +159,16 @@ export const getContentSourceById = async (
  */
 export const createContentSource = async (
   input: ContentSourceInput,
-  repo: ContentSourceRepo,
-): Promise<Result<ContentSource>> => {
+  repo: ContentSourceWriteRepo,
+): Promise<Result<ContentSourceWithTags>> => {
+  /**
+   * 入力の誤りなので、重複（409）より先に確かめる
+   */
+  const missingTagIds = await findMissingTagIds(input.tagIds, repo)
+  if (missingTagIds.length > 0) {
+    logger.debug("ContentSourceService: Tag not found", { missingTagIds })
+    return err(buildTagNotFoundError(`Tag not found: id=${missingTagIds.join(", ")}`))
+  }
   if (await findDuplicateSource(input, repo)) {
     logger.debug("ContentSourceService: Content source already registered", { fetchType: input.fetchType })
     return err(conflictError(DUPLICATE_SOURCE_MESSAGE))
@@ -143,6 +186,13 @@ export const createContentSource = async (
     logger.debug("ContentSourceService: Content source registered concurrently", { fetchType: input.fetchType })
     return err(conflictError(DUPLICATE_SOURCE_MESSAGE))
   }
+  /**
+   * 事前の確認の後にタグが消された（同時のリクエスト）。外部キーで弾かれたので、存在しないタグと同じ 400 にする
+   */
+  if (result.kind === "missing_tags") {
+    logger.debug("ContentSourceService: Tag deleted during the request", { fetchType: input.fetchType })
+    return err(buildTagNotFoundError("Tag was deleted during the request"))
+  }
   logger.info("ContentSourceService: Content source created", { fetchType: result.source.fetchType, id: result.source.id })
   return ok(result.source)
 }
@@ -154,14 +204,23 @@ export const createContentSource = async (
 export const updateContentSource = async (
   id: number,
   input: ContentSourceInput,
-  repo: ContentSourceRepo,
-): Promise<Result<ContentSource>> => {
+  repo: ContentSourceWriteRepo,
+): Promise<Result<ContentSourceWithTags>> => {
   const existing = await repo.contentSourceRepository.findById(id)
   if (!existing) {
     logger.debug("ContentSourceService: Content source not found for update", { id })
     return err(notFoundError("Content source not found"))
   }
   if (existing.fetchType !== input.fetchType) return err(badRequestError("fetch_type cannot be changed"))
+
+  /**
+   * 入力の誤りなので、取得元の変更・重複（409）より先に確かめる
+   */
+  const missingTagIds = await findMissingTagIds(input.tagIds, repo)
+  if (missingTagIds.length > 0) {
+    logger.debug("ContentSourceService: Tag not found for update", { id, missingTagIds })
+    return err(buildTagNotFoundError(`Tag not found: id=${missingTagIds.join(", ")}`))
+  }
 
   /**
    * 過去の本文候補の出典は、ソースの今の取得元と passages の source_path（GitHub は source_commit_sha も）で組み立てる。
@@ -197,6 +256,10 @@ export const updateContentSource = async (
   if (result.kind === "duplicate") {
     logger.debug("ContentSourceService: Content source registered concurrently", { fetchType: input.fetchType, id })
     return err(conflictError(DUPLICATE_SOURCE_MESSAGE))
+  }
+  if (result.kind === "missing_tags") {
+    logger.debug("ContentSourceService: Tag deleted during the request", { id })
+    return err(buildTagNotFoundError("Tag was deleted during the request"))
   }
   logger.info("ContentSourceService: Content source updated", { id, shouldResetCollectedCommit, shouldResetDocumentCache })
   return ok(result.source)

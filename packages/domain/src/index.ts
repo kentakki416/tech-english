@@ -27,6 +27,7 @@ export {
   QUESTION_CHOICE_COUNT,
   QUESTION_TYPES,
 } from "./const/question"
+export { TAG_COLORS } from "./const/tag"
 export {
   VOCABULARY_GRADES,
   VOCABULARY_MASTERED_STAGE,
@@ -51,6 +52,7 @@ export { canShareMemo } from "./rules/memo"
 export { calculateQuestionCount, calculateTimeLimitSeconds, isPassageDifficulty, isPassageStatus } from "./rules/passage"
 export { findSurfaceRange, hasQuote, isSurfaceAt, numberHeadings, numberParagraphs } from "./rules/passage-text"
 export { isQuestionType } from "./rules/question"
+export { isTagColor, selectTagColor } from "./rules/tag"
 export { isVocabularyCardDue, isVocabularyGrade, normalizeVocabularyLemma, scheduleVocabularyReview } from "./rules/vocabulary"
 export type { AdminPassageStatsSort, AdminStatsPeriod } from "./types/admin-stats"
 export type { AdminUserSort } from "./types/admin-user"
@@ -80,5 +82,6 @@ export type { PassageSegmentKind } from "./types/passage-segment"
 export type { GlossaryEntry, Question, QuestionType } from "./types/question"
 export type { ReminderSetting } from "./types/reminder"
 export type { SourceDocument } from "./types/source-document"
+export type { Tag, TagColor } from "./types/tag"
 export type { User } from "./types/user"
 export type { VocabularyCard, VocabularyGrade, VocabularyReview, VocabularySchedule } from "./types/vocabulary"

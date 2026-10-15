@@ -32,6 +32,10 @@ import { AdminPassageUpdateController } from "./controller/admin/passage/update"
 import { AdminStatsOverviewController } from "./controller/admin/stats/overview"
 import { AdminPassageStatsDetailController } from "./controller/admin/stats/passage-detail"
 import { AdminPassageStatsListController } from "./controller/admin/stats/passage-list"
+import { AdminTagCreateController } from "./controller/admin/tag/create"
+import { AdminTagDeleteController } from "./controller/admin/tag/delete"
+import { AdminTagListController } from "./controller/admin/tag/list"
+import { AdminTagUpdateController } from "./controller/admin/tag/update"
 import { AdminUserAttemptsController } from "./controller/admin/user/attempts"
 import { AdminUserCalendarController } from "./controller/admin/user/calendar"
 import { AdminUserDetailController } from "./controller/admin/user/detail"
@@ -89,6 +93,7 @@ import {
   DrizzlePassageRepository,
   DrizzleReadingAttemptRepository,
   DrizzleReminderSettingRepository,
+  DrizzleTagRepository,
   DrizzleTransactionRunner,
   DrizzleUserGoalRepository,
   DrizzleUserRepository,
@@ -134,6 +139,7 @@ const authAccountRepository = new DrizzleAuthAccountRepository(db)
 const transactionRunner = new DrizzleTransactionRunner(db)
 const memoRepository = new DrizzleMemoRepository(db)
 const contentSourceRepository = new DrizzleContentSourceRepository(db)
+const tagRepository = new DrizzleTagRepository(db)
 /**
  * reading-practice のユーザー向け API と共有する
  */
@@ -271,11 +277,11 @@ const memoDeleteController = new MemoDeleteController(memoRepository, eventTrack
 /**
  * Admin のソース管理 Controller のインスタンス化
  */
-const adminContentSourceCreateController = new AdminContentSourceCreateController(contentSourceRepository)
+const adminContentSourceCreateController = new AdminContentSourceCreateController(contentSourceRepository, tagRepository)
 const adminContentSourceDetailController = new AdminContentSourceDetailController(contentSourceRepository)
 const adminContentSourceDetectLicenseController = new AdminContentSourceDetectLicenseController(gitHubLicenseClient)
 const adminContentSourceListController = new AdminContentSourceListController(contentSourceRepository)
-const adminContentSourceUpdateController = new AdminContentSourceUpdateController(contentSourceRepository)
+const adminContentSourceUpdateController = new AdminContentSourceUpdateController(contentSourceRepository, tagRepository)
 
 /**
  * Admin の問題の確認・公開 Controller のインスタンス化
@@ -291,6 +297,10 @@ const adminPassageRestoreController = new AdminPassageRestoreController(passageR
 const adminPassageRetryAudioController = new AdminPassageRetryAudioController(passageAudioRepository)
 const adminPassageUnpublishController = new AdminPassageUnpublishController(passageRepository)
 const adminPassageUpdateController = new AdminPassageUpdateController(passageRepository)
+const adminTagCreateController = new AdminTagCreateController(tagRepository)
+const adminTagDeleteController = new AdminTagDeleteController(tagRepository)
+const adminTagListController = new AdminTagListController(tagRepository)
+const adminTagUpdateController = new AdminTagUpdateController(tagRepository)
 
 /**
  * admin のダッシュボード（admin-dashboard）と、ユーザー管理（admin-users。マイページと同じ Repository を使う）の Controller のインスタンス化
@@ -449,6 +459,12 @@ app.use(
       overview: adminStatsOverviewController,
       passageDetail: adminPassageStatsDetailController,
       passageList: adminPassageStatsListController,
+    },
+    tag: {
+      create: adminTagCreateController,
+      delete: adminTagDeleteController,
+      list: adminTagListController,
+      update: adminTagUpdateController,
     },
     user: {
       attempts: adminUserAttemptsController,

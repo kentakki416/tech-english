@@ -5,6 +5,7 @@ import { env } from "../../../../src/env"
 import { ADMIN_TOKEN_HEADER } from "../../../../src/middleware/admin-auth"
 import { DrizzleContentSourceRepository } from "../../../../src/repository/drizzle/content-source-repository"
 import { adminRouter } from "../../../../src/routes/admin-router"
+import { insertSourceTags } from "../../../fixture/source-tag"
 import { attachUnhandledExceptionHandler, createTestApp } from "../../helper"
 import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb } from "../../setup"
 
@@ -31,8 +32,9 @@ afterAll(async () => {
 
 describe("GET /api/admin/content-source/:id", () => {
   describe("正常系", () => {
-    it("github のソースを github の形で返し、状態別の件数を付ける", async () => {
+    it("github のソースを github の形で返し、タグ（名前の順）と状態別の件数を付ける", async () => {
       const github = await insertGitHubSource({ lastCollectedCommitSha: "abc123" })
+      const [react, frontend] = await insertSourceTags(github.id, ["react", "Frontend"])
       const document = await insertSourceDocument(github.id, "src/content/learn/a.md")
       await insertPassages(document.id, "draft", 2)
       await insertPassages(document.id, "failed", 1)
@@ -61,14 +63,17 @@ describe("GET /api/admin/content-source/:id", () => {
           public_url_strip_prefix: "src/content/",
           public_url_template: "https://react.dev/{path}",
           repository: "reactjs/react.dev",
-          tags: ["react"],
+          tags: [
+            { id: frontend.id, color: frontend.color, name: "Frontend" },
+            { id: react.id, color: react.color, name: "react" },
+          ],
           created_at: expect.any(String),
           updated_at: expect.any(String),
         },
       })
     })
 
-    it("website のソースを website の形で返し、failed_pages は path の昇順で 400 以上だけ", async () => {
+    it("website のソースを website の形で返し、タグの無いソースは tags: []、failed_pages は path の昇順で 400 以上だけ", async () => {
       const website = await insertWebsiteSource()
       await insertSourceDocument(website.id, "/doc/c", 404)
       await insertSourceDocument(website.id, "/doc/a", 500)
@@ -102,7 +107,7 @@ describe("GET /api/admin/content-source/:id", () => {
           sitemap_url: "https://go.dev/sitemap.xml",
           site_url: "https://go.dev",
           start_url: null,
-          tags: ["go"],
+          tags: [],
           created_at: expect.any(String),
           updated_at: expect.any(String),
         },

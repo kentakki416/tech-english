@@ -127,7 +127,6 @@ describe("content_sources", () => {
         lastCollectedAt: null,
         lastCollectedCommitSha: null,
         siteUrl: null,
-        tags: [],
       })
     })
 

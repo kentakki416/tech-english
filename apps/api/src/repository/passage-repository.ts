@@ -118,6 +118,9 @@ export type RestoredPassageStatus = Extract<PassageStatus, "collected" | "draft"
 export type PublishedPassageFilter = {
   difficulties: PassageDifficulty[]
   kind: SourceKind | null
+  /**
+   * タグの名前の完全一致（大文字・小文字も区別する）
+   */
   tags: string[]
   /**
    * 指定するとそのユーザーが提出済みの問題を除く（挑戦中・期限切れだけの問題は残す）
@@ -130,15 +133,22 @@ export type PublishedPassageFilter = {
  */
 export type PassageCursor = { id: number; publishedAt: Date }
 
+type PassageSourceTags = {
+  /**
+   * ソースのタグの名前（lower(name) → id の順）
+   */
+  tags: string[]
+}
+
 /**
  * 出典と一覧の表示に使うソースの列（取得方法ごとに持つ列が違う）
  */
 export type PassageSource =
-  | Pick<
+  | (Pick<
     GitHubRepositorySource,
-    "branch" | "fetchType" | "kind" | "licenseSpdx" | "licenseUrl" | "name" | "publicUrlStripPrefix" | "publicUrlTemplate" | "repository" | "tags"
-  >
-  | Pick<WebsiteSource, "fetchType" | "kind" | "licenseSpdx" | "licenseUrl" | "name" | "siteUrl" | "tags">
+    "branch" | "fetchType" | "kind" | "licenseSpdx" | "licenseUrl" | "name" | "publicUrlStripPrefix" | "publicUrlTemplate" | "repository"
+  > & PassageSourceTags)
+  | (Pick<WebsiteSource, "fetchType" | "kind" | "licenseSpdx" | "licenseUrl" | "name" | "siteUrl"> & PassageSourceTags)
 
 /**
  * blocks を読まない一覧用の列。公開中の問題は difficulty / publishedAt / timeLimitSeconds が必ずある（公開の条件と公開の操作で埋まる）
@@ -196,7 +206,7 @@ export interface PassageRepository {
    */
   findPublishedPage(filter: PublishedPassageFilter, page: { cursor: PassageCursor | null; limit: number }): Promise<PublishedPassageSummary[]>
   /**
-   * 公開中の問題があるソースのタグを重複なしで昇順に返す
+   * 公開中の問題があるソースのタグの名前を、重複なしで lower(name) → id の順に返す
    */
   findPublishedTags(): Promise<string[]>
   /**

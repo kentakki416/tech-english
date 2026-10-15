@@ -19,6 +19,10 @@ import { AdminPassageUpdateController } from "../controller/admin/passage/update
 import { AdminStatsOverviewController } from "../controller/admin/stats/overview"
 import { AdminPassageStatsDetailController } from "../controller/admin/stats/passage-detail"
 import { AdminPassageStatsListController } from "../controller/admin/stats/passage-list"
+import { AdminTagCreateController } from "../controller/admin/tag/create"
+import { AdminTagDeleteController } from "../controller/admin/tag/delete"
+import { AdminTagListController } from "../controller/admin/tag/list"
+import { AdminTagUpdateController } from "../controller/admin/tag/update"
 import { AdminUserAttemptsController } from "../controller/admin/user/attempts"
 import { AdminUserCalendarController } from "../controller/admin/user/calendar"
 import { AdminUserDetailController } from "../controller/admin/user/detail"
@@ -53,6 +57,12 @@ type AdminRouterControllers = {
     overview?: AdminStatsOverviewController
     passageDetail?: AdminPassageStatsDetailController
     passageList?: AdminPassageStatsListController
+  }
+  tag?: {
+    create?: AdminTagCreateController
+    delete?: AdminTagDeleteController
+    list?: AdminTagListController
+    update?: AdminTagUpdateController
   }
   user?: {
     attempts?: AdminUserAttemptsController
@@ -230,6 +240,40 @@ export const adminRouter = (controllers: AdminRouterControllers): Router => {
   if (stats.passageDetail) {
     const controller = stats.passageDetail
     router.get("/stats/passage/:id", async (req, res) => controller.execute(req, res))
+  }
+
+  const tag = controllers.tag ?? {}
+
+  /**
+   * GET /api/admin/tag
+   */
+  if (tag.list) {
+    const controller = tag.list
+    router.get("/tag", async (req, res) => controller.execute(req, res))
+  }
+
+  /**
+   * POST /api/admin/tag
+   */
+  if (tag.create) {
+    const controller = tag.create
+    router.post("/tag", async (req, res) => controller.execute(req, res))
+  }
+
+  /**
+   * PUT /api/admin/tag/:id
+   */
+  if (tag.update) {
+    const controller = tag.update
+    router.put("/tag/:id", async (req, res) => controller.execute(req, res))
+  }
+
+  /**
+   * DELETE /api/admin/tag/:id
+   */
+  if (tag.delete) {
+    const controller = tag.delete
+    router.delete("/tag/:id", async (req, res) => controller.execute(req, res))
   }
 
   const user = controllers.user ?? {}

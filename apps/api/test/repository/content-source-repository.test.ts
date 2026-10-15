@@ -1,10 +1,11 @@
-import { contentSources, eq, passages, sourceDocuments } from "@repo/db"
-import type { ContentSource, PassageStatus } from "@repo/domain"
+import { asc, contentSources, contentSourceTags, eq, passages, sourceDocuments, tags } from "@repo/db"
+import type { PassageStatus, TagColor } from "@repo/domain"
 
 import type {
   ContentSourceInput,
   ContentSourceRepository,
   ContentSourceUpdateOptions,
+  ContentSourceWithTags,
 } from "../../src/repository/content-source-repository"
 import { DrizzleContentSourceRepository } from "../../src/repository/drizzle/content-source-repository"
 import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb } from "../controller/setup"
@@ -27,7 +28,7 @@ const GITHUB_INPUT: GitHubRepositoryInput = {
   publicUrlStripPrefix: "src/content/",
   publicUrlTemplate: "https://react.dev/{path}",
   repository: "reactjs/react.dev",
-  tags: ["react", "frontend"],
+  tagIds: [],
 }
 
 const WEBSITE_INPUT: WebsiteInput = {
@@ -44,7 +45,7 @@ const WEBSITE_INPUT: WebsiteInput = {
   sitemapUrl: "https://go.dev/sitemap.xml",
   siteUrl: "https://go.dev",
   startUrl: null,
-  tags: ["go"],
+  tagIds: [],
 }
 
 /**
@@ -53,26 +54,48 @@ const WEBSITE_INPUT: WebsiteInput = {
 const NO_RESET: ContentSourceUpdateOptions = { shouldResetCollectedCommit: false, shouldResetDocumentCache: false }
 
 /**
- * create して作ったソースを返す（duplicate なら throw する）
+ * 入力から tagIds を外したもの（ソースの列）。期待値を組み立てるのに使う
  */
-const createSource = async (repository: ContentSourceRepository, input: ContentSourceInput): Promise<ContentSource> => {
+const omitTagIds = ({ tagIds, ...columns }: ContentSourceInput) => columns
+
+/**
+ * create して作ったソースを返す（duplicate / missing_tags なら throw する）
+ */
+const createSource = async (repository: ContentSourceRepository, input: ContentSourceInput): Promise<ContentSourceWithTags> => {
   const result = await repository.create(input)
-  if (result.kind !== "saved") throw new Error(`Unexpected duplicate: ${input.name}`)
+  if (result.kind !== "saved") throw new Error(`Unexpected ${result.kind}: ${input.name}`)
   return result.source
 }
 
 /**
- * update して更新したソースを返す（duplicate なら throw する）
+ * update して更新したソースを返す（duplicate / missing_tags なら throw する）
  */
 const updateSource = async (
   repository: ContentSourceRepository,
   id: number,
   input: ContentSourceInput,
   options: ContentSourceUpdateOptions,
-): Promise<ContentSource> => {
+): Promise<ContentSourceWithTags> => {
   const result = await repository.update(id, input, options)
-  if (result.kind !== "saved") throw new Error(`Unexpected duplicate: id=${id}`)
+  if (result.kind !== "saved") throw new Error(`Unexpected ${result.kind}: id=${id}`)
   return result.source
+}
+
+const insertTag = async (name: string, color: TagColor = "blue") => {
+  const [row] = await testDb.insert(tags).values({ color, name }).returning()
+  return row
+}
+
+/**
+ * ソースに付いているタグの id（昇順）
+ */
+const selectSourceTagIds = async (sourceId: number): Promise<number[]> => {
+  const rows = await testDb
+    .select({ tagId: contentSourceTags.tagId })
+    .from(contentSourceTags)
+    .where(eq(contentSourceTags.contentSourceId, sourceId))
+    .orderBy(asc(contentSourceTags.tagId))
+  return rows.map((row) => row.tagId)
 }
 
 const insertSourceDocument = async (sourceId: number, path: string, httpStatus: number | null = null) => {
@@ -146,29 +169,33 @@ describe("ContentSourceRepository", () => {
       const created = await createSource(contentSourceRepository, GITHUB_INPUT)
 
       expect(created).toEqual({
-        ...GITHUB_INPUT,
+        ...omitTagIds(GITHUB_INPUT),
         id: expect.any(Number),
         lastCollectedAt: null,
         lastCollectedCommitSha: null,
+        tags: [],
         createdAt: expect.any(Date),
         updatedAt: expect.any(Date),
       })
       expect(await contentSourceRepository.findById(created.id)).toEqual(created)
-      expect(await contentSourceRepository.findByRepository("reactjs/react.dev")).toEqual(created)
+      const { tags: createdTags, ...createdColumns } = created
+      expect(await contentSourceRepository.findByRepository("reactjs/react.dev")).toEqual(createdColumns)
     })
 
     it("website を create すると findById / findBySiteUrl で同じ値が返る", async () => {
       const created = await createSource(contentSourceRepository, WEBSITE_INPUT)
 
       expect(created).toEqual({
-        ...WEBSITE_INPUT,
+        ...omitTagIds(WEBSITE_INPUT),
         id: expect.any(Number),
         lastCollectedAt: null,
+        tags: [],
         createdAt: expect.any(Date),
         updatedAt: expect.any(Date),
       })
       expect(await contentSourceRepository.findById(created.id)).toEqual(created)
-      expect(await contentSourceRepository.findBySiteUrl("https://go.dev")).toEqual(created)
+      const { tags: createdTags, ...createdColumns } = created
+      expect(await contentSourceRepository.findBySiteUrl("https://go.dev")).toEqual(createdColumns)
     })
 
     it("findAll は id の昇順で返す", async () => {
@@ -192,16 +219,16 @@ describe("ContentSourceRepository", () => {
         name: "React Docs",
         publicUrlStripPrefix: null,
         publicUrlTemplate: null,
-        tags: [],
       }
 
       const updated = await updateSource(contentSourceRepository, created.id, input, NO_RESET)
 
       expect(updated).toEqual({
-        ...input,
+        ...omitTagIds(input),
         id: created.id,
         lastCollectedAt: null,
         lastCollectedCommitSha: "abc123",
+        tags: [],
         createdAt: created.createdAt,
         updatedAt: expect.any(Date),
       })
@@ -237,9 +264,10 @@ describe("ContentSourceRepository", () => {
       const updated = await updateSource(contentSourceRepository, created.id, input, NO_RESET)
 
       expect(updated).toEqual({
-        ...input,
+        ...omitTagIds(input),
         id: created.id,
         lastCollectedAt: null,
+        tags: [],
         createdAt: created.createdAt,
         updatedAt: expect.any(Date),
       })
@@ -285,6 +313,68 @@ describe("ContentSourceRepository", () => {
         etag: "\"v1\"",
         lastModified: "Sat, 10 Oct 2026 00:00:00 GMT",
       })
+    })
+
+    it("create に tagIds を渡すと content_source_tags に入り、create / findById / findAll はタグを lower(name) → id の順で返す", async () => {
+      const react = await insertTag("react")
+      const frontend = await insertTag("Frontend", "rose")
+
+      const created = await createSource(contentSourceRepository, { ...GITHUB_INPUT, tagIds: [react.id, frontend.id] })
+
+      expect(created.tags).toEqual([frontend, react])
+      expect(await contentSourceRepository.findById(created.id)).toEqual(created)
+      expect(await contentSourceRepository.findAll()).toEqual([created])
+      expect(await selectSourceTagIds(created.id)).toEqual([react.id, frontend.id])
+    })
+
+    it("update は tagIds に付け替え（外したタグの紐付けが消え、足したタグが付く）、ほかのソースの紐付けは変えない", async () => {
+      const react = await insertTag("react")
+      const frontend = await insertTag("frontend", "rose")
+      const hooks = await insertTag("hooks", "emerald")
+      const created = await createSource(contentSourceRepository, { ...GITHUB_INPUT, tagIds: [react.id, frontend.id] })
+      const other = await createSource(contentSourceRepository, { ...WEBSITE_INPUT, tagIds: [react.id, frontend.id] })
+
+      const updated = await updateSource(contentSourceRepository, created.id, { ...GITHUB_INPUT, tagIds: [react.id, hooks.id] }, NO_RESET)
+
+      expect(updated.tags).toEqual([hooks, react])
+      expect(await selectSourceTagIds(created.id)).toEqual([react.id, hooks.id])
+      expect(await selectSourceTagIds(other.id)).toEqual([react.id, frontend.id])
+      expect(await contentSourceRepository.findById(other.id)).toEqual(other)
+    })
+
+    it("tagIds: [] で update するとタグが全部外れる（タグ自体は残る）", async () => {
+      const react = await insertTag("react")
+      const created = await createSource(contentSourceRepository, { ...GITHUB_INPUT, tagIds: [react.id] })
+
+      const updated = await updateSource(contentSourceRepository, created.id, { ...GITHUB_INPUT, tagIds: [] }, NO_RESET)
+
+      expect(updated.tags).toEqual([])
+      expect(await selectSourceTagIds(created.id)).toEqual([])
+      expect(await testDb.select().from(tags)).toEqual([react])
+    })
+
+    it("findAll はタグの無いソースに tags: [] を返す", async () => {
+      const react = await insertTag("react")
+      const github = await createSource(contentSourceRepository, { ...GITHUB_INPUT, tagIds: [react.id] })
+      const website = await createSource(contentSourceRepository, WEBSITE_INPUT)
+
+      const found = await contentSourceRepository.findAll()
+
+      expect(found.map((source) => ({ id: source.id, tags: source.tags }))).toEqual([
+        { id: github.id, tags: [react] },
+        { id: website.id, tags: [] },
+      ])
+    })
+
+    it("タグを消すと、そのタグがソースのタグから外れ、ソースは残る（CASCADE）", async () => {
+      const react = await insertTag("react")
+      const frontend = await insertTag("frontend", "rose")
+      const created = await createSource(contentSourceRepository, { ...GITHUB_INPUT, tagIds: [react.id, frontend.id] })
+
+      await testDb.delete(tags).where(eq(tags.id, react.id))
+
+      expect(await contentSourceRepository.findById(created.id)).toEqual({ ...created, tags: [frontend] })
+      expect(await selectSourceTagIds(created.id)).toEqual([frontend.id])
     })
 
     it("hasSourceDocuments は source_documents が 1 件でもあれば true、無ければ false", async () => {
@@ -402,6 +492,44 @@ describe("ContentSourceRepository", () => {
 
       expect(result).toEqual({ kind: "duplicate" })
       expect(await selectSourceDocument(document.id)).toMatchObject({ contentHash: "content-hash-/3/tutorial/", etag: "\"v1\"" })
+    })
+
+    it("create は存在しない tag の id なら throw せず missing_tags を返し、content_sources の行も作らない（巻き戻る）", async () => {
+      const react = await insertTag("react")
+
+      const result = await contentSourceRepository.create({ ...GITHUB_INPUT, tagIds: [react.id, react.id + 1000] })
+
+      expect(result).toEqual({ kind: "missing_tags" })
+      expect(await testDb.select().from(contentSources)).toHaveLength(0)
+      expect(await testDb.select().from(contentSourceTags)).toHaveLength(0)
+    })
+
+    it("update は存在しない tag の id なら throw せず missing_tags を返し、ソースの列もタグも変わらない", async () => {
+      const react = await insertTag("react")
+      const created = await createSource(contentSourceRepository, { ...GITHUB_INPUT, tagIds: [react.id] })
+
+      const result = await contentSourceRepository.update(
+        created.id,
+        { ...GITHUB_INPUT, name: "React Docs", tagIds: [react.id + 1000] },
+        NO_RESET,
+      )
+
+      expect(result).toEqual({ kind: "missing_tags" })
+      expect(await contentSourceRepository.findById(created.id)).toEqual(created)
+      expect(await selectSourceTagIds(created.id)).toEqual([react.id])
+    })
+
+    it("update が duplicate を返したときは、タグの付け替えも巻き戻る", async () => {
+      const react = await insertTag("react")
+      const hooks = await insertTag("hooks", "emerald")
+      await createSource(contentSourceRepository, GITHUB_INPUT)
+      const other = await createSource(contentSourceRepository, { ...GITHUB_INPUT, repository: "vercel/next.js", tagIds: [react.id] })
+
+      const result = await contentSourceRepository.update(other.id, { ...GITHUB_INPUT, tagIds: [hooks.id] }, NO_RESET)
+
+      expect(result).toEqual({ kind: "duplicate" })
+      expect(await contentSourceRepository.findById(other.id)).toEqual(other)
+      expect(await selectSourceTagIds(other.id)).toEqual([react.id])
     })
   })
 })

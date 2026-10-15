@@ -93,7 +93,7 @@ describe("GET /api/passage", () => {
             id: react.id,
             difficulty: 1,
             question_count: 3,
-            source: { kind: "docs", name: "React 公式ドキュメント", tags: ["react", "frontend"] },
+            source: { kind: "docs", name: "React 公式ドキュメント", tags: ["frontend", "react"] },
           }),
         ],
         tags: ["frontend", "go", "react", "rust"],
@@ -103,6 +103,8 @@ describe("GET /api/passage", () => {
 
     it.each([
       ["kind", "kind=github", ["rust"], 1],
+      ["tag", "tag=react", ["react"], 1],
+      ["tag（ソースの 2 つ目のタグ）", "tag=frontend", ["react"], 1],
       ["tag（カンマ区切りの OR）", "tag=go,rust", ["go", "rust"], 2],
       ["difficulty（カンマ区切りの OR）", "difficulty=1,3", ["rust", "react"], 2],
       ["kind と tag の組み合わせ", "kind=docs&tag=react,rust", ["react"], 1],
@@ -193,6 +195,16 @@ describe("GET /api/passage", () => {
   })
 
   describe("異常系", () => {
+    it("tag は名前の完全一致で、大文字・小文字だけが違う tag=REACT では react のタグのソースの問題を返さない", async () => {
+      await insertPublishedSet()
+      const { token } = await createTestUser()
+
+      const res = await request(app).get("/api/passage?tag=REACT").set("Authorization", `Bearer ${token}`)
+
+      expect(res.status).toBe(200)
+      expect(res.body).toEqual({ next_cursor: null, passages: [], tags: ["frontend", "go", "react", "rust"], total_count: 0 })
+    })
+
     it("Authorization ヘッダが無ければ 401 を返す", async () => {
       const res = await request(app).get("/api/passage")
 

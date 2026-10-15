@@ -13,6 +13,7 @@ import { testDb } from "../controller/setup"
 
 import { AUDIO_TEXT_HASH, buildAudioManifest } from "./passage-audio"
 import { GLOSSARY_ITEMS, locateGlossaryItem, PASSAGE_BLOCKS, QUESTION_ITEMS } from "./passage-content"
+import { insertSourceTags } from "./source-tag"
 
 /**
  * 問題（ソース・取得文書・passages・用語集・設問）と挑戦を DB に入れるテスト用のヘルパー。
@@ -24,6 +25,11 @@ type PassageAudioInsert = typeof passageAudios.$inferInsert
 type PassageInsert = typeof passages.$inferInsert
 type ReadingAttemptInsert = typeof readingAttempts.$inferInsert
 
+/**
+ * ソースの列と、付けるタグの名前（content_source_tags で付ける）
+ */
+type PassageSourceOverrides = Partial<ContentSourceInsert> & { tags?: string[] }
+
 let sequence = 0
 
 /**
@@ -34,7 +40,10 @@ const issueSequence = (): number => {
   return sequence
 }
 
-export const insertPassageSource = async (overrides: Partial<ContentSourceInsert> = {}) => {
+/**
+ * ソースを入れ、tags（既定は react）を付ける
+ */
+export const insertPassageSource = async ({ tags: tagNames = ["react"], ...overrides }: PassageSourceOverrides = {}) => {
   const [row] = await testDb
     .insert(contentSources)
     .values({
@@ -49,10 +58,10 @@ export const insertPassageSource = async (overrides: Partial<ContentSourceInsert
       publicUrlStripPrefix: "src/content/",
       publicUrlTemplate: "https://react.dev/{path}",
       repository: `reactjs/react.dev-${issueSequence()}`,
-      tags: ["react"],
       ...overrides,
     })
     .returning()
+  await insertSourceTags(row.id, tagNames)
   return row
 }
 
@@ -128,7 +137,7 @@ export const insertGeneratedPassage = async (overrides: Partial<PassageInsert> =
 /**
  * サイト（website）のソースの列。insertPassageSource の overrides に渡す
  */
-export const buildWebsiteSourceValues = (overrides: Partial<ContentSourceInsert> = {}): Partial<ContentSourceInsert> => ({
+export const buildWebsiteSourceValues = (overrides: PassageSourceOverrides = {}): PassageSourceOverrides => ({
   branch: null,
   fetchType: "website",
   includeGlobs: ["/doc/**"],

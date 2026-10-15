@@ -27,7 +27,6 @@ const buildRow = (overrides: Partial<ContentSourceRow> = {}): ContentSourceRow =
   sitemapUrl: null,
   siteUrl: null,
   startUrl: null,
-  tags: ["react"],
   createdAt: CREATED_AT,
   updatedAt: CREATED_AT,
   ...overrides,
@@ -82,7 +81,6 @@ describe("DrizzleContentSourceRepository", () => {
           publicUrlStripPrefix: null,
           publicUrlTemplate: null,
           repository: "owner/repo",
-          tags: ["react"],
           createdAt: CREATED_AT,
           updatedAt: CREATED_AT,
         }])
