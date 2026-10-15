@@ -1,4 +1,4 @@
-import { users } from "@repo/db"
+import { attemptAnswers, users } from "@repo/db"
 
 import { DrizzleAdminStatsRepository } from "../../src/repository/drizzle/admin-stats-repository"
 import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb } from "../controller/setup"
@@ -155,6 +155,19 @@ describe("AdminStatsRepository", () => {
         ])
       })
 
+      it("日ごと：始まりの日の 0 時ちょうどと終わりの日の 23:59:59.999 は入り、その 1ms 前・翌日の 0 時は入らない", async () => {
+        const passage = await insertPassageWithQuestions()
+        const user = await insertAttemptUser()
+        await submit(passage, user.id, at("2026-10-10T14:59:59.999Z"))
+        await submit(passage, user.id, at("2026-10-10T15:00:00.000Z"))
+        await submit(passage, user.id, at("2026-10-14T14:59:59.999Z"))
+        await submit(passage, user.id, at("2026-10-14T15:00:00.000Z"))
+
+        const points = await adminStatsRepository.findOverviewSeries({ bucket: "day", fromDate: "2026-10-11", toDate: "2026-10-14" })
+
+        expect(points.map((point) => point.solvedAttempts)).toEqual([1, 0, 0, 1])
+      })
+
       it("週ごと：日本時間の月曜で区切り、登録・単語帳の答えも同じ週に数える", async () => {
         const passage = await insertPassageWithQuestions()
         const user = await insertUserCreatedAt(at("2026-10-04T15:00:00.000Z"))
@@ -169,6 +182,17 @@ describe("AdminStatsRepository", () => {
           { activeUsers: 1, date: "2026-10-05", newUsers: 1, solvedAttempts: 1 },
           { activeUsers: 1, date: "2026-10-12", newUsers: 0, solvedAttempts: 1 },
         ])
+      })
+
+      it("週ごと：最後の週の日曜 23:59 は入り、翌週の月曜 0 時は入らない", async () => {
+        const passage = await insertPassageWithQuestions()
+        const user = await insertUserCreatedAt(at("2026-09-01T00:00:00.000Z"))
+        await submit(passage, user.id, at("2026-10-18T14:59:00.000Z"))
+        await submit(passage, user.id, at("2026-10-18T15:00:00.000Z"))
+
+        const points = await adminStatsRepository.findOverviewSeries({ bucket: "week", fromDate: "2026-10-12", toDate: "2026-10-12" })
+
+        expect(points).toEqual([{ activeUsers: 1, date: "2026-10-12", newUsers: 0, solvedAttempts: 1 }])
       })
     })
   })
@@ -201,15 +225,38 @@ describe("AdminStatsRepository", () => {
 
       it("正答率の低い順に並べると、解かれていない問題は最後（NULLS LAST）。同じ値は ID の順", async () => {
         const high = await insertPassageWithQuestions({ title: "High" })
+        const sameAsHigh = await insertPassageWithQuestions({ title: "SameAsHigh" })
         const low = await insertPassageWithQuestions({ title: "Low" })
         await insertPassageWithQuestions({ title: "Unsolved" })
         const user = await insertAttemptUser()
         await submit(high, user.id, at("2026-10-12T00:00:00.000Z"))
+        await submit(sameAsHigh, user.id, at("2026-10-12T00:00:00.000Z"))
         await submit(low, user.id, at("2026-10-12T00:00:00.000Z"), { correctness: [false, false, true] })
 
-        const result = await adminStatsRepository.findPassageStats({ ...query, order: "asc", sort: "correct_rate" })
+        const ascending = await adminStatsRepository.findPassageStats({ ...query, order: "asc", sort: "correct_rate" })
+        const descending = await adminStatsRepository.findPassageStats({ ...query, order: "desc", sort: "correct_rate" })
 
-        expect(result.items.map((item) => item.title)).toEqual(["Low", "High", "Unsolved"])
+        expect(ascending.items.map((item) => item.title)).toEqual(["Low", "High", "SameAsHigh", "Unsolved"])
+        expect(descending.items.map((item) => item.title)).toEqual(["High", "SameAsHigh", "Low", "Unsolved"])
+      })
+
+      it("解いた回数・平均の解答時間・時間超過の割合・公開日（非公開で null は最後）で並べられる", async () => {
+        const fast = await insertPassageWithQuestions({ publishedAt: at("2026-10-01T00:00:00.000Z"), title: "Fast" })
+        const slow = await insertPassageWithQuestions({ publishedAt: at("2026-10-05T00:00:00.000Z"), title: "Slow" })
+        const unpublished = await insertPassageWithQuestions({ publishedAt: null, status: "draft", title: "Unpublished" })
+        const user = await insertAttemptUser()
+        await submit(fast, user.id, at("2026-10-12T00:00:00.000Z"), { elapsedSeconds: 60 })
+        await submit(fast, user.id, at("2026-10-12T01:00:00.000Z"), { elapsedSeconds: 60 })
+        await submit(slow, user.id, at("2026-10-12T00:00:00.000Z"), { elapsedSeconds: 300, isOvertime: true })
+        await submit(unpublished, user.id, at("2026-10-12T00:00:00.000Z"), { elapsedSeconds: 200 })
+
+        const titlesBy = async (sort: "average_elapsed_seconds" | "overtime_rate" | "published_at" | "solved_attempts") =>
+          (await adminStatsRepository.findPassageStats({ ...query, sort })).items.map((item) => item.title)
+
+        expect(await titlesBy("solved_attempts")).toEqual(["Fast", "Slow", "Unpublished"])
+        expect(await titlesBy("average_elapsed_seconds")).toEqual(["Slow", "Unpublished", "Fast"])
+        expect(await titlesBy("overtime_rate")).toEqual(["Slow", "Fast", "Unpublished"])
+        expect(await titlesBy("published_at")).toEqual(["Slow", "Fast", "Unpublished"])
       })
 
       it("タイトルの絞り込みは大文字・小文字を区別せず、% は文字として扱う。offset と total", async () => {
@@ -229,6 +276,14 @@ describe("AdminStatsRepository", () => {
         await insertPassageWithQuestions()
 
         expect(await adminStatsRepository.findPassageStats({ ...query, offset: 50 })).toEqual({ items: [], total: 2 })
+      })
+
+      it("非公開の問題が期間外にだけ解かれていれば入らない", async () => {
+        const unpublished = await insertPassageWithQuestions({ publishedAt: null, status: "draft" })
+        const user = await insertAttemptUser()
+        await submit(unpublished, user.id, at("2026-10-01T00:00:00.000Z"))
+
+        expect(await adminStatsRepository.findPassageStats(query)).toEqual({ items: [], total: 0 })
       })
     })
   })
@@ -284,10 +339,18 @@ describe("AdminStatsRepository", () => {
         const passage = await insertPassageWithQuestions()
         const user = await insertAttemptUser()
         await submit(passage, user.id, at("2026-10-01T00:00:00.000Z"))
+        const inProgress = await insertReadingAttempt(passage.id, { startedAt: at("2026-10-12T00:00:00.000Z"), userId: user.id })
+        await testDb.insert(attemptAnswers).values(
+          passage.questionIds.map((questionId) => ({ attemptId: inProgress.id, isCorrect: false, questionId, selectedChoiceIndex: 0 })),
+        )
 
         const stats = await adminStatsRepository.findQuestionStats(passage.id, RANGE)
 
-        expect(stats.every((question) => question.answerCount === 0)).toBe(true)
+        expect(stats.map((question) => [question.answerCount, question.choiceCounts, question.correctCount, question.unansweredCount])).toEqual([
+          [0, [0, 0, 0, 0], 0, 0],
+          [0, [0, 0, 0, 0], 0, 0],
+          [0, [0, 0, 0, 0], 0, 0],
+        ])
       })
     })
   })

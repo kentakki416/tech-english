@@ -1,4 +1,4 @@
-import { isQuestionNeedingReview } from "../../src/lib/is-question-needing-review"
+import { isQuestionNeedingReview } from "../../src/rules/admin-stats"
 
 describe("isQuestionNeedingReview", () => {
   describe("正常系", () => {

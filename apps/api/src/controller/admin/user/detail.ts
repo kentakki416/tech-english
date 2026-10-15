@@ -15,6 +15,8 @@ import * as service from "../../../service"
 import { convertUserStatsToResponse } from "../../user/learning-record-mapper"
 import { convertVocabularySummaryToResponse } from "../../vocabulary/vocabulary-mapper"
 
+import { convertAdminUserToResponse } from "./convert-user-to-response"
+
 /**
  * admin のユーザーの詳細API（基本の情報・ログイン方法・最後に学習した日と、マイページと同じ学習のまとめ・単語帳の数）。ユーザーが居なければ 404
  */
@@ -49,16 +51,7 @@ export class AdminUserDetailController {
     const { stats, user, vocabulary } = result.value
     const response = parseResponse(getAdminUserResponseSchema, {
       stats: convertUserStatsToResponse(stats),
-      user: {
-        id: user.id,
-        avatar_url: user.avatarUrl,
-        email: user.email,
-        last_studied_date: user.lastStudiedDate,
-        name: user.name,
-        providers: user.providers,
-        timezone: user.timezone,
-        created_at: user.createdAt.toISOString(),
-      },
+      user: { ...convertAdminUserToResponse(user), timezone: user.timezone },
       vocabulary: convertVocabularySummaryToResponse(vocabulary),
     })
     return res.status(200).json(response)

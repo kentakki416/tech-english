@@ -1,4 +1,4 @@
-import type { AdminPassageStatsSort, PassageStatus, QuestionType } from "@repo/domain"
+import type { AdminPassageStatsSort, PassageDifficulty, PassageStatus, QuestionType } from "@repo/domain"
 
 /**
  * 期間。from が null なら最初から、to は今（どちらも UTC の時刻）
@@ -44,7 +44,7 @@ export type SeriesPoint = {
  */
 export type PassageStatsRow = AttemptTotals & {
   id: number
-  difficulty: number | null
+  difficulty: PassageDifficulty | null
   publishedAt: Date | null
   source: { id: number; name: string }
   status: PassageStatus

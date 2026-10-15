@@ -43,5 +43,14 @@ describe("getAdminUser", () => {
       expect(result).toMatchObject({ error: { statusCode: 404 }, ok: false })
       expect(repo.authAccountRepository.findProvidersByUserId).not.toHaveBeenCalled()
     })
+
+    it("確かめた後に退会してマイページの Service が 401 を返しても、404 にする", async () => {
+      const repo = createMockAdminUserRepo()
+      repo.userRepository.findById.mockResolvedValueOnce(USER).mockResolvedValue(null)
+
+      const result = await getAdminUser(USER.id, repo, { now: FIXED_NOW })
+
+      expect(result).toMatchObject({ error: { statusCode: 404 }, ok: false })
+    })
   })
 })

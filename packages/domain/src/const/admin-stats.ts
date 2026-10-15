@@ -24,3 +24,8 @@ export const ADMIN_QUESTION_REVIEW_MIN_ANSWERS = 5
  * ダッシュボードの日の区切り（admin は日本の管理者を想定する）
  */
 export const ADMIN_STATS_TIME_ZONE = "Asia/Tokyo"
+
+/**
+ * ADMIN_STATS_TIME_ZONE の UTC からのずれ。日本は夏時間が無いので 1 つに決まる（日付の 0 時の時刻を求めるのに使う。ADMIN_STATS_TIME_ZONE と一緒に変える）
+ */
+export const ADMIN_STATS_UTC_OFFSET = "+09:00"

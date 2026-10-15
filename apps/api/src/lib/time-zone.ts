@@ -1,6 +1,6 @@
 /**
- * ユーザーのタイムゾーン（users.timezone。IANA 名）での日時の表し方。
- * 提出の study_date（reading-practice）と、学習記録の「今日」（learning-record）が使う
+ * タイムゾーン（IANA 名）での日時の表し方。ユーザーのタイムゾーン（users.timezone）での提出の study_date（reading-practice）と
+ * 学習記録の「今日」（learning-record）、admin のダッシュボードの日本時間の日（admin-dashboard）が使う
  */
 
 /**
@@ -32,6 +32,7 @@ export const formatTimeInTimeZone = (instant: Date, timeZone: string): string =>
 }
 
 /**
- * 日本時間の日付（YYYY-MM-DD）の 0 時の時刻。日本は夏時間が無いので、オフセットを +09:00 に固定してよい（admin のダッシュボードの期間の始まり）
+ * UTC からのずれが utcOffset（例 "+09:00"）の地域での、日付（YYYY-MM-DD）の 0 時の時刻。夏時間の無いタイムゾーンにだけ使う
+ * （admin のダッシュボードの期間の始まり。@repo/domain の ADMIN_STATS_UTC_OFFSET）
  */
-export const convertTokyoDateToStartInstant = (date: string): Date => new Date(`${date}T00:00:00+09:00`)
+export const convertDateToStartInstant = (date: string, utcOffset: string): Date => new Date(`${date}T00:00:00${utcOffset}`)

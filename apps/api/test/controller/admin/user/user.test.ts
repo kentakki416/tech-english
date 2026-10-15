@@ -111,7 +111,7 @@ describe("GET /api/admin/user", () => {
       expect(res.status).toBe(401)
     })
 
-    it.each([["sort=name"], ["page=0"], ["limit=101"]])("%s は 400", async (query) => {
+    it.each([["sort=name"], ["page=0"], ["page=10001"], ["limit=101"]])("%s は 400", async (query) => {
       const res = await request(app).get(`/api/admin/user?${query}`).set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
 
       expect(res.status).toBe(400)
@@ -153,32 +153,48 @@ describe("GET /api/admin/user/:id", () => {
   })
 })
 
-describe("GET /api/admin/user/:id/calendar・/attempts", () => {
+describe("GET /api/admin/user/:id/calendar", () => {
   describe("正常系", () => {
-    it("マイページと同じ形のカレンダーと学習履歴を返す", async () => {
+    it("マイページと同じ形のカレンダーを返す", async () => {
       const user = await insertLearner()
 
-      const calendar = await request(app).get(`/api/admin/user/${user.id}/calendar?from=2026-10-10&to=2026-10-12`).set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
-      const attempts = await request(app).get(`/api/admin/user/${user.id}/attempts?limit=5`).set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+      const res = await request(app).get(`/api/admin/user/${user.id}/calendar?from=2026-10-10&to=2026-10-12`).set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
 
-      expect(calendar.status).toBe(200)
-      expect(calendar.body.days.map((day: { attempt_count: number, date: string }) => [day.date, day.attempt_count])).toEqual([
+      expect(res.status).toBe(200)
+      expect(res.body.days.map((day: { attempt_count: number, date: string }) => [day.date, day.attempt_count])).toEqual([
         ["2026-10-10", 0],
         ["2026-10-11", 0],
         ["2026-10-12", 1],
       ])
-      expect(attempts.status).toBe(200)
-      expect(attempts.body).toMatchObject({ attempts: [{ study_date: "2026-10-12" }], next_cursor: null })
     })
   })
 
   describe("異常系", () => {
-    it("存在しないユーザーはどちらも 404（マイページの 401 にはしない）", async () => {
-      const calendar = await request(app).get("/api/admin/user/999999/calendar").set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
-      const attempts = await request(app).get("/api/admin/user/999999/attempts").set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+    it("存在しないユーザーは 404（マイページの 401 にはしない）", async () => {
+      const res = await request(app).get("/api/admin/user/999999/calendar").set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
 
-      expect(calendar.status).toBe(404)
-      expect(attempts.status).toBe(404)
+      expect(res.status).toBe(404)
+    })
+  })
+})
+
+describe("GET /api/admin/user/:id/attempts", () => {
+  describe("正常系", () => {
+    it("マイページと同じ形の学習履歴を返す", async () => {
+      const user = await insertLearner()
+
+      const res = await request(app).get(`/api/admin/user/${user.id}/attempts?limit=5`).set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+
+      expect(res.status).toBe(200)
+      expect(res.body).toMatchObject({ attempts: [{ study_date: "2026-10-12" }], next_cursor: null })
+    })
+  })
+
+  describe("異常系", () => {
+    it("存在しないユーザーは 404（マイページの 401 にはしない）", async () => {
+      const res = await request(app).get("/api/admin/user/999999/attempts").set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+
+      expect(res.status).toBe(404)
     })
   })
 })

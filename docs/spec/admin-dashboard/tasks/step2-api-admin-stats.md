@@ -118,7 +118,7 @@ export const getAdminStatsOverviewResponseSchema = z.object({
 export const getAdminPassageStatsListQueryStringSchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(50),
   order: z.enum(["asc", "desc"]).default("desc"),
-  page: z.coerce.number().int().min(1).default(1),
+  page: z.coerce.number().int().min(1).max(10_000).default(1),
   /**
    * タイトルの部分一致
    */
@@ -203,7 +203,7 @@ import type { AdminStatsPeriod } from "@repo/domain"
 /**
  * 期間の範囲。from は日本時間の始まりの日の 0 時（UTC の Date）。all は null（最初から）
  */
-export type StatsRange = {
+export type StatsPeriodRange = {
   bucket: "day" | "week"
   from: Date | null
   /**
@@ -217,22 +217,22 @@ export type StatsRange = {
 /**
  * 7d / 30d は今日を含む 7 日・30 日（日ごと）、all は全期間（週ごと）
  */
-export const resolveStatsPeriod = (period: AdminStatsPeriod, now: Date): StatsRange => {
+export const resolveStatsPeriod = (period: AdminStatsPeriod, now: Date): StatsPeriodRange => {
   /** formatDateInTimeZone(now, "Asia/Tokyo") で今日、addDaysToDate で始まりの日を求め、その日の日本時間 0 時を UTC の Date にする */
 }
 ```
 
-- 日付は既存の `src/lib/time-zone.ts` の `formatDateInTimeZone` と `@repo/domain` の `addDaysToDate` を使う。日本時間の日付の 0 時を UTC の `Date` にする `convertTokyoDateToStartInstant`（日本は夏時間が無いので `${date}T00:00:00+09:00`）を `src/lib/time-zone.ts` に足す
+- 日付は既存の `src/lib/time-zone.ts` の `formatDateInTimeZone` と `@repo/domain` の `addDaysToDate` を使う。日付の 0 時を UTC の `Date` にする `convertDateToStartInstant(date, utcOffset)` を `src/lib/time-zone.ts` に足し、`@repo/domain` の `ADMIN_STATS_UTC_OFFSET`（`+09:00`。日本は夏時間が無い）を渡す。`ADMIN_STATS_TIME_ZONE` と食い違わないことをテストで確かめる
 - 日本時間（`"Asia/Tokyo"`）は `@repo/domain` の `ADMIN_STATS_TIME_ZONE`（`const/admin-stats.ts`）にして、Repository の SQL と同じ値を使う
 - テスト（`test/lib/resolve-stats-period.test.ts`）：日本時間の 0 時の前後（UTC 14:59 / 15:00）で今日が変わる、7d の from は 6 日前の 0 時、all の from は null で bucket が week
 
 ### 4. 「要確認」の判定（純関数）
 
-`src/lib/is-question-needing-review.ts`。
+`@repo/domain` の `src/rules/admin-stats.ts`（業務ルールは domain の `rules/`。下限の定数と同じ場所）。テストは `packages/domain/test/rules/admin-stats.test.ts`。
 
 ```typescript
-/** apps/api/src/lib/is-question-needing-review.ts */
-import { ADMIN_QUESTION_REVIEW_MIN_ANSWERS } from "@repo/domain"
+/** packages/domain/src/rules/admin-stats.ts */
+import { ADMIN_QUESTION_REVIEW_MIN_ANSWERS } from "../const/admin-stats"
 
 /**
  * 正解でない選択肢が正解と同じかそれ以上選ばれている（その設問の期間内の解答が下限以上のときだけ）
@@ -402,7 +402,7 @@ export const getAdminPassageStats = async (
 - 比率は `AttemptTotals` から求める共通の関数（`convertAttemptTotalsToRates`）にまとめる。分母が 0 なら `null`
 - 週ごとの推移の `fromDate`（最初のユーザーの登録日）と `toDate`（今日）は、その週の月曜にそろえてから Repository に渡す
 - 平均の解答時間は `elapsedSecondsSum / solvedAttempts`（0 回なら `null`）
-- テスト（`test/service/admin-stats-service.test.ts`、Repository は `vi.fn()`）：分母 0 の比率が `null`、all の `from` が最初の登録日・ユーザーがいなければ今日、最初の登録が水曜でも週ごとの推移の始まりが月曜になる、問題が無いと 404、`needs_review` が `isQuestionNeedingReview`（設問ごとの `answerCount`）の結果になる
+- テスト（`test/service/admin-stats-service/` に関数ごとのファイル、Repository は `vi.fn()`）：分母 0 の比率が `null`、all の `from` が最初の登録日・ユーザーがいなければ今日、最初の登録が水曜でも週ごとの推移の始まりが月曜になる、問題が無いと 404、`needs_review` が `isQuestionNeedingReview`（設問ごとの `answerCount`）の結果になる
 
 ### 7. Controller・Router・DI
 

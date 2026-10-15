@@ -24,9 +24,6 @@ export type UpdateUserProfileInput = {
 }
 
 /**
- * ユーザーリポジトリのインターフェース
- */
-/**
  * admin のユーザー一覧の 1 行
  */
 export type AdminUserListItem = User & {
@@ -52,6 +49,9 @@ export type FindUsersForAdminQuery = {
   sort: AdminUserSort
 }
 
+/**
+ * ユーザーリポジトリのインターフェース
+ */
 export interface UserRepository {
   create(data: CreateUserInput, tx?: TransactionContext): Promise<User>
   /**

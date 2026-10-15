@@ -35,7 +35,7 @@ const adminUserBaseSchema = z.object({
 })
 
 /**
- * ユーザー一覧の並べ替えの列
+ * ユーザー一覧の並べ替えの列（admin は @repo/domain を import できないので、domain の AdminUserSort と同じ集合の型をここからも出す）
  */
 export const adminUserSortSchema = z.enum(ADMIN_USER_SORTS)
 
@@ -45,10 +45,13 @@ export type AdminUserSort = z.infer<typeof adminUserSortSchema>
 // GET /api/admin/user - ユーザー一覧
 // ========================================================
 
+/**
+ * ユーザー一覧のクエリ文字列スキーマ。page は 1 始まり（大きすぎる値で OFFSET があふれないよう上限を置く）
+ */
 export const getAdminUserListQueryStringSchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(50),
   order: z.enum(["asc", "desc"]).default("desc"),
-  page: z.coerce.number().int().min(1).default(1),
+  page: z.coerce.number().int().min(1).max(10_000).default(1),
   /**
    * 名前・メールアドレスの部分一致
    */
@@ -56,6 +59,9 @@ export const getAdminUserListQueryStringSchema = z.object({
   sort: adminUserSortSchema.default("created_at"),
 })
 
+/**
+ * ユーザー一覧のレスポンススキーマ。total は絞り込んだ全体の件数
+ */
 export const getAdminUserListResponseSchema = z.object({
   limit: z.number().int(),
   page: z.number().int(),
@@ -72,10 +78,16 @@ export type GetAdminUserListResponse = z.infer<typeof getAdminUserListResponseSc
 // GET /api/admin/user/:id - ユーザーの詳細
 // ========================================================
 
+/**
+ * ユーザーの詳細のパスパラメータスキーマ
+ */
 export const getAdminUserPathParamSchema = z.object({
   id: z.coerce.number().int().positive(),
 })
 
+/**
+ * ユーザーの詳細のレスポンススキーマ。stats・vocabulary はマイページ（/api/user/stats・/api/vocabulary/summary）と同じ形
+ */
 export const getAdminUserResponseSchema = z.object({
   stats: getUserStatsResponseSchema,
   user: adminUserBaseSchema.extend({
@@ -91,8 +103,23 @@ export type GetAdminUserResponse = z.infer<typeof getAdminUserResponseSchema>
 // GET /api/admin/user/:id/calendar・/attempts - ユーザー向けと同じ形
 // ========================================================
 
+/**
+ * 学習カレンダーのパスパラメータスキーマ
+ */
+export const getAdminUserCalendarPathParamSchema = z.object({
+  id: z.coerce.number().int().positive(),
+})
+
 export const getAdminUserCalendarQueryStringSchema = getUserCalendarQueryStringSchema
 export const getAdminUserCalendarResponseSchema = getUserCalendarResponseSchema
+
+/**
+ * 学習履歴のパスパラメータスキーマ
+ */
+export const getAdminUserAttemptsPathParamSchema = z.object({
+  id: z.coerce.number().int().positive(),
+})
+
 export const getAdminUserAttemptsQueryStringSchema = getUserAttemptsQueryStringSchema
 export const getAdminUserAttemptsResponseSchema = getUserAttemptsResponseSchema
 

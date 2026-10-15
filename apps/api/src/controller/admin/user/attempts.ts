@@ -1,6 +1,6 @@
 import { Request, Response } from "express"
 
-import { getAdminUserAttemptsQueryStringSchema, getAdminUserAttemptsResponseSchema, getAdminUserPathParamSchema } from "@repo/api-schema"
+import { getAdminUserAttemptsQueryStringSchema, getAdminUserAttemptsResponseSchema, getAdminUserAttemptsPathParamSchema } from "@repo/api-schema"
 
 import { parseRequest, parseResponse } from "../../../lib/parse-schema"
 import { sendError } from "../../../lib/send-error"
@@ -18,7 +18,7 @@ export class AdminUserAttemptsController {
   ) {}
 
   public async execute(req: Request, res: Response) {
-    const { id } = parseRequest(getAdminUserPathParamSchema, req.params)
+    const { id } = parseRequest(getAdminUserAttemptsPathParamSchema, req.params)
     const query = parseRequest(getAdminUserAttemptsQueryStringSchema, req.query)
 
     const result = await service.adminUser.getAdminUserAttempts(

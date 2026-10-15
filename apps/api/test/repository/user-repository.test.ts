@@ -220,6 +220,22 @@ describe("UserRepository.findForAdmin", () => {
 
       expect(await userRepository.findForAdmin({ ...query, limit: 1, offset: 1 })).toMatchObject({ items: [{ id: old.id }], total: 3 })
     })
+
+    it("並べ替え：解いた回数の多い順。同じ値は ID の順で、学習していない人（0 回）は最後", async () => {
+      const passage = await insertGeneratedPassage({ status: "published" })
+      const questionIds = passage.questions.map((question) => question.id)
+      const never = await insertUser({ createdAt: "2026-10-01T00:00:00.000Z", name: "never" })
+      const once = await insertUser({ createdAt: "2026-10-02T00:00:00.000Z", name: "once" })
+      const alsoOnce = await insertUser({ createdAt: "2026-10-03T00:00:00.000Z", name: "alsoOnce" })
+      const twice = await insertUser({ createdAt: "2026-10-04T00:00:00.000Z", name: "twice" })
+      for (const user of [once, alsoOnce, twice, twice]) {
+        await createSubmittedAttempt({ passageId: passage.passage.id, questionIds, studyDate: "2026-10-10", userId: user.id })
+      }
+
+      const sorted = await userRepository.findForAdmin({ ...query, sort: "solved_attempts" })
+
+      expect(sorted.items.map((item) => [item.name, item.solvedAttempts])).toEqual([["twice", 2], ["once", 1], ["alsoOnce", 1], ["never", 0]])
+    })
   })
 
   describe("異常系", () => {

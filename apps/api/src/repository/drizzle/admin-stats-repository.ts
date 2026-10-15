@@ -1,5 +1,5 @@
 import { DrizzleClient, type SQL, sql } from "@repo/db"
-import { ADMIN_STATS_TIME_ZONE, type AdminPassageStatsSort, type PassageStatus, type QuestionType } from "@repo/domain"
+import { ADMIN_STATS_TIME_ZONE, type AdminPassageStatsSort, type PassageDifficulty, type PassageStatus, type QuestionType } from "@repo/domain"
 
 import type {
   AdminStatsRepository,
@@ -13,26 +13,20 @@ import type {
 } from "../admin-stats-repository"
 
 import { buildContainsLikePattern } from "./like-pattern"
-
-/**
- * UTC の時刻を `timestamp without time zone` の値にする。timestamp は UTC で保存している（@repo/db の columns.ts）。
- * Date をそのまま渡すと pg が Node のタイムゾーンのオフセットを付けて送り、列の型がそれを無視してずれるので、ISO 8601 の文字列で渡す
- * （timestamp without time zone への変換では、末尾の Z は無視される）
- */
-const toUtcTimestamp = (instant: Date): SQL => sql`${instant.toISOString()}::timestamp`
+import { convertInstantToUtcTimestamp, convertUtcTimestampTextToDate } from "./utc-timestamp"
 
 /**
  * column が期間に入る条件（from 以上・to 未満。from が null なら下限なし）
  */
 const buildPeriodCondition = (column: SQL, range: StatsTimeRange): SQL =>
   range.from === null
-    ? sql`${column} < ${toUtcTimestamp(range.to)}`
-    : sql`${column} >= ${toUtcTimestamp(range.from)} AND ${column} < ${toUtcTimestamp(range.to)}`
+    ? sql`${column} < ${convertInstantToUtcTimestamp(range.to)}`
+    : sql`${column} >= ${convertInstantToUtcTimestamp(range.from)} AND ${column} < ${convertInstantToUtcTimestamp(range.to)}`
 
 /**
  * 日本時間の日付（YYYY-MM-DD）の 0 時を、UTC の timestamp without time zone にする
  */
-const toUtcStartOfTokyoDate = (date: SQL): SQL =>
+const convertTokyoDateToUtcStart = (date: SQL): SQL =>
   sql`((${date})::timestamp AT TIME ZONE ${ADMIN_STATS_TIME_ZONE}) AT TIME ZONE 'UTC'`
 
 /**
@@ -85,7 +79,10 @@ const convertAttemptTotalsRow = (row: AttemptTotalsRow): AttemptTotals => ({
 
 type PassageStatsQueryRow = AttemptTotalsRow & {
   id: number
-  difficulty: number | null
+  /**
+   * DB の CHECK で 1〜3 か NULL
+   */
+  difficulty: PassageDifficulty | null
   published_at: string | null
   source_id: number
   source_name: string
@@ -107,16 +104,11 @@ const PASSAGE_STATS_SORT_EXPRESSIONS: Record<AdminPassageStatsSort, SQL> = {
   solved_users: sql`coalesce(s.solved_users, 0)`,
 }
 
-/**
- * timestamp without time zone（UTC）の文字列を Date にする（pg は timestamp を文字列のまま返す設定のため）
- */
-const parseUtcTimestamp = (value: string): Date => new Date(`${value.replace(" ", "T")}Z`)
-
 const convertPassageStatsRow = (row: PassageStatsQueryRow): PassageStatsRow => ({
   id: row.id,
   ...convertAttemptTotalsRow(row),
   difficulty: row.difficulty,
-  publishedAt: row.published_at === null ? null : parseUtcTimestamp(row.published_at),
+  publishedAt: row.published_at === null ? null : convertUtcTimestampTextToDate(row.published_at),
   source: { id: row.source_id, name: row.source_name },
   status: row.status,
   timeLimitSeconds: row.time_limit_seconds,
@@ -136,7 +128,7 @@ export class DrizzleAdminStatsRepository implements AdminStatsRepository {
   public async findFirstUserCreatedAt(): Promise<Date | null> {
     const result = await this._db.execute<{ first_created_at: string | null }>(sql`SELECT min(created_at)::text AS first_created_at FROM users`)
     const value = result.rows[0]?.first_created_at ?? null
-    return value === null ? null : parseUtcTimestamp(value)
+    return value === null ? null : convertUtcTimestampTextToDate(value)
   }
 
   /**
@@ -145,8 +137,8 @@ export class DrizzleAdminStatsRepository implements AdminStatsRepository {
   public async findOverviewSeries(range: { bucket: "day" | "week"; fromDate: string; toDate: string }): Promise<SeriesPoint[]> {
     const step = range.bucket === "week" ? "1 week" : "1 day"
     const lastBucketDays = range.bucket === "week" ? 7 : 1
-    const start = toUtcStartOfTokyoDate(sql`${range.fromDate}::date`)
-    const end = toUtcStartOfTokyoDate(sql`${range.toDate}::date + ${lastBucketDays}::integer`)
+    const start = convertTokyoDateToUtcStart(sql`${range.fromDate}::date`)
+    const end = convertTokyoDateToUtcStart(sql`${range.toDate}::date + ${lastBucketDays}::integer`)
     const result = await this._db.execute<{ active_users: string; date: string; new_users: string; solved_attempts: string }>(sql`
       WITH buckets AS (
         SELECT generate_series(${range.fromDate}::date::timestamp, ${range.toDate}::date::timestamp, ${step}::interval)::date AS bucket
@@ -192,7 +184,7 @@ export class DrizzleAdminStatsRepository implements AdminStatsRepository {
   }
 
   /**
-   * 範囲外のページ（行が 0 件）では count(*) OVER () が取れないので、件数だけ数え直す
+   * 範囲外のページ（offset が 1 以上で行が 0 件）では count(*) OVER () が取れないので、件数だけ数え直す
    */
   public async findPassageStats(query: FindPassageStatsQuery): Promise<{ items: PassageStatsRow[]; total: number }> {
     const filter = sql`(p.status = 'published' OR s.solved_attempts > 0)${query.q === undefined ? sql`` : sql` AND p.title ILIKE ${buildContainsLikePattern(query.q)} ESCAPE '\\'`}`
@@ -205,6 +197,7 @@ export class DrizzleAdminStatsRepository implements AdminStatsRepository {
     if (result.rows.length > 0) {
       return { items: result.rows.map(convertPassageStatsRow), total: Number(result.rows[0].total) }
     }
+    if (query.offset === 0) return { items: [], total: 0 }
     const counted = await this._db.execute<{ total: string }>(sql`
       SELECT count(*) AS total FROM (${this._buildPassageStatsSelect(query, filter)}) counted
     `)
@@ -262,6 +255,9 @@ export class DrizzleAdminStatsRepository implements AdminStatsRepository {
       if (answer.selected_choice_index === null) {
         question.unansweredCount += answers
       } else if (answer.selected_choice_index < question.choiceCounts.length) {
+        /**
+         * 選択肢は生成と admin の保存の検査でいつも QUESTION_CHOICE_COUNT 個あるので、範囲外の番号は起きない（起きても選択肢には数えない）
+         */
         question.choiceCounts[answer.selected_choice_index] += answers
       }
     }
@@ -270,20 +266,23 @@ export class DrizzleAdminStatsRepository implements AdminStatsRepository {
 
   /**
    * 提出・単語帳の答え・登録をそれぞれ期間で絞り、1 行にまとめる。学習したユーザーは提出と単語帳の user_id の和集合
+   * （CTE は使う列だけにし、和集合の前にそれぞれ重複を除いて、並べ替える行を減らす）
    */
   public async summarizeOverview(range: StatsTimeRange): Promise<OverviewTotals> {
     const result = await this._db.execute<AttemptTotalsRow & { active_users: string; new_users: string; total_users: string }>(sql`
       WITH solved AS (
-        SELECT ra.* FROM reading_attempts ra
+        SELECT ra.user_id, ra.correct_count, ra.question_count, ra.elapsed_seconds, ra.is_overtime,
+               ra.translated_block_count, ra.word_lookup_count, ra.listened_block_count
+          FROM reading_attempts ra
          WHERE ra.status = 'submitted' AND ${buildPeriodCondition(sql`ra.submitted_at`, range)}
       )
       SELECT ${ATTEMPT_TOTAL_COLUMNS},
              (SELECT count(*) FROM users) AS total_users,
              (SELECT count(*) FROM users u WHERE ${buildPeriodCondition(sql`u.created_at`, range)}) AS new_users,
              (SELECT count(*) FROM (
-                SELECT user_id FROM solved
+                SELECT DISTINCT user_id FROM solved
                 UNION
-                SELECT vr.user_id FROM vocabulary_reviews vr WHERE ${buildPeriodCondition(sql`vr.created_at`, range)}
+                SELECT DISTINCT vr.user_id FROM vocabulary_reviews vr WHERE ${buildPeriodCondition(sql`vr.created_at`, range)}
              ) studied) AS active_users
         FROM solved ra
     `)

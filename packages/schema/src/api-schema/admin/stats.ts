@@ -1,6 +1,8 @@
 import { z } from "zod"
 
-import { ADMIN_PASSAGE_STATS_SORTS, ADMIN_STATS_PERIODS, PASSAGE_DIFFICULTIES, PASSAGE_STATUSES, QUESTION_TYPES } from "@repo/domain"
+import { ADMIN_PASSAGE_STATS_SORTS, ADMIN_STATS_PERIODS, PASSAGE_STATUSES, QUESTION_TYPES } from "@repo/domain"
+
+import { passageDifficultySchema } from "../passage"
 
 // ========================================================
 // 共通: ダッシュボードの数字の部品
@@ -20,13 +22,14 @@ const assistRatesSchema = z.object({
   translated: rateSchema,
 })
 
-const PASSAGE_DIFFICULTY_VALUES: readonly number[] = PASSAGE_DIFFICULTIES
-
 /**
  * 期間（直近 7 日・直近 30 日・全期間）
  */
 export const adminStatsPeriodSchema = z.enum(ADMIN_STATS_PERIODS)
 
+/**
+ * admin は @repo/domain を import できないので、domain の AdminStatsPeriod と同じ集合の型をここからも出す（AdminPassageStatsSort も同じ）
+ */
 export type AdminStatsPeriod = z.infer<typeof adminStatsPeriodSchema>
 
 /**
@@ -44,11 +47,7 @@ export const adminPassageStatsRowSchema = z.object({
   assist_rates: assistRatesSchema,
   average_elapsed_seconds: z.number().nullable(),
   correct_rate: rateSchema,
-  difficulty: z
-    .number()
-    .int()
-    .refine(value => PASSAGE_DIFFICULTY_VALUES.includes(value), { message: "Invalid difficulty" })
-    .nullable(),
+  difficulty: passageDifficultySchema.nullable(),
   overtime_rate: rateSchema,
   /**
    * 公開日時（ISO 8601）。公開したことが無ければ null
@@ -68,10 +67,16 @@ export type AdminPassageStatsRowResponse = z.infer<typeof adminPassageStatsRowSc
 // GET /api/admin/stats/overview - 全体の利用状況
 // ========================================================
 
+/**
+ * 全体の利用状況のクエリ文字列スキーマ
+ */
 export const getAdminStatsOverviewQueryStringSchema = z.object({
   period: adminStatsPeriodSchema.default("30d"),
 })
 
+/**
+ * 全体の利用状況のレスポンススキーマ。比率は 0〜1 で、分母が 0 なら null
+ */
 export const getAdminStatsOverviewResponseSchema = z.object({
   active_users: z.number().int(),
   assist_rates: assistRatesSchema,
@@ -110,10 +115,13 @@ export type GetAdminStatsOverviewResponse = z.infer<typeof getAdminStatsOverview
 // GET /api/admin/stats/passage - 問題ごとの成績
 // ========================================================
 
+/**
+ * 問題ごとの成績のクエリ文字列スキーマ。page は 1 始まり（大きすぎる値で OFFSET があふれないよう上限を置く）
+ */
 export const getAdminPassageStatsListQueryStringSchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(50),
   order: z.enum(["asc", "desc"]).default("desc"),
-  page: z.coerce.number().int().min(1).default(1),
+  page: z.coerce.number().int().min(1).max(10_000).default(1),
   period: adminStatsPeriodSchema.default("30d"),
   /**
    * タイトルの部分一致
@@ -122,6 +130,9 @@ export const getAdminPassageStatsListQueryStringSchema = z.object({
   sort: adminPassageStatsSortSchema.default("solved_users"),
 })
 
+/**
+ * 問題ごとの成績のレスポンススキーマ。total は絞り込んだ全体の件数
+ */
 export const getAdminPassageStatsListResponseSchema = z.object({
   limit: z.number().int(),
   page: z.number().int(),
@@ -136,14 +147,23 @@ export type GetAdminPassageStatsListResponse = z.infer<typeof getAdminPassageSta
 // GET /api/admin/stats/passage/:id - 問題の分析
 // ========================================================
 
+/**
+ * 問題の分析のパスパラメータスキーマ
+ */
 export const getAdminPassageStatsPathParamSchema = z.object({
   id: z.coerce.number().int().positive(),
 })
 
+/**
+ * 問題の分析のクエリ文字列スキーマ
+ */
 export const getAdminPassageStatsQueryStringSchema = z.object({
   period: adminStatsPeriodSchema.default("30d"),
 })
 
+/**
+ * 問題の分析のレスポンススキーマ。期間内に解かれていない問題も 200 で返す（数は 0、比率は null）
+ */
 export const getAdminPassageStatsResponseSchema = z.object({
   passage: adminPassageStatsRowSchema,
   period: adminStatsPeriodSchema,

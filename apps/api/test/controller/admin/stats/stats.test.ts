@@ -1,5 +1,7 @@
 import request from "supertest"
 
+import { users } from "@repo/db"
+
 import { AdminStatsOverviewController } from "../../../../src/controller/admin/stats/overview"
 import { AdminPassageStatsDetailController } from "../../../../src/controller/admin/stats/passage-detail"
 import { AdminPassageStatsListController } from "../../../../src/controller/admin/stats/passage-list"
@@ -8,7 +10,7 @@ import { ADMIN_TOKEN_HEADER } from "../../../../src/middleware/admin-auth"
 import { DrizzleAdminStatsRepository } from "../../../../src/repository/drizzle/admin-stats-repository"
 import { adminRouter } from "../../../../src/routes/admin-router"
 import { createSubmittedAttempt } from "../../../fixture/learning-record"
-import { insertAttemptUser, insertGeneratedPassage } from "../../../fixture/passage"
+import { insertGeneratedPassage } from "../../../fixture/passage"
 import { attachUnhandledExceptionHandler, createTestApp } from "../../helper"
 import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb } from "../../setup"
 
@@ -29,11 +31,15 @@ app.use(
 attachUnhandledExceptionHandler(app)
 
 /**
- * 1 時間前に提出した挑戦つきの公開中の問題（Q1 で 0 を選んで不正解、ほかは正解）
+ * 1 時間前に提出した挑戦つきの公開中の問題（Q1 で 0 を選んで不正解、ほかは正解）。ユーザーは 2 時間前に登録した
+ * （DB の now() と API の new Date() の時計のずれで、登録が期間の終わりより後にならないよう、登録日時を明示する）
  */
 const insertSolvedPassage = async () => {
   const generated = await insertGeneratedPassage({ publishedAt: new Date("2026-10-01T03:00:00.000Z"), status: "published" })
-  const user = await insertAttemptUser()
+  const [user] = await testDb
+    .insert(users)
+    .values({ createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000), email: "stats-learner@example.com", name: "Learner" })
+    .returning()
   const questionIds = generated.questions.map((question) => question.id)
   await createSubmittedAttempt({
     correctness: [false, true, true],
@@ -140,7 +146,7 @@ describe("GET /api/admin/stats/passage", () => {
   })
 
   describe("異常系", () => {
-    it.each([["sort=title"], ["page=0"], ["limit=101"], ["order=up"]])("%s は 400", async (query) => {
+    it.each([["sort=title"], ["page=0"], ["page=10001"], ["page=1e300"], ["limit=101"], ["order=up"]])("%s は 400", async (query) => {
       const res = await request(app).get(`/api/admin/stats/passage?${query}`).set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
 
       expect(res.status).toBe(400)
@@ -156,21 +162,48 @@ describe("GET /api/admin/stats/passage/:id", () => {
       const res = await request(app).get(`/api/admin/stats/passage/${passageId}?period=7d`).set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
 
       expect(res.status).toBe(200)
-      expect(res.body.period).toBe("7d")
-      expect(res.body.passage).toMatchObject({ id: passageId, solved_attempts: 1 })
-      expect(res.body.questions[0]).toEqual({
-        id: questionIds[0],
-        answer_count: 1,
-        choice_rates: [1, 0, 0, 0],
-        choices: expect.any(Array),
-        correct_choice_index: 1,
-        correct_rate: 0,
-        needs_review: false,
-        order_index: 0,
-        prompt: expect.any(String),
-        type: "main_idea",
-        unanswered_rate: 0,
+      expect(res.body).toEqual({
+        passage: {
+          id: passageId,
+          assist_rates: { listened: 0, looked_up: 0, translated: 0 },
+          average_elapsed_seconds: 120,
+          correct_rate: 2 / 3,
+          difficulty: 2,
+          overtime_rate: 0,
+          published_at: "2026-10-01T03:00:00.000Z",
+          solved_attempts: 1,
+          solved_users: 1,
+          source: { id: expect.any(Number), name: "React 公式ドキュメント" },
+          status: "published",
+          time_limit_seconds: 180,
+          title: "Synchronizing with Effects",
+        },
+        period: "7d",
+        questions: questionIds.map((id, index) => ({
+          id,
+          answer_count: 1,
+          choice_rates: expect.any(Array),
+          choices: expect.any(Array),
+          correct_choice_index: expect.any(Number),
+          correct_rate: index === 0 ? 0 : 1,
+          needs_review: false,
+          order_index: index,
+          prompt: expect.any(String),
+          type: expect.any(String),
+          unanswered_rate: 0,
+        })),
       })
+      expect(res.body.questions[0].choice_rates).toEqual([1, 0, 0, 0])
+    })
+
+    it("期間内に解かれていない問題も 200 で、数は 0・比率は null", async () => {
+      const generated = await insertGeneratedPassage({ publishedAt: new Date("2026-10-01T03:00:00.000Z"), status: "published" })
+
+      const res = await request(app).get(`/api/admin/stats/passage/${generated.passage.id}`).set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+
+      expect(res.status).toBe(200)
+      expect(res.body.passage).toMatchObject({ average_elapsed_seconds: null, correct_rate: null, solved_attempts: 0, solved_users: 0 })
+      expect(res.body.questions[0]).toMatchObject({ answer_count: 0, choice_rates: [null, null, null, null], correct_rate: null, needs_review: false })
     })
   })
 

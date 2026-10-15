@@ -12,6 +12,7 @@ import type {
 
 import { buildContainsLikePattern } from "./like-pattern"
 import { resolveDrizzleClient } from "./transaction-runner"
+import { convertUtcTimestampTextToDate } from "./utc-timestamp"
 
 /**
  * Drizzleの型
@@ -33,18 +34,14 @@ type AdminUserListRow = {
 }
 
 /**
- * admin のユーザー一覧の並べ替えの式（a は提出の集計、u は users）
+ * admin のユーザー一覧の並べ替えの式（u は users、a は提出の集計、v は単語帳の答えの集計）。出力の別名ではなく式で書く
+ * （別名は入力の列と同じ名前があり、式で包むと入力の列に解決が変わって並びが黙って変わるため）
  */
 const ADMIN_USER_SORT_EXPRESSIONS: Record<AdminUserSort, SQL> = {
   created_at: sql`u.created_at`,
-  last_studied_date: sql`last_studied_date`,
-  solved_attempts: sql`solved_attempts`,
+  last_studied_date: sql`GREATEST(a.last_date, v.last_date)`,
+  solved_attempts: sql`coalesce(a.solved_attempts, 0)`,
 }
-
-/**
- * timestamp without time zone（UTC）の文字列を Date にする
- */
-const parseUtcTimestamp = (value: string): Date => new Date(`${value.replace(" ", "T")}Z`)
 
 /**
  * Drizzle実装のユーザーリポジトリ
@@ -64,7 +61,7 @@ export class DrizzleUserRepository implements UserRepository {
 
   /**
    * users に、提出の数と最後の study_date・単語帳の最後の study_date・ログイン方法を、それぞれユーザーごとに束ねて left join する
-   * （admin-users step1）。範囲外のページ（行が 0 件）では count(*) OVER () が取れないので、件数だけ数え直す
+   * （admin-users step1）。範囲外のページ（offset が 1 以上で行が 0 件）では count(*) OVER () が取れないので、件数だけ数え直す
    */
   public async findForAdmin(query: FindUsersForAdminQuery): Promise<{ items: AdminUserListItem[]; total: number }> {
     const condition = query.q === undefined
@@ -97,7 +94,11 @@ export class DrizzleUserRepository implements UserRepository {
     if (result.rows.length > 0) {
       return { items: result.rows.map((row) => this._toAdminUserListItem(row)), total: Number(result.rows[0].total) }
     }
-    const counted = await this._db.execute<{ total: string }>(sql`SELECT count(*) AS total FROM (${select}) counted`)
+    if (query.offset === 0) return { items: [], total: 0 }
+    /**
+     * 結ぶ集計はどれもユーザーに 1 対 1 なので、件数は users だけで数えられる
+     */
+    const counted = await this._db.execute<{ total: string }>(sql`SELECT count(*) AS total FROM users u WHERE ${condition}`)
     return { items: [], total: Number(counted.rows[0]?.total ?? 0) }
   }
 
@@ -161,7 +162,7 @@ export class DrizzleUserRepository implements UserRepository {
   private _toAdminUserListItem(row: AdminUserListRow): AdminUserListItem {
     return {
       avatarUrl: row.avatar_url,
-      createdAt: parseUtcTimestamp(row.created_at),
+      createdAt: convertUtcTimestampTextToDate(row.created_at),
       email: row.email,
       id: row.id,
       lastStudiedDate: row.last_studied_date,
@@ -169,7 +170,7 @@ export class DrizzleUserRepository implements UserRepository {
       providers: row.providers,
       solvedAttempts: Number(row.solved_attempts),
       timezone: row.timezone,
-      updatedAt: parseUtcTimestamp(row.updated_at),
+      updatedAt: convertUtcTimestampTextToDate(row.updated_at),
     }
   }
 

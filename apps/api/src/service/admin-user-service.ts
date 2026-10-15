@@ -46,6 +46,12 @@ const findUserForAdmin = async (userId: number, repo: { userRepository: UserRepo
 }
 
 /**
+ * マイページの Service の 401（確かめた後に退会してユーザーが消えたとき）を、admin では 404 に読み替える
+ */
+const convertMissingUserToNotFound = <T>(result: Result<T>): Result<T> =>
+  !result.ok && result.error.statusCode === 401 ? err(notFoundError("User not found")) : result
+
+/**
  * ユーザー一覧（page は 1 始まり。範囲外のページは空の配列で、total は全体の件数）
  */
 export const getAdminUserList = async (
@@ -79,8 +85,8 @@ export const getAdminUser = async (
     repo.authAccountRepository.findProvidersByUserId(userId),
     repo.learningRecordRepository.findStudyDates(userId),
   ])
-  if (!statsResult.ok) return statsResult
-  if (!vocabularyResult.ok) return vocabularyResult
+  if (!statsResult.ok) return convertMissingUserToNotFound(statsResult)
+  if (!vocabularyResult.ok) return convertMissingUserToNotFound(vocabularyResult)
 
   return ok({
     stats: statsResult.value,
@@ -100,7 +106,7 @@ export const getAdminUserCalendar = async (
 ): Promise<Result<UserCalendar>> => {
   const userResult = await findUserForAdmin(userId, repo)
   if (!userResult.ok) return userResult
-  return getUserCalendar(userId, range, repo, deps)
+  return convertMissingUserToNotFound(await getUserCalendar(userId, range, repo, deps))
 }
 
 /**
@@ -113,5 +119,5 @@ export const getAdminUserAttempts = async (
 ): Promise<Result<UserAttempts>> => {
   const userResult = await findUserForAdmin(userId, repo)
   if (!userResult.ok) return userResult
-  return getUserAttempts(userId, query, repo)
+  return convertMissingUserToNotFound(await getUserAttempts(userId, query, repo))
 }

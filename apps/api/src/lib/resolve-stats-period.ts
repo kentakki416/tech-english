@@ -1,6 +1,6 @@
-import { addDaysToDate, ADMIN_STATS_TIME_ZONE, type AdminStatsPeriod } from "@repo/domain"
+import { addDaysToDate, ADMIN_STATS_TIME_ZONE, ADMIN_STATS_UTC_OFFSET, type AdminStatsPeriod } from "@repo/domain"
 
-import { convertTokyoDateToStartInstant, formatDateInTimeZone } from "./time-zone"
+import { convertDateToStartInstant, formatDateInTimeZone } from "./time-zone"
 
 /**
  * 期間の範囲。from は日本時間の始まりの日の 0 時（全期間は null）、to は今。fromDate / toDate は日本時間の日付
@@ -30,5 +30,5 @@ export const resolveStatsPeriod = (period: AdminStatsPeriod, now: Date): StatsPe
     return { bucket: "week", from: null, fromDate: null, to: now, toDate }
   }
   const fromDate = addDaysToDate(toDate, -(PERIOD_DAYS[period] - 1))
-  return { bucket: "day", from: convertTokyoDateToStartInstant(fromDate), fromDate, to: now, toDate }
+  return { bucket: "day", from: convertDateToStartInstant(fromDate, ADMIN_STATS_UTC_OFFSET), fromDate, to: now, toDate }
 }

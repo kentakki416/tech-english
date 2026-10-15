@@ -1,6 +1,6 @@
 import { Request, Response } from "express"
 
-import { getAdminUserCalendarQueryStringSchema, getAdminUserCalendarResponseSchema, getAdminUserPathParamSchema } from "@repo/api-schema"
+import { getAdminUserCalendarQueryStringSchema, getAdminUserCalendarResponseSchema, getAdminUserCalendarPathParamSchema } from "@repo/api-schema"
 
 import { parseRequest, parseResponse } from "../../../lib/parse-schema"
 import { sendError } from "../../../lib/send-error"
@@ -18,7 +18,7 @@ export class AdminUserCalendarController {
   ) {}
 
   public async execute(req: Request, res: Response) {
-    const { id } = parseRequest(getAdminUserPathParamSchema, req.params)
+    const { id } = parseRequest(getAdminUserCalendarPathParamSchema, req.params)
     const query = parseRequest(getAdminUserCalendarQueryStringSchema, req.query)
 
     const result = await service.adminUser.getAdminUserCalendar(

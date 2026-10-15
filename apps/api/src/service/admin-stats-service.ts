@@ -3,11 +3,11 @@ import {
   type AdminPassageStatsSort,
   type AdminStatsPeriod,
   getWeekRange,
+  isQuestionNeedingReview,
   type QuestionType,
 } from "@repo/domain"
 import { err, notFoundError, ok, Result } from "@repo/errors"
 
-import { isQuestionNeedingReview } from "../lib/is-question-needing-review"
 import { resolveStatsPeriod } from "../lib/resolve-stats-period"
 import { formatDateInTimeZone } from "../lib/time-zone"
 import type { AdminStatsRepository, AttemptTotals, PassageStatsRow, SeriesPoint } from "../repository"
@@ -24,7 +24,10 @@ export type AttemptRates = {
   overtimeRate: number | null
 }
 
-export type AdminStatsOverview = AttemptRates & {
+/**
+ * 全体の利用状況。平均の解答時間・時間超過の割合は問題ごとの成績でだけ出す
+ */
+export type AdminStatsOverview = Omit<AttemptRates, "averageElapsedSeconds" | "overtimeRate"> & {
   activeUsers: number
   /**
    * 期間の始まりと終わり（日本時間の日付）
@@ -104,19 +107,24 @@ export const getAdminStatsOverview = async (
   deps: { now: Date },
 ): Promise<Result<AdminStatsOverview>> => {
   const range = resolveStatsPeriod(period, deps.now)
-  const [totals, firstUserCreatedAt] = await Promise.all([
-    repo.adminStatsRepository.summarizeOverview({ from: range.from, to: range.to }),
-    range.fromDate === null ? repo.adminStatsRepository.findFirstUserCreatedAt() : Promise.resolve(null),
-  ])
+  const firstUserCreatedAt = range.fromDate === null ? await repo.adminStatsRepository.findFirstUserCreatedAt() : null
   const fromDate = range.fromDate ?? (firstUserCreatedAt === null ? range.toDate : formatDateInTimeZone(firstUserCreatedAt, ADMIN_STATS_TIME_ZONE))
-  const points = await repo.adminStatsRepository.findOverviewSeries(
-    range.bucket === "week"
-      ? { bucket: "week", fromDate: getWeekRange(fromDate).start, toDate: getWeekRange(range.toDate).start }
-      : { bucket: "day", fromDate, toDate: range.toDate },
-  )
+  /**
+   * 数字と推移は重い集計なので、並べて流す（推移の始まりは最初の登録日が分かってから決まる）
+   */
+  const [totals, points] = await Promise.all([
+    repo.adminStatsRepository.summarizeOverview({ from: range.from, to: range.to }),
+    repo.adminStatsRepository.findOverviewSeries(
+      range.bucket === "week"
+        ? { bucket: "week", fromDate: getWeekRange(fromDate).start, toDate: getWeekRange(range.toDate).start }
+        : { bucket: "day", fromDate, toDate: range.toDate },
+    ),
+  ])
+  const { assistRates, correctRate } = convertAttemptTotalsToRates(totals)
   return ok({
-    ...convertAttemptTotalsToRates(totals),
     activeUsers: totals.activeUsers,
+    assistRates,
+    correctRate,
     fromDate,
     newUsers: totals.newUsers,
     period,

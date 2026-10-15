@@ -7,6 +7,8 @@ import { sendError } from "../../../lib/send-error"
 import { UserRepository } from "../../../repository"
 import * as service from "../../../service"
 
+import { convertAdminUserToResponse } from "./convert-user-to-response"
+
 /**
  * admin のユーザー一覧API（名前・メールアドレスの絞り込み、並べ替え、offset のページ分け）
  */
@@ -26,16 +28,7 @@ export class AdminUserListController {
       limit: result.value.limit,
       page: result.value.page,
       total: result.value.total,
-      users: result.value.items.map((user) => ({
-        id: user.id,
-        avatar_url: user.avatarUrl,
-        email: user.email,
-        last_studied_date: user.lastStudiedDate,
-        name: user.name,
-        providers: user.providers,
-        solved_attempts: user.solvedAttempts,
-        created_at: user.createdAt.toISOString(),
-      })),
+      users: result.value.items.map((user) => ({ ...convertAdminUserToResponse(user), solved_attempts: user.solvedAttempts })),
     })
     return res.status(200).json(response)
   }
