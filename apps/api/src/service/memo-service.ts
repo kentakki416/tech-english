@@ -29,9 +29,6 @@ const trackIfSignedIn = (
   })
 }
 
-/**
- * メモ一覧を取得
- */
 export const getAllMemos = async (
   repo: MemoRepo
 ): Promise<Result<Memo[]>> => {
@@ -41,9 +38,6 @@ export const getAllMemos = async (
   return ok(memos)
 }
 
-/**
- * メモをIDで取得
- */
 export const getMemoById = async (
   id: number,
   repo: MemoRepo
@@ -57,9 +51,6 @@ export const getMemoById = async (
   return ok(memo)
 }
 
-/**
- * メモを作成
- */
 export const createMemo = async (
   data: CreateMemoInput,
   repo: MemoRepo,
@@ -74,9 +65,6 @@ export const createMemo = async (
   return ok(memo)
 }
 
-/**
- * メモを更新
- */
 export const updateMemo = async (
   id: number,
   data: UpdateMemoInput,
@@ -97,9 +85,6 @@ export const updateMemo = async (
   return ok(memo)
 }
 
-/**
- * メモを削除
- */
 export const deleteMemo = async (
   id: number,
   repo: MemoRepo,

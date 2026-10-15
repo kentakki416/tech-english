@@ -21,9 +21,6 @@ const hasValidChoices = (choices: string[]): boolean => {
   return normalized.every((choice) => choice.length > 0) && new Set(normalized).size === normalized.length
 }
 
-/**
- * 正解の選択肢の位置が 0〜3 か
- */
 const isCorrectChoiceIndex = (index: number): boolean =>
   Number.isInteger(index) && index >= 0 && index < QUESTION_CHOICE_COUNT
 

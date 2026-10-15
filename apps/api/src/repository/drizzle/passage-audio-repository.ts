@@ -6,9 +6,6 @@ import type { TransactionContext } from "../transaction"
 import { convertPassageAudioRowToDomain } from "./passage-audio-row"
 import { resolveDrizzleClient } from "./transaction-runner"
 
-/**
- * Drizzle 実装の PassageAudioRepository
- */
 export class DrizzlePassageAudioRepository implements PassageAudioRepository {
   private _db: DrizzleClient
 

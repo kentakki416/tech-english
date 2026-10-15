@@ -15,9 +15,6 @@ import type { AuthRequest } from "./auth"
  * - エラーの内容ログは sendError ヘルパ（業務 4xx）と unhandled-exception-handler（想定外例外）の責務
  */
 export const requestLogger = (req: Request, res: Response, next: NextFunction) => {
-  /**
-   * ヘルスチェック等はログ除外
-   */
   if (LOG_EXCLUDE_PATHS.some(path => path === req.path)) {
     return next()
   }
@@ -32,9 +29,6 @@ export const requestLogger = (req: Request, res: Response, next: NextFunction) =
    * この中で実行される全てのログに自動的に requestId / userId が含まれる
    */
   logContext.run({ requestId, userId }, () => {
-    /**
-     * リクエスト受信時のログ
-     */
     logger.info("API Request Received", {
       duration: 0,
       ip: req.ip,

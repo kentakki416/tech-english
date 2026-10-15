@@ -73,9 +73,6 @@ export const createSubmittedAttempt = async (input: CreateSubmittedAttemptInput)
   return attempt
 }
 
-/**
- * 目標を入れる
- */
 export const insertUserGoal = async (userId: number, overrides: Partial<typeof userGoals.$inferInsert> = {}) => {
   const [row] = await testDb
     .insert(userGoals)

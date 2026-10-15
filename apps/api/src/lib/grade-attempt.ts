@@ -9,9 +9,6 @@ import type { Question } from "@repo/domain"
  */
 export type AnswerInput = { questionId: number; selectedChoiceIndex: number | null }
 
-/**
- * 採点した回答
- */
 export type GradedAnswer = AnswerInput & { isCorrect: boolean }
 
 /**

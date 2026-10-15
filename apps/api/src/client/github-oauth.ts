@@ -22,9 +22,6 @@ export type GetGitHubUserInfoInput = {
   redirectUri: string
 }
 
-/**
- * GitHubOAuthクライアントのインターフェース
- */
 export interface IGitHubOAuthClient {
   /**
    * code が使えない（期限切れ・使用済み・verifier 不一致）ときは null。通信障害や設定ミスは throw

@@ -54,9 +54,6 @@ const PRIMARY_READ: ReadOptions = { fromPrimary: true }
  */
 export type WordLookupInput = Pick<AttemptWordLookup, "glossaryEntryId" | "lemma" | "source" | "surface">
 
-/**
- * 挑戦した問題の概要
- */
 export type AttemptPassageView = Pick<Passage, "id" | "title" | "wordCount"> & { difficulty: PassageDifficulty }
 
 /**
@@ -126,9 +123,6 @@ export type ResultQuestionView = AttemptQuestionView &
     selectedChoiceIndex: number | null
   }
 
-/**
- * 結果の「調べた単語」の 1 件
- */
 export type ResultWordLookupView = Pick<WordLookupWithMeaning, "lemma" | "meaningJa" | "source" | "surface">
 
 /**
@@ -169,14 +163,8 @@ export type SubmittedAttemptView = {
   wordsPerMinute: number | null
 }
 
-/**
- * 期限切れの挑戦
- */
 export type ExpiredAttemptView = { id: number; passage: AttemptPassageView; startedAt: Date; status: "expired" }
 
-/**
- * 挑戦の取得の結果
- */
 export type AttemptView = ExpiredAttemptView | InProgressAttemptView | SubmittedAttemptView
 
 /**
@@ -362,9 +350,6 @@ const buildSubmittedView = (
   }
 }
 
-/**
- * 提出済みの挑戦の回答と調べた単語を読んで結果の形にする
- */
 const loadSubmittedView = async (
   attempt: ReadingAttempt,
   content: AttemptContent,
@@ -545,9 +530,6 @@ export const submitAttempt = async (
   },
   repo: AttemptRepo & { transactionRunner: TransactionRunner },
 ): Promise<Result<SubmittedAttemptView>> => {
-  /**
-   * 削除済みユーザーの access token が残っている場合
-   */
   const user = await repo.userRepository.findById(input.userId)
   if (!user) {
     logger.debug("AttemptService: User not found", { userId: input.userId })
@@ -560,9 +542,6 @@ export const submitAttempt = async (
     return err(notFoundError("Attempt not found"))
   }
 
-  /**
-   * passages は物理削除しないので、挑戦があれば問題もある
-   */
   const content = await repo.passageRepository.findAttemptContentById(attempt.passageId)
   if (!content) throw new Error(`Passage of attempt not found: attemptId=${attempt.id}, passageId=${attempt.passageId}`)
 

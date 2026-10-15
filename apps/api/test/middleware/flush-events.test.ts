@@ -17,9 +17,6 @@ const buildTracker = (flush: () => Promise<void>): EventTracker => ({
   trackAll: vi.fn(),
 })
 
-/**
- * resolve のタイミングをテスト側で制御できる Promise
- */
 const createDeferred = (): { promise: Promise<void>; resolve: () => void } => {
   let resolve: () => void = () => undefined
   const promise = new Promise<void>((r) => {

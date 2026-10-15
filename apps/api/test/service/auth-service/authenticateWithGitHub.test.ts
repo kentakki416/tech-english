@@ -52,9 +52,6 @@ const mockRefreshTokenRepository: RefreshTokenRepository = {
   saveRotatedTokens: vi.fn(),
 }
 
-/**
- * Fake TransactionRunner: tx を渡さずそのまま callback を実行する（authenticateWithGoogle のテストと同じ）
- */
 const mockTransactionRunner: TransactionRunner = {
   run: vi.fn(async (fn) => fn(undefined as unknown as TransactionContext)),
 }

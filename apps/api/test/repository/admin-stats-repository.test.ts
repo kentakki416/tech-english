@@ -23,9 +23,6 @@ const insertPassageWithQuestions = async (overrides: Parameters<typeof insertGen
   return { id: generated.passage.id, questionIds: generated.questions.map((question) => question.id), sourceId: generated.source.id }
 }
 
-/**
- * 登録日時を決めてユーザーを入れる
- */
 const insertUserCreatedAt = async (createdAt: Date) => {
   const [user] = await testDb.insert(users).values({ createdAt, email: `stats-${createdAt.getTime()}-${Math.random()}@example.com`, name: "Stats User" }).returning()
   return user

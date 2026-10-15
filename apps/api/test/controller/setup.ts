@@ -47,16 +47,10 @@ export const cleanupTestRedis = async (): Promise<void> => {
   await redis.flushdb()
 }
 
-/**
- * テスト終了時にDB接続を切断する
- */
 export const disconnectTestDb = async (): Promise<void> => {
   await db.$disconnect()
 }
 
-/**
- * テスト終了時にRedis接続を切断する
- */
 export const disconnectTestRedis = async (): Promise<void> => {
   await redis.quit()
 }

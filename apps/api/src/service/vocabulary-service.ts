@@ -35,9 +35,6 @@ export type VocabularyCardPronunciation = {
 
 export type VocabularySessionCard = VocabularyCardView & { pronunciation: VocabularyCardPronunciation }
 
-/**
- * 1 回分のカード
- */
 export type VocabularySession = { cards: VocabularySessionCard[]; today: string }
 
 type VocabularyReadRepo = { userRepository: UserRepository; vocabularyRepository: VocabularyRepository }
@@ -135,9 +132,6 @@ export const getVocabularySession = async (
   return ok({ cards: await attachPronunciations(cards, repo, deps.audioPublicUrlBase), today })
 }
 
-/**
- * 答えた後のカードの状態
- */
 export type VocabularyReviewResult = Pick<VocabularyCard, "dueDate" | "lemma" | "stage">
 
 const convertCardToReviewResult = (card: VocabularyCard): VocabularyReviewResult => ({

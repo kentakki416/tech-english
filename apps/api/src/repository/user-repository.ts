@@ -2,9 +2,6 @@ import type { AdminUserSort, User } from "@repo/domain"
 
 import type { TransactionContext } from "./transaction"
 
-/**
- * ユーザー作成時の入力
- */
 export type CreateUserInput = {
   avatarUrl?: string
   email?: string
@@ -23,9 +20,6 @@ export type UpdateUserProfileInput = {
   name: string
 }
 
-/**
- * admin のユーザー一覧の 1 行
- */
 export type AdminUserListItem = User & {
   /**
    * 最後に問題を解いた・単語帳で答えた日（学習したときのユーザーのタイムゾーンの日付）。学習していなければ null
@@ -49,9 +43,6 @@ export type FindUsersForAdminQuery = {
   sort: AdminUserSort
 }
 
-/**
- * ユーザーリポジトリのインターフェース
- */
 export interface UserRepository {
   create(data: CreateUserInput, tx?: TransactionContext): Promise<User>
   /**

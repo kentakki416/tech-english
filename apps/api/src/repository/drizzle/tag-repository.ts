@@ -6,9 +6,6 @@ import type { TagInput, TagRepository, TagSaveResult, TagWithSourceCount } from 
 import { isUniqueViolation } from "./pg-error"
 import { convertTagRowToDomain } from "./tag-row"
 
-/**
- * Drizzle 実装の TagRepository
- */
 export class DrizzleTagRepository implements TagRepository {
   private _db: DrizzleClient
 

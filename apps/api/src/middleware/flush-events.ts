@@ -50,7 +50,4 @@ export const flushEventsBeforeResponse = (eventTracker: EventTracker) =>
     next()
   }
 
-/**
- * テストからだけ使う
- */
 export const forTesting = { FLUSH_TIMEOUT_MS, waitForFlush }

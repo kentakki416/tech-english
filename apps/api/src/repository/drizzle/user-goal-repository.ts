@@ -3,14 +3,8 @@ import type { UserGoal } from "@repo/domain"
 
 import type { UpsertUserGoalInput, UserGoalRepository } from "../user-goal-repository"
 
-/**
- * Drizzleの型
- */
 type UserGoalRow = typeof userGoals.$inferSelect
 
-/**
- * Drizzle 実装の UserGoalRepository
- */
 export class DrizzleUserGoalRepository implements UserGoalRepository {
   private _db: DrizzleClient
 

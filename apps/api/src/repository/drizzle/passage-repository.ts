@@ -45,9 +45,6 @@ import type { TransactionContext } from "../transaction"
 import { convertPassageAudioRowToDomain } from "./passage-audio-row"
 import { resolveDrizzleClient } from "./transaction-runner"
 
-/**
- * Drizzleの型
- */
 type PassageRow = typeof passages.$inferSelect
 type GlossaryEntryRow = typeof passageGlossaryEntries.$inferSelect
 type QuestionRow = typeof questions.$inferSelect
@@ -144,9 +141,6 @@ const RESET_TO_COLLECTED_VALUES = {
 const removeTranslations = (blocks: PassageRow["blocks"]): PassageRow["blocks"] =>
   blocks.map(({ translationJa: _translationJa, ...block }) => block)
 
-/**
- * Drizzleの型 → ドメインの型
- */
 const convertPassageRowToDomain = (row: PassageRow): Passage => ({
   id: row.id,
   attentionReasons: row.attentionReasons,
@@ -266,9 +260,6 @@ const convertPublishedSummaryRowToDomain = (row: {
   source: convertPassageSourceRowToDomain(row.source),
 })
 
-/**
- * Drizzle 実装の PassageRepository
- */
 export class DrizzlePassageRepository implements PassageRepository {
   private _db: DrizzleClient
 

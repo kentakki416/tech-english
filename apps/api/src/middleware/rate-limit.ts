@@ -49,9 +49,6 @@ const resolveRateLimitKey = (req: Request): string => {
   return userId === undefined ? `ip:${req.ip ?? "unknown"}` : `user:${userId}`
 }
 
-/**
- * 1 分あたり limit 回までのレート制限。上限を超えたら 429 を返す
- */
 const createApiRateLimiter = (limit: number): RateLimitRequestHandler =>
   rateLimit({
     keyGenerator: resolveRateLimitKey,

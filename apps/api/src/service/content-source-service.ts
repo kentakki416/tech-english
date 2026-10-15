@@ -39,9 +39,6 @@ const TAG_NOT_FOUND_MESSAGE = "Tag not found"
  */
 const TAG_NOT_FOUND_CODE = "tag_not_found"
 
-/**
- * 本文候補の状態ごとの件数
- */
 export type PassageCounts = Record<PassageStatus, number>
 
 /**
@@ -82,9 +79,6 @@ const findMissingTagIds = async (tagIds: number[], repo: ContentSourceWriteRepo)
   return tagIds.filter((tagId) => !existingIds.has(tagId))
 }
 
-/**
- * 2 つの文字列の配列が同じ順で同じ値を持つか
- */
 const isSameStringList = (left: string[], right: string[]): boolean =>
   left.length === right.length && left.every((value, index) => value === right[index])
 
@@ -154,9 +148,6 @@ export const getContentSourceById = async (
   return ok({ failedPages, passageCounts: buildPassageCounts(passageCountRows, id), source })
 }
 
-/**
- * ソースを登録する
- */
 export const createContentSource = async (
   input: ContentSourceInput,
   repo: ContentSourceWriteRepo,

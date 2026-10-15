@@ -24,9 +24,6 @@ import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb } from "
 
 type ReadingAttemptInsert = typeof readingAttempts.$inferInsert
 
-/**
- * Postgres のエラーコード（SQLSTATE）
- */
 const CHECK_VIOLATION = "23514"
 const FOREIGN_KEY_VIOLATION = "23503"
 const UNIQUE_VIOLATION = "23505"
@@ -39,9 +36,6 @@ const buildViolationMatcher = (code: string, constraint: string) => ({
   cause: expect.objectContaining({ code, constraint }),
 })
 
-/**
- * 提出済みの挑戦が持つ列
- */
 const SUBMITTED_COLUMNS = {
   correctCount: 2,
   elapsedSeconds: 280,

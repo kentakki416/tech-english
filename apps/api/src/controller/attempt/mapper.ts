@@ -23,10 +23,6 @@ import type {
 } from "../../service/attempt-service"
 import { convertAttributionToResponse } from "../passage/mapper"
 
-/**
- * 挑戦の domain の形 → API の snake_case の形。開始・取得・提出（reading-practice step4）で共有する
- */
-
 const convertAttemptPassageToResponse = (passage: AttemptPassageView): AttemptPassage => ({
   id: passage.id,
   difficulty: passage.difficulty,
@@ -89,7 +85,7 @@ export const convertInProgressAttemptToResponse = (view: InProgressAttemptView):
 })
 
 /**
- * 提出済みの挑戦（結果の形）。提出 API と、提出済みの挑戦の取得で共有する
+ * 提出済みの挑戦（結果の形）
  */
 export const convertSubmittedAttemptToResponse = (view: SubmittedAttemptView): SubmittedAttempt => ({
   id: view.id,

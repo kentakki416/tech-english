@@ -1,8 +1,5 @@
 import { z } from "zod"
 
-/**
- * GitHub のライセンス検出クライアントのインターフェース
- */
 export interface IGitHubLicenseClient {
   /**
    * GitHub が検出したライセンスの SPDX 識別子。

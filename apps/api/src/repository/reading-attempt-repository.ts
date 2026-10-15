@@ -21,9 +21,6 @@ export type PassageAttemptSummary = {
   passageId: number
 }
 
-/**
- * 挑戦中の挑戦を作るときの入力
- */
 export type CreateReadingAttemptInput = {
   passageId: number
   startedAt: Date
@@ -56,14 +53,8 @@ export type SubmitReadingAttemptInput = {
   wordLookupCount: number
 }
 
-/**
- * 保存する回答
- */
 export type InsertAttemptAnswerInput = Omit<AttemptAnswer, "createdAt" | "id" | "updatedAt">
 
-/**
- * 保存する調べた単語
- */
 export type InsertAttemptWordLookupInput = Omit<AttemptWordLookup, "createdAt" | "id" | "updatedAt">
 
 /**

@@ -165,9 +165,6 @@ export const insertPublishedPassage = async (sourceDocumentId: number, overrides
     ...overrides,
   })
 
-/**
- * 挑戦するユーザーを入れる
- */
 export const insertAttemptUser = async () => {
   const [user] = await testDb
     .insert(users)
@@ -188,9 +185,6 @@ export const insertReadingAttempt = async (passageId: number, overrides: Partial
   return attempt
 }
 
-/**
- * 提出済みの挑戦を入れる
- */
 export const insertSubmittedAttempt = async (
   passageId: number,
   userId: number,

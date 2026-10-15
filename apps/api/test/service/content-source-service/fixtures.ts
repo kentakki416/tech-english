@@ -12,9 +12,6 @@ type WebsiteInput = Extract<ContentSourceInput, { fetchType: "website" }>
 type GitHubRepositorySourceWithTags = Extract<ContentSourceWithTags, { fetchType: "github_repository" }>
 type WebsiteSourceWithTags = Extract<ContentSourceWithTags, { fetchType: "website" }>
 
-/**
- * content-source-service のユニットテストで共有する Repository のモックと値
- */
 export const createMockContentSourceRepository = () => ({
   countFailedPagesBySource: vi.fn<ContentSourceRepository["countFailedPagesBySource"]>(),
   countPassagesBySource: vi.fn<ContentSourceRepository["countPassagesBySource"]>(),

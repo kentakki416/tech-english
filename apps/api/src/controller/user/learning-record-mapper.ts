@@ -13,10 +13,6 @@ import type {
   UserStats,
 } from "../../service/learning-record-service"
 
-/**
- * 学習記録の domain の形 → API の snake_case の形。マイページ（/api/user/*）と admin のユーザーの詳細（/api/admin/user/:id/*）で共有する
- */
-
 export const convertAccuracyToResponse = (accuracy: Accuracy) => ({
   accuracy_percent: accuracy.accuracyPercent,
   correct_count: accuracy.correctCount,

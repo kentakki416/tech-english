@@ -5,10 +5,6 @@ import { testDb } from "../controller/setup"
 import { createSubmittedAttempt } from "./learning-record"
 import { insertGeneratedPassage } from "./passage"
 
-/**
- * 単語帳（vocabulary-cards）のテスト用のヘルパー。Repository のテストと Controller のインテグレーションテストで使う
- */
-
 type WordLookupInsert = typeof attemptWordLookups.$inferInsert
 type VocabularyCardInsert = typeof vocabularyCards.$inferInsert
 type VocabularyReviewInsert = typeof vocabularyReviews.$inferInsert
@@ -30,9 +26,6 @@ export const insertReadPassage = async (userId: number, submittedAt: string, ove
   return { attempt, glossary: generated.glossary, glossaryIdByLemma, passage: generated.passage }
 }
 
-/**
- * 調べた単語を入れる。挑戦の問題とユーザーにつなぐ
- */
 export const insertWordLookup = async (
   attempt: { id: number; passageId: number; userId: number },
   values: Pick<WordLookupInsert, "lemma" | "source" | "surface"> & Partial<WordLookupInsert>,

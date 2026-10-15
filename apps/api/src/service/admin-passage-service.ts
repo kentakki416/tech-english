@@ -37,14 +37,8 @@ export type AdminPassageList = {
   statusCounts: Record<PassageStatus, number>
 }
 
-/**
- * 状態を変える操作の結果
- */
 export type AdminPassageStatusChange = { id: number; status: PassageStatus }
 
-/**
- * 要確認を解除した結果
- */
 export type AdminPassageAttentionResolution = { id: number; attentionReasons: string[]; needsAttention: boolean }
 
 /**
@@ -122,9 +116,6 @@ export const getAdminPassageList = async (
   return ok({ hasMore, items, nextCursor, statusCounts })
 }
 
-/**
- * 問題の全情報
- */
 export const getAdminPassageDetail = async (id: number, repo: PassageRepo): Promise<Result<AdminPassageDetail>> => {
   const detail = await repo.passageRepository.findAdminDetail(id)
   if (!detail) {

@@ -3,9 +3,6 @@ import type { ContentSourceResponse, CreateContentSourceRequest, UpdateContentSo
 import type { ContentSourceInput, ContentSourceWithTags } from "../../../repository"
 import { convertTagToResponse } from "../tag/tag-mapper"
 
-/**
- * 登録・更新のリクエスト（snake_case）→ Repository の入力（camelCase）
- */
 export const convertContentSourceRequestToInput = (
   request: CreateContentSourceRequest | UpdateContentSourceRequest,
 ): ContentSourceInput => {

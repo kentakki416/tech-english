@@ -29,9 +29,6 @@ import type {
 import { isForeignKeyViolation, isUniqueViolation } from "./pg-error"
 import { convertTagRowToDomain } from "./tag-row"
 
-/**
- * Drizzleの型
- */
 type ContentSourceRow = typeof contentSources.$inferSelect
 
 /**
@@ -90,9 +87,6 @@ const findTagsBySourceIds = async (
   return tagsBySourceId
 }
 
-/**
- * ソースにタグを付けて返す
- */
 const attachTags = async (
   db: DrizzleClient | DrizzleTransaction,
   sources: ContentSource[],
@@ -123,9 +117,6 @@ const convertWriteErrorToResult = (error: unknown): ContentSourceSaveResult => {
   throw error
 }
 
-/**
- * Drizzle実装のソースリポジトリ
- */
 export class DrizzleContentSourceRepository implements ContentSourceRepository {
   private _db: DrizzleClient
 

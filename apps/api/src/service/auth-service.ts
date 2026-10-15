@@ -152,9 +152,6 @@ export const authenticateWithGitHub = async (
   if (!gitHubUser) {
     return err(unauthorizedError("GitHub authorization code is invalid"))
   }
-  /**
-   * email (PII) はログに残さず、突合に必要な githubId のみ出力する。
-   */
   logger.debug("AuthService: Retrieved GitHub user info", {
     githubId: gitHubUser.id,
   })
@@ -181,9 +178,6 @@ export const authenticateWithGitHub = async (
    * users.email の unique 衝突だけを避け、衝突する場合は email を持たないユーザーとして作る
    */
   const emailOwner = gitHubUser.email ? await repo.userRepository.findByEmail(gitHubUser.email) : null
-  /**
-   * User と AuthAccount を 1 トランザクションで作成。どちらか片方だけが残る不整合を防ぐ。
-   */
   const user = await repo.transactionRunner.run(async (tx) => {
     const newUser = await repo.userRepository.create(
       {

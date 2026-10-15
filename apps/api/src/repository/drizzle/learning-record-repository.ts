@@ -57,9 +57,6 @@ const requireSubmittedValue = <T>(value: T | null, column: string, attemptId: nu
   return value
 }
 
-/**
- * Drizzle 実装の LearningRecordRepository
- */
 export class DrizzleLearningRecordRepository implements LearningRecordRepository {
   private _db: DrizzleClient
 

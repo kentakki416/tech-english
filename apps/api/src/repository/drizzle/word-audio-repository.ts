@@ -2,9 +2,6 @@ import { and, DrizzleClient, eq, inArray, wordAudios } from "@repo/db"
 
 import type { WordAudioRepository } from "../word-audio-repository"
 
-/**
- * Drizzle 実装の WordAudioRepository
- */
 export class DrizzleWordAudioRepository implements WordAudioRepository {
   private _db: DrizzleClient
 

@@ -1,8 +1,5 @@
 import type { Tag, TagColor } from "@repo/domain"
 
-/**
- * タグの作成・更新の入力
- */
 export type TagInput = Pick<Tag, "color" | "name">
 
 /**
@@ -15,9 +12,6 @@ export type TagWithSourceCount = Tag & { sourceCount: number }
  */
 export type TagSaveResult = { kind: "duplicate" } | { kind: "saved"; tag: Tag }
 
-/**
- * 技術タグ（tags）のリポジトリ
- */
 export interface TagRepository {
   create(input: TagInput): Promise<TagSaveResult>
   /**

@@ -3,14 +3,8 @@ import type { ReminderSetting } from "@repo/domain"
 
 import type { ReminderSettingRepository, UpsertReminderSettingInput } from "../reminder-setting-repository"
 
-/**
- * Drizzleの型
- */
 type ReminderSettingRow = typeof reminderSettings.$inferSelect
 
-/**
- * Drizzle 実装の ReminderSettingRepository
- */
 export class DrizzleReminderSettingRepository implements ReminderSettingRepository {
   private _db: DrizzleClient
 

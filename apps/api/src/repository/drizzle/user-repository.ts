@@ -14,9 +14,6 @@ import { buildContainsLikePattern } from "./like-pattern"
 import { resolveDrizzleClient } from "./transaction-runner"
 import { convertUtcTimestampTextToDate } from "./utc-timestamp"
 
-/**
- * Drizzleの型
- */
 type UserRow = typeof users.$inferSelect
 
 type AdminUserListRow = {
@@ -43,9 +40,6 @@ const ADMIN_USER_SORT_EXPRESSIONS: Record<AdminUserSort, SQL> = {
   solved_attempts: sql`coalesce(a.solved_attempts, 0)`,
 }
 
-/**
- * Drizzle実装のユーザーリポジトリ
- */
 export class DrizzleUserRepository implements UserRepository {
   private _db: DrizzleClient
 
@@ -174,9 +168,6 @@ export class DrizzleUserRepository implements UserRepository {
     }
   }
 
-  /**
-   * Drizzleの型 → ドメインの型に変換
-   */
   private _toDomainUser(row: UserRow): User {
     return {
       avatarUrl: row.avatarUrl,

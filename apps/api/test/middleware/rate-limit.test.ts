@@ -36,9 +36,6 @@ const buildApp = (): express.Express => {
   return app
 }
 
-/**
- * Authorization を付けて（undefined なら付けずに）GET し、ステータスを返す
- */
 const sendGet = async (app: express.Express, options: { authorization?: string; ip?: string } = {}): Promise<number> => {
   const req = request(app).get("/api/test").set("X-Forwarded-For", options.ip ?? CLIENT_IP)
   if (options.authorization !== undefined) req.set("Authorization", options.authorization)
@@ -46,17 +43,11 @@ const sendGet = async (app: express.Express, options: { authorization?: string; 
   return res.status
 }
 
-/**
- * body に refresh_token を入れて POST し、ステータスを返す
- */
 const sendRefresh = async (app: express.Express, refreshToken: string, path = "/api/auth/refresh"): Promise<number> => {
   const res = await request(app).post(path).set("X-Forwarded-For", CLIENT_IP).send({ refresh_token: refreshToken })
   return res.status
 }
 
-/**
- * トークン無しで LIMIT 回送り、CLIENT_IP の上限を使い切る
- */
 const exhaustIpLimit = async (app: express.Express): Promise<void> => {
   for (let i = 0; i < LIMIT; i++) {
     expect(await sendGet(app)).toBe(200)

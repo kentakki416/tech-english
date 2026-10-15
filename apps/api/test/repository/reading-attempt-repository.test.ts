@@ -47,15 +47,9 @@ const at = (iso: string): Date => new Date(iso)
  */
 const ALIVE_SINCE = at("2026-10-12T00:00:00.000Z")
 
-/**
- * そのユーザーの挑戦の行を id の順に読む
- */
 const selectAttemptsByUser = async (userId: number) =>
   testDb.select().from(readingAttempts).where(eq(readingAttempts.userId, userId)).orderBy(readingAttempts.id)
 
-/**
- * 公開中の問題を count 件入れる
- */
 const insertPublishedPassages = async (count: number) => {
   const source = await insertPassageSource()
   const document = await insertPassageDocument(source.id)
@@ -93,15 +87,9 @@ const setupInProgressAttempt = async () => {
   return { ...generated, attempt, user }
 }
 
-/**
- * 挑戦の調べた単語の行を id の順に読む
- */
 const selectWordLookups = async (attemptId: number) =>
   testDb.select().from(attemptWordLookups).where(eq(attemptWordLookups.attemptId, attemptId)).orderBy(attemptWordLookups.id)
 
-/**
- * 挑戦の回答の行を id の順に読む
- */
 const selectAnswers = async (attemptId: number) =>
   testDb.select().from(attemptAnswers).where(eq(attemptAnswers.attemptId, attemptId)).orderBy(attemptAnswers.id)
 

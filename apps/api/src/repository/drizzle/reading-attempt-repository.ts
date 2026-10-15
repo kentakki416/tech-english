@@ -30,16 +30,10 @@ import type { TransactionContext } from "../transaction"
 
 import { resolveDrizzleClient } from "./transaction-runner"
 
-/**
- * Drizzleの型
- */
 type ReadingAttemptRow = typeof readingAttempts.$inferSelect
 type AttemptAnswerRow = typeof attemptAnswers.$inferSelect
 type AttemptWordLookupRow = typeof attemptWordLookups.$inferSelect
 
-/**
- * Drizzleの型 → ドメインの型
- */
 const convertReadingAttemptRowToDomain = (row: ReadingAttemptRow): ReadingAttempt => ({
   id: row.id,
   correctCount: row.correctCount,
@@ -89,9 +83,6 @@ const convertAttemptWordLookupRowToDomain = (row: AttemptWordLookupRow): Attempt
 const buildAliveInProgressCondition = (aliveSince: Date) =>
   and(eq(readingAttempts.status, "in_progress"), gt(readingAttempts.startedAt, aliveSince))
 
-/**
- * Drizzle 実装の ReadingAttemptRepository
- */
 export class DrizzleReadingAttemptRepository implements ReadingAttemptRepository {
   private _db: DrizzleClient
 

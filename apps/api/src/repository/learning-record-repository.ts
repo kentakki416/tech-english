@@ -39,9 +39,6 @@ export type StudyTotals = {
   studySeconds: number
 }
 
-/**
- * 正答数と設問数
- */
 export type AccuracyCount = { correctCount: number; questionCount: number }
 
 /**

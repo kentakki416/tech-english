@@ -38,9 +38,6 @@ const CALENDAR_YEAR_WEEK_COUNT = 53
  */
 const MIN_COMPARED_QUESTION_TYPE_COUNT = 2
 
-/**
- * マイページの最近の挑戦の件数
- */
 const RECENT_ATTEMPT_LIMIT = 5
 
 /**
@@ -55,9 +52,6 @@ const SECONDS_PER_MINUTE = 60
  */
 export type Accuracy = AccuracyCount & { accuracyPercent: number | null }
 
-/**
- * 提出した挑戦の一覧の 1 行
- */
 export type LearningRecordAttemptView = {
   id: number
   correctCount: number
@@ -78,9 +72,6 @@ export type LearningRecordAttemptView = {
   usedAssist: boolean
 }
 
-/**
- * 目標と今週の進捗
- */
 export type GoalProgressView = {
   /**
    * targetDate − 今日。過ぎていれば負、目標日が無ければ null
@@ -97,9 +88,6 @@ export type GoalProgressView = {
   weeklyTarget: number | null
 }
 
-/**
- * マイページの統計
- */
 export type UserStats = {
   goal: GoalProgressView | null
   noAssist: Accuracy
@@ -121,9 +109,6 @@ export type UserStats = {
   weakestQuestionType: QuestionType | null
 }
 
-/**
- * カレンダーの 1 日
- */
 export type CalendarDayView = DailyStudySummary & { level: CalendarLevel }
 
 /**
@@ -136,9 +121,6 @@ export type UserCalendar = {
   today: string
 }
 
-/**
- * 提出した挑戦の一覧の 1 ページ
- */
 export type UserAttempts = {
   attempts: LearningRecordAttemptView[]
   nextCursor: number | null
