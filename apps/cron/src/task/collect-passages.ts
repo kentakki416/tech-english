@@ -21,17 +21,13 @@ import { setupGracefulShutdown } from "../runtime/graceful-shutdown"
 import * as service from "../service"
 
 /**
- * collect:passages
  *
- * 有効なソースから英文を取得し、本文候補（passages, status = collected）を作る。本番は EventBridge Scheduler →
- * ECS RunTask で 1 日 1 回 `node dist/task/collect-passages.js` を起動する想定。
+ * admin側で登録した有効なソースから英文を抽出し、問題にできる条件を満たす本文候補（passages, status = collected）を作成する。
  *
  *   pnpm collect:passages                          # 有効な全ソース
  *   pnpm collect:passages --source-id=3            # 1 ソースだけ
  *   pnpm collect:passages --source-id=3 --dry-run  # 最大 5 件を取得して抽出結果を表示する（DB に書かない）
  *
- * task 自身は env を読んで DB client / Repository / GitHub client / サイトの client の作り方を組み立てて service に DI するだけ。
- * 1 ソースでも失敗があれば最後に throw して exit code 1 で終え、スケジューラに通知する。
  */
 const main = async (): Promise<void> => {
   const args = parseCollectArgs(process.argv.slice(2))
