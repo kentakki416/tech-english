@@ -42,7 +42,7 @@ cd apps/admin && pnpm exec dotenvx set API_URL "http://localhost:8080" -f .env.l
 
 MVP の管理者は 1〜2 人なので、共有シークレットで保護する（設計は [question-generation の 管理画面のアクセス制御](../../docs/spec/question-generation/README.md#管理画面のアクセス制御)）。
 
-- **画面**: `src/proxy.ts` が Basic 認証をかける（`_next/static`・`_next/image`・`favicon.ico`・`images/` 以外のすべて。モックの `/mock` も対象）。`images/`（`public/images` のテンプレートの静的画像）を除くのは、秘密を含まないうえ、next/image の最適化（`/_next/image`）がサーバーの内部から元の画像を認証なしで取得するため（Basic 認証をかけると最適化した画像が 401 で表示されない）。`ADMIN_BASIC_AUTH_USER` / `ADMIN_BASIC_AUTH_PASSWORD` が未設定なら誰も通さない（fail closed）。`src/env.ts` は `server-only` なので proxy からは使わず `process.env` を直接読む。比較は `src/libs/basic-auth.ts`（`node:crypto` を使わない定数時間比較）
+- **画面**: `src/proxy.ts` が Basic 認証をかける（`_next/static`・`_next/image`・`favicon.svg`・`images/` 以外のすべて。モックの `/mock` も対象）。`images/`（`public/images` のテンプレートの静的画像）を除くのは、秘密を含まないうえ、next/image の最適化（`/_next/image`）がサーバーの内部から元の画像を認証なしで取得するため（Basic 認証をかけると最適化した画像が 401 で表示されない）。`ADMIN_BASIC_AUTH_USER` / `ADMIN_BASIC_AUTH_PASSWORD` が未設定なら誰も通さない（fail closed）。`src/env.ts` は `server-only` なので proxy からは使わず `process.env` を直接読む。比較は `src/libs/basic-auth.ts`（`node:crypto` を使わない定数時間比較）
 - **api**: `src/libs/api-client.ts` がすべてのリクエストに `X-Admin-Token: ADMIN_API_TOKEN` を付ける。トークンはブラウザに渡らない（Client Component の props やエラーに含めない）
 - ローカルの資格情報は `.env.local`（dotenvx で暗号化済み）に入っている。値は `pnpm exec dotenvx get ADMIN_BASIC_AUTH_PASSWORD -f .env.local` で確認する
 
@@ -57,7 +57,9 @@ admin は DB を直接触らず、必ず Express API を経由する。tech-engl
 - 土台からデモを import しない（lint の `import/no-restricted-paths` で強制）。デモだけの CSS は `components/demo/demo.css` に置き、`globals.css` に足さない
 - デザインモック（`/mock`）はサイドバーに出さず、URL を直接開いて見る
 
-左上のロゴとそのリンク先は `components/layout/AppLogo.tsx`（テンプレートのマークと「tech-english-admin」の文字。サイドバーとスマホ幅のヘッダーで使う）。
+左上のロゴとそのリンク先は `components/layout/AppLogo.tsx`（`src/config/app.ts` の `name` の頭文字のアイコンと `name` の文字。サイドバー・スマホ幅のヘッダー・サインイン画面で使い、サインイン画面の暗い背景では `tone="inverse"`）。favicon は `public/favicon.svg`（同じアイコン）。
+
+アプリ名・説明・言語・タイムゾーンは `src/config/app.ts`（`appConfig`）で変える。タブのタイトルは root の `app/layout.tsx` の `metadata.title.template`（`%s | tech-english admin`）で組み立てるので、各ページの `metadata.title` にはページ名だけを書く（アプリ名を付けない）。
 
 | ファイル | 役割 |
 | --- | --- |
@@ -65,7 +67,7 @@ admin は DB を直接触らず、必ず Express API を経由する。tech-engl
 | `src/libs/api-client.ts` | `env.API_URL` を叩く `get` / `post` / `put` / `delete`。`X-Admin-Token` を付け、`!res.ok` なら `ApiClientError`（`status` / `body`）を投げる。204 は `undefined` を返す（JSON をパースしない）。`server-only` |
 | `src/features/{feature}/{feature}.api.ts` | 機能ごとの API 呼び出し層（`server-only`）。レスポンスを `@repo/api-schema` のスキーマで parse して返す |
 | `src/libs/ui-classes.ts` | 入力欄・カード・ボタンの共通クラス（テンプレートと同じ見た目）。デザインモックの `mock/_components/ui.ts` と同じ値で、本番の画面はこちらを使う（`mock/` を import しない） |
-| `src/libs/format-date.ts` | `formatDateTime`：日時を `2026-10-10 03:00` にする（既定は日本時間。Server Component は UTC で動くためタイムゾーンを明示。ユーザーの学習履歴はユーザーのタイムゾーンを渡す）、`formatDate`：日本時間の `2026-10-10` |
+| `src/libs/date.ts` | 日時の表示の 1 か所。`formatDateTime`：日時（ISO 8601 の文字列か `Date`）を `2026-10-10 03:00` にする、`formatDate`：`2026-10-10`。既定のタイムゾーンは `appConfig.timeZone`（Server Component は UTC で動くため明示。`toLocaleString()` を直接使わない）。ユーザーの学習履歴はユーザーのタイムゾーンを渡す |
 | `src/libs/format-stats.ts` | ダッシュボード・ユーザー管理の数字の表示（比率 `72%`・件数 `1,284`・時間 `5:12 / 6:00`・値が無いときの `―`） |
 | `src/components/ui/table/LinkTableParts.tsx` | 並べ替え・絞り込み・ページ送りを URL のクエリで行う表の部品（`SortableHeaderCell`・`TableSearchForm`〈`next/form`〉・`PaginationLinks`）。ダッシュボードとユーザー一覧で使う（画面内で並べ替える表はテンプレートの `DataTable`） |
 | `src/libs/search-params.ts` | URL のクエリを API のクエリのスキーマの項目で読む（不正なら既定値）・絞り込みの文字を API の上限で切り詰める。`features/*/*.params.ts`（`server-only`）から使う |

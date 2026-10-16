@@ -3,9 +3,7 @@ import { Metadata } from "next"
 import SignUpForm from "@/components/demo/auth/SignUpForm"
 
 export const metadata: Metadata = {
-  title: "Next.js SignUp Page | TailAdmin - Next.js Dashboard Template",
-  description: "This is Next.js SignUp Page TailAdmin Dashboard Template",
-  // other metadata
+  title: "Sign Up",
 }
 
 export default function SignUp() {

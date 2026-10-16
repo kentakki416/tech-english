@@ -14,7 +14,7 @@ import {
 import { PASSAGE_DIFFICULTY_LABELS } from "@/features/passage/passage.labels"
 import { PASSAGE_STATS_LABELS } from "@/features/stats/stats.labels"
 import { buildDashboardHref, buildDashboardSearchFormValues, buildPassageAnalyticsHref, type DashboardQuery } from "@/features/stats/stats.params"
-import { formatDate } from "@/libs/format-date"
+import { formatDate } from "@/libs/date"
 import { convertRateToPercent, EMPTY_VALUE, formatAssistRates, formatCount, formatElapsedWithLimit, formatRate, formatRowRange } from "@/libs/format-stats"
 
 import { PassageStatsStatusBadge } from "./PassageStatsStatusBadge"

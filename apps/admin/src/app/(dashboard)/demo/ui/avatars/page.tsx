@@ -6,9 +6,7 @@ import PageBreadcrumb from "@/components/layout/PageBreadCrumb"
 import Avatar from "@/components/ui/avatar/Avatar"
 
 export const metadata: Metadata = {
-  title: "Next.js Avatars | TailAdmin - Next.js Dashboard Template",
-  description:
-    "This is Next.js Avatars page for TailAdmin - Next.js Tailwind CSS Admin Dashboard Template",
+  title: "Avatars",
 }
 
 export default function AvatarPage() {

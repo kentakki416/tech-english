@@ -14,13 +14,13 @@ import { PASSAGE_DIFFICULTY_LABELS } from "@/features/passage/passage.labels"
 import { statsApi } from "@/features/stats/stats.api"
 import { formatPeriodLabel, PASSAGE_STATS_LABELS } from "@/features/stats/stats.labels"
 import { buildDashboardHref, buildPassageAnalyticsHref, convertSearchParamToPeriod } from "@/features/stats/stats.params"
-import { formatDate } from "@/libs/format-date"
+import { formatDate } from "@/libs/date"
 import { EMPTY_VALUE, formatAssistRates, formatCount, formatElapsedWithLimit, formatRate } from "@/libs/format-stats"
 import type { SearchParamValue } from "@/libs/search-params"
 import { outlineButtonClass } from "@/libs/ui-classes"
 
 export const metadata: Metadata = {
-  title: "問題の分析 | tech-english admin",
+  title: "問題の分析",
 }
 
 type Props = {

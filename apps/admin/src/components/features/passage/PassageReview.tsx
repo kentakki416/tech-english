@@ -29,7 +29,7 @@ import {
   type PassageForm,
 } from "@/features/passage/passage.form"
 import { PASSAGE_STATUS_BADGE_COLORS, PASSAGE_STATUS_LABELS } from "@/features/passage/passage.labels"
-import { formatDateTime } from "@/libs/format-date"
+import { formatDateTime } from "@/libs/date"
 import {
   cardClass,
   dangerOutlineButtonClass,

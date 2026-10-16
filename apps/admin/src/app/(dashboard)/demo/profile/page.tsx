@@ -6,9 +6,7 @@ import UserInfoCard from "@/components/demo/user-profile/UserInfoCard"
 import UserMetaCard from "@/components/demo/user-profile/UserMetaCard"
 
 export const metadata: Metadata = {
-  title: "Next.js Profile | TailAdmin - Next.js Dashboard Template",
-  description:
-    "This is Next.js Profile page for TailAdmin - Next.js Tailwind CSS Admin Dashboard Template",
+  title: "Profile",
 }
 
 export default function Profile() {

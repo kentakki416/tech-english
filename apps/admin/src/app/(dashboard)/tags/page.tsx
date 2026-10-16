@@ -9,7 +9,7 @@ import PageBreadcrumb from "@/components/layout/PageBreadCrumb"
 import { tagApi } from "@/features/tag/tag.api"
 
 export const metadata: Metadata = {
-  title: "タグ | tech-english admin",
+  title: "タグ",
 }
 
 /**

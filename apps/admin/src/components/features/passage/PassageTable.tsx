@@ -15,7 +15,7 @@ import {
   PASSAGE_STATUS_LABELS,
   PASSAGE_STATUS_ORDER,
 } from "@/features/passage/passage.labels"
-import { formatDateTime } from "@/libs/format-date"
+import { formatDateTime } from "@/libs/date"
 
 type PassageListItem = GetAdminPassageListResponse["passages"][number]
 

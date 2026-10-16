@@ -8,9 +8,7 @@ import ComponentCard from "@/components/layout/ComponentCard"
 import PageBreadcrumb from "@/components/layout/PageBreadCrumb"
 
 export const metadata: Metadata = {
-  title: "Next.js Line Chart | TailAdmin - Next.js Dashboard Template",
-  description:
-    "This is Next.js Line Chart page for TailAdmin - Next.js Tailwind CSS Admin Dashboard Template",
+  title: "Line Chart",
 }
 export default function LineChart() {
   return (

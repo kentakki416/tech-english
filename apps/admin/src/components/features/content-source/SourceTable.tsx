@@ -7,7 +7,7 @@ import type { GetContentSourceListResponse } from "@repo/api-schema"
 import { TagChip } from "@/components/features/tag/TagChip"
 import Badge from "@/components/ui/badge/Badge"
 import { type Column, DataTable, type FilterConfig } from "@/components/ui/table"
-import { formatDateTime } from "@/libs/format-date"
+import { formatDateTime } from "@/libs/date"
 
 type ContentSourceListItem = GetContentSourceListResponse["sources"][number]
 

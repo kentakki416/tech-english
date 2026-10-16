@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/table/LinkTableParts"
 import { formatAuthProvider, formatUserName, hasUserName } from "@/features/user/user.labels"
 import { buildUserListHref, buildUserListSearchFormValues, type UserListQuery } from "@/features/user/user.params"
-import { formatDate } from "@/libs/format-date"
+import { formatDate } from "@/libs/date"
 import { EMPTY_VALUE, formatCount, formatRowRange } from "@/libs/format-stats"
 
 import { UserAvatar } from "./UserAvatar"

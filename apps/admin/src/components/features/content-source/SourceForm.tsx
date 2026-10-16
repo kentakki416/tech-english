@@ -12,7 +12,7 @@ import {
 } from "@/app/(dashboard)/content-sources/actions"
 import { TagPicker } from "@/components/features/content-source/TagPicker"
 import Badge from "@/components/ui/badge/Badge"
-import { formatDateTime } from "@/libs/format-date"
+import { formatDateTime } from "@/libs/date"
 import {
   cardBodyClass,
   cardClass,

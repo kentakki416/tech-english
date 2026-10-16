@@ -7,7 +7,7 @@ import type { GetAdminUserAttemptsResponse } from "@repo/api-schema"
 
 import { type LoadMoreUserAttemptsFailureReason, loadMoreUserAttemptsAction } from "@/app/(dashboard)/users/[id]/actions"
 import Badge from "@/components/ui/badge/Badge"
-import { formatDateTime } from "@/libs/format-date"
+import { formatDateTime } from "@/libs/date"
 import { formatMinutesSeconds } from "@/libs/format-stats"
 import { outlineButtonClass } from "@/libs/ui-classes"
 

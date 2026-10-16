@@ -6,10 +6,7 @@ import PageBreadcrumb from "@/components/layout/PageBreadCrumb"
 import Alert from "@/components/ui/alert/Alert"
 
 export const metadata: Metadata = {
-  title: "Next.js Alerts | TailAdmin - Next.js Dashboard Template",
-  description:
-    "This is Next.js Alerts page for TailAdmin - Next.js Tailwind CSS Admin Dashboard Template",
-  // other metadata
+  title: "Alerts",
 }
 
 export default function Alerts() {
