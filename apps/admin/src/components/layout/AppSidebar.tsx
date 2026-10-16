@@ -3,74 +3,30 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import React, { useCallback, useEffect, useRef, useState } from "react"
 
+import { demoNavSection } from "@/components/demo/demo-nav-items"
 import { AppLogo } from "@/components/layout/AppLogo"
+import { mainNavSection, type NavItem, type NavSection } from "@/components/layout/nav-items"
 import { useSidebar } from "@/features/sidebar/sidebar.context"
 import {
   ChevronDownIcon,
-  DocsIcon,
-  FolderIcon,
-  GridIcon,
   HorizontaLDots,
-  ListIcon,
-  UserCircleIcon,
 } from "@/icons"
 
-type NavItem = {
-  name: string;
-  icon: React.ReactNode;
-  path?: string;
-  subItems?: { name: string; path: string; pro?: boolean; new?: boolean }[];
-}
-
-/**
- * tech-english の管理画面だけを並べる。TailAdmin テンプレートの画面（/calendar・/ui/* など。デザインの参考）と
- * デザインモック（/mock）はメニューに出さず、URL を直接開いて見る
- */
-const navItems: NavItem[] = [
-  {
-    icon: <GridIcon />,
-    name: "ダッシュボード",
-    path: "/",
-  },
-  {
-    icon: <DocsIcon />,
-    name: "問題",
-    path: "/passages",
-  },
-  {
-    icon: <FolderIcon />,
-    name: "ソース",
-    path: "/content-sources",
-  },
-  {
-    icon: <ListIcon />,
-    name: "タグ",
-    path: "/tags",
-  },
-  {
-    icon: <UserCircleIcon />,
-    name: "ユーザー",
-    path: "/users",
-  },
-]
+const navSections: NavSection[] = [mainNavSection, demoNavSection]
 
 /**
  * メニューに無い下の階層のページを、対応するメニューに寄せる（問題の分析はダッシュボードから開く）
  */
 const MENU_PATH_ALIASES: { menuPath: string, prefix: string }[] = [{ menuPath: "/", prefix: "/analytics/" }]
 
-/**
- * 開いているサブメニューの navItems の位置
- */
-type SubmenuState = number | null
+type SubmenuState = { itemIndex: number, sectionIndex: number } | null
 
-/**
- * メニューのすべてのリンク先
- */
-const MENU_PATHS = navItems.flatMap((nav) => [
-  ...(nav.path ? [nav.path] : []),
-  ...(nav.subItems?.map((subItem) => subItem.path) ?? []),
-])
+const MENU_PATHS = navSections.flatMap((section) =>
+  section.items.flatMap((nav) => [
+    ...(nav.path ? [nav.path] : []),
+    ...(nav.subItems?.map((subItem) => subItem.path) ?? []),
+  ]),
+)
 
 /**
  * 今のページに対応するメニューのリンク先。下の階層のページ（/content-sources/new など）は、前方一致するうち最も長いものにする
@@ -84,23 +40,31 @@ const findActiveMenuPath = (pathname: string): string | null =>
 
 const findSubmenuByPathname = (pathname: string): SubmenuState => {
   const activePath = findActiveMenuPath(pathname)
-  const index = navItems.findIndex((nav) => nav.subItems?.some((subItem) => subItem.path === activePath))
-  return index === -1 ? null : index
+  for (const [sectionIndex, section] of navSections.entries()) {
+    const itemIndex = section.items.findIndex((nav) => nav.subItems?.some((subItem) => subItem.path === activePath))
+    if (itemIndex !== -1) return { itemIndex, sectionIndex }
+  }
+  return null
 }
+
+const buildSubmenuKey = (sectionIndex: number, itemIndex: number): string => `${sectionIndex}-${itemIndex}`
 
 export default function AppSidebar() {
   const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar()
   const pathname = usePathname()
 
-  const renderMenuItems = () => (
+  const isSubmenuOpen = (sectionIndex: number, itemIndex: number): boolean =>
+    openSubmenu?.sectionIndex === sectionIndex && openSubmenu?.itemIndex === itemIndex
+
+  const renderMenuItems = (items: NavItem[], sectionIndex: number) => (
     <ul className="flex flex-col gap-4">
-      {navItems.map((nav, index) => (
+      {items.map((nav, itemIndex) => (
         <li key={nav.name}>
           {nav.subItems ? (
             <button
-              onClick={() => handleSubmenuToggle(index)}
+              onClick={() => handleSubmenuToggle(sectionIndex, itemIndex)}
               className={`menu-item group  ${
-                openSubmenu === index
+                isSubmenuOpen(sectionIndex, itemIndex)
                   ? "menu-item-active"
                   : "menu-item-inactive"
               } cursor-pointer ${
@@ -111,7 +75,7 @@ export default function AppSidebar() {
             >
               <span
                 className={` ${
-                  openSubmenu === index
+                  isSubmenuOpen(sectionIndex, itemIndex)
                     ? "menu-item-icon-active"
                     : "menu-item-icon-inactive"
                 }`}
@@ -124,7 +88,7 @@ export default function AppSidebar() {
               {(isExpanded || isHovered || isMobileOpen) && (
                 <ChevronDownIcon
                   className={`ml-auto w-5 h-5 transition-transform duration-200  ${
-                    openSubmenu === index
+                    isSubmenuOpen(sectionIndex, itemIndex)
                       ? "rotate-180 text-brand-500"
                       : ""
                   }`}
@@ -157,14 +121,13 @@ export default function AppSidebar() {
           {nav.subItems && (isExpanded || isHovered || isMobileOpen) && (
             <div
               ref={(el) => {
-                subMenuRefs.current[index] = el
+                subMenuRefs.current[buildSubmenuKey(sectionIndex, itemIndex)] = el
               }}
               className="overflow-hidden transition-all duration-300"
               style={{
-                height:
-                  openSubmenu === index
-                    ? `${subMenuHeight[index]}px`
-                    : "0px",
+                height: isSubmenuOpen(sectionIndex, itemIndex)
+                  ? `${subMenuHeight[buildSubmenuKey(sectionIndex, itemIndex)]}px`
+                  : "0px",
               }}
             >
               <ul className="mt-2 space-y-1 ml-9">
@@ -179,30 +142,6 @@ export default function AppSidebar() {
                       }`}
                     >
                       {subItem.name}
-                      <span className="flex items-center gap-1 ml-auto">
-                        {subItem.new && (
-                          <span
-                            className={`ml-auto ${
-                              isActive(subItem.path)
-                                ? "menu-dropdown-badge-active"
-                                : "menu-dropdown-badge-inactive"
-                            } menu-dropdown-badge `}
-                          >
-                            new
-                          </span>
-                        )}
-                        {subItem.pro && (
-                          <span
-                            className={`ml-auto ${
-                              isActive(subItem.path)
-                                ? "menu-dropdown-badge-active"
-                                : "menu-dropdown-badge-inactive"
-                            } menu-dropdown-badge `}
-                          >
-                            pro
-                          </span>
-                        )}
-                      </span>
                     </Link>
                   </li>
                 ))}
@@ -221,10 +160,10 @@ export default function AppSidebar() {
     findSubmenuByPathname(pathname)
   )
   const [prevPathname, setPrevPathname] = useState(pathname)
-  const [subMenuHeight, setSubMenuHeight] = useState<Record<number, number>>(
+  const [subMenuHeight, setSubMenuHeight] = useState<Record<string, number>>(
     {}
   )
-  const subMenuRefs = useRef<Record<number, HTMLDivElement | null>>({})
+  const subMenuRefs = useRef<Record<string, HTMLDivElement | null>>({})
 
   if (pathname !== prevPathname) {
     setPrevPathname(pathname)
@@ -232,19 +171,26 @@ export default function AppSidebar() {
   }
 
   useEffect(() => {
-    // Set the height of the submenu items when the submenu is opened
+    /**
+     * サブメニューを開いたときに、中身の高さを測って開閉のアニメーションに使う
+     */
     if (openSubmenu !== null) {
-      if (subMenuRefs.current[openSubmenu]) {
+      const key = buildSubmenuKey(openSubmenu.sectionIndex, openSubmenu.itemIndex)
+      if (subMenuRefs.current[key]) {
         setSubMenuHeight((prevHeights) => ({
           ...prevHeights,
-          [openSubmenu]: subMenuRefs.current[openSubmenu]?.scrollHeight || 0,
+          [key]: subMenuRefs.current[key]?.scrollHeight || 0,
         }))
       }
     }
   }, [openSubmenu])
 
-  const handleSubmenuToggle = (index: number) => {
-    setOpenSubmenu((prevOpenSubmenu) => (prevOpenSubmenu === index ? null : index))
+  const handleSubmenuToggle = (sectionIndex: number, itemIndex: number) => {
+    setOpenSubmenu((prevOpenSubmenu) =>
+      prevOpenSubmenu?.sectionIndex === sectionIndex && prevOpenSubmenu.itemIndex === itemIndex
+        ? null
+        : { itemIndex, sectionIndex },
+    )
   }
 
   return (
@@ -272,22 +218,24 @@ export default function AppSidebar() {
       <div className="flex flex-col overflow-y-auto duration-300 ease-linear no-scrollbar">
         <nav className="mb-6">
           <div className="flex flex-col gap-4">
-            <div>
-              <h2
-                className={`mb-4 text-xs uppercase flex leading-[20px] text-gray-400 ${
-                  !isExpanded && !isHovered
-                    ? "lg:justify-center"
-                    : "justify-start"
-                }`}
-              >
-                {isExpanded || isHovered || isMobileOpen ? (
-                  "Menu"
-                ) : (
-                  <HorizontaLDots />
-                )}
-              </h2>
-              {renderMenuItems()}
-            </div>
+            {navSections.map((section, sectionIndex) => (
+              <div key={section.title}>
+                <h2
+                  className={`mb-4 text-xs uppercase flex leading-[20px] text-gray-400 ${
+                    !isExpanded && !isHovered
+                      ? "lg:justify-center"
+                      : "justify-start"
+                  }`}
+                >
+                  {isExpanded || isHovered || isMobileOpen ? (
+                    section.title
+                  ) : (
+                    <HorizontaLDots />
+                  )}
+                </h2>
+                {renderMenuItems(section.items, sectionIndex)}
+              </div>
+            ))}
           </div>
         </nav>
       </div>

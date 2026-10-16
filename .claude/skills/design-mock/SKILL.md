@@ -48,7 +48,7 @@ Step 6: docs/spec/{feature}/README.md に「UI 設計」セクションを追記
 
 - `apps/admin/src/app/globals.css` — カスタム CSS 変数・カラーパレット
 - `apps/admin/src/app/(dashboard)/page.tsx` — ダッシュボードのレイアウト・コンポーネント例
-- `apps/admin/src/app/(dashboard)/ui/` 配下 — Buttons / Alerts / Avatars / Modals 等の既存 UI コンポーネント例
+- `apps/admin/src/app/(dashboard)/demo/ui/` 配下 — Buttons / Alerts / Avatars / Modals 等の既存 UI コンポーネント例
 - `apps/admin/src/components/` — レイアウト / 共通 UI / 機能コンポーネント
 - 対象が `apps/web` の場合は `apps/web/src/app/globals.css` および既存ページも合わせて確認
 
