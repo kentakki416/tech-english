@@ -109,6 +109,7 @@ const restoreProgress = (
 
 /**
  * 問題を解く画面。上部バー・本文・設問パネル（スマホ幅は設問シート）・ステータスバー・ダイアログを並べる。
+ * 全画面共通の背景の光（`.app-backdrop`）は本文の後ろにあると読みにくいため、画面全体を `canvas` の単色で覆う。
  *
  * 端末（localStorage）の途中経過は hydration が終わってから読む（サーバーの HTML とのずれを防ぐ）。
  * 読めるようになったら key を変えて作り直し、保存していた回答・経過秒数・アシストの記録を初期値にする（それまでタイマーは動かさない）
@@ -377,7 +378,7 @@ function SolvingSession({
 
   return (
     <>
-      <div className="flex h-dvh flex-col overflow-hidden" inert={isModalOpen}>
+      <div className="flex h-dvh flex-col overflow-hidden bg-canvas" inert={isModalOpen}>
         <header className="relative z-20 flex h-14 shrink-0 items-center gap-3 border-b border-line bg-canvas px-3 sm:px-4">
           <Link
             className={`inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1.5 text-sm text-fg-muted hover:bg-raised hover:text-fg ${HEADER_BUTTON_FOCUS_CLASS}`}
