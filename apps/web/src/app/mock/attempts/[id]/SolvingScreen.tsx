@@ -303,7 +303,7 @@ export function SolvingScreen({ initialState }: { initialState: SolvingMockState
   const statusLabel = isPaused ? "一時停止中" : isOvertime ? "時間超過" : "読解中"
 
   return (
-    <div className="flex h-dvh flex-col overflow-hidden">
+    <div className="flex h-dvh flex-col overflow-hidden bg-canvas">
       <header className="relative z-20 flex h-14 shrink-0 items-center gap-3 border-b border-line bg-canvas px-3 sm:px-4">
         <Link
           className="inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1.5 text-sm text-fg-muted outline-none hover:bg-raised hover:text-fg focus-visible:ring-2 focus-visible:ring-amber/60"
