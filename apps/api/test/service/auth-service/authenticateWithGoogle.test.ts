@@ -172,7 +172,6 @@ describe("authenticateWithGoogle", () => {
       })
     }
     expect(mockTransactionRunner.run).toHaveBeenCalledTimes(1)
-    /** fake runner は tx として undefined を渡すので、第2引数は undefined */
     expect(mockUserCreate).toHaveBeenCalledWith(
       {
         avatarUrl: "https://example.com/new-avatar.jpg",
