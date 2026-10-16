@@ -1,4 +1,3 @@
-import { createDrizzleClient } from "@repo/db"
 import { logger } from "@repo/logger"
 
 import { GitHubContentClient } from "../client/github"
@@ -17,7 +16,7 @@ import {
   DrizzlePassageRepository,
   DrizzleSourceDocumentRepository,
 } from "../repository/drizzle"
-import { setupGracefulShutdown } from "../runtime/graceful-shutdown"
+import { runTask } from "../run-task"
 import * as service from "../service"
 
 /**
@@ -29,28 +28,17 @@ import * as service from "../service"
  *   pnpm collect:passages --source-id=3 --dry-run  # 最大 5 件を取得して抽出結果を表示する（DB に書かない）
  *
  */
-const main = async (): Promise<void> => {
+runTask("collect-passages", async ({ db }) => {
   const args = parseCollectArgs(process.argv.slice(2))
   if (!env.GITHUB_CONTENT_TOKEN) {
     logger.warn("GITHUB_CONTENT_TOKEN is not set; GitHub API is used without authentication (60 req/h)")
   }
-
-  const db = createDrizzleClient({
-    onError: (error) => {
-      logger.error("db idle client error", error)
-    },
-    url: env.DATABASE_URL,
-  })
-  const { isShuttingDown } = setupGracefulShutdown(db)
 
   const repo = {
     contentSourceRepository: new DrizzleContentSourceRepository(db),
     passageRepository: new DrizzlePassageRepository(db),
     sourceDocumentRepository: new DrizzleSourceDocumentRepository(db),
   }
-  /**
-   * サイトの管理者がどのサービスのボットか分かるよう、サービスのトップの URL があれば User-Agent に入れる
-   */
   const userAgent = env.COLLECT_WEB_CONTACT_URL
     ? `${COLLECTOR_USER_AGENT} (+${env.COLLECT_WEB_CONTACT_URL})`
     : COLLECTOR_USER_AGENT
@@ -61,59 +49,43 @@ const main = async (): Promise<void> => {
       userAgent,
     }),
     githubContentClient: new GitHubContentClient({ token: env.GITHUB_CONTENT_TOKEN, userAgent }),
-    isShuttingDown,
   }
 
-  try {
-    if (args.dryRun && args.sourceId !== null) {
-      const preview = await service.collection.previewSource(
-        { maxDocuments: DRY_RUN_MAX_DOCUMENTS, sourceId: args.sourceId },
-        repo,
-        deps,
-      )
-      process.stdout.write(formatDryRun(preview))
-      return
-    }
-
-    logger.info("collect-passages started", {
-      maxDocumentsPerSource: env.COLLECT_MAX_DOCUMENTS_PER_SOURCE,
-      maxPassagesPerRun: env.COLLECT_MAX_PASSAGES_PER_RUN,
-      refetchDays: env.COLLECT_WEB_REFETCH_DAYS,
-      sourceId: args.sourceId,
-    })
-    const result = await service.collection.collectPassages(
-      {
-        githubMinRateLimitRemaining: env.GITHUB_CONTENT_TOKEN
-          ? GITHUB_MIN_RATE_LIMIT_REMAINING
-          : GITHUB_UNAUTHENTICATED_MIN_RATE_LIMIT_REMAINING,
-        maxDocumentsPerSource: env.COLLECT_MAX_DOCUMENTS_PER_SOURCE,
-        maxPassagesPerRun: env.COLLECT_MAX_PASSAGES_PER_RUN,
-        now: new Date(),
-        refetchDays: env.COLLECT_WEB_REFETCH_DAYS,
-        sourceId: args.sourceId,
-      },
+  if (args.dryRun && args.sourceId !== null) {
+    const preview = await service.collection.previewSource(
+      { maxDocuments: DRY_RUN_MAX_DOCUMENTS, sourceId: args.sourceId },
       repo,
       deps,
     )
-    logger.info("collect-passages completed", {
-      createdPassageCount: result.createdPassageCount,
-      failedSourceIds: result.failedSourceIds,
-    })
-    /**
-     * 1 件でも失敗があれば exit 1 でスケジューラに通知する（他のソースは処理済み）
-     */
-    if (result.failedSourceIds.length > 0) {
-      throw new Error(`collect-passages failed for sources: ${result.failedSourceIds.join(", ")}`)
-    }
-  } finally {
-    await db.$disconnect()
+    process.stdout.write(formatDryRun(preview))
+    return
   }
-}
 
-main().catch((err: unknown) => {
-  logger.error(
-    "collect-passages failed",
-    err instanceof Error ? err : new Error(String(err)),
+  logger.info("collect-passages started", {
+    maxDocumentsPerSource: env.COLLECT_MAX_DOCUMENTS_PER_SOURCE,
+    maxPassagesPerRun: env.COLLECT_MAX_PASSAGES_PER_RUN,
+    refetchDays: env.COLLECT_WEB_REFETCH_DAYS,
+    sourceId: args.sourceId,
+  })
+  const result = await service.collection.collectPassages(
+    {
+      githubMinRateLimitRemaining: env.GITHUB_CONTENT_TOKEN
+        ? GITHUB_MIN_RATE_LIMIT_REMAINING
+        : GITHUB_UNAUTHENTICATED_MIN_RATE_LIMIT_REMAINING,
+      maxDocumentsPerSource: env.COLLECT_MAX_DOCUMENTS_PER_SOURCE,
+      maxPassagesPerRun: env.COLLECT_MAX_PASSAGES_PER_RUN,
+      now: new Date(),
+      refetchDays: env.COLLECT_WEB_REFETCH_DAYS,
+      sourceId: args.sourceId,
+    },
+    repo,
+    deps,
   )
-  process.exit(1)
+  logger.info("collect-passages completed", {
+    createdPassageCount: result.createdPassageCount,
+    failedSourceIds: result.failedSourceIds,
+  })
+  if (result.failedSourceIds.length > 0) {
+    throw new Error(`collect-passages failed for sources: ${result.failedSourceIds.join(", ")}`)
+  }
 })

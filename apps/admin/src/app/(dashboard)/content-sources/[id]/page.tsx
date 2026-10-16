@@ -6,6 +6,7 @@ import { allowedLicenseSchema, getContentSourcePathParamSchema } from "@repo/api
 import { SourceForm } from "@/components/features/content-source/SourceForm"
 import PageBreadcrumb from "@/components/layout/PageBreadCrumb"
 import { contentSourceApi } from "@/features/content-source/content-source.api"
+import { tagApi } from "@/features/tag/tag.api"
 import { ApiClientError } from "@/libs/api-client"
 
 export const metadata: Metadata = {
@@ -37,12 +38,12 @@ const loadContentSource = async (id: string) => {
  */
 export default async function EditContentSourcePage({ params }: Props) {
   const { id } = await params
-  const detail = await loadContentSource(id)
+  const [detail, { tags }] = await Promise.all([loadContentSource(id), tagApi.getList()])
 
   return (
     <>
       <PageBreadcrumb pageTitle={`ソースの編集：${detail.source.name}`} />
-      <SourceForm allowedLicenses={allowedLicenseSchema.options} detail={detail} />
+      <SourceForm allowedLicenses={allowedLicenseSchema.options} detail={detail} tags={tags} />
     </>
   )
 }

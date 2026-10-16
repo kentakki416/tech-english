@@ -244,10 +244,8 @@ export const createFakeRepo = (options: {
 
 export const createDeps = (
   githubContentClient: ReturnType<typeof createFakeGitHubClient>,
-  isShuttingDown = () => false,
   webPageClient: ReturnType<typeof createFakeWebPageClient> = createFakeWebPageClient(),
 ) => ({
   createWebPageClient: vi.fn((_origin: string) => webPageClient),
   githubContentClient,
-  isShuttingDown: vi.fn(isShuttingDown),
 })

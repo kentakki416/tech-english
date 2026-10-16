@@ -44,7 +44,6 @@ const buildTarget = (overrides: Partial<ClaimedAudioTarget> = {}): ClaimedAudioT
 const MONTHLY_CHARACTER_LIMIT = 1_800_000
 
 const buildInput = (overrides: Partial<GenerateAudioInput> = {}): GenerateAudioInput => ({
-  isShuttingDown: () => false,
   maxPassagesPerRun: 20,
   monthlyCharacterLimit: MONTHLY_CHARACTER_LIMIT,
   now: () => NOW,
@@ -603,20 +602,6 @@ describe("generateAudio", () => {
       await expect(generateAudio(buildInput(), repo, createDeps(ttsClient))).rejects.toBe(fatal)
 
       expect(repo.passageAudioRepository.releaseClaim).toHaveBeenCalledWith(target)
-    })
-
-    it("isShuttingDown が true になったら残りを処理しない", async () => {
-      const repo = createFakeRepo({ targets: [buildTarget(), buildTarget({ passageId: 43 })] })
-      let processedCount = 0
-      repo.passageAudioRepository.completeClaim.mockImplementation(async () => {
-        processedCount++
-        return "ready"
-      })
-
-      const result = await generateAudio(buildInput({ isShuttingDown: () => processedCount > 0 }), repo, createDeps())
-
-      expect(repo.passageAudioRepository.completeClaim).toHaveBeenCalledTimes(1)
-      expect(result.readyCount).toBe(1)
     })
   })
 })

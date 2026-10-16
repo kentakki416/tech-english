@@ -48,7 +48,6 @@ const buildPassage = (id: number): ClaimedPassage => ({
 
 const buildInput = (overrides: Partial<GenerateQuestionsInput> = {}): GenerateQuestionsInput => ({
   generationModel: GENERATION_MODEL,
-  isShuttingDown: () => false,
   maxPassagesPerRun: 10,
   maxPendingDrafts: 50,
   now: () => NOW,
@@ -323,22 +322,6 @@ describe("generateQuestions", () => {
       await generateQuestions(buildInput(), repo, { llmClient: createFakeLlmClient([unsuitable]) })
 
       expect(repo.passageRepository.markRejectedByLlm.mock.calls[0][1].reason).toBe("目次だけ")
-    })
-
-    it("停止指示を受けていたら、次の行を取らずに終える", async () => {
-      const repo = createFakeRepo({ claimed: [buildPassage(1), buildPassage(2)] })
-      const llmClient = createFakeLlmClient([buildGeneratedOutput()])
-      let isShuttingDown = false
-      repo.passageRepository.saveDraft.mockImplementationOnce(async () => {
-        isShuttingDown = true
-        return true
-      })
-
-      const result = await generateQuestions(buildInput({ isShuttingDown: () => isShuttingDown }), repo, { llmClient })
-
-      expect(result.draftCount).toBe(1)
-      expect(llmClient.requestsOf(GENERATION_MODEL)).toHaveLength(1)
-      expect(repo.passageRepository.claimNextCollected).toHaveBeenCalledTimes(1)
     })
   })
 

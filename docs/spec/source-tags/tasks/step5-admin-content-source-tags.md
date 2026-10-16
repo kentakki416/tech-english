@@ -17,7 +17,8 @@
 | `src/components/features/content-source/SourceForm.tsx` | 技術タグの入力を `TagPicker` に変える。props に `tags` を足す（変更） |
 | `src/features/content-source/content-source.form.ts` | `tags`（カンマ区切り）→ `tag_ids`（変更） |
 | `src/app/(dashboard)/content-sources/new/page.tsx`・`[id]/page.tsx` | タグの一覧を取って `SourceForm` に渡す（変更） |
-| `src/components/features/content-source/SourceTable.tsx` | 「タグ」の列を足す（変更） |
+| `src/components/features/content-source/SourceTable.tsx` | 「ソース」の列の名前・リポジトリの下にタグを並べる（変更） |
+| `src/app/(dashboard)/layout.tsx`・`src/components/ui/table/DataTable.tsx` | メインの領域に `min-w-0`、表を包む要素に `overflow-x-auto` を足し、表が長くなっても画面が横にはみ出さず、表の中で横にスクロールするようにする（変更） |
 | `apps/admin/CLAUDE.md` | 「接続済みの画面」のソースの行に `TagPicker` を足す（変更） |
 
 デザインモック（`app/(dashboard)/mock/content-sources/**`）は変えない。モックは `@/libs/mock-data` の独自の型（`tags: string[]`）を使っていて `@repo/api-schema` の型に依存しないので、型エラーにならない（全画面の本実装の後にまとめて消す）。
@@ -212,25 +213,19 @@ export default async function EditContentSourcePage({ params }: Props) {
 
 ### ソースの一覧
 
-`SourceTable` の「ソース」の列の後に「タグ」の列を足す。
+`SourceTable` の「ソース」の列（名前・リポジトリ）の下に、タグを `flex flex-wrap gap-1` の行で `TagChip` を並べて出す。タグが無いソースは何も出さない。別の「タグ」の列にすると 1440px の幅で表がはみ出したため、ソースの列の中に入れた。
 
 ```tsx
-/** apps/admin/src/components/features/content-source/SourceTable.tsx（COLUMNS に足す） */
-{
-  header: "タグ",
-  render: (row) =>
-    row.tags.length > 0 ? (
-      <div className="flex max-w-60 flex-wrap gap-1.5">
-        {row.tags.map((tag) => <TagChip key={tag.id} color={tag.color} name={tag.name} />)}
-      </div>
-    ) : (
-      <span className="text-gray-300 dark:text-gray-600">―</span>
-    ),
-},
+/** apps/admin/src/components/features/content-source/SourceTable.tsx（「ソース」の列の render の中） */
+{row.tags.length > 0 && (
+  <div className="mt-1.5 flex flex-wrap gap-1">
+    {row.tags.map((tag) => <TagChip key={tag.id} color={tag.color} name={tag.name} />)}
+  </div>
+)}
 ```
 
 - 検索（`search.filterKeys`）と Filter は変えない（タグでの絞り込みは要望が出てから）
-- 列が増えて横に長くなるので、スマホ幅では今までどおり表が横にスクロールすることを確かめる
+- レイアウト（`(dashboard)/layout.tsx`）のメインの領域に `min-w-0` を足し、`DataTable` の表を `<div className="overflow-x-auto">` で包む。これで幅の狭い画面では表が中で横にスクロールし、ページ全体は横にはみ出さない
 
 ### `apps/admin/CLAUDE.md`
 
@@ -253,7 +248,7 @@ api（step3 まで入ったもの）と admin を起動し、`verify-web-page` s
 - [ ] 入力エラー（表示名を空にする）で戻ってきても、タグの選択が残っている
 - [ ] タグを 1 つ選んだ編集画面を開いたまま、別のタブでそのタグを消してから保存すると、技術タグの欄の下に「選んだタグのうち、削除されたものがあります。…」が出る
 - [ ] タグが 0 件のとき（全部消した状態）は「タグがまだありません。タグの画面で追加してください。」が出て、リンクで `/tags` に飛べる
-- [ ] `/content-sources`：各行にタグが色付きで出る。タグが無いソースは「―」
+- [ ] `/content-sources`：各行のソース名の下にタグが色付きで出る。タグが無いソースは何も出ない
 - [ ] `/tags` でタグの名前・色を変えた後、`/content-sources` と編集画面のそのタグの表示が変わっている
 - [ ] ライトとダークの両方で、選んだ・選んでいないタグの区別がつく
 - [ ] `browser_console_messages` の error が 0 件

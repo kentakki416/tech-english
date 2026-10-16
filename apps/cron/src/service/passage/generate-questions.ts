@@ -75,10 +75,6 @@ const VERIFICATION_FAILED_REASON = "検証モデルでの確認に失敗しま�
 
 export type GenerateQuestionsInput = {
   generationModel: string
-  /**
-   * 停止指示を受けたか。次の行を取る前に見て、true なら取らずに終える（取得済みで処理していない行は残らない）
-   */
-  isShuttingDown: () => boolean
   maxPassagesPerRun: number
   /**
    * 確認待ちの下書きがこの件数以上なら生成しない（passageId の指定時は見ない）
@@ -414,7 +410,6 @@ export const generateQuestions = async (
   if (releasedCount > 0) logger.warn("stale generating passages were released", { releasedCount })
 
   for (let claimedCount = 0; claimedCount < limit; claimedCount++) {
-    if (input.isShuttingDown()) break
     const passage = await repo.passageRepository.claimNextCollected({ now: input.now(), passageId: input.passageId })
     if (!passage) {
       if (input.passageId === undefined) break

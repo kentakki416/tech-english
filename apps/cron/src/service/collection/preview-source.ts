@@ -44,7 +44,6 @@ const previewGitHubSource = async (
   const { files, isComplete } = await listGitHubTargetFiles({ commitSha, source }, deps)
   const documents: DocumentPreview[] = []
   for (const file of files.slice(0, input.maxDocuments)) {
-    if (deps.isShuttingDown()) break
     const content = await deps.githubContentClient.getFileContent(source.repository, file.path, commitSha)
     try {
       documents.push({ document: extractGitHubFile(file.path, content), path: file.path, status: "extracted" })
@@ -99,13 +98,11 @@ const previewWebsiteFromSitemap = async (
   input: PreviewInput,
   source: WebsiteSource & { sitemapUrl: string },
   client: IWebPageClient,
-  deps: CollectionDeps,
 ): Promise<SourcePreview> => {
   const sitemapUrls = await client.fetchSitemapUrls(source.sitemapUrl)
   const paths = selectFetchablePagePaths(sitemapUrls.map(({ url }) => url), source.sitemapUrl, source, client)
   const documents: DocumentPreview[] = []
   for (const path of paths.slice(0, input.maxDocuments)) {
-    if (deps.isShuttingDown()) break
     documents.push(buildPagePreview(source, path, await client.fetchPage(buildPageUrl(source, path), UNCONDITIONAL)))
   }
   return {
@@ -126,7 +123,6 @@ const previewWebsiteFromStartPage = async (
   input: PreviewInput,
   source: WebsiteSource,
   client: IWebPageClient,
-  deps: CollectionDeps,
 ): Promise<SourcePreview> => {
   const startPath = findStartPagePath(source)
   if (startPath === null) throw new Error(`Website source has neither sitemap_url nor start_url: id=${source.id}`)
@@ -134,7 +130,7 @@ const previewWebsiteFromStartPage = async (
   const seenPaths = new Set(queue)
   const documents: DocumentPreview[] = []
   let fetchedPageCount = 0
-  while (fetchedPageCount < input.maxDocuments && !deps.isShuttingDown()) {
+  while (fetchedPageCount < input.maxDocuments) {
     const path = queue.shift()
     if (path === undefined) break
     const result = await client.fetchPage(buildPageUrl(source, path), UNCONDITIONAL)
@@ -175,8 +171,8 @@ const previewWebsiteSource = async (
   await client.loadRobots()
   const { sitemapUrl } = source
   return sitemapUrl === null
-    ? previewWebsiteFromStartPage(input, source, client, deps)
-    : previewWebsiteFromSitemap(input, { ...source, sitemapUrl }, client, deps)
+    ? previewWebsiteFromStartPage(input, source, client)
+    : previewWebsiteFromSitemap(input, { ...source, sitemapUrl }, client)
 }
 
 /**

@@ -1,0 +1,1 @@
+ALTER TABLE "content_sources" DROP COLUMN "tags";

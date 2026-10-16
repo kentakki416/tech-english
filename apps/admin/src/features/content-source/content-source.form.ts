@@ -37,13 +37,10 @@ const splitLines = (formData: FormData, key: string): string[] =>
     .filter((line) => line !== "")
 
 /**
- * カンマ区切りの項目。カンマで分けて trim し、空の要素を捨てる
+ * 同じ name の hidden の input（タグの選択）の id。数値にできない値は NaN のまま残し、Zod に弾かせる
  */
-const splitComma = (formData: FormData, key: string): string[] =>
-  getText(formData, key)
-    .split(",")
-    .map((item) => item.trim())
-    .filter((item) => item !== "")
+const getIds = (formData: FormData, key: string): number[] =>
+  formData.getAll(key).map((value) => (typeof value === "string" && value !== "" ? Number(value) : Number.NaN))
 
 /**
  * フォームの入力をソースの登録・更新のリクエストに変換する。
@@ -60,7 +57,7 @@ export const convertFormDataToContentSourceRequest = (formData: FormData): Recor
     license_spdx: getChoice(formData, "license_spdx"),
     license_url: getText(formData, "license_url").trim(),
     name: getText(formData, "name"),
-    tags: splitComma(formData, "tags"),
+    tag_ids: getIds(formData, "tag_ids"),
   }
 
   if (fetchType === "github_repository") {

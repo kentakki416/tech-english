@@ -30,10 +30,6 @@ import type {
 const MILLIS_PER_MINUTE = 60 * 1000
 
 export type GenerateAudioInput = {
-  /**
-   * 停止指示を受けたか。各件の頭で見て、true なら残りを処理せずに終える（確保済みの残りは 30 分後に回収される）
-   */
-  isShuttingDown: () => boolean
   maxPassagesPerRun: number
   /**
    * 今月（UTC の暦月）に Polly で課金してよい文字数（AUDIO_MONTHLY_CHARACTER_LIMIT）
@@ -295,7 +291,6 @@ export const generateAudio = async (
   })
 
   for (const [index, target] of targets.entries()) {
-    if (input.isShuttingDown()) break
     const plan = planPassageAudio(target, calculateTextHash)
     let outcome: AudioClaimOutcome
     if (plan.kind === "unchanged") {

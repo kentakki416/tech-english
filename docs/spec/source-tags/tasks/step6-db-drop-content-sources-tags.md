@@ -16,7 +16,7 @@ Drizzle のスキーマからは [step3](./step3-api-content-source-tags.md) で
 ### 列を参照しているコードが残っていないことを確かめる
 
 ```bash
-rg -n 'contentSources\.tags|jsonb\("tags"\)|jsonb_array_elements_text|\?\| *ARRAY|content_sources"?\."?tags' apps/*/src packages/db/src packages/db/drizzle/*.ts
+rg -n 'contentSources\.tags|jsonb\("tags"\)|jsonb_array_elements_text|\?\| *array|content_sources"?\."?tags' apps/*/src packages/db/src packages/db/drizzle/*.ts
 ```
 
 何も出なければよい。出たら step3 の直し漏れなので先に直す。列は Drizzle のスキーマからもう外れているので、型付きの参照（`row.tags` など）は `pnpm build` の型エラーで見つかる。この grep は、型で見つからない生 SQL やスキーマ定義の残りを探すためのもの。`tags` の文字列だけで探すと、`pgTable("tags"` や中間テーブル経由の `tags: row.tags` に当たるので、列を指す形で探す。migration の SQL ファイルには過去の `tags` 列が出てくるが、探す場所に入れていないので当たらない。

@@ -92,7 +92,7 @@ describe("previewSource", () => {
         sitemapUrl: `${SITE}/sitemap.xml`,
       })
       const repo = createFakeRepo({ source })
-      const deps = createDeps(createFakeGitHubClient(), () => false, client)
+      const deps = createDeps(createFakeGitHubClient(), client)
 
       const preview = await previewSource({ maxDocuments: 5, sourceId: 7 }, repo, deps)
 
@@ -134,7 +134,7 @@ describe("previewSource", () => {
       const source = buildWebsiteSource({ contentSelector: "main", id: 8, siteUrl: SITE, sitemapUrl: null, startUrl: `${SITE}/start/` })
       const repo = createFakeRepo({ source })
 
-      const preview = await previewSource({ maxDocuments: 5, sourceId: 8 }, repo, createDeps(createFakeGitHubClient(), () => false, client))
+      const preview = await previewSource({ maxDocuments: 5, sourceId: 8 }, repo, createDeps(createFakeGitHubClient(), client))
 
       expect(client.fetchPage.mock.calls.map(([url]) => url)).toEqual([
         `${SITE}/start/`,
@@ -168,7 +168,7 @@ describe("previewSource", () => {
       const client = createFakeWebPageClient({ loadRobotsError: new BlockedUrlError("localhost") })
       const repo = createFakeRepo({ source: buildWebsiteSource({ id: 2, siteUrl: "https://localhost" }) })
 
-      await expect(previewSource({ maxDocuments: 5, sourceId: 2 }, repo, createDeps(githubClient, () => false, client)))
+      await expect(previewSource({ maxDocuments: 5, sourceId: 2 }, repo, createDeps(githubClient, client)))
         .rejects.toBeInstanceOf(BlockedUrlError)
       expect(githubClient.getLatestCommitSha).not.toHaveBeenCalled()
       expect(client.fetchPage).not.toHaveBeenCalled()

@@ -26,9 +26,12 @@ export default function AdminLayout({
       {/* Sidebar and Backdrop */}
       <AppSidebar />
       <Backdrop />
+      {/**
+        * flex item は既定で中身の最小幅より縮まないため、min-w-0 で縮められるようにする（広い表がページを広げず、カードの中でスクロールする）
+        */}
       {/* Main Content Area */}
       <div
-        className={`flex-1 transition-all  duration-300 ease-in-out ${mainContentMargin}`}
+        className={`min-w-0 flex-1 transition-all  duration-300 ease-in-out ${mainContentMargin}`}
       >
         {/* Header */}
         <AppHeader />
