@@ -5,7 +5,7 @@ import { InfoIcon } from "@/icons"
 
 /**
  * Tooltip は子の props を読んで cloneElement するので、子を client component の中で作る。
- * Server Component で作った子は RSC の lazy の要素で届くことがあり（開発時、子に InfoIcon のような component があると起きる）、props が無く落ちる
+ * Server Component で作った子は RSC の lazy の要素で届くことがあり（子に InfoIcon のような component を含むと起きた）、props が無く落ちる
  */
 export function LoginMethodColumnLabel() {
   return (
