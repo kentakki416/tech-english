@@ -26,10 +26,15 @@ export default async function SignIn({ searchParams }: Props) {
 
   /**
    * 有効な access の cookie があれば元の画面に戻す。proxy の更新が、同時に来た別のリクエストに
-   * 先を越されて 401 になった場合（新しい cookie は先のリクエストで届いている）の受け口
+   * 先を越されて 401 になった場合（新しい cookie は先のリクエストで届いている）の受け口。
+   *
+   * `?error=` があるときは戻さない。外のサイトのリンクから開かれた（cross-site）/api/auth/signout は cookie を
+   * 消さずにここへ送るので、api が認めない access の cookie（偽物・鍵を作り直す前のもの）が期限内のまま残る。
+   * 戻すと、画面 → api の 401 → signout → ここ → 画面…と往復が止まらない。
+   * サインインしたままの人にサインイン画面を見せても害はない
    */
   const accessToken = await getAccessToken()
-  if (accessToken && !isAccessTokenExpiringSoon(accessToken)) {
+  if (!error && accessToken && !isAccessTokenExpiringSoon(accessToken)) {
     redirect(redirectPath)
   }
 

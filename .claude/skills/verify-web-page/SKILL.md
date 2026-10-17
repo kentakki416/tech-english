@@ -68,7 +68,7 @@ curl -s -o /dev/null -w "web=%{http_code} api=%{http_code}\n" http://localhost:3
 curl -s http://localhost:8080/api/health
 ```
 
-- web が 200 / 307（middleware redirect） を返す
+- web が 200 / 307（proxy の redirect） を返す
 - api の `/api/health` が `{"status":"ok"}` を返す
 
 両方走っていない場合: ユーザーに「`pnpm dev` を起動してください」と伝える。勝手に `pnpm dev` を `run_in_background` で立ち上げない（既存セッションと競合するリスク）。
@@ -80,7 +80,7 @@ curl -s http://localhost:8080/api/health
 | 不要（PUBLIC_PATHS） | `/sign-in` | そのまま `browser_navigate` |
 | 必要 | `/`, `/onboarding`, `/profile/:id`, `/matching/preferences` 等 | Step 3 で cookie を注入 |
 
-`apps/web/src/middleware.ts` の `PUBLIC_PATHS` を見て判定する。
+`apps/web/src/proxy.ts` の `PUBLIC_PATHS` を見て判定する。
 
 admin は `apps/admin/src/proxy.ts` の `PUBLIC_PATHS`（`/signin`・`/demo/signin`・`/demo/signup` など）以外のすべてで認証が要る。cookie なしで開くと `/signin?redirect=...` に送られる。
 

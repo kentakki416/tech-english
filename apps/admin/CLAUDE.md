@@ -41,14 +41,15 @@ cd apps/admin && pnpm exec dotenvx set API_URL "http://localhost:8080" -f .env.l
 
 一般ユーザー（web）とは別の、admin 専用の認証。`admins` に email を登録した Google アカウントだけがサインインできる（流れは [`docs/onboarding/auth.md` の「admin の認証」](../../docs/onboarding/auth.md#admin-の認証)、設計は [admin-template](../../docs/spec/admin-template/README.md#admin-認証)）。
 
-- **サインイン**: `/signin` の「Google でサインイン」（`app/(auth)/signin/actions.ts` の `startGoogleOAuth`）で Google に送り、`/api/auth/callback/google` が api の `/api/admin/auth/google` で code を検証して cookie に保存する。production 以外は「dev admin でログイン」（`/api/dev/login`。seed の `admin@dev.local` で入る。production では 404）も出す
+- **サインイン**: `/signin` の「Google でサインイン」（`app/(auth)/signin/actions.ts` の `startGoogleOAuth`）で Google に送り、`/api/auth/callback/google` が api の `/api/admin/auth/google` で code を検証して cookie に保存する。production 以外は「dev admin でログイン」（`/api/dev/login`。seed の `admin@dev.local` で入る）も出す。production の `/api/dev/login` は公開のパスではないので、サインインしていなければ proxy が 401、サインインしていれば Route Handler が 404 を返す
 - **cookie**: `admin_access_token` / `admin_refresh_token` / `admin_oauth_state` / `admin_oauth_redirect`（名前と属性は `src/libs/auth-cookies.ts`、読み書きは `src/libs/auth.ts`）。web の `app_*` とはポートが違っても同じホストなら共有されるので、名前を分けている
 - **`src/proxy.ts` は cookie の有無と期限（`exp`）しか見ない UX 用のガード。** 署名は api が確かめる。api を呼ばずに機密を描く画面を作らない（偽の cookie でも画面までは開ける）。`_next/static`・`_next/image`・`favicon.svg`・`images/` 以外のすべて（モックの `/mock` も）が対象で、サインインせずに開けるのは `PUBLIC_PATHS` だけ
 - **access token の更新（refresh）は `src/proxy.ts` だけが行う。** 期限まで 30 秒を切っているか無ければ `/api/admin/auth/refresh` を呼び、レスポンスとリクエストの cookie を書き換えて画面に渡す。`apiClient` は refresh しない（Server Component の中では cookie を書けず、セッションが切れる）
-- サインインが要るとき、画面は `/signin?redirect=...` に送る。**`/api/` の下の Route Handler は redirect せず 401 の JSON を返す**（ブラウザの `fetch` から呼ばれるため）。サインインせずに開ける画面・Route Handler は `PUBLIC_PATHS` に足す（公開のパスで token を更新するのはサインイン画面だけ）
+- サインインが要るとき、画面は `/signin?redirect=...` に送る。**`/api/` の下の Route Handler は redirect せず 401 の JSON を返す**（ブラウザの `fetch` から呼ばれるため）。**Server Action は止めずに通す**（redirect すると Next.js のクライアントが扱えずエラー画面になる。token が無ければ api の 401 で `apiClient` がサインイン画面に送る）。そのため、**api を呼ばずに状態を変えたり機密を返したりする Server Action を作らない**。サインインせずに開ける画面・Route Handler は `PUBLIC_PATHS` に足す（公開のパスで token を更新するのはサインイン画面だけ）
 - **`apiClient` は api の 401 で `/api/auth/signout`（cookie を消してサインイン画面へ送る）に redirect する。** redirect は例外なので、**api の呼び出しを try/catch で囲むときは catch の先頭で `unstable_rethrow(error)` する**（入れないと、セッション切れが「保存に失敗しました」などの表示に化ける）。ブラウザの `fetch` から呼ばれる Route Handler は `apiClient.get(path, { onUnauthorized: "throw" })` で 401 を `ApiClientError` として受け、401 を返す（見本はライセンスの検出の `app/api/content-sources/license/route.ts`）
 - サインイン後の戻り先は `src/libs/safe-redirect.ts` の `resolveSafeRedirectPath` を必ず通す（外のサイトに飛ばさない）
 - ログアウトは `src/features/auth/auth.actions.ts` の `logoutAction`（ヘッダーのユーザーメニューの「Sign out」）
+- 認証の処理（proxy の refresh・Google の callback・ログアウト）の失敗は、`console.error` に HTTP の status と `src/libs/error-name.ts` の `getErrorName`（エラーの名前）だけを出す。token・code・cookie・email を含みうる message や応答の中身は出さない
 - **admin の登録**: 画面からは足せない。ローカルは seed が `admin@dev.local` を入れる。それ以外の email は `pnpm --filter @repo/db admin:create --email <email>`、本番は GitHub Actions の「Admin Create」（`docs/deploy/prd.md`）
 
 Google Cloud の OAuth クライアント（api・web と同じもの）の「承認済みのリダイレクト URI」に、admin の callback を足す。ローカルは Google でのサインインを試すときだけ要る（dev ログインには要らない）。

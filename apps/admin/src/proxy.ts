@@ -10,11 +10,9 @@ import {
   REFRESH_TOKEN_COOKIE,
   REFRESH_TOKEN_COOKIE_OPTIONS,
 } from "@/libs/auth-cookies"
+import { getErrorName } from "@/libs/error-name"
 import { resolveSafeRedirectPath } from "@/libs/safe-redirect"
 
-/**
- * production 以外でのみ公開する dev 専用パス
- */
 const DEV_ONLY_PUBLIC_PATHS = process.env.NODE_ENV !== "production"
   ? ["/api/dev/login"]
   : []
@@ -22,6 +20,11 @@ const DEV_ONLY_PUBLIC_PATHS = process.env.NODE_ENV !== "production"
 const SIGN_IN_PATH = "/signin"
 
 const API_PATH_PREFIX = "/api/"
+
+/**
+ * Next.js は公開の API でこの名前を出していない（next/dist の内部の定数）ので、値を書く
+ */
+const SERVER_ACTION_HEADER = "next-action"
 
 /**
  * サインインせずに開けるパス。サインイン画面（SIGN_IN_PATH）以外は token の更新もしない
@@ -48,7 +51,6 @@ const isPathUnderPrefix = (pathname: string, prefix: string): boolean =>
 
 /**
  * refresh の api を待つ上限。api が応答しないときに、画面の描画を長く止めない
- * （打ち切ったら failed として扱い、cookie を残したままサインイン画面に送るか、そのまま通す）
  */
 const REFRESH_TIMEOUT_MS = 5_000
 
@@ -70,21 +72,39 @@ const requestTokenRefresh = async (refreshToken: string): Promise<RefreshResult>
       signal: AbortSignal.timeout(REFRESH_TIMEOUT_MS),
     })
     if (res.status === 401) return { status: "unauthorized" }
-    if (!res.ok) return { status: "failed" }
+    if (!res.ok) {
+      console.error("Admin token refresh failed", { status: res.status })
+      return { status: "failed" }
+    }
     const json = adminAuthRefreshResponseSchema.parse(await res.json())
     return { accessToken: json.access_token, refreshToken: json.refresh_token, status: "refreshed" }
-  } catch {
+  } catch (error) {
+    console.error("Admin token refresh failed", { error: getErrorName(error) })
     return { status: "failed" }
   }
 }
 
 /**
- * /api/ の下（Route Handler）は、サインイン画面に redirect せず 401 の JSON を返す。
- * ブラウザの fetch から呼ばれるので、redirect にすると fetch がそれを辿り、サインイン画面の HTML を受け取ってしまう
+ * サインインが要るのに使える token が無いリクエストに返す応答。画面はサインイン画面に redirect する。
+ *
+ * /api/ の下（Route Handler）は 401 の JSON を返す。ブラウザの fetch から呼ばれるので、
+ * redirect にすると fetch がそれを辿り、サインイン画面の HTML を受け取ってしまう。
+ *
+ * Server Action はそのまま通す。Next.js のクライアントは Server Action の応答を自分の形式で読むので、
+ * redirect を辿ってサインイン画面を受け取ると扱えず、エラー画面（global-error）になる。
+ * 認証の境界は api なので、通しても守りは変わらない。admin の Server Action は api を中継するだけで、
+ * token が無ければ api の 401 で apiClient が /api/auth/signout に redirect し、そこからサインイン画面に移る
+ * （Server Action の中の redirect は、Next.js のクライアントが画面の遷移として扱える）。
+ * api を呼ばない Server Action（logoutAction・startGoogleOAuth）は、サインインしていなくても動いて困らない。
+ * その代わり、更新の競合や api の一時的な障害で token を取れなかったときも、Server Action では api の 401 で
+ * cookie が消え、サインインし直しになる
  */
-const rejectUnauthenticated = (req: NextRequest): NextResponse => {
+const respondToUnauthenticated = (req: NextRequest): NextResponse => {
   if (req.nextUrl.pathname.startsWith(API_PATH_PREFIX)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+  if (req.method === "POST" && req.headers.has(SERVER_ACTION_HEADER)) {
+    return NextResponse.next()
   }
   const url = new URL(SIGN_IN_PATH, req.url)
   url.searchParams.set("redirect", resolveSafeRedirectPath(`${req.nextUrl.pathname}${req.nextUrl.search}`))
@@ -116,7 +136,7 @@ export const proxy = async (req: NextRequest) => {
 
   const refreshToken = req.cookies.get(REFRESH_TOKEN_COOKIE)?.value
   if (refreshToken === undefined) {
-    return isPublicPath ? NextResponse.next() : rejectUnauthenticated(req)
+    return isPublicPath ? NextResponse.next() : respondToUnauthenticated(req)
   }
 
   const result = await requestTokenRefresh(refreshToken)
@@ -145,7 +165,7 @@ export const proxy = async (req: NextRequest) => {
    * （一時的な障害でログアウトされる）。サインイン画面を開き直せば、そこでもう一度更新を試みる。
    */
   if (result.status === "unauthorized" || accessToken === undefined) {
-    return rejectUnauthenticated(req)
+    return respondToUnauthenticated(req)
   }
 
   /**

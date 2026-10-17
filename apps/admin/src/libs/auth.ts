@@ -10,7 +10,8 @@ import {
 } from "./auth-cookies"
 
 /**
- * Server Action / Route Handler から呼ぶ。Server Component の中では cookie を書けない
+ * cookie を書き換える関数（これと clearAuthCookies）は Server Action / Route Handler から呼ぶ。
+ * Server Component の中では cookie を書けない
  */
 export const setAuthCookies = async (accessToken: string, refreshToken: string) => {
   const store = await cookies()
@@ -18,9 +19,6 @@ export const setAuthCookies = async (accessToken: string, refreshToken: string) 
   store.set(REFRESH_TOKEN_COOKIE, refreshToken, REFRESH_TOKEN_COOKIE_OPTIONS)
 }
 
-/**
- * Server Action / Route Handler から呼ぶ。Server Component の中では cookie を消せない
- */
 export const clearAuthCookies = async () => {
   const store = await cookies()
   store.delete(ACCESS_TOKEN_COOKIE)

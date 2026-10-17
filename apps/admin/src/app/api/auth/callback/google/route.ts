@@ -10,6 +10,7 @@ import { SignInError } from "@/features/auth/sign-in-errors"
 import { GOOGLE_REDIRECT_URI } from "@/libs/app-origin"
 import { setAuthCookies } from "@/libs/auth"
 import { OAUTH_REDIRECT_COOKIE, OAUTH_STATE_COOKIE } from "@/libs/auth-cookies"
+import { getErrorName } from "@/libs/error-name"
 import { resolveSafeRedirectPath } from "@/libs/safe-redirect"
 
 /**
@@ -65,12 +66,14 @@ export const GET = async (req: NextRequest) => {
       return redirectToSignInWithError(req, "not_admin", redirectTo)
     }
     if (!apiRes.ok) {
+      console.error("Admin Google sign-in failed", { status: apiRes.status })
       return redirectToSignInWithError(req, "auth_failed", redirectTo)
     }
 
     const json = adminAuthGoogleResponseSchema.parse(await apiRes.json())
     await setAuthCookies(json.access_token, json.refresh_token)
-  } catch {
+  } catch (error) {
+    console.error("Admin Google sign-in failed", { error: getErrorName(error) })
     return redirectToSignInWithError(req, "auth_failed", redirectTo)
   }
 

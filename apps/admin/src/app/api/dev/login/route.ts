@@ -16,9 +16,9 @@ const DEV_ADMIN_EMAIL = "admin@dev.local"
  * 開発環境専用の admin ログイン。GET /api/dev/login を開くと、seed で入れた dev admin として
  * api の dev-login を呼び、access / refresh token を cookie に保存して / に送る。
  *
- * 多重ガード（web の /api/dev/login と同じ）:
- * 1. ここで NODE_ENV === "production" なら 404
- * 2. proxy.ts で /api/dev/login は production 以外でだけ公開のパスにする
+ * 多重ガード:
+ * 1. proxy.ts で /api/dev/login は production 以外でだけ公開のパスにする（production でサインインしていなければ proxy が 401）
+ * 2. production でサインインしていれば、ここで 404
  * 3. api 側も production では dev-login のルート自体が無い
  */
 export const GET = async (req: NextRequest) => {

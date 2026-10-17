@@ -1,6 +1,5 @@
 /**
  * 認証の cookie の名前と属性。proxy からも import するので、next/headers を import しない
- * （cookie を読み書きする関数は libs/auth.ts）
  *
  * web（app_*）と同じホストで動くと、ポートが違っても cookie を共有するため名前を分ける
  */

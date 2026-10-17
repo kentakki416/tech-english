@@ -50,7 +50,7 @@ const throwApiError = async (res: Response): Promise<never> => {
 /**
  * access token の更新（refresh）はここではしない。Server Component の中では cookie を書けないので、proxy が画面の描画の前に済ませている。
  *
- * 401（proxy で更新した後でも弾かれた。鍵の作り直しや admin の削除など）は、cookie を消す /api/auth/signout に redirect する。
+ * 401（JWT の鍵を作り直した後に、期限内の古い access token で呼んだときなど）は、cookie を消す /api/auth/signout に redirect する。
  * cookie を消さずにサインイン画面へ送ると、サインイン画面が「有効な access の cookie がある」と見て元の画面に戻し、
  * 往復が止まらなくなる。
  *
