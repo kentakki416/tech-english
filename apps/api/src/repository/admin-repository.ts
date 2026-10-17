@@ -9,9 +9,6 @@ export type RecordAdminSignInInput = {
   signedInAt: Date
 }
 
-/**
- * admin リポジトリのインターフェース
- */
 export interface AdminRepository {
   findByEmail(email: string): Promise<Admin | null>
   findById(id: number): Promise<Admin | null>

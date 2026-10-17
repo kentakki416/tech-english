@@ -69,7 +69,9 @@ describe("authenticateAdminWithGoogle", () => {
         ok: true,
         value: { accessToken: "admin.access", admin: signedIn, refreshToken: "admin.refresh" },
       })
-      /** email の大文字小文字の違いを吸収して照合する */
+      /**
+       * email の大文字小文字の違いを吸収して照合する
+       */
       expect(mockFindByEmail).toHaveBeenCalledWith("admin@example.com")
       expect(mockRecordSignIn).toHaveBeenCalledWith(3, {
         profile: { avatarUrl: "https://example.com/a.png", name: "Admin From Google" },

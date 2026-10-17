@@ -266,10 +266,10 @@ green が 200 を返すのを確認 → Actions の「Review pending deployments
 
 ### admin を登録する
 
-管理画面（`apps/admin`）にサインインできるのは、`admins` テーブルに email が登録された Google アカウントだけ。最初の 1 人も 2 人目以降も、Actions → **「Admin Create」** を `environment=prd`・`email=<Google アカウントの email>` で実行して登録する（最後に deploy した migration イメージで `pnpm --filter @repo/db admin:create` を流す。登録済みなら何もしない）。
+管理画面（`apps/admin`）にサインインできるのは、`admins` テーブルに email が登録された Google アカウントだけ。最初の 1 人も 2 人目以降も、Actions → **「Admin Create」** を `environment=prd`・`email=<Google アカウントの email>` で実行して登録する（最後に deploy した migration イメージで `pnpm --silent --dir packages/db admin:create` を流す。登録済みなら何もしない）。
 
 - Admin Create は**最後に deploy した** migration イメージで動く。admin の認証を入れた版をまだ deploy していない環境では、イメージに `admin:create` が無いうえ `admins` テーブルも無いので失敗する。先に deploy を済ませる
-- email は小文字にそろえて登録される。ログに出るのは `Created admin (id=...)` か `Admin already exists` だけ（入力した email は Actions の実行の記録に残る）
+- email は小文字にそろえて登録される。タスクのログ（CloudWatch Logs と、それを写す Actions の「Run admin:create」の step）に出るのは `Created admin (id=...)` か `Admin already exists`、失敗したときは `Failed to create admin (code=...)`（code は Postgres の SQLSTATE や `ECONNREFUSED` など）だけで、email は出ない（pnpm の起動行も `--silent` で出さない）。入力した email は Actions の実行の記録に残る
 - 登録した email の Google アカウントで管理画面にサインインすると、名前とアイコンが入る
 
 ---

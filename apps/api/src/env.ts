@@ -141,3 +141,5 @@ if (!result.success) {
 export const env = result.data
 
 export type ApiEnv = typeof env
+
+export const forTesting = { apiEnvSchema }

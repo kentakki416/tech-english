@@ -3,14 +3,8 @@ import { Admin } from "@repo/domain"
 
 import type { AdminRepository, RecordAdminSignInInput } from "../admin-repository"
 
-/**
- * Drizzleの型
- */
 type AdminRow = typeof admins.$inferSelect
 
-/**
- * Drizzle実装の admin リポジトリ
- */
 export class DrizzleAdminRepository implements AdminRepository {
   private _db: DrizzleClient
 
@@ -43,9 +37,6 @@ export class DrizzleAdminRepository implements AdminRepository {
     return this._toDomainAdmin(row)
   }
 
-  /**
-   * Drizzleの型 → ドメインの型に変換
-   */
   private _toDomainAdmin(row: AdminRow): Admin {
     return {
       id: row.id,

@@ -58,7 +58,10 @@ jobs:
             echo "::error::Invalid email"
             exit 1
           fi
-          echo "command=$(jq -cn --arg email "${EMAIL}" '["pnpm","--filter","@repo/db","admin:create","--email",$email]')" >> "$GITHUB_OUTPUT"
+          # pnpm が出す起動行 (> tsx drizzle/create-admin.ts "--email" "...") は CloudWatch Logs に入り、この workflow のログにも写る。
+          # --silent で消えるのは --filter を使わないときだけ (pnpm 9 は --filter だと --silent でも起動行を出す) なので、
+          # --dir (migration イメージの WORKDIR の /app からの相対) で動かす
+          echo "command=$(jq -cn --arg email "${EMAIL}" '["pnpm","--silent","--dir","packages/db","admin:create","--email",$email]')" >> "$GITHUB_OUTPUT"
 
       - name: Configure AWS credentials with OIDC
         uses: aws-actions/configure-aws-credentials@v4

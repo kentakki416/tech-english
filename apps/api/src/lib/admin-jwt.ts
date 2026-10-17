@@ -25,9 +25,6 @@ export type AdminRefreshTokenPayload = {
   jti: string
 }
 
-/**
- * admin の Access Token を生成する。refresh token と取り違えたときに見分けられるよう、jti を持たせない
- */
 export const generateAdminAccessToken = (adminId: number): string =>
   jwt.sign({ adminId }, JWT_ADMIN_ACCESS_SECRET, { expiresIn: JWT_ACCESS_EXPIRATION })
 

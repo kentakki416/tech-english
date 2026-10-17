@@ -32,6 +32,10 @@ beforeEach(async () => {
   await cleanupTestRedis()
 })
 
+afterEach(() => {
+  vi.unstubAllEnvs()
+})
+
 afterAll(async () => {
   await cleanupTestData()
   await cleanupTestRedis()
@@ -90,6 +94,30 @@ describe("POST /api/admin/auth/dev-login", () => {
       const res = await request(app).post("/api/admin/auth/dev-login").send({ email: "not-an-email" })
 
       expect(res.status).toBe(400)
+    })
+
+    /**
+     * ADMIN_PUBLIC_PATHS は import したときの NODE_ENV（test）で決まっているので、ここで production にしても
+     * adminAuthMiddleware は通り、controller の NODE_ENV のガードまで届く
+     */
+    it("NODE_ENV=production なら（router に登録されていても）admin@dev.local でも 404 で、トークンを発行しない", async () => {
+      await createTestAdmin({ email: "admin@dev.local" })
+      vi.stubEnv("NODE_ENV", "production")
+
+      const res = await request(app).post("/api/admin/auth/dev-login").send({ email: "admin@dev.local" })
+
+      expect(res.status).toBe(404)
+      expect(res.body).toEqual({ error: expect.any(String), status_code: 404 })
+      expect(await testRedis.keys("*")).toEqual([])
+    })
+
+    it("NODE_ENV=production で読み込んだ ADMIN_PUBLIC_PATHS には /auth/dev-login が無い", async () => {
+      vi.stubEnv("NODE_ENV", "production")
+      vi.resetModules()
+
+      const { ADMIN_PUBLIC_PATHS } = await import("../../../../src/const/index.js")
+
+      expect(ADMIN_PUBLIC_PATHS).toEqual(["/auth/google", "/auth/logout", "/auth/refresh"])
     })
   })
 })
