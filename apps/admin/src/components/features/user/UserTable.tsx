@@ -17,6 +17,7 @@ import { buildUserListHref, buildUserListSearchFormValues, type UserListQuery } 
 import { formatDate } from "@/libs/date"
 import { EMPTY_VALUE, formatCount, formatRowRange } from "@/libs/format-stats"
 
+import { LoginMethodColumnLabel } from "./LoginMethodColumnLabel"
 import { UserAvatar } from "./UserAvatar"
 
 /**
@@ -55,7 +56,7 @@ export function UserTable({ list, query }: { list: GetAdminUserListResponse, que
             <tr>
               <th className={tableHeadCellClass}>ユーザー</th>
               <th className={tableHeadCellClass}>メールアドレス</th>
-              <th className={tableHeadCellClass}>ログイン方法</th>
+              <th className={tableHeadCellClass}><LoginMethodColumnLabel /></th>
               {renderSortableHeader("created_at", "登録日")}
               {renderSortableHeader("last_studied_date", "最後に学習した日")}
               {renderSortableHeader("solved_attempts", "解いた回数")}

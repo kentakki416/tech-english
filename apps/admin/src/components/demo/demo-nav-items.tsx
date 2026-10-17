@@ -40,6 +40,7 @@ export const demoNavSection: NavSection = {
         { name: "Badge", path: "/demo/ui/badge" },
         { name: "Buttons", path: "/demo/ui/buttons" },
         { name: "Images", path: "/demo/ui/images" },
+        { name: "Tooltips", path: "/demo/ui/tooltips" },
         { name: "Videos", path: "/demo/ui/videos" },
       ],
     },

@@ -18,6 +18,7 @@ import {
 } from "@/app/(dashboard)/passages/[id]/actions"
 import Badge from "@/components/ui/badge/Badge"
 import { Modal } from "@/components/ui/modal"
+import Tooltip from "@/components/ui/tooltip/Tooltip"
 import {
   convertDetailsToMarks,
   convertDetailToForm,
@@ -348,6 +349,17 @@ export function PassageReview({ detail }: { detail: GetAdminPassageResponse }) {
     { label: "制限時間", mono: false, value: detail.time_limit_seconds === null ? null : formatSeconds(detail.time_limit_seconds) },
   ]
 
+  const regenerateButton = (
+    <button
+      className={`${outlineButtonClass} disabled:cursor-not-allowed disabled:opacity-50`}
+      disabled={isPending || !canRegenerate}
+      type="button"
+      onClick={() => setIsRegenerateOpen(true)}
+    >
+      再生成
+    </button>
+  )
+
   return (
     <div className="space-y-6">
       <section className={`${cardClass} px-6 py-5`}>
@@ -371,15 +383,16 @@ export function PassageReview({ detail }: { detail: GetAdminPassageResponse }) {
               </button>
             )}
             {(isDraft || detail.status === "failed" || isRejected) && (
-              <button
-                className={`${outlineButtonClass} disabled:cursor-not-allowed disabled:opacity-50`}
-                disabled={isPending || !canRegenerate}
-                onClick={() => setIsRegenerateOpen(true)}
-                title={detail.attempt_count > 0 ? "挑戦がある問題は再生成できません" : undefined}
-                type="button"
-              >
-                再生成
-              </button>
+              detail.attempt_count > 0
+                ? (
+                  /**
+                   * 押せないボタンにはマウスのイベントが届かないので、外側の span で受ける（Tab でも止まる）
+                   */
+                  <Tooltip content="挑戦がある問題は再生成できません">
+                    <span className="inline-flex" tabIndex={0}>{regenerateButton}</span>
+                  </Tooltip>
+                )
+                : regenerateButton
             )}
             {isDraft && (
               <>
@@ -399,10 +412,12 @@ export function PassageReview({ detail }: { detail: GetAdminPassageResponse }) {
           </div>
           <div className="col-span-2 min-w-0">
             <dt className="text-gray-400">取得元</dt>
-            <dd className="mt-0.5 truncate font-mono text-theme-xs text-gray-800 dark:text-white/90" title={detail.source.path}>
-              {detail.source.path}
-              {detail.source.commit_sha && <span className="ml-2 text-gray-400">@{detail.source.commit_sha.slice(0, 7)}</span>}
-            </dd>
+            <Tooltip content={<span className="break-all">{detail.source.path}</span>}>
+              <dd className="mt-0.5 truncate font-mono text-theme-xs text-gray-800 dark:text-white/90" tabIndex={0}>
+                {detail.source.path}
+                {detail.source.commit_sha && <span className="ml-2 text-gray-400">@{detail.source.commit_sha.slice(0, 7)}</span>}
+              </dd>
+            </Tooltip>
           </div>
           <div>
             <dt className="text-gray-400">英単語数</dt>
@@ -434,15 +449,16 @@ export function PassageReview({ detail }: { detail: GetAdminPassageResponse }) {
       {needsAttention && (
         <Notice
           action={(
-            <button
-              className={`${outlineButtonClass} shrink-0`}
-              disabled={isPending}
-              onClick={() => runInTransition({ form, isDirty, type: "resolveAttention" })}
-              title="理由を確かめた・直した後に押すと、要確認の印と理由が消え、一覧の要確認の先頭から外れます"
-              type="button"
-            >
-              要確認を解除
-            </button>
+            <Tooltip content="理由を確かめた・直した後に押すと、要確認の印と理由が消え、一覧の要確認の先頭から外れます">
+              <button
+                className={`${outlineButtonClass} shrink-0`}
+                disabled={isPending}
+                type="button"
+                onClick={() => runInTransition({ form, isDirty, type: "resolveAttention" })}
+              >
+                要確認を解除
+              </button>
+            </Tooltip>
           )}
           items={detail.attention_reasons}
           title="要確認"
