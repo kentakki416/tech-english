@@ -29,7 +29,7 @@ export const contentSourceApi = {
   },
 
   detectLicense: async (repository: string): Promise<DetectContentSourceLicenseResponse> => {
-    const raw = await apiClient.get<unknown>(`${BASE_PATH}/license?repository=${encodeURIComponent(repository)}`)
+    const raw = await apiClient.get<unknown>(`${BASE_PATH}/license?repository=${encodeURIComponent(repository)}`, { onUnauthorized: "throw" })
     return detectContentSourceLicenseResponseSchema.parse(raw)
   },
 

@@ -13,7 +13,7 @@ UI コードを書いた直後に **必ず** 実行する skill。役割は以�
 ## 対象
 
 - `apps/web`（port 3000）
-- `apps/admin`（port 3030）— Admin 認証は将来実装。現状はそのまま navigate
+- `apps/admin`（port 3030）— 先に `http://localhost:3030/api/dev/login` を開いてログインする（Step 3 の「admin の場合」）
 
 ## ⚠️ 最重要: ブランチを切る前に before を撮る
 
@@ -82,6 +82,8 @@ curl -s http://localhost:8080/api/health
 
 `apps/web/src/middleware.ts` の `PUBLIC_PATHS` を見て判定する。
 
+admin は `apps/admin/src/proxy.ts` の `PUBLIC_PATHS`（`/signin`・`/demo/signin`・`/demo/signup` など）以外のすべてで認証が要る。cookie なしで開くと `/signin?redirect=...` に送られる。
+
 ### Step 3: 認証必須ページの場合 — JWT を発行して cookie 注入
 
 #### 3-1. テスト用ユーザーの id を確認
@@ -117,6 +119,19 @@ mcp__playwright__browser_evaluate({
 Cookie 名は `apps/web/src/libs/auth.ts` の `ACCESS_TOKEN_COOKIE` / `REFRESH_TOKEN_COOKIE` 定数（`app_access_token` / `app_refresh_token`）。
 
 注入後にもう一度 `browser_navigate` で目的のページに遷移する（cookie 設定だけでは画面は再描画されない）。
+
+#### admin の場合 — `/api/dev/login` を開く
+
+admin は web とは cookie の名前（`admin_*`）も JWT の鍵も別なので、上の `app_access_token` の注入は効かない。dev admin（seed の `admin@dev.local`）でログインする:
+
+```js
+mcp__playwright__browser_navigate({ url: "http://localhost:3030/api/dev/login" })
+```
+
+`admin_access_token` / `admin_refresh_token`（httpOnly）が書かれて `/` に送られる。その後に目的のページへ `browser_navigate` する。access token の期限が切れても、refresh token が残っていれば proxy が画面を開くときに更新する。
+
+- `dev-login failed (status=...)` と出たら `pnpm --filter @repo/db db:seed` を流す
+- サインイン画面そのもの（`/signin`）を確かめるときは、ログインしていない状態で開く（有効な cookie があると `redirect` の先に戻される）
 
 ### Step 4: 動作確認
 

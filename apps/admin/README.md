@@ -37,7 +37,7 @@ Next.js 16 (App Router) を使用した管理画面アプリケーション
 
 ### Route Group の構成
 
-- **`(auth)/`** - 認証ページ（サイドバーなし、専用レイアウト）
+- **`(auth)/`** - 認証ページ（サイドバーなし、専用レイアウト）。サインイン画面（`/signin`。Google でのサインインと、production 以外の dev ログイン）と、デモのフォームの見本（`/demo/signin`・`/demo/signup`。サインインせずに開ける）
 - **`(dashboard)/`** - 管理画面（サイドバー + ヘッダー付きレイアウト）
 
 ### ディレクトリ構成
@@ -46,14 +46,15 @@ Next.js 16 (App Router) を使用した管理画面アプリケーション
 src/
   app/                        # ルーティング + ページ構成（薄く保つ）
     (auth)/                   # 認証ページ（サイドバーなし、専用レイアウト）
-      demo/                   #   デモ（フォームの見本。URL は /demo/...）
+      signin/                 #   サインイン画面（Google でのサインインを始める Server Action も）
+      demo/                   #   デモ（サインイン・サインアップのフォームの見本。URL は /demo/...）
     (dashboard)/              # 管理画面（サイドバー + ヘッダー付きレイアウト）
       demo/                   #   デモ（TailAdmin の画面と UI 部品の見本。URL は /demo/...）
   components/
     ui/                       # 汎用UIコンポーネント（Button, Input等）
     layout/                   # レイアウト系（AppHeader, AppSidebar, Backdrop等）
     features/                 # 機能固有のUIコンポーネント
-      {feature}/              #   例: auth/SignInForm.tsx, dashboard/DashboardMetrics.tsx
+      {feature}/              #   例: auth/GoogleSignInButton.tsx, dashboard/DashboardMetrics.tsx
     demo/                     # デモだけが使う部品・CSS・サイドバーの「デモ」の項目
   config/                     # アプリ名・言語・タイムゾーンなどの設定（app.ts）
   features/                   # ロジックのみ（レンダリングなし）
@@ -105,7 +106,6 @@ app/ → components/ → features/(ロジック)
 ## API 設計方針
 
 - Admin が利用する API はすべて `/api/admin/` プレフィックスを付与する
-- ダミーデータ: 環境変数 `ADMIN_USE_DUMMY=true`（API 側の `.env.local`）で DB 接続なしのダミーデータモードに切替可能
 
 ### API 通信方式
 

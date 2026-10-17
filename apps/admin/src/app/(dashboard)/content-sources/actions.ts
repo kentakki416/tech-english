@@ -3,7 +3,7 @@
 import "server-only"
 
 import { revalidatePath } from "next/cache"
-import { redirect } from "next/navigation"
+import { redirect, unstable_rethrow } from "next/navigation"
 
 import { createContentSourceRequestSchema, errorResponseSchema, updateContentSourceRequestSchema } from "@repo/api-schema"
 
@@ -61,6 +61,7 @@ export const createContentSourceAction = async (
   try {
     id = (await contentSourceApi.create(parsed.data)).id
   } catch (error) {
+    unstable_rethrow(error)
     return convertApiErrorToFormState(error, "登録に失敗しました。時間をおいて再度お試しください。", ["/content-sources/new"])
   }
 
@@ -85,6 +86,7 @@ export const updateContentSourceAction = async (
   try {
     await contentSourceApi.update(id, parsed.data)
   } catch (error) {
+    unstable_rethrow(error)
     if (error instanceof ApiClientError && error.status === 404) return { message: "このソースは見つかりませんでした。" }
     /**
      * 存在しないタグ以外の 400 は、取得した文書があるソースの取得元（リポジトリ・サイトの URL）の変更

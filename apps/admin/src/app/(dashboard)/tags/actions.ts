@@ -3,6 +3,7 @@
 import "server-only"
 
 import { revalidatePath } from "next/cache"
+import { unstable_rethrow } from "next/navigation"
 
 import { createTagRequestSchema, deleteTagPathParamSchema, updateTagPathParamSchema, updateTagRequestSchema } from "@repo/api-schema"
 
@@ -54,6 +55,7 @@ export const createTagAction = async (input: { color: string | null, name: strin
   try {
     await tagApi.create(parsed.data)
   } catch (error) {
+    unstable_rethrow(error)
     return convertApiErrorToResult(error, "追加に失敗しました。時間をおいて再度お試しください。")
   }
   revalidateTagPaths()
@@ -72,6 +74,7 @@ export const updateTagAction = async (id: number, input: { color: string, name: 
   try {
     await tagApi.update(params.data.id, parsed.data)
   } catch (error) {
+    unstable_rethrow(error)
     return convertApiErrorToResult(error, "保存に失敗しました。時間をおいて再度お試しください。")
   }
   revalidateTagPaths()
@@ -88,6 +91,7 @@ export const deleteTagAction = async (id: number): Promise<TagActionResult> => {
   try {
     await tagApi.delete(params.data.id)
   } catch (error) {
+    unstable_rethrow(error)
     return convertApiErrorToResult(error, "削除に失敗しました。時間をおいて再度お試しください。")
   }
   revalidateTagPaths()

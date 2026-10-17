@@ -182,6 +182,13 @@ export function SourceForm({
         setLicenseDetection({ message: "リポジトリを owner/name の形で入力してください。", status: "failed" })
         return
       }
+      /**
+       * フォームの入力を消さないよう、ここではサインイン画面に移さない
+       */
+      if (res.status === 401) {
+        setLicenseDetection({ message: "サインインの期限が切れました。ページを開き直してサインインしてください。", status: "failed" })
+        return
+      }
       if (!res.ok) throw new Error(`License detection failed: ${res.status}`)
 
       /**

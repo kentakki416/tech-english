@@ -5,6 +5,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { detectContentSourceLicenseQueryStringSchema } from "@repo/api-schema"
 
 import { contentSourceApi } from "@/features/content-source/content-source.api"
+import { ApiClientError } from "@/libs/api-client"
 
 /**
  * GitHub が検出したリポジトリのライセンス（ソースの登録フォームの「ライセンスを検出」用）。
@@ -19,6 +20,9 @@ export const GET = async (request: NextRequest) => {
   try {
     return NextResponse.json(await contentSourceApi.detectLicense(parsed.data.repository))
   } catch (error) {
+    if (error instanceof ApiClientError && error.status === 401) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
     /**
      * GitHub の rate limit や通信障害。原因の詳細（api のエラーボディ）はブラウザに返さない
      */

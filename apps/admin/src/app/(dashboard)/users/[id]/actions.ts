@@ -2,6 +2,8 @@
 
 import "server-only"
 
+import { unstable_rethrow } from "next/navigation"
+
 import {
   getAdminUserAttemptsPathParamSchema,
   getAdminUserAttemptsQueryStringSchema,
@@ -29,6 +31,7 @@ export const loadMoreUserAttemptsAction = async (userId: number, cursor: number)
     const page = await userApi.getAttempts(path.data.id, { cursor: query.data.cursor, limit: USER_ATTEMPTS_PAGE_SIZE })
     return page === null ? { ok: false, reason: "not_found" } : { ok: true, page }
   } catch (error) {
+    unstable_rethrow(error)
     console.error("Loading user attempts failed", error)
     return { ok: false, reason: "unavailable" }
   }

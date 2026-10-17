@@ -3,6 +3,7 @@
 import "server-only"
 
 import { revalidatePath } from "next/cache"
+import { unstable_rethrow } from "next/navigation"
 import type { ZodIssue } from "zod"
 
 import {
@@ -102,6 +103,7 @@ export const savePassageAction = async (id: number, request: UpdateAdminPassageR
   try {
     detail = await passageApi.update(passageId, parsed.data)
   } catch (error) {
+    unstable_rethrow(error)
     return convertApiErrorToFailure(error, "入力内容に誤りがあるため、保存できませんでした")
   }
   revalidatePassagePaths(passageId)
@@ -118,6 +120,7 @@ export const publishPassageAction = async (id: number): Promise<PassageActionRes
   try {
     await passageApi.publish(passageId)
   } catch (error) {
+    unstable_rethrow(error)
     return convertApiErrorToFailure(error, "公開の条件を満たしていないため、公開できません")
   }
   revalidatePassagePaths(passageId)
@@ -137,6 +140,7 @@ export const rejectPassageAction = async (id: number, reason: string): Promise<P
   try {
     await passageApi.reject(passageId, parsed.data.reason)
   } catch (error) {
+    unstable_rethrow(error)
     return convertApiErrorToFailure(error, "却下の理由を 1〜1000 文字で入力してください")
   }
   revalidatePassagePaths(passageId)
@@ -153,6 +157,7 @@ export const unpublishPassageAction = async (id: number): Promise<PassageActionR
   try {
     await passageApi.unpublish(passageId)
   } catch (error) {
+    unstable_rethrow(error)
     return convertApiErrorToFailure(error, "非公開に戻せませんでした")
   }
   revalidatePassagePaths(passageId)
@@ -169,6 +174,7 @@ export const regeneratePassageAction = async (id: number): Promise<PassageAction
   try {
     await passageApi.regenerate(passageId)
   } catch (error) {
+    unstable_rethrow(error)
     return convertApiErrorToFailure(error, "再生成できませんでした")
   }
   revalidatePassagePaths(passageId)
@@ -185,6 +191,7 @@ export const restorePassageAction = async (id: number): Promise<PassageActionRes
   try {
     await passageApi.restore(passageId)
   } catch (error) {
+    unstable_rethrow(error)
     return convertApiErrorToFailure(error, "却下を取り消せませんでした")
   }
   revalidatePassagePaths(passageId)
@@ -201,6 +208,7 @@ export const resolvePassageAttentionAction = async (id: number): Promise<Passage
   try {
     await passageApi.resolveAttention(passageId)
   } catch (error) {
+    unstable_rethrow(error)
     return convertApiErrorToFailure(error, "要確認を解除できませんでした")
   }
   revalidatePassagePaths(passageId)
@@ -226,6 +234,7 @@ export const retryPassageAudioAction = async (id: number): Promise<PassageAction
   try {
     await passageApi.retryAudio(passageId)
   } catch (error) {
+    unstable_rethrow(error)
     return convertAudioApiErrorToFailure(error)
   }
   revalidatePath(`/passages/${passageId}`)
@@ -242,6 +251,7 @@ export const regeneratePassageAudioAction = async (id: number): Promise<PassageA
   try {
     await passageApi.regenerateAudio(passageId)
   } catch (error) {
+    unstable_rethrow(error)
     return convertAudioApiErrorToFailure(error)
   }
   revalidatePath(`/passages/${passageId}`)

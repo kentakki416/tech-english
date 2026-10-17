@@ -1,5 +1,5 @@
 import type { Metadata } from "next"
-import { notFound } from "next/navigation"
+import { notFound, unstable_rethrow } from "next/navigation"
 
 import { allowedLicenseSchema, getContentSourcePathParamSchema } from "@repo/api-schema"
 
@@ -28,6 +28,7 @@ const loadContentSource = async (id: string) => {
   try {
     return await contentSourceApi.getDetail(parsed.data.id)
   } catch (error) {
+    unstable_rethrow(error)
     if (error instanceof ApiClientError && error.status === 404) notFound()
     throw error
   }
