@@ -12,6 +12,8 @@ export type UserListQuery = Omit<GetAdminUserListQueryString, "limit">
 
 const QUERY_FIELDS = getAdminUserListQueryStringSchema.shape
 
+export const USER_LIST_KEYWORD_MAX_LENGTH = QUERY_FIELDS.q.unwrap().maxLength
+
 /**
  * 既定値（登録日の新しい順・1 ページ目）
  */
@@ -23,7 +25,7 @@ const DEFAULT_QUERY: UserListQuery = getAdminUserListQueryStringSchema.omit({ li
 export const convertSearchParamsToUserListQuery = (params: SearchParams): UserListQuery => ({
   order: convertSearchParamBySchema(QUERY_FIELDS.order, params.order, DEFAULT_QUERY.order),
   page: convertSearchParamBySchema(QUERY_FIELDS.page, params.page, DEFAULT_QUERY.page),
-  q: convertSearchParamToKeyword(params.q, QUERY_FIELDS.q.unwrap().maxLength),
+  q: convertSearchParamToKeyword(params.q, USER_LIST_KEYWORD_MAX_LENGTH),
   sort: convertSearchParamBySchema(QUERY_FIELDS.sort, params.sort, DEFAULT_QUERY.sort),
 })
 

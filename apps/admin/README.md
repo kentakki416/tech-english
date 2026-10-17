@@ -53,6 +53,7 @@ src/
   components/
     ui/                       # 汎用UIコンポーネント（Button, Input等）
     layout/                   # レイアウト系（AppHeader, AppSidebar, Backdrop等）
+      AdminShell.tsx          #   サイドバー・ヘッダー・本文の枠（client）。(dashboard)/layout.tsx が admin と通知を渡す
     features/                 # 機能固有のUIコンポーネント
       {feature}/              #   例: auth/GoogleSignInButton.tsx, dashboard/DashboardMetrics.tsx
     demo/                     # デモだけが使う部品・CSS・サイドバーの「デモ」の項目
@@ -60,6 +61,8 @@ src/
   features/                   # ロジックのみ（レンダリングなし）
     {feature}/
       {feature}.context.tsx   #   状態管理（React Context）
+    admin/                    #   サインイン中の admin の取得（admin.api.ts）と表示名
+    notification/             #   ヘッダーの通知（今は空を返すスタブ）と、すべて既読にする Server Action
   hooks/                      # 共有カスタムフック
   icons/                      # SVGアイコン（@svgr/webpack）
   libs/                       # ユーティリティ（APIクライアント等）

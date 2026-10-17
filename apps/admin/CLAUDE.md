@@ -48,7 +48,7 @@ cd apps/admin && pnpm exec dotenvx set API_URL "http://localhost:8080" -f .env.l
 - サインインが要るとき、画面は `/signin?redirect=...` に送る。**`/api/` の下の Route Handler は redirect せず 401 の JSON を返す**（ブラウザの `fetch` から呼ばれるため）。**Server Action は止めずに通す**（redirect すると Next.js のクライアントが扱えずエラー画面になる。token が無ければ api の 401 で `apiClient` がサインイン画面に送る）。そのため、**api を呼ばずに状態を変えたり機密を返したりする Server Action を作らない**。サインインせずに開ける画面・Route Handler は `PUBLIC_PATHS` に足す（公開のパスで token を更新するのはサインイン画面だけ）
 - **`apiClient` は api の 401 で `/api/auth/signout`（cookie を消してサインイン画面へ送る）に redirect する。** redirect は例外なので、**api の呼び出しを try/catch で囲むときは catch の先頭で `unstable_rethrow(error)` する**（入れないと、セッション切れが「保存に失敗しました」などの表示に化ける）。ブラウザの `fetch` から呼ばれる Route Handler は `apiClient.get(path, { onUnauthorized: "throw" })` で 401 を `ApiClientError` として受け、401 を返す（見本はライセンスの検出の `app/api/content-sources/license/route.ts`）
 - サインイン後の戻り先は `src/libs/safe-redirect.ts` の `resolveSafeRedirectPath` を必ず通す（外のサイトに飛ばさない）
-- ログアウトは `src/features/auth/auth.actions.ts` の `logoutAction`（ヘッダーのユーザーメニューの「Sign out」）
+- ログアウトは `src/features/auth/auth.actions.ts` の `logoutAction`（ヘッダーのユーザーメニューの「ログアウト」）
 - 認証の処理（proxy の refresh・Google の callback・ログアウト）の失敗は、`console.error` に HTTP の status と `src/libs/error-name.ts` の `getErrorName`（エラーの名前）だけを出す。token・code・cookie・email を含みうる message や応答の中身は出さない
 - **admin の登録**: 画面からは足せない。ローカルは seed が `admin@dev.local` を入れる。それ以外の email は `pnpm --filter @repo/db admin:create --email <email>`、本番は GitHub Actions の「Admin Create」（`docs/deploy/prd.md`）
 
@@ -74,6 +74,12 @@ admin は DB を直接触らず、必ず Express API を経由する。tech-engl
 
 アプリ名・説明・言語・タイムゾーンは `src/config/app.ts`（`appConfig`）で変える。タブのタイトルは root の `app/layout.tsx` の `metadata.title.template`（`%s | tech-english admin`）で組み立てるので、各ページの `metadata.title` にはページ名だけを書く（アプリ名を付けない）。
 
+`app/(dashboard)/layout.tsx` は Server Component で、サインイン中の admin（`/api/admin/me`。`features/admin/admin.api.ts`）と通知を取って `components/layout/AdminShell.tsx`（client。サイドバー・ヘッダー・本文の枠）に渡す。ヘッダーの部品（`UserDropdown`・`NotificationDropdown`・`HeaderSearch`）はデータを props で受け取る。layout で `/api/admin/me` を呼ぶので、画面を直接開いたとき・再読み込みのときは api が token を確かめる（proxy は期限しか見ない）。**クライアント側の遷移では layout は描き直されないので、機密を出す画面は自分で api を呼ぶ**。
+
+- 通知は `features/notification/notification.api.ts` で、今は空を返すスタブ（ベルを押すと常に「通知はありません」）。通知を作るときはここを api の呼び出しに差し替える（画面側は変えなくてよい）。通知が取れなくても layout は空で続ける
+- ヘッダーの検索は `next/form` の GET でユーザー一覧（`/users?q=...`）に移る。上限は `features/user/user.params.ts` の `USER_LIST_KEYWORD_MAX_LENGTH`（API のクエリのスキーマから取る）
+- ヘッダーとマイページのアイコンは `components/ui/avatar/UserAvatar`（画像が無ければ `AvatarText` の頭文字）、表示名は `features/admin/admin-display-name.ts`（名前、無ければ email）。ユーザー管理のアイコンは別の `components/features/user/UserAvatar`
+
 | ファイル | 役割 |
 | --- | --- |
 | `src/env.ts` | `API_URL` / `GOOGLE_CLIENT_ID` / `NEXT_PUBLIC_APP_URL` / `NODE_ENV` を Zod で検証。`server-only`。proxy・`api-client.ts` などから import され、読み込み時に検証が走る |
@@ -84,7 +90,7 @@ admin は DB を直接触らず、必ず Express API を経由する。tech-engl
 | `src/libs/app-origin.ts` | `APP_ORIGIN`（`NEXT_PUBLIC_APP_URL` を origin にそろえた値）と `GOOGLE_REDIRECT_URI` |
 | `src/features/{feature}/{feature}.api.ts` | 機能ごとの API 呼び出し層（`server-only`）。レスポンスを `@repo/api-schema` のスキーマで parse して返す |
 | `src/libs/ui-classes.ts` | 入力欄・カード・ボタンの共通クラス（テンプレートと同じ見た目）。デザインモックの `mock/_components/ui.ts` と同じ値で、本番の画面はこちらを使う（`mock/` を import しない） |
-| `src/libs/date.ts` | 日時の表示の 1 か所。`formatDateTime`：日時（ISO 8601 の文字列か `Date`）を `2026-10-10 03:00` にする、`formatDate`：`2026-10-10`。既定のタイムゾーンは `appConfig.timeZone`（Server Component は UTC で動くため明示。`toLocaleString()` を直接使わない）。ユーザーの学習履歴はユーザーのタイムゾーンを渡す |
+| `src/libs/date.ts` | 日時の表示の 1 か所。`formatDateTime`：日時（ISO 8601 の文字列か `Date`）を `2026-10-10 03:00` にする、`formatDate`：`2026-10-10`、`formatRelativeTime`：`5 分前`・`2 日前`（30 日より前は `formatDateTime`）。既定のタイムゾーンは `appConfig.timeZone`（Server Component は UTC で動くため明示。`toLocaleString()` を直接使わない）。ユーザーの学習履歴はユーザーのタイムゾーンを渡す |
 | `src/libs/format-stats.ts` | ダッシュボード・ユーザー管理の数字の表示（比率 `72%`・件数 `1,284`・時間 `5:12 / 6:00`・値が無いときの `―`） |
 | `src/components/ui/table/LinkTableParts.tsx` | 並べ替え・絞り込み・ページ送りを URL のクエリで行う表の部品（`SortableHeaderCell`・`TableSearchForm`〈`next/form`〉・`PaginationLinks`）。ダッシュボードとユーザー一覧で使う（画面内で並べ替える表はテンプレートの `DataTable`） |
 | `src/components/ui/tooltip/Tooltip.tsx` | マウスを乗せる・フォーカスすると出る説明の吹き出し（`@floating-ui/react`。TailAdmin のデモと同じ 4 種類）。説明を出すときは `title` 属性ではなく Tooltip を使う。押せないボタン（`disabled`）はマウスのイベントが届かないので `tabIndex={0}` の `span` で包み、`span` に Tooltip を付ける。Server Component で使うときは、Tooltip と子を client component に切り出す（`components/features/user/LoginMethodColumnLabel.tsx`。理由はそのファイル） |
@@ -103,6 +109,7 @@ admin は DB を直接触らず、必ず Express API を経由する。tech-engl
 | `/analytics/passages/[id]` | 問題の分析（`?period=`） | `app/(dashboard)/analytics/passages/[id]/page.tsx` + `QuestionStatsCard`。サイドバーでは「ダッシュボード」を選択中にする |
 | `/users` | ユーザー一覧（`?sort=&order=&page=&q=`） | `app/(dashboard)/users/page.tsx` + `components/features/user/UserTable.tsx`。API は `features/user/user.api.ts`、URL のクエリは `user.params.ts`（[admin-users](../../docs/spec/admin-users/README.md)） |
 | `/users/[id]` | ユーザーの詳細 | `UserProfileCard`・`UserLearningCards`・`UserCalendar`・`UserAttemptList`（「さらに読み込む」は `app/(dashboard)/users/[id]/actions.ts` の Server Action） |
+| `/profile` | マイページ（サインイン中の admin） | `app/(dashboard)/profile/page.tsx` + `components/features/profile/AdminProfileCards.tsx`。API は `features/admin/admin.api.ts` |
 
 問題の画面のメモ：
 
