@@ -13,7 +13,7 @@
 
 - [`../content-collection/README.md`](../content-collection/README.md) — ソース（`content_sources`）の正本。ソースの登録項目のうち技術タグの扱いだけをこの spec が持つ
 - [`../reading-practice/README.md`](../reading-practice/README.md) — 問題一覧の技術タグでの絞り込み（web / mobile）。この spec では API のレスポンスの形を変えない
-- [`../question-generation/README.md`](../question-generation/README.md#管理画面のアクセス制御) — 管理画面のアクセス制御（Basic 認証 + `X-Admin-Token`）
+- [`../admin-template/README.md`](../admin-template/README.md#admin-認証) — 管理画面のアクセス制御（admin ごとのサインイン。`admins` テーブル + admin 専用の JWT）
 - [`../admin-users/README.md`](../admin-users/README.md) — admin のサイドバーの並び（「ダッシュボード」「問題」「ソース」「ユーザー」）。この spec で「ソース」の後に「タグ」を足す
 
 ## 目次

@@ -15,6 +15,10 @@ inputs:
     description: Terraform の project_name (リソース名のプレフィックスと default_tags の Project)
     required: false
     default: tech-english
+  command:
+    description: コンテナの起動コマンドを差し替える JSON の配列。省略したらタスク定義のまま (run-one-shot-task に渡す)
+    required: false
+    default: ""
 
 runs:
   using: composite
@@ -99,3 +103,4 @@ runs:
         subnets: ${{ steps.network.outputs.subnets }}
         security-group: ${{ steps.network.outputs.ecs_security_group }}
         assign-public-ip: ${{ inputs.environment == 'min' && 'ENABLED' || 'DISABLED' }}
+        command: ${{ inputs.command }}

@@ -1,10 +1,8 @@
 import request from "supertest"
 
 import { AdminPassageListController } from "../../../../src/controller/admin/passage/list"
-import { env } from "../../../../src/env"
-import { ADMIN_TOKEN_HEADER } from "../../../../src/middleware/admin-auth"
 import { DrizzlePassageRepository } from "../../../../src/repository/drizzle/passage-repository"
-import { adminRouter } from "../../../../src/routes/admin-router"
+import { adminRouter, mountAdminApi } from "../../../../src/routes/admin-router"
 import {
   insertGeneratedPassage,
   insertPassage,
@@ -12,18 +10,21 @@ import {
   insertPassageSource,
   insertReadingAttempt,
 } from "../../../fixture/passage"
-import { attachUnhandledExceptionHandler, createTestApp } from "../../helper"
+import { attachUnhandledExceptionHandler, createTestAdmin, createTestApp } from "../../helper"
 import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb } from "../../setup"
 
 const passageRepository = new DrizzlePassageRepository(testDb)
 
 const app = createTestApp()
 
-app.use("/api/admin", adminRouter({ passage: { list: new AdminPassageListController(passageRepository) } }))
+mountAdminApi(app, adminRouter({ passage: { list: new AdminPassageListController(passageRepository) } }))
 attachUnhandledExceptionHandler(app)
+
+let adminToken: string
 
 beforeEach(async () => {
   await cleanupTestData()
+  adminToken = (await createTestAdmin()).token
 })
 
 afterAll(async () => {
@@ -44,7 +45,7 @@ describe("GET /api/admin/passage", () => {
 
       const res = await request(app)
         .get("/api/admin/passage")
-        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .set("Authorization", `Bearer ${adminToken}`)
 
       expect(res.status).toBe(200)
       expect(res.body).toEqual({
@@ -80,11 +81,11 @@ describe("GET /api/admin/passage", () => {
 
       const page1 = await request(app)
         .get("/api/admin/passage?status=draft&limit=2")
-        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .set("Authorization", `Bearer ${adminToken}`)
       const page2 = await request(app)
         .get("/api/admin/passage")
         .query({ cursor: page1.body.next_cursor, limit: 2, status: "draft" })
-        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .set("Authorization", `Bearer ${adminToken}`)
 
       expect(page1.status).toBe(200)
       expect(page1.body).toMatchObject({ has_more: true, next_cursor: expect.any(String) })
@@ -104,7 +105,7 @@ describe("GET /api/admin/passage", () => {
       const res = await request(app)
         .get("/api/admin/passage")
         .query({ needs_attention: "false", source_id: source.id, status: "published" })
-        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .set("Authorization", `Bearer ${adminToken}`)
 
       expect(res.status).toBe(200)
       expect(res.body.passages).toEqual([
@@ -119,14 +120,14 @@ describe("GET /api/admin/passage", () => {
     ])("limit=%s は受け付ける（境界値）", async (limit) => {
       const res = await request(app)
         .get(`/api/admin/passage?limit=${limit}`)
-        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .set("Authorization", `Bearer ${adminToken}`)
 
       expect(res.status).toBe(200)
     })
   })
 
   describe("異常系", () => {
-    it("X-Admin-Token が無ければ 401 を返す", async () => {
+    it("Authorization が無ければ 401 を返す", async () => {
       const res = await request(app).get("/api/admin/passage")
 
       expect(res.status).toBe(401)
@@ -142,7 +143,7 @@ describe("GET /api/admin/passage", () => {
     ])("%sなら 400 を返す", async (_label, query) => {
       const res = await request(app)
         .get(`/api/admin/passage?${query}`)
-        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .set("Authorization", `Bearer ${adminToken}`)
 
       expect(res.status).toBe(400)
       expect(res.body).toEqual({ error: expect.any(String), status_code: 400 })

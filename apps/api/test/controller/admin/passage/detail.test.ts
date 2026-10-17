@@ -1,24 +1,25 @@
 import request from "supertest"
 
 import { AdminPassageDetailController } from "../../../../src/controller/admin/passage/detail"
-import { env } from "../../../../src/env"
-import { ADMIN_TOKEN_HEADER } from "../../../../src/middleware/admin-auth"
 import { DrizzlePassageRepository } from "../../../../src/repository/drizzle/passage-repository"
-import { adminRouter } from "../../../../src/routes/admin-router"
+import { adminRouter, mountAdminApi } from "../../../../src/routes/admin-router"
 import { insertGeneratedPassage, insertPassageAudio, insertReadingAttempt } from "../../../fixture/passage"
 import { PASSAGE_BLOCKS, QUESTION_ITEMS } from "../../../fixture/passage-content"
-import { attachUnhandledExceptionHandler, createTestApp } from "../../helper"
+import { attachUnhandledExceptionHandler, createTestAdmin, createTestApp } from "../../helper"
 import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb } from "../../setup"
 
 const passageRepository = new DrizzlePassageRepository(testDb)
 
 const app = createTestApp()
 
-app.use("/api/admin", adminRouter({ passage: { detail: new AdminPassageDetailController(passageRepository) } }))
+mountAdminApi(app, adminRouter({ passage: { detail: new AdminPassageDetailController(passageRepository) } }))
 attachUnhandledExceptionHandler(app)
+
+let adminToken: string
 
 beforeEach(async () => {
   await cleanupTestData()
+  adminToken = (await createTestAdmin()).token
 })
 
 afterAll(async () => {
@@ -38,7 +39,7 @@ describe("GET /api/admin/passage/:id", () => {
 
       const res = await request(app)
         .get(`/api/admin/passage/${passage.id}`)
-        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .set("Authorization", `Bearer ${adminToken}`)
 
       expect(res.status).toBe(200)
       expect(res.body).toEqual({
@@ -138,7 +139,7 @@ describe("GET /api/admin/passage/:id", () => {
       const PUBLISHED_AT = new Date("2026-10-12T03:00:00.000Z")
 
       const requestAudio = async (passageId: number) => {
-        const res = await request(app).get(`/api/admin/passage/${passageId}`).set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        const res = await request(app).get(`/api/admin/passage/${passageId}`).set("Authorization", `Bearer ${adminToken}`)
         expect(res.status).toBe(200)
         return res.body.audio
       }
@@ -233,7 +234,7 @@ describe("GET /api/admin/passage/:id", () => {
   })
 
   describe("異常系", () => {
-    it("X-Admin-Token が無ければ 401 を返す", async () => {
+    it("Authorization が無ければ 401 を返す", async () => {
       const { passage } = await insertGeneratedPassage()
 
       const res = await request(app).get(`/api/admin/passage/${passage.id}`)
@@ -245,7 +246,7 @@ describe("GET /api/admin/passage/:id", () => {
     it("存在しない id なら 404 を返す", async () => {
       const res = await request(app)
         .get("/api/admin/passage/999999")
-        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .set("Authorization", `Bearer ${adminToken}`)
 
       expect(res.status).toBe(404)
       expect(res.body).toEqual({ error: expect.any(String), status_code: 404 })
@@ -254,7 +255,7 @@ describe("GET /api/admin/passage/:id", () => {
     it("id が数値でなければ 400 を返す", async () => {
       const res = await request(app)
         .get("/api/admin/passage/abc")
-        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .set("Authorization", `Bearer ${adminToken}`)
 
       expect(res.status).toBe(400)
       expect(res.body).toEqual({ error: expect.any(String), status_code: 400 })

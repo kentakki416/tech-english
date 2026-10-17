@@ -3,6 +3,10 @@ import { z } from "zod"
 
 export type GoogleUserInfo = {
   email: string
+  /**
+   * Google で email が確認済みか。userinfo に項目が無いときは false（未確認として扱う）
+   */
+  emailVerified: boolean
   id: string
   name: string
   picture?: string
@@ -19,6 +23,10 @@ const googleUserInfoResponseSchema = z.object({
   id: z.string().min(1),
   name: z.string(),
   picture: z.string().optional(),
+  /**
+   * 必須にすると、Google が項目を返さなかったときに一般ユーザーの POST /api/auth/google まで 500 になるので任意にする
+   */
+  verified_email: z.boolean().optional(),
 })
 
 /**
@@ -63,6 +71,7 @@ export class GoogleOAuthClient implements IGoogleOAuthClient {
 
     return {
       email: data.email,
+      emailVerified: data.verified_email === true,
       id: data.id,
       name: data.name,
       picture: data.picture

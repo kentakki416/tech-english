@@ -3,20 +3,20 @@ import request from "supertest"
 import { eq, passages } from "@repo/db"
 
 import { AdminPassageRejectController } from "../../../../src/controller/admin/passage/reject"
-import { env } from "../../../../src/env"
-import { ADMIN_TOKEN_HEADER } from "../../../../src/middleware/admin-auth"
 import { DrizzlePassageRepository } from "../../../../src/repository/drizzle/passage-repository"
-import { adminRouter } from "../../../../src/routes/admin-router"
+import { adminRouter, mountAdminApi } from "../../../../src/routes/admin-router"
 import { insertGeneratedPassage } from "../../../fixture/passage"
-import { attachUnhandledExceptionHandler, createTestApp } from "../../helper"
+import { attachUnhandledExceptionHandler, createTestAdmin, createTestApp } from "../../helper"
 import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb } from "../../setup"
 
 const passageRepository = new DrizzlePassageRepository(testDb)
 
 const app = createTestApp()
 
-app.use("/api/admin", adminRouter({ passage: { reject: new AdminPassageRejectController(passageRepository) } }))
+mountAdminApi(app, adminRouter({ passage: { reject: new AdminPassageRejectController(passageRepository) } }))
 attachUnhandledExceptionHandler(app)
+
+let adminToken: string
 
 const selectPassage = async (id: number) => {
   const [row] = await testDb.select().from(passages).where(eq(passages.id, id))
@@ -25,6 +25,7 @@ const selectPassage = async (id: number) => {
 
 beforeEach(async () => {
   await cleanupTestData()
+  adminToken = (await createTestAdmin()).token
 })
 
 afterAll(async () => {
@@ -40,7 +41,7 @@ describe("POST /api/admin/passage/:id/reject", () => {
 
       const res = await request(app)
         .post(`/api/admin/passage/${passage.id}/reject`)
-        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .set("Authorization", `Bearer ${adminToken}`)
         .send({ reason: "  目次だけで題材に不向き  " })
 
       expect(res.status).toBe(200)
@@ -57,7 +58,7 @@ describe("POST /api/admin/passage/:id/reject", () => {
 
       const res = await request(app)
         .post(`/api/admin/passage/${passage.id}/reject`)
-        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .set("Authorization", `Bearer ${adminToken}`)
         .send({ reason: "a".repeat(1000) })
 
       expect(res.status).toBe(200)
@@ -74,7 +75,7 @@ describe("POST /api/admin/passage/:id/reject", () => {
 
       const res = await request(app)
         .post(`/api/admin/passage/${passage.id}/reject`)
-        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .set("Authorization", `Bearer ${adminToken}`)
         .send(body)
 
       expect(res.status).toBe(400)
@@ -87,7 +88,7 @@ describe("POST /api/admin/passage/:id/reject", () => {
 
       const res = await request(app)
         .post(`/api/admin/passage/${passage.id}/reject`)
-        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .set("Authorization", `Bearer ${adminToken}`)
         .send({ reason: "不向き" })
 
       expect(res.status).toBe(409)
@@ -97,14 +98,14 @@ describe("POST /api/admin/passage/:id/reject", () => {
     it("存在しない id なら 404 を返す", async () => {
       const res = await request(app)
         .post("/api/admin/passage/999999/reject")
-        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .set("Authorization", `Bearer ${adminToken}`)
         .send({ reason: "不向き" })
 
       expect(res.status).toBe(404)
       expect(res.body).toEqual({ error: expect.any(String), status_code: 404 })
     })
 
-    it("X-Admin-Token が無ければ 401 を返す", async () => {
+    it("Authorization が無ければ 401 を返す", async () => {
       const { passage } = await insertGeneratedPassage()
 
       const res = await request(app).post(`/api/admin/passage/${passage.id}/reject`).send({ reason: "不向き" })

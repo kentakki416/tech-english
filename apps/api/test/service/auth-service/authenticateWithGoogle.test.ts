@@ -80,6 +80,7 @@ describe("authenticateWithGoogle", () => {
   it("既存ユーザーの場合、isNewUser=false で Access/Refresh Token を発行する", async () => {
     const mockGoogleUser: GoogleUserInfo = {
       email: "test@example.com",
+      emailVerified: true,
       id: "google-123",
       name: "Test User",
       picture: "https://example.com/avatar.jpg",
@@ -135,6 +136,7 @@ describe("authenticateWithGoogle", () => {
   it("新規ユーザーの場合、tx 内で User + AuthAccount を作成し Access/Refresh Token を発行する", async () => {
     const mockGoogleUser: GoogleUserInfo = {
       email: "newuser@example.com",
+      emailVerified: true,
       id: "google-456",
       name: "New User",
       picture: "https://example.com/new-avatar.jpg",

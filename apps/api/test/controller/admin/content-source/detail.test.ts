@@ -1,12 +1,10 @@
 import request from "supertest"
 
 import { AdminContentSourceDetailController } from "../../../../src/controller/admin/content-source/detail"
-import { env } from "../../../../src/env"
-import { ADMIN_TOKEN_HEADER } from "../../../../src/middleware/admin-auth"
 import { DrizzleContentSourceRepository } from "../../../../src/repository/drizzle/content-source-repository"
-import { adminRouter } from "../../../../src/routes/admin-router"
+import { adminRouter, mountAdminApi } from "../../../../src/routes/admin-router"
 import { insertSourceTags } from "../../../fixture/source-tag"
-import { attachUnhandledExceptionHandler, createTestApp } from "../../helper"
+import { attachUnhandledExceptionHandler, createTestAdmin, createTestApp } from "../../helper"
 import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb } from "../../setup"
 
 import { insertGitHubSource, insertPassages, insertSourceDocument, insertWebsiteSource } from "./fixtures"
@@ -15,13 +13,16 @@ const contentSourceRepository = new DrizzleContentSourceRepository(testDb)
 
 const app = createTestApp()
 
-app.use("/api/admin", adminRouter({
+mountAdminApi(app, adminRouter({
   contentSource: { detail: new AdminContentSourceDetailController(contentSourceRepository) },
 }))
 attachUnhandledExceptionHandler(app)
 
+let adminToken: string
+
 beforeEach(async () => {
   await cleanupTestData()
+  adminToken = (await createTestAdmin()).token
 })
 
 afterAll(async () => {
@@ -41,7 +42,7 @@ describe("GET /api/admin/content-source/:id", () => {
 
       const res = await request(app)
         .get(`/api/admin/content-source/${github.id}`)
-        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .set("Authorization", `Bearer ${adminToken}`)
 
       expect(res.status).toBe(200)
       expect(res.body).toEqual({
@@ -82,7 +83,7 @@ describe("GET /api/admin/content-source/:id", () => {
 
       const res = await request(app)
         .get(`/api/admin/content-source/${website.id}`)
-        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .set("Authorization", `Bearer ${adminToken}`)
 
       expect(res.status).toBe(200)
       expect(res.body).toEqual({
@@ -119,7 +120,7 @@ describe("GET /api/admin/content-source/:id", () => {
     it("存在しない id なら 404 を返す", async () => {
       const res = await request(app)
         .get("/api/admin/content-source/999999")
-        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .set("Authorization", `Bearer ${adminToken}`)
 
       expect(res.status).toBe(404)
       expect(res.body).toEqual({ error: expect.any(String), status_code: 404 })
@@ -128,13 +129,13 @@ describe("GET /api/admin/content-source/:id", () => {
     it.each(["abc", "0", "-1", "1.5", "2147483648"])(":id が %s なら 400 を返す", async (id) => {
       const res = await request(app)
         .get(`/api/admin/content-source/${id}`)
-        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .set("Authorization", `Bearer ${adminToken}`)
 
       expect(res.status).toBe(400)
       expect(res.body).toEqual({ error: expect.any(String), status_code: 400 })
     })
 
-    it("X-Admin-Token が無ければ 401 を返す", async () => {
+    it("Authorization が無ければ 401 を返す", async () => {
       const github = await insertGitHubSource()
 
       const res = await request(app).get(`/api/admin/content-source/${github.id}`)

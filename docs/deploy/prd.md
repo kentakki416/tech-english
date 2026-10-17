@@ -19,6 +19,7 @@
 - [Phase 3: GitHub Environments の設定](#phase-3-github-environments-の設定)
 - [Phase 4: ドメイン購入（Route53 Domains）](#phase-4-ドメイン購入route53-domains)
 - [Phase 5: GitHub OAuth App（本番用）](#phase-5-github-oauth-app本番用)
+- [Phase 5-2: Google OAuth クライアント（admin 用）](#phase-5-2-google-oauth-クライアントadmin-用)
 - [Phase 6: env/prd を apply（HTTPS 込みの最終形で）](#phase-6-envprd-を-applyhttps-込みの最終形で)
 - [Phase 7: secret 投入（seed-secrets.sh）](#phase-7-secret-投入seed-secretssh)
 - [Phase 8: アプリのデプロイ（GitHub Actions）](#phase-8-アプリのデプロイgithub-actions)
@@ -146,6 +147,21 @@ GitHub → Settings → Developers → OAuth Apps → New OAuth App
 
 ---
 
+## Phase 5-2: Google OAuth クライアント（admin 用）
+
+管理画面（`apps/admin`）のサインインは Google を使う（設計: [admin-template の「本番の Google OAuth クライアント」](../spec/admin-template/README.md#本番の-google-oauth-クライアント)）。tech-english の本番は一般ユーザーに Google を使っていないので、admin のために用意する。
+
+1. Google Cloud で OAuth クライアント（種類：**ウェブ アプリケーション**）を作る
+2. 「承認済みのリダイレクト URI」に `https://<admin のドメイン>/api/auth/callback/google` を足す（dev も同じ形で足す）
+3. クライアント ID とシークレットを控える（Phase 7 で `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` として api の secret に入れる）
+4. admin の `GOOGLE_CLIENT_ID` と `NEXT_PUBLIC_APP_URL` に、同じクライアント ID と admin の URL を入れる
+
+- OAuth の同意画面のスコープは `openid` / `email` / `profile` だけ。公開ステータスが「テスト」の間は、テストユーザーに足した Google アカウントしか認可できない。admin を足すときはテストユーザーにも足すか、公開ステータスを「本番」にする
+- admin の app の deploy 先（URL）はまだ決まっていない。決めたときに 2 と 4 を行う
+- **注意**: api の `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` に本番の値を入れると、使っていない一般ユーザーの `POST /api/auth/google` も同じクライアントで動くようになる。作られるのは普通のユーザーなので、権限の問題にはならない
+
+---
+
 ## Phase 6: env/prd を apply（HTTPS 込みの最終形で）
 
 > ★ **ここが最重要**。HTTP で先に立ち上げてから後で HTTPS 化、をやると ECS Blue/Green の
@@ -181,6 +197,8 @@ cd <repo-root>
 # アプリが使う外部 secret を export（プロジェクトに合わせて増減）:
 export GITHUB_CLIENT_ID='<本番 OAuth App の Client ID>'
 export GITHUB_CLIENT_SECRET='<本番 OAuth App の Client secret>'
+export GOOGLE_CLIENT_ID='<Phase 5-2 の Client ID>'     # admin の Google のサインイン
+export GOOGLE_CLIENT_SECRET='<Phase 5-2 の Client secret>'
 export FRONTEND_URL='https://<your-domain>'           # フロント(apex)
 # 例: crawler 等を使うなら export GITHUB_PAT='ghp_...'（dev のを流用可）
 ./scripts/deploy/seed-secrets.sh prd
@@ -189,13 +207,26 @@ export FRONTEND_URL='https://<your-domain>'           # フロント(apex)
 - 自動構築される（export 不要）: `DATABASE_URL` / `REDIS_HOST` / `REDIS_URL`(prd は `rediss://` = TLS)
   - ⚠️ `DATABASE_URL` は **`?sslmode=no-verify`** で構築する（`require` だと pg が TLS で落ちる。[落とし穴 9](#落とし穴-9-db-の-tls-が-pg-で-verify-full-扱いになり-rds-で落ちる)）
 - スクリプトは **merge 方式**（何度でも再実行可。値だけ上書き）
+- admin の JWT の鍵（`JWT_ADMIN_ACCESS_SECRET` / `JWT_ADMIN_REFRESH_SECRET`）は、Secrets Manager に無ければスクリプトが生成して足す（既にあれば触らない。作り直すと全 admin のセッションが切れる）。新しい環境では Terraform が初回 apply で入れるが、**鍵を足す前に作った環境は Terraform では入らない**（`module.app_secrets` は初回 apply でしか書かない）ので、このスクリプトで入れる
+- secret の読み込みに失敗したら、スクリプトは何も書かずに止まる（Phase 6 の apply 前・権限不足など）
 - 確認:
 
 ```bash
 aws secretsmanager get-secret-value --secret-id /<project>-prd/app \
   --query SecretString --output text | jq 'keys'
-# DATABASE_URL / REDIS_* / OAuth / FRONTEND_URL / JWT_* が揃っていること
+# DATABASE_URL / REDIS_* / OAuth / FRONTEND_URL / JWT_*（JWT_ADMIN_* を含む）が揃っていること
 ```
+
+### 既存の環境に admin の認証を反映する順番
+
+admin の認証（admin-template）を入れる前に作った環境は、deploy の前に次の順で行う。
+
+1. `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` を export して `scripts/deploy/seed-secrets.sh <env>` を流す。admin の JWT の鍵が Secrets Manager に入る
+2. Terraform を apply する（dev / prd は ECS の `secret_keys` に admin の鍵が増える）
+3. deploy する（migration で `admins` ができ、api が新しい鍵を読む）
+4. 「Admin Create」で admin を登録する（[Phase 8 の「admin を登録する」](#admin-を登録する)）
+
+1 より先に 2 / 3 を行うと、ECS のタスクが起動できない（Secrets Manager に無いキーを参照するため）。min は deploy の検査（`missing keys`）で止まる。
 
 > api は OAuth 系の値が**非空**でないと起動に失敗する設計。`FRONTEND_URL` は有効な URL が必須。
 > どの key が必須かは `apps/api/src/env.ts`（Zod スキーマ）を参照。
@@ -232,6 +263,14 @@ green が 200 を返すのを確認 → Actions の「Review pending deployments
 
 - `packages/db/drizzle/seed.ts` は **dev 専用データ**（dev users / fixtures）のみを扱い、`NODE_ENV=production` では何もしない
 - 新しいマスタを足すときは migration を 1 本追加する（`pnpm --filter @repo/db db:generate --custom --name=seed_xxx` で空の `migration.sql` を作り、冪等 INSERT を記述）
+
+### admin を登録する
+
+管理画面（`apps/admin`）にサインインできるのは、`admins` テーブルに email が登録された Google アカウントだけ。最初の 1 人も 2 人目以降も、Actions → **「Admin Create」** を `environment=prd`・`email=<Google アカウントの email>` で実行して登録する（最後に deploy した migration イメージで `pnpm --filter @repo/db admin:create` を流す。登録済みなら何もしない）。
+
+- Admin Create は**最後に deploy した** migration イメージで動く。admin の認証を入れた版をまだ deploy していない環境では、イメージに `admin:create` が無いうえ `admins` テーブルも無いので失敗する。先に deploy を済ませる
+- email は小文字にそろえて登録される。ログに出るのは `Created admin (id=...)` か `Admin already exists` だけ（入力した email は Actions の実行の記録に残る）
+- 登録した email の Google アカウントで管理画面にサインインすると、名前とアイコンが入る
 
 ---
 

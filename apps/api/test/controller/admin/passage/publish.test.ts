@@ -3,16 +3,14 @@ import request from "supertest"
 import { eq, passageAudios, passages, questions } from "@repo/db"
 
 import { AdminPassagePublishController } from "../../../../src/controller/admin/passage/publish"
-import { env } from "../../../../src/env"
-import { ADMIN_TOKEN_HEADER } from "../../../../src/middleware/admin-auth"
 import { DrizzlePassageAudioRepository } from "../../../../src/repository/drizzle/passage-audio-repository"
 import { DrizzlePassageRepository } from "../../../../src/repository/drizzle/passage-repository"
 import { DrizzleTransactionRunner } from "../../../../src/repository/drizzle/transaction-runner"
-import { adminRouter } from "../../../../src/routes/admin-router"
+import { adminRouter, mountAdminApi } from "../../../../src/routes/admin-router"
 import { insertGeneratedPassage, insertPassageAudio } from "../../../fixture/passage"
 import { buildAudioManifest } from "../../../fixture/passage-audio"
 import { PASSAGE_BLOCKS } from "../../../fixture/passage-content"
-import { attachUnhandledExceptionHandler, createTestApp } from "../../helper"
+import { attachUnhandledExceptionHandler, createTestAdmin, createTestApp } from "../../helper"
 import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb } from "../../setup"
 
 const passageRepository = new DrizzlePassageRepository(testDb)
@@ -21,10 +19,12 @@ const passageAudioRepository = new DrizzlePassageAudioRepository(testDb)
 
 const app = createTestApp()
 
-app.use("/api/admin", adminRouter({
+mountAdminApi(app, adminRouter({
   passage: { publish: new AdminPassagePublishController(passageRepository, passageAudioRepository, new DrizzleTransactionRunner(testDb)) },
 }))
 attachUnhandledExceptionHandler(app)
+
+let adminToken: string
 
 const selectPassage = async (id: number) => {
   const [row] = await testDb.select().from(passages).where(eq(passages.id, id))
@@ -38,6 +38,7 @@ const selectAudio = async (passageId: number) => {
 
 beforeEach(async () => {
   await cleanupTestData()
+  adminToken = (await createTestAdmin()).token
 })
 
 afterAll(async () => {
@@ -53,7 +54,7 @@ describe("POST /api/admin/passage/:id/publish", () => {
 
       const res = await request(app)
         .post(`/api/admin/passage/${passage.id}/publish`)
-        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .set("Authorization", `Bearer ${adminToken}`)
 
       expect(res.status).toBe(200)
       expect(res.body).toEqual({ id: passage.id, status: "published" })
@@ -70,7 +71,7 @@ describe("POST /api/admin/passage/:id/publish", () => {
 
       const res = await request(app)
         .post(`/api/admin/passage/${passage.id}/publish`)
-        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .set("Authorization", `Bearer ${adminToken}`)
 
       expect(res.status).toBe(200)
       expect(await selectAudio(passage.id)).toMatchObject({
@@ -87,7 +88,7 @@ describe("POST /api/admin/passage/:id/publish", () => {
 
       const res = await request(app)
         .post(`/api/admin/passage/${passage.id}/publish`)
-        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .set("Authorization", `Bearer ${adminToken}`)
 
       expect(res.status).toBe(200)
       expect(await selectAudio(passage.id)).toMatchObject({
@@ -105,7 +106,7 @@ describe("POST /api/admin/passage/:id/publish", () => {
 
       const res = await request(app)
         .post(`/api/admin/passage/${passage.id}/publish`)
-        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .set("Authorization", `Bearer ${adminToken}`)
 
       expect(res.status).toBe(400)
       expect(res.body).toEqual({
@@ -125,7 +126,7 @@ describe("POST /api/admin/passage/:id/publish", () => {
 
       const res = await request(app)
         .post(`/api/admin/passage/${passage.id}/publish`)
-        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .set("Authorization", `Bearer ${adminToken}`)
 
       expect(res.status).toBe(409)
       expect(res.body).toEqual({ error: expect.any(String), status_code: 409 })
@@ -135,13 +136,13 @@ describe("POST /api/admin/passage/:id/publish", () => {
     it("存在しない id なら 404 を返す", async () => {
       const res = await request(app)
         .post("/api/admin/passage/999999/publish")
-        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .set("Authorization", `Bearer ${adminToken}`)
 
       expect(res.status).toBe(404)
       expect(res.body).toEqual({ error: expect.any(String), status_code: 404 })
     })
 
-    it("X-Admin-Token が無ければ 401 を返し、公開しない", async () => {
+    it("Authorization が無ければ 401 を返し、公開しない", async () => {
       const { passage } = await insertGeneratedPassage()
 
       const res = await request(app).post(`/api/admin/passage/${passage.id}/publish`)

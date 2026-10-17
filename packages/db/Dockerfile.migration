@@ -52,8 +52,10 @@ RUN pnpm install --frozen-lockfile
 # drizzle.config.ts / migrations / schema (src/drizzle)、ClickHouse の migrations / views を含むソースをコピー
 COPY --from=pruner /app/out/full/ ./
 
-# ClickHouse の migration コマンドが import する workspace パッケージ (@repo/logger) は dist/ を読むためビルドする
-RUN pnpm turbo run build --filter=@repo/data-warehouse^...
+# workspace パッケージは dist/ を読むためビルドする。
+# - @repo/data-warehouse の依存 (@repo/logger): ClickHouse の migration コマンドが import する
+# - @repo/db の依存 (@repo/domain): admin:create が import する (normalizeEmail)
+RUN pnpm turbo run build --filter=@repo/data-warehouse^... --filter=@repo/db^...
 
 # CDC の対象一覧。turbo prune は workspace 外のファイルを含めないため個別にコピーする
 COPY infra/clickhouse/cdc-tables.json ./infra/clickhouse/cdc-tables.json

@@ -1,10 +1,16 @@
-import { Router } from "express"
+import { Express, Router } from "express"
 
+import { ADMIN_PATH_PREFIX } from "../const"
+import { AdminAuthDevLoginController } from "../controller/admin/auth/dev-login"
+import { AdminAuthGoogleController } from "../controller/admin/auth/google"
+import { AdminAuthLogoutController } from "../controller/admin/auth/logout"
+import { AdminAuthRefreshController } from "../controller/admin/auth/refresh"
 import { AdminContentSourceCreateController } from "../controller/admin/content-source/create"
 import { AdminContentSourceDetailController } from "../controller/admin/content-source/detail"
 import { AdminContentSourceDetectLicenseController } from "../controller/admin/content-source/detect-license"
 import { AdminContentSourceListController } from "../controller/admin/content-source/list"
 import { AdminContentSourceUpdateController } from "../controller/admin/content-source/update"
+import { AdminMeGetController } from "../controller/admin/me/get"
 import { AdminPassageDetailController } from "../controller/admin/passage/detail"
 import { AdminPassageListController } from "../controller/admin/passage/list"
 import { AdminPassagePublishController } from "../controller/admin/passage/publish"
@@ -33,12 +39,21 @@ import { adminAuthMiddleware } from "../middleware/admin-auth"
  * admin のコントローラー。リソースごとにネストし、渡されたものだけルートを登録する
  */
 type AdminRouterControllers = {
+  auth?: {
+    devLogin?: AdminAuthDevLoginController
+    google?: AdminAuthGoogleController
+    logout?: AdminAuthLogoutController
+    refresh?: AdminAuthRefreshController
+  }
   contentSource?: {
     create?: AdminContentSourceCreateController
     detail?: AdminContentSourceDetailController
     detectLicense?: AdminContentSourceDetectLicenseController
     list?: AdminContentSourceListController
     update?: AdminContentSourceUpdateController
+  }
+  me?: {
+    get?: AdminMeGetController
   }
   passage?: {
     detail?: AdminPassageDetailController
@@ -73,16 +88,57 @@ type AdminRouterControllers = {
 }
 
 /**
- * admin 向けのルーター（/api/admin にマウントする）。すべてのルートの前に adminAuthMiddleware を通す。
+ * admin 向けのルーター。
  *
- * /api/admin は PUBLIC_PATHS に入っていてユーザーの JWT 認証を通らないため、
- * /api/admin 配下のルートは必ずこのルーターに足す（別の router に足すと無認証で公開される）。
+ * /api/admin の下のルートは必ずこのルーターに足し、mountAdminApi で mount する（adminAuthMiddleware を通すため）。
  * ルートを足すときは、既存の router と同じく optional なコントローラーを受け取り、渡されたものだけを登録する。
  */
 export const adminRouter = (controllers: AdminRouterControllers): Router => {
   const router = Router()
 
-  router.use(adminAuthMiddleware)
+  const auth = controllers.auth ?? {}
+
+  /**
+   * POST /api/admin/auth/google
+   */
+  if (auth.google) {
+    const controller = auth.google
+    router.post("/auth/google", async (req, res) => controller.execute(req, res))
+  }
+
+  /**
+   * POST /api/admin/auth/dev-login（NODE_ENV !== "production" のみ）
+   */
+  if (auth.devLogin) {
+    const controller = auth.devLogin
+    router.post("/auth/dev-login", async (req, res) => controller.execute(req, res))
+  }
+
+  /**
+   * POST /api/admin/auth/refresh
+   */
+  if (auth.refresh) {
+    const controller = auth.refresh
+    router.post("/auth/refresh", async (req, res) => controller.execute(req, res))
+  }
+
+  /**
+   * POST /api/admin/auth/logout
+   */
+  if (auth.logout) {
+    const controller = auth.logout
+    router.post("/auth/logout", async (req, res) => controller.execute(req, res))
+  }
+
+  const me = controllers.me ?? {}
+
+  /**
+   * GET /api/admin/me
+   */
+  if (me.get) {
+    const controller = me.get
+    router.get("/me", async (req, res) => controller.execute(req, res))
+  }
 
   const contentSource = controllers.contentSource ?? {}
 
@@ -311,4 +367,15 @@ export const adminRouter = (controllers: AdminRouterControllers): Router => {
   }
 
   return router
+}
+
+/**
+ * admin の API を /api/admin に mount する。index.ts とテストで同じ組み方にするため、ここにまとめる。
+ *
+ * adminAuthMiddleware は全体ではなく mount の中に置く。Express 5 の mount と Router は大文字小文字を区別しないので、
+ * 全体に適用して req.path を文字列で比べると、/API/Admin/... が admin の判定をすり抜けて Router に届くため。
+ * mount の中なら、Router に届くリクエストは必ず adminAuthMiddleware を通る
+ */
+export const mountAdminApi = (app: Express, router: Router): void => {
+  app.use(ADMIN_PATH_PREFIX, adminAuthMiddleware, router)
 }

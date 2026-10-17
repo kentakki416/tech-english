@@ -25,6 +25,10 @@ inputs:
     description: ENABLED (public subnet に置くとき) / DISABLED (private subnet に置くとき)
     required: false
     default: DISABLED
+  command:
+    description: コンテナの起動コマンドを差し替える JSON の配列 (例 ["pnpm","--filter","@repo/db","admin:create","--email","a@example.com"])。省略したらタスク定義のまま
+    required: false
+    default: ""
 
 runs:
   using: composite
@@ -63,6 +67,8 @@ runs:
       env:
         ASSIGN_PUBLIC_IP: ${{ inputs.assign-public-ip }}
         CLUSTER: ${{ inputs.cluster }}
+        # 入力は env で渡し、run の中に ${{ }} で展開しない (コマンドの注入を防ぐ)
+        COMMAND: ${{ inputs.command }}
         FAMILY: ${{ inputs.task-definition }}
         SECURITY_GROUP: ${{ inputs.security-group }}
         SUBNETS: ${{ inputs.subnets }}
@@ -70,12 +76,20 @@ runs:
       run: |
         set -euo pipefail
 
+        # 起動コマンドの差し替え。コンテナ名はタスク定義の family と同じ (ecs-workload module の決まり)
+        OVERRIDES_ARGS=()
+        if [ -n "${COMMAND}" ]; then
+          OVERRIDES_ARGS=(--overrides "$(jq -cn --arg name "${FAMILY}" --argjson command "${COMMAND}" \
+            '{containerOverrides: [{name: $name, command: $command}]}')")
+        fi
+
         # Service が無い one-shot タスクなので、起動時に network 設定を渡す
         RUN_RESULT=$(aws ecs run-task \
           --cluster "${CLUSTER}" \
           --task-definition "${TASK_DEFINITION}" \
           --launch-type FARGATE \
-          --network-configuration "awsvpcConfiguration={subnets=[${SUBNETS}],securityGroups=[${SECURITY_GROUP}],assignPublicIp=${ASSIGN_PUBLIC_IP}}")
+          --network-configuration "awsvpcConfiguration={subnets=[${SUBNETS}],securityGroups=[${SECURITY_GROUP}],assignPublicIp=${ASSIGN_PUBLIC_IP}}" \
+          "${OVERRIDES_ARGS[@]}")
         TASK_ARN=$(jq -r '.tasks[0].taskArn // empty' <<< "${RUN_RESULT}")
         if [ -z "${TASK_ARN}" ]; then
           echo "::error::Failed to start the task"

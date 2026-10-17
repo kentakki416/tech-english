@@ -3,13 +3,11 @@ import request from "supertest"
 import { asc, contentSources, contentSourceTags, eq, sourceDocuments } from "@repo/db"
 
 import { AdminContentSourceUpdateController } from "../../../../src/controller/admin/content-source/update"
-import { env } from "../../../../src/env"
-import { ADMIN_TOKEN_HEADER } from "../../../../src/middleware/admin-auth"
 import { DrizzleContentSourceRepository } from "../../../../src/repository/drizzle/content-source-repository"
 import { DrizzleTagRepository } from "../../../../src/repository/drizzle/tag-repository"
-import { adminRouter } from "../../../../src/routes/admin-router"
+import { adminRouter, mountAdminApi } from "../../../../src/routes/admin-router"
 import { insertSourceTags, insertTags } from "../../../fixture/source-tag"
-import { attachUnhandledExceptionHandler, createTestApp } from "../../helper"
+import { attachUnhandledExceptionHandler, createTestAdmin, createTestApp } from "../../helper"
 import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb } from "../../setup"
 
 import {
@@ -26,10 +24,12 @@ const tagRepository = new DrizzleTagRepository(testDb)
 
 const app = createTestApp()
 
-app.use("/api/admin", adminRouter({
+mountAdminApi(app, adminRouter({
   contentSource: { update: new AdminContentSourceUpdateController(contentSourceRepository, tagRepository) },
 }))
 attachUnhandledExceptionHandler(app)
+
+let adminToken: string
 
 const selectSource = async (id: number) => {
   const [row] = await testDb.select().from(contentSources).where(eq(contentSources.id, id))
@@ -71,6 +71,7 @@ const selectSourceDocument = async (id: number) => {
 
 beforeEach(async () => {
   await cleanupTestData()
+  adminToken = (await createTestAdmin()).token
 })
 
 afterAll(async () => {
@@ -97,7 +98,7 @@ describe("PUT /api/admin/content-source/:id", () => {
 
       const res = await request(app)
         .put(`/api/admin/content-source/${website.id}`)
-        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .set("Authorization", `Bearer ${adminToken}`)
         .send(body)
 
       expect(res.status).toBe(200)
@@ -132,7 +133,7 @@ describe("PUT /api/admin/content-source/:id", () => {
 
       const res = await request(app)
         .put(`/api/admin/content-source/${github.id}`)
-        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .set("Authorization", `Bearer ${adminToken}`)
         .send({ ...GITHUB_REQUEST, tag_ids: [react.id, hooks.id] })
 
       expect(res.status).toBe(200)
@@ -150,7 +151,7 @@ describe("PUT /api/admin/content-source/:id", () => {
 
       const res = await request(app)
         .put(`/api/admin/content-source/${github.id}`)
-        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .set("Authorization", `Bearer ${adminToken}`)
         .send({ ...GITHUB_REQUEST, tag_ids: [] })
 
       expect(res.status).toBe(200)
@@ -163,7 +164,7 @@ describe("PUT /api/admin/content-source/:id", () => {
 
       const res = await request(app)
         .put(`/api/admin/content-source/${github.id}`)
-        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .set("Authorization", `Bearer ${adminToken}`)
         .send({ ...GITHUB_REQUEST, include_globs: ["src/content/reference/**/*.md"] })
 
       expect(res.status).toBe(200)
@@ -179,7 +180,7 @@ describe("PUT /api/admin/content-source/:id", () => {
 
       const res = await request(app)
         .put(`/api/admin/content-source/${github.id}`)
-        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .set("Authorization", `Bearer ${adminToken}`)
         .send({ ...GITHUB_REQUEST, is_enabled: false, name: "React Docs" })
 
       expect(res.status).toBe(200)
@@ -197,7 +198,7 @@ describe("PUT /api/admin/content-source/:id", () => {
 
       const res = await request(app)
         .put(`/api/admin/content-source/${website.id}`)
-        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .set("Authorization", `Bearer ${adminToken}`)
         .send({ ...WEBSITE_REQUEST, content_selector: "main", is_enabled: true })
 
       expect(res.status).toBe(200)
@@ -215,7 +216,7 @@ describe("PUT /api/admin/content-source/:id", () => {
 
       const res = await request(app)
         .put(`/api/admin/content-source/${website.id}`)
-        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .set("Authorization", `Bearer ${adminToken}`)
         .send({ ...WEBSITE_REQUEST, is_enabled: true, name: "Go Docs" })
 
       expect(res.status).toBe(200)
@@ -232,7 +233,7 @@ describe("PUT /api/admin/content-source/:id", () => {
 
       const res = await request(app)
         .put(`/api/admin/content-source/${github.id}`)
-        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .set("Authorization", `Bearer ${adminToken}`)
         .send({ ...GITHUB_REQUEST, license_spdx: "MIT", license_url: "https://github.com/reactjs/react.dev/blob/main/LICENSE" })
 
       expect(res.status).toBe(200)
@@ -246,7 +247,7 @@ describe("PUT /api/admin/content-source/:id", () => {
 
       const res = await request(app)
         .put(`/api/admin/content-source/${github.id}`)
-        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .set("Authorization", `Bearer ${adminToken}`)
         .send({ ...WEBSITE_REQUEST, is_enabled: true })
 
       expect(res.status).toBe(400)
@@ -261,7 +262,7 @@ describe("PUT /api/admin/content-source/:id", () => {
 
       const res = await request(app)
         .put(`/api/admin/content-source/${github.id}`)
-        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .set("Authorization", `Bearer ${adminToken}`)
         .send({ ...GITHUB_REQUEST, name: "React Docs", tag_ids: [react.id + 1000] })
 
       expect(res.status).toBe(400)
@@ -284,7 +285,7 @@ describe("PUT /api/admin/content-source/:id", () => {
 
       const res = await request(app)
         .put(`/api/admin/content-source/${github.id}`)
-        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .set("Authorization", `Bearer ${adminToken}`)
         .send(body)
 
       expect(res.status).toBe(400)
@@ -296,7 +297,7 @@ describe("PUT /api/admin/content-source/:id", () => {
 
       const res = await request(app)
         .put(`/api/admin/content-source/${website.id}`)
-        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .set("Authorization", `Bearer ${adminToken}`)
         .send(WEBSITE_REQUEST)
 
       expect(res.status).toBe(400)
@@ -305,7 +306,7 @@ describe("PUT /api/admin/content-source/:id", () => {
     it("存在しない id なら 404 を返す", async () => {
       const res = await request(app)
         .put("/api/admin/content-source/999999")
-        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .set("Authorization", `Bearer ${adminToken}`)
         .send(GITHUB_REQUEST)
 
       expect(res.status).toBe(404)
@@ -315,7 +316,7 @@ describe("PUT /api/admin/content-source/:id", () => {
     it(":id が数値でなければ 400 を返す", async () => {
       const res = await request(app)
         .put("/api/admin/content-source/abc")
-        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .set("Authorization", `Bearer ${adminToken}`)
         .send(GITHUB_REQUEST)
 
       expect(res.status).toBe(400)
@@ -327,7 +328,7 @@ describe("PUT /api/admin/content-source/:id", () => {
 
       const res = await request(app)
         .put(`/api/admin/content-source/${github.id}`)
-        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .set("Authorization", `Bearer ${adminToken}`)
         .send({ ...GITHUB_REQUEST, repository: "vercel/next.js" })
 
       expect(res.status).toBe(409)
@@ -355,7 +356,7 @@ describe("PUT /api/admin/content-source/:id", () => {
 
       const res = await request(app)
         .put(`/api/admin/content-source/${id}`)
-        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .set("Authorization", `Bearer ${adminToken}`)
         .send(body)
 
       expect(res.status).toBe(400)
@@ -363,7 +364,7 @@ describe("PUT /api/admin/content-source/:id", () => {
       expect(await selectSource(id)).toEqual(before)
     })
 
-    it("X-Admin-Token が無ければ 401 を返し、DB は変わらない", async () => {
+    it("Authorization が無ければ 401 を返し、DB は変わらない", async () => {
       const github = await insertGitHubSource()
 
       const res = await request(app)

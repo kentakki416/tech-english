@@ -3,21 +3,21 @@ import request from "supertest"
 import { eq, passageAudios } from "@repo/db"
 
 import { AdminPassageRegenerateAudioController } from "../../../../src/controller/admin/passage/regenerate-audio"
-import { env } from "../../../../src/env"
-import { ADMIN_TOKEN_HEADER } from "../../../../src/middleware/admin-auth"
 import { DrizzlePassageAudioRepository } from "../../../../src/repository/drizzle/passage-audio-repository"
-import { adminRouter } from "../../../../src/routes/admin-router"
+import { adminRouter, mountAdminApi } from "../../../../src/routes/admin-router"
 import { insertGeneratedPassage, insertPassageAudio } from "../../../fixture/passage"
 import { buildAudioManifest } from "../../../fixture/passage-audio"
-import { attachUnhandledExceptionHandler, createTestApp } from "../../helper"
+import { attachUnhandledExceptionHandler, createTestAdmin, createTestApp } from "../../helper"
 import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb } from "../../setup"
 
 const passageAudioRepository = new DrizzlePassageAudioRepository(testDb)
 
 const app = createTestApp()
 
-app.use("/api/admin", adminRouter({ passage: { regenerateAudio: new AdminPassageRegenerateAudioController(passageAudioRepository) } }))
+mountAdminApi(app, adminRouter({ passage: { regenerateAudio: new AdminPassageRegenerateAudioController(passageAudioRepository) } }))
 attachUnhandledExceptionHandler(app)
+
+let adminToken: string
 
 const PUBLISHED_AT = new Date("2026-10-12T03:00:00.000Z")
 
@@ -38,6 +38,7 @@ const selectAudio = async (passageId: number) => {
 
 beforeEach(async () => {
   await cleanupTestData()
+  adminToken = (await createTestAdmin()).token
 })
 
 afterAll(async () => {
@@ -52,7 +53,7 @@ describe("POST /api/admin/passage/:id/audio/regenerate", () => {
       const passage = await insertPublishedPassage()
       await insertPassageAudio(passage.id)
 
-      const res = await request(app).post(`/api/admin/passage/${passage.id}/audio/regenerate`).set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+      const res = await request(app).post(`/api/admin/passage/${passage.id}/audio/regenerate`).set("Authorization", `Bearer ${adminToken}`)
 
       expect(res.status).toBe(200)
       expect(res.body).toEqual({ passage_id: passage.id, regenerate_requested_at: expect.any(String) })
@@ -69,7 +70,7 @@ describe("POST /api/admin/passage/:id/audio/regenerate", () => {
       const passage = await insertPublishedPassage()
       await insertPassageAudio(passage.id, { attemptCount: 3, lastError: "ServiceFailureException: Polly is unavailable" })
 
-      const res = await request(app).post(`/api/admin/passage/${passage.id}/audio/regenerate`).set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+      const res = await request(app).post(`/api/admin/passage/${passage.id}/audio/regenerate`).set("Authorization", `Bearer ${adminToken}`)
 
       expect(res.status).toBe(200)
       expect(await selectAudio(passage.id)).toMatchObject({
@@ -90,7 +91,7 @@ describe("POST /api/admin/passage/:id/audio/regenerate", () => {
       const passage = await insertPublishedPassage()
       await insertPassageAudio(passage.id, { attemptCount: 1, lastError: "error", ...overrides })
 
-      const res = await request(app).post(`/api/admin/passage/${passage.id}/audio/regenerate`).set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+      const res = await request(app).post(`/api/admin/passage/${passage.id}/audio/regenerate`).set("Authorization", `Bearer ${adminToken}`)
 
       expect(res.status).toBe(409)
       expect(res.body).toEqual({ error: expect.any(String), status_code: 409 })
@@ -101,7 +102,7 @@ describe("POST /api/admin/passage/:id/audio/regenerate", () => {
       const { passage } = await insertGeneratedPassage({ publishedAt: PUBLISHED_AT, status: "draft" })
       await insertPassageAudio(passage.id)
 
-      const res = await request(app).post(`/api/admin/passage/${passage.id}/audio/regenerate`).set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+      const res = await request(app).post(`/api/admin/passage/${passage.id}/audio/regenerate`).set("Authorization", `Bearer ${adminToken}`)
 
       expect(res.status).toBe(409)
       expect(await selectAudio(passage.id)).toMatchObject({ regenerateRequestedAt: null, status: "ready" })
@@ -110,20 +111,20 @@ describe("POST /api/admin/passage/:id/audio/regenerate", () => {
     it("音声の行が無ければ 409 を返し、行を作らない", async () => {
       const passage = await insertPublishedPassage()
 
-      const res = await request(app).post(`/api/admin/passage/${passage.id}/audio/regenerate`).set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+      const res = await request(app).post(`/api/admin/passage/${passage.id}/audio/regenerate`).set("Authorization", `Bearer ${adminToken}`)
 
       expect(res.status).toBe(409)
       expect(await selectAudio(passage.id)).toBeUndefined()
     })
 
     it("存在しない id なら 404 を返す", async () => {
-      const res = await request(app).post("/api/admin/passage/999999/audio/regenerate").set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+      const res = await request(app).post("/api/admin/passage/999999/audio/regenerate").set("Authorization", `Bearer ${adminToken}`)
 
       expect(res.status).toBe(404)
       expect(res.body).toEqual({ error: expect.any(String), status_code: 404 })
     })
 
-    it("X-Admin-Token が無ければ 401 を返し、行を変えない", async () => {
+    it("Authorization が無ければ 401 を返し、行を変えない", async () => {
       const passage = await insertPublishedPassage()
       await insertPassageAudio(passage.id)
 
@@ -134,7 +135,7 @@ describe("POST /api/admin/passage/:id/audio/regenerate", () => {
     })
 
     it("id が数値でなければ 400 を返す", async () => {
-      const res = await request(app).post("/api/admin/passage/abc/audio/regenerate").set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+      const res = await request(app).post("/api/admin/passage/abc/audio/regenerate").set("Authorization", `Bearer ${adminToken}`)
 
       expect(res.status).toBe(400)
     })

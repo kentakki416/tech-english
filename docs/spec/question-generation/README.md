@@ -323,17 +323,9 @@ LLM の出力を保存する前に、コードで以下を検査・加工する�
 
 ### 管理画面のアクセス制御
 
-MVP の管理者は 1〜2 人を想定し、**共有シークレットで保護する**（ユーザーの GitHub ログインとは分ける）。
+[admin-template](../admin-template/README.md#admin-認証) で、`admins` テーブル + admin 専用の JWT + Google のサインインに置き換えた。この spec で入れた Basic 認証（admin）と `X-Admin-Token`（api）は廃止した。
 
-| 層 | 仕組み |
-| --- | --- |
-| admin（Next.js） | `src/proxy.ts` で Basic 認証（`ADMIN_BASIC_AUTH_USER` / `ADMIN_BASIC_AUTH_PASSWORD`） |
-| api の `/api/admin/*` | `X-Admin-Token` ヘッダを `ADMIN_API_TOKEN` と定数時間比較する `adminAuthMiddleware` を admin router に付ける。ユーザーの JWT 認証の対象外にするため `/api/admin` を `PUBLIC_PATHS` に入れる |
-| admin → api | admin のサーバー側（`server-only` の api client）だけが `ADMIN_API_TOKEN` を持ち、ヘッダに付けて呼ぶ。ブラウザには渡らない |
-
-現状の api は `/api/admin/*` を認証なしで公開する方針（`apps/api/CLAUDE.md`）だが、問題を公開できる API を無防備にするわけにいかないため、この spec で上記の保護を入れる。CLAUDE.md の記述も合わせて更新する。
-
-誰が承認したかは記録しない（`reviewed_at` だけ持つ）。管理者が複数になったら GitHub ログイン + 権限管理に移行する（[github-auth の MVP 対象外](../github-auth/README.md#mvp-対象外将来検討)）。
+誰が承認したかは記録しない（`reviewed_at` だけ持つ）。admin の操作の記録は admin-template の [MVP 対象外](../admin-template/README.md#mvp-対象外将来検討)。
 
 ### MVP 対象外（将来検討）
 
@@ -485,7 +477,7 @@ MVP の管理者は 1〜2 人を想定し、**共有シークレットで保護�
 
 ## 必要な API
 
-admin 向け（`X-Admin-Token` 必須）。
+admin 向け（admin の access token が必要）。
 
 | メソッド | パス | 説明 |
 | --- | --- | --- |

@@ -5,6 +5,10 @@ import { AsyncLocalStorage } from "async_hooks"
  * リクエストごとに保持される情報
  */
 export interface LogContext {
+  /**
+   * admin の API のリクエストで、サインイン中の admin の ID
+   */
+  adminId?: number
   requestId?: string
   userId?: number | string
 }

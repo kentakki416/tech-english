@@ -14,7 +14,7 @@
 - [`../product-overview/README.md`](../product-overview/README.md) — プロダクト全体像
 - [`../dev-login/README.md`](../dev-login/README.md) — 開発環境専用ログイン。GitHub ログインを足した後も残す
 - [`../learning-record/README.md`](../learning-record/README.md) — `users.timezone` を使って学習日を決める
-- [`../question-generation/README.md`](../question-generation/README.md#管理画面のアクセス制御) — admin はこの spec のログインを使わない（共有シークレットで保護）
+- [`../admin-template/README.md`](../admin-template/README.md#admin-認証) — admin はこの spec のログインを使わない（`admins` テーブル + Google のサインイン）
 - [`../reading-practice/README.md`](../reading-practice/README.md#必要な-db-設計) / [`../learning-record/README.md`](../learning-record/README.md#必要な-db-設計) / [`../study-reminder/README.md`](../study-reminder/README.md#必要な-db-設計) — アカウント削除で消えるユーザーのデータ。`users` の削除で cascade する
 - [`../study-reminder/README.md`](../study-reminder/README.md#通知の予約と同期) — アカウント削除時に端末の通知の予約を取り消す
 - [`docs/auth.md`](../../auth.md) — 既存の Google OAuth の仕組み。トークン設計（access 15 分 / refresh 7 日）はそのまま使う
@@ -218,7 +218,7 @@ api の認証は既存の Bearer トークン（`authMiddleware`）のままで�
 
 ### MVP 対象外（将来検討）
 
-- **admin の GitHub ログインと権限管理**（`users.role` による管理者判定）。管理者が複数人になったとき。MVP は共有シークレットで保護する（[question-generation](../question-generation/README.md#管理画面のアクセス制御)）
+- **admin のログインと権限管理**：admin のログインは [admin-template](../admin-template/README.md#admin-認証) で `admins` テーブル + Google にした（`users.role` の案は採らない）。権限（role）は admin-template の [MVP 対象外](../admin-template/README.md#mvp-対象外将来検討)
 - **削除の猶予期間**（削除の申請から一定期間は取り消せる）。誤って削除したという問い合わせが出たとき
 - **データのエクスポート**（削除前に学習記録をダウンロードする）
 

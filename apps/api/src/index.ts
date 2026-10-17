@@ -13,11 +13,16 @@ import { createRedisClient } from "@repo/redis"
 import { GitHubLicenseClient } from "./client/github-license"
 import { GitHubOAuthClient } from "./client/github-oauth"
 import { GoogleOAuthClient } from "./client/google-oauth"
+import { AdminAuthDevLoginController } from "./controller/admin/auth/dev-login"
+import { AdminAuthGoogleController } from "./controller/admin/auth/google"
+import { AdminAuthLogoutController } from "./controller/admin/auth/logout"
+import { AdminAuthRefreshController } from "./controller/admin/auth/refresh"
 import { AdminContentSourceCreateController } from "./controller/admin/content-source/create"
 import { AdminContentSourceDetailController } from "./controller/admin/content-source/detail"
 import { AdminContentSourceDetectLicenseController } from "./controller/admin/content-source/detect-license"
 import { AdminContentSourceListController } from "./controller/admin/content-source/list"
 import { AdminContentSourceUpdateController } from "./controller/admin/content-source/update"
+import { AdminMeGetController } from "./controller/admin/me/get"
 import { AdminPassageDetailController } from "./controller/admin/passage/detail"
 import { AdminPassageListController } from "./controller/admin/passage/list"
 import { AdminPassagePublishController } from "./controller/admin/passage/publish"
@@ -82,6 +87,7 @@ import { apiRateLimiter } from "./middleware/rate-limit"
 import { requestLogger } from "./middleware/request-logger"
 import { unhandledExceptionHandler } from "./middleware/unhandled-exception-handler"
 import {
+  DrizzleAdminRepository,
   DrizzleAdminStatsRepository,
   DrizzleAuthAccountRepository,
   DrizzleContentSourceRepository,
@@ -101,7 +107,7 @@ import {
   DrizzleWordAudioRepository,
 } from "./repository/drizzle"
 import { IoRedisHealthRepository, IoRedisRefreshTokenRepository } from "./repository/redis"
-import { adminRouter } from "./routes/admin-router"
+import { adminRouter, mountAdminApi } from "./routes/admin-router"
 import { attemptRouter } from "./routes/attempt-router"
 import { authRouter } from "./routes/auth-router"
 import { dictionaryRouter } from "./routes/dictionary-router"
@@ -167,6 +173,11 @@ const wordAudioRepository = new DrizzleWordAudioRepository(db)
  * admin のダッシュボード（admin-dashboard）の集計。読み取りだけ
  */
 const adminStatsRepository = new DrizzleAdminStatsRepository(db)
+/**
+ * admin の認証（admin-template）
+ */
+const adminRepository = new DrizzleAdminRepository(db)
+const adminRefreshTokenRepository = new IoRedisRefreshTokenRepository(redis, "admin_refresh_token")
 const databaseHealthRepository = new DrizzleDatabaseHealthRepository(db)
 const redisHealthRepository = new IoRedisHealthRepository(redis)
 const refreshTokenRepository = new IoRedisRefreshTokenRepository(redis)
@@ -267,6 +278,17 @@ const eventCreateController = new EventCreateController(eventTracker)
 const memoCreateController = new MemoCreateController(memoRepository, eventTracker)
 const memoUpdateController = new MemoUpdateController(memoRepository, eventTracker)
 const memoDeleteController = new MemoDeleteController(memoRepository, eventTracker)
+
+/**
+ * Admin の認証（サインイン・トークンの更新・ログアウト）とサインイン中の admin の Controller のインスタンス化
+ */
+const adminAuthDevLoginController = process.env.NODE_ENV !== "production"
+  ? new AdminAuthDevLoginController(adminRepository, adminRefreshTokenRepository)
+  : undefined
+const adminAuthGoogleController = new AdminAuthGoogleController(adminRepository, adminRefreshTokenRepository, googleOAuthClient)
+const adminAuthLogoutController = new AdminAuthLogoutController(adminRefreshTokenRepository)
+const adminAuthRefreshController = new AdminAuthRefreshController(adminRepository, adminRefreshTokenRepository)
+const adminMeGetController = new AdminMeGetController(adminRepository)
 
 /**
  * Admin のソース管理 Controller のインスタンス化
@@ -421,13 +443,15 @@ if (env.NODE_ENV !== "production") {
  * ウェアより前に登録して対象外にしている（制限に巻き込むと target が unhealthy 判定される恐れ）。
  */
 app.use(apiRateLimiter)
-/**
- * admin 向け API。/api/admin は PUBLIC_PATHS に入っているので、admin-router 側の
- * adminAuthMiddleware（X-Admin-Token）で保護する
- */
-app.use(
-  "/api/admin",
+mountAdminApi(
+  app,
   adminRouter({
+    auth: {
+      devLogin: adminAuthDevLoginController,
+      google: adminAuthGoogleController,
+      logout: adminAuthLogoutController,
+      refresh: adminAuthRefreshController,
+    },
     contentSource: {
       create: adminContentSourceCreateController,
       detail: adminContentSourceDetailController,
@@ -435,6 +459,7 @@ app.use(
       list: adminContentSourceListController,
       update: adminContentSourceUpdateController,
     },
+    me: { get: adminMeGetController },
     passage: {
       detail: adminPassageDetailController,
       list: adminPassageListController,
@@ -465,7 +490,7 @@ app.use(
       detail: adminUserDetailController,
       list: adminUserListController,
     },
-  })
+  }),
 )
 app.use(
   "/api/auth",

@@ -16,7 +16,7 @@ MVP では **見るだけ** にする。ユーザーの情報の変更・削除�
 - [`../vocabulary-cards/README.md`](../vocabulary-cards/README.md) — 単語帳の枚数（`GET /api/vocabulary/summary` と同じ集計）
 - [`../reading-practice/README.md`](../reading-practice/README.md) — 「解いた」（提出済みの挑戦）
 - [`../admin-dashboard/README.md`](../admin-dashboard/README.md) — ダッシュボード。同じ時期に作り、サイドバーに並べる
-- [`../question-generation/README.md`](../question-generation/README.md#管理画面のアクセス制御) — 管理画面のアクセス制御（Basic 認証 + `X-Admin-Token`）
+- [`../admin-template/README.md`](../admin-template/README.md#admin-認証) — 管理画面のアクセス制御（admin ごとのサインイン。`admins` テーブル + admin 専用の JWT）
 
 ## 目次
 
@@ -74,7 +74,7 @@ MVP では **見るだけ** にする。ユーザーの情報の変更・削除�
 
 ### 個人情報の扱い
 
-- メールアドレスは管理画面（Basic 認証と `X-Admin-Token` で守られている）でだけ見られる
+- メールアドレスは管理画面（[admin のサインイン](../admin-template/README.md#admin-のサインイン)で守られている）でだけ見られる
 - 一覧の絞り込みの文字（メールアドレスの一部が入りうる）は、API のログに出さない
 
 ---
@@ -105,7 +105,7 @@ MVP では **見るだけ** にする。ユーザーの情報の変更・削除�
 - 利用停止（停止中はログインと API を断る）
 - 管理画面からのアカウントの削除
 - 最終ログイン日時（今は記録していない）
-- 管理者の操作の記録（誰が何を見た・変えた）と、管理者ごとのログイン・権限（[github-auth の MVP 対象外](../github-auth/README.md) の `users.role`）
+- 管理者の操作の記録（誰が何を見た・変えた）と、管理者ごとの権限（[admin-template の MVP 対象外](../admin-template/README.md#mvp-対象外将来検討)）
 
 詳細：[`./deferred-user-actions.md`](./deferred-user-actions.md)
 
@@ -218,7 +218,7 @@ MVP では **見るだけ** にする。ユーザーの情報の変更・削除�
 
 ## 必要な API
 
-すべて `/api/admin/` 配下（`X-Admin-Token` が必要）。スキーマは `packages/schema/src/api-schema/admin/user.ts`。
+すべて `/api/admin/` 配下（admin の access token が必要。[admin-template](../admin-template/README.md#admin-認証)）。スキーマは `packages/schema/src/api-schema/admin/user.ts`。
 
 | メソッド | パス | クエリ | 説明 |
 | --- | --- | --- | --- |

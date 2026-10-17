@@ -34,6 +34,7 @@ infra apply を始める前に以下を済ませておくこと。Terraform で�
 - [tflint](https://github.com/terraform-linters/tflint) (任意、CI で使うため推奨)
 - [trivy](https://aquasecurity.github.io/trivy/) (任意、CI で使うため推奨)
 - [jq](https://jqlang.github.io/jq/) (`seed-secrets.sh` で必要)
+- openssl (`seed-secrets.sh` で必要。admin の JWT の鍵が Secrets Manager に無いときに生成する)
 
 ## 初回セットアップ手順
 
@@ -164,6 +165,9 @@ export FRONTEND_URL=https://my-app.com
 ./scripts/deploy/seed-secrets.sh dev
 ./scripts/deploy/seed-secrets.sh prd
 ```
+
+- [ ] admin の JWT の鍵（`JWT_ADMIN_ACCESS_SECRET` / `JWT_ADMIN_REFRESH_SECRET`）は、Secrets Manager に無ければこのスクリプトが生成して足す（あれば触らない）。新しい環境なら Terraform が初回 apply で入れるが、鍵を足す前に作った環境では Terraform では入らないので、① このスクリプト → ② Terraform apply → ③ deploy の順に行う（理由は [`docs/deploy/prd.md`](../deploy/prd.md#既存の環境に-admin-の認証を反映する順番)）
+- [ ] `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` は admin の Google のサインインが使う（[`docs/deploy/prd.md`](../deploy/prd.md#phase-5-2-google-oauth-クライアントadmin-用)）
 
 ### 10. deploy workflow で ECR にイメージを push
 

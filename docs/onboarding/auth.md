@@ -11,6 +11,7 @@
 - [なぜ web を間に挟むのか](#なぜ-web-を間に挟むのか)
 - [URL の注意（Next.js Route Handler と Express の混同）](#url-の注意nextjs-route-handler-と-express-の混同)
 - [セキュリティ設計のまとめ](#セキュリティ設計のまとめ)
+- [admin の認証](#admin-の認証)
 - [新しいプロバイダを追加するには](#新しいプロバイダを追加するには)
 - [関連ファイル](#関連ファイル)
 - [関連ドキュメント](#関連ドキュメント)
@@ -32,7 +33,7 @@
 - cookie は **`sameSite=lax`**（OAuth コールバックの cross-site 連鎖ナビゲーションでも送信されるようにするため）。
 - 認証ガードは web の **middleware**（`apps/web/src/middleware.ts`）が cookie の有無で行う。未認証は `/sign-in` へリダイレクト。
 - CSRF 対策として **state**（ランダム文字列）を cookie に保存し、コールバック時に照合する。
-- api 側は現状 `PUBLIC_PATHS` で認証要否を制御する。Admin API（`/api/admin/`）は現時点は認証なし（将来 Admin 専用認証を追加予定）。
+- api 側は `PUBLIC_PATHS` で認証要否を制御する。Admin API（`/api/admin/`）は一般ユーザーとは別の admin 専用の認証で守る（[admin の認証](#admin-の認証)）。
 
 ## なぜ web を間に挟むのか
 
@@ -63,6 +64,27 @@ Google の `redirect_uri` を直接 Express api に向けず、web が前段で�
 | refresh の **jti を Redis 管理** | サーバー側で個別失効・ローテーション運用が可能 |
 | cookie は **sameSite=lax** | OAuth コールバックの cross-site ナビでも cookie が送信される |
 
+## admin の認証
+
+管理画面（`apps/admin`）は、一般ユーザーとは別の admin 専用の認証を持つ。流れ（OAuth → api が code を検証 → 自前の JWT → httpOnly cookie）は一般ユーザーと同じで、次を分ける。
+
+| | 一般ユーザー | admin |
+|---|---|---|
+| サインインの方法 | GitHub（PKCE） | Google（`admins` に email を登録した、Google で確認済みのアカウントだけ） |
+| テーブル | `users` + `auth_accounts` | `admins`（事前登録制。`admin:create` で登録する） |
+| JWT の payload / 鍵 | `{ userId }` / `JWT_ACCESS_SECRET` / `JWT_REFRESH_SECRET` | `{ adminId }` / `JWT_ADMIN_ACCESS_SECRET` / `JWT_ADMIN_REFRESH_SECRET` |
+| refresh token の Redis のキー | `refresh_token:{jti}` / `refresh_token_rotated:{jti}` | `admin_refresh_token:{jti}` / `admin_refresh_token_rotated:{jti}` |
+| api の認証ミドルウェア | `authMiddleware`（全体。`/api/admin` は見ない） | `adminAuthMiddleware`（`mountAdminApi` で `/api/admin` の mount の中だけ） |
+| cookie | `app_*` | `admin_*`（ポートが違っても同じホストなら cookie は共有されるので名前を分ける） |
+
+- 一般ユーザーのトークンでは admin の API に入れない（逆も同じ）。鍵が違うので検証で必ず失敗する。JWT の鍵 4 つのうち同じ値があれば api は起動しない
+- `adminAuthMiddleware` を全体ではなく mount の中に置くのは、Express 5 の mount と Router が大文字小文字を区別せず、`/API/Admin/...` が文字列の比較をすり抜けるため
+- access token の更新は admin の proxy（`apps/admin/src/proxy.ts`）で行う。期限が近い・切れていれば `POST /api/admin/auth/refresh` を呼んで cookie を書き直す。refresh は一般ユーザーと同じく 30 秒の猶予があり、同じ refresh token が同時に 2 回来ても同じペアを返す
+- `admins` から消された admin は、次の更新（最長 15 分後）で 401 になりサインイン画面に戻る
+- ローカルは seed の `admin@dev.local` に dev ログイン（`POST /api/admin/auth/dev-login`）で入れる
+
+設計の詳細は [`../spec/admin-template/README.md`](../spec/admin-template/README.md) の「admin 認証」。api 側の規約は [`../../apps/api/CLAUDE.md`](../../apps/api/CLAUDE.md) の「Admin API 設計方針」。
+
 ## 新しいプロバイダを追加するには
 
 GitHub / Apple / X 等を追加する場合、`apps/api/src/client/*-oauth.ts` を新設して `AuthAccount.provider` の文字列を増やすだけで対応できる。`auth-service.ts` の既存ユーザー検索 / JWT 発行 / refresh 保存ロジックは**プロバイダ非依存**に作られている。
@@ -80,12 +102,20 @@ GitHub / Apple / X 等を追加する場合、`apps/api/src/client/*-oauth.ts` �
 - `apps/api/src/service/auth-service.ts` — `authenticateWithGoogle` / `refreshTokens` / `logout`
 - `apps/api/src/client/google-oauth.ts` — Google OAuth クライアント
 - `apps/api/src/lib/jwt.ts` — JWT 発行・検証
-- `apps/api/src/repository/redis/refresh-token-repository.ts` — refresh token の Redis 永続化
+- `apps/api/src/repository/redis/refresh-token-repository.ts` — refresh token の Redis 永続化（キーの接頭辞で一般ユーザーと admin を分ける）
+
+**api (Express) の admin の認証**
+- `apps/api/src/controller/admin/auth/` / `src/controller/admin/me/get.ts` — `/api/admin/auth/*` と `GET /api/admin/me`
+- `apps/api/src/service/admin-auth-service.ts` / `src/service/admin-service.ts` — admin の Google 認証・dev ログイン・取得（refresh と logout は `auth-service.ts` を使う）
+- `apps/api/src/lib/admin-jwt.ts` — admin の JWT 発行・検証
+- `apps/api/src/middleware/admin-auth.ts` / `src/routes/admin-router.ts`（`mountAdminApi`） — admin の認証と mount
+- `packages/db/drizzle/create-admin.ts` — `admin:create`（admin の登録）
 
 ## 関連ドキュメント
 
 | ドキュメント | 内容 |
 |---|---|
 | [`../auth.md`](../auth.md) | ①〜⑬ の完全なシーケンス図付き解説（正典） |
-| [`../../apps/api/CLAUDE.md`](../../apps/api/CLAUDE.md) | Admin API 設計方針 / PUBLIC_PATHS |
+| [`../../apps/api/CLAUDE.md`](../../apps/api/CLAUDE.md) | Admin API 設計方針（admin の認証）/ PUBLIC_PATHS |
+| [`../spec/admin-template/README.md`](../spec/admin-template/README.md) | admin の認証の設計（`admins`・鍵の配布・proxy での更新） |
 | [`../../apps/web/CLAUDE.md`](../../apps/web/CLAUDE.md) | web の API 通信ルール（Server Component / Server Action / Route Handler の使い分け） |

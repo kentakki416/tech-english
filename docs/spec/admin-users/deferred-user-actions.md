@@ -30,7 +30,7 @@
 | 削除 | ❌（ユーザー自身の退会だけ） | 管理画面から退会と同じ物理削除 |
 | 最終ログイン日時 | ❌ | 一覧と詳細に出す |
 | 操作の記録 | ❌ | 誰が・いつ・どのユーザーに何をしたか |
-| 管理者の見分け | ❌（共有の Basic 認証） | 管理者ごとのログイン（GitHub）と役割 |
+| 管理者の見分け | ✅（admin-template の admin ごとのサインイン） | 役割（role） |
 
 ## 利用停止
 
@@ -52,7 +52,7 @@
 
 ## 管理者の操作の記録と権限
 
-- 管理者の GitHub ログインと `users.role` による判定は [github-auth の MVP 対象外](../github-auth/README.md) に沿う
+- 管理者は [admin-template](../admin-template/README.md#admin-認証) の `admins` テーブルで見分ける。権限を分けるときは `admins` に役割（role）を足す（admin-template の [MVP 対象外](../admin-template/README.md#mvp-対象外将来検討)）
 - `admin_audit_logs`（管理者・操作・対象のユーザー ID・日時・理由）に、停止・解除・削除を記録する。対象のユーザーが削除されても記録は残す（外部キーにしない）
 
 ## 既存仕様との差分（着手時のチェックリスト）

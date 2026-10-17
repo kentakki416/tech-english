@@ -81,6 +81,8 @@ module "vpc" {
 # 方針は prd と同じ (箱と JWT の初回投入だけを Terraform が持ち、以降は ignore_changes)。
 # RDS / ElastiCache が無いので DB_PASSWORD / REDIS_PORT / REDIS_DB は持たない。
 # DATABASE_URL (PlanetScale) と REDIS_URL (Upstash) は scripts/deploy/seed-secrets.sh min で投入する。
+# initial_values は新しく作る環境のため。JWT_ADMIN_* を足す前に作った環境には反映されないので、
+# scripts/deploy/seed-secrets.sh で入れる (無ければ生成する)。
 
 resource "random_password" "jwt_access_secret" {
   length  = 64
@@ -100,6 +102,24 @@ resource "random_password" "jwt_refresh_secret" {
   }
 }
 
+resource "random_password" "jwt_admin_access_secret" {
+  length  = 64
+  special = false
+
+  lifecycle {
+    ignore_changes = [length, special, override_special, min_lower, min_upper, min_numeric, min_special]
+  }
+}
+
+resource "random_password" "jwt_admin_refresh_secret" {
+  length  = 64
+  special = false
+
+  lifecycle {
+    ignore_changes = [length, special, override_special, min_lower, min_upper, min_numeric, min_special]
+  }
+}
+
 module "app_secrets" {
   source = "../../modules/secrets"
 
@@ -107,10 +127,12 @@ module "app_secrets" {
   recovery_window_in_days = 0
 
   initial_values = {
-    JWT_ACCESS_SECRET      = random_password.jwt_access_secret.result
-    JWT_REFRESH_SECRET     = random_password.jwt_refresh_secret.result
-    JWT_ACCESS_EXPIRATION  = "15m"
-    JWT_REFRESH_EXPIRATION = "30d"
+    JWT_ACCESS_SECRET        = random_password.jwt_access_secret.result
+    JWT_REFRESH_SECRET       = random_password.jwt_refresh_secret.result
+    JWT_ADMIN_ACCESS_SECRET  = random_password.jwt_admin_access_secret.result
+    JWT_ADMIN_REFRESH_SECRET = random_password.jwt_admin_refresh_secret.result
+    JWT_ACCESS_EXPIRATION    = "15m"
+    JWT_REFRESH_EXPIRATION   = "30d"
 
     NODE_ENV = "production"
     PORT     = "8080"
