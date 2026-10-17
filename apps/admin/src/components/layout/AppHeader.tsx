@@ -15,7 +15,9 @@ export type AppHeaderProps = {
   admin: GetAdminMeResponse
   markAllAsReadAction?: () => Promise<void>
   notifications: AdminNotification[]
-  /** 省略すると検索欄を出さない */
+  /**
+   * 省略すると検索欄を出さない
+   */
   search?: HeaderSearchProps
 }
 

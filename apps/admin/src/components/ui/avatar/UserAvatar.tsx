@@ -3,7 +3,7 @@ import Image from "next/image"
 import AvatarText from "@/components/ui/avatar/AvatarText"
 
 /**
- * 表の行（40px）・ヘッダー（44px）・詳細の上段（80px）の大きさ
+ * sm は 40px、md は 44px、lg は 80px
  */
 const AVATAR_SIZES = {
   lg: { className: "size-20", pixels: 80 },

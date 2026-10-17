@@ -11,9 +11,5 @@ import type { AdminNotification } from "./notification.entity"
 export const notificationApi = {
   getList: async (): Promise<AdminNotification[]> => [],
 
-  markAllAsRead: async (): Promise<void> => {
-    /**
-     * tech-english には今は既読にする通知が無い
-     */
-  },
+  markAllAsRead: async (): Promise<void> => {},
 }

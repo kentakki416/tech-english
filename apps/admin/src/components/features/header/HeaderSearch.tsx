@@ -4,9 +4,13 @@ import Form from "next/form"
 import { useEffect, useRef } from "react"
 
 export type HeaderSearchProps = {
-  /** 検索の遷移先 */
+  /**
+   * 検索の遷移先
+   */
   action: string
-  /** 検索語の最大の長さ（遷移先の検証と合わせる） */
+  /**
+   * 検索語の最大の長さ（遷移先の検証と合わせる）
+   */
   maxLength?: number
   placeholder?: string
 }

@@ -8,7 +8,9 @@ import type { AdminNotification } from "@/features/notification/notification.ent
 import { formatRelativeTime } from "@/libs/date"
 
 type NotificationDropdownProps = {
-  /** すべて既読にする処理。省略すると「すべて既読にする」を出さない */
+  /**
+   * すべて既読にする処理。省略すると「すべて既読にする」を出さない
+   */
   markAllAsReadAction?: () => Promise<void>
   notifications: AdminNotification[]
 }

@@ -33,7 +33,7 @@ export default function AdminProfileCards({ admin }: Props) {
           </div>
           <div className="text-left">
             <h4 className="mb-2 text-lg font-semibold text-gray-800 dark:text-white/90">{displayName}</h4>
-            <p className="text-sm text-gray-500 dark:text-gray-400">{admin.email}</p>
+            <p className="break-all text-sm text-gray-500 dark:text-gray-400">{admin.email}</p>
           </div>
         </div>
       </div>
@@ -44,7 +44,7 @@ export default function AdminProfileCards({ admin }: Props) {
           {infoItems.map((item) => (
             <div key={item.label}>
               <p className="mb-2 text-xs leading-normal text-gray-500 dark:text-gray-400">{item.label}</p>
-              <p className="text-sm font-medium text-gray-800 dark:text-white/90">{item.value}</p>
+              <p className="break-all text-sm font-medium text-gray-800 dark:text-white/90">{item.value}</p>
             </div>
           ))}
         </div>
