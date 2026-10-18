@@ -8,7 +8,7 @@ import { convertSearchParamsToUserListQuery } from "@/features/user/user.params"
 import type { SearchParams } from "@/libs/search-params"
 
 export const metadata: Metadata = {
-  title: "ユーザー | tech-english admin",
+  title: "ユーザー",
 }
 
 type Props = {

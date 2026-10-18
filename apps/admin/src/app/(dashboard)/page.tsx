@@ -12,7 +12,7 @@ import { buildDashboardHref, convertSearchParamsToDashboardQuery } from "@/featu
 import type { SearchParams } from "@/libs/search-params"
 
 export const metadata: Metadata = {
-  title: "ダッシュボード | tech-english admin",
+  title: "ダッシュボード",
 }
 
 type Props = {

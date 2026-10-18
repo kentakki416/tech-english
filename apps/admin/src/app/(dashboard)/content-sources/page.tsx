@@ -9,7 +9,7 @@ import { contentSourceApi } from "@/features/content-source/content-source.api"
 import { primaryButtonClass } from "@/libs/ui-classes"
 
 export const metadata: Metadata = {
-  title: "ソース | tech-english admin",
+  title: "ソース",
 }
 
 /**

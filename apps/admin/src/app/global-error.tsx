@@ -4,6 +4,7 @@ import Image from "next/image"
 import Link from "next/link"
 
 import GridShape from "@/components/layout/GridShape"
+import { appConfig } from "@/config/app"
 
 export default function GlobalError({
   reset,
@@ -12,7 +13,7 @@ export default function GlobalError({
   reset: () => void;
 }) {
   return (
-    <html lang="en">
+    <html lang={appConfig.lang}>
       <body>
         <div className="relative flex flex-col items-center justify-center min-h-screen p-6 overflow-hidden z-1">
           <GridShape />

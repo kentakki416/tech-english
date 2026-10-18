@@ -12,7 +12,7 @@ import ComponentCard from "@/components/layout/ComponentCard"
 import Badge from "@/components/ui/badge/Badge"
 import { Modal } from "@/components/ui/modal"
 import { type AdminPassageAudio, AUDIO_STATUS_LABELS } from "@/features/passage/passage.labels"
-import { formatDateTime } from "@/libs/format-date"
+import { formatDateTime } from "@/libs/date"
 import { outlineButtonClass, primaryButtonClass } from "@/libs/ui-classes"
 
 type Props = {

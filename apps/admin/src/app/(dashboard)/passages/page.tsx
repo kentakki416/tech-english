@@ -7,7 +7,7 @@ import PageBreadcrumb from "@/components/layout/PageBreadCrumb"
 import { passageApi } from "@/features/passage/passage.api"
 
 export const metadata: Metadata = {
-  title: "問題 | tech-english admin",
+  title: "問題",
 }
 
 type Props = {

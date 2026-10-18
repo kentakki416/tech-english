@@ -10,7 +10,7 @@ import { tagApi } from "@/features/tag/tag.api"
 import { ApiClientError } from "@/libs/api-client"
 
 export const metadata: Metadata = {
-  title: "ソースの編集 | tech-english admin",
+  title: "ソースの編集",
 }
 
 type Props = {

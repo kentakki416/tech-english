@@ -2,7 +2,7 @@ import type { GetAdminUserResponse } from "@repo/api-schema"
 
 import Badge from "@/components/ui/badge/Badge"
 import { formatAuthProvider, formatUserName, hasUserName } from "@/features/user/user.labels"
-import { formatDateTime } from "@/libs/format-date"
+import { formatDateTime } from "@/libs/date"
 import { EMPTY_VALUE } from "@/libs/format-stats"
 
 import { UserAvatar } from "./UserAvatar"

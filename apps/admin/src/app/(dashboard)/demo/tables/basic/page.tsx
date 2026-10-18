@@ -10,10 +10,7 @@ import ComponentCard from "@/components/layout/ComponentCard"
 import PageBreadcrumb from "@/components/layout/PageBreadCrumb"
 
 export const metadata: Metadata = {
-  title: "Next.js Basic Table | TailAdmin - Next.js Dashboard Template",
-  description:
-    "This is Next.js Basic Table  page for TailAdmin  Tailwind CSS Admin Dashboard Template",
-  // other metadata
+  title: "Basic Tables",
 }
 
 export default function BasicTables() {

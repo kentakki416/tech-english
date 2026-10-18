@@ -3,6 +3,7 @@ import Link from "next/link"
 import React from "react"
 
 import GridShape from "@/components/layout/GridShape"
+import { appConfig } from "@/config/app"
 
 export default function NotFound() {
   return (
@@ -41,7 +42,7 @@ export default function NotFound() {
       </div>
       {/* <!-- Footer --> */}
       <p className="absolute text-sm text-center text-gray-500 -translate-x-1/2 bottom-6 left-1/2 dark:text-gray-400">
-        &copy; {new Date().getFullYear()} - TailAdmin
+        &copy; {new Date().getFullYear()} - {appConfig.name}
       </p>
     </div>
   )

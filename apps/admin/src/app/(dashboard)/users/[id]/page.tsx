@@ -13,7 +13,7 @@ import PageBreadcrumb from "@/components/layout/PageBreadCrumb"
 import { USER_ATTEMPTS_PAGE_SIZE, userApi } from "@/features/user/user.api"
 
 export const metadata: Metadata = {
-  title: "ユーザーの詳細 | tech-english admin",
+  title: "ユーザーの詳細",
 }
 
 type Props = {

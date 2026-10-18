@@ -9,9 +9,7 @@ import ComponentCard from "@/components/layout/ComponentCard"
 import PageBreadcrumb from "@/components/layout/PageBreadCrumb"
 
 export const metadata: Metadata = {
-  title: "Next.js Pie Chart | TailAdmin - Next.js Dashboard Template",
-  description:
-    "This is Next.js Pie Chart page for TailAdmin - Next.js Tailwind CSS Admin Dashboard Template",
+  title: "Pie Chart",
 }
 
 export default function PieChart() {
