@@ -10,6 +10,7 @@
     "lint:fix": "eslint --fix"
   },
   "dependencies": {
+    "@floating-ui/react": "^0.27.20",
     "@fullcalendar/core": "^6.1.20",
     "@fullcalendar/daygrid": "^6.1.20",
     "@fullcalendar/interaction": "^6.1.20",

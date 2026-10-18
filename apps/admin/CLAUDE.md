@@ -70,6 +70,7 @@ admin は DB を直接触らず、必ず Express API を経由する。tech-engl
 | `src/libs/date.ts` | 日時の表示の 1 か所。`formatDateTime`：日時（ISO 8601 の文字列か `Date`）を `2026-10-10 03:00` にする、`formatDate`：`2026-10-10`。既定のタイムゾーンは `appConfig.timeZone`（Server Component は UTC で動くため明示。`toLocaleString()` を直接使わない）。ユーザーの学習履歴はユーザーのタイムゾーンを渡す |
 | `src/libs/format-stats.ts` | ダッシュボード・ユーザー管理の数字の表示（比率 `72%`・件数 `1,284`・時間 `5:12 / 6:00`・値が無いときの `―`） |
 | `src/components/ui/table/LinkTableParts.tsx` | 並べ替え・絞り込み・ページ送りを URL のクエリで行う表の部品（`SortableHeaderCell`・`TableSearchForm`〈`next/form`〉・`PaginationLinks`）。ダッシュボードとユーザー一覧で使う（画面内で並べ替える表はテンプレートの `DataTable`） |
+| `src/components/ui/tooltip/Tooltip.tsx` | マウスを乗せる・フォーカスすると出る説明の吹き出し（`@floating-ui/react`。TailAdmin のデモと同じ 4 種類）。説明を出すときは `title` 属性ではなく Tooltip を使う。押せないボタン（`disabled`）はマウスのイベントが届かないので `tabIndex={0}` の `span` で包み、`span` に Tooltip を付ける。Server Component で使うときは、Tooltip と子を client component に切り出す（`components/features/user/LoginMethodColumnLabel.tsx`。理由はそのファイル） |
 | `src/libs/search-params.ts` | URL のクエリを API のクエリのスキーマの項目で読む（不正なら既定値）・絞り込みの文字を API の上限で切り詰める。`features/*/*.params.ts`（`server-only`）から使う |
 
 接続済みの画面：

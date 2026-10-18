@@ -2,6 +2,7 @@
 
 import type { GetAdminPassageResponse } from "@repo/api-schema"
 
+import Tooltip from "@/components/ui/tooltip/Tooltip"
 import { numberParagraphs, type PassageFormGlossaryEntry, type SurfaceRange } from "@/features/passage/passage.form"
 
 /**
@@ -144,16 +145,16 @@ export function PassagePreview({
                     }
                     const entry = run.glossaryKey !== null ? glossary.find((item) => item.clientKey === run.glossaryKey) : undefined
                     const isTarget = entry ? vocabularyTargetKeys.includes(entry.clientKey) : false
+                    const runClassName = `${run.isHighlight ? "bg-[#f3b24c]/25" : ""} ${
+                      entry ? `underline decoration-2 underline-offset-4 ${isTarget ? "decoration-[#90c6f0] decoration-dashed" : "decoration-[#f3b24c]/80 decoration-dotted"}` : ""
+                    }`
+                    if (!entry) {
+                      return <span key={index} className={runClassName}>{run.text}</span>
+                    }
                     return (
-                      <span
-                        key={index}
-                        className={`${run.isHighlight ? "bg-[#f3b24c]/25" : ""} ${
-                          entry ? `underline decoration-2 underline-offset-4 ${isTarget ? "decoration-[#90c6f0] decoration-dashed" : "decoration-[#f3b24c]/80 decoration-dotted"}` : ""
-                        }`}
-                        title={entry ? `${entry.lemma}：${entry.meaning_ja}${isTarget ? "（語義設問の対象。解答中は非表示）" : ""}` : undefined}
-                      >
-                        {run.text}
-                      </span>
+                      <Tooltip key={index} content={`${entry.lemma}：${entry.meaning_ja}${isTarget ? "（語義設問の対象。解答中は非表示）" : ""}`}>
+                        <span className={runClassName} tabIndex={0}>{run.text}</span>
+                      </Tooltip>
                     )
                   })}
                 </p>
