@@ -25,12 +25,12 @@ type Repositories = {
   userRepository: UserRepository
 }
 
-type TokenGenerators = {
+export type TokenGenerators = {
   generateAccessToken: (userId: number) => string
   generateRefreshToken: (userId: number) => { jti: string; token: string }
 }
 
-const REFRESH_TTL_SECONDS = 60 * 60 * 24 * 7
+export const REFRESH_TTL_SECONDS = 60 * 60 * 24 * 7
 
 /**
  * Access Token / Refresh Token を発行し、Refresh Token の jti を保存する
@@ -256,7 +256,15 @@ export type RefreshTokensSuccess = {
   refreshToken: string
 }
 
-type RefreshVerifier = (token: string) => { jti: string; userId: number } | null
+export type RefreshVerifier = (token: string) => { jti: string; userId: number } | null
+
+/**
+ * refresh token の持ち主を引く Repository。持ち主がまだ居るかを確かめるのに findById だけを使う。
+ * 一般ユーザーは UserRepository、admin は AdminRepository を渡し、admin の refresh でも同じ持ち主の確かめと猶予を使う
+ */
+export type TokenOwnerRepository = {
+  findById(id: number): Promise<{ id: number } | null>
+}
 
 /**
  * ローテーションした旧 refresh token に、発行済みの同じペアを返し続ける時間（秒）
@@ -275,7 +283,7 @@ const ROTATION_GRACE_SECONDS = 30
  */
 const reuseRotatedTokens = async (
   payload: { jti: string; userId: number },
-  repo: { refreshTokenRepository: RefreshTokenRepository; userRepository: UserRepository },
+  repo: { refreshTokenRepository: RefreshTokenRepository; tokenOwnerRepository: TokenOwnerRepository },
   verifier: RefreshVerifier
 ): Promise<Result<RefreshTokensSuccess>> => {
   const rotated = await repo.refreshTokenRepository.findRotatedTokens(payload.jti)
@@ -289,7 +297,7 @@ const reuseRotatedTokens = async (
     return err(unauthorizedError("Refresh token has been revoked"))
   }
 
-  const user = await repo.userRepository.findById(payload.userId)
+  const user = await repo.tokenOwnerRepository.findById(payload.userId)
   if (!user) {
     return err(unauthorizedError("User not found"))
   }
@@ -310,7 +318,7 @@ const reuseRotatedTokens = async (
  */
 export const refreshTokens = async (
   input: { refreshToken: string },
-  repo: { refreshTokenRepository: RefreshTokenRepository; userRepository: UserRepository },
+  repo: { refreshTokenRepository: RefreshTokenRepository; tokenOwnerRepository: TokenOwnerRepository },
   verifier: RefreshVerifier,
   generators: TokenGenerators
 ): Promise<Result<RefreshTokensSuccess>> => {
@@ -333,7 +341,7 @@ export const refreshTokens = async (
    * 削除済みユーザーの端末に残った refresh token。jti を消してから 401 にする
    * （jti はユーザー単位で一括削除できないため、使われたときに消す）
    */
-  const user = await repo.userRepository.findById(userId)
+  const user = await repo.tokenOwnerRepository.findById(userId)
   if (!user) {
     await repo.refreshTokenRepository.delete(payload.jti)
     return err(unauthorizedError("User not found"))

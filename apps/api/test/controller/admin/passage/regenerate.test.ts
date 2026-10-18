@@ -3,20 +3,20 @@ import request from "supertest"
 import { eq, passageGlossaryEntries, passages, questions } from "@repo/db"
 
 import { AdminPassageRegenerateController } from "../../../../src/controller/admin/passage/regenerate"
-import { env } from "../../../../src/env"
-import { ADMIN_TOKEN_HEADER } from "../../../../src/middleware/admin-auth"
 import { DrizzlePassageRepository } from "../../../../src/repository/drizzle/passage-repository"
-import { adminRouter } from "../../../../src/routes/admin-router"
+import { adminRouter, mountAdminApi } from "../../../../src/routes/admin-router"
 import { insertGeneratedPassage, insertReadingAttempt } from "../../../fixture/passage"
-import { attachUnhandledExceptionHandler, createTestApp } from "../../helper"
+import { attachUnhandledExceptionHandler, createTestAdmin, createTestApp } from "../../helper"
 import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb } from "../../setup"
 
 const passageRepository = new DrizzlePassageRepository(testDb)
 
 const app = createTestApp()
 
-app.use("/api/admin", adminRouter({ passage: { regenerate: new AdminPassageRegenerateController(passageRepository) } }))
+mountAdminApi(app, adminRouter({ passage: { regenerate: new AdminPassageRegenerateController(passageRepository) } }))
 attachUnhandledExceptionHandler(app)
+
+let adminToken: string
 
 const selectPassage = async (id: number) => {
   const [row] = await testDb.select().from(passages).where(eq(passages.id, id))
@@ -30,6 +30,7 @@ const countContent = async (passageId: number) => ({
 
 beforeEach(async () => {
   await cleanupTestData()
+  adminToken = (await createTestAdmin()).token
 })
 
 afterAll(async () => {
@@ -49,7 +50,7 @@ describe("POST /api/admin/passage/:id/regenerate", () => {
 
       const res = await request(app)
         .post(`/api/admin/passage/${passage.id}/regenerate`)
-        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .set("Authorization", `Bearer ${adminToken}`)
 
       expect(res.status).toBe(200)
       expect(res.body).toEqual({ id: passage.id, status: "collected" })
@@ -71,7 +72,7 @@ describe("POST /api/admin/passage/:id/regenerate", () => {
 
       const res = await request(app)
         .post(`/api/admin/passage/${passage.id}/regenerate`)
-        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .set("Authorization", `Bearer ${adminToken}`)
 
       expect(res.status).toBe(409)
       expect(res.body).toEqual({ error: expect.any(String), status_code: 409 })
@@ -84,7 +85,7 @@ describe("POST /api/admin/passage/:id/regenerate", () => {
 
       const res = await request(app)
         .post(`/api/admin/passage/${passage.id}/regenerate`)
-        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .set("Authorization", `Bearer ${adminToken}`)
 
       expect(res.status).toBe(409)
       expect(res.body).toEqual({ error: expect.any(String), status_code: 409 })
@@ -93,13 +94,13 @@ describe("POST /api/admin/passage/:id/regenerate", () => {
     it("存在しない id なら 404 を返す", async () => {
       const res = await request(app)
         .post("/api/admin/passage/999999/regenerate")
-        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .set("Authorization", `Bearer ${adminToken}`)
 
       expect(res.status).toBe(404)
       expect(res.body).toEqual({ error: expect.any(String), status_code: 404 })
     })
 
-    it("X-Admin-Token が無ければ 401 を返す", async () => {
+    it("Authorization が無ければ 401 を返す", async () => {
       const { passage } = await insertGeneratedPassage()
 
       const res = await request(app).post(`/api/admin/passage/${passage.id}/regenerate`)

@@ -389,7 +389,8 @@ jobs:
           # secret から渡すキー。ECS の secret_keys (env/prd/main.tf の api) と同じものに絞る
           SECRET_KEYS_JSON: >-
             ["DATABASE_URL","FRONTEND_URL","GOOGLE_CLIENT_ID","GOOGLE_CLIENT_SECRET",
-            "JWT_ACCESS_EXPIRATION","JWT_ACCESS_SECRET","JWT_REFRESH_EXPIRATION","JWT_REFRESH_SECRET",
+            "JWT_ACCESS_EXPIRATION","JWT_ACCESS_SECRET","JWT_ADMIN_ACCESS_SECRET","JWT_ADMIN_REFRESH_SECRET",
+            "JWT_REFRESH_EXPIRATION","JWT_REFRESH_SECRET",
             "NODE_ENV","PORT","REDIS_URL"]
           WORKER_ENABLED: ${{ needs.detect.outputs.worker_enabled }}
         run: |

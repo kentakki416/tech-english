@@ -27,7 +27,7 @@ const mockUserRepository: UserRepository = {
   updateTimezone: vi.fn(),
 }
 
-const repo = { refreshTokenRepository: mockRefreshTokenRepository, userRepository: mockUserRepository }
+const repo = { refreshTokenRepository: mockRefreshTokenRepository, tokenOwnerRepository: mockUserRepository }
 
 const mockGenerators = {
   generateAccessToken: vi.fn((_userId: number) => "new.access"),

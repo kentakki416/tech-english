@@ -11,20 +11,6 @@ import { z } from "zod"
  */
 const apiEnvSchema = z.object({
   /**
-   * admin のサーバー側だけが持つ共有シークレット。/api/admin/* の X-Admin-Token ヘッダと比較する
-   * （JWT の secret と同じく 32 文字以上。apps/admin の ADMIN_API_TOKEN と同じ値にする）
-   */
-  ADMIN_API_TOKEN: z.string().min(32),
-
-  /**
-   * Admin API のダミーモード（DB 不要で固定データを返す）
-   */
-  ADMIN_USE_DUMMY: z
-    .enum(["true", "false"])
-    .transform((v) => v === "true")
-    .default("false"),
-
-  /**
    * 読み上げの音声の URL の base（本番は CloudFront の URL。docs/spec/read-aloud/tasks/step8-infra-audio.md）。
    * 未設定なら、開発では http://localhost:${PORT}/media（mediaRouter）、production では null（音声 API は pending を返し、起動時に warn）。
    * infra より先に本番へ出しても起動が止まらないよう必須にしない。空文字は未設定と同じ。
@@ -101,6 +87,13 @@ const apiEnvSchema = z.object({
   JWT_ACCESS_SECRET: z.string().min(32),
 
   /**
+   * admin の Access Token の署名鍵。一般ユーザーの鍵と分け、一般ユーザーのトークンが admin の API を通らないようにする
+   */
+  JWT_ADMIN_ACCESS_SECRET: z.string().min(32),
+
+  JWT_ADMIN_REFRESH_SECRET: z.string().min(32),
+
+  /**
    * Refresh Token 有効期限（例: "7d" / "30d"）
    */
   JWT_REFRESH_EXPIRATION: z.string().default("7d"),
@@ -124,6 +117,19 @@ const apiEnvSchema = z.object({
    */
   REDIS_URL: z.string().url().optional(),
 })
+  /**
+   * JWT の鍵 4 つのうち同じ値があれば起動を止める。写し間違えると、一般ユーザーのトークンが admin の API を通ったり、
+   * refresh token が access token として通ったりする
+   */
+  .superRefine((env, ctx) => {
+    const keys = ["JWT_ACCESS_SECRET", "JWT_REFRESH_SECRET", "JWT_ADMIN_ACCESS_SECRET", "JWT_ADMIN_REFRESH_SECRET"] as const
+    keys.forEach((key, index) => {
+      const duplicate = keys.slice(0, index).find((other) => env[other] === env[key])
+      if (duplicate) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: `${key} は ${duplicate} と別の値にする`, path: [key] })
+      }
+    })
+  })
 
 const result = apiEnvSchema.safeParse(process.env)
 if (!result.success) {
@@ -135,3 +141,5 @@ if (!result.success) {
 export const env = result.data
 
 export type ApiEnv = typeof env
+
+export const forTesting = { apiEnvSchema }

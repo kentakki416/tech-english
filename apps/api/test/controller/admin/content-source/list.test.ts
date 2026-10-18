@@ -1,12 +1,10 @@
 import request from "supertest"
 
 import { AdminContentSourceListController } from "../../../../src/controller/admin/content-source/list"
-import { env } from "../../../../src/env"
-import { ADMIN_TOKEN_HEADER } from "../../../../src/middleware/admin-auth"
 import { DrizzleContentSourceRepository } from "../../../../src/repository/drizzle/content-source-repository"
-import { adminRouter } from "../../../../src/routes/admin-router"
+import { adminRouter, mountAdminApi } from "../../../../src/routes/admin-router"
 import { insertSourceTags } from "../../../fixture/source-tag"
-import { attachUnhandledExceptionHandler, createTestApp } from "../../helper"
+import { attachUnhandledExceptionHandler, createTestAdmin, createTestApp } from "../../helper"
 import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb } from "../../setup"
 
 import { insertGitHubSource, insertPassages, insertSourceDocument, insertWebsiteSource } from "./fixtures"
@@ -15,13 +13,16 @@ const contentSourceRepository = new DrizzleContentSourceRepository(testDb)
 
 const app = createTestApp()
 
-app.use("/api/admin", adminRouter({
+mountAdminApi(app, adminRouter({
   contentSource: { list: new AdminContentSourceListController(contentSourceRepository) },
 }))
 attachUnhandledExceptionHandler(app)
 
+let adminToken: string
+
 beforeEach(async () => {
   await cleanupTestData()
+  adminToken = (await createTestAdmin()).token
 })
 
 afterAll(async () => {
@@ -45,7 +46,7 @@ describe("GET /api/admin/content-source", () => {
 
       const res = await request(app)
         .get("/api/admin/content-source")
-        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .set("Authorization", `Bearer ${adminToken}`)
 
       expect(res.status).toBe(200)
       expect(res.body).toEqual({
@@ -88,7 +89,7 @@ describe("GET /api/admin/content-source", () => {
     it("ソースが無ければ空配列を返す", async () => {
       const res = await request(app)
         .get("/api/admin/content-source")
-        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .set("Authorization", `Bearer ${adminToken}`)
 
       expect(res.status).toBe(200)
       expect(res.body).toEqual({ sources: [] })
@@ -96,7 +97,7 @@ describe("GET /api/admin/content-source", () => {
   })
 
   describe("異常系", () => {
-    it("X-Admin-Token が無ければ 401 を返す", async () => {
+    it("Authorization が無ければ 401 を返す", async () => {
       await insertGitHubSource()
 
       const res = await request(app).get("/api/admin/content-source")

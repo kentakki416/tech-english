@@ -7,19 +7,17 @@ import { AdminUserCalendarController } from "../../../../src/controller/admin/us
 import { AdminUserDetailController } from "../../../../src/controller/admin/user/detail"
 import { AdminUserListController } from "../../../../src/controller/admin/user/list"
 import { UserStatsController } from "../../../../src/controller/user/stats"
-import { env } from "../../../../src/env"
 import { generateAccessToken } from "../../../../src/lib/jwt"
-import { ADMIN_TOKEN_HEADER } from "../../../../src/middleware/admin-auth"
 import { DrizzleAuthAccountRepository } from "../../../../src/repository/drizzle/auth-account-repository"
 import { DrizzleLearningRecordRepository } from "../../../../src/repository/drizzle/learning-record-repository"
 import { DrizzleUserGoalRepository } from "../../../../src/repository/drizzle/user-goal-repository"
 import { DrizzleUserRepository } from "../../../../src/repository/drizzle/user-repository"
 import { DrizzleVocabularyRepository } from "../../../../src/repository/drizzle/vocabulary-repository"
-import { adminRouter } from "../../../../src/routes/admin-router"
+import { adminRouter, mountAdminApi } from "../../../../src/routes/admin-router"
 import { userRouter } from "../../../../src/routes/user-router"
 import { createSubmittedAttempt } from "../../../fixture/learning-record"
 import { insertAttemptUser, insertGeneratedPassage } from "../../../fixture/passage"
-import { attachUnhandledExceptionHandler, createTestApp } from "../../helper"
+import { attachUnhandledExceptionHandler, createTestAdmin, createTestApp } from "../../helper"
 import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb } from "../../setup"
 
 const authAccountRepository = new DrizzleAuthAccountRepository(testDb)
@@ -30,8 +28,8 @@ const vocabularyRepository = new DrizzleVocabularyRepository(testDb)
 
 const app = createTestApp()
 
-app.use(
-  "/api/admin",
+mountAdminApi(
+  app,
   adminRouter({
     user: {
       attempts: new AdminUserAttemptsController(learningRecordRepository, userRepository),
@@ -42,6 +40,8 @@ app.use(
   }),
 )
 attachUnhandledExceptionHandler(app)
+
+let adminToken: string
 
 /**
  * 比べる相手のマイページの API（GET /api/user/stats）
@@ -68,6 +68,7 @@ const insertLearner = async () => {
 
 beforeEach(async () => {
   await cleanupTestData()
+  adminToken = (await createTestAdmin()).token
 })
 
 afterAll(async () => {
@@ -81,7 +82,7 @@ describe("GET /api/admin/user", () => {
     it("ユーザーの一覧（解いた回数・最後に学習した日・ログイン方法つき）と全体の件数を返す", async () => {
       const user = await insertLearner()
 
-      const res = await request(app).get("/api/admin/user").set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+      const res = await request(app).get("/api/admin/user").set("Authorization", `Bearer ${adminToken}`)
 
       expect(res.status).toBe(200)
       expect(res.body).toEqual({
@@ -105,14 +106,14 @@ describe("GET /api/admin/user", () => {
   })
 
   describe("異常系", () => {
-    it("X-Admin-Token が無いと 401", async () => {
+    it("Authorization が無いと 401", async () => {
       const res = await request(app).get("/api/admin/user")
 
       expect(res.status).toBe(401)
     })
 
     it.each([["sort=name"], ["page=0"], ["page=10001"], ["limit=101"]])("%s は 400", async (query) => {
-      const res = await request(app).get(`/api/admin/user?${query}`).set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+      const res = await request(app).get(`/api/admin/user?${query}`).set("Authorization", `Bearer ${adminToken}`)
 
       expect(res.status).toBe(400)
     })
@@ -124,7 +125,7 @@ describe("GET /api/admin/user/:id", () => {
     it("基本の情報と、マイページ（GET /api/user/stats）と同じ学習のまとめ、単語帳の数を返す", async () => {
       const user = await insertLearner()
       const [res, userStats] = await Promise.all([
-        request(app).get(`/api/admin/user/${user.id}`).set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN),
+        request(app).get(`/api/admin/user/${user.id}`).set("Authorization", `Bearer ${adminToken}`),
         request(userApp).get("/api/user/stats").set("Authorization", `Bearer ${generateAccessToken(user.id)}`),
       ])
 
@@ -146,7 +147,7 @@ describe("GET /api/admin/user/:id", () => {
 
   describe("異常系", () => {
     it("存在しないユーザーは 404", async () => {
-      const res = await request(app).get("/api/admin/user/999999").set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+      const res = await request(app).get("/api/admin/user/999999").set("Authorization", `Bearer ${adminToken}`)
 
       expect(res.status).toBe(404)
     })
@@ -155,7 +156,7 @@ describe("GET /api/admin/user/:id", () => {
       ["DB の integer の上限ちょうどは検証を通って 404", "2147483647", 404],
       ["上限を超えると 400", "2147483648", 400],
     ])("ID が %s", async (_label, id, status) => {
-      const res = await request(app).get(`/api/admin/user/${id}`).set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+      const res = await request(app).get(`/api/admin/user/${id}`).set("Authorization", `Bearer ${adminToken}`)
 
       expect(res.status).toBe(status)
     })
@@ -167,7 +168,7 @@ describe("GET /api/admin/user/:id/calendar", () => {
     it("マイページと同じ形のカレンダーを返す", async () => {
       const user = await insertLearner()
 
-      const res = await request(app).get(`/api/admin/user/${user.id}/calendar?from=2026-10-10&to=2026-10-12`).set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+      const res = await request(app).get(`/api/admin/user/${user.id}/calendar?from=2026-10-10&to=2026-10-12`).set("Authorization", `Bearer ${adminToken}`)
 
       expect(res.status).toBe(200)
       expect(res.body.days.map((day: { attempt_count: number, date: string }) => [day.date, day.attempt_count])).toEqual([
@@ -180,7 +181,7 @@ describe("GET /api/admin/user/:id/calendar", () => {
 
   describe("異常系", () => {
     it("存在しないユーザーは 404（マイページの 401 にはしない）", async () => {
-      const res = await request(app).get("/api/admin/user/999999/calendar").set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+      const res = await request(app).get("/api/admin/user/999999/calendar").set("Authorization", `Bearer ${adminToken}`)
 
       expect(res.status).toBe(404)
     })
@@ -192,7 +193,7 @@ describe("GET /api/admin/user/:id/attempts", () => {
     it("マイページと同じ形の学習履歴を返す", async () => {
       const user = await insertLearner()
 
-      const res = await request(app).get(`/api/admin/user/${user.id}/attempts?limit=5`).set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+      const res = await request(app).get(`/api/admin/user/${user.id}/attempts?limit=5`).set("Authorization", `Bearer ${adminToken}`)
 
       expect(res.status).toBe(200)
       expect(res.body).toMatchObject({ attempts: [{ study_date: "2026-10-12" }], next_cursor: null })
@@ -201,7 +202,7 @@ describe("GET /api/admin/user/:id/attempts", () => {
 
   describe("異常系", () => {
     it("存在しないユーザーは 404（マイページの 401 にはしない）", async () => {
-      const res = await request(app).get("/api/admin/user/999999/attempts").set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+      const res = await request(app).get("/api/admin/user/999999/attempts").set("Authorization", `Bearer ${adminToken}`)
 
       expect(res.status).toBe(404)
     })

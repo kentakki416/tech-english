@@ -3,13 +3,11 @@ import request from "supertest"
 import { contentSources, contentSourceTags, eq } from "@repo/db"
 
 import { AdminContentSourceCreateController } from "../../../../src/controller/admin/content-source/create"
-import { env } from "../../../../src/env"
-import { ADMIN_TOKEN_HEADER } from "../../../../src/middleware/admin-auth"
 import { DrizzleContentSourceRepository } from "../../../../src/repository/drizzle/content-source-repository"
 import { DrizzleTagRepository } from "../../../../src/repository/drizzle/tag-repository"
-import { adminRouter } from "../../../../src/routes/admin-router"
+import { adminRouter, mountAdminApi } from "../../../../src/routes/admin-router"
 import { insertTags } from "../../../fixture/source-tag"
-import { attachUnhandledExceptionHandler, createTestApp } from "../../helper"
+import { attachUnhandledExceptionHandler, createTestAdmin, createTestApp } from "../../helper"
 import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb } from "../../setup"
 
 import { GITHUB_REQUEST, insertGitHubSource, insertWebsiteSource, omitTagIds, WEBSITE_REQUEST } from "./fixtures"
@@ -19,13 +17,16 @@ const tagRepository = new DrizzleTagRepository(testDb)
 
 const app = createTestApp()
 
-app.use("/api/admin", adminRouter({
+mountAdminApi(app, adminRouter({
   contentSource: { create: new AdminContentSourceCreateController(contentSourceRepository, tagRepository) },
 }))
 attachUnhandledExceptionHandler(app)
 
+let adminToken: string
+
 beforeEach(async () => {
   await cleanupTestData()
+  adminToken = (await createTestAdmin()).token
 })
 
 afterAll(async () => {
@@ -39,7 +40,7 @@ describe("POST /api/admin/content-source", () => {
     it("github は 201 と作成したソースを返し、DB に保存する", async () => {
       const res = await request(app)
         .post("/api/admin/content-source")
-        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .set("Authorization", `Bearer ${adminToken}`)
         .send(GITHUB_REQUEST)
 
       expect(res.status).toBe(201)
@@ -73,7 +74,7 @@ describe("POST /api/admin/content-source", () => {
 
       const res = await request(app)
         .post("/api/admin/content-source")
-        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .set("Authorization", `Bearer ${adminToken}`)
         .send({ ...GITHUB_REQUEST, tag_ids: [react.id, frontend.id] })
 
       expect(res.status).toBe(201)
@@ -98,7 +99,7 @@ describe("POST /api/admin/content-source", () => {
 
       const res = await request(app)
         .post("/api/admin/content-source")
-        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .set("Authorization", `Bearer ${adminToken}`)
         .send({ ...GITHUB_REQUEST, tag_ids: tenTags.map((tag) => tag.id) })
 
       expect(res.status).toBe(201)
@@ -109,7 +110,7 @@ describe("POST /api/admin/content-source", () => {
     it("website は is_enabled: true を送っても無効で作り、site_url をオリジンにそろえる", async () => {
       const res = await request(app)
         .post("/api/admin/content-source")
-        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .set("Authorization", `Bearer ${adminToken}`)
         .send({ ...WEBSITE_REQUEST, is_enabled: true, site_url: "https://go.dev/doc/" })
 
       expect(res.status).toBe(201)
@@ -137,7 +138,7 @@ describe("POST /api/admin/content-source", () => {
     it("github の repository は小文字にそろえて保存する", async () => {
       const res = await request(app)
         .post("/api/admin/content-source")
-        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .set("Authorization", `Bearer ${adminToken}`)
         .send({ ...GITHUB_REQUEST, repository: "ReactJS/React.dev" })
 
       expect(res.status).toBe(201)
@@ -149,7 +150,7 @@ describe("POST /api/admin/content-source", () => {
     it("website は start_url だけでも登録できる", async () => {
       const res = await request(app)
         .post("/api/admin/content-source")
-        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .set("Authorization", `Bearer ${adminToken}`)
         .send({ ...WEBSITE_REQUEST, sitemap_url: null, start_url: "https://go.dev/doc/" })
 
       expect(res.status).toBe(201)
@@ -181,7 +182,7 @@ describe("POST /api/admin/content-source", () => {
     ])("%sなら 400 を返し、DB に保存しない", async (_label, body) => {
       const res = await request(app)
         .post("/api/admin/content-source")
-        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .set("Authorization", `Bearer ${adminToken}`)
         .send(body)
 
       expect(res.status).toBe(400)
@@ -194,7 +195,7 @@ describe("POST /api/admin/content-source", () => {
 
       const res = await request(app)
         .post("/api/admin/content-source")
-        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .set("Authorization", `Bearer ${adminToken}`)
         .send({ ...GITHUB_REQUEST, tag_ids: [react.id, react.id + 1000] })
 
       expect(res.status).toBe(400)
@@ -212,7 +213,7 @@ describe("POST /api/admin/content-source", () => {
 
       const res = await request(app)
         .post("/api/admin/content-source")
-        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .set("Authorization", `Bearer ${adminToken}`)
         .send({ ...GITHUB_REQUEST, name: "dup" })
 
       expect(res.status).toBe(409)
@@ -225,7 +226,7 @@ describe("POST /api/admin/content-source", () => {
 
       const res = await request(app)
         .post("/api/admin/content-source")
-        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .set("Authorization", `Bearer ${adminToken}`)
         .send({ ...GITHUB_REQUEST, name: "dup", repository: "ReactJS/react.dev" })
 
       expect(res.status).toBe(409)
@@ -238,14 +239,14 @@ describe("POST /api/admin/content-source", () => {
 
       const res = await request(app)
         .post("/api/admin/content-source")
-        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .set("Authorization", `Bearer ${adminToken}`)
         .send({ ...WEBSITE_REQUEST, site_url: "https://go.dev/doc/" })
 
       expect(res.status).toBe(409)
       expect(await testDb.$count(contentSources)).toBe(1)
     })
 
-    it("X-Admin-Token が無ければ 401 を返し、DB に保存しない", async () => {
+    it("Authorization が無ければ 401 を返し、DB に保存しない", async () => {
       const res = await request(app).post("/api/admin/content-source").send(GITHUB_REQUEST)
 
       expect(res.status).toBe(401)

@@ -5,6 +5,7 @@
   "types": "./dist/index.d.ts",
   "sideEffects": false,
   "scripts": {
+    "admin:create": "tsx drizzle/create-admin.ts",
     "build": "tsc",
     "clean": "rm -rf dist",
     "dev": "tsc --watch",

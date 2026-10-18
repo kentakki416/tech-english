@@ -18,14 +18,15 @@ process.env.JWT_ACCESS_SECRET =
   process.env.JWT_ACCESS_SECRET || "test-jwt-access-secret-at-least-32-chars"
 process.env.JWT_REFRESH_SECRET =
   process.env.JWT_REFRESH_SECRET || "test-jwt-refresh-secret-at-least-32-chars"
+/**
+ * admin の鍵は一般ユーザーの鍵と別の値にする（同じ値だと env.ts の検証で起動が止まる）
+ */
+process.env.JWT_ADMIN_ACCESS_SECRET =
+  process.env.JWT_ADMIN_ACCESS_SECRET || "test-jwt-admin-access-secret-at-least-32-chars"
+process.env.JWT_ADMIN_REFRESH_SECRET =
+  process.env.JWT_ADMIN_REFRESH_SECRET || "test-jwt-admin-refresh-secret-at-least-32-chars"
 process.env.JWT_ACCESS_EXPIRATION = process.env.JWT_ACCESS_EXPIRATION || "15m"
 process.env.JWT_REFRESH_EXPIRATION = process.env.JWT_REFRESH_EXPIRATION || "7d"
-
-/**
- * ADMIN_API_TOKEN も apiEnvSchema で min(32) 制約があるため 32 文字以上にする
- */
-process.env.ADMIN_API_TOKEN =
-  process.env.ADMIN_API_TOKEN || "test-admin-api-token-at-least-32-chars"
 
 /**
  * test:ci では dotenvx を通さないため DATABASE_URL が未設定。

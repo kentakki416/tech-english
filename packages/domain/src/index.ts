@@ -39,6 +39,7 @@ export { findMisleadingChoiceIndexes, isQuestionNeedingReview } from "./rules/ad
 export { isAttemptStatus, isWordLookupSource } from "./rules/attempt"
 export { isAudioStatus } from "./rules/audio"
 export { isAllowedLicense, isSourceFetchType, isSourceKind } from "./rules/content-source"
+export { normalizeEmail } from "./rules/email"
 export { isGoalMetric } from "./rules/goal"
 export {
   addDaysToDate,
@@ -54,6 +55,7 @@ export { findSurfaceRange, hasQuote, isSurfaceAt, numberHeadings, numberParagrap
 export { isQuestionType } from "./rules/question"
 export { isTagColor, selectTagColor } from "./rules/tag"
 export { isVocabularyCardDue, isVocabularyGrade, normalizeVocabularyLemma, scheduleVocabularyReview } from "./rules/vocabulary"
+export type { Admin } from "./types/admin"
 export type { AdminPassageStatsSort, AdminStatsPeriod } from "./types/admin-stats"
 export type { AdminUserSort } from "./types/admin-user"
 export type {

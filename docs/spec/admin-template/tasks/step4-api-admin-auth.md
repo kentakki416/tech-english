@@ -147,10 +147,18 @@ import { admins } from "../src/drizzle/schema"
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+$/
 
+const findErrorCode = (error: unknown): string | undefined => {
+  if (!(error instanceof Error)) return undefined
+  if ("code" in error && typeof error.code === "string") return error.code
+  if ("cause" in error) return findErrorCode(error.cause)
+  return undefined
+}
+
 const main = async () => {
   const { values } = parseArgs({ options: { email: { type: "string" } } })
   if (!values.email || !EMAIL_PATTERN.test(values.email)) {
-    throw new Error("Usage: admin:create --email <email>")
+    console.error("Usage: admin:create --email <email>")
+    process.exit(1)
   }
   const email = normalizeEmail(values.email)
 
@@ -167,13 +175,14 @@ const main = async () => {
   }
 }
 
-main().catch((e) => {
-  console.error(e)
+main().catch((e: unknown) => {
+  const code = findErrorCode(e)
+  console.error(code ? `Failed to create admin (code=${code})` : "Failed to create admin")
   process.exit(1)
 })
 ```
 
-- 出力に email を出さない（Actions のログに入力は残るが、コマンドの出力にまで重ねない）
+- 出力に email を出さない（Actions のログに入力は残るが、コマンドの出力にまで重ねない）。失敗したときも `e` をそのまま出さず、cause をたどって見つけた code（Postgres の SQLSTATE や `ECONNREFUSED` など）だけを出す。Drizzle のクエリのエラー（`DrizzleQueryError`）は message に params（= email）を含むため
 - 実装では、使い方（ローカルの `pnpm --filter @repo/db admin:create --email ...` と、本番は `admin-create.yml` から流すこと）をファイルの冒頭に書く
 
 `drizzle/seed.ts` に dev 用の admin を足し、`main` で `seedDevUsers` の後に呼ぶ（production では seed 自体がスキップされる）。
@@ -931,7 +940,7 @@ done
 
 ```yaml
   command:
-    description: コンテナの起動コマンドを差し替える JSON の配列 (例 ["pnpm","--filter","@repo/db","admin:create","--email","a@example.com"])。省略したらタスク定義のまま
+    description: コンテナの起動コマンドを差し替える JSON の配列 (例 ["pnpm","--silent","--dir","packages/db","admin:create","--email","a@example.com"])。省略したらタスク定義のまま
     required: false
     default: ""
 ```
@@ -1004,7 +1013,7 @@ jobs:
             echo "::error::Invalid email"
             exit 1
           fi
-          echo "command=$(jq -cn --arg email "${EMAIL}" '["pnpm","--filter","@repo/db","admin:create","--email",$email]')" >> "$GITHUB_OUTPUT"
+          echo "command=$(jq -cn --arg email "${EMAIL}" '["pnpm","--silent","--dir","packages/db","admin:create","--email",$email]')" >> "$GITHUB_OUTPUT"
 
       - name: Configure AWS credentials with OIDC
         uses: aws-actions/configure-aws-credentials@v4
@@ -1022,6 +1031,7 @@ jobs:
 
 - 実装では、冒頭に workflow の役目（最後に deploy した migration のイメージで `admin:create` を流す。登録済みなら何もしない）を、`postgres-migrate.yml` と同じ形で書く。入力を `env` で渡してシェルに直接展開しない理由（コマンドの注入）と、email の正規表現が `$` や `'` を通さないことは、その step の側に書く
 - `concurrency` は deploy と同じ group にする（`postgres-migrate.yml` と同じ）
+- 起動コマンドは `pnpm --silent --dir packages/db admin:create`。pnpm が出す起動行（`> tsx drizzle/create-admin.ts "--email" "..."`）は CloudWatch Logs に入り、Actions のログにも写る。pnpm 9 は `--filter` だと `--silent` でも起動行を出すので、`--dir`（migration イメージの WORKDIR の `/app` からの相対）で動かす。この理由は Build command の step の側に書く
 
 ### ドキュメント
 

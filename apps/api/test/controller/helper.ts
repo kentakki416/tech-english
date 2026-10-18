@@ -1,8 +1,9 @@
 import express from "express"
 
-import { users } from "@repo/db"
-import { User } from "@repo/domain"
+import { admins, users } from "@repo/db"
+import { Admin, User } from "@repo/domain"
 
+import { generateAdminAccessToken } from "../../src/lib/admin-jwt"
 import { generateAccessToken } from "../../src/lib/jwt"
 import { authMiddleware } from "../../src/middleware/auth"
 import { unhandledExceptionHandler } from "../../src/middleware/unhandled-exception-handler"
@@ -62,4 +63,33 @@ export const createTestUser = async (overrides?: {
   const token = generateAccessToken(user.id)
 
   return { token, user }
+}
+
+/**
+ * テスト用 admin を DB に作成し、admin の access token を返す
+ * admin の API のテストで、リクエスト前に呼び出して使用する
+ */
+export const createTestAdmin = async (overrides?: {
+  email?: string
+  name?: string
+}): Promise<{ admin: Admin; token: string }> => {
+  const [row] = await testDb
+    .insert(admins)
+    .values({
+      email: overrides?.email ?? `admin-${Date.now()}@example.com`,
+      name: overrides?.name ?? "Test Admin",
+    })
+    .returning()
+
+  const admin: Admin = {
+    id: row.id,
+    avatarUrl: row.avatarUrl,
+    email: row.email,
+    lastSignedInAt: row.lastSignedInAt,
+    name: row.name,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  }
+
+  return { admin, token: generateAdminAccessToken(admin.id) }
 }

@@ -307,7 +307,7 @@
 
 ## 必要な API
 
-すべて `/api/admin/` 配下（`X-Admin-Token` が必要。[question-generation の 管理画面のアクセス制御](../question-generation/README.md#管理画面のアクセス制御)）。スキーマは `packages/schema/src/api-schema/admin/stats.ts`。
+すべて `/api/admin/` 配下（admin の access token が必要。[admin-template の admin 認証](../admin-template/README.md#admin-認証)）。スキーマは `packages/schema/src/api-schema/admin/stats.ts`。
 
 | メソッド | パス | クエリ | 説明 |
 | --- | --- | --- | --- |

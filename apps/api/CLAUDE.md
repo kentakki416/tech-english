@@ -74,16 +74,18 @@ try/catch を許容するのは次の 2 つだけ。
 
 ## Admin API 設計方針
 
-admin（`apps/admin`）のサーバー側だけが呼ぶ API。
+admin（`apps/admin`）のサーバー側だけが呼ぶ API。一般ユーザーの API と認証を完全に分ける（設計: [admin-template の「admin 認証」](../../docs/spec/admin-template/README.md#admin-認証)）。
 
-- すべて `/api/admin/` 配下に置き、`src/routes/admin-router.ts` にマッピングする（`src/index.ts` で `app.use("/api/admin", adminRouter(...))`）。コントローラーはリソースごとに `controllers.contentSource` / `controllers.passage` のようにネストして渡し、既存の router と同じく渡されたものだけを登録する
-- **認証は `X-Admin-Token` ヘッダ**。`adminAuthMiddleware`（`src/middleware/admin-auth.ts`）が `ADMIN_API_TOKEN` と定数時間で比較する（`src/lib/admin-token.ts`。SHA-256 にしてから `timingSafeEqual`）。ヘッダが無い・違う・空文字はすべて同じ 401 で、トークンの値はログに出さない
-- ユーザーの JWT 認証の対象外にするため `/api/admin` を `PUBLIC_PATHS` に入れている。**`/api/admin` 配下のルートは必ず admin-router に足す**（別の router に足すと無認証で公開される）
-- Controller は `src/controller/admin/{resource}/{action}.ts`、Service は `src/service/{content-source,admin-passage,admin-stats,admin-user}-service.ts`。ユーザー向けと同じ Repository を使う（ダッシュボードの集計だけは admin 専用の `AdminStatsRepository`。生の SQL で Postgres をその場で集計する。[admin-dashboard](../../docs/spec/admin-dashboard/README.md)）
+- すべて `/api/admin/` 配下に置き、`src/routes/admin-router.ts` にマッピングする。コントローラーはリソースごとに `controllers.contentSource` / `controllers.passage` のようにネストして渡し、既存の router と同じく渡されたものだけを登録する
+- **`/api/admin` の下のルートは必ず admin-router に足す**（別の router に足すと admin の認証を通らない）
+- **認証は Bearer の admin の JWT**。admin は `admins` テーブル（`users` とは別。事前登録制）で、トークンは admin 専用の鍵（`JWT_ADMIN_ACCESS_SECRET` / `JWT_ADMIN_REFRESH_SECRET`）で署名し、payload は `{ adminId }`（発行・検証は `src/lib/admin-jwt.ts`）。refresh の jti は Redis の `admin_refresh_token:{jti}`（猶予は `admin_refresh_token_rotated:{jti}`）
+- **`adminAuthMiddleware`（`src/middleware/admin-auth.ts`）は全体ではなく `/api/admin` の mount の中に置く**。`src/index.ts` とテストは `mountAdminApi`（`src/routes/admin-router.ts`）で mount する。Express 5 の mount と Router は大文字小文字を区別しないので、全体に適用して文字列で比べると `/API/Admin/...` が判定をすり抜ける。一般ユーザーの `authMiddleware` は `/api/admin` を見ない
+- admin の access token を求めないパスは `ADMIN_PUBLIC_PATHS`（`src/const/index.ts`。mount からの相対で、完全一致で比べる。google / refresh / logout と、production 以外の dev-login）
+- Controller は `src/controller/admin/{resource}/{action}.ts`。Service は `src/service/{content-source,admin-passage,admin-stats,admin-user}-service.ts` と、認証の `admin-auth-service.ts`（Google・dev ログイン）・`admin-service.ts`（`GET /api/admin/me`）。ユーザー向けと同じ Repository を使う（ダッシュボードの集計だけは admin 専用の `AdminStatsRepository`。生の SQL で Postgres をその場で集計する。[admin-dashboard](../../docs/spec/admin-dashboard/README.md)）
+- admin の refresh / logout は一般ユーザーの `service.auth.refreshTokens` / `service.auth.logout` に admin 用の Repository・検証関数・発行関数を渡す。`refreshTokens` は持ち主を `tokenOwnerRepository` で確かめるので、admin は `adminRepository` を渡す（`admins` から消された admin の refresh token は 401）
 - ユーザー管理（`/api/admin/user/*`）はマイページの Service を使い回す。マイページの Service はユーザーが居ないと 401 を返すので、admin の Service（`admin-user-service.ts`）が先に存在を確かめて 404 にする
 - スキーマは `@repo/api-schema` の `admin/` に集約。既存と同一なら re-export し、Admin 固有のレスポンスが必要になった時点で新規定義する
-- `ADMIN_USE_DUMMY=true` で DB 不要のダミーモードになる
-- 管理者が増えたら GitHub ログイン + 権限管理に移行する（[question-generation の 管理画面のアクセス制御](../../docs/spec/question-generation/README.md#管理画面のアクセス制御)）
+- **admin の登録**: `pnpm --filter @repo/db admin:create --email <email>`。本番は GitHub Actions の「Admin Create」（`docs/deploy/prd.md`）。ローカルは seed で `admin@dev.local` が入り、`POST /api/admin/auth/dev-login` でログインできる（dev-login は `@dev.local` の admin しか受け付けない）
 
 ## 環境変数
 
@@ -94,7 +96,7 @@ admin（`apps/admin`）のサーバー側だけが呼ぶ API。
 pnpm exec dotenvx set KEY "value" -f .env.local
 ```
 
-`ADMIN_API_TOKEN`（必須・32 文字以上）は `/api/admin/*` の `X-Admin-Token` と比べる共有シークレットで、`apps/admin` の `ADMIN_API_TOKEN` と同じ値にする。`openssl rand -hex 32` などで作る。
+`JWT_ADMIN_ACCESS_SECRET` / `JWT_ADMIN_REFRESH_SECRET`（必須・32 文字以上）は admin の JWT の鍵。`openssl rand -hex 32` などで作る。**JWT の鍵 4 つ（`JWT_ACCESS_SECRET` / `JWT_REFRESH_SECRET` / `JWT_ADMIN_ACCESS_SECRET` / `JWT_ADMIN_REFRESH_SECRET`）は別の値にする**（同じ値があれば `src/env.ts` が起動を止める）。
 
 `GITHUB_LICENSE_TOKEN`（任意）は admin のソース登録で GitHub のライセンスを検出するときに使う。未設定でも動くが、GitHub の rate limit（60 回 / 時）が低くなる。
 
@@ -113,6 +115,7 @@ pnpm exec dotenvx set KEY "value" -f .env.local
 
 - **数え方**: Authorization の Bearer の access token を検証できれば `user:<userId>`、`POST /api/auth/refresh` は body の refresh token を検証できればそのユーザー、どちらも無い・検証できなければ `ip:<IP>`（`trust proxy` を反映した `req.ip`）。検証は `lib/jwt.ts` で署名と期限を見るだけで、DB / Redis は引かない
 - **理由**: web の Server Component・Route Handler・proxy からの呼び出しはすべて web サーバーの IP から来るため、IP だけで数えると全ユーザーで上限を分け合ってしまう。token の無い・検証できないリクエストは IP で数え、総当たりへの備えは弱めない
+- admin の API（`/api/admin/*`）のトークンは一般ユーザーの鍵では検証できないので、admin のサーバーの IP で数える（管理者は 1〜2 人なので 1 分 300 回で足りる）
 - refresh の body を読むので **`express.json()` より後に登録する**
 - IPv6 はアドレスごとに数える（express-rate-limit 7.x の既定と同じ。サブネットでまとめる `ipKeyGenerator` は 8.x から）
 

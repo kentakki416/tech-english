@@ -3,26 +3,27 @@ import request from "supertest"
 import { tags } from "@repo/db"
 
 import { AdminTagCreateController } from "../../../../src/controller/admin/tag/create"
-import { env } from "../../../../src/env"
-import { ADMIN_TOKEN_HEADER } from "../../../../src/middleware/admin-auth"
 import { DrizzleTagRepository } from "../../../../src/repository/drizzle/tag-repository"
-import { adminRouter } from "../../../../src/routes/admin-router"
-import { attachUnhandledExceptionHandler, createTestApp } from "../../helper"
+import { adminRouter, mountAdminApi } from "../../../../src/routes/admin-router"
+import { attachUnhandledExceptionHandler, createTestAdmin, createTestApp } from "../../helper"
 import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb } from "../../setup"
 
 import { insertTag } from "./fixtures"
 
 const app = createTestApp()
 
-app.use("/api/admin", adminRouter({
+mountAdminApi(app, adminRouter({
   tag: { create: new AdminTagCreateController(new DrizzleTagRepository(testDb)) },
 }))
 attachUnhandledExceptionHandler(app)
 
-const post = (body: unknown) => request(app).post("/api/admin/tag").set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN).send(body as object)
+let adminToken: string
+
+const post = (body: unknown) => request(app).post("/api/admin/tag").set("Authorization", `Bearer ${adminToken}`).send(body as object)
 
 beforeEach(async () => {
   await cleanupTestData()
+  adminToken = (await createTestAdmin()).token
 })
 
 afterAll(async () => {
@@ -101,7 +102,7 @@ describe("POST /api/admin/tag", () => {
       expect(await testDb.select().from(tags)).toHaveLength(1)
     })
 
-    it("X-Admin-Token が無いと 401 を返す", async () => {
+    it("Authorization が無いと 401 を返す", async () => {
       const res = await request(app).post("/api/admin/tag").send({ name: "React" })
 
       expect(res.status).toBe(401)

@@ -5,21 +5,19 @@ import { users } from "@repo/db"
 import { AdminStatsOverviewController } from "../../../../src/controller/admin/stats/overview"
 import { AdminPassageStatsDetailController } from "../../../../src/controller/admin/stats/passage-detail"
 import { AdminPassageStatsListController } from "../../../../src/controller/admin/stats/passage-list"
-import { env } from "../../../../src/env"
-import { ADMIN_TOKEN_HEADER } from "../../../../src/middleware/admin-auth"
 import { DrizzleAdminStatsRepository } from "../../../../src/repository/drizzle/admin-stats-repository"
-import { adminRouter } from "../../../../src/routes/admin-router"
+import { adminRouter, mountAdminApi } from "../../../../src/routes/admin-router"
 import { createSubmittedAttempt } from "../../../fixture/learning-record"
 import { insertGeneratedPassage } from "../../../fixture/passage"
-import { attachUnhandledExceptionHandler, createTestApp } from "../../helper"
+import { attachUnhandledExceptionHandler, createTestAdmin, createTestApp } from "../../helper"
 import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb } from "../../setup"
 
 const adminStatsRepository = new DrizzleAdminStatsRepository(testDb)
 
 const app = createTestApp()
 
-app.use(
-  "/api/admin",
+mountAdminApi(
+  app,
   adminRouter({
     stats: {
       overview: new AdminStatsOverviewController(adminStatsRepository),
@@ -29,6 +27,8 @@ app.use(
   }),
 )
 attachUnhandledExceptionHandler(app)
+
+let adminToken: string
 
 /**
  * 1 時間前に提出した挑戦つきの公開中の問題（Q1 で 0 を選んで不正解、ほかは正解）。ユーザーは 2 時間前に登録した
@@ -55,6 +55,7 @@ const insertSolvedPassage = async () => {
 
 beforeEach(async () => {
   await cleanupTestData()
+  adminToken = (await createTestAdmin()).token
 })
 
 afterAll(async () => {
@@ -68,7 +69,7 @@ describe("GET /api/admin/stats/overview", () => {
     it("period を省くと直近 30 日で、数字と日ごとの 30 点の推移を返す", async () => {
       await insertSolvedPassage()
 
-      const res = await request(app).get("/api/admin/stats/overview").set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+      const res = await request(app).get("/api/admin/stats/overview").set("Authorization", `Bearer ${adminToken}`)
 
       expect(res.status).toBe(200)
       expect(res.body).toEqual({
@@ -90,7 +91,7 @@ describe("GET /api/admin/stats/overview", () => {
     it("period=all は週ごとの推移", async () => {
       await insertSolvedPassage()
 
-      const res = await request(app).get("/api/admin/stats/overview?period=all").set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+      const res = await request(app).get("/api/admin/stats/overview?period=all").set("Authorization", `Bearer ${adminToken}`)
 
       expect(res.status).toBe(200)
       expect(res.body).toMatchObject({ period: "all", series: { bucket: "week" } })
@@ -98,14 +99,14 @@ describe("GET /api/admin/stats/overview", () => {
   })
 
   describe("異常系", () => {
-    it("X-Admin-Token が無いと 401", async () => {
+    it("Authorization が無いと 401", async () => {
       const res = await request(app).get("/api/admin/stats/overview")
 
       expect(res.status).toBe(401)
     })
 
     it("period が不正なら 400", async () => {
-      const res = await request(app).get("/api/admin/stats/overview?period=1y").set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+      const res = await request(app).get("/api/admin/stats/overview?period=1y").set("Authorization", `Bearer ${adminToken}`)
 
       expect(res.status).toBe(400)
     })
@@ -117,7 +118,7 @@ describe("GET /api/admin/stats/passage", () => {
     it("問題ごとの成績を返す（公開日時は ISO 8601）", async () => {
       const { passageId } = await insertSolvedPassage()
 
-      const res = await request(app).get("/api/admin/stats/passage?sort=correct_rate&order=asc").set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+      const res = await request(app).get("/api/admin/stats/passage?sort=correct_rate&order=asc").set("Authorization", `Bearer ${adminToken}`)
 
       expect(res.status).toBe(200)
       expect(res.body).toEqual({
@@ -147,7 +148,7 @@ describe("GET /api/admin/stats/passage", () => {
 
   describe("異常系", () => {
     it.each([["sort=title"], ["page=0"], ["page=10001"], ["page=1e300"], ["limit=101"], ["order=up"]])("%s は 400", async (query) => {
-      const res = await request(app).get(`/api/admin/stats/passage?${query}`).set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+      const res = await request(app).get(`/api/admin/stats/passage?${query}`).set("Authorization", `Bearer ${adminToken}`)
 
       expect(res.status).toBe(400)
     })
@@ -159,7 +160,7 @@ describe("GET /api/admin/stats/passage/:id", () => {
     it("設問ごとの正答率・選択肢の割合・要確認の印を返す", async () => {
       const { passageId, questionIds } = await insertSolvedPassage()
 
-      const res = await request(app).get(`/api/admin/stats/passage/${passageId}?period=7d`).set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+      const res = await request(app).get(`/api/admin/stats/passage/${passageId}?period=7d`).set("Authorization", `Bearer ${adminToken}`)
 
       expect(res.status).toBe(200)
       expect(res.body).toEqual({
@@ -200,7 +201,7 @@ describe("GET /api/admin/stats/passage/:id", () => {
     it("期間内に解かれていない問題も 200 で、数は 0・比率は null", async () => {
       const generated = await insertGeneratedPassage({ publishedAt: new Date("2026-10-01T03:00:00.000Z"), status: "published" })
 
-      const res = await request(app).get(`/api/admin/stats/passage/${generated.passage.id}`).set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+      const res = await request(app).get(`/api/admin/stats/passage/${generated.passage.id}`).set("Authorization", `Bearer ${adminToken}`)
 
       expect(res.status).toBe(200)
       expect(res.body.passage).toMatchObject({ average_elapsed_seconds: null, correct_rate: null, solved_attempts: 0, solved_users: 0 })
@@ -210,13 +211,13 @@ describe("GET /api/admin/stats/passage/:id", () => {
 
   describe("異常系", () => {
     it("存在しない問題は 404", async () => {
-      const res = await request(app).get("/api/admin/stats/passage/999999").set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+      const res = await request(app).get("/api/admin/stats/passage/999999").set("Authorization", `Bearer ${adminToken}`)
 
       expect(res.status).toBe(404)
     })
 
     it("id が数でなければ 400", async () => {
-      const res = await request(app).get("/api/admin/stats/passage/abc").set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+      const res = await request(app).get("/api/admin/stats/passage/abc").set("Authorization", `Bearer ${adminToken}`)
 
       expect(res.status).toBe(400)
     })

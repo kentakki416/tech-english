@@ -3,26 +3,27 @@ import request from "supertest"
 import { contentSources, contentSourceTags, tags } from "@repo/db"
 
 import { AdminTagDeleteController } from "../../../../src/controller/admin/tag/delete"
-import { env } from "../../../../src/env"
-import { ADMIN_TOKEN_HEADER } from "../../../../src/middleware/admin-auth"
 import { DrizzleTagRepository } from "../../../../src/repository/drizzle/tag-repository"
-import { adminRouter } from "../../../../src/routes/admin-router"
-import { attachUnhandledExceptionHandler, createTestApp } from "../../helper"
+import { adminRouter, mountAdminApi } from "../../../../src/routes/admin-router"
+import { attachUnhandledExceptionHandler, createTestAdmin, createTestApp } from "../../helper"
 import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb } from "../../setup"
 
 import { attachTag, insertSource, insertTag } from "./fixtures"
 
 const app = createTestApp()
 
-app.use("/api/admin", adminRouter({
+mountAdminApi(app, adminRouter({
   tag: { delete: new AdminTagDeleteController(new DrizzleTagRepository(testDb)) },
 }))
 attachUnhandledExceptionHandler(app)
 
-const del = (id: number | string) => request(app).delete(`/api/admin/tag/${id}`).set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+let adminToken: string
+
+const del = (id: number | string) => request(app).delete(`/api/admin/tag/${id}`).set("Authorization", `Bearer ${adminToken}`)
 
 beforeEach(async () => {
   await cleanupTestData()
+  adminToken = (await createTestAdmin()).token
 })
 
 afterAll(async () => {

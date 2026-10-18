@@ -29,7 +29,7 @@ export class AuthRefreshController {
 
     const result = await service.auth.refreshTokens(
       { refreshToken },
-      { refreshTokenRepository: this._refreshTokenRepository, userRepository: this._userRepository },
+      { refreshTokenRepository: this._refreshTokenRepository, tokenOwnerRepository: this._userRepository },
       (token) => {
         const payload = verifyRefreshToken(token)
         return payload ? { jti: payload.jti, userId: payload.userId } : null

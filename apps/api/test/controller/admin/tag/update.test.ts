@@ -3,24 +3,24 @@ import request from "supertest"
 import { eq, tags } from "@repo/db"
 
 import { AdminTagUpdateController } from "../../../../src/controller/admin/tag/update"
-import { env } from "../../../../src/env"
-import { ADMIN_TOKEN_HEADER } from "../../../../src/middleware/admin-auth"
 import { DrizzleTagRepository } from "../../../../src/repository/drizzle/tag-repository"
-import { adminRouter } from "../../../../src/routes/admin-router"
-import { attachUnhandledExceptionHandler, createTestApp } from "../../helper"
+import { adminRouter, mountAdminApi } from "../../../../src/routes/admin-router"
+import { attachUnhandledExceptionHandler, createTestAdmin, createTestApp } from "../../helper"
 import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb } from "../../setup"
 
 import { insertTag } from "./fixtures"
 
 const app = createTestApp()
 
-app.use("/api/admin", adminRouter({
+mountAdminApi(app, adminRouter({
   tag: { update: new AdminTagUpdateController(new DrizzleTagRepository(testDb)) },
 }))
 attachUnhandledExceptionHandler(app)
 
+let adminToken: string
+
 const put = (id: number | string, body: unknown) =>
-  request(app).put(`/api/admin/tag/${id}`).set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN).send(body as object)
+  request(app).put(`/api/admin/tag/${id}`).set("Authorization", `Bearer ${adminToken}`).send(body as object)
 
 const selectTag = async (id: number) => {
   const [row] = await testDb.select().from(tags).where(eq(tags.id, id))
@@ -29,6 +29,7 @@ const selectTag = async (id: number) => {
 
 beforeEach(async () => {
   await cleanupTestData()
+  adminToken = (await createTestAdmin()).token
 })
 
 afterAll(async () => {

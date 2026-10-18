@@ -17,17 +17,33 @@ const DEV_ONLY_PUBLIC_PATHS = process.env.NODE_ENV !== "production"
  * これらのパスではauthMiddlewareが認証チェックをスキップします
  */
 export const PUBLIC_PATHS: readonly string[] = [
-  /**
-   * admin 向け API はユーザーの JWT 認証の対象外にする。
-   * 代わりに admin-router の adminAuthMiddleware（X-Admin-Token）で保護する
-   */
-  "/api/admin",
   "/api/auth/github",
   "/api/auth/google",
   "/api/auth/refresh",
   "/api/health",
   "/api/memo",
   ...DEV_ONLY_PUBLIC_PATHS,
+]
+
+export const ADMIN_PATH_PREFIX = "/api/admin"
+
+/**
+ * production 以外でのみ公開する admin の dev 専用パス（ADMIN_PATH_PREFIX からの相対）
+ */
+const ADMIN_DEV_ONLY_PUBLIC_PATHS = process.env.NODE_ENV !== "production"
+  ? ["/auth/dev-login"]
+  : []
+
+/**
+ * admin の API のうち、admin の access token を求めないパス（ADMIN_PATH_PREFIX からの相対）
+ *
+ * logout は refresh token で本人を確かめるので、access token が切れていても呼べるようにする
+ */
+export const ADMIN_PUBLIC_PATHS: readonly string[] = [
+  "/auth/google",
+  "/auth/logout",
+  "/auth/refresh",
+  ...ADMIN_DEV_ONLY_PUBLIC_PATHS,
 ]
 
 /**

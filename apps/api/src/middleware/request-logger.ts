@@ -6,6 +6,7 @@ import { logger, logContext } from "@repo/logger"
 
 import { LOG_EXCLUDE_PATHS } from "../const"
 
+import type { AdminAuthRequest } from "./admin-auth"
 import type { AuthRequest } from "./auth"
 
 /**
@@ -51,6 +52,10 @@ export const requestLogger = (req: Request, res: Response, next: NextFunction) =
     res.on("finish", () => {
       const duration = Date.now() - startTime
       logger.info("API Request Completed", {
+        /**
+         * adminAuthMiddleware はこのミドルウェアより後に動くので、終わった時点で読む
+         */
+        adminId: (req as AdminAuthRequest).adminId,
         duration,
         method: req.method,
         path: req.path,

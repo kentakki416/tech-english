@@ -1,4 +1,6 @@
+export * as adminAuth from "./admin-auth-service"
 export * as adminPassage from "./admin-passage-service"
+export * as admin from "./admin-service"
 export * as adminStats from "./admin-stats-service"
 export * as adminUser from "./admin-user-service"
 export * as attempt from "./attempt-service"

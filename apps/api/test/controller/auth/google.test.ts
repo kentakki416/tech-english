@@ -62,6 +62,7 @@ describe("POST /api/auth/google", () => {
   it("新規ユーザーの場合、200 と Access/Refresh Token を返し、DB にユーザーが作成され Redis に Refresh Token が保存される", async () => {
     mockGetUserInfo.mockResolvedValue({
       email: "new@example.com",
+      emailVerified: true,
       id: "google-456",
       name: "New User",
       picture: "https://example.com/new-avatar.jpg",
@@ -128,6 +129,7 @@ describe("POST /api/auth/google", () => {
 
     mockGetUserInfo.mockResolvedValue({
       email: "test@example.com",
+      emailVerified: true,
       id: "google-123",
       name: "Test User",
       picture: "https://example.com/avatar.jpg",

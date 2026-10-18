@@ -1,6 +1,6 @@
 /* eslint-disable no-console */
 import { createDrizzleClient } from "../src/drizzle/client"
-import { authAccounts, users } from "../src/drizzle/schema"
+import { admins, authAccounts, users } from "../src/drizzle/schema"
 
 const db = createDrizzleClient()
 
@@ -44,12 +44,26 @@ const seedDevUsers = async () => {
   }
 }
 
+/**
+ * admin の dev ログインで使う開発用の admin
+ */
+const DEV_ADMIN_EMAIL = "admin@dev.local"
+
+const seedDevAdmin = async () => {
+  await db
+    .insert(admins)
+    .values({ email: DEV_ADMIN_EMAIL, name: "Admin (dev)" })
+    .onConflictDoNothing({ target: admins.email })
+  console.log(`Seeded dev admin: ${DEV_ADMIN_EMAIL}`)
+}
+
 const main = async () => {
   if (process.env.NODE_ENV === "production") {
     console.log("Skip seeding: NODE_ENV=production")
     return
   }
   await seedDevUsers()
+  await seedDevAdmin()
   console.log("Seed completed (PostgreSQL)")
 }
 

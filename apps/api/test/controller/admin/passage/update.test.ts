@@ -5,13 +5,11 @@ import { asc, eq, passageGlossaryEntries, passages, questions } from "@repo/db"
 
 import { AdminPassageDetailController } from "../../../../src/controller/admin/passage/detail"
 import { AdminPassageUpdateController } from "../../../../src/controller/admin/passage/update"
-import { env } from "../../../../src/env"
-import { ADMIN_TOKEN_HEADER } from "../../../../src/middleware/admin-auth"
 import { DrizzlePassageRepository } from "../../../../src/repository/drizzle/passage-repository"
-import { adminRouter } from "../../../../src/routes/admin-router"
+import { adminRouter, mountAdminApi } from "../../../../src/routes/admin-router"
 import { insertGeneratedPassage, insertReadingAttempt } from "../../../fixture/passage"
 import { PASSAGE_BLOCKS } from "../../../fixture/passage-content"
-import { attachUnhandledExceptionHandler, createTestApp } from "../../helper"
+import { attachUnhandledExceptionHandler, createTestAdmin, createTestApp } from "../../helper"
 import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb } from "../../setup"
 
 import { convertDetailResponseToUpdateBody } from "./fixtures"
@@ -20,7 +18,7 @@ const passageRepository = new DrizzlePassageRepository(testDb)
 
 const app = createTestApp()
 
-app.use("/api/admin", adminRouter({
+mountAdminApi(app, adminRouter({
   passage: {
     detail: new AdminPassageDetailController(passageRepository),
     update: new AdminPassageUpdateController(passageRepository),
@@ -28,8 +26,10 @@ app.use("/api/admin", adminRouter({
 }))
 attachUnhandledExceptionHandler(app)
 
+let adminToken: string
+
 const fetchDetail = async (id: number): Promise<AdminPassageDetailResponse> => {
-  const res = await request(app).get(`/api/admin/passage/${id}`).set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+  const res = await request(app).get(`/api/admin/passage/${id}`).set("Authorization", `Bearer ${adminToken}`)
   return res.body
 }
 
@@ -38,6 +38,7 @@ const selectQuestions = async (passageId: number) =>
 
 beforeEach(async () => {
   await cleanupTestData()
+  adminToken = (await createTestAdmin()).token
 })
 
 afterAll(async () => {
@@ -59,7 +60,7 @@ describe("PUT /api/admin/passage/:id", () => {
 
       const res = await request(app)
         .put(`/api/admin/passage/${passage.id}`)
-        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .set("Authorization", `Bearer ${adminToken}`)
         .send(body)
 
       expect(res.status).toBe(200)
@@ -104,7 +105,7 @@ describe("PUT /api/admin/passage/:id", () => {
 
       const res = await request(app)
         .put(`/api/admin/passage/${passage.id}`)
-        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .set("Authorization", `Bearer ${adminToken}`)
         .send(body)
 
       expect(res.status).toBe(200)
@@ -126,7 +127,7 @@ describe("PUT /api/admin/passage/:id", () => {
 
       const res = await request(app)
         .put(`/api/admin/passage/${passage.id}`)
-        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .set("Authorization", `Bearer ${adminToken}`)
         .send(body)
 
       expect(res.status).toBe(200)
@@ -135,7 +136,7 @@ describe("PUT /api/admin/passage/:id", () => {
   })
 
   describe("異常系", () => {
-    it("X-Admin-Token が無ければ 401 を返す", async () => {
+    it("Authorization が無ければ 401 を返す", async () => {
       const { passage } = await insertGeneratedPassage()
       const body = convertDetailResponseToUpdateBody(await fetchDetail(passage.id))
 
@@ -151,7 +152,7 @@ describe("PUT /api/admin/passage/:id", () => {
 
       const res = await request(app)
         .put("/api/admin/passage/999999")
-        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .set("Authorization", `Bearer ${adminToken}`)
         .send(body)
 
       expect(res.status).toBe(404)
@@ -164,7 +165,7 @@ describe("PUT /api/admin/passage/:id", () => {
 
       const res = await request(app)
         .put(`/api/admin/passage/${passage.id}`)
-        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .set("Authorization", `Bearer ${adminToken}`)
         .send(body)
 
       expect(res.status).toBe(409)
@@ -181,7 +182,7 @@ describe("PUT /api/admin/passage/:id", () => {
 
       const res = await request(app)
         .put(`/api/admin/passage/${passage.id}`)
-        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .set("Authorization", `Bearer ${adminToken}`)
         .send(body)
 
       expect(res.status).toBe(409)
@@ -196,7 +197,7 @@ describe("PUT /api/admin/passage/:id", () => {
 
       const res = await request(app)
         .put(`/api/admin/passage/${passage.id}`)
-        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .set("Authorization", `Bearer ${adminToken}`)
         .send(body)
 
       expect(res.status).toBe(400)
@@ -224,7 +225,7 @@ describe("PUT /api/admin/passage/:id", () => {
 
       const res = await request(app)
         .put(`/api/admin/passage/${passage.id}`)
-        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .set("Authorization", `Bearer ${adminToken}`)
         .send(body)
 
       expect(res.status).toBe(400)

@@ -189,7 +189,7 @@ module "vpc" {
 # アプリケーション機密 (Secrets Manager)
 # =============================================================================
 
-# JWT 署名鍵 (Access / Refresh) は Terraform 内で自動生成して Secrets Manager に投入する。
+# JWT 署名鍵 (一般ユーザーと admin の Access / Refresh) は Terraform 内で自動生成して Secrets Manager に投入する。
 # 外部から提供される値ではないので random_password で十分。
 # tfstate に値が残るが、S3 KMS 暗号化で保護される前提。
 #
@@ -206,6 +206,24 @@ resource "random_password" "jwt_access_secret" {
 }
 
 resource "random_password" "jwt_refresh_secret" {
+  length  = 64
+  special = false
+
+  lifecycle {
+    ignore_changes = [length, special, override_special, min_lower, min_upper, min_numeric, min_special]
+  }
+}
+
+resource "random_password" "jwt_admin_access_secret" {
+  length  = 64
+  special = false
+
+  lifecycle {
+    ignore_changes = [length, special, override_special, min_lower, min_upper, min_numeric, min_special]
+  }
+}
+
+resource "random_password" "jwt_admin_refresh_secret" {
   length  = 64
   special = false
 
@@ -235,6 +253,8 @@ resource "random_password" "db_master" {
 # - DATABASE_URL / REDIS_HOST / GOOGLE_* / LIVEKIT_* / FRONTEND_URL は scripts/deploy/seed-secrets.sh で投入
 # - JWT を rotate するときは `terraform taint random_password.jwt_xxx` 後、
 #   Secrets Manager Console で JWT_ACCESS_SECRET / JWT_REFRESH_SECRET を新値で上書き
+# - initial_values は新しく作る環境のため。JWT_ADMIN_* を足す前に作った環境には反映されないので、
+#   scripts/deploy/seed-secrets.sh で入れる (無ければ生成する)
 #
 # recovery_window_in_days = 0: dev は気軽に destroy/apply できるよう即時削除設定。
 # prd では 7 以上にして誤削除に備えること。
@@ -245,10 +265,12 @@ module "app_secrets" {
   recovery_window_in_days = 0
 
   initial_values = {
-    JWT_ACCESS_SECRET      = random_password.jwt_access_secret.result
-    JWT_REFRESH_SECRET     = random_password.jwt_refresh_secret.result
-    JWT_ACCESS_EXPIRATION  = "15m"
-    JWT_REFRESH_EXPIRATION = "30d"
+    JWT_ACCESS_SECRET        = random_password.jwt_access_secret.result
+    JWT_REFRESH_SECRET       = random_password.jwt_refresh_secret.result
+    JWT_ADMIN_ACCESS_SECRET  = random_password.jwt_admin_access_secret.result
+    JWT_ADMIN_REFRESH_SECRET = random_password.jwt_admin_refresh_secret.result
+    JWT_ACCESS_EXPIRATION    = "15m"
+    JWT_REFRESH_EXPIRATION   = "30d"
 
     /**
      * DB マスターパスワード。module.rds が ephemeral で読む唯一の情報源。
@@ -586,6 +608,7 @@ locals {
     api = [
       "DATABASE_URL", "REDIS_URL",
       "JWT_ACCESS_SECRET", "JWT_REFRESH_SECRET",
+      "JWT_ADMIN_ACCESS_SECRET", "JWT_ADMIN_REFRESH_SECRET",
       "JWT_ACCESS_EXPIRATION", "JWT_REFRESH_EXPIRATION",
       "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET",
       "FRONTEND_URL", "NODE_ENV", "PORT",

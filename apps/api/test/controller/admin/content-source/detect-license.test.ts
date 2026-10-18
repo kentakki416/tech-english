@@ -3,11 +3,9 @@ import request from "supertest"
 import type { IGitHubLicenseClient } from "../../../../src/client/github-license"
 import { AdminContentSourceDetailController } from "../../../../src/controller/admin/content-source/detail"
 import { AdminContentSourceDetectLicenseController } from "../../../../src/controller/admin/content-source/detect-license"
-import { env } from "../../../../src/env"
-import { ADMIN_TOKEN_HEADER } from "../../../../src/middleware/admin-auth"
 import { DrizzleContentSourceRepository } from "../../../../src/repository/drizzle/content-source-repository"
-import { adminRouter } from "../../../../src/routes/admin-router"
-import { attachUnhandledExceptionHandler, createTestApp } from "../../helper"
+import { adminRouter, mountAdminApi } from "../../../../src/routes/admin-router"
+import { attachUnhandledExceptionHandler, createTestAdmin, createTestApp } from "../../helper"
 import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb } from "../../setup"
 
 /**
@@ -21,7 +19,7 @@ const app = createTestApp()
 /**
  * /license が /:id に吸われないことも確かめるため、詳細のコントローラーも登録する
  */
-app.use("/api/admin", adminRouter({
+mountAdminApi(app, adminRouter({
   contentSource: {
     detail: new AdminContentSourceDetailController(new DrizzleContentSourceRepository(testDb)),
     detectLicense: new AdminContentSourceDetectLicenseController(fakeGitHubLicenseClient),
@@ -29,8 +27,11 @@ app.use("/api/admin", adminRouter({
 }))
 attachUnhandledExceptionHandler(app)
 
+let adminToken: string
+
 beforeEach(async () => {
   await cleanupTestData()
+  adminToken = (await createTestAdmin()).token
   vi.clearAllMocks()
 })
 
@@ -52,7 +53,7 @@ describe("GET /api/admin/content-source/license", () => {
       const res = await request(app)
         .get("/api/admin/content-source/license")
         .query({ repository: "reactjs/react.dev" })
-        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .set("Authorization", `Bearer ${adminToken}`)
 
       expect(res.status).toBe(200)
       expect(res.body).toEqual(expected)
@@ -71,7 +72,7 @@ describe("GET /api/admin/content-source/license", () => {
       const res = await request(app)
         .get("/api/admin/content-source/license")
         .query(query)
-        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .set("Authorization", `Bearer ${adminToken}`)
 
       expect(res.status).toBe(400)
       expect(res.body).toEqual({ error: expect.any(String), status_code: 400 })
@@ -84,12 +85,12 @@ describe("GET /api/admin/content-source/license", () => {
       const res = await request(app)
         .get("/api/admin/content-source/license")
         .query({ repository: "reactjs/react.dev" })
-        .set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)
+        .set("Authorization", `Bearer ${adminToken}`)
 
       expect(res.status).toBe(500)
     })
 
-    it("X-Admin-Token が無ければ 401 を返し、GitHub を呼ばない", async () => {
+    it("Authorization が無ければ 401 を返し、GitHub を呼ばない", async () => {
       const res = await request(app)
         .get("/api/admin/content-source/license")
         .query({ repository: "reactjs/react.dev" })
