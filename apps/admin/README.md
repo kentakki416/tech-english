@@ -29,8 +29,8 @@ Next.js 16 (App Router) を使用した管理画面アプリケーション
 - React 19
 - TypeScript
 - Tailwind CSS v4
-- ApexCharts（チャート）
-- FullCalendar（カレンダー）
+- ApexCharts（チャート。ダッシュボードとデモが使う）
+- FullCalendar（カレンダー。デモだけが使う）
 
 ## アーキテクチャ
 
@@ -45,12 +45,15 @@ Next.js 16 (App Router) を使用した管理画面アプリケーション
 src/
   app/                        # ルーティング + ページ構成（薄く保つ）
     (auth)/                   # 認証ページ（サイドバーなし、専用レイアウト）
+      demo/                   #   デモ（フォームの見本。URL は /demo/...）
     (dashboard)/              # 管理画面（サイドバー + ヘッダー付きレイアウト）
+      demo/                   #   デモ（TailAdmin の画面と UI 部品の見本。URL は /demo/...）
   components/
     ui/                       # 汎用UIコンポーネント（Button, Input等）
     layout/                   # レイアウト系（AppHeader, AppSidebar, Backdrop等）
     features/                 # 機能固有のUIコンポーネント
       {feature}/              #   例: auth/SignInForm.tsx, dashboard/DashboardMetrics.tsx
+    demo/                     # デモだけが使う部品・CSS・サイドバーの「デモ」の項目
   features/                   # ロジックのみ（レンダリングなし）
     {feature}/
       {feature}.context.tsx   #   状態管理（React Context）

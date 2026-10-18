@@ -50,7 +50,14 @@ MVP の管理者は 1〜2 人なので、共有シークレットで保護する
 
 admin は DB を直接触らず、必ず Express API を経由する。tech-english の画面（下の「接続済みの画面」）は API に接続済みで、それ以外は TailAdmin テンプレートの画面がそのまま入っている（API 未接続）。
 
-サイドバー（`components/layout/AppSidebar.tsx`）には tech-english の画面（ダッシュボード・問題・ソース・タグ・ユーザー）だけを並べる。テンプレートの画面（`/calendar`・`/ui/*` など。design-mock でデザインの参考に読む）とデザインモック（`/mock`）はメニューに出さず、URL を直接開いて見る。テンプレートの EC のダッシュボードの部品（`components/features/ecommerce/`）も参考として残している。左上のロゴとそのリンク先は `components/layout/AppLogo.tsx`（テンプレートのマークと「tech-english-admin」の文字。サイドバーとスマホ幅のヘッダーで使う）。
+サイドバー（`components/layout/AppSidebar.tsx`）は見出し付きの 2 つのセクションを並べる。「メニュー」は tech-english の画面（ダッシュボード・問題・ソース・タグ・ユーザー）、「デモ」は TailAdmin のデモの画面。
+
+- デモは `/demo/...`（`app/(dashboard)/demo/`・`app/(auth)/demo/`・`components/demo/`）に置き、サイドバーの「デモ」（`components/demo/demo-nav-items.tsx`）に並べる。design-mock の参考として残す
+- 新しい画面は土台（`app/(dashboard)/{feature}/`）に作り、サイドバーは `components/layout/nav-items.tsx` の `mainNavSection` に足す
+- 土台からデモを import しない（lint の `import/no-restricted-paths` で強制）。デモだけの CSS は `components/demo/demo.css` に置き、`globals.css` に足さない
+- デザインモック（`/mock`）はサイドバーに出さず、URL を直接開いて見る
+
+左上のロゴとそのリンク先は `components/layout/AppLogo.tsx`（テンプレートのマークと「tech-english-admin」の文字。サイドバーとスマホ幅のヘッダーで使う）。
 
 | ファイル | 役割 |
 | --- | --- |
