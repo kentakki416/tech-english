@@ -1,18 +1,25 @@
+import { twMerge } from "tailwind-merge"
+
 interface AvatarTextProps {
   name: string;
   className?: string;
 }
 
 export default function AvatarText({ name, className = "" }: AvatarTextProps) {
-  // Generate initials from name
-  const initials = name
-    .split(" ")
-    .map((word) => word[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2)
+  /**
+   * 単語ごとの最初の文字（記号は飛ばす。「Admin (dev)」は「AD」）。文字が取れなければ「?」
+   */
+  const initials = Array.from(
+    name
+      .split(/\s+/)
+      .map((word) => word.match(/[\p{L}\p{N}]/u)?.[0] ?? "")
+      .join("")
+      .toUpperCase(),
+  ).slice(0, 2).join("") || "?"
 
-  // Generate a consistent pastel color based on the name
+  /**
+   * 名前から決まる淡い色（同じ名前なら同じ色）
+   */
   const getColorClass = (name: string) => {
     const colors = [
       "bg-brand-100 text-brand-600",
@@ -33,9 +40,11 @@ export default function AvatarText({ name, className = "" }: AvatarTextProps) {
 
   return (
     <div
-      className={`flex h-10 w-10 ${className} items-center justify-center rounded-full ${getColorClass(
-        name
-      )}`}
+      className={twMerge(
+        "flex h-10 w-10 items-center justify-center rounded-full",
+        getColorClass(name),
+        className,
+      )}
     >
       <span className="text-sm font-medium">{initials}</span>
     </div>
