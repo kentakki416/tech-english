@@ -278,13 +278,14 @@ Next.js は Server Component の中で cookie を書き換えられない（Serv
 - サインイン画面でも更新を試す。api の一時的な障害でサインイン画面に送られた後、開き直せば元の画面に戻れるように
 - 公開のパスは `/signin`・`/api/auth/callback/google`・`/api/auth/signout`・`/demo/signin`・`/demo/signup`・production 以外の `/api/dev/login`。サインイン画面以外の公開のパスでは更新もしない（callback などは自分で cookie を書くので、先に更新すると書き換える前の refresh token を無効にする）
 - **`/api/` の下の Route Handler（ライセンスの検出）は、サインインが要るときに redirect せず 401 を返す。** ブラウザの `fetch` から呼ばれるので、redirect だとサインイン画面の HTML を受け取ってしまう（tech-english だけの変更）
+- **Server Action（`next-action` ヘッダーの付いた POST）は、サインインが要るときも redirect せずに通す。** Next.js のクライアントは redirect を辿ったサインイン画面の応答を扱えず、エラー画面になる。認証の境界は api なので、token が無ければ api が 401 を返し、api-client が `/api/auth/signout` を経てサインイン画面に送る。api を呼ばない Server Action（`logoutAction`・`startGoogleOAuth`）は、サインインしていなくても困らない（tech-english だけの変更）
 - proxy から `@/env`（`server-only`）を import する。テンプレートはこれでビルドが通っている。今の proxy の「`server-only` なので `process.env` を直接読む」は Basic 認証のときの作りで、置き換えると無くなる。step5 のビルドで確かめる
 
 ### api の 401 の扱い
 
 - api-client（`libs/api-client.ts`）は Bearer を付けて呼ぶだけで、refresh も cookie の書き込みもしない
-- api が 401 を返したら（proxy で更新した後でも弾かれた。鍵の作り直しや admin の削除など）、cookie を消す Route Handler の `/api/auth/signout` に redirect し、そこからサインイン画面に送る。cookie を消さずにサインイン画面に送ると、サインイン画面が「有効な access の cookie がある」と見て元の画面に戻し、往復が止まらなくなる
-- `/api/auth/signout` は、外のサイトから開かれた（`sec-fetch-site: cross-site`）ときは cookie を消さない。リンクを踏ませるだけでログアウトさせられないように
+- api が 401 を返したら（JWT の鍵を作り直した後に、期限内の古い access token で呼んだときなど。admins から消えた admin は proxy の更新で 401 になる）、cookie を消す Route Handler の `/api/auth/signout` に redirect し、そこからサインイン画面に送る。cookie を消さずにサインイン画面に送ると、サインイン画面が「有効な access の cookie がある」と見て元の画面に戻し、往復が止まらなくなる
+- `/api/auth/signout` は、外のサイトから開かれた（`sec-fetch-site: cross-site`）ときは cookie を消さない。リンクを踏ませるだけでログアウトさせられないように。このときは `/signin?error=session_expired` に送り、サインイン画面は `?error=` があると元の画面に戻さない（api が認めない access の cookie が残っているので、戻すと画面とサインイン画面の往復が止まらない）
 - **redirect は例外（`NEXT_REDIRECT`）で実現しているので、api の呼び出しを try/catch で囲む所は catch の先頭で `unstable_rethrow` する。** tech-english には 19 か所ある（一覧は step5）。入れないと、セッション切れが「保存に失敗しました」などの表示に化ける
 - tech-english の api-client の `ApiClientError`（`status`・`body`）・`put`・`delete`・204 の扱いは残す。Server Action が 400 / 404 / 409 を見分けて画面に出すため。テンプレートの api-client で置き換えない
 - **ライセンスの検出の Route Handler は 401 を返す。** ブラウザの `fetch` から呼ばれるので、redirect ではなく状態で返す。api-client の `get` に `{ onUnauthorized: "throw" }` を渡すと、401 を redirect せずに `ApiClientError` で投げる。ソースのフォームは 401 のとき「ページを開き直してサインインしてください」と出す
@@ -493,7 +494,7 @@ sequenceDiagram
     end
 ```
 
-**api が 401 を返したとき**（鍵の作り直し・admin の削除など）
+**api が 401 を返したとき**（鍵の作り直しの後など）
 
 ```mermaid
 sequenceDiagram

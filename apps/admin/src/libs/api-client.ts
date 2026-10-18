@@ -1,6 +1,10 @@
 import "server-only"
 
+import { redirect } from "next/navigation"
+
 import { env } from "../env"
+
+import { getAccessToken } from "./auth"
 
 /**
  * Express API を叩く server-side 専用クライアント。
@@ -8,13 +12,10 @@ import { env } from "../env"
  * admin は DB を直接触らず必ず API を経由する。ブラウザから API を直接叩かないよう
  * `server-only` でガードしているので、client component からは import できない。
  * client 側からデータが必要な場合は Server Component か Route Handler を経由する。
- *
- * /api/admin/* は X-Admin-Token で保護されているため、すべてのリクエストに ADMIN_API_TOKEN を付ける。
- * **トークンはこのモジュールの外に出さない**（Client Component に渡す props やエラーにも含めない）。
  */
 const API_BASE_URL = env.API_URL
 
-const ADMIN_TOKEN_HEADER = "X-Admin-Token"
+const SIGN_OUT_PATH = "/api/auth/signout"
 
 /**
  * status と API のエラーボディを保持するので、呼び出し側（Server Action 等）が 400 / 404 / 409 を見分けて画面に出せる
@@ -29,26 +30,44 @@ export class ApiClientError extends Error {
   }
 }
 
-/**
- * ヘッダの組み立てはここ 1 か所にまとめる（X-Admin-Token の付け忘れを防ぐ）
- */
-const buildHeaders = (hasBody: boolean): HeadersInit => ({
-  ...(hasBody ? { "Content-Type": "application/json" } : {}),
-  [ADMIN_TOKEN_HEADER]: env.ADMIN_API_TOKEN,
-})
+type RequestOptions = {
+  onUnauthorized?: "signOut" | "throw"
+}
+
+const buildHeaders = async (hasBody: boolean): Promise<HeadersInit> => {
+  const token = await getAccessToken()
+  return {
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(hasBody ? { "Content-Type": "application/json" } : {}),
+  }
+}
 
 const throwApiError = async (res: Response): Promise<never> => {
   const body = await res.json().catch(() => undefined)
   throw new ApiClientError(res.status, body)
 }
 
-const requestApi = async (path: string, method: string, body?: unknown): Promise<Response> => {
+/**
+ * access token の更新（refresh）はここではしない。Server Component の中では cookie を書けないので、proxy が画面の描画の前に済ませている。
+ *
+ * 401（JWT の鍵を作り直した後に、期限内の古い access token で呼んだときなど）は、cookie を消す /api/auth/signout に redirect する。
+ * cookie を消さずにサインイン画面へ送ると、サインイン画面が「有効な access の cookie がある」と見て元の画面に戻し、
+ * 往復が止まらなくなる。
+ *
+ * redirect は例外（NEXT_REDIRECT）で実現しているので、呼び出し側の try/catch が握りつぶすと遷移しない。
+ * api の呼び出しを try/catch で囲むときは、catch の先頭で unstable_rethrow する。
+ *
+ * `onUnauthorized: "throw"` は、ブラウザの fetch から呼ばれる Route Handler のためにある。redirect すると fetch が
+ * サインイン画面の HTML を受け取るので、401 を ApiClientError で投げ、Route Handler が 401 を返せるようにする
+ */
+const requestApi = async (path: string, method: string, body?: unknown, options: RequestOptions = {}): Promise<Response> => {
   const hasBody = body !== undefined
   const res = await fetch(`${API_BASE_URL}${path}`, {
     body: hasBody ? JSON.stringify(body) : undefined,
-    headers: buildHeaders(hasBody),
+    headers: await buildHeaders(hasBody),
     method,
   })
+  if (res.status === 401 && options.onUnauthorized !== "throw") redirect(SIGN_OUT_PATH)
   if (!res.ok) await throwApiError(res)
   return res
 }
@@ -68,8 +87,8 @@ export const apiClient = {
     return readJson<T>(res)
   },
 
-  get: async <T>(path: string): Promise<T> => {
-    const res = await requestApi(path, "GET")
+  get: async <T>(path: string, options?: RequestOptions): Promise<T> => {
+    const res = await requestApi(path, "GET", undefined, options)
     return res.json() as Promise<T>
   },
 

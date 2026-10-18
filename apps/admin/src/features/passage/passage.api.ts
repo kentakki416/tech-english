@@ -1,5 +1,7 @@
 import "server-only"
 
+import { unstable_rethrow } from "next/navigation"
+
 import {
   type AdminPassageStatus,
   type GetAdminPassageListResponse,
@@ -62,6 +64,7 @@ export const passageApi = {
       const raw = await apiClient.get<unknown>(`${BASE_PATH}/${id}`)
       return getAdminPassageResponseSchema.parse(raw)
     } catch (error) {
+      unstable_rethrow(error)
       if (error instanceof ApiClientError && error.status === 404) return null
       throw error
     }

@@ -58,12 +58,12 @@ apps/admin/
 | `src/libs/auth.ts` | `setAuthCookies` / `clearAuthCookies` / `getAccessToken` / `getRefreshToken`。先頭に `import "server-only"` | なし |
 | `src/libs/app-origin.ts` | `APP_ORIGIN`（`new URL(env.NEXT_PUBLIC_APP_URL).origin`）と `GOOGLE_REDIRECT_URI` | なし |
 | `src/libs/safe-redirect.ts` | `resolveSafeRedirectPath`。URL として解釈して origin を比べ、`//` で始まる pathname も捨てる | なし |
-| `src/features/auth/sign-in-errors.ts` | `SIGN_IN_ERROR_MESSAGES`（`auth_failed` / `not_admin` / `oauth_denied` / `state_mismatch`） | なし |
+| `src/features/auth/sign-in-errors.ts` | `SIGN_IN_ERROR_MESSAGES`（`auth_failed` / `not_admin` / `oauth_denied` / `session_expired` / `state_mismatch`） | なし |
 | `src/features/auth/auth.actions.ts` | `logoutAction`（api の logout を呼び、失敗しても cookie を消して `/signin` へ） | なし |
 | `src/app/(auth)/signin/actions.ts` | `startGoogleOAuth`（state と戻り先を cookie に入れ、`prompt=select_account` で Google へ） | なし |
 | `src/app/(auth)/signin/page.tsx` | サインイン画面（後述） | なし |
 | `src/app/api/auth/callback/google/route.ts` | state の照合、api の `/api/admin/auth/google`、403 は `not_admin`、api の障害も `auth_failed` でサインイン画面へ | なし |
-| `src/app/api/auth/signout/route.ts` | cookie を消して `/signin` へ。`sec-fetch-site: cross-site` のときは消さない | なし |
+| `src/app/api/auth/signout/route.ts` | cookie を消して `/signin` へ。`sec-fetch-site: cross-site` のときは消さずに `/signin?error=session_expired` へ | なし |
 | `src/app/api/dev/login/route.ts` | production なら 404。`admin@dev.local` で api の dev-login を呼び、cookie を書いて `/` へ。失敗したら「`db:seed` を流したか」を返す | なし |
 | `src/components/features/auth/GoogleSignInButton.tsx` | 今の `SignInForm` の Google のボタンと同じ見た目の submit ボタン | なし |
 | `src/app/(auth)/demo/signin/page.tsx` | `components/demo/auth/SignInForm` を出すページ | `metadata.title` は `"Sign In"`（step2 のデモのページと同じ書き方） |
@@ -168,17 +168,24 @@ flowchart TD
     E -- "障害で access は残っている" --> Z
     S --> T{"/api/ の下?"}
     T -- はい --> U[401 の JSON]
-    T -- いいえ --> V["/signin?redirect=... へ（cookie は消さない）"]
+    T -- いいえ --> W{Server Action?}
+    W -- はい --> Z
+    W -- いいえ --> V["/signin?redirect=... へ（cookie は消さない）"]
 ```
 
-テンプレートの `proxy.ts` を写し、サインインが要るときの返し方だけを変える（`/api/` の下は 401）。
+テンプレートの `proxy.ts` を写し、サインインが要るときの返し方だけを変える（`/api/` の下は 401、Server Action は通す）。
 
 ```typescript
 const API_PATH_PREFIX = "/api/"
 
-const rejectUnauthenticated = (req: NextRequest): NextResponse => {
+const SERVER_ACTION_HEADER = "next-action"
+
+const respondToUnauthenticated = (req: NextRequest): NextResponse => {
   if (req.nextUrl.pathname.startsWith(API_PATH_PREFIX)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+  if (req.method === "POST" && req.headers.has(SERVER_ACTION_HEADER)) {
+    return NextResponse.next()
   }
   const url = new URL(SIGN_IN_PATH, req.url)
   url.searchParams.set("redirect", resolveSafeRedirectPath(`${req.nextUrl.pathname}${req.nextUrl.search}`))
@@ -190,18 +197,18 @@ export const config = {
 }
 ```
 
-- テンプレートの `redirectToSignIn` を `rejectUnauthenticated` にし、呼ぶ所（refresh の cookie が無い・refresh が 401・障害で access も無い）はテンプレートのまま
+- テンプレートの `redirectToSignIn` を `respondToUnauthenticated` にし、呼ぶ所（refresh の cookie が無い・refresh が 401・障害で access も無い）はテンプレートのまま
 - 公開のパス（`PUBLIC_PATHS`）・`isPathUnderPrefix`・`requestTokenRefresh`（`REFRESH_TIMEOUT_MS = 5_000`）・成功したときの cookie の書き換えはテンプレートのまま
 - `@/env` を import する（今の「`server-only` なので `process.env` を直接読む」は消す）。`pnpm --filter admin build` で通ることを確かめる
 - `images/` を除くのは今と同じ理由（秘密を含まず、next/image の最適化がサーバーの内部から認証なしに元の画像を取る）。この理由は matcher の側に残す
-- `/api/` の下を 401 にする理由（ブラウザの `fetch` が redirect を辿るとサインイン画面の HTML を受け取る）は `rejectUnauthenticated` の側に書く
+- `/api/` の下を 401 にする理由（ブラウザの `fetch` が redirect を辿るとサインイン画面の HTML を受け取る）と、Server Action を通す理由（redirect だと Next.js のクライアントが扱えずエラー画面になる。認証の境界は api で、token が無ければ api の 401 で api-client がサインイン画面に送る）は `respondToUnauthenticated` の側に書く
 
 ### サインイン画面
 
 テンプレートの `app/(auth)/signin/page.tsx` のまま。
 
 - Server Component。`searchParams` は Promise なので `await` する
-- 有効な access の cookie があれば `resolveSafeRedirectPath(redirect)` に戻す（proxy の更新の競合の後の受け口）
+- 有効な access の cookie があれば `resolveSafeRedirectPath(redirect)` に戻す（proxy の更新の競合の後の受け口）。`?error=` があるときは戻さない（cross-site の `/api/auth/signout` は api が認めない access の cookie を残したまま送ってくるので、戻すと往復が止まらない）
 - 見出し「サインイン」、説明「管理画面に登録された Google アカウントでサインインしてください」
 - `<form action={startGoogleOAuth}>` に `redirect` を hidden で渡し、`GoogleSignInButton` を置く
 - `?error=` は `SIGN_IN_ERROR_MESSAGES` を `Object.hasOwn` で引き、`ui/alert/Alert`（`variant="error"`）で出す。知らない値は `auth_failed` の文言
@@ -210,6 +217,7 @@ export const config = {
 | --- | --- |
 | `not_admin` | このアカウントには管理画面の権限がありません |
 | `oauth_denied` | Google アカウントへのアクセスが拒否されました |
+| `session_expired` | セッションの有効期限が切れました。もう一度サインインしてください |
 | `state_mismatch` | セッションが切れました。もう一度お試しください |
 | `auth_failed` / その他 | サインインに失敗しました。もう一度お試しください |
 
@@ -322,10 +330,12 @@ pnpm dev
 | access token を別の鍵で作った値に書き換えて画面を開く（api が 401） | `/api/auth/signout` を経て `/signin` に送られ、cookie が消えている（`/signin` と画面の往復が起きない） |
 | 上と同じ状態で、ソースの編集の保存（Server Action） | 「保存に失敗しました」ではなく、サインイン画面に送られる |
 | 上と同じ状態で、ソースのフォームの「ライセンスを検出」 | 「サインインの期限が切れました…」が出て、入力は消えない |
+| 上と同じ状態で、外のサイトのリンクから画面を開く（cross-site） | `/signin?error=session_expired` で止まり、セッションの期限切れの文言が出る（`ERR_TOO_MANY_REDIRECTS` にならない） |
+| ソースの編集を開いたまま `admin_access_token`・`admin_refresh_token` を両方消し、保存（Server Action） | エラー画面（Something went wrong!）にならず、サインイン画面に送られる |
 | `NEXT_PUBLIC_APP_URL` を末尾に `/` を付けた値にして Google でサインイン | `redirect_uri` に `//` が入らず、戻り先も保たれる |
 | Google でサインイン（登録済みの email） | `/` に入れる。DB の `admins.name` / `avatar_url` / `last_signed_in_at` が更新される |
 | Google でサインイン（未登録の email） | `/signin?error=not_admin` で権限が無い旨が出る |
-| `pnpm --filter admin start`（production のビルド）で `/api/dev/login` | 404。サインイン画面に「dev admin でログイン」が出ない |
+| `pnpm --filter admin start`（production のビルド）で `/api/dev/login` | サインインしていなければ 401（proxy）、していれば 404（Route Handler）。サインイン画面に「dev admin でログイン」が出ない |
 
 Google を使う 3 つは、Google Cloud に `http://localhost:3030/api/auth/callback/google` を登録した後に手で確かめる。
 

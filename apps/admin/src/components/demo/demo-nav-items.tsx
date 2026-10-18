@@ -48,7 +48,7 @@ export const demoNavSection: NavSection = {
       icon: <PlugInIcon />,
       name: "Authentication",
       subItems: [
-        { name: "Sign In", path: "/signin" },
+        { name: "Sign In", path: "/demo/signin" },
         { name: "Sign Up", path: "/demo/signup" },
       ],
     },

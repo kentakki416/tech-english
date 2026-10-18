@@ -23,10 +23,9 @@ pnpm start        # 本番サーバー起動
 
 | 変数 | 必須 | デフォルト | 説明 |
 | --- | --- | --- | --- |
-| `ADMIN_API_TOKEN` | yes | - | api の `/api/admin/*` に `X-Admin-Token` として付ける共有シークレット（32 文字以上）。api の `ADMIN_API_TOKEN` と同じ値。`src/libs/api-client.ts` の外に出さない |
-| `ADMIN_BASIC_AUTH_PASSWORD` | yes | - | 画面全体の Basic 認証のパスワード（12 文字以上） |
-| `ADMIN_BASIC_AUTH_USER` | yes | - | 画面全体の Basic 認証のユーザー名 |
 | `API_URL` | no | `http://localhost:8080` | Express API の origin |
+| `GOOGLE_CLIENT_ID` | no | `dummy` | Google OAuth のクライアント ID。api の `GOOGLE_CLIENT_ID` と同じクライアント（web とも同じ） |
+| `NEXT_PUBLIC_APP_URL` | yes | - | admin 自身の URL（OAuth の redirect_uri と、サインイン後の戻り先の検査に使う）。末尾の `/` やパスは付いていてもよい（`src/libs/app-origin.ts` で origin にそろえる） |
 | `NODE_ENV` | no | `development` | `development` / `test` / `production` |
 
 値は `.env.local` に置き、**dotenvx で暗号化して git にコミットする**（api / web / cron / worker と同じ方式）。復号鍵は root の `.env.keys`（git 管理外）で、各 app の `.env.keys` はそこへの symlink。公開鍵は全 app で共有している。
@@ -38,13 +37,27 @@ pnpm start        # 本番サーバー起動
 cd apps/admin && pnpm exec dotenvx set API_URL "http://localhost:8080" -f .env.local
 ```
 
-## アクセス制御
+## 認証
 
-MVP の管理者は 1〜2 人なので、共有シークレットで保護する（設計は [question-generation の 管理画面のアクセス制御](../../docs/spec/question-generation/README.md#管理画面のアクセス制御)）。
+一般ユーザー（web）とは別の、admin 専用の認証。`admins` に email を登録した Google アカウントだけがサインインできる（流れは [`docs/onboarding/auth.md` の「admin の認証」](../../docs/onboarding/auth.md#admin-の認証)、設計は [admin-template](../../docs/spec/admin-template/README.md#admin-認証)）。
 
-- **画面**: `src/proxy.ts` が Basic 認証をかける（`_next/static`・`_next/image`・`favicon.svg`・`images/` 以外のすべて。モックの `/mock` も対象）。`images/`（`public/images` のテンプレートの静的画像）を除くのは、秘密を含まないうえ、next/image の最適化（`/_next/image`）がサーバーの内部から元の画像を認証なしで取得するため（Basic 認証をかけると最適化した画像が 401 で表示されない）。`ADMIN_BASIC_AUTH_USER` / `ADMIN_BASIC_AUTH_PASSWORD` が未設定なら誰も通さない（fail closed）。`src/env.ts` は `server-only` なので proxy からは使わず `process.env` を直接読む。比較は `src/libs/basic-auth.ts`（`node:crypto` を使わない定数時間比較）
-- **api**: `src/libs/api-client.ts` がすべてのリクエストに `X-Admin-Token: ADMIN_API_TOKEN` を付ける。トークンはブラウザに渡らない（Client Component の props やエラーに含めない）
-- ローカルの資格情報は `.env.local`（dotenvx で暗号化済み）に入っている。値は `pnpm exec dotenvx get ADMIN_BASIC_AUTH_PASSWORD -f .env.local` で確認する
+- **サインイン**: `/signin` の「Google でサインイン」（`app/(auth)/signin/actions.ts` の `startGoogleOAuth`）で Google に送り、`/api/auth/callback/google` が api の `/api/admin/auth/google` で code を検証して cookie に保存する。production 以外は「dev admin でログイン」（`/api/dev/login`。seed の `admin@dev.local` で入る）も出す。production の `/api/dev/login` は公開のパスではないので、サインインしていなければ proxy が 401、サインインしていれば Route Handler が 404 を返す
+- **cookie**: `admin_access_token` / `admin_refresh_token` / `admin_oauth_state` / `admin_oauth_redirect`（名前と属性は `src/libs/auth-cookies.ts`、読み書きは `src/libs/auth.ts`）。web の `app_*` とはポートが違っても同じホストなら共有されるので、名前を分けている
+- **`src/proxy.ts` は cookie の有無と期限（`exp`）しか見ない UX 用のガード。** 署名は api が確かめる。api を呼ばずに機密を描く画面を作らない（偽の cookie でも画面までは開ける）。`_next/static`・`_next/image`・`favicon.svg`・`images/` 以外のすべて（モックの `/mock` も）が対象で、サインインせずに開けるのは `PUBLIC_PATHS` だけ
+- **access token の更新（refresh）は `src/proxy.ts` だけが行う。** 期限まで 30 秒を切っているか無ければ `/api/admin/auth/refresh` を呼び、レスポンスとリクエストの cookie を書き換えて画面に渡す。`apiClient` は refresh しない（Server Component の中では cookie を書けず、セッションが切れる）
+- サインインが要るとき、画面は `/signin?redirect=...` に送る。**`/api/` の下の Route Handler は redirect せず 401 の JSON を返す**（ブラウザの `fetch` から呼ばれるため）。**Server Action は止めずに通す**（redirect すると Next.js のクライアントが扱えずエラー画面になる。token が無ければ api の 401 で `apiClient` がサインイン画面に送る）。そのため、**api を呼ばずに状態を変えたり機密を返したりする Server Action を作らない**。サインインせずに開ける画面・Route Handler は `PUBLIC_PATHS` に足す（公開のパスで token を更新するのはサインイン画面だけ）
+- **`apiClient` は api の 401 で `/api/auth/signout`（cookie を消してサインイン画面へ送る）に redirect する。** redirect は例外なので、**api の呼び出しを try/catch で囲むときは catch の先頭で `unstable_rethrow(error)` する**（入れないと、セッション切れが「保存に失敗しました」などの表示に化ける）。ブラウザの `fetch` から呼ばれる Route Handler は `apiClient.get(path, { onUnauthorized: "throw" })` で 401 を `ApiClientError` として受け、401 を返す（見本はライセンスの検出の `app/api/content-sources/license/route.ts`）
+- サインイン後の戻り先は `src/libs/safe-redirect.ts` の `resolveSafeRedirectPath` を必ず通す（外のサイトに飛ばさない）
+- ログアウトは `src/features/auth/auth.actions.ts` の `logoutAction`（ヘッダーのユーザーメニューの「Sign out」）
+- 認証の処理（proxy の refresh・Google の callback・ログアウト）の失敗は、`console.error` に HTTP の status と `src/libs/error-name.ts` の `getErrorName`（エラーの名前）だけを出す。token・code・cookie・email を含みうる message や応答の中身は出さない
+- **admin の登録**: 画面からは足せない。ローカルは seed が `admin@dev.local` を入れる。それ以外の email は `pnpm --filter @repo/db admin:create --email <email>`、本番は GitHub Actions の「Admin Create」（`docs/deploy/prd.md`）
+
+Google Cloud の OAuth クライアント（api・web と同じもの）の「承認済みのリダイレクト URI」に、admin の callback を足す。ローカルは Google でのサインインを試すときだけ要る（dev ログインには要らない）。
+
+| 環境 | redirect URI |
+| --- | --- |
+| ローカル | `http://localhost:3030/api/auth/callback/google` |
+| 各環境 | `{NEXT_PUBLIC_APP_URL の origin}/api/auth/callback/google` |
 
 ## API 接続の下地
 
@@ -63,8 +76,12 @@ admin は DB を直接触らず、必ず Express API を経由する。tech-engl
 
 | ファイル | 役割 |
 | --- | --- |
-| `src/env.ts` | `API_URL` / `ADMIN_API_TOKEN` / Basic 認証の資格情報を Zod で検証。`server-only`。`api-client.ts` から import され、API を呼ぶ画面の読み込み時に検証が走る |
-| `src/libs/api-client.ts` | `env.API_URL` を叩く `get` / `post` / `put` / `delete`。`X-Admin-Token` を付け、`!res.ok` なら `ApiClientError`（`status` / `body`）を投げる。204 は `undefined` を返す（JSON をパースしない）。`server-only` |
+| `src/env.ts` | `API_URL` / `GOOGLE_CLIENT_ID` / `NEXT_PUBLIC_APP_URL` / `NODE_ENV` を Zod で検証。`server-only`。proxy・`api-client.ts` などから import され、読み込み時に検証が走る |
+| `src/libs/api-client.ts` | `env.API_URL` を叩く `get` / `post` / `put` / `delete`。cookie の admin の access token を `Authorization: Bearer` で付ける。401 は `/api/auth/signout` に redirect（`get` に `{ onUnauthorized: "throw" }` を渡すと `ApiClientError`）、それ以外の `!res.ok` は `ApiClientError`（`status` / `body`）を投げる。204 は `undefined` を返す（JSON をパースしない）。`server-only` |
+| `src/libs/auth-cookies.ts` | 認証の cookie の名前と属性、`isAccessTokenExpiringSoon`（`exp` まで 30 秒を切ったか。署名は見ない）。proxy からも使うので `next/headers` を import しない |
+| `src/libs/auth.ts` | cookie の読み書き（`setAuthCookies` / `clearAuthCookies` / `getAccessToken` / `getRefreshToken`）。書き込みは Server Action と Route Handler からだけ。`server-only` |
+| `src/libs/safe-redirect.ts` | `resolveSafeRedirectPath`。サインイン後の戻り先を自分の origin の中のパスに限る（外を指すもの・解釈できないものは `/`） |
+| `src/libs/app-origin.ts` | `APP_ORIGIN`（`NEXT_PUBLIC_APP_URL` を origin にそろえた値）と `GOOGLE_REDIRECT_URI` |
 | `src/features/{feature}/{feature}.api.ts` | 機能ごとの API 呼び出し層（`server-only`）。レスポンスを `@repo/api-schema` のスキーマで parse して返す |
 | `src/libs/ui-classes.ts` | 入力欄・カード・ボタンの共通クラス（テンプレートと同じ見た目）。デザインモックの `mock/_components/ui.ts` と同じ値で、本番の画面はこちらを使う（`mock/` を import しない） |
 | `src/libs/date.ts` | 日時の表示の 1 か所。`formatDateTime`：日時（ISO 8601 の文字列か `Date`）を `2026-10-10 03:00` にする、`formatDate`：`2026-10-10`。既定のタイムゾーンは `appConfig.timeZone`（Server Component は UTC で動くため明示。`toLocaleString()` を直接使わない）。ユーザーの学習履歴はユーザーのタイムゾーンを渡す |
@@ -101,12 +118,9 @@ admin は DB を直接触らず、必ず Express API を経由する。tech-engl
 3. client component にデータが必要な場合は Server Component で取得して props で渡す。Zod のスキーマ（値）を client component で import すると bundle に入るので、選択肢などの値も Server Component から props で渡す
 4. 登録・更新は Server Action（`actions.ts`。先頭に `"use server"` と `import "server-only"`）。404 / 409 は `ApiClientError` の `status` で見分ける。フォームは `useActionState` を使い、`<form action>` ではなく `onSubmit` から `startTransition(() => formAction(formData))` で呼ぶ（`<form action>` だと React が送信後にフォームをリセットし、入力エラーのときに値が消える）
 5. 画面を開いた後に続きを読む（ユーザーの詳細の「さらに読み込む」など）ときも Server Action にする（admin の API はトークンが要り、ブラウザから直接呼べないため）。引数は API と同じスキーマで検証し、一時的な失敗は throw せずに失敗の結果で返す（throw すると error boundary に送られ、読み込んだ分ごと画面が消える）
+6. api の呼び出しを try/catch で囲むときは、catch の先頭で `unstable_rethrow(error)` する（api の 401 で `apiClient` が投げる redirect を通すため。[認証](#認証)）
 
 `@repo/*` のうち admin が import できるのは `@repo/api-schema` だけで、これは lint で強制している（`@repo/eslint-config/frontend-boundary`）。
-
-## ダミーモード
-
-API 側で `ADMIN_USE_DUMMY=true`（`apps/api/.env.local`）を設定すると DB なしでダミーデータが返るため、フロント開発時に活用する。
 
 ## 動作確認（必須）
 

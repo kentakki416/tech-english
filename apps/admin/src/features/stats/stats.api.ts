@@ -1,5 +1,7 @@
 import "server-only"
 
+import { unstable_rethrow } from "next/navigation"
+
 import {
   type AdminStatsPeriod,
   type GetAdminPassageStatsListResponse,
@@ -32,6 +34,7 @@ export const statsApi = {
       const raw = await apiClient.get<unknown>(`${BASE_PATH}/passage/${id}?period=${period}`)
       return getAdminPassageStatsResponseSchema.parse(raw)
     } catch (error) {
+      unstable_rethrow(error)
       if (error instanceof ApiClientError && error.status === 404) return null
       throw error
     }

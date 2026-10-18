@@ -1,5 +1,7 @@
 import "server-only"
 
+import { unstable_rethrow } from "next/navigation"
+
 import {
   type GetAdminUserAttemptsResponse,
   getAdminUserAttemptsResponseSchema,
@@ -28,6 +30,7 @@ const fetchOrNullOnNotFound = async <T>(path: string, parse: (raw: unknown) => T
   try {
     return parse(await apiClient.get<unknown>(path))
   } catch (error) {
+    unstable_rethrow(error)
     if (error instanceof ApiClientError && error.status === 404) return null
     throw error
   }
