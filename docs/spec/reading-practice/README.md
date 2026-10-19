@@ -18,6 +18,7 @@
 - [`../github-auth/README.md`](../github-auth/README.md) — すべての画面でログインが必要
 - [`../read-aloud/README.md`](../read-aloud/README.md) — 解答画面と結果画面の読み上げ（3 つめのアシスト）。`reading_attempts.listened_block_count` の意味の正本
 - [`../choice-sound/README.md`](../choice-sound/README.md) — 解答画面で選択肢を選んだときの効果音と、上部バーの効果音のボタン
+- [`../question-translation/README.md`](../question-translation/README.md) — 設問（設問文と選択肢）の和訳（4 つめのアシスト）。`reading_attempts.translated_question_count` の意味の正本
 - [`./deferred-assist-and-modes.md`](./deferred-assist-and-modes.md) — MVP 対象外。任意の文の翻訳、範囲選択の翻訳、厳格モード、ライトテーマ
 - **この spec が正本のもの**：`reading_attempts` / `attempt_answers` / `attempt_word_lookups` / `dictionary_entries`、`ATTEMPT_STATUSES` / `WORD_LOOKUP_SOURCES`
 
@@ -109,7 +110,7 @@
 | スコア | 正答数 / 設問数（例：`3 / 4`） |
 | 時間 | かかった時間 / 制限時間。超過していれば超過時間 |
 | 読む速さ | 英単語数 ÷ かかった時間（WPM。設問を解く時間を含む） |
-| アシストの使用 | 和訳を見た段落数、単語を調べた回数、読み上げを聞いた段落数（[read-aloud](../read-aloud/README.md#使える場面とアシストの扱い)） |
+| アシストの使用 | 和訳を見た段落数、和訳を出した設問の数（[question-translation](../question-translation/README.md#アシストとしての記録)）、単語を調べた回数、読み上げを聞いた段落数（[read-aloud](../read-aloud/README.md#使える場面とアシストの扱い)） |
 | 設問ごとの結果 | 自分の回答、正解、正誤、**解説（日本語）**、「本文の根拠を見る」 |
 | 調べた単語 | この挑戦で調べた単語と意味の一覧（復習用） |
 | 出典表示 | [content-collection の出典表示](../content-collection/README.md#出典表示) |
@@ -122,7 +123,7 @@
 
 ### アシスト
 
-解答中に使える補助は 3 種類。**アシストを使っても点数は変わらない** が、使用状況を記録して結果画面とマイページに出す（「アシストなしで正解できた」ことが分かるように）。
+解答中に使える補助は 4 種類。**アシストを使っても点数は変わらない** が、使用状況を記録して結果画面とマイページに出す（「アシストなしで正解できた」ことが分かるように）。
 
 **① 段落の和訳**
 
@@ -148,6 +149,13 @@
 
 - 本文を音声で読み上げ、読んでいる単語をハイライトする（全文・段落ごと、再生速度の変更）。読み上げを聞いた段落の数を記録する
 - 仕様の詳細は [read-aloud](../read-aloud/README.md)
+
+**④ 設問の和訳**
+
+- 設問パネル（mobile は設問シート）の「訳」で、設問文と選択肢の英文の下に和訳を出す。「文脈での語義」の設問は設問文だけ訳す（選択肢を訳すと答えが見えやすくなるため）
+- 全文訳・`T` キーには含めない。和訳の無い設問（設問の和訳より前に生成した問題）には「訳」を出さない
+- 和訳を一度でも出した設問の数を記録する
+- 仕様の詳細は [question-translation](../question-translation/README.md)
 
 ### 解答画面の要件
 
@@ -218,7 +226,7 @@ stateDiagram-v2
 
 ### 正解を提出前に渡さない
 
-| API | 本文・和訳・用語集 | 設問・選択肢 | 正解・解説・根拠 |
+| API | 本文・和訳・用語集 | 設問・選択肢（和訳を含む） | 正解・解説・根拠 |
 | --- | --- | --- | --- |
 | 挑戦の開始 / 解答中の取得 | ✅ | ✅ | ❌ |
 | 提出 / 提出済みの取得 | ✅ | ✅ | ✅ |
@@ -439,7 +447,7 @@ mobile（Expo）も同じ構成・配色にする。mobile だけの違い（段
 ├──────────────────────────────────────────────────┬───────────────────────────┤
 │   #   Synchronizing with Effects                 │ 設問  1•  2•  [3]  4      │ ← 段落番号の列 / 設問の番号（• は回答済み）
 │                                                  │───────────────────────────│
-│   1   Some components need to stay in sync       │ Q3                        │
+│   1   Some components need to stay in sync       │ Q3                   [訳] │ ← 設問の「訳」
 │  [訳] with systems that live outside of          │ In paragraph 1, the       │ ← 段落の「訳」（ホバーで表示）
 │       React, such as a browser API, a            │ phrase "escape hatch" is  │
 │       third-party widget, or a network ...       │ closest in meaning to     │
@@ -488,12 +496,13 @@ mobile（Expo）も同じ構成・配色にする。mobile だけの違い（段
 **設問パネル**（`surface`、左に枠線）
 
 - 上部に設問の番号。現在の設問は `raised` の塗りと枠、回答済みは番号の下に琥珀の点
+- 設問番号（`Q3`）の行の右に設問の「訳」（段落の「訳」と同じ見た目で、常に出す）。押すと設問文と各選択肢の英文の下に和訳を出す（IBM Plex Sans JP、英文より小さく `fg-muted`）。和訳の無い設問には出さない（[question-translation](../question-translation/README.md#解答画面での見せ方)）
 - 設問文（Literata 17px）と選択肢 4 つ。選択肢は A〜D の小さな箱つきで、選ぶと琥珀の枠・淡い琥珀の背景・箱が琥珀の塗りになり、効果音（ポキン）が鳴る（鳴らす条件は [choice-sound](../choice-sound/README.md#鳴らすとき)）
 - 下部に「前の設問」「次の設問」（キーキャップ `K` / `J` つき）
 
 **ステータスバー**（1024px 以上、高さ 32px）
 
-- 左：状態（読解中は琥珀の点、一時停止中は灰、時間超過はローズ）、英単語数、回答数、和訳を見た段落の数、単語を調べた回数
+- 左：状態（読解中は琥珀の点、一時停止中は灰、時間超過はローズ）、英単語数、回答数、和訳を見た段落の数、単語を調べた回数、和訳を出した設問の数（「設問訳 N 問」）
 - 右：キーボード操作の一覧（`T` 全文訳、`J` `K` 設問、`⌘` `↵` 提出、`?` ショートカット）。`?` は押すと一覧のダイアログを出す
 
 #### 単語のカード
@@ -654,8 +663,8 @@ mobile（Expo）も同じ構成・配色にする。mobile だけの違い（段
 - **正誤のマス**：設問の数だけ並べ、180ms 後から 140ms 間隔で順に灯る（結果画面で唯一の演出）。正解はミントの塗り、不正解はローズの枠
 - **スコア**：`3 / 4`（34px）と「問正解」
 - **かかった時間**：`5:12 ／ 制限 5:30`。時間のバーは制限時間の 1.25 倍までを全幅とし、制限時間の位置に縦線を引く。超過したら横に「1:12 超過」のバッジを出し、バーをローズにする
-- **読む速さ**：WPM と「設問を解く時間を含む」の注記。**アシストの使用**：和訳を見た段落の数、単語を調べた回数
-- **設問ごとの結果**：番号・種類のバッジ・正誤を並べた行。不正解の設問は最初から開き、正解の設問は閉じておく（行を押すと開閉）。開くと設問文、選択肢（正解はミントの枠と「正解」、あなたの回答は「あなたの回答」。誤りならローズの枠）、解説、「本文の根拠を見る」
+- **読む速さ**：WPM と「設問を解く時間を含む」の注記。**アシストの使用**：和訳を見た段落の数、和訳を出した設問の数、単語を調べた回数
+- **設問ごとの結果**：番号・種類のバッジ・正誤を並べた行。不正解の設問は最初から開き、正解の設問は閉じておく（行を押すと開閉）。開くと設問文（右に設問の「訳」。解答画面と同じく英文の下に和訳を出し、記録はしない）、選択肢（正解はミントの枠と「正解」、あなたの回答は「あなたの回答」。誤りならローズの枠）、解説、「本文の根拠を見る」
 - **正解の修正の注記**：提出後に正解が直されて正誤と食い違う設問（`is_answer_key_changed`）は、選択肢の下に「提出後にこの設問の正解が修正されました（正誤は提出したときの採点のままです）」を補足の文字（`text-xs`・`fg-muted`。本文の列の上の説明と同じ形）で出す。正誤のマス・スコア・行の「正解 / 不正解」は提出時の値のまま
 - **本文の根拠を見る**：押すと本文の該当箇所を琥珀の背景と枠でハイライトし、その段落を画面の中央までスクロールする。押した設問のボタンは「本文で根拠を表示中」になる。最初は最初の不正解の設問の根拠をハイライトしておく
 - **本文**：解答画面と同じ部品。単語のカードと段落の和訳も使える。語義設問の対象語句も、ここでは用語集の意味を出す
@@ -712,7 +721,7 @@ mobile（Expo）は上の「スマホ幅（1024px 未満）」と同じ構成で
 - **段落を長押しすると、押している間だけ和訳を重ねて表示** し、指を離すと英文に戻る。英文の要素は残したまま上に和訳を重ねる（英文を差し替えると押している要素が消えて、指を離したことを検知できなくなるため）。長押しが成立したら軽く振動する
 - 単語のタップは入れ子の `<Text onPress>`。長押しは単語の上でも段落の和訳になる（単語の `onLongPress` から段落の長押しとして扱う）
 - 単語のカードは画面の下端（設問シートの上）に全幅で出す
-- 設問シートは上の「スマホ幅」と同じ（閉じた状態は高さ 60px、開くと画面の 78%、「提出する」はシートの中）
+- 設問シートは上の「スマホ幅」と同じ（閉じた状態は高さ 60px、開くと画面の 78%、「提出する」はシートの中）。設問の「訳」も同じ
 - 一時停止は本文と設問を覆い隠す全面の表示、提出の確認は OS のモーダルの上のダイアログ（「提出する」を上、「戻って回答する」を下に縦に並べる）
 - 本文の下に「段落を長押しすると、押している間だけ和訳を表示します。」のヒント
 
@@ -747,7 +756,7 @@ mobile（Expo）は上の「スマホ幅（1024px 未満）」と同じ構成で
 | GET | `/api/passage/:id` | 開始確認用の概要（本文は含まない）。`can_start`（新しく始められるか）と期限内の挑戦中を付ける。公開中でない問題は、自分の期限内の挑戦中があるときだけ `can_start: false` で返し（再開の入口。制限時間は挑戦の開始時点の値）、無ければ 404 |
 | POST | `/api/passage/:id/attempt` | 挑戦の開始。挑戦中のものがあればそれを返す。レスポンス：挑戦 ID、`started_at`、`server_now`、制限時間、本文（セグメント・和訳）、用語集、設問と選択肢（正解なし）、出典 |
 | GET | `/api/attempt/:id` | 自分の挑戦を取得。`in_progress` なら開始時と同じ形、`submitted` なら結果の形（各設問に、提出後に正解が直されたかを示す `is_answer_key_changed`） |
-| POST | `/api/attempt/:id/submit` | 提出。`answers[]`（`question_id`, `selected_choice_index | null`）、`active_seconds`、`translated_block_count`、`listened_block_count`（[read-aloud](../read-aloud/README.md)）、`word_lookups[]`（`surface`, `lemma`, `source`, `glossary_entry_id`）。レスポンスは結果（正解・解説・根拠を含む）。冪等 |
+| POST | `/api/attempt/:id/submit` | 提出。`answers[]`（`question_id`, `selected_choice_index | null`）、`active_seconds`、`translated_block_count`、`translated_question_count`（[question-translation](../question-translation/README.md)）、`listened_block_count`（[read-aloud](../read-aloud/README.md)）、`word_lookups[]`（`surface`, `lemma`, `source`, `glossary_entry_id`）。レスポンスは結果（正解・解説・根拠を含む）。冪等 |
 | GET | `/api/dictionary?word=` | 英和辞書の検索。見つからなければ 404 |
 
 いずれも認証必須。他人の挑戦 ID を指定したら 404（存在を明かさない）。挑戦の開始・提出は、ユーザーが存在しない（アカウント削除済みで access token だけ残っている）場合に 401 を返す（[github-auth](../github-auth/README.md#アカウント削除の処理)）。
@@ -762,7 +771,7 @@ web 側の Next.js Route Handler：
 
 | テーブル | 主要カラム | 説明 |
 | --- | --- | --- |
-| `reading_attempts` | `id`, `user_id`, `passage_id`, `status`, `started_at`, `submitted_at`, `time_limit_seconds`, `elapsed_seconds`, `is_overtime`, `question_count`, `correct_count`, `translated_block_count`, `word_lookup_count`, `listened_block_count`, `study_date` | 挑戦。提出時に採点結果と時間を入れる。`listened_block_count` は [read-aloud](../read-aloud/README.md) が足す |
+| `reading_attempts` | `id`, `user_id`, `passage_id`, `status`, `started_at`, `submitted_at`, `time_limit_seconds`, `elapsed_seconds`, `is_overtime`, `question_count`, `correct_count`, `translated_block_count`, `translated_question_count`, `word_lookup_count`, `listened_block_count`, `study_date` | 挑戦。提出時に採点結果と時間を入れる。`listened_block_count` は [read-aloud](../read-aloud/README.md)、`translated_question_count` は [question-translation](../question-translation/README.md) が足す |
 | `attempt_answers` | `id`, `attempt_id`, `question_id`, `selected_choice_index`, `is_correct` | 設問ごとの回答と正誤（提出時点の正誤を固定して保存） |
 | `attempt_word_lookups` | `id`, `attempt_id`, `user_id`, `passage_id`, `surface`, `lemma`, `source`, `glossary_entry_id` | 調べた単語。結果画面の一覧と、将来の単語帳・単語問題に使う |
 | `dictionary_entries` | `id`, `headword`, `meaning_ja` | 英和辞書（EJDict-hand） |
@@ -788,6 +797,7 @@ erDiagram
         smallint question_count "nullable"
         smallint correct_count "nullable"
         smallint translated_block_count "default 0"
+        smallint translated_question_count "default 0"
         smallint word_lookup_count "default 0"
         smallint listened_block_count "default 0（read-aloud）"
         date study_date "提出時のユーザーの TZ での日付, nullable"

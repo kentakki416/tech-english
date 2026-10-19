@@ -14,6 +14,7 @@ LLM が作った設問は、正解が誤っていたり、選択肢が本文と�
 - [`../product-overview/README.md`](../product-overview/README.md) — プロダクト全体像
 - [`../content-collection/README.md`](../content-collection/README.md) — 本文候補（`status = collected` の `passages`）を作る
 - [`../reading-practice/README.md`](../reading-practice/README.md) — 公開された問題を解く。和訳と単語の意味をアシストで使う
+- [`../question-translation/README.md`](../question-translation/README.md) — 設問（設問文と選択肢）の和訳。生成・admin での修正・公開の条件
 - **この spec が正本のもの**：`passages` / `questions` / `passage_glossary_entries` の列定義、`PassageBlock` の型、`PASSAGE_STATUSES` / `PASSAGE_DIFFICULTIES` / `PASSAGE_BLOCK_TYPES` / `QUESTION_TYPES`、制限時間の計算式
 
 ## 目次
@@ -60,6 +61,7 @@ LLM が作った設問は、正解が誤っていたり、選択肢が本文と�
 | 制限時間 | 計算式（管理者が修正可） | [後述](#難易度と制限時間) |
 | 設問 | LLM（管理者が修正可） | 3〜5 問の 4 択。正解・解説・根拠つき。「文脈での語義」の設問は対象の語句も持つ |
 | 段落ごとの和訳 | LLM（管理者が修正可） | コード以外の全ブロック |
+| 設問の和訳 | LLM（管理者が修正可） | 設問文と選択肢。「文脈での語義」の設問は設問文だけ（[question-translation](../question-translation/README.md#和訳を付けるもの)） |
 | 単語の意味（用語集） | LLM（管理者が修正可） | 本文中の難しい単語・熟語と、**この文脈での** 意味 |
 
 ### 設問のルール
@@ -84,7 +86,7 @@ LLM が作った設問は、正解が誤っていたり、選択肢が本文と�
 
 **形式**：
 
-- 設問文と選択肢は **英語**、解説は **日本語**
+- 設問文と選択肢は **英語**、解説は **日本語**。設問文と選択肢には和訳も付ける（[question-translation](../question-translation/README.md)）
 - 選択肢はちょうど 4 つで、正解は 1 つだけ
 - 誤りの選択肢は「本文を読まないと誤りだと分からない」もっともらしいものにする。"All of the above" / "None of the above" は使わない
 - 正解の位置（A〜D）は偏らないようにする
@@ -167,7 +169,7 @@ stateDiagram-v2
 
 - 下書きの一覧を見る（**要確認の印が付いたものを先頭に**、次に古い順）
 - 下書きをユーザーが見るのと同じ見た目でプレビューする（和訳の切り替え、用語集のハイライトを含む）
-- 下書きを修正する：タイトル、難易度、制限時間（計算式で再計算するボタンあり）、本文の英文の軽微な修正、和訳、設問（設問文・選択肢・正解・解説・根拠）、用語集（追加・修正・削除）
+- 下書きを修正する：タイトル、難易度、制限時間（計算式で再計算するボタンあり）、本文の英文の軽微な修正、和訳、設問（設問文・選択肢・それぞれの和訳・正解・解説・根拠）、用語集（追加・修正・削除）
 - 公開する。公開前に [公開の条件](#出力の検証と後処理) を満たしているかを検査し、満たしていなければ公開できない
 - 却下する（理由を入力）
 - 却下を取り消す（誤って却下したとき。生成した設問があれば内容を残したまま下書きに、無ければ（LLM が不向きと判定したもの）生成待ちに戻す）
@@ -249,7 +251,7 @@ type PassageBlock = {
 | --- | --- |
 | `isSuitable` / `unsuitableReason` | 題材として不向きか（目次だけ、ライセンス文、コード主体、文脈が切れていて意味が通らない等） |
 | `difficulty` | 1〜3 |
-| `questions[]` | `type` / `prompt` / `choices[4]` / `correctChoiceIndex` / `explanationJa` / `evidence: { blockIndex, quote }` / `vocabularyTarget?: { blockIndex, surface }`（`vocabulary` のときだけ） |
+| `questions[]` | `type` / `prompt` / `promptJa` / `choices[4]` / `choicesJa[4]`（`vocabulary` のときだけ null） / `correctChoiceIndex` / `explanationJa` / `evidence: { blockIndex, quote }` / `vocabularyTarget?: { blockIndex, surface }`（`vocabulary` のときだけ） |
 | `translations[]` | `{ blockIndex, translationJa }`（コード以外の全ブロック） |
 | `glossary[]` | `{ blockIndex, surface, lemma, meaningJa, partOfSpeech, noteJa? }` |
 
@@ -274,7 +276,7 @@ LLM の出力を保存する前に、コードで以下を検査・加工する�
 | コード以外の全ブロックに和訳がある | 同上 |
 | 用語集の `surface` を該当ブロックから検索し、文字位置を求める | 見つからない語句は捨てる（ログに出す） |
 | `vocabulary` の設問の対象語句が用語集にあり、紐づけられる | 用語集に無ければ対象語句から用語集の項目を作って紐づける。本文に見つからなければ要確認の印を付ける |
-| **選択肢をシャッフルして正解の位置を無作為にする** | ― |
+| **選択肢をシャッフルして正解の位置を無作為にする**（選択肢の和訳も同じ順に並べ替える） | ― |
 | 制限時間を計算式で求める | ― |
 
 選択肢をコードでシャッフルするのは、LLM が正解を特定の位置（B や C）に置きがちなため。
@@ -282,6 +284,7 @@ LLM の出力を保存する前に、コードで以下を検査・加工する�
 公開時（`POST /api/admin/passage/:id/publish`）も同じ検査を api で行い、1 つでも不合格なら 400 で公開を拒否する（管理者の修正で壊れた場合を防ぐ）。公開の条件：
 
 - 設問数が 3〜5、各設問の設問文あり・選択肢が 4 つ・重複なし・正解あり・解説あり（空白だけの設問文・解説は空とみなす）
+- 各設問に設問文の和訳があり、`vocabulary` 以外は選択肢 4 つとも和訳がある（[question-translation](../question-translation/README.md#admin-での修正と公開の条件)）
 - 各設問の根拠がブロックの本文に含まれる
 - コード以外の全ブロックに和訳がある
 - 用語集の全語句が、指しているブロックの位置に本文と同じ表記で存在し、文脈での意味がある（生成で語義設問の対象から足した、意味が空の項目を管理者が埋めずに公開しないように）
@@ -459,7 +462,7 @@ LLM の出力を保存する前に、コードで以下を検査・加工する�
 
 | タブ | 内容 |
 | --- | --- |
-| 設問（数） | 設問ごとの開閉できるカード。見出しに番号・種類・検証モデルとの食い違い（`warning` のバッジ「検証モデルは A を選択」）。開くと：種類、設問文（英語）、選択肢 4 つ（左のラジオで正解を選ぶ。検証モデルが選んだ選択肢の右に「検証モデルの回答」）、解説（日本語）、根拠の段落と引用（本文に見つかったかを表示）、語義設問なら対象の語句（用語集から選ぶ）、「この設問を削除」。**設問を開くとプレビューがその根拠までスクロールしてハイライトする**。末尾に「設問を追加」と目安の設問数 |
+| 設問（数） | 設問ごとの開閉できるカード。見出しに番号・種類・検証モデルとの食い違い（`warning` のバッジ「検証モデルは A を選択」）。開くと：種類、設問文（英語）と設問文（和訳）、選択肢 4 つ（左のラジオで正解を選ぶ。検証モデルが選んだ選択肢の右に「検証モデルの回答」。英語の下に和訳の入力。語義の設問は和訳の入力を出さず「語義の設問は選択肢を訳しません」と注記）、解説（日本語）、根拠の段落と引用（本文に見つかったかを表示）、語義設問なら対象の語句（用語集から選ぶ）、「この設問を削除」。**設問を開くとプレビューがその根拠までスクロールしてハイライトする**。末尾に「設問を追加」と目安の設問数 |
 | 和訳 | コード以外の全ブロック。ブロックの英文（2 行まで）と和訳のテキストエリア |
 | 用語集（数） | `DataTable`。列は語句（下に見出し語・品詞・段落、語義設問の対象なら `info` のバッジ）、文脈での意味（下に補足）、操作（編集・削除）。上に「語句を追加」 |
 | 本文 | ブロックごとの英文のテキストエリア（コードは等幅）。上に warning の囲み：修正は軽微なものに留める、保存時に用語集の位置を再計算し、根拠の引用が本文にあるかを検査する |
@@ -502,7 +505,7 @@ cron タスク：
 | テーブル | 主要カラム | 説明 |
 | --- | --- | --- |
 | `passages` | `id`, `source_document_id`, `source_path`, `source_commit_sha`, `source_retrieved_at`, `status`, `title`, `blocks(jsonb)`, `word_count`, `content_hash`, `difficulty`, `time_limit_seconds`, 生成の記録, 確認の記録 | 本文候補 / 問題。状態で一生を表す |
-| `questions` | `id`, `passage_id`, `order_index`, `type`, `prompt`, `choices(jsonb)`, `correct_choice_index`, `explanation_ja`, `evidence_block_index`, `evidence_quote`, `target_glossary_entry_id`, `verification_choice_index` | 設問 |
+| `questions` | `id`, `passage_id`, `order_index`, `type`, `prompt`, `prompt_ja`, `choices(jsonb)`, `choices_ja(jsonb)`, `correct_choice_index`, `explanation_ja`, `evidence_block_index`, `evidence_quote`, `target_glossary_entry_id`, `verification_choice_index` | 設問 |
 | `passage_glossary_entries` | `id`, `passage_id`, `block_index`, `start_offset`, `end_offset`, `surface`, `lemma`, `meaning_ja`, `part_of_speech`, `note_ja` | 用語集（単語の文脈での意味） |
 
 ```mermaid
@@ -544,7 +547,9 @@ erDiagram
         smallint order_index
         text type "QUESTION_TYPES"
         text prompt "英語"
+        text prompt_ja "和訳, nullable"
         jsonb choices "string[4]"
+        jsonb choices_ja "string[4], vocabulary は NULL, nullable"
         smallint correct_choice_index "0-3"
         text explanation_ja
         int evidence_block_index
@@ -573,6 +578,7 @@ erDiagram
 - `source_path` / `source_commit_sha` / `source_retrieved_at` を `passages` にも持つのは、`source_documents` が次回の収集で最新の状態に上書きされるため。問題は取得した時点（GitHub はコミットのパーマリンク、サイトは取得日）を指し続ける必要がある（[出典表示](../content-collection/README.md#出典表示)）
 - `passages.status` は `PASSAGE_STATUSES`、`difficulty` は `PASSAGE_DIFFICULTIES`、`questions.type` は `QUESTION_TYPES` から CHECK 制約を作る
 - `questions (passage_id, order_index)` は unique
+- `questions.prompt_ja` / `choices_ja` の NULL は「和訳が無い」（設問の和訳より前に生成した設問）。`choices_ja` は `choices` と同じ順で、CHECK 制約 `questions_choices_ja_check`（`choices_ja IS NULL OR type <> 'vocabulary'`）で語義の設問には持たせない（[question-translation](../question-translation/README.md#データの持ち方)）
 - index：`passages (status, created_at)`（生成タスクの取得と一覧）、`passage_glossary_entries (passage_id)`、`passage_glossary_entries (lemma)`（将来の単語問題で語彙を横断して引くため）
 - `questions` / `passage_glossary_entries` は `passages` の削除で cascade。ただし `passages` は物理削除しない（挑戦記録が参照するため）
 
