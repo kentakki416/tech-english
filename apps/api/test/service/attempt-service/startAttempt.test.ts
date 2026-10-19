@@ -103,31 +103,31 @@ describe("startAttempt", () => {
       ])
       expect(view.blocks[3]?.segments).toEqual([])
       expect(view.blocks[4]?.segments).toEqual([
-        { kind: "word", text: "You" },
+        { canLookUp: false, kind: "word", text: "You" },
         { kind: "space", text: " " },
-        { kind: "word", text: "can" },
+        { canLookUp: false, kind: "word", text: "can" },
         { kind: "space", text: " " },
-        { glossaryEntryId: 103, kind: "word", text: "opt out of" },
+        { canLookUp: true, glossaryEntryId: 103, kind: "word", text: "opt out of" },
         { kind: "space", text: " " },
-        { kind: "word", text: "re-running" },
+        { canLookUp: true, kind: "word", text: "re-running" },
         { kind: "space", text: " " },
-        { kind: "word", text: "an" },
+        { canLookUp: false, kind: "word", text: "an" },
         { kind: "space", text: " " },
-        { kind: "word", text: "Effect" },
+        { canLookUp: true, kind: "word", text: "Effect" },
         { kind: "space", text: " " },
-        { kind: "word", text: "by" },
+        { canLookUp: false, kind: "word", text: "by" },
         { kind: "space", text: " " },
-        { kind: "word", text: "specifying" },
+        { canLookUp: true, kind: "word", text: "specifying" },
         { kind: "space", text: " " },
-        { kind: "word", text: "a" },
+        { canLookUp: false, kind: "word", text: "a" },
         { kind: "space", text: " " },
-        { kind: "word", text: "dependency" },
+        { canLookUp: true, kind: "word", text: "dependency" },
         { kind: "space", text: " " },
-        { kind: "word", text: "array" },
+        { canLookUp: true, kind: "word", text: "array" },
         { kind: "punct", text: "." },
       ])
       expect(view.blocks[1]?.segments).toEqual(
-        expect.arrayContaining([{ kind: "word", text: "escape" }, { kind: "word", text: "hatch" }]),
+        expect.arrayContaining([{ canLookUp: true, kind: "word", text: "escape" }, { canLookUp: true, kind: "word", text: "hatch" }]),
       )
       expect(view.glossary.map((entry) => entry.id)).toEqual([101, 103])
       expect(view.questions).toEqual(EXPECTED_QUESTIONS)
@@ -135,6 +135,54 @@ describe("startAttempt", () => {
       expect(serialized).not.toContain("correctChoiceIndex")
       expect(serialized).not.toContain("explanationJa")
       expect(serialized).not.toContain("evidence")
+    })
+
+    it("用語集の語句はほかの段落の同じ表記も glossaryEntryId を持ち、語義設問の対象語句（escape hatch）はほかの段落でも普通の単語になる", async () => {
+      const blocks = buildAttemptContent().passage.blocks.map((block, index) =>
+        index === 2 ? { ...block, text: "Use an escape hatch only when you need to stay in sync with a server." } : block,
+      )
+      passageRepository.findAttemptContentById.mockResolvedValue(buildAttemptContent({ blocks }))
+      readingAttemptRepository.findAliveInProgress.mockResolvedValue(buildAttempt())
+
+      const view = extractView(await startAttempt(INPUT, repo))
+
+      expect(view.blocks.map((block) => block.segments.flatMap((segment) => segment.glossaryEntryId ?? []))).toEqual([
+        [],
+        [101],
+        [101],
+        [],
+        [103],
+      ])
+      expect(view.blocks[2]?.segments).toEqual(
+        expect.arrayContaining([{ canLookUp: true, kind: "word", text: "escape" }, { canLookUp: true, kind: "word", text: "hatch" }]),
+      )
+    })
+
+    it("語義設問の対象語句と表記が同じ別の項目も用語集から外し、対象語句の位置に意味が出ない", async () => {
+      const content = buildAttemptContent()
+      const blocks = content.passage.blocks.map((block, index) =>
+        index === 2 ? { ...block, text: "Use an escape hatch only when you need it." } : block,
+      )
+      const target = content.glossary.find((entry) => entry.id === 102)
+      if (!target) throw new Error("Expected glossary entry 102")
+      const sameSurfaceEntry = { ...target, id: 104, blockIndex: 2, endOffset: 19, startOffset: 7 }
+      passageRepository.findAttemptContentById.mockResolvedValue({
+        ...content,
+        glossary: [...content.glossary, sameSurfaceEntry],
+        passage: { ...content.passage, blocks },
+      })
+      readingAttemptRepository.findAliveInProgress.mockResolvedValue(buildAttempt())
+
+      const view = extractView(await startAttempt(INPUT, repo))
+
+      expect(view.blocks.map((block) => block.segments.flatMap((segment) => segment.glossaryEntryId ?? []))).toEqual([
+        [],
+        [101],
+        [],
+        [],
+        [103],
+      ])
+      expect(view.glossary.map((entry) => entry.id)).toEqual([101, 103])
     })
 
     it("期限内の挑戦中があれば isCreated: false でそれを返し（制限時間は開始時点の値）、挑戦中を作らない", async () => {

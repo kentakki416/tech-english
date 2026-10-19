@@ -1,9 +1,15 @@
-import type { GlossaryEntry, PassageBlock, PassageSegmentKind } from "@repo/domain"
+import { findSurfaceRanges, type GlossaryEntry, type PassageBlock, type PassageSegmentKind } from "@repo/domain"
+
+import { findLookupTargetRanges } from "./part-of-speech"
 
 /**
  * 本文のセグメント（reading-practice README「本文のトークン化」）。API の snake_case への変換は Controller で行う
  */
 export type PassageSegment = {
+  /**
+   * kind が word のときだけ。押して意味を引けるか（名詞・動詞と用語集の語句は true）
+   */
+  canLookUp?: boolean
   /**
    * 用語集の語句のときだけ（熟語も 1 つのセグメント）
    */
@@ -23,7 +29,7 @@ export type SegmentWithRange = PassageSegment & { end: number; start: number }
 /**
  * セグメント分割に使う用語集の列。位置は PassageBlock.text（バッククォートを含む）上の UTF-16 の index で [startOffset, endOffset)
  */
-export type GlossarySpan = Pick<GlossaryEntry, "blockIndex" | "endOffset" | "id" | "startOffset">
+export type GlossarySpan = Pick<GlossaryEntry, "blockIndex" | "endOffset" | "id" | "startOffset" | "surface">
 
 type TextRange = { end: number; start: number }
 
@@ -44,6 +50,11 @@ const isOverlapping = (left: TextRange, right: TextRange): boolean => left.start
 
 const findInlineCodeRanges = (text: string): TextRange[] =>
   [...text.matchAll(INLINE_CODE_PATTERN)].map((match) => ({ end: match.index + match[0].length, start: match.index }))
+
+/**
+ * インラインコードを同じ長さの X と空白に置き換える。品詞の判定で、位置をずらさず文の形を保つため
+ */
+const maskInlineCode = (text: string): string => text.replace(INLINE_CODE_PATTERN, (code) => `X${" ".repeat(code.length - 1)}`)
 
 /**
  * 分割に使う用語集を選ぶ。範囲外・インラインコードと重なるものは捨て、用語集どうしが重なったら開始が早い方（同じなら長い方）を残す
@@ -67,12 +78,19 @@ const selectGlossarySpans = (text: string, glossary: GlossarySpan[], codeRanges:
 }
 
 /**
- * インラインコードと用語集以外の部分 [start, end) を単語・空白・記号に分ける
+ * インラインコードと用語集以外の部分 [start, end) を単語・空白・記号に分ける。
+ * 単語は、押して意味を引ける品詞のトークン（lookupTargetRanges）と重なれば押せる（`third-party` は `party` が名詞なので押せる）
  */
-const tokenizePlainText = (text: string, start: number, end: number): SegmentWithRange[] =>
+const tokenizePlainText = (text: string, start: number, end: number, lookupTargetRanges: TextRange[]): SegmentWithRange[] =>
   [...text.slice(start, end).matchAll(TOKEN_PATTERN)].map((match) => {
-    const kind: PassageSegmentKind = match[1] !== undefined ? "word" : match[2] !== undefined ? "space" : "punct"
-    return { end: start + match.index + match[0].length, kind, start: start + match.index, text: match[0] }
+    const segmentStart = start + match.index
+    const segmentEnd = segmentStart + match[0].length
+    if (match[1] !== undefined) {
+      const canLookUp = lookupTargetRanges.some((range) => isOverlapping(range, { end: segmentEnd, start: segmentStart }))
+      return { canLookUp, end: segmentEnd, kind: "word", start: segmentStart, text: match[0] }
+    }
+    const kind: PassageSegmentKind = match[2] !== undefined ? "space" : "punct"
+    return { end: segmentEnd, kind, start: segmentStart, text: match[0] }
   })
 
 /**
@@ -80,6 +98,7 @@ const tokenizePlainText = (text: string, start: number, end: number): SegmentWit
  */
 const segmentBlockText = (text: string, glossary: GlossarySpan[]): SegmentWithRange[] => {
   const codeRanges = findInlineCodeRanges(text)
+  const lookupTargetRanges = findLookupTargetRanges(maskInlineCode(text))
   const specialSegments: SegmentWithRange[] = [
     ...codeRanges.map((range): SegmentWithRange => ({
       end: range.end,
@@ -88,6 +107,7 @@ const segmentBlockText = (text: string, glossary: GlossarySpan[]): SegmentWithRa
       text: text.slice(range.start + 1, range.end - 1),
     })),
     ...selectGlossarySpans(text, glossary, codeRanges).map((entry): SegmentWithRange => ({
+      canLookUp: true,
       end: entry.endOffset,
       glossaryEntryId: entry.id,
       kind: "word",
@@ -99,19 +119,35 @@ const segmentBlockText = (text: string, glossary: GlossarySpan[]): SegmentWithRa
   const segments: SegmentWithRange[] = []
   let cursor = 0
   for (const segment of specialSegments) {
-    segments.push(...tokenizePlainText(text, cursor, segment.start), segment)
+    segments.push(...tokenizePlainText(text, cursor, segment.start, lookupTargetRanges), segment)
     cursor = segment.end
   }
-  segments.push(...tokenizePlainText(text, cursor, text.length))
+  segments.push(...tokenizePlainText(text, cursor, text.length, lookupTargetRanges))
   return segments
 }
 
 /**
- * 本文の全ブロックをセグメントに分ける。ブロックごとに、そのブロックの用語集だけを使う。code のブロックは []
+ * ブロックの用語集の位置。保存してある位置（そのブロックの項目）と、すべての項目の同じ表記のほかの出現（語の境界で区切られたもの。
+ * ほかのブロックの項目も含む）を返す。保存してある位置と重なる出現は外す（保存してある項目が本文のどこからも押せなくならないように、
+ * 保存してある位置を常に優先する）。ほかの重なりは selectGlossarySpans が 1 つにする
+ */
+const collectGlossaryOccurrences = (text: string, blockIndex: number, glossary: GlossarySpan[]): GlossarySpan[] => {
+  const storedSpans = glossary.filter((entry) => entry.blockIndex === blockIndex)
+  const otherOccurrences = glossary.flatMap((entry) =>
+    findSurfaceRanges(text, entry.surface)
+      .map((range) => ({ end: range.endOffset, start: range.startOffset }))
+      .filter((range) => !storedSpans.some((stored) => isOverlapping(range, { end: stored.endOffset, start: stored.startOffset })))
+      .map((range) => ({ ...entry, blockIndex, endOffset: range.end, startOffset: range.start })),
+  )
+  return [...storedSpans, ...otherOccurrences]
+}
+
+/**
+ * 本文の全ブロックをセグメントに分ける。code のブロックは []
  */
 export const segmentPassage = (blocks: PassageBlock[], glossary: GlossarySpan[]): SegmentWithRange[][] =>
   blocks.map((block, blockIndex) =>
-    block.type === "code" ? [] : segmentBlockText(block.text, glossary.filter((entry) => entry.blockIndex === blockIndex)),
+    block.type === "code" ? [] : segmentBlockText(block.text, collectGlossaryOccurrences(block.text, blockIndex, glossary)),
   )
 
 /**

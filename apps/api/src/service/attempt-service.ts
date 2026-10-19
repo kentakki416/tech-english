@@ -203,8 +203,12 @@ const buildPassageView = (passage: Passage): AttemptPassageView => {
 /**
  * セグメントから位置を外す（位置は根拠のハイライトの計算に使い、レスポンスには出さない）
  */
-const stripSegmentRange = ({ glossaryEntryId, kind, text }: SegmentWithRange): PassageSegment =>
-  glossaryEntryId === undefined ? { kind, text } : { glossaryEntryId, kind, text }
+const stripSegmentRange = ({ canLookUp, glossaryEntryId, kind, text }: SegmentWithRange): PassageSegment => ({
+  ...(canLookUp === undefined ? {} : { canLookUp }),
+  ...(glossaryEntryId === undefined ? {} : { glossaryEntryId }),
+  kind,
+  text,
+})
 
 /**
  * 本文のブロック（セグメントは位置を外して出す）
@@ -245,7 +249,8 @@ const buildQuestionView = (question: Question): AttemptQuestionView => ({
 })
 
 /**
- * 解答中の形。語義設問の対象語句を用語集から外してからセグメントに分けるので、その語句は普通の単語になる（押すと辞書を引く）
+ * 解答中の形。語義設問の対象語句を用語集から外してからセグメントに分けるので、その語句はどの出現も普通の単語になる（押すと辞書を引く）。
+ * 対象の項目と表記が同じ別の項目も外す（残すと、その項目のほかの出現として対象語句の位置にも意味が出るため）
  */
 const buildInProgressView = (attempt: ReadingAttempt, content: AttemptContent, now: Date): InProgressAttemptView => {
   /**
@@ -254,7 +259,8 @@ const buildInProgressView = (attempt: ReadingAttempt, content: AttemptContent, n
   const hiddenGlossaryEntryIds = new Set(
     content.questions.flatMap((question) => (question.targetGlossaryEntryId === null ? [] : [question.targetGlossaryEntryId])),
   )
-  const glossary = content.glossary.filter((entry) => !hiddenGlossaryEntryIds.has(entry.id))
+  const hiddenSurfaces = new Set(content.glossary.filter((entry) => hiddenGlossaryEntryIds.has(entry.id)).map((entry) => entry.surface))
+  const glossary = content.glossary.filter((entry) => !hiddenSurfaces.has(entry.surface))
   const { blocks } = content.passage
 
   return {

@@ -12,6 +12,7 @@ api の本文の分割で、wink-nlp で品詞を判定して単語のセグメ�
 | `apps/api/src/lib/part-of-speech.ts`（新規） | `findLookupTargetRanges(text)`：名詞・固有名詞・動詞のトークンの位置 |
 | `packages/domain/src/rules/passage-text.ts` | `findSurfaceRanges(text, surface)`：語の境界で区切られたすべての出現 |
 | `apps/api/src/lib/segment-passage.ts` | 単語の `canLookUp`、用語集のすべての出現 |
+| `apps/api/src/service/attempt-service.ts` | `stripSegmentRange` で `canLookUp` を残す、語義の設問の対象語句と表記が同じ項目も解答中は外す |
 | `apps/api/src/controller/attempt/mapper.ts` | セグメントの `can_look_up` |
 | `packages/schema/src/api-schema/attempt.ts` | `passageSegmentSchema` に `can_look_up` |
 | `docs/spec/reading-practice/README.md` | 本文のトークン化に `can_look_up` と用語集のすべての出現 |
@@ -27,24 +28,21 @@ api は `module: node16`（CommonJS）なので、両方とも `require` で読�
 ### `src/lib/part-of-speech.ts`
 
 ```ts
-import winkNLP from "wink-nlp"
 import model from "wink-eng-lite-web-model"
+import winkNLP from "wink-nlp"
 
 const LOOKUP_TARGET_TAGS = new Set(["NOUN", "PROPN", "VERB"])
-
-const INLINE_CODE_PATTERN = /`[^`\n]+`/g
 
 const nlp = winkNLP(model)
 
 export const findLookupTargetRanges = (text: string): { end: number; start: number }[] => {
-  const masked = text.replace(INLINE_CODE_PATTERN, (code) => `X${" ".repeat(code.length - 1)}`)
-  const tokens = nlp.readDoc(masked).tokens()
+  const tokens = nlp.readDoc(text).tokens()
   const values = tokens.out(nlp.its.value)
   const tags = tokens.out(nlp.its.pos)
   const ranges: { end: number; start: number }[] = []
   let cursor = 0
   values.forEach((value, index) => {
-    const start = masked.indexOf(value, cursor)
+    const start = text.indexOf(value, cursor)
     if (start === -1) return
     cursor = start + value.length
     if (LOOKUP_TARGET_TAGS.has(tags[index] ?? "")) ranges.push({ end: cursor, start })
@@ -53,7 +51,8 @@ export const findLookupTargetRanges = (text: string): { end: number; start: numb
 }
 ```
 
-- 関数のコメントに「単語を押せる対象（名詞・固有名詞・動詞）の wink-nlp のトークンの位置を返す。インラインコードは同じ長さの X と空白に置き換えて判定する」、`LOOKUP_TARGET_TAGS` に `PROPN` を含める理由（README の設計）、`nlp` にモジュールの読み込み時に 1 回だけモデルを読むことを書く
+- 関数のコメントに「単語を押せる対象（名詞・固有名詞・動詞）の wink-nlp のトークンの位置を返す」、`LOOKUP_TARGET_TAGS` に `PROPN` を含める理由（README の設計）、`nlp` にモジュールの読み込み時に 1 回だけモデルを読むことを書く
+- インラインコードの置き換えは `segment-passage.ts` で行う（インラインコードのパターンを 1 か所にするため）
 - wink-nlp の `out` の戻り値の型が `string[]` でなければ、型に合わせて直す
 
 ### `packages/domain/src/rules/passage-text.ts`
@@ -100,18 +99,25 @@ const tokenizePlainText = (text: string, start: number, end: number, lookupTarge
 ```
 
 - 用語集のセグメントは `canLookUp: true`
-- `segmentBlockText` の先頭で `findLookupTargetRanges(text)` を 1 回呼び、`tokenizePlainText` の各呼び出しに渡す
+- `segmentBlockText` の先頭で、インラインコードを同じ長さの `X` と空白に置き換えた本文で `findLookupTargetRanges` を 1 回呼び、`tokenizePlainText` の各呼び出しに渡す
+
+```ts
+const maskInlineCode = (text: string): string => text.replace(INLINE_CODE_PATTERN, (code) => `X${" ".repeat(code.length - 1)}`)
+```
+
 - `segmentPassage` で、ブロックごとに用語集のすべての出現を集めてから `segmentBlockText` に渡す
 
 ```ts
-const collectGlossaryOccurrences = (text: string, blockIndex: number, glossary: GlossarySpan[]): GlossarySpan[] => [
-  ...glossary.filter((entry) => entry.blockIndex === blockIndex),
-  ...glossary.flatMap((entry) =>
+const collectGlossaryOccurrences = (text: string, blockIndex: number, glossary: GlossarySpan[]): GlossarySpan[] => {
+  const storedSpans = glossary.filter((entry) => entry.blockIndex === blockIndex)
+  const otherOccurrences = glossary.flatMap((entry) =>
     findSurfaceRanges(text, entry.surface)
-      .filter((range) => entry.blockIndex !== blockIndex || range.startOffset !== entry.startOffset)
-      .map((range) => ({ ...entry, blockIndex, endOffset: range.endOffset, startOffset: range.startOffset })),
-  ),
-]
+      .map((range) => ({ end: range.endOffset, start: range.startOffset }))
+      .filter((range) => !storedSpans.some((stored) => isOverlapping(range, { end: stored.endOffset, start: stored.startOffset })))
+      .map((range) => ({ ...entry, blockIndex, endOffset: range.end, startOffset: range.start })),
+  )
+  return [...storedSpans, ...otherOccurrences]
+}
 
 export const segmentPassage = (blocks: PassageBlock[], glossary: GlossarySpan[]): SegmentWithRange[][] =>
   blocks.map((block, blockIndex) =>
@@ -119,7 +125,28 @@ export const segmentPassage = (blocks: PassageBlock[], glossary: GlossarySpan[])
   )
 ```
 
-- `collectGlossaryOccurrences` のコメントに「保存してある位置と、同じ表記のほかの出現（語の境界で区切られたもの）を返す。重なりは `selectGlossarySpans` が 1 つにする」と書く
+- `collectGlossaryOccurrences` のコメントに「保存してある位置と、同じ表記のほかの出現（語の境界で区切られたもの）を返す。保存してある位置と重なる出現は外す。ほかの重なりは `selectGlossarySpans` が 1 つにする」と書く
+- 保存してある位置と重なる出現を外すのは、ほかの出現に押しのけられて項目が本文のどこからも押せなくならないように、また表記が同じ項目が 2 つある（admin の編集や生成で起こりうる）ときに、`selectGlossarySpans` の ID の順で別の項目の意味が出ないようにするため
+
+### `src/service/attempt-service.ts`
+
+レスポンスに出すセグメントから位置を外す `stripSegmentRange` は、列を選んで作り直しているので `canLookUp` も残す。
+
+```ts
+const stripSegmentRange = ({ canLookUp, glossaryEntryId, kind, text }: SegmentWithRange): PassageSegment => ({
+  ...(canLookUp === undefined ? {} : { canLookUp }),
+  ...(glossaryEntryId === undefined ? {} : { glossaryEntryId }),
+  kind,
+  text,
+})
+```
+
+語義の設問の対象語句は、`buildInProgressView` で対象の項目と表記が同じ項目もまとめて外す（表記が同じ別の項目が残ると、そのほかの出現として対象語句の位置にも意味が出るため）。
+
+```ts
+const hiddenSurfaces = new Set(content.glossary.filter((entry) => hiddenGlossaryEntryIds.has(entry.id)).map((entry) => entry.surface))
+const glossary = content.glossary.filter((entry) => !hiddenSurfaces.has(entry.surface))
+```
 
 ### `src/controller/attempt/mapper.ts`
 
@@ -157,10 +184,10 @@ export const passageSegmentSchema = z.object({
 
 | ファイル | 足すケース |
 | --- | --- |
-| `test/lib/part-of-speech.test.ts`（新規） | `the`・`of`・`is`・`can` が入らない、名詞（`widget`）と動詞（`run`）が入る、`React's` の `React` の位置が入る、インラインコードの中は位置がずれない（コードの後ろの名詞の位置が元の本文の位置） |
-| `test/lib/segment-passage.test.ts` | 機能語の単語が `canLookUp: false`、名詞・動詞が `true`、用語集の語句は品詞に関係なく `true`（形容詞の用語集）、`third-party` は `true`、`don't` は `false`、空白・記号・コードには `canLookUp` が無い |
-| 同上 | 用語集の語句の 2 回目の出現（同じ段落・別の段落）も `glossaryEntryId` を持つ、語の一部（`opt` の用語集で `option`）は用語集にしない、大文字小文字が違う出現は用語集にしない、2 回目の出現がほかの用語集と重なったら開始が早い方が残る |
-| `test/controller/attempt/start.test.ts` ほか | 期待値のセグメントに `can_look_up` が入る。語義の設問の対象語句は、2 回目の出現も用語集にならない |
+| `test/lib/part-of-speech.test.ts`（新規） | `the`・`of`・`is`・`can` が入らない、名詞（`widget`）と動詞（`run`）が入る、`React's` の `React` の位置が入る |
+| `test/lib/segment-passage.test.ts` | 機能語の単語が `canLookUp: false`、名詞・動詞が `true`、用語集の語句は品詞に関係なく `true`（形容詞の用語集）、`third-party` は `true`、`don't` は `false`、空白・記号・コードには `canLookUp` が無い、インラインコードの後ろの単語も品詞で判定する |
+| 同上 | 用語集の語句の 2 回目の出現（同じ段落・別の段落）も `glossaryEntryId` を持つ、語の一部（`opt` の用語集で `option`）は用語集にしない、大文字小文字が違う出現は用語集にしない、2 回目の出現が保存してある位置と重なったら保存してある方が残る、2 回目の出現どうしが重なったら開始が早い方が残る、表記が同じ項目が 2 つあれば保存してある位置ではその項目を使う |
+| `test/controller/attempt/start.test.ts` ほか | 期待値のセグメントに `can_look_up` が入る。語義の設問の対象語句は、2 回目の出現も、表記が同じ別の項目も用語集にならない |
 | `packages/domain` の `passage-text` のテスト | `findSurfaceRanges` がすべての出現を返し、語の一部を飛ばす |
 
 ### 手で確かめる

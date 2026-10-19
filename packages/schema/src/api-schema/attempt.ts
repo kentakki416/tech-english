@@ -21,6 +21,11 @@ import { passageAttributionSchema, passageDifficultySchema } from "./passage"
  * glossary_entry_id は用語集の語句（熟語も 1 つのセグメント）のときだけ付く
  */
 export const passageSegmentSchema = z.object({
+  /**
+   * kind が word のときだけ。押して意味を引けるか（名詞・動詞と用語集の語句は true）。
+   * 押せない単語も読み上げのハイライトのために kind は word のまま
+   */
+  can_look_up: z.boolean().optional(),
   glossary_entry_id: z.number().int().optional(),
   kind: z.enum(PASSAGE_SEGMENT_KINDS),
   text: z.string(),
