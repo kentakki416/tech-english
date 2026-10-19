@@ -172,6 +172,7 @@ describe("reading_attempts", () => {
         studyDate: null,
         submittedAt: null,
         translatedBlockCount: 0,
+        translatedQuestionCount: 0,
         wordLookupCount: 0,
       })
     })

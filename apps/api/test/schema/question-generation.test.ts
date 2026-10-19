@@ -151,16 +151,35 @@ describe("passage_glossary_entries", () => {
 
 describe("questions", () => {
   describe("正常系", () => {
-    it("choices の jsonb が string[] として読み戻せ、用語集・検証の列は NULL になる", async () => {
+    it("choices の jsonb が string[] として読み戻せ、和訳・用語集・検証の列は NULL になる", async () => {
       const passage = await insertPassage()
 
       const row = await insertQuestion(passage.id)
 
       expect(row).toMatchObject({
         choices: ["To stop using it", "To start using it", "To delete it", "To update it"],
+        choicesJa: null,
+        promptJa: null,
         targetGlossaryEntryId: null,
         verificationChoiceIndex: null,
       })
+    })
+
+    it("和訳の choices_ja が string[] として読み戻せる", async () => {
+      const passage = await insertPassage()
+      const choicesJa = ["使うのをやめるため", "使い始めるため", "削除するため", "更新するため"]
+
+      const row = await insertQuestion(passage.id, { choicesJa, promptJa: "テレメトリーについて本文は何と言っているか。" })
+
+      expect(row).toMatchObject({ choicesJa, promptJa: "テレメトリーについて本文は何と言っているか。" })
+    })
+
+    it("vocabulary の設問は設問文の和訳だけを持てる（choices_ja は NULL）", async () => {
+      const passage = await insertPassage()
+
+      const row = await insertQuestion(passage.id, { choicesJa: null, promptJa: "第 1 段落の \"opt out of\" に最も意味が近いものはどれか。", type: "vocabulary" })
+
+      expect(row).toMatchObject({ choicesJa: null, type: "vocabulary" })
     })
 
     it.each([0, 3])("correct_choice_index = %d（範囲の境界）は insert できる", async (correctChoiceIndex) => {
@@ -221,6 +240,14 @@ describe("questions", () => {
 
       await expect(insertRawQuestion(passage.id, columns)).rejects.toMatchObject(
         buildViolationMatcher(CHECK_VIOLATION, constraint),
+      )
+    })
+
+    it("vocabulary の設問に choices_ja を入れると失敗する", async () => {
+      const passage = await insertPassage()
+
+      await expect(insertQuestion(passage.id, { choicesJa: ["a", "b", "c", "d"], type: "vocabulary" })).rejects.toMatchObject(
+        buildViolationMatcher(CHECK_VIOLATION, "questions_choices_ja_check"),
       )
     })
 
