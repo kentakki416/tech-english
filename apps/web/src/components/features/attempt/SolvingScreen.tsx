@@ -20,6 +20,7 @@ import { ReadAloudBar, ReturnToReadingButton } from "@/components/features/read-
 import { useReadAloud } from "@/components/features/read-aloud/use-read-aloud"
 import { useReadingAutoScroll } from "@/components/features/read-aloud/use-reading-auto-scroll"
 import { Keycap } from "@/components/ui/Keycap"
+import { SoundEffectToggle } from "@/components/ui/SoundEffectToggle"
 import {
   type AttemptProgress,
   readAttemptProgress,
@@ -27,6 +28,7 @@ import {
   type WordLookupRecord,
   writeAttemptProgress,
 } from "@/features/attempt/attempt-progress"
+import { useSoundEffects } from "@/libs/sound-effects"
 import { useActiveSeconds } from "@/libs/use-active-seconds"
 import { useIsClient } from "@/libs/use-is-client"
 
@@ -248,9 +250,17 @@ function SolvingSession({
     }
   }, [attempt.expires_at, attempt.server_now, isHydrated, stopReadAloud])
 
+  const sound = useSoundEffects()
+  const { playChoice } = sound
+  const isReadAloudPlaying = readAloud.playback?.isPlaying ?? false
+
+  /**
+   * 読み上げの再生中は鳴らさない（読み上げと重なって聞き取りにくくなるため）
+   */
   const chooseAnswer = useCallback((questionId: number, choiceIndex: number) => {
+    if (answers[questionId] !== choiceIndex && !isReadAloudPlaying) playChoice()
     setAnswers(current => ({ ...current, [questionId]: choiceIndex }))
-  }, [])
+  }, [answers, isReadAloudPlaying, playChoice])
 
   const moveQuestion = useCallback((index: number) => {
     setCurrentIndex(Math.min(Math.max(index, 0), questions.length - 1))
@@ -414,6 +424,7 @@ function SolvingSession({
                 </button>
               ))}
             </div>
+            <SoundEffectToggle className={`h-8 ${HEADER_BUTTON_FOCUS_CLASS}`} isEnabled={sound.isEnabled} showsLabel={false} onToggle={sound.toggle} />
             <button
               aria-pressed={showAllTranslations}
               className={`h-8 rounded-md border px-2.5 text-sm transition-colors disabled:pointer-events-none disabled:opacity-40 ${HEADER_BUTTON_FOCUS_CLASS} ${
