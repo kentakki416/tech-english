@@ -5,7 +5,7 @@ import { type AudioMode, setAudioModeAsync } from "expo-audio"
  */
 const AUDIO_MODES = {
   /**
-   * めくる効果音。消音モードでは鳴らさず、ほかのアプリの音楽と混ぜる（iOS の ambient）
+   * 効果音（単語帳のめくる音・解答画面の選択肢の音）。消音モードでは鳴らさず、ほかのアプリの音楽と混ぜる（iOS の ambient）
    */
   effect: { interruptionMode: "mixWithOthers", playsInSilentMode: false, shouldPlayInBackground: false },
   /**
@@ -26,7 +26,7 @@ export type AudioModeKind = keyof typeof AUDIO_MODES
 let current: { kind: AudioModeKind, ready: Promise<void> } | null = null
 
 /**
- * 音声のモードを 1 か所で切り替える。めくる効果音・発音・読み上げはそれぞれ違うモードで鳴らすので、鳴らす側は必ずこれを通す
+ * 音声のモードを 1 か所で切り替える。効果音・発音・読み上げはそれぞれ違うモードで鳴らすので、鳴らす側は必ずこれを通す
  * （それぞれが setAudioModeAsync を呼ぶと、後から呼んだ方のモードが残って取り違える。発音を聞いた後のめくる音が消音モードでも鳴る、など）。
  *
  * 鳴らす前に呼び、返る Promise を待ってから play する（setAudioModeAsync は後から効くので、待たないと前のモードで鳴る）。

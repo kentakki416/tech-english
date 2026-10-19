@@ -1,7 +1,8 @@
 import AsyncStorage from "@react-native-async-storage/async-storage"
 
 /**
- * 効果音のオン / オフ（web は localStorage の同じキー）。単語帳と解答画面で共通。アカウント削除の AsyncStorage.clear() で一緒に消える。
+ * 効果音のオン / オフ（web は localStorage の同じキー）。単語帳と解答画面で共通。保存した値はアカウント削除の AsyncStorage.clear() で一緒に消える
+ * （モジュールに持った値はアプリを開き直すまで残る）。
  * 単語帳だけにあったときの名前のまま。変えると、単語帳でオフにしている人の設定が消えるため
  */
 const SOUND_EFFECT_STORAGE_KEY = "tech-english:vocabulary-sound"

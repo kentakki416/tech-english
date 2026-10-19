@@ -24,7 +24,7 @@ const FLIP_SOUND = require("../../../assets/sounds/page-flip.wav")
 export function useSoundEffects() {
   const flipPlayer = useAudioPlayer(FLIP_SOUND)
   const choicePlayer = useAudioPlayer(CHOICE_SOUND)
-  const isEnabled = useSyncExternalStore(subscribeSoundEffectSetting, readSoundEffectSetting)
+  const isEnabled = useSyncExternalStore(subscribeSoundEffectSetting, readSoundEffectSetting, () => true)
 
   useEffect(() => {
     void requestAudioMode("effect")
