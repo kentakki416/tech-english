@@ -17,10 +17,11 @@
 
 ```text
 - In addition, add every phrasal verb in the passage, even easy ones: a verb directly followed by a particle or preposition that together have a meaning of their own. This includes verb + particle ("set up", "figure out", "opt out of") and verb + preposition ("rely on", "consist of", "deal with"). Check every sentence for them. Use partOfSpeech 句動詞. They do not count toward the 8 to 20 above.
-- Every surface must be one unit a learner would look up in a dictionary: a word, a phrasal verb or an idiom. Never add a free combination of words or put an object inside the surface (not "add the plugin to", "split the file into", "try to call", "follow the steps"). If an object splits a phrasal verb, as in "set it up", do not add that phrasal verb at all.
+- Every surface must be one unit a learner would look up in a dictionary: a word, a compound term (such as "race condition"), a phrasal verb or an idiom. Never add a free combination of words or put an object inside the surface (not "add the plugin to", "split the file into", "try to call", "follow the steps"). If an object splits a phrasal verb, as in "set it up", do not add that phrasal verb at all.
 ```
 
 - 語の並びの指示を別の箇条にし、句動詞に限らずすべての語句に効かせるのは、1 つめの箇条（難しい語句）からも句動詞が入り、品詞を「熟語」にして目的語を含む形が入るため。句動詞だけに書いた案で生成すると、`set it up`・`Add React to`・`split your code into`・`try to use` が入った
+- まとまりの種類に複合語を入れるのは、`escape hatch`・`setter function` のような 2 語以上の専門用語を締め出さないため
 - 動詞＋前置詞（`rely on` の型）を例で示し、文ごとに確かめさせるのは、`depends on`・`benefit from` のような型が抜けやすかったため
 - 例は検証に使う本文（dev の 116・117）と重ならないものにする（例をそのまま避けるだけで、指示が効いたか分からなくなるため）
 
