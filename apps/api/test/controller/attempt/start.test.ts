@@ -1,6 +1,6 @@
 import request from "supertest"
 
-import { eq, readingAttempts, users } from "@repo/db"
+import { eq, questions, readingAttempts, users } from "@repo/db"
 
 import { AttemptStartController } from "../../../src/controller/attempt/start"
 import { DrizzlePassageRepository } from "../../../src/repository/drizzle/passage-repository"
@@ -46,7 +46,7 @@ afterAll(async () => {
 describe("POST /api/passage/:id/attempt", () => {
   describe("正常系", () => {
     it("初回は 201 で解答中の形を返し、問題の制限時間で挑戦中の行を作る", async () => {
-      const { glossary, passage, questions } = await insertPublishedGeneratedPassage()
+      const { glossary, passage, questions: questionRows } = await insertPublishedGeneratedPassage()
       const { token, user } = await createTestUser()
 
       const res = await request(app).post(`/api/passage/${passage.id}/attempt`).set("Authorization", `Bearer ${token}`)
@@ -150,11 +150,13 @@ describe("POST /api/passage/:id/attempt", () => {
           },
         ],
         passage: { id: passage.id, difficulty: 2, title: "Synchronizing with Effects", word_count: 60 },
-        questions: questions.map((question, index) => ({
+        questions: questionRows.map((question, index) => ({
           id: question.id,
           choices: QUESTION_ITEMS[index]?.choices,
+          choices_ja: QUESTION_ITEMS[index]?.choicesJa,
           order_index: index,
           prompt: QUESTION_ITEMS[index]?.prompt,
+          prompt_ja: QUESTION_ITEMS[index]?.promptJa,
           type: QUESTION_ITEMS[index]?.type,
         })),
         server_now: expect.any(String),
@@ -195,6 +197,18 @@ describe("POST /api/passage/:id/attempt", () => {
         block.segments.flatMap((segment) => segment.glossary_entry_id ?? []),
       )
       expect(segmentGlossaryIds).toEqual([glossary[0]?.id, glossary[2]?.id])
+    })
+
+    it("和訳の無い設問（設問の和訳より前に生成した問題）は prompt_ja / choices_ja が null", async () => {
+      const { passage } = await insertPublishedGeneratedPassage()
+      await testDb.update(questions).set({ choicesJa: null, promptJa: null }).where(eq(questions.passageId, passage.id))
+      const { token } = await createTestUser()
+
+      const res = await request(app).post(`/api/passage/${passage.id}/attempt`).set("Authorization", `Bearer ${token}`)
+
+      expect(res.status).toBe(201)
+      expect(res.body.questions.map((question: { choices_ja: unknown; prompt_ja: unknown }) => [question.prompt_ja, question.choices_ja]))
+        .toEqual([[null, null], [null, null], [null, null]])
     })
 
     it("2 回目は 200 で同じ挑戦を返し、行は増えない", async () => {

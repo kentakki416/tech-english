@@ -66,8 +66,10 @@ const convertGlossaryEntryToResponse = (entry: AttemptGlossaryEntryView): Attemp
 const convertQuestionToResponse = (question: AttemptQuestionView): AttemptQuestion => ({
   id: question.id,
   choices: question.choices,
+  choices_ja: question.choicesJa,
   order_index: question.orderIndex,
   prompt: question.prompt,
+  prompt_ja: question.promptJa,
   type: question.type,
 })
 
@@ -124,6 +126,7 @@ export const convertSubmittedAttemptToResponse = (view: SubmittedAttemptView): S
   submitted_at: view.submittedAt.toISOString(),
   time_limit_seconds: view.timeLimitSeconds,
   translated_block_count: view.translatedBlockCount,
+  translated_question_count: view.translatedQuestionCount,
   word_lookup_count: view.wordLookupCount,
   word_lookups: view.wordLookups.map((lookup) => ({
     lemma: lookup.lemma,

@@ -62,7 +62,16 @@ export const GLOSSARY_ITEMS: GlossaryItem[] = [
 
 export type QuestionItem = Pick<
   Question,
-  "choices" | "correctChoiceIndex" | "evidenceBlockIndex" | "evidenceQuote" | "explanationJa" | "prompt" | "type" | "verificationChoiceIndex"
+  | "choices"
+  | "choicesJa"
+  | "correctChoiceIndex"
+  | "evidenceBlockIndex"
+  | "evidenceQuote"
+  | "explanationJa"
+  | "prompt"
+  | "promptJa"
+  | "type"
+  | "verificationChoiceIndex"
 > & {
   /**
    * GLOSSARY_ITEMS の index（vocabulary だけ）
@@ -78,11 +87,18 @@ export const QUESTION_ITEMS: QuestionItem[] = [
       "To argue that Effects should never be used",
       "To introduce third-party widgets",
     ],
+    choicesJa: [
+      "React が依存配列をどう比べるかを説明するため",
+      "エフェクトが適している場面を説明するため",
+      "エフェクトを決して使うべきでないと主張するため",
+      "サードパーティのウィジェットを紹介するため",
+    ],
     correctChoiceIndex: 1,
     evidenceBlockIndex: 1,
     evidenceQuote: "Effects are an escape hatch from the React paradigm.",
     explanationJa: "本文はエフェクトを使うべき場面を説明しています。",
     prompt: "What is the main purpose of this passage?",
+    promptJa: "この文章の主な目的は何か。",
     targetGlossaryIndex: null,
     type: "main_idea",
     verificationChoiceIndex: 1,
@@ -94,11 +110,13 @@ export const QUESTION_ITEMS: QuestionItem[] = [
       "In an event handler",
       "In a separate state variable",
     ],
+    choicesJa: ["依存配列が空のエフェクトの中", "エフェクトのクリーンアップ関数の中", "イベントハンドラの中", "別の state 変数の中"],
     correctChoiceIndex: 2,
     evidenceBlockIndex: 2,
     evidenceQuote: "it belongs in an event handler, not in an Effect",
     explanationJa: "第 2 段落にイベントハンドラに書くべきとあります。",
     prompt: "Where should logic that runs because the user clicked a button be placed?",
+    promptJa: "ユーザーがボタンをクリックしたために実行されるロジックはどこに置くべきか。",
     targetGlossaryIndex: null,
     type: "detail",
     verificationChoiceIndex: 2,
@@ -110,11 +128,13 @@ export const QUESTION_ITEMS: QuestionItem[] = [
       "a shortcut that improves performance",
       "a feature that is no longer recommended",
     ],
+    choicesJa: null,
     correctChoiceIndex: 1,
     evidenceBlockIndex: 1,
     evidenceQuote: "Effects are an escape hatch",
     explanationJa: "escape hatch は通常の仕組みから抜け出す手段を指します。",
     prompt: "In paragraph 1, the phrase \"escape hatch\" is closest in meaning to",
+    promptJa: "第 1 段落の \"escape hatch\" に最も意味が近いものはどれか。",
     targetGlossaryIndex: 1,
     type: "vocabulary",
     verificationChoiceIndex: 0,
@@ -184,9 +204,7 @@ export const buildQuestions = (glossary: GlossaryEntry[], passageId = 1): Questi
   QUESTION_ITEMS.map(({ targetGlossaryIndex, ...item }, index) => ({
     id: 201 + index,
     ...item,
-    choicesJa: null,
     orderIndex: index,
-    promptJa: null,
     passageId,
     targetGlossaryEntryId: targetGlossaryIndex === null ? null : glossary[targetGlossaryIndex]?.id ?? null,
     createdAt: FIXED_DATE,
@@ -227,11 +245,13 @@ export const buildEditInput = (detail: AdminPassageDetail): AdminPassageEditInpu
   questions: detail.questions.map((question) => ({
     id: question.id,
     choices: question.choices,
+    choicesJa: question.choicesJa,
     correctChoiceIndex: question.correctChoiceIndex,
     evidenceBlockIndex: question.evidenceBlockIndex,
     evidenceQuote: question.evidenceQuote,
     explanationJa: question.explanationJa,
     prompt: question.prompt,
+    promptJa: question.promptJa,
     targetGlossaryIndex: question.targetGlossaryEntryId === null
       ? null
       : detail.glossary.findIndex((entry) => entry.id === question.targetGlossaryEntryId),

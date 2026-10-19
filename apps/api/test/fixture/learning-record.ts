@@ -35,6 +35,7 @@ type CreateSubmittedAttemptInput = {
    */
   submittedAt?: Date
   translatedBlockCount?: number
+  translatedQuestionCount?: number
   userId: number
   wordLookupCount?: number
 }
@@ -57,6 +58,7 @@ export const createSubmittedAttempt = async (input: CreateSubmittedAttemptInput)
     studyDate: input.studyDate,
     submittedAt,
     translatedBlockCount: input.translatedBlockCount ?? 0,
+    translatedQuestionCount: input.translatedQuestionCount ?? 0,
     userId: input.userId,
     wordLookupCount: input.wordLookupCount ?? 0,
   })

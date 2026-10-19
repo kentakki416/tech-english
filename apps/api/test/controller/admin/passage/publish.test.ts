@@ -120,6 +120,25 @@ describe("POST /api/admin/passage/:id/publish", () => {
       expect(await selectPassage(passage.id)).toMatchObject({ publishedAt: null, status: "draft" })
     })
 
+    it("設問の和訳の無い下書き（設問の和訳より前に生成した問題）は 400 と和訳の details を返し、公開しない", async () => {
+      const { passage } = await insertGeneratedPassage()
+      await testDb.update(questions).set({ choicesJa: null, promptJa: null }).where(eq(questions.passageId, passage.id))
+
+      const res = await request(app)
+        .post(`/api/admin/passage/${passage.id}/publish`)
+        .set("Authorization", `Bearer ${adminToken}`)
+
+      expect(res.status).toBe(400)
+      expect(res.body.details).toEqual([
+        { code: "prompt_translation_missing", message: "Q1：設問文の和訳が空です", path: ["questions", 0, "prompt_ja"] },
+        { code: "choice_translation_missing", message: "Q1：選択肢の和訳を 4 つとも入力してください", path: ["questions", 0, "choices_ja"] },
+        { code: "prompt_translation_missing", message: "Q2：設問文の和訳が空です", path: ["questions", 1, "prompt_ja"] },
+        { code: "choice_translation_missing", message: "Q2：選択肢の和訳を 4 つとも入力してください", path: ["questions", 1, "choices_ja"] },
+        { code: "prompt_translation_missing", message: "Q3：設問文の和訳が空です", path: ["questions", 2, "prompt_ja"] },
+      ])
+      expect(await selectPassage(passage.id)).toMatchObject({ publishedAt: null, status: "draft" })
+    })
+
     it("公開中の問題は 409 を返し、failed の音声も戻さない", async () => {
       const { passage } = await insertGeneratedPassage({ status: "published" })
       await insertPassageAudio(passage.id, { attemptCount: 3, lastError: "error", status: "failed" })

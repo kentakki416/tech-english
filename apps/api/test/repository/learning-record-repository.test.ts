@@ -219,13 +219,14 @@ describe("LearningRecordRepository", () => {
 
   describe("summarizeNoAssistAccuracy", () => {
     describe("正常系", () => {
-      it("訳・単語の意味・読み上げをどれも使わなかった挑戦だけの正答数と設問数を返す", async () => {
+      it("段落の和訳・設問の和訳・単語の意味・読み上げをどれも使わなかった挑戦だけの正答数と設問数を返す", async () => {
         const passage = await insertPassageWithQuestions()
         const user = await insertAttemptUser()
         const base = { passageId: passage.id, questionIds: passage.questionIds, studyDate: "2026-10-10", userId: user.id }
         await createSubmittedAttempt({ ...base, correctness: [true, true, false] })
         await createSubmittedAttempt({ ...base, correctness: [true, false, false] })
         await createSubmittedAttempt({ ...base, correctness: [true, true, true], translatedBlockCount: 1 })
+        await createSubmittedAttempt({ ...base, correctness: [true, true, true], translatedQuestionCount: 1 })
         await createSubmittedAttempt({ ...base, correctness: [true, true, true], wordLookupCount: 1 })
         await createSubmittedAttempt({ ...base, correctness: [true, true, true], listenedBlockCount: 1 })
 
@@ -256,6 +257,7 @@ describe("LearningRecordRepository", () => {
         studyDate: "2026-10-11",
         submittedAt: at("2026-10-10T23:14:05.123Z"),
         translatedBlockCount: 1,
+        translatedQuestionCount: 2,
         userId: user.id,
         wordLookupCount: 2,
       })
@@ -282,6 +284,7 @@ describe("LearningRecordRepository", () => {
           studyDate: "2026-10-11",
           submittedAt: at("2026-10-10T23:14:05.123Z"),
           translatedBlockCount: 1,
+          translatedQuestionCount: 2,
           wordLookupCount: 2,
         })
       })

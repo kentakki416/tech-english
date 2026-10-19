@@ -119,6 +119,25 @@ describe("PUT /api/admin/passage/:id", () => {
       expect(await testDb.select().from(passageGlossaryEntries).where(eq(passageGlossaryEntries.passageId, passage.id))).toHaveLength(4)
     })
 
+    it("設問の和訳を保存して詳細で読め、語義の設問に送った選択肢の和訳は NULL で保存する", async () => {
+      const { passage } = await insertGeneratedPassage()
+      const body = convertDetailResponseToUpdateBody(await fetchDetail(passage.id))
+      const choicesJa = ["比べ方を説明するため", "適した場面を説明するため", "使うべきでないと主張するため", "ウィジェットを紹介するため"]
+      body.questions[0] = { ...body.questions[0], choices_ja: choicesJa, prompt_ja: "この文章の目的は何か。" }
+      body.questions[2] = { ...body.questions[2], choices_ja: ["あ", "い", "う", "え"] }
+
+      const res = await request(app)
+        .put(`/api/admin/passage/${passage.id}`)
+        .set("Authorization", `Bearer ${adminToken}`)
+        .send(body)
+
+      expect(res.status).toBe(200)
+      const after = await fetchDetail(passage.id)
+      expect(after.questions[0]).toMatchObject({ choices_ja: choicesJa, prompt_ja: "この文章の目的は何か。" })
+      expect(after.questions[2]).toMatchObject({ choices_ja: null, type: "vocabulary" })
+      expect((await selectQuestions(passage.id))[2]).toMatchObject({ choicesJa: null })
+    })
+
     it("挑戦がある問題でも、設問の数を変えなければ文面と正解を直せる", async () => {
       const { passage } = await insertGeneratedPassage()
       await insertReadingAttempt(passage.id)

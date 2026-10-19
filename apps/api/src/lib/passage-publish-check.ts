@@ -33,6 +33,12 @@ const isCorrectChoiceIndex = (index: number): boolean =>
 const isBlank = (value: string | null | undefined): boolean => (value ?? "").trim().length === 0
 
 /**
+ * 選択肢の和訳が 4 つそろい、空白だけのものが無い
+ */
+const hasChoiceTranslations = (choicesJa: string[] | null): boolean =>
+  choicesJa !== null && choicesJa.length === QUESTION_CHOICE_COUNT && choicesJa.every((choice) => !isBlank(choice))
+
+/**
  * 公開の条件（docs/spec/question-generation/README.md の「出力の検証と後処理」）を満たさない項目を返す。空なら公開できる。
  * cron の生成時の検査と同じ判定を @repo/domain の関数で行い、admin が修正で壊した場合を防ぐ。
  * message の段落の表記は numberParagraphs（「Q2：根拠の引用が段落 2 の本文に見つかりません」）
@@ -60,11 +66,25 @@ export const listPublishViolations = (detail: AdminPassageDetail): ApiErrorDetai
         path: ["questions", index, "prompt"],
       })
     }
+    if (isBlank(question.promptJa)) {
+      violations.push({
+        code: "prompt_translation_missing",
+        message: `${questionLabel}：設問文の和訳が空です`,
+        path: ["questions", index, "prompt_ja"],
+      })
+    }
     if (!hasValidChoices(question.choices)) {
       violations.push({
         code: "choice_invalid",
         message: `${questionLabel}：選択肢は ${QUESTION_CHOICE_COUNT} つとも入力し、重複しないようにしてください`,
         path: ["questions", index, "choices"],
+      })
+    }
+    if (question.type !== "vocabulary" && !hasChoiceTranslations(question.choicesJa)) {
+      violations.push({
+        code: "choice_translation_missing",
+        message: `${questionLabel}：選択肢の和訳を ${QUESTION_CHOICE_COUNT} つとも入力してください`,
+        path: ["questions", index, "choices_ja"],
       })
     }
     if (!isCorrectChoiceIndex(question.correctChoiceIndex)) {

@@ -24,11 +24,13 @@ export type AdminPassageEditInput = {
   questions: {
     id: number | null
     choices: string[]
+    choicesJa: string[] | null
     correctChoiceIndex: number
     evidenceBlockIndex: number
     evidenceQuote: string
     explanationJa: string
     prompt: string
+    promptJa: string | null
     targetGlossaryIndex: number | null
     type: QuestionType
   }[]
@@ -45,6 +47,12 @@ export type BuildDraftEditContentResult =
  */
 const convertBlankToNull = (value: string | null): string | null =>
   (value === null || value.trim().length === 0 ? null : value)
+
+/**
+ * 4 つとも空白だけの選択肢の和訳は null にする（未入力）。一部だけ空白なら途中の状態としてそのまま残す（公開の検査で見る）
+ */
+const convertBlankChoiceTranslationsToNull = (translations: string[] | null): string[] | null =>
+  (translations === null || translations.every((translation) => translation.trim().length === 0) ? null : translations)
 
 /**
  * ブロックの種類と言語は保存済みのまま、英文と和訳だけを入れ替える。code と、空白だけの和訳は和訳を持たない
@@ -178,12 +186,17 @@ export const buildDraftEditContent = (
     return {
       id: question.id,
       choices: question.choices,
+      /**
+       * 語義の設問は選択肢の和訳を持たない（DB の questions_choices_ja_check）。種類を語義に変えたときに残った和訳もここで消す
+       */
+      choicesJa: question.type === "vocabulary" ? null : convertBlankChoiceTranslationsToNull(question.choicesJa),
       correctChoiceIndex: question.correctChoiceIndex,
       evidenceBlockIndex: question.evidenceBlockIndex,
       evidenceQuote: question.evidenceQuote,
       explanationJa: question.explanationJa,
       orderIndex: index,
       prompt: question.prompt,
+      promptJa: convertBlankToNull(question.promptJa),
       targetGlossaryIndex,
       type: question.type,
     }

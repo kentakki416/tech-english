@@ -41,6 +41,7 @@ const INPUT = {
   listenedBlockCount: 1,
   now: FIXED_NOW,
   translatedBlockCount: 2,
+  translatedQuestionCount: 1,
   userId: 7,
   wordLookups: [
     { glossaryEntryId: 101, lemma: "stay in sync", source: "glossary" as const, surface: "stay in sync with" },
@@ -94,6 +95,7 @@ describe("submitAttempt", () => {
           studyDate: "2026-10-13",
           submittedAt: FIXED_NOW,
           translatedBlockCount: 2,
+          translatedQuestionCount: 1,
           wordLookupCount: 3,
         },
         TX,
@@ -172,6 +174,16 @@ describe("submitAttempt", () => {
       await submitAttempt(buildInput({ translatedBlockCount }), repo)
 
       expect(extractSubmitInput()?.translatedBlockCount).toBe(expected)
+    })
+
+    it.each([
+      ["設問の数（3）を超えたら 3 にする", 5, 3],
+      ["設問の数ちょうどはそのまま（境界値）", 3, 3],
+      ["設問の数より少なければそのまま", 1, 1],
+    ])("translatedQuestionCount は %s", async (_label, translatedQuestionCount, expected) => {
+      await submitAttempt(buildInput({ translatedQuestionCount }), repo)
+
+      expect(extractSubmitInput()?.translatedQuestionCount).toBe(expected)
     })
 
     it.each([

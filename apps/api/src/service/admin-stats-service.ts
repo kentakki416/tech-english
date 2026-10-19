@@ -18,7 +18,7 @@ type AdminStatsRepo = { adminStatsRepository: AdminStatsRepository }
  * 解いた挑戦の合計から求める比率（0〜1）と平均。分母が 0 なら null
  */
 export type AttemptRates = {
-  assistRates: { listened: number | null; lookedUp: number | null; translated: number | null }
+  assistRates: { listened: number | null; lookedUp: number | null; translated: number | null; translatedQuestion: number | null }
   averageElapsedSeconds: number | null
   correctRate: number | null
   overtimeRate: number | null
@@ -82,6 +82,7 @@ const convertAttemptTotalsToRates = (totals: AttemptTotals): AttemptRates => ({
     listened: divideOrNull(totals.listenedAttempts, totals.solvedAttempts),
     lookedUp: divideOrNull(totals.lookedUpAttempts, totals.solvedAttempts),
     translated: divideOrNull(totals.translatedAttempts, totals.solvedAttempts),
+    translatedQuestion: divideOrNull(totals.translatedQuestionAttempts, totals.solvedAttempts),
   },
   averageElapsedSeconds: divideOrNull(totals.elapsedSecondsSum, totals.solvedAttempts),
   correctRate: divideOrNull(totals.correctCount, totals.questionCount),

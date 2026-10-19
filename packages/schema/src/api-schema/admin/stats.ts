@@ -14,12 +14,13 @@ import { passageDifficultySchema } from "../passage"
 const rateSchema = z.number().min(0).max(1).nullable()
 
 /**
- * アシストの利用率（解いたうち、和訳を開いた・単語を調べた・読み上げを聞いた割合）
+ * アシストの利用率（解いたうち、和訳を開いた・設問の和訳を出した・単語を調べた・読み上げを聞いた割合）
  */
 const assistRatesSchema = z.object({
   listened: rateSchema,
   looked_up: rateSchema,
   translated: rateSchema,
+  translated_question: rateSchema,
 })
 
 /**

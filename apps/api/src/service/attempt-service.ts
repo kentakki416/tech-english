@@ -79,7 +79,7 @@ export type AttemptGlossaryEntryView = Pick<GlossaryEntry, "id" | "lemma" | "mea
 /**
  * 解答中の設問。正解・解説・根拠を持たない
  */
-export type AttemptQuestionView = Pick<Question, "id" | "choices" | "orderIndex" | "prompt" | "type">
+export type AttemptQuestionView = Pick<Question, "id" | "choices" | "choicesJa" | "orderIndex" | "prompt" | "promptJa" | "type">
 
 /**
  * 解答中の挑戦。用語集とセグメントから語義設問の対象語句を除く
@@ -158,6 +158,7 @@ export type SubmittedAttemptView = {
    */
   timeLimitSeconds: number
   translatedBlockCount: number
+  translatedQuestionCount: number
   wordLookupCount: number
   /**
    * (source, 用語集の ID か見出し語) で重複を除き、最初に調べた順
@@ -236,8 +237,10 @@ const buildGlossaryViews = (glossary: GlossaryEntry[]): AttemptGlossaryEntryView
 const buildQuestionView = (question: Question): AttemptQuestionView => ({
   id: question.id,
   choices: question.choices,
+  choicesJa: question.choicesJa,
   orderIndex: question.orderIndex,
   prompt: question.prompt,
+  promptJa: question.promptJa,
   type: question.type,
 })
 
@@ -356,6 +359,7 @@ const buildSubmittedView = (
     submittedAt,
     timeLimitSeconds: attempt.timeLimitSeconds,
     translatedBlockCount: attempt.translatedBlockCount,
+    translatedQuestionCount: attempt.translatedQuestionCount,
     wordLookupCount: attempt.wordLookupCount,
     wordLookups: dedupeWordLookups(lookups),
     wordsPerMinute: calculateWordsPerMinute(content.passage.wordCount, elapsedSeconds),
@@ -540,6 +544,7 @@ export const submitAttempt = async (
     listenedBlockCount: number
     now: Date
     translatedBlockCount: number
+    translatedQuestionCount: number
     userId: number
     wordLookups: WordLookupInput[]
   },
@@ -609,6 +614,7 @@ export const submitAttempt = async (
         studyDate: formatDateInTimeZone(input.now, user.timezone),
         submittedAt: input.now,
         translatedBlockCount: Math.min(input.translatedBlockCount, nonCodeBlockCount),
+        translatedQuestionCount: Math.min(input.translatedQuestionCount, content.questions.length),
         wordLookupCount: wordLookups.length,
       },
       tx,

@@ -80,6 +80,7 @@ const SUBMIT_VALUES = {
   studyDate: "2026-10-13",
   submittedAt: at("2026-10-12T15:30:00.123Z"),
   translatedBlockCount: 2,
+  translatedQuestionCount: 1,
   wordLookupCount: 3,
 }
 
@@ -375,7 +376,6 @@ describe("ReadingAttemptRepository", () => {
           startedAt: at("2026-10-12T15:27:00.000Z"),
           status: "submitted",
           timeLimitSeconds: 180,
-          translatedQuestionCount: 0,
           userId: user.id,
           createdAt: expect.any(Date),
           updatedAt: expect.any(Date),

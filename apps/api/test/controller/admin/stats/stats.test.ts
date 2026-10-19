@@ -74,7 +74,7 @@ describe("GET /api/admin/stats/overview", () => {
       expect(res.status).toBe(200)
       expect(res.body).toEqual({
         active_users: 1,
-        assist_rates: { listened: 0, looked_up: 0, translated: 0 },
+        assist_rates: { listened: 0, looked_up: 0, translated: 0, translated_question: 0 },
         correct_rate: 2 / 3,
         from: expect.any(String),
         new_users: 1,
@@ -127,7 +127,7 @@ describe("GET /api/admin/stats/passage", () => {
         passages: [
           {
             id: passageId,
-            assist_rates: { listened: 0, looked_up: 0, translated: 0 },
+            assist_rates: { listened: 0, looked_up: 0, translated: 0, translated_question: 0 },
             average_elapsed_seconds: 120,
             correct_rate: 2 / 3,
             difficulty: 2,
@@ -166,7 +166,7 @@ describe("GET /api/admin/stats/passage/:id", () => {
       expect(res.body).toEqual({
         passage: {
           id: passageId,
-          assist_rates: { listened: 0, looked_up: 0, translated: 0 },
+          assist_rates: { listened: 0, looked_up: 0, translated: 0, translated_question: 0 },
           average_elapsed_seconds: 120,
           correct_rate: 2 / 3,
           difficulty: 2,

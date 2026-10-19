@@ -68,8 +68,16 @@ export const attemptGlossaryEntrySchema = z.object({
 export const attemptQuestionSchema = z.object({
   id: z.number().int(),
   choices: z.array(z.string()).length(4),
+  /**
+   * 選択肢の和訳（choices と同じ順）。和訳の無い設問と、文脈での語義の設問は null
+   */
+  choices_ja: z.array(z.string()).length(4).nullable(),
   order_index: z.number().int(),
   prompt: z.string(),
+  /**
+   * 設問文の和訳。和訳の無い設問（docs/spec/question-translation/README.md の「これまでの問題」）は null
+   */
+  prompt_ja: z.string().nullable(),
   type: z.enum(QUESTION_TYPES),
 })
 
@@ -192,6 +200,10 @@ export const submittedAttemptSchema = z.object({
    */
   time_limit_seconds: z.number().int(),
   translated_block_count: z.number().int(),
+  /**
+   * 和訳を一度でも出した設問の数
+   */
+  translated_question_count: z.number().int(),
   word_lookup_count: z.number().int(),
   /**
    * 結果画面の「調べた単語」。(source, 用語集の ID か見出し語) で重複を除き、最初に調べた順
@@ -306,6 +318,11 @@ export const submitAttemptRequestSchema = z.object({
    * 和訳を一度でも見た段落の数。サーバーが code 以外のブロック数で上限をかける
    */
   translated_block_count: z.number().int().nonnegative(),
+  /**
+   * 和訳を一度でも出した設問の数。サーバーが設問の数で上限をかける。
+   * 古いアプリ（送ってこない版）のために省略時は 0
+   */
+  translated_question_count: z.number().int().nonnegative().default(0),
   /**
    * 調べた 1 回ごとに 1 要素（同じ単語を 2 回調べたら 2 要素）。glossary_entry_id は source が glossary のときだけ持つ
    */

@@ -68,12 +68,14 @@ const buildUnchangedContent = (glossary: GlossaryRow[], questionRows: QuestionRo
   questions: questionRows.map((question) => ({
     id: question.id,
     choices: question.choices,
+    choicesJa: question.choicesJa,
     correctChoiceIndex: question.correctChoiceIndex,
     evidenceBlockIndex: question.evidenceBlockIndex,
     evidenceQuote: question.evidenceQuote,
     explanationJa: question.explanationJa,
     orderIndex: question.orderIndex,
     prompt: question.prompt,
+    promptJa: question.promptJa,
     targetGlossaryIndex: question.targetGlossaryEntryId === null
       ? null
       : glossary.findIndex((entry) => entry.id === question.targetGlossaryEntryId),

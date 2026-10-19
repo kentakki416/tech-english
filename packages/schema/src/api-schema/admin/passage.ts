@@ -134,6 +134,10 @@ export const adminPassageDetailSchema = adminPassageSummaryBaseSchema.extend({
     z.object({
       id: z.number().int(),
       choices: z.array(z.string()),
+      /**
+       * 選択肢の和訳（choices と同じ順）。和訳の無い設問と、文脈での語義の設問は null
+       */
+      choices_ja: z.array(z.string()).nullable(),
       correct_choice_index: z.number().int(),
       evidence: z.object({
         block_index: z.number().int(),
@@ -142,6 +146,10 @@ export const adminPassageDetailSchema = adminPassageSummaryBaseSchema.extend({
       explanation_ja: z.string(),
       order_index: z.number().int(),
       prompt: z.string(),
+      /**
+       * 設問文の和訳。和訳の無い設問は null
+       */
+      prompt_ja: z.string().nullable(),
       target_glossary_entry_id: z.number().int().nullable(),
       type: z.enum(QUESTION_TYPES),
       /**
@@ -296,6 +304,10 @@ export const updateAdminPassageRequestSchema = z.object({
       z.object({
         id: z.number().int().positive().max(MAX_SERIAL_ID).nullable(),
         choices: z.array(z.string().max(1000)).length(QUESTION_CHOICE_COUNT),
+        /**
+         * 空白だけの和訳・語義の設問の和訳は、保存のときに api が NULL にする
+         */
+        choices_ja: z.array(z.string().max(1000)).length(QUESTION_CHOICE_COUNT).nullable(),
         correct_choice_index: z
           .number()
           .int()
@@ -307,6 +319,7 @@ export const updateAdminPassageRequestSchema = z.object({
         }),
         explanation_ja: z.string().max(5000),
         prompt: z.string().max(1000),
+        prompt_ja: z.string().max(1000).nullable(),
         target_glossary_index: z.number().int().nonnegative().nullable(),
         type: z.enum(QUESTION_TYPES),
       }),

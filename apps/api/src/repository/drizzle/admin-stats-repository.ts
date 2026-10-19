@@ -46,6 +46,7 @@ const ATTEMPT_TOTAL_COLUMNS = sql`
   coalesce(sum(ra.elapsed_seconds), 0) AS elapsed_seconds_sum,
   count(*) FILTER (WHERE ra.is_overtime) AS overtime_attempts,
   count(*) FILTER (WHERE ra.translated_block_count > 0) AS translated_attempts,
+  count(*) FILTER (WHERE ra.translated_question_count > 0) AS translated_question_attempts,
   count(*) FILTER (WHERE ra.word_lookup_count > 0) AS looked_up_attempts,
   count(*) FILTER (WHERE ra.listened_block_count > 0) AS listened_attempts
 `
@@ -60,6 +61,7 @@ type AttemptTotalsRow = {
   solved_attempts: string | null
   solved_users: string | null
   translated_attempts: string | null
+  translated_question_attempts: string | null
 }
 
 /**
@@ -75,6 +77,7 @@ const convertAttemptTotalsRow = (row: AttemptTotalsRow): AttemptTotals => ({
   solvedAttempts: Number(row.solved_attempts ?? 0),
   solvedUsers: Number(row.solved_users ?? 0),
   translatedAttempts: Number(row.translated_attempts ?? 0),
+  translatedQuestionAttempts: Number(row.translated_question_attempts ?? 0),
 })
 
 type PassageStatsQueryRow = AttemptTotalsRow & {
@@ -272,7 +275,7 @@ export class DrizzleAdminStatsRepository implements AdminStatsRepository {
     const result = await this._db.execute<AttemptTotalsRow & { active_users: string; new_users: string; total_users: string }>(sql`
       WITH solved AS (
         SELECT ra.user_id, ra.correct_count, ra.question_count, ra.elapsed_seconds, ra.is_overtime,
-               ra.translated_block_count, ra.word_lookup_count, ra.listened_block_count
+               ra.translated_block_count, ra.translated_question_count, ra.word_lookup_count, ra.listened_block_count
           FROM reading_attempts ra
          WHERE ra.status = 'submitted' AND ${buildPeriodCondition(sql`ra.submitted_at`, range)}
       )
@@ -309,7 +312,7 @@ export class DrizzleAdminStatsRepository implements AdminStatsRepository {
       SELECT p.id, p.title, p.status, p.difficulty, p.published_at::text AS published_at, p.time_limit_seconds,
              cs.id AS source_id, cs.name AS source_name,
              s.solved_attempts, s.solved_users, s.correct_count, s.question_count, s.elapsed_seconds_sum,
-             s.overtime_attempts, s.translated_attempts, s.looked_up_attempts, s.listened_attempts,
+             s.overtime_attempts, s.translated_attempts, s.translated_question_attempts, s.looked_up_attempts, s.listened_attempts,
              count(*) OVER () AS total
         FROM passages p
         JOIN source_documents sd ON sd.id = p.source_document_id

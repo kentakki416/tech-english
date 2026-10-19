@@ -52,13 +52,14 @@ describe("getUserAttempts", () => {
       }
     })
 
-    it("提出時刻をユーザーのタイムゾーンの HH:mm にし、訳・単語の意味・読み上げのどれかを使っていればアシストあり", async () => {
+    it("提出時刻をユーザーのタイムゾーンの HH:mm にし、段落の和訳・設問の和訳・単語の意味・読み上げのどれかを使っていればアシストあり", async () => {
       const repo = setup()
       repo.userRepository.findById.mockResolvedValue({ ...USER, timezone: "America/Los_Angeles" })
       repo.learningRecordRepository.findSubmittedAttempts.mockResolvedValue([
         buildSubmittedAttempt({ id: 304, listenedBlockCount: 1, submittedAt: new Date("2026-10-10T07:01:00.000Z") }),
         buildSubmittedAttempt({ id: 303, submittedAt: new Date("2026-10-10T07:00:00.000Z"), translatedBlockCount: 1 }),
         buildSubmittedAttempt({ id: 302, submittedAt: new Date("2026-10-10T06:59:00.000Z"), wordLookupCount: 1 }),
+        buildSubmittedAttempt({ id: 305, submittedAt: new Date("2026-10-10T06:58:00.000Z"), translatedQuestionCount: 1 }),
         buildSubmittedAttempt({ id: 301, submittedAt: new Date("2026-10-09T19:05:00.000Z") }),
       ])
 
@@ -70,9 +71,10 @@ describe("getUserAttempts", () => {
           [304, "00:01", true],
           [303, "00:00", true],
           [302, "23:59", true],
+          [305, "23:58", true],
           [301, "12:05", false],
         ])
-        expect(result.value.attempts[3]).toEqual({
+        expect(result.value.attempts[4]).toEqual({
           id: 301,
           correctCount: 3,
           elapsedSeconds: 312,

@@ -9,6 +9,7 @@ export const convertAssistRatesToResponse = (rates: AttemptRates["assistRates"])
   listened: rates.listened,
   looked_up: rates.lookedUp,
   translated: rates.translated,
+  translated_question: rates.translatedQuestion,
 })
 
 /**

@@ -271,10 +271,12 @@ export const convertFormToRequest = (form: PassageForm): UpdateAdminPassageReque
     questions: form.questions.map((question) => ({
       id: question.id,
       choices: question.choices,
+      choices_ja: question.choices_ja,
       correct_choice_index: question.correct_choice_index,
       evidence: question.evidence,
       explanation_ja: question.explanation_ja,
       prompt: question.prompt,
+      prompt_ja: question.prompt_ja,
       target_glossary_index:
         question.type === "vocabulary" && question.targetGlossaryKey !== null
           ? glossaryIndexByKey.get(question.targetGlossaryKey) ?? null

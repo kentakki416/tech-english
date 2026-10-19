@@ -81,7 +81,16 @@ export type DraftEditContent = {
   > & { id: number | null })[]
   questions: (Pick<
     Question,
-    "choices" | "correctChoiceIndex" | "evidenceBlockIndex" | "evidenceQuote" | "explanationJa" | "orderIndex" | "prompt" | "type"
+    | "choices"
+    | "choicesJa"
+    | "correctChoiceIndex"
+    | "evidenceBlockIndex"
+    | "evidenceQuote"
+    | "explanationJa"
+    | "orderIndex"
+    | "prompt"
+    | "promptJa"
+    | "type"
   > & {
     id: number | null
     /**

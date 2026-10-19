@@ -99,11 +99,13 @@ describe("GET /api/admin/passage/:id", () => {
         questions: QUESTION_ITEMS.map((item, index) => ({
           id: questions[index].id,
           choices: item.choices,
+          choices_ja: item.choicesJa,
           correct_choice_index: item.correctChoiceIndex,
           evidence: { block_index: item.evidenceBlockIndex, quote: item.evidenceQuote },
           explanation_ja: item.explanationJa,
           order_index: index,
           prompt: item.prompt,
+          prompt_ja: item.promptJa,
           target_glossary_entry_id: item.type === "vocabulary" ? glossary[1].id : null,
           type: item.type,
           verification_choice_index: item.verificationChoiceIndex,

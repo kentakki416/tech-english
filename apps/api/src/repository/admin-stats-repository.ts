@@ -18,6 +18,10 @@ export type AttemptTotals = {
   solvedAttempts: number
   solvedUsers: number
   translatedAttempts: number
+  /**
+   * 設問の和訳を 1 つ以上出した挑戦の数
+   */
+  translatedQuestionAttempts: number
 }
 
 /**
