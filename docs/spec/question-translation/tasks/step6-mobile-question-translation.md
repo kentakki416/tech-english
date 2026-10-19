@@ -12,7 +12,7 @@ mobile の解答画面（設問シート）と結果画面で、設問ごとの�
 | `apps/mobile/src/components/features/attempt/QuestionSheet.tsx` | 「訳」と、設問文・選択肢の下の和訳 |
 | `apps/mobile/src/components/features/attempt/SolvingScreen.tsx` | 和訳を出している設問と一度でも出した設問の状態、途中保存、提出 |
 | `apps/mobile/src/features/attempt/attempt-progress.ts` | 途中保存に `translatedQuestionIds` |
-| `apps/mobile/src/components/features/attempt/ResultScreen.tsx`・`ResultQuestionItem.tsx`・`ResultHeader.tsx` | 設問ごとの「訳」、アシストの使用に「設問の和訳 N 問」 |
+| `apps/mobile/src/components/features/attempt/ResultHeader.tsx`・`ResultQuestionItem.tsx` | 設問ごとの「訳」、アシストの使用に「設問の和訳 N 問」 |
 | `apps/mobile/src/libs/mock-data.ts`・`app/mock/attempts/[id]/index.tsx`・`app/mock/attempts/[id]/result.tsx` | デザインモックに同じ表示 |
 
 ### `QuestionTranslationToggle.tsx`
@@ -145,7 +145,7 @@ web（step5）と同じく `translatedQuestionIds?: number[]` を足し、`isAtt
 
 ### 結果画面
 
-- `ResultScreen.tsx`：状態 `translatedQuestionIds` と `toggleQuestionTranslation`（保存も記録もしない）。`ResultQuestionItem` に `isTranslated` と `onToggleTranslation` を渡す
+- `ResultHeader.tsx`（設問ごとの結果を並べている）：状態 `translatedQuestionIds` と `toggleQuestionTranslation`（保存も記録もしない）。`ResultQuestionItem` に `isTranslated` と `onToggleTranslation` を渡す
 - `ResultQuestionItem.tsx`：開いたときの設問文の行に `QuestionTranslationToggle`、設問文の下に和訳、`ChoiceRow` に `translation: string | null` を足して英文の下に和訳（解答画面と同じ見た目）
 - `ResultHeader.tsx` のアシストの使用
 
