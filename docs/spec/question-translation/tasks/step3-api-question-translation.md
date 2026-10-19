@@ -97,21 +97,18 @@ const assistRatesSchema = z.object({
 `apps/api/src/lib/admin-passage-edit.ts` の `AdminPassageEditInput.questions` に、`choices` の次に `choicesJa: string[] | null`、`prompt` の次に `promptJa: string | null` を足す。
 
 ```ts
-const convertBlankTranslationToNull = (translation: string | null): string | null =>
-  translation === null || translation.trim() === "" ? null : translation
-
 const convertBlankChoiceTranslationsToNull = (translations: string[] | null): string[] | null =>
   translations === null || translations.every((translation) => translation.trim() === "") ? null : translations
 ```
 
-`buildDraftEditContent` が返す設問の `choices` の次と `prompt` の次に足す。
+`buildDraftEditContent` が返す設問の `choices` の次と `prompt` の次に足す。設問文の和訳は、補足・品詞と同じ既存の `convertBlankToNull` で空白だけを NULL にする。
 
 ```ts
       choicesJa: question.type === "vocabulary" ? null : convertBlankChoiceTranslationsToNull(question.choicesJa),
 ```
 
 ```ts
-      promptJa: convertBlankTranslationToNull(question.promptJa),
+      promptJa: convertBlankToNull(question.promptJa),
 ```
 
 - `choicesJa` を語義の設問で NULL にする理由（DB の `questions_choices_ja_check`、種類を語義に変えたときに残った和訳を消す）は `convertBlankChoiceTranslationsToNull` を呼ぶ行の上に書く
