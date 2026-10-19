@@ -237,7 +237,7 @@ describe("segmentPassage", () => {
       expect(listGlossaryEntryIdsByBlock(segmentPassage(blocks, glossary))).toEqual([[21], [22], [21]])
     })
 
-    it("2 回目の出現がほかの用語集と重なったら、開始が早い方を残す", () => {
+    it("2 回目の出現が保存してある位置の用語集と重なったら、開始が早くても保存してある方を残す", () => {
       const blocks: PassageBlock[] = [
         { text: "Effects are an escape hatch.", type: "paragraph" },
         { text: "Use an escape hatch from React.", type: "paragraph" },
@@ -249,10 +249,25 @@ describe("segmentPassage", () => {
 
       const segmentsByBlock = segmentPassage(blocks, glossary)
 
-      expect(listGlossaryEntryIdsByBlock(segmentsByBlock)).toEqual([[11], [11]])
+      expect(listGlossaryEntryIdsByBlock(segmentsByBlock)).toEqual([[11], [12]])
       expect(summarizeSegments(segmentsByBlock[1] ?? []).map((segment) => segment.text)).toEqual([
-        "Use", " ", "an", " ", "escape hatch", " ", "from", " ", "React", ".",
+        "Use", " ", "an", " ", "escape", " ", "hatch from React", ".",
       ])
+    })
+
+    it("2 回目の出現どうしが重なったら、開始が早い方を残す", () => {
+      const blocks: PassageBlock[] = [
+        { text: "An escape hatch and a hatch from React.", type: "paragraph" },
+        { text: "Use an escape hatch from React.", type: "paragraph" },
+      ]
+      const glossary = [
+        buildGlossarySpan(11, blocks[0]?.text ?? "", "escape hatch", 0),
+        buildGlossarySpan(12, blocks[0]?.text ?? "", "hatch from React", 0),
+      ]
+
+      const segmentsByBlock = segmentPassage(blocks, glossary)
+
+      expect(listGlossaryEntryIdsByBlock(segmentsByBlock)).toEqual([[11, 12], [11]])
     })
   })
 

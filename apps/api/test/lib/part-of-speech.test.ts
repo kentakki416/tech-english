@@ -23,7 +23,9 @@ describe("findLookupTargetRanges", () => {
         { end: 21, start: 14 },
       ])
     })
+  })
 
+  describe("異常系", () => {
     it("空文字は [] を返す", () => {
       expect(findLookupTargetRanges("")).toEqual([])
     })

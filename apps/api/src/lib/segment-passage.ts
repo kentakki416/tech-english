@@ -128,15 +128,16 @@ const segmentBlockText = (text: string, glossary: GlossarySpan[]): SegmentWithRa
 
 /**
  * ブロックの用語集の位置。保存してある位置（そのブロックの項目）と、すべての項目の同じ表記のほかの出現（語の境界で区切られたもの。
- * ほかのブロックの項目も含む）を返す。保存してある位置と同じ範囲の出現は、表記が同じ別の項目のものでも外す（保存してある項目を使う）。
- * ほかの重なりは selectGlossarySpans が 1 つにする
+ * ほかのブロックの項目も含む）を返す。保存してある位置と重なる出現は外す（保存してある項目が本文のどこからも押せなくならないように、
+ * 保存してある位置を常に優先する）。ほかの重なりは selectGlossarySpans が 1 つにする
  */
 const collectGlossaryOccurrences = (text: string, blockIndex: number, glossary: GlossarySpan[]): GlossarySpan[] => {
   const storedSpans = glossary.filter((entry) => entry.blockIndex === blockIndex)
   const otherOccurrences = glossary.flatMap((entry) =>
     findSurfaceRanges(text, entry.surface)
-      .filter((range) => !storedSpans.some((stored) => stored.startOffset === range.startOffset && stored.endOffset === range.endOffset))
-      .map((range) => ({ ...entry, blockIndex, endOffset: range.endOffset, startOffset: range.startOffset })),
+      .map((range) => ({ end: range.endOffset, start: range.startOffset }))
+      .filter((range) => !storedSpans.some((stored) => isOverlapping(range, { end: stored.endOffset, start: stored.startOffset })))
+      .map((range) => ({ ...entry, blockIndex, endOffset: range.end, startOffset: range.start })),
   )
   return [...storedSpans, ...otherOccurrences]
 }

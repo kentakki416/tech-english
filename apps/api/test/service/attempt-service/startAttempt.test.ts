@@ -158,6 +158,33 @@ describe("startAttempt", () => {
       )
     })
 
+    it("語義設問の対象語句と表記が同じ別の項目も用語集から外し、対象語句の位置に意味が出ない", async () => {
+      const content = buildAttemptContent()
+      const blocks = content.passage.blocks.map((block, index) =>
+        index === 2 ? { ...block, text: "Use an escape hatch only when you need it." } : block,
+      )
+      const target = content.glossary.find((entry) => entry.id === 102)
+      if (!target) throw new Error("Expected glossary entry 102")
+      const sameSurfaceEntry = { ...target, id: 104, blockIndex: 2, endOffset: 19, startOffset: 7 }
+      passageRepository.findAttemptContentById.mockResolvedValue({
+        ...content,
+        glossary: [...content.glossary, sameSurfaceEntry],
+        passage: { ...content.passage, blocks },
+      })
+      readingAttemptRepository.findAliveInProgress.mockResolvedValue(buildAttempt())
+
+      const view = extractView(await startAttempt(INPUT, repo))
+
+      expect(view.blocks.map((block) => block.segments.flatMap((segment) => segment.glossaryEntryId ?? []))).toEqual([
+        [],
+        [101],
+        [],
+        [],
+        [103],
+      ])
+      expect(view.glossary.map((entry) => entry.id)).toEqual([101, 103])
+    })
+
     it("期限内の挑戦中があれば isCreated: false でそれを返し（制限時間は開始時点の値）、挑戦中を作らない", async () => {
       passageRepository.findAttemptContentById.mockResolvedValue(buildAttemptContent({ timeLimitSeconds: 240 }))
       readingAttemptRepository.findAliveInProgress.mockResolvedValue(buildAttempt({ id: 301, timeLimitSeconds: 180 }))
