@@ -147,7 +147,7 @@ const locateGlossary = (
  * 2. 用語集の位置を `findSurfaceRange` で本文から求める。見つからない語句は捨てて droppedGlossary に入れる
  * 3. 根拠の引用が本文に無ければ要確認（保存はする）
  * 4. 語義設問の対象を用語集の項目に紐づける。用語集に無ければ意味が空の項目を足して紐づけ、本文に無ければ紐づけない（どちらも要確認）
- * 5. 選択肢をシャッフルして正解の位置を無作為にする
+ * 5. 選択肢と選択肢の和訳を同じ順にシャッフルして、正解の位置を無作為にする
  * 6. 制限時間を計算式で求める
  *
  * 要確認の理由のブロックの表記は `numberParagraphs` の「段落 N」と `numberHeadings` の「見出し N」。用語集は位置の順に並べ、設問は glossary の index で指す
@@ -204,15 +204,20 @@ export const buildDraftContent = (input: BuildDraftContentInput): BuildDraftCont
       }
     }
 
-    const shuffled = shuffleChoices(question.choices, question.correctChoiceIndex, input.random)
+    const shuffled = shuffleChoices(
+      { choices: question.choices, choicesJa: question.choicesJa, correctChoiceIndex: question.correctChoiceIndex },
+      input.random,
+    )
     const draftQuestion: Omit<DraftQuestion, "targetGlossaryIndex"> = {
       choices: shuffled.choices,
+      choicesJa: shuffled.choicesJa,
       correctChoiceIndex: shuffled.correctChoiceIndex,
       evidenceBlockIndex: question.evidence.blockIndex,
       evidenceQuote: question.evidence.quote,
       explanationJa: question.explanationJa,
       orderIndex: index,
       prompt: question.prompt,
+      promptJa: question.promptJa,
       type: question.type,
       verificationChoiceIndex: null,
     }

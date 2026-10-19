@@ -24,6 +24,11 @@ export const generatedQuestionSchema = z.object({
     .array(z.string().trim().min(1))
     .length(QUESTION_CHOICE_COUNT)
     .describe("Exactly 4 answer choices in English. Exactly one is correct"),
+  choicesJa: z
+    .array(z.string().trim().min(1))
+    .length(QUESTION_CHOICE_COUNT)
+    .nullable()
+    .describe("Japanese translations of choices in the same order. null for vocabulary questions"),
   correctChoiceIndex: z.number().int().min(0).max(QUESTION_CHOICE_COUNT - 1).describe("0-based index of the correct choice"),
   evidence: z.object({
     blockIndex: blockIndexSchema,
@@ -31,6 +36,7 @@ export const generatedQuestionSchema = z.object({
   }),
   explanationJa: z.string().min(1).describe("Explanation in Japanese"),
   prompt: z.string().min(1).describe("Question text in English"),
+  promptJa: z.string().trim().min(1).describe("Japanese translation of prompt"),
   type: z.enum(QUESTION_TYPES),
   vocabularyTarget: blockRefSchema
     .nullable()
@@ -66,7 +72,7 @@ const generateQuestionsOutputObjectSchema = z.object({
  */
 export const generateQuestionsOutputSchema = generateQuestionsOutputObjectSchema.superRefine((output, ctx) => {
   /**
-   * vocabulary の設問だけが対象語句を持つ
+   * vocabulary の設問だけが対象語句を持ち、選択肢の和訳を持たない（和訳から答えが分かるため）
    */
   output.questions.forEach((question, index) => {
     const isVocabulary = question.type === "vocabulary"
@@ -77,6 +83,15 @@ export const generateQuestionsOutputSchema = generateQuestionsOutputObjectSchema
           ? "vocabularyTarget is required for vocabulary questions"
           : "vocabularyTarget must be null for non-vocabulary questions",
         path: ["questions", index, "vocabularyTarget"],
+      })
+    }
+    if (isVocabulary !== (question.choicesJa === null)) {
+      ctx.addIssue({
+        code: "custom",
+        message: isVocabulary
+          ? "choicesJa must be null for vocabulary questions"
+          : "choicesJa is required for non-vocabulary questions",
+        path: ["questions", index, "choicesJa"],
       })
     }
   })

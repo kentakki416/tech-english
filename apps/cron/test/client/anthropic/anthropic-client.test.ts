@@ -253,10 +253,12 @@ describe("AnthropicClient", () => {
             isSuitable: true,
             questions: [{
               choices: ["enable", "disable", "inspect"],
+              choicesJa: null,
               correctChoiceIndex: 0,
               evidence: { blockIndex: 1, quote: "opt in to" },
               explanationJa: "有効にするの意味。",
               prompt: "The phrase \"opt in to\" is closest in meaning to",
+              promptJa: "\"opt in to\" に最も意味が近いものはどれか。",
               type: "vocabulary",
               vocabularyTarget: null,
             }],

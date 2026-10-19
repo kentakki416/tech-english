@@ -201,6 +201,7 @@ export class DrizzlePassageRepository implements PassageRepository {
             const target = question.targetGlossaryIndex === null ? undefined : content.glossary[question.targetGlossaryIndex]
             return {
               choices: question.choices,
+              choicesJa: question.choicesJa,
               correctChoiceIndex: question.correctChoiceIndex,
               evidenceBlockIndex: question.evidenceBlockIndex,
               evidenceQuote: question.evidenceQuote,
@@ -208,6 +209,7 @@ export class DrizzlePassageRepository implements PassageRepository {
               orderIndex: question.orderIndex,
               passageId: claim.id,
               prompt: question.prompt,
+              promptJa: question.promptJa,
               targetGlossaryEntryId: target ? glossaryIdByPosition.get(buildGlossaryPositionKey(target)) ?? null : null,
               type: question.type,
               verificationChoiceIndex: question.verificationChoiceIndex,

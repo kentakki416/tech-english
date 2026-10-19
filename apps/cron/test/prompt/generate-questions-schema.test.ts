@@ -37,19 +37,28 @@ const buildValidOutput = (): GenerateQuestionsOutput => ({
         "To describe how to charge a credit card",
         "To list the causes of server restarts",
       ],
+      choicesJa: [
+        "リクエストのリトライが安全な場合を説明するため",
+        "GET と POST のリクエストを比べるため",
+        "クレジットカードへの請求のしかたを説明するため",
+        "サーバーが再起動する原因を挙げるため",
+      ],
       correctChoiceIndex: 0,
       evidence: { blockIndex: 2, quote: "Retries are only safe when a request is idempotent" },
       explanationJa: "第 2 段落で、リトライが安全なのは冪等なリクエストのときだけだと説明している。",
       prompt: "What is the main purpose of paragraph 2?",
+      promptJa: "第 2 段落の主な目的は何か。",
       type: "main_idea",
       vocabularyTarget: null,
     },
     {
       choices: ["enable", "disable", "inspect", "replace"],
+      choicesJa: null,
       correctChoiceIndex: 0,
       evidence: { blockIndex: 1, quote: "the client can opt in to automatic retries" },
       explanationJa: "opt in to は「（任意の機能を）有効にする」の意味。",
       prompt: "The phrase \"opt in to\" in paragraph 1 is closest in meaning to",
+      promptJa: "第 1 段落の \"opt in to\" に最も意味が近いものはどれか。",
       type: "vocabulary",
       vocabularyTarget: { blockIndex: 1, surface: "opt in to" },
     },
@@ -131,6 +140,18 @@ describe("generateQuestionsOutputSchema", () => {
       ["和訳が空文字", (output) => {
         output.translations[0].translationJa = ""
       }, ["translations", 0, "translationJa"]],
+      ["設問文の和訳が空白だけ", (output) => {
+        output.questions[0].promptJa = "  "
+      }, ["questions", 0, "promptJa"]],
+      ["選択肢の和訳が 3 つ", (output) => {
+        output.questions[0].choicesJa = ["a", "b", "c"]
+      }, ["questions", 0, "choicesJa"]],
+      ["vocabulary 以外なのに選択肢の和訳が null", (output) => {
+        output.questions[0].choicesJa = null
+      }, ["questions", 0, "choicesJa"]],
+      ["vocabulary なのに選択肢の和訳がある", (output) => {
+        output.questions[1].choicesJa = ["有効にする", "無効にする", "調べる", "置き換える"]
+      }, ["questions", 1, "choicesJa"]],
     ]
 
     it.each(mutations)("%s は不合格になり、issue の path が該当の値を指す", (_label, mutate, expectedPath) => {

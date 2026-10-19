@@ -74,6 +74,16 @@ describe("validateGeneratedOutput", () => {
       ])
     })
 
+    it("語義設問に選択肢の和訳があれば、再生成の指示になる理由で不合格", () => {
+      const output = buildGeneratedOutput()
+      output.questions[1].choicesJa = ["速い", "繰り返しても安全", "拒否される", "POST だけ"]
+
+      const result = validateGeneratedOutput(output, PASSAGE_INPUT)
+
+      expect(result.ok).toBe(false)
+      expect(!result.ok && result.errors).toEqual(["questions.1.choicesJa: choicesJa must be null for vocabulary questions"])
+    })
+
     it("オブジェクトでなければ不合格", () => {
       const result = validateGeneratedOutput("not an object", PASSAGE_INPUT)
 
@@ -122,7 +132,7 @@ describe("validateGeneratedOutput", () => {
       const output = buildGeneratedOutput({
         questions: [
           buildQuestion(),
-          buildQuestion({ type: "vocabulary", vocabularyTarget: { blockIndex: 5, surface: "retry" } }),
+          buildQuestion({ choicesJa: null, type: "vocabulary", vocabularyTarget: { blockIndex: 5, surface: "retry" } }),
           buildQuestion(),
         ],
       })
