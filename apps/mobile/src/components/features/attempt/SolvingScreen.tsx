@@ -77,7 +77,7 @@ const isValidWordLookup = (lookup: WordLookupRecord): boolean =>
 
 /**
  * 端末に保存した途中経過を読み、いまの挑戦に無い設問・選択肢・ブロックと提出の検証を通らない記録を除く
- * （古い保存や壊れた値のせいで提出できなくならないように。web と同じ）。聞いた段落は読み上げより前の保存には無い
+ * （古い保存や壊れた値のせいで提出できなくならないように。web と同じ）。聞いた段落は読み上げより前の保存に、和訳を出した設問は設問の和訳より前の保存には無い
  */
 const restoreProgress = async (
   attempt: InProgressAttempt,
@@ -86,6 +86,7 @@ const restoreProgress = async (
   const saved = await readAttemptProgress(attempt.id)
   if (saved === null) return null
 
+  const translatableQuestionIds = new Set(attempt.questions.flatMap(question => (question.prompt_ja !== null ? [question.id] : [])))
   const answers: Record<number, number> = {}
   for (const question of attempt.questions) {
     const choiceIndex = saved.answers[question.id]
@@ -98,6 +99,7 @@ const restoreProgress = async (
     elapsedSeconds: Number.isFinite(saved.elapsedSeconds) ? Math.max(0, Math.floor(saved.elapsedSeconds)) : 0,
     listenedBlockIndexes: [...new Set(saved.listenedBlockIndexes)].filter(index => blockIndexes.readable.has(index)),
     translatedBlockIndexes: [...new Set(saved.translatedBlockIndexes)].filter(index => blockIndexes.translatable.has(index)),
+    translatedQuestionIds: [...new Set(saved.translatedQuestionIds)].filter(id => translatableQuestionIds.has(id)),
     wordLookups: saved.wordLookups.filter(isValidWordLookup).slice(0, SUBMIT_ATTEMPT_MAX_WORD_LOOKUPS),
   }
 }
@@ -162,6 +164,14 @@ export function SolvingScreen({ attempt }: { attempt: InProgressAttempt }) {
    */
   const [viewedTranslationBlocks, setViewedTranslationBlocks] = useState<Set<number>>(() => new Set())
   /**
+   * いま和訳を出している設問
+   */
+  const [translatedQuestions, setTranslatedQuestions] = useState<Set<number>>(() => new Set())
+  /**
+   * 和訳を一度でも出した設問（提出の translated_question_count）
+   */
+  const [viewedTranslationQuestions, setViewedTranslationQuestions] = useState<Set<number>>(() => new Set())
+  /**
    * 長押しで和訳を重ねている段落
    */
   const [peekBlock, setPeekBlock] = useState<number | null>(null)
@@ -209,6 +219,7 @@ export function SolvingScreen({ attempt }: { attempt: InProgressAttempt }) {
         setSavedSeconds(saved.elapsedSeconds)
         setListenedBlocks(new Set(saved.listenedBlockIndexes))
         setViewedTranslationBlocks(new Set(saved.translatedBlockIndexes))
+        setViewedTranslationQuestions(new Set(saved.translatedQuestionIds))
         setWordLookups(saved.wordLookups)
         /**
          * 再開したときは最初の未回答の設問から
@@ -225,7 +236,14 @@ export function SolvingScreen({ attempt }: { attempt: InProgressAttempt }) {
 
   useEffect(() => {
     progressRef.current = isHydrated && !isExpired
-      ? { answers, elapsedSeconds, listenedBlockIndexes: [...listenedBlocks], translatedBlockIndexes: [...viewedTranslationBlocks], wordLookups }
+      ? {
+        answers,
+        elapsedSeconds,
+        listenedBlockIndexes: [...listenedBlocks],
+        translatedBlockIndexes: [...viewedTranslationBlocks],
+        translatedQuestionIds: [...viewedTranslationQuestions],
+        wordLookups,
+      }
       : null
   })
 
@@ -235,11 +253,11 @@ export function SolvingScreen({ attempt }: { attempt: InProgressAttempt }) {
   }, [attempt.id])
 
   /**
-   * 回答・和訳を見た段落・調べた単語・聞いた段落が変わったとき
+   * 回答・和訳を見た段落と設問・調べた単語・聞いた段落が変わったとき
    */
   useEffect(() => {
     if (isHydrated) saveProgress()
-  }, [answers, isHydrated, listenedBlocks, saveProgress, viewedTranslationBlocks, wordLookups])
+  }, [answers, isHydrated, listenedBlocks, saveProgress, viewedTranslationBlocks, viewedTranslationQuestions, wordLookups])
 
   /**
    * 経過秒数が 5 秒進むごと（アプリがタスクキルされても 5 秒以内のずれで戻せるように）
@@ -334,6 +352,16 @@ export function SolvingScreen({ attempt }: { attempt: InProgressAttempt }) {
     setIsSheetOpen(!isSheetOpen)
   }, [closeWordCard, isSheetOpen])
 
+  const toggleQuestionTranslation = useCallback((questionId: number) => {
+    setTranslatedQuestions((current) => {
+      const next = new Set(current)
+      if (next.has(questionId)) next.delete(questionId)
+      else next.add(questionId)
+      return next
+    })
+    setViewedTranslationQuestions(current => (current.has(questionId) ? current : new Set(current).add(questionId)))
+  }, [])
+
   const addViewedTranslationBlock = useCallback((blockIndex: number) => {
     setViewedTranslationBlocks(current => (current.has(blockIndex) ? current : new Set(current).add(blockIndex)))
   }, [])
@@ -407,6 +435,7 @@ export function SolvingScreen({ attempt }: { attempt: InProgressAttempt }) {
     answers: questions.map(question => ({ question_id: question.id, selected_choice_index: answers[question.id] ?? null })),
     listened_block_count: listenedBlocks.size,
     translated_block_count: viewedTranslationBlocks.size,
+    translated_question_count: viewedTranslationQuestions.size,
     word_lookups: wordLookups.map(lookup => ({
       glossary_entry_id: lookup.glossaryEntryId,
       lemma: lookup.lemma,
@@ -540,10 +569,12 @@ export function SolvingScreen({ attempt }: { attempt: InProgressAttempt }) {
           currentIndex={currentIndex}
           isOpen={isSheetOpen}
           questions={questions}
+          translatedQuestionIds={translatedQuestions}
           onChoose={chooseAnswer}
           onMove={moveQuestion}
           onOpenSubmitConfirm={openSubmitConfirm}
           onToggle={toggleSheet}
+          onToggleTranslation={toggleQuestionTranslation}
         />
 
         {isPaused && <PauseOverlay onResume={() => setIsPaused(false)} />}

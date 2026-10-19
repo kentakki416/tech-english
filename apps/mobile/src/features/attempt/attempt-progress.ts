@@ -31,6 +31,10 @@ export type AttemptProgress = {
    * 和訳を一度でも見たブロックの添字
    */
   translatedBlockIndexes: number[]
+  /**
+   * 和訳を一度でも出した設問の ID。設問の和訳より前の版で保存したものには無い
+   */
+  translatedQuestionIds?: number[]
   version: typeof ATTEMPT_PROGRESS_VERSION
   /**
    * 提出の word_lookups にそのまま使う
@@ -63,6 +67,8 @@ const isAttemptProgress = (value: unknown): value is AttemptProgress =>
     || (Array.isArray(value.listenedBlockIndexes) && value.listenedBlockIndexes.every(index => typeof index === "number")))
   && Array.isArray(value.translatedBlockIndexes)
   && value.translatedBlockIndexes.every(index => typeof index === "number")
+  && (value.translatedQuestionIds === undefined
+    || (Array.isArray(value.translatedQuestionIds) && value.translatedQuestionIds.every(id => typeof id === "number")))
   && Array.isArray(value.wordLookups)
   && value.wordLookups.every(lookup => isRecord(lookup) && typeof lookup.lemma === "string" && typeof lookup.surface === "string")
 

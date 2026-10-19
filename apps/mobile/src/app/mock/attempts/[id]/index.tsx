@@ -66,6 +66,7 @@ export default function MockAttemptScreen() {
   const [isConfirmOpen, setIsConfirmOpen] = useState(initialState === "confirm")
   const [showAllTranslations, setShowAllTranslations] = useState(false)
   const [translatedBlocks, setTranslatedBlocks] = useState<Set<number>>(new Set())
+  const [translatedQuestions, setTranslatedQuestions] = useState<Set<number>>(new Set())
   const [peekBlock, setPeekBlock] = useState<number | null>(initialState === "peek" ? 2 : null)
   const [wordCard, setWordCard] = useState<WordCardContent | null>(null)
   const [isFollowing, setIsFollowing] = useState(true)
@@ -247,8 +248,25 @@ export default function MockAttemptScreen() {
               ))}
             </View>
             <ScrollView contentContainerStyle={styles.questionBody}>
-              <Text style={styles.questionLabel}>Q{currentIndex + 1}</Text>
+              <View style={styles.questionHeader}>
+                <Text style={styles.questionLabel}>Q{currentIndex + 1}</Text>
+                <Pressable
+                  accessibilityLabel={translatedQuestions.has(question.id) ? "設問の和訳を隠す" : "設問の和訳を表示"}
+                  accessibilityRole="button"
+                  hitSlop={8}
+                  onPress={() => setTranslatedQuestions((current) => {
+                    const next = new Set(current)
+                    if (next.has(question.id)) next.delete(question.id)
+                    else next.add(question.id)
+                    return next
+                  })}
+                  style={[styles.translateButton, translatedQuestions.has(question.id) && styles.translateButtonActive]}
+                >
+                  <Text style={[styles.translateText, translatedQuestions.has(question.id) && { color: MOCK_COLORS.amber }]}>訳</Text>
+                </Pressable>
+              </View>
               <Text style={styles.prompt}>{question.prompt}</Text>
+              {translatedQuestions.has(question.id) && <Text style={styles.promptTranslation}>{question.promptJa}</Text>}
               {question.choices.map((choice, choiceIndex) => {
                 const isSelected = answers[question.id] === choiceIndex
                 return (
@@ -261,7 +279,12 @@ export default function MockAttemptScreen() {
                     <View style={[styles.choiceLetter, isSelected && styles.choiceLetterSelected]}>
                       <Text style={[styles.choiceLetterText, isSelected && { color: MOCK_COLORS.amberInk }]}>{CHOICE_LETTERS[choiceIndex]}</Text>
                     </View>
-                    <Text style={styles.choiceText}>{choice}</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.choiceText}>{choice}</Text>
+                      {translatedQuestions.has(question.id) && question.choicesJa !== null && (
+                        <Text style={styles.choiceTranslation}>{question.choicesJa[choiceIndex]}</Text>
+                      )}
+                    </View>
                   </Pressable>
                 )
               })}
@@ -387,10 +410,15 @@ const styles = StyleSheet.create({
   },
   choiceText: {
     color: MOCK_COLORS.fg,
-    flex: 1,
     fontFamily: MOCK_FONTS.reading,
     fontSize: 15.5,
     lineHeight: 22,
+  },
+  choiceTranslation: {
+    color: MOCK_COLORS.fgMuted,
+    fontSize: 13,
+    lineHeight: 19,
+    marginTop: 4,
   },
   content: {
     paddingBottom: 190,
@@ -498,8 +526,19 @@ const styles = StyleSheet.create({
     lineHeight: 26,
     marginTop: 6,
   },
+  promptTranslation: {
+    color: MOCK_COLORS.fgMuted,
+    fontSize: 14,
+    lineHeight: 22,
+    marginTop: 6,
+  },
   questionBody: {
     padding: 20,
+  },
+  questionHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
   },
   questionLabel: {
     color: MOCK_COLORS.fgMuted,
@@ -655,6 +694,21 @@ const styles = StyleSheet.create({
     gap: 8,
     height: 56,
     paddingHorizontal: 14,
+  },
+  translateButton: {
+    borderColor: MOCK_COLORS.lineStrong,
+    borderRadius: 4,
+    borderWidth: 1,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  translateButtonActive: {
+    backgroundColor: MOCK_COLORS.amberWash,
+    borderColor: "rgba(243, 178, 76, 0.5)",
+  },
+  translateText: {
+    color: MOCK_COLORS.fgMuted,
+    fontSize: 11,
   },
   wordCardWrapper: {
     bottom: 140,

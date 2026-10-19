@@ -8,6 +8,8 @@ import type { AttemptQuestion } from "@repo/api-schema"
 import { PrimaryButton } from "@/components/ui/PrimaryButton"
 import { THEME_COLORS, THEME_FONTS } from "@/const/design-theme"
 
+import { QuestionTranslationToggle } from "./QuestionTranslationToggle"
+
 /**
  * 閉じた状態のバーの高さ（下端の安全領域は別に足す）
  */
@@ -38,10 +40,12 @@ function QuestionSheet({
   currentIndex,
   isOpen,
   questions,
+  translatedQuestionIds,
   onChoose,
   onMove,
   onOpenSubmitConfirm,
   onToggle,
+  onToggleTranslation,
 }: {
   /**
    * 設問 ID → 選んだ選択肢の添字
@@ -50,10 +54,15 @@ function QuestionSheet({
   currentIndex: number
   isOpen: boolean
   questions: AttemptQuestion[]
+  /**
+   * 和訳を出している設問の ID
+   */
+  translatedQuestionIds: Set<number>
   onChoose: (questionId: number, choiceIndex: number) => void
   onMove: (index: number) => void
   onOpenSubmitConfirm: () => void
   onToggle: () => void
+  onToggleTranslation: (questionId: number) => void
 }) {
   const insets = useSafeAreaInsets()
   const { height: windowHeight } = useWindowDimensions()
@@ -70,6 +79,7 @@ function QuestionSheet({
 
   const answeredCount = questions.filter(question => answers[question.id] !== undefined).length
   const question = questions[currentIndex]
+  const isTranslated = question !== undefined && question.prompt_ja !== null && translatedQuestionIds.has(question.id)
   const isFirst = currentIndex === 0
   const isLast = currentIndex === questions.length - 1
 
@@ -115,8 +125,14 @@ function QuestionSheet({
 
         {question && (
           <ScrollView key={question.id} contentContainerStyle={styles.questionBody} style={styles.questionScroll}>
-            <Text style={styles.questionLabel}>Q{currentIndex + 1}</Text>
+            <View style={styles.questionHeader}>
+              <Text style={styles.questionLabel}>Q{currentIndex + 1}</Text>
+              {question.prompt_ja !== null && (
+                <QuestionTranslationToggle isTranslated={isTranslated} onToggle={() => onToggleTranslation(question.id)} />
+              )}
+            </View>
             <Text style={styles.prompt}>{question.prompt}</Text>
+            {isTranslated && <Text style={styles.promptTranslation}>{question.prompt_ja}</Text>}
             {question.choices.map((choice, choiceIndex) => {
               const isSelected = answers[question.id] === choiceIndex
               return (
@@ -130,7 +146,12 @@ function QuestionSheet({
                   <View style={[styles.choiceLetter, isSelected && styles.choiceLetterSelected]}>
                     <Text style={[styles.choiceLetterText, isSelected && styles.choiceLetterTextSelected]}>{CHOICE_LETTERS[choiceIndex]}</Text>
                   </View>
-                  <Text style={styles.choiceText}>{choice}</Text>
+                  <View style={styles.choiceTexts}>
+                    <Text style={styles.choiceText}>{choice}</Text>
+                    {isTranslated && question.choices_ja !== null && (
+                      <Text style={styles.choiceTranslation}>{question.choices_ja[choiceIndex]}</Text>
+                    )}
+                  </View>
                 </Pressable>
               )
             })}
@@ -231,10 +252,18 @@ const styles = StyleSheet.create({
   },
   choiceText: {
     color: THEME_COLORS.fg,
-    flex: 1,
     fontFamily: THEME_FONTS.reading,
     fontSize: 15.5,
     lineHeight: 22,
+  },
+  choiceTexts: {
+    flex: 1,
+  },
+  choiceTranslation: {
+    color: THEME_COLORS.fgMuted,
+    fontSize: 13,
+    lineHeight: 19,
+    marginTop: 4,
   },
   handle: {
     backgroundColor: THEME_COLORS.lineStrong,
@@ -265,8 +294,19 @@ const styles = StyleSheet.create({
     lineHeight: 26,
     marginTop: 6,
   },
+  promptTranslation: {
+    color: THEME_COLORS.fgMuted,
+    fontSize: 14,
+    lineHeight: 22,
+    marginTop: 6,
+  },
   questionBody: {
     padding: 20,
+  },
+  questionHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
   },
   questionLabel: {
     color: THEME_COLORS.fgMuted,

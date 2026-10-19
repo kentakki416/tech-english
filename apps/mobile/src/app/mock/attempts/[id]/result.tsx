@@ -46,6 +46,7 @@ export default function MockResultScreen() {
   const [openIds, setOpenIds] = useState<Set<number>>(new Set(firstWrong ? [firstWrong.id] : []))
   const [highlightId, setHighlightId] = useState<number | null>(firstWrong?.id ?? null)
   const [translatedBlocks, setTranslatedBlocks] = useState<Set<number>>(new Set())
+  const [translatedQuestions, setTranslatedQuestions] = useState<Set<number>>(new Set())
   const [wordCard, setWordCard] = useState<WordCardContent | null>(null)
   const [isFollowing, setIsFollowing] = useState(true)
   const readAloud = useReadAloudMock({ blocks: MOCK_BLOCKS, glossary: MOCK_GLOSSARY })
@@ -119,6 +120,7 @@ export default function MockResultScreen() {
             <View style={{ flex: 1 }}>
               <Text style={mockStyles.caption}>アシストの使用</Text>
               <Text style={styles.metricSmall}>和訳 {MOCK_RESULT.translatedBlockCount} 段落</Text>
+              <Text style={styles.metricSmall}>設問の和訳 {MOCK_RESULT.translatedQuestionCount} 問</Text>
               <Text style={styles.metricSmall}>単語 {MOCK_RESULT.wordLookups.length} 回</Text>
               <Text style={styles.metricSmall}>読み上げ 2 段落</Text>
             </View>
@@ -148,7 +150,24 @@ export default function MockResultScreen() {
               </Pressable>
               {isOpen && (
                 <View style={{ marginTop: 10 }}>
-                  <Text style={styles.prompt}>{question.prompt}</Text>
+                  <View style={styles.promptRow}>
+                    <Text style={[styles.prompt, { flex: 1 }]}>{question.prompt}</Text>
+                    <Pressable
+                      accessibilityLabel={translatedQuestions.has(question.id) ? "設問の和訳を隠す" : "設問の和訳を表示"}
+                      accessibilityRole="button"
+                      hitSlop={8}
+                      onPress={() => setTranslatedQuestions((current) => {
+                        const next = new Set(current)
+                        if (next.has(question.id)) next.delete(question.id)
+                        else next.add(question.id)
+                        return next
+                      })}
+                      style={[styles.translateButton, translatedQuestions.has(question.id) && styles.translateButtonActive]}
+                    >
+                      <Text style={[styles.translateText, translatedQuestions.has(question.id) && { color: MOCK_COLORS.amber }]}>訳</Text>
+                    </Pressable>
+                  </View>
+                  {translatedQuestions.has(question.id) && <Text style={styles.promptTranslation}>{question.promptJa}</Text>}
                   {question.choices.map((choice, choiceIndex) => {
                     const isCorrectChoice = choiceIndex === question.correctChoiceIndex
                     const isUserChoice = choiceIndex === userChoice
@@ -160,7 +179,12 @@ export default function MockResultScreen() {
                         <Text style={[styles.choiceLetter, isCorrectChoice && styles.choiceLetterCorrect, isUserChoice && !isCorrectChoice && styles.choiceLetterWrong]}>
                           {CHOICE_LETTERS[choiceIndex]}
                         </Text>
-                        <Text style={[styles.choiceText, !isCorrectChoice && !isUserChoice && { color: MOCK_COLORS.fgMuted }]}>{choice}</Text>
+                        <View style={{ flex: 1 }}>
+                          <Text style={[styles.choiceText, !isCorrectChoice && !isUserChoice && { color: MOCK_COLORS.fgMuted }]}>{choice}</Text>
+                          {translatedQuestions.has(question.id) && question.choicesJa !== null && (
+                            <Text style={styles.choiceTranslation}>{question.choicesJa[choiceIndex]}</Text>
+                          )}
+                        </View>
                         <View style={{ alignItems: "flex-end" }}>
                           {isCorrectChoice && <Text style={{ color: MOCK_COLORS.correct, fontSize: 11 }}>正解</Text>}
                           {isUserChoice && <Text style={{ color: isCorrectChoice ? MOCK_COLORS.correct : MOCK_COLORS.wrong, fontSize: 11 }}>あなたの回答</Text>}
@@ -341,10 +365,15 @@ const styles = StyleSheet.create({
   },
   choiceText: {
     color: MOCK_COLORS.fg,
-    flex: 1,
     fontFamily: MOCK_FONTS.reading,
     fontSize: 15,
     lineHeight: 21,
+  },
+  choiceTranslation: {
+    color: MOCK_COLORS.fgMuted,
+    fontSize: 13,
+    lineHeight: 19,
+    marginTop: 4,
   },
   choiceWrong: {
     backgroundColor: MOCK_COLORS.wrongWash,
@@ -445,6 +474,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 24,
   },
+  promptRow: {
+    alignItems: "flex-start",
+    flexDirection: "row",
+    gap: 12,
+  },
+  promptTranslation: {
+    color: MOCK_COLORS.fgMuted,
+    fontSize: 14,
+    lineHeight: 22,
+    marginTop: 6,
+  },
   question: {
     borderColor: MOCK_COLORS.line,
     borderTopWidth: StyleSheet.hairlineWidth,
@@ -532,6 +572,21 @@ const styles = StyleSheet.create({
     height: 52,
     justifyContent: "space-between",
     paddingHorizontal: 14,
+  },
+  translateButton: {
+    borderColor: MOCK_COLORS.lineStrong,
+    borderRadius: 4,
+    borderWidth: 1,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  translateButtonActive: {
+    backgroundColor: MOCK_COLORS.amberWash,
+    borderColor: "rgba(243, 178, 76, 0.5)",
+  },
+  translateText: {
+    color: MOCK_COLORS.fgMuted,
+    fontSize: 11,
   },
   typeBadge: {
     borderColor: MOCK_COLORS.lineStrong,

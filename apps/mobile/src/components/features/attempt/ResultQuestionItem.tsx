@@ -7,6 +7,8 @@ import { QUESTION_TYPE_LABELS } from "@/components/features/passage/labels"
 import { appStyles } from "@/components/ui/app-styles"
 import { THEME_COLORS, THEME_FONTS } from "@/const/design-theme"
 
+import { QuestionTranslationToggle } from "./QuestionTranslationToggle"
+
 const CHOICE_LETTERS = ["A", "B", "C", "D"]
 
 /**
@@ -21,12 +23,17 @@ type ResultQuestionItemProps = {
   isHighlighted: boolean
   isOpen: boolean
   /**
+   * 設問文と選択肢の下に和訳を出しているか
+   */
+  isTranslated: boolean
+  /**
    * 1 から始まる設問の番号
    */
   number: number
   question: ResultQuestion
   onShowEvidence: (question: ResultQuestion) => void
   onToggle: (questionId: number) => void
+  onToggleTranslation: (questionId: number) => void
 }
 
 /**
@@ -37,11 +44,16 @@ function ChoiceRow({
   index,
   isCorrectChoice,
   isUserChoice,
+  translation,
 }: {
   choice: string
   index: number
   isCorrectChoice: boolean
   isUserChoice: boolean
+  /**
+   * 設問の和訳を出しているときの選択肢の和訳（出していないときは null）
+   */
+  translation: string | null
 }) {
   const isWrongChoice = isUserChoice && !isCorrectChoice
   return (
@@ -49,7 +61,10 @@ function ChoiceRow({
       <Text style={[styles.choiceLetter, isCorrectChoice && styles.choiceLetterCorrect, isWrongChoice && styles.choiceLetterWrong]}>
         {CHOICE_LETTERS[index]}
       </Text>
-      <Text style={[styles.choiceText, !isCorrectChoice && !isUserChoice && styles.choiceTextMuted]}>{choice}</Text>
+      <View style={styles.choiceTexts}>
+        <Text style={[styles.choiceText, !isCorrectChoice && !isUserChoice && styles.choiceTextMuted]}>{choice}</Text>
+        {translation !== null && <Text style={styles.choiceTranslation}>{translation}</Text>}
+      </View>
       <View style={styles.choiceLabels}>
         {isCorrectChoice && <Text style={[styles.choiceLabel, styles.correctText]}>正解</Text>}
         {isUserChoice && <Text style={[styles.choiceLabel, isCorrectChoice ? styles.correctText : styles.wrongText]}>あなたの回答</Text>}
@@ -63,7 +78,16 @@ function ChoiceRow({
  * 根拠が本文に見つからなかった設問（evidence が null）はボタンを出さない。
  * 正解はいまの値、正誤は提出時の値なので、提出後に正解が直された設問（is_answer_key_changed）は選択肢の下に注記する
  */
-export function ResultQuestionItem({ isHighlighted, isOpen, number, question, onShowEvidence, onToggle }: ResultQuestionItemProps) {
+export function ResultQuestionItem({
+  isHighlighted,
+  isOpen,
+  isTranslated,
+  number,
+  question,
+  onShowEvidence,
+  onToggle,
+  onToggleTranslation,
+}: ResultQuestionItemProps) {
   const isUnanswered = question.selected_choice_index === null
   return (
     <View style={styles.item}>
@@ -84,7 +108,13 @@ export function ResultQuestionItem({ isHighlighted, isOpen, number, question, on
 
       {isOpen && (
         <View style={styles.body}>
-          <Text style={styles.prompt}>{question.prompt}</Text>
+          <View style={styles.promptRow}>
+            <Text style={[styles.prompt, styles.promptText]}>{question.prompt}</Text>
+            {question.prompt_ja !== null && (
+              <QuestionTranslationToggle isTranslated={isTranslated} onToggle={() => onToggleTranslation(question.id)} />
+            )}
+          </View>
+          {isTranslated && <Text style={styles.promptTranslation}>{question.prompt_ja}</Text>}
           {question.choices.map((choice, choiceIndex) => (
             <ChoiceRow
               key={choiceIndex}
@@ -92,6 +122,7 @@ export function ResultQuestionItem({ isHighlighted, isOpen, number, question, on
               index={choiceIndex}
               isCorrectChoice={choiceIndex === question.correct_choice_index}
               isUserChoice={choiceIndex === question.selected_choice_index}
+              translation={isTranslated && question.choices_ja !== null ? question.choices_ja[choiceIndex] : null}
             />
           ))}
           {question.is_answer_key_changed && <Text style={[appStyles.caption, styles.answerKeyNote]}>{ANSWER_KEY_CHANGED_NOTE}</Text>}
@@ -170,13 +201,21 @@ const styles = StyleSheet.create({
   },
   choiceText: {
     color: THEME_COLORS.fg,
-    flex: 1,
     fontFamily: THEME_FONTS.reading,
     fontSize: 15,
     lineHeight: 21,
   },
+  choiceTexts: {
+    flex: 1,
+  },
   choiceTextMuted: {
     color: THEME_COLORS.fgMuted,
+  },
+  choiceTranslation: {
+    color: THEME_COLORS.fgMuted,
+    fontSize: 13,
+    lineHeight: 19,
+    marginTop: 4,
   },
   choiceWrong: {
     backgroundColor: THEME_COLORS.wrongWash,
@@ -232,6 +271,20 @@ const styles = StyleSheet.create({
     fontFamily: THEME_FONTS.reading,
     fontSize: 16,
     lineHeight: 24,
+  },
+  promptRow: {
+    alignItems: "flex-start",
+    flexDirection: "row",
+    gap: 12,
+  },
+  promptText: {
+    flex: 1,
+  },
+  promptTranslation: {
+    color: THEME_COLORS.fgMuted,
+    fontSize: 14,
+    lineHeight: 22,
+    marginTop: 6,
   },
   square: {
     borderRadius: 2,
