@@ -21,7 +21,7 @@ export const formatPeriodLabel = (period: AdminStatsPeriod): string => STATS_PER
  * 問題ごとの成績の項目名。表の見出しと問題の分析の数字で同じ名前にする
  */
 export const PASSAGE_STATS_LABELS = {
-  assistRates: "アシスト（和訳 / 単語 / 読み上げ）",
+  assistRates: "アシスト（和訳 / 設問訳 / 単語 / 読み上げ）",
   averageElapsedSeconds: "平均時間 / 制限",
   correctRate: "正答率",
   overtimeRate: "時間超過",

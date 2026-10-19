@@ -6,6 +6,7 @@ type AssistRates = GetAdminStatsOverviewResponse["assist_rates"]
 
 const ASSISTS: { key: keyof AssistRates, label: string }[] = [
   { key: "translated", label: "段落の和訳" },
+  { key: "translated_question", label: "設問の和訳" },
   { key: "looked_up", label: "単語の意味" },
   { key: "listened", label: "読み上げ" },
 ]
