@@ -1,11 +1,14 @@
 "use client"
 
-import { useSyncExternalStore } from "react"
+import { useCallback, useSyncExternalStore } from "react"
+
+import { buildChoicePopSamples } from "./choice-pop"
 
 /**
- * 効果音のオン / オフを覚えておく localStorage のキー（"off" のときだけ消す）
+ * 効果音のオン / オフを覚えておく localStorage のキー（"off" のときだけ消す）。単語帳と解答画面で共通。
+ * 単語帳だけにあったときの名前のまま。変えると、単語帳でオフにしている人の設定が消えるため
  */
-const SOUND_STORAGE_KEY = "tech-english:vocabulary-sound"
+const SOUND_EFFECT_STORAGE_KEY = "tech-english:vocabulary-sound"
 
 /**
  * 「シュッ」の長さ。めくる動き（animate-card-flip の 440ms）の前半で鳴り終わる短さにする
@@ -17,6 +20,11 @@ const SWISH_SECONDS = 0.14
  */
 const SWISH_PEAK_GAIN = 0.12
 const SWISH_ATTACK_SECONDS = 0.025
+
+/**
+ * ポキンの高さを鳴らすたびに変える幅（±3%。同じ音が続いて機械的に聞こえないように）
+ */
+const CHOICE_POP_PITCH_JITTER = 0.03
 
 const listeners = new Set<() => void>()
 
@@ -45,7 +53,7 @@ const subscribe = (listener: () => void) => {
 const readIsEnabled = (): boolean => {
   if (fallbackIsEnabled !== null) return fallbackIsEnabled
   try {
-    return window.localStorage.getItem(SOUND_STORAGE_KEY) !== "off"
+    return window.localStorage.getItem(SOUND_EFFECT_STORAGE_KEY) !== "off"
   } catch {
     return true
   }
@@ -101,36 +109,55 @@ const playSwish = (context: AudioContext) => {
 }
 
 /**
- * カードをめくる効果音。音声ファイルを持たず、Web Audio でノイズから作る。オン / オフは localStorage に覚える。
- * 鳴らせなくても（AudioContext が無い・失敗した）めくる操作は止めない
+ * 選択肢を選んだときの「ポキン」を 1 回鳴らす（choice-sound README「音の作り」）
  */
-export function usePaperSound() {
+const playChoicePop = (context: AudioContext) => {
+  const pitchRatio = 1 - CHOICE_POP_PITCH_JITTER + Math.random() * CHOICE_POP_PITCH_JITTER * 2
+  const samples = buildChoicePopSamples(context.sampleRate, pitchRatio)
+  const buffer = context.createBuffer(1, samples.length, context.sampleRate)
+  buffer.copyToChannel(samples, 0)
+  const source = context.createBufferSource()
+  source.buffer = buffer
+  source.connect(context.destination)
+  source.start()
+}
+
+/**
+ * 効果音（単語帳のめくる音・解答画面のポキン）。音声ファイルを持たず、Web Audio で作る。オン / オフは 1 つの設定を localStorage に覚え、
+ * 開いている画面と別のタブにすぐ効く。鳴らせなくても（AudioContext が無い・失敗した）呼び出し元の操作は止めない。
+ * 返す関数は、オン / オフが変わるまで同じ参照
+ */
+export function useSoundEffects() {
   const isEnabled = useSyncExternalStore(subscribe, readIsEnabled, () => true)
 
-  const play = () => {
+  const playWith = useCallback((render: (context: AudioContext) => void) => {
     if (!isEnabled) return
     const context = getAudioContext()
     if (!context) return
     try {
       if (context.state === "suspended") context.resume().catch(() => undefined)
-      playSwish(context)
+      render(context)
     } catch {
       /**
        * 効果音は飾りなので、鳴らせなくても何もしない
        */
     }
-  }
+  }, [isEnabled])
 
-  const toggle = () => {
+  const playChoice = useCallback(() => playWith(playChoicePop), [playWith])
+
+  const playFlip = useCallback(() => playWith(playSwish), [playWith])
+
+  const toggle = useCallback(() => {
     const next = !isEnabled
     try {
-      window.localStorage.setItem(SOUND_STORAGE_KEY, next ? "on" : "off")
+      window.localStorage.setItem(SOUND_EFFECT_STORAGE_KEY, next ? "on" : "off")
       fallbackIsEnabled = null
     } catch {
       fallbackIsEnabled = next
     }
     for (const listener of listeners) listener()
-  }
+  }, [isEnabled])
 
-  return { isEnabled, play, toggle }
+  return { isEnabled, playChoice, playFlip, toggle }
 }

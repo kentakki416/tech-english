@@ -20,13 +20,13 @@ web の解答画面で、選択肢を選んだときにポキンを鳴らす。�
 ### `src/libs/choice-pop.ts`
 
 ```ts
-const POP_START_HZ = 1100
-const POP_END_HZ = 520
+const POP_START_HZ = 1760
+const POP_END_HZ = 830
 const POP_SWEEP_SECONDS = 0.045
 const POP_PEAK_GAIN = 0.16
 const POP_END_SECONDS = 0.1
 
-const RING_HZ = 2080
+const RING_HZ = 3320
 const RING_START_SECONDS = 0.01
 const RING_PEAK_GAIN = 0.05
 const RING_END_SECONDS = 0.16
@@ -45,7 +45,7 @@ const calculateEnvelope = (elapsed: number, peakGain: number, endSeconds: number
   return rampExponentially(peakGain, SILENT_GAIN, (elapsed - ATTACK_SECONDS) / (endSeconds - ATTACK_SECONDS))
 }
 
-export const buildChoicePopSamples = (sampleRate: number, pitchRatio: number): Float32Array => {
+export const buildChoicePopSamples = (sampleRate: number, pitchRatio: number): Float32Array<ArrayBuffer> => {
   const samples = new Float32Array(Math.ceil(sampleRate * CHOICE_POP_SECONDS))
   let popPhase = 0
   let ringPhase = 0
@@ -64,7 +64,7 @@ export const buildChoicePopSamples = (sampleRate: number, pitchRatio: number): F
 ```
 
 - 値は README の「音の作り」の表と同じにする。実装のときに聞いて値を変えたら、README の表も直す
-- `import` を持たない（スクリプトから Node で読むため。`"use client"` も付けない）
+- `"use client"` を付けない（スクリプトから Node で読むため）
 
 ### `src/libs/sound-effects.ts`
 
@@ -126,8 +126,6 @@ export function useSoundEffects() {
 ### `src/components/ui/SoundEffectToggle.tsx`
 
 ```tsx
-"use client"
-
 type SoundEffectToggleProps = {
   className?: string
   isEnabled: boolean

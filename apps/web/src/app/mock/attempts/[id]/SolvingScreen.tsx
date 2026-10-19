@@ -197,6 +197,7 @@ export function SolvingScreen({ initialState }: { initialState: SolvingMockState
   const [viewedTranslations, setViewedTranslations] = useState<Set<number>>(new Set([2]))
   const [lookupCount, setLookupCount] = useState(2)
   const [fontSize, setFontSize] = useState<ReaderFontSize>("md")
+  const [isSoundEnabled, setIsSoundEnabled] = useState(true)
   const [isFollowing, setIsFollowing] = useState(true)
   const isAudioAvailable = initialState !== "audio_pending"
   const readAloud = useReadAloudMock({
@@ -336,6 +337,19 @@ export function SolvingScreen({ initialState }: { initialState: SolvingMockState
               </button>
             ))}
           </div>
+          <button
+            aria-label="効果音"
+            aria-pressed={isSoundEnabled}
+            className="inline-flex h-8 items-center rounded-md px-2 text-fg-muted outline-none hover:bg-raised hover:text-fg focus-visible:ring-2 focus-visible:ring-amber/60"
+            onClick={() => setIsSoundEnabled(value => !value)}
+            title={isSoundEnabled ? "効果音をオフにする" : "効果音をオンにする"}
+            type="button"
+          >
+            <svg aria-hidden className="size-4" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" viewBox="0 0 24 24">
+              <path d="M11 5 6 9H3v6h3l5 4V5Z" />
+              {isSoundEnabled ? <path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13" /> : <path d="m16 9 6 6M22 9l-6 6" />}
+            </svg>
+          </button>
           <button
             aria-pressed={showAllTranslations}
             className={`h-8 rounded-md border px-2.5 text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-amber/60 ${
