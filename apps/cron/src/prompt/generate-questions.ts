@@ -12,7 +12,7 @@ import { buildPassagePrompt } from "./passage"
  * プロンプト（system prompt・user message の形・出力のスキーマ）を変えたら必ず上げる。
  * 生成した問題の passages.generation_prompt_version に入り、プロンプトの改善の前後で品質を比べるのに使う
  */
-export const PROMPT_VERSION = "2026-10-19"
+export const PROMPT_VERSION = "2026-10-19.2"
 
 /**
  * 設問の種類ごとの説明と例（README の「設問のルール」）。QUESTION_TYPES の全種類を持つことを型で強制する
@@ -102,6 +102,8 @@ ${QUESTION_TYPE_LINES}
 # 5. Glossary
 
 - Pick 8 to 20 words, phrasal verbs, idioms and technical-English expressions that an intermediate (CEFR B1-B2) engineer is likely to stumble on, such as "opt out of", "idempotent", "under the hood" and "caveat".
+- In addition, add every phrasal verb in the passage, even easy ones: a verb directly followed by a particle or preposition that together have a meaning of their own. This includes verb + particle ("set up", "figure out", "opt out of") and verb + preposition ("rely on", "consist of", "deal with"). Check every sentence for them. Use partOfSpeech 句動詞. They do not count toward the 8 to 20 above.
+- Every surface must be one unit a learner would look up in a dictionary: a word, a compound term (such as "race condition"), a phrasal verb or an idiom. Never add a free combination of words or put an object inside the surface (not "add the plugin to", "split the file into", "try to call", "follow the steps"). If an object splits a phrasal verb, as in "set it up", do not add that phrasal verb at all.
 - Skip words every learner knows (the, use, file) and identifiers in inline code. List each expression once.
 - surface: the expression exactly as it appears in the block, with the same capitalization and inflection (e.g. "opted out of", not "opt out of"). blockIndex: the block where it appears. Never pick from code blocks. Do not give character positions.
 - lemma: the dictionary form (e.g. "opt out of").
