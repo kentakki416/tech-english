@@ -71,6 +71,7 @@ function ResultSummary({ result }: { result: SubmittedAttempt }) {
         <View style={styles.metricColumn}>
           <Text style={appStyles.caption}>アシストの使用</Text>
           <Text style={styles.metricSmall}>和訳 {result.translated_block_count} 段落</Text>
+          <Text style={styles.metricSmall}>設問の和訳 {result.translated_question_count} 問</Text>
           <Text style={styles.metricSmall}>単語 {result.word_lookup_count} 回</Text>
           <Text style={styles.metricSmall}>読み上げ {result.listened_block_count} 段落</Text>
         </View>
@@ -155,8 +156,22 @@ export function ResultHeader({ highlightQuestionId, result, onShowEvidence }: Re
     () => new Set(result.questions.filter(question => !question.is_correct).map(question => question.id)),
   )
 
+  /**
+   * 和訳を出している設問（結果画面では記録しない）
+   */
+  const [translatedQuestionIds, setTranslatedQuestionIds] = useState<Set<number>>(() => new Set())
+
   const toggleQuestion = (questionId: number) => {
     setOpenQuestionIds((current) => {
+      const next = new Set(current)
+      if (next.has(questionId)) next.delete(questionId)
+      else next.add(questionId)
+      return next
+    })
+  }
+
+  const toggleQuestionTranslation = (questionId: number) => {
+    setTranslatedQuestionIds((current) => {
       const next = new Set(current)
       if (next.has(questionId)) next.delete(questionId)
       else next.add(questionId)
@@ -174,10 +189,12 @@ export function ResultHeader({ highlightQuestionId, result, onShowEvidence }: Re
             key={question.id}
             isHighlighted={highlightQuestionId === question.id}
             isOpen={openQuestionIds.has(question.id)}
+            isTranslated={question.prompt_ja !== null && translatedQuestionIds.has(question.id)}
             number={index + 1}
             question={question}
             onShowEvidence={onShowEvidence}
             onToggle={toggleQuestion}
+            onToggleTranslation={toggleQuestionTranslation}
           />
         ))}
       </View>
