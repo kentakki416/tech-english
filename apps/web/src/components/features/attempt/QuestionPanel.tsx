@@ -2,6 +2,8 @@ import type { AttemptQuestion } from "@repo/api-schema"
 
 import { Keycap } from "@/components/ui/Keycap"
 
+import { QuestionTranslationToggle } from "./QuestionTranslationToggle"
+
 const CHOICE_LETTERS = ["A", "B", "C", "D"]
 
 const MOVE_BUTTON_CLASS = "inline-flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm text-fg-muted outline-none hover:bg-raised hover:text-fg focus-visible:ring-2 focus-visible:ring-amber/60 disabled:pointer-events-none disabled:opacity-40"
@@ -15,8 +17,10 @@ export function QuestionPanel({
   currentIndex,
   isLabelVisible = true,
   questions,
+  translatedQuestionIds,
   onChoose,
   onMove,
+  onToggleTranslation,
 }: {
   /**
    * 設問 ID → 選んだ選択肢の添字
@@ -25,11 +29,17 @@ export function QuestionPanel({
   currentIndex: number
   isLabelVisible?: boolean
   questions: AttemptQuestion[]
+  /**
+   * 和訳を出している設問の ID
+   */
+  translatedQuestionIds: Set<number>
   onChoose: (questionId: number, choiceIndex: number) => void
   onMove: (index: number) => void
+  onToggleTranslation: (questionId: number) => void
 }) {
   const question = questions[currentIndex]
   if (!question) return null
+  const isTranslated = question.prompt_ja !== null && translatedQuestionIds.has(question.id)
 
   return (
     <div className="flex h-full flex-col">
@@ -59,8 +69,14 @@ export function QuestionPanel({
         * 設問を移ったら先頭から読めるよう、設問ごとにスクロールの位置を作り直す
         */}
       <div key={question.id} className="flex-1 overflow-y-auto px-5 py-6">
-        <p className="text-xs text-fg-muted">Q{currentIndex + 1}</p>
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-xs text-fg-muted">Q{currentIndex + 1}</p>
+          {question.prompt_ja !== null && (
+            <QuestionTranslationToggle isTranslated={isTranslated} onToggle={() => onToggleTranslation(question.id)} />
+          )}
+        </div>
         <h2 className="mt-2 font-reading text-[17px] leading-relaxed text-fg">{question.prompt}</h2>
+        {isTranslated && <p className="mt-1.5 font-ui text-[14px] leading-relaxed text-fg-muted">{question.prompt_ja}</p>}
         <ul className="mt-5 space-y-2.5">
           {question.choices.map((choice, choiceIndex) => {
             const isSelected = answers[question.id] === choiceIndex
@@ -81,7 +97,12 @@ export function QuestionPanel({
                   >
                     {CHOICE_LETTERS[choiceIndex]}
                   </span>
-                  <span className="pt-px font-reading text-[15.5px] leading-snug text-fg">{choice}</span>
+                  <span className="flex flex-col pt-px">
+                    <span className="font-reading text-[15.5px] leading-snug text-fg">{choice}</span>
+                    {isTranslated && question.choices_ja !== null && (
+                      <span className="mt-1 font-ui text-[13px] leading-snug text-fg-muted">{question.choices_ja[choiceIndex]}</span>
+                    )}
+                  </span>
                 </button>
               </li>
             )

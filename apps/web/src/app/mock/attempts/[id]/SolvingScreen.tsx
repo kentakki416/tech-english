@@ -77,16 +77,21 @@ function QuestionPanel({
   answers,
   currentIndex,
   isLabelVisible = true,
+  translatedQuestionIds,
   onChoose,
   onMove,
+  onToggleTranslation,
 }: {
   answers: Record<number, number | null>
   currentIndex: number
   isLabelVisible?: boolean
+  translatedQuestionIds: Set<number>
   onChoose: (questionId: number, choiceIndex: number) => void
   onMove: (index: number) => void
+  onToggleTranslation: (questionId: number) => void
 }) {
   const question = MOCK_QUESTIONS[currentIndex]
+  const isTranslated = translatedQuestionIds.has(question.id)
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-center gap-1 border-b border-line px-4 py-3">
@@ -115,8 +120,22 @@ function QuestionPanel({
       </div>
 
       <div className="flex-1 overflow-y-auto px-5 py-6">
-        <p className="text-xs text-fg-muted">Q{currentIndex + 1}</p>
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-xs text-fg-muted">Q{currentIndex + 1}</p>
+          <button
+            aria-label={isTranslated ? "設問の和訳を隠す" : "設問の和訳を表示"}
+            aria-pressed={isTranslated}
+            className={`shrink-0 rounded border px-1.5 py-0.5 font-ui text-[11px] outline-none transition-colors focus-visible:ring-2 focus-visible:ring-amber/60 ${
+              isTranslated ? "border-amber/50 bg-amber-wash text-amber" : "border-line-strong text-fg-muted hover:text-fg"
+            }`}
+            onClick={() => onToggleTranslation(question.id)}
+            type="button"
+          >
+            訳
+          </button>
+        </div>
         <h2 className="mt-2 font-reading text-[17px] leading-relaxed text-fg">{question.prompt}</h2>
+        {isTranslated && <p className="mt-1.5 font-ui text-[14px] leading-relaxed text-fg-muted">{question.promptJa}</p>}
         <ul className="mt-5 space-y-2.5">
           {question.choices.map((choice, choiceIndex) => {
             const isSelected = answers[question.id] === choiceIndex
@@ -139,7 +158,12 @@ function QuestionPanel({
                   >
                     {CHOICE_LETTERS[choiceIndex]}
                   </span>
-                  <span className="pt-px font-reading text-[15.5px] leading-snug text-fg">{choice}</span>
+                  <span className="flex flex-col pt-px">
+                    <span className="font-reading text-[15.5px] leading-snug text-fg">{choice}</span>
+                    {isTranslated && question.choicesJa !== null && (
+                      <span className="mt-1 font-ui text-[13px] leading-snug text-fg-muted">{question.choicesJa[choiceIndex]}</span>
+                    )}
+                  </span>
                 </button>
               </li>
             )
@@ -195,6 +219,8 @@ export function SolvingScreen({ initialState }: { initialState: SolvingMockState
   const [showAllTranslations, setShowAllTranslations] = useState(false)
   const [translatedBlocks, setTranslatedBlocks] = useState<Set<number>>(new Set())
   const [viewedTranslations, setViewedTranslations] = useState<Set<number>>(new Set([2]))
+  const [translatedQuestions, setTranslatedQuestions] = useState<Set<number>>(new Set())
+  const [viewedQuestionTranslations, setViewedQuestionTranslations] = useState<Set<number>>(new Set())
   const [lookupCount, setLookupCount] = useState(2)
   const [fontSize, setFontSize] = useState<ReaderFontSize>("md")
   const [isSoundEnabled, setIsSoundEnabled] = useState(true)
@@ -220,6 +246,16 @@ export function SolvingScreen({ initialState }: { initialState: SolvingMockState
     }, 1000)
     return () => window.clearInterval(timer)
   }, [isPaused])
+
+  const toggleQuestionTranslation = useCallback((questionId: number) => {
+    setTranslatedQuestions((current) => {
+      const next = new Set(current)
+      if (next.has(questionId)) next.delete(questionId)
+      else next.add(questionId)
+      return next
+    })
+    setViewedQuestionTranslations(current => new Set(current).add(questionId))
+  }, [])
 
   const toggleAllTranslations = useCallback(() => {
     setShowAllTranslations((value) => {
@@ -431,7 +467,14 @@ export function SolvingScreen({ initialState }: { initialState: SolvingMockState
         </main>
 
         <aside aria-label="設問" className="hidden h-full border-l border-line bg-surface lg:block">
-          <QuestionPanel answers={answers} currentIndex={currentIndex} onChoose={chooseAnswer} onMove={setCurrentIndex} />
+          <QuestionPanel
+            answers={answers}
+            currentIndex={currentIndex}
+            translatedQuestionIds={translatedQuestions}
+            onChoose={chooseAnswer}
+            onMove={setCurrentIndex}
+            onToggleTranslation={toggleQuestionTranslation}
+          />
         </aside>
 
         <div
@@ -453,7 +496,15 @@ export function SolvingScreen({ initialState }: { initialState: SolvingMockState
           {isSheetOpen && (
             <div className="flex min-h-0 flex-1 flex-col">
               <div className="min-h-0 flex-1">
-                <QuestionPanel answers={answers} currentIndex={currentIndex} isLabelVisible={false} onChoose={chooseAnswer} onMove={setCurrentIndex} />
+                <QuestionPanel
+                  answers={answers}
+                  currentIndex={currentIndex}
+                  isLabelVisible={false}
+                  translatedQuestionIds={translatedQuestions}
+                  onChoose={chooseAnswer}
+                  onMove={setCurrentIndex}
+                  onToggleTranslation={toggleQuestionTranslation}
+                />
               </div>
               <div className="border-t border-line p-3">
                 <button
@@ -499,6 +550,7 @@ export function SolvingScreen({ initialState }: { initialState: SolvingMockState
         <span className="tabular-nums">回答 {answeredCount} / {MOCK_QUESTIONS.length}</span>
         <span className="h-3 w-px bg-line-strong" />
         <span className="tabular-nums">和訳 {viewedTranslations.size} 段落</span>
+        <span className="tabular-nums">設問訳 {viewedQuestionTranslations.size} 問</span>
         <span className="tabular-nums">単語 {lookupCount} 回</span>
         <span className="tabular-nums">読み上げ {readAloud.listenedBlocks.size} 段落</span>
         <div className="ml-auto flex items-center gap-4">
