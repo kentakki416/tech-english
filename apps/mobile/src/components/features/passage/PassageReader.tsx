@@ -211,8 +211,9 @@ function TranslationText({ fontSize, isHeading, text }: { fontSize: number, isHe
 }
 
 /**
- * 本文の 1 セグメント。単語だけ押せる（入れ子の <Text onPress>。RN の Text は選択範囲を取得できないため、単語単位で押させる）。
- * 単語の上の長押しも段落の和訳にする（RN の Responder は長押しが成立すると onPress を呼ばないので、カードは出ない）。
+ * 本文の 1 セグメント。押せる単語（can_look_up が false でない単語）だけ押せる（入れ子の <Text onPress>。RN の Text は選択範囲を取得できないため、
+ * 単語単位で押させる）。can_look_up が無い（古い api）ときは押せる単語にする。
+ * 単語の上の長押しは、押せない単語でも段落の和訳にする（RN の Responder は長押しが成立すると onPress を呼ばないので、カードは出ない）。
  * 読み上げ中の印は単語とインラインコードに付ける（web と同じ）
  */
 function SegmentText({ blockIndex, fontSize, isHighlighted, isReading, segment, onPeekEnd, onPeekStart, onPressWord }: SegmentTextProps) {
@@ -226,11 +227,12 @@ function SegmentText({ blockIndex, fontSize, isHighlighted, isReading, segment, 
   if (segment.kind !== "word") {
     return isHighlighted ? <Text style={styles.highlight}>{segment.text}</Text> : segment.text
   }
+  const canLookUp = segment.can_look_up !== false
   return (
     <Text
       style={[isHighlighted && styles.highlight, isReading && styles.readingWord]}
       onLongPress={onPeekStart ? () => onPeekStart(blockIndex) : undefined}
-      onPress={() => onPressWord(segment)}
+      onPress={canLookUp ? () => onPressWord(segment) : undefined}
       onPressOut={onPeekEnd}
     >
       {segment.text}
