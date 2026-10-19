@@ -120,7 +120,8 @@ function InlineCode({ children, isReading = false }: { children: string, isReadi
 type ReadingRange = { end: number, start: number } | null
 
 /**
- * セグメントを描画する。単語だけ押せる（クリックは article で拾う）。key は添字を offset からの通し番号にする。
+ * セグメントを描画する。押せる単語（can_look_up が false でない単語）だけ押せる（クリックは article で data-word を拾う）。
+ * can_look_up が無い（古い api）ときは押せる単語にする。key は添字を offset からの通し番号にする。
  * 読み上げの印は通しの添字が reading の範囲にある単語とインラインコードに付ける（根拠の <mark> で分けた中でも通しで判定する）
  */
 const renderSegments = (segments: PassageSegmentResponse[], offset: number, reading: ReadingRange): React.ReactNode[] =>
@@ -129,6 +130,9 @@ const renderSegments = (segments: PassageSegmentResponse[], offset: number, read
     const isReading = reading !== null && key >= reading.start && key < reading.end
     if (segment.kind === "code") return <InlineCode key={key} isReading={isReading}>{segment.text}</InlineCode>
     if (segment.kind !== "word") return <Fragment key={key}>{segment.text}</Fragment>
+    if (segment.can_look_up === false) {
+      return <span key={key} className={isReading ? READING_WORD_CLASS : undefined}>{segment.text}</span>
+    }
     return (
       <span
         key={key}
