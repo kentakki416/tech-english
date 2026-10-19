@@ -203,8 +203,12 @@ const buildPassageView = (passage: Passage): AttemptPassageView => {
 /**
  * セグメントから位置を外す（位置は根拠のハイライトの計算に使い、レスポンスには出さない）
  */
-const stripSegmentRange = ({ glossaryEntryId, kind, text }: SegmentWithRange): PassageSegment =>
-  glossaryEntryId === undefined ? { kind, text } : { glossaryEntryId, kind, text }
+const stripSegmentRange = ({ canLookUp, glossaryEntryId, kind, text }: SegmentWithRange): PassageSegment => ({
+  ...(canLookUp === undefined ? {} : { canLookUp }),
+  ...(glossaryEntryId === undefined ? {} : { glossaryEntryId }),
+  kind,
+  text,
+})
 
 /**
  * 本文のブロック（セグメントは位置を外して出す）

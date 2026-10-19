@@ -51,7 +51,7 @@ export {
 export { isMembershipTier } from "./rules/membership-tier"
 export { canShareMemo } from "./rules/memo"
 export { calculateQuestionCount, calculateTimeLimitSeconds, isPassageDifficulty, isPassageStatus } from "./rules/passage"
-export { findSurfaceRange, hasQuote, isSurfaceAt, numberHeadings, numberParagraphs } from "./rules/passage-text"
+export { findSurfaceRange, findSurfaceRanges, hasQuote, isSurfaceAt, numberHeadings, numberParagraphs } from "./rules/passage-text"
 export { isQuestionType } from "./rules/question"
 export { isTagColor, selectTagColor } from "./rules/tag"
 export { isVocabularyCardDue, isVocabularyGrade, normalizeVocabularyLemma, scheduleVocabularyReview } from "./rules/vocabulary"

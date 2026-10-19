@@ -1,5 +1,37 @@
-import { findSurfaceRange, hasQuote, isSurfaceAt, numberHeadings, numberParagraphs } from "../../src/rules/passage-text"
+import { findSurfaceRange, findSurfaceRanges, hasQuote, isSurfaceAt, numberHeadings, numberParagraphs } from "../../src/rules/passage-text"
 import type { PassageBlockType } from "../../src/types/passage"
+
+describe("findSurfaceRanges", () => {
+  describe("正常系", () => {
+    it("すべての出現の位置を出現順に返す", () => {
+      const text = "A cache stores data. The cache is fast."
+
+      expect(findSurfaceRanges(text, "cache")).toEqual([
+        { endOffset: 7, startOffset: 2 },
+        { endOffset: 30, startOffset: 25 },
+      ])
+    })
+
+    it("単語の途中の出現（because・used の中の use）は返さない", () => {
+      const text = "because we use it and used it"
+
+      expect(findSurfaceRanges(text, "use")).toEqual([{ endOffset: 14, startOffset: 11 }])
+    })
+
+    it("大文字小文字が違う出現は返さない", () => {
+      expect(findSurfaceRanges("Under the hood, it runs under the hood.", "under the hood")).toEqual([
+        { endOffset: 38, startOffset: 24 },
+      ])
+    })
+  })
+
+  describe("異常系", () => {
+    it("surface が空文字・見つからないときは []", () => {
+      expect(findSurfaceRanges("cache", "")).toEqual([])
+      expect(findSurfaceRanges("cache", "queue")).toEqual([])
+    })
+  })
+})
 
 describe("findSurfaceRange", () => {
   describe("正常系", () => {

@@ -168,6 +168,12 @@ importers:
       uuid:
         specifier: ^13.0.0
         version: 13.0.2
+      wink-eng-lite-web-model:
+        specifier: ^1.8.1
+        version: 1.8.1
+      wink-nlp:
+        specifier: ^2.4.0
+        version: 2.4.0
       zod:
         specifier: ^3.25.76
         version: 3.25.76
@@ -8911,6 +8917,13 @@ packages:
     resolution: {integrity: sha512-hUrmaWBdVDcxvYqnyh09zunKzROWjbZTiNy8dBEjkS7ehEDQibXJ7XvlmtbwuTclUiIyN+CyXQD4Vmko8fNm8w==}
     engines: {node: '>=8'}
     hasBin: true
+
+  wink-eng-lite-web-model@1.8.1:
+    resolution: {integrity: sha512-M2tSOU/rVNkDj8AS8IoKJaM7apJJjS0cN+hE8CPazfnB4A/ojyc9+7RMPk18UOiIdSyWk7MR6w8z9lWix2l5tA==}
+    engines: {node: '>=16.0.0'}
+
+  wink-nlp@2.4.0:
+    resolution: {integrity: sha512-d02inlNJL0LLNTLoYfkxZYGrqnYDSZV4HI4WpeuyIEfpu7UcUqUW1ZYWr+JTFm4ZR6dQdzOW/FtHEQRO+o/zzA==}
 
   winston-transport@4.9.0:
     resolution: {integrity: sha512-8drMJ4rkgaPo1Me4zD/3WLfI/zPdA9o2IipKODunnGDcuqbHwjsbB79ylv04LCGGzU0xQ6vTznOMpQGaLhhm6A==}
@@ -18712,6 +18725,10 @@ snapshots:
     dependencies:
       siginfo: 2.0.0
       stackback: 0.0.2
+
+  wink-eng-lite-web-model@1.8.1: {}
+
+  wink-nlp@2.4.0: {}
 
   winston-transport@4.9.0:
     dependencies:

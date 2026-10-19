@@ -19,21 +19,28 @@ const isAlphanumericAt = (text: string, index: number): boolean =>
   index >= 0 && index < text.length && ALPHANUMERIC_PATTERN.test(text.charAt(index))
 
 /**
- * surface を text から探し、前後が英数字でない（単語の途中でない）最初の出現の位置を返す。
- * 大文字小文字は区別する。見つからなければ null（surface が空文字のときも null）
+ * surface を text から探し、前後が英数字でない（単語の途中でない）すべての出現の位置を出現順に返す。
+ * 大文字小文字は区別する。surface が空文字のときは []
  */
-export const findSurfaceRange = (text: string, surface: string): { endOffset: number; startOffset: number } | null => {
-  if (surface.length === 0) return null
+export const findSurfaceRanges = (text: string, surface: string): { endOffset: number; startOffset: number }[] => {
+  if (surface.length === 0) return []
+  const ranges: { endOffset: number; startOffset: number }[] = []
   let startOffset = text.indexOf(surface)
   while (startOffset !== -1) {
     const endOffset = startOffset + surface.length
     if (!isAlphanumericAt(text, startOffset - 1) && !isAlphanumericAt(text, endOffset)) {
-      return { endOffset, startOffset }
+      ranges.push({ endOffset, startOffset })
     }
     startOffset = text.indexOf(surface, startOffset + 1)
   }
-  return null
+  return ranges
 }
+
+/**
+ * findSurfaceRanges の最初の出現。見つからなければ null
+ */
+export const findSurfaceRange = (text: string, surface: string): { endOffset: number; startOffset: number } | null =>
+  findSurfaceRanges(text, surface)[0] ?? null
 
 /**
  * 保存済みの位置に、本文と同じ表記で surface があるか

@@ -35,12 +35,14 @@ const convertAttemptPassageToResponse = (passage: AttemptPassageView): AttemptPa
 })
 
 /**
- * glossary_entry_id は用語集の語句のときだけ付ける（キーごと省く）
+ * can_look_up は単語のときだけ、glossary_entry_id は用語集の語句のときだけ付ける（キーごと省く）
  */
-const convertSegmentToResponse = (segment: PassageSegment): PassageSegmentResponse =>
-  segment.glossaryEntryId === undefined
-    ? { kind: segment.kind, text: segment.text }
-    : { glossary_entry_id: segment.glossaryEntryId, kind: segment.kind, text: segment.text }
+const convertSegmentToResponse = (segment: PassageSegment): PassageSegmentResponse => ({
+  ...(segment.canLookUp === undefined ? {} : { can_look_up: segment.canLookUp }),
+  ...(segment.glossaryEntryId === undefined ? {} : { glossary_entry_id: segment.glossaryEntryId }),
+  kind: segment.kind,
+  text: segment.text,
+})
 
 const convertBlockToResponse = (block: AttemptBlockView): AttemptBlock => ({
   lang: block.lang,
