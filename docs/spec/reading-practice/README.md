@@ -19,6 +19,7 @@
 - [`../read-aloud/README.md`](../read-aloud/README.md) — 解答画面と結果画面の読み上げ（3 つめのアシスト）。`reading_attempts.listened_block_count` の意味の正本
 - [`../choice-sound/README.md`](../choice-sound/README.md) — 解答画面で選択肢を選んだときの効果音と、上部バーの効果音のボタン
 - [`../question-translation/README.md`](../question-translation/README.md) — 設問（設問文と選択肢）の和訳（4 つめのアシスト）。`reading_attempts.translated_question_count` の意味の正本
+- [`../word-lookup-targets/README.md`](../word-lookup-targets/README.md) — 単語の意味を出す対象（名詞・動詞と用語集の語句）と、用語集の語句の 2 回目以降の出現
 - [`./deferred-assist-and-modes.md`](./deferred-assist-and-modes.md) — MVP 対象外。任意の文の翻訳、範囲選択の翻訳、厳格モード、ライトテーマ
 - **この spec が正本のもの**：`reading_attempts` / `attempt_answers` / `attempt_word_lookups` / `dictionary_entries`、`ATTEMPT_STATUSES` / `WORD_LOOKUP_SOURCES`
 
@@ -139,7 +140,8 @@
 **② 単語の意味**
 
 - 本文の単語を **タップ（クリック）** すると、その単語の意味を小さなカードで表示する
-- 用語集にある語句（熟語を含む）は、**この文脈での意味** と補足を出す。熟語は構成するどの単語をタップしても熟語ごと出る（例：`opt` をタップすると `opt out of` の意味）
+- 押せるのは **名詞・動詞（固有名詞を含む）と用語集の語句**。冠詞・前置詞・代名詞・助動詞・形容詞・副詞などは押せない（品詞は自動で判定する。[word-lookup-targets](../word-lookup-targets/README.md#押せる語)）
+- 用語集にある語句（熟語を含む）は、**この文脈での意味** と補足を出す。熟語は構成するどの単語をタップしても熟語ごと出る（例：`opt` をタップすると `opt out of` の意味）。同じ表記が本文のほかの箇所にあれば、そこでも用語集の意味を出す
 - 用語集に無い単語は **英和辞書の意味** を出す（文脈は考慮しない一般的な意味）。辞書にも無い単語は「見つかりませんでした」と出す
 - インラインコードとコードブロックはタップしても何も出ない
 - 調べた単語は記録し、結果画面の「調べた単語」に出す
@@ -242,7 +244,8 @@ stateDiagram-v2
 単語のタップと用語集のハイライトのために、本文を **セグメント**（単語・空白・記号・インラインコード）に分けた形で返す。分割は **api で行う**。
 
 - web と mobile の両方が同じ分割を必要とするが、フロントは `@repo/api-schema` 以外の `@repo/*` を import できない（lint の境界）。分割ロジックを両方に複製すると挙動がずれるため、api で 1 回だけ行ってレスポンスに含める
-- 用語集の語句（熟語）は、構成する複数の単語を 1 つのセグメントにまとめ、`glossary_entry_id` を持たせる
+- 用語集の語句（熟語）は、構成する複数の単語を 1 つのセグメントにまとめ、`glossary_entry_id` を持たせる。保存してある位置に加えて、同じ表記のほかの出現も同じ用語集の語句にする
+- 単語のセグメントには、押して意味を引けるか（`canLookUp`）を付ける。名詞・動詞（固有名詞を含む）と用語集の語句だけ true。品詞は分割のときに wink-nlp で判定する（[word-lookup-targets](../word-lookup-targets/README.md#品詞の判定)）。押せない単語も `kind` は `word` のまま（読み上げのハイライトが単語のセグメントを数えるため）
 
 ```ts
 type PassageSegment = {
@@ -251,6 +254,8 @@ type PassageSegment = {
   text: string
   /** 用語集の語句のときだけ。解答中は語義設問の対象語句を除く */
   glossaryEntryId?: number
+  /** word のときだけ。名詞・動詞と用語集の語句は true */
+  canLookUp?: boolean
 }
 ```
 
