@@ -303,30 +303,45 @@ export function PassageReview({ initialState }: { initialState: ReviewMockState 
                             <div>
                               <label className={labelClass} htmlFor={`prompt-${question.id}`}>設問文（英語）</label>
                               <textarea className={textareaClass} defaultValue={question.prompt} id={`prompt-${question.id}`} rows={2} />
+                              <label className={`${labelClass} mt-3`} htmlFor={`prompt-ja-${question.id}`}>設問文（和訳）</label>
+                              <textarea className={textareaClass} defaultValue={question.promptJa} id={`prompt-ja-${question.id}`} rows={2} />
                             </div>
                           </div>
                           <div>
-                            <p className={labelClass}>選択肢（ラジオで正解を選ぶ）</p>
-                            <div className="space-y-2">
+                            <p className={labelClass}>{question.type === "vocabulary" ? "選択肢（ラジオで正解を選ぶ）" : "選択肢（ラジオで正解を選ぶ。下の行は和訳）"}</p>
+                            <div className="space-y-3">
                               {question.choices.map((choice, choiceIndex) => (
-                                <div key={choiceIndex} className="flex items-center gap-2">
-                                  <input
-                                    aria-label={`${CHOICE_LETTERS[choiceIndex]} を正解にする`}
-                                    className="size-4 shrink-0 accent-success-500"
-                                    defaultChecked={choiceIndex === question.correctChoiceIndex}
-                                    name={`correct-${question.id}`}
-                                    type="radio"
-                                  />
-                                  <span className="w-4 shrink-0 font-mono text-theme-xs text-gray-400">{CHOICE_LETTERS[choiceIndex]}</span>
-                                  <input className={`${inputClass} h-10`} defaultValue={choice} />
-                                  {choiceIndex === question.verificationChoiceIndex && (
-                                    <span className={`shrink-0 text-theme-xs ${isMismatch ? "text-warning-600 dark:text-orange-400" : "text-gray-400"}`}>
-                                      検証モデルの回答
-                                    </span>
+                                <div key={choiceIndex} className="space-y-1.5">
+                                  <div className="flex items-center gap-2">
+                                    <input
+                                      aria-label={`${CHOICE_LETTERS[choiceIndex]} を正解にする`}
+                                      className="size-4 shrink-0 accent-success-500"
+                                      defaultChecked={choiceIndex === question.correctChoiceIndex}
+                                      name={`correct-${question.id}`}
+                                      type="radio"
+                                    />
+                                    <span className="w-4 shrink-0 font-mono text-theme-xs text-gray-400">{CHOICE_LETTERS[choiceIndex]}</span>
+                                    <input className={`${inputClass} h-10`} defaultValue={choice} />
+                                    {choiceIndex === question.verificationChoiceIndex && (
+                                      <span className={`shrink-0 text-theme-xs ${isMismatch ? "text-warning-600 dark:text-orange-400" : "text-gray-400"}`}>
+                                        検証モデルの回答
+                                      </span>
+                                    )}
+                                  </div>
+                                  {question.type !== "vocabulary" && (
+                                    <div className="pl-12">
+                                      <input
+                                        aria-label={`選択肢 ${CHOICE_LETTERS[choiceIndex]} の和訳`}
+                                        className={`${inputClass} h-9`}
+                                        defaultValue={question.choicesJa?.[choiceIndex]}
+                                        placeholder="和訳"
+                                      />
+                                    </div>
                                   )}
                                 </div>
                               ))}
                             </div>
+                            {question.type === "vocabulary" && <p className={hintClass}>語義の設問は選択肢を訳しません（和訳から答えが分かってしまうため）。</p>}
                             <p className={hintClass}>保存時に選択肢の順番は変えません（シャッフルは生成時だけ）。</p>
                           </div>
                           <div>

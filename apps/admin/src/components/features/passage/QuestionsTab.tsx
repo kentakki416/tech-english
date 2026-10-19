@@ -42,6 +42,14 @@ const createEmptyQuestion = (clientKey: string, evidenceBlockIndex: number): Pas
 })
 
 /**
+ * 選択肢の和訳の 1 つを書き換える。和訳がまだ無い（null）なら、選択肢と同じ数の空の和訳から始める
+ */
+const updateChoiceTranslation = (question: PassageFormQuestion, choiceIndex: number, value: string): PassageFormQuestion => {
+  const choicesJa = question.choices_ja ?? question.choices.map(() => "")
+  return { ...question, choices_ja: choicesJa.map((current, index) => (index === choiceIndex ? value : current)) }
+}
+
+/**
  * 設問タブ。設問ごとの開閉できるカード（開くとプレビューがその根拠までスクロールしてハイライトする）
  */
 export function QuestionsTab({
@@ -149,40 +157,62 @@ export function QuestionsTab({
                       rows={2}
                       value={question.prompt}
                     />
+                    <label className={`${labelClass} mt-3`} htmlFor={`prompt-ja-${key}`}>設問文（和訳）</label>
+                    <textarea
+                      className={textareaClass}
+                      id={`prompt-ja-${key}`}
+                      onChange={(event) => updateQuestion(key, (current) => ({ ...current, prompt_ja: event.target.value }))}
+                      rows={2}
+                      value={question.prompt_ja ?? ""}
+                    />
                   </div>
                 </div>
                 <div>
-                  <p className={labelClass}>選択肢（ラジオで正解を選ぶ）</p>
-                  <div className="space-y-2">
+                  <p className={labelClass}>{question.type === "vocabulary" ? "選択肢（ラジオで正解を選ぶ）" : "選択肢（ラジオで正解を選ぶ。下の行は和訳）"}</p>
+                  <div className="space-y-3">
                     {question.choices.map((choice, choiceIndex) => (
-                      <div key={choiceIndex} className="flex items-center gap-2">
-                        <input
-                          aria-label={`${CHOICE_LETTERS[choiceIndex]} を正解にする`}
-                          checked={choiceIndex === question.correct_choice_index}
-                          className="size-4 shrink-0 accent-success-500"
-                          name={`correct-${key}`}
-                          onChange={() => updateQuestion(key, (current) => ({ ...current, correct_choice_index: choiceIndex }))}
-                          type="radio"
-                        />
-                        <span className="w-4 shrink-0 font-mono text-theme-xs text-gray-400">{CHOICE_LETTERS[choiceIndex]}</span>
-                        <input
-                          aria-label={`選択肢 ${CHOICE_LETTERS[choiceIndex]}`}
-                          className={`${inputClass} h-10`}
-                          onChange={(event) =>
-                            updateQuestion(key, (current) => ({
-                              ...current,
-                              choices: current.choices.map((value, valueIndex) => (valueIndex === choiceIndex ? event.target.value : value)),
-                            }))}
-                          value={choice}
-                        />
-                        {choiceIndex === verificationIndex && (
-                          <span className={`shrink-0 text-theme-xs ${isMismatch ? "text-warning-600 dark:text-orange-400" : "text-gray-400"}`}>
-                            検証モデルの回答
-                          </span>
+                      <div key={choiceIndex} className="space-y-1.5">
+                        <div className="flex items-center gap-2">
+                          <input
+                            aria-label={`${CHOICE_LETTERS[choiceIndex]} を正解にする`}
+                            checked={choiceIndex === question.correct_choice_index}
+                            className="size-4 shrink-0 accent-success-500"
+                            name={`correct-${key}`}
+                            onChange={() => updateQuestion(key, (current) => ({ ...current, correct_choice_index: choiceIndex }))}
+                            type="radio"
+                          />
+                          <span className="w-4 shrink-0 font-mono text-theme-xs text-gray-400">{CHOICE_LETTERS[choiceIndex]}</span>
+                          <input
+                            aria-label={`選択肢 ${CHOICE_LETTERS[choiceIndex]}`}
+                            className={`${inputClass} h-10`}
+                            onChange={(event) =>
+                              updateQuestion(key, (current) => ({
+                                ...current,
+                                choices: current.choices.map((value, valueIndex) => (valueIndex === choiceIndex ? event.target.value : value)),
+                              }))}
+                            value={choice}
+                          />
+                          {choiceIndex === verificationIndex && (
+                            <span className={`shrink-0 text-theme-xs ${isMismatch ? "text-warning-600 dark:text-orange-400" : "text-gray-400"}`}>
+                              検証モデルの回答
+                            </span>
+                          )}
+                        </div>
+                        {question.type !== "vocabulary" && (
+                          <div className="pl-12">
+                            <input
+                              aria-label={`選択肢 ${CHOICE_LETTERS[choiceIndex]} の和訳`}
+                              className={`${inputClass} h-9`}
+                              onChange={(event) => updateQuestion(key, (current) => updateChoiceTranslation(current, choiceIndex, event.target.value))}
+                              placeholder="和訳"
+                              value={question.choices_ja?.[choiceIndex] ?? ""}
+                            />
+                          </div>
                         )}
                       </div>
                     ))}
                   </div>
+                  {question.type === "vocabulary" && <p className={hintClass}>語義の設問は選択肢を訳しません（和訳から答えが分かってしまうため）。</p>}
                   <p className={hintClass}>保存時に選択肢の順番は変えません（シャッフルは生成時だけ）。</p>
                 </div>
                 <div>

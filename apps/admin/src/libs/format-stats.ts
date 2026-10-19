@@ -18,10 +18,15 @@ export const convertRateToPercent = (rate: number): number => Math.round(rate * 
 export const formatRate = (rate: number | null): string => (rate === null ? EMPTY_VALUE : `${convertRateToPercent(rate)}%`)
 
 /**
- * アシストの利用率を「和訳 / 単語 / 読み上げ」の順に「12% / 40% / 8%」に（問題ごとの成績と問題の分析で同じ並び）
+ * アシストの利用率を「和訳 / 設問訳 / 単語 / 読み上げ」の順に「12% / 3% / 40% / 8%」に（問題ごとの成績と問題の分析で同じ並び）
  */
-export const formatAssistRates = (rates: { listened: number | null, looked_up: number | null, translated: number | null }): string =>
-  `${formatRate(rates.translated)} / ${formatRate(rates.looked_up)} / ${formatRate(rates.listened)}`
+export const formatAssistRates = (rates: {
+  listened: number | null
+  looked_up: number | null
+  translated: number | null
+  translated_question: number | null
+}): string =>
+  `${formatRate(rates.translated)} / ${formatRate(rates.translated_question)} / ${formatRate(rates.looked_up)} / ${formatRate(rates.listened)}`
 
 /**
  * 件数を「1,284」に
