@@ -31,24 +31,28 @@ const buildDraftContent = (overrides: Partial<DraftContent> = {}): DraftContent 
   questions: [
     {
       choices: ["a", "b", "c", "d"],
+      choicesJa: ["あ", "い", "う", "え"],
       correctChoiceIndex: 1,
       evidenceBlockIndex: 0,
       evidenceQuote: "You can opt in to retries.",
       explanationJa: "解説",
       orderIndex: 0,
       prompt: "What can you do?",
+      promptJa: "何ができるか。",
       targetGlossaryIndex: null,
       type: "detail",
       verificationChoiceIndex: 1,
     },
     {
       choices: ["e", "f", "g", "h"],
+      choicesJa: null,
       correctChoiceIndex: 0,
       evidenceBlockIndex: 0,
       evidenceQuote: "opt in to retries",
       explanationJa: "解説",
       orderIndex: 1,
       prompt: "The phrase \"opt in to\" is closest in meaning to ...",
+      promptJa: "\"opt in to\" に最も意味が近いものはどれか。",
       targetGlossaryIndex: 1,
       type: "vocabulary",
       verificationChoiceIndex: null,
@@ -413,8 +417,23 @@ describe("DrizzlePassageRepository", () => {
         expect(fake.insert.mock.calls.map(([table]) => table)).toEqual([passageGlossaryEntries, questions])
         expect(fake.values.mock.calls[0][0]).toEqual(content.glossary.map((entry) => ({ ...entry, passageId: 7 })))
         expect(fake.values.mock.calls[1][0]).toEqual([
-          expect.objectContaining({ orderIndex: 0, passageId: 7, targetGlossaryEntryId: null, verificationChoiceIndex: 1 }),
-          expect.objectContaining({ orderIndex: 1, passageId: 7, targetGlossaryEntryId: 502, type: "vocabulary", verificationChoiceIndex: null }),
+          expect.objectContaining({
+            choicesJa: ["あ", "い", "う", "え"],
+            orderIndex: 0,
+            passageId: 7,
+            promptJa: "何ができるか。",
+            targetGlossaryEntryId: null,
+            verificationChoiceIndex: 1,
+          }),
+          expect.objectContaining({
+            choicesJa: null,
+            orderIndex: 1,
+            passageId: 7,
+            promptJa: "\"opt in to\" に最も意味が近いものはどれか。",
+            targetGlossaryEntryId: 502,
+            type: "vocabulary",
+            verificationChoiceIndex: null,
+          }),
         ])
       })
 

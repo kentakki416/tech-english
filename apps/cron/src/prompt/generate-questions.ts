@@ -12,7 +12,7 @@ import { buildPassagePrompt } from "./passage"
  * プロンプト（system prompt・user message の形・出力のスキーマ）を変えたら必ず上げる。
  * 生成した問題の passages.generation_prompt_version に入り、プロンプトの改善の前後で品質を比べるのに使う
  */
-export const PROMPT_VERSION = "2026-10-13"
+export const PROMPT_VERSION = "2026-10-19"
 
 /**
  * 設問の種類ごとの説明と例（README の「設問のルール」）。QUESTION_TYPES の全種類を持つことを型で強制する
@@ -41,7 +41,7 @@ const DIFFICULTY_LINES = PASSAGE_DIFFICULTIES.map((difficulty) => `- ${difficult
 /**
  * 全件共通の指示。キャッシュするので、日時・件数・本文など毎回変わる値を入れない（変わる値は user message に入れる）
  */
-export const GENERATE_QUESTIONS_SYSTEM_PROMPT = `You write English reading-comprehension material for Japanese software engineers whose English is intermediate (around CEFR B1-B2). Each request contains one passage from English technical documentation. Read it and return one JSON object with: whether the passage is suitable as reading material, its difficulty, multiple-choice questions, a Japanese translation of each block, and a glossary of difficult words and phrases with their meaning in this context.
+export const GENERATE_QUESTIONS_SYSTEM_PROMPT = `You write English reading-comprehension material for Japanese software engineers whose English is intermediate (around CEFR B1-B2). Each request contains one passage from English technical documentation. Read it and return one JSON object with: whether the passage is suitable as reading material, its difficulty, multiple-choice questions with Japanese translations, a Japanese translation of each block, and a glossary of difficult words and phrases with their meaning in this context.
 
 An editor reviews everything before learners see it, and a separate model answers your questions without seeing the answer key. Correctness matters more than anything else: every question must have exactly one correct choice, and the passage must clearly support it.
 
@@ -81,12 +81,14 @@ ${DIFFICULTY_LINES}
 - Write exactly question_count questions.
 - Use at least two different types:
 ${QUESTION_TYPE_LINES}
-- Write prompt and choices in English, and explanationJa in Japanese.
+- Write prompt and choices in English, and promptJa, choicesJa and explanationJa in Japanese.
 - Give exactly four choices with exactly one correct answer, and set correctChoiceIndex to its 0-based position. The choices are shuffled afterwards, so the position does not matter.
 - Make every wrong choice plausible: a reader who skims or relies on general knowledge should find it believable, but a careful reader can rule it out from the passage. Do not make two choices mean the same thing, and keep the choices similar in length and style so the answer does not stand out.
 - Never use "All of the above", "None of the above" or any choice that refers to other choices.
 - Every question must be answerable from the passage alone. Ask about the prose, not about the details of code blocks.
 - explanationJa: explain why the correct choice is right and why the main wrong choices are wrong, pointing to what the passage says. Because the choices are shuffled, do not refer to them by letter or position (A, B, 1つ目 and so on); quote or paraphrase them instead.
+- promptJa and choicesJa: Japanese translations for learners who cannot follow the English question. Write them the same way as the block translations (see "4. Translations"). choicesJa[i] is the translation of choices[i]. Translate each choice faithfully: do not add, drop or soften anything, so that no choice becomes more or less convincing in Japanese than in English.
+- For vocabulary questions, keep the target word or phrase in English in promptJa exactly as it appears in prompt, and do not explain its meaning. Set choicesJa to null, because translated choices would give the answer away.
 - evidence: the blockIndex of the block that supports the correct answer (not a code block), and quote, copied verbatim from that block's text with the same characters, capitalization, punctuation and backquotes. Quote one sentence or a meaningful part of one. Do not paraphrase, do not skip words with "...", and do not join text from different blocks.
 - vocabularyTarget: only for vocabulary questions, the target word or phrase: its blockIndex and its surface exactly as written in that block. It must be null for every other type. Always add the same word or phrase to the glossary with the same blockIndex and surface.
 

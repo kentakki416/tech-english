@@ -38,12 +38,14 @@ export type DraftGlossaryEntry = Pick<
 export type DraftQuestion = Pick<
   Question,
   | "choices"
+  | "choicesJa"
   | "correctChoiceIndex"
   | "evidenceBlockIndex"
   | "evidenceQuote"
   | "explanationJa"
   | "orderIndex"
   | "prompt"
+  | "promptJa"
   | "type"
   | "verificationChoiceIndex"
 > & { targetGlossaryIndex: number | null }

@@ -129,6 +129,23 @@ describe("buildDraftContent", () => {
       })
     })
 
+    it("選択肢の和訳も同じ順に並べ替え、和訳が同じ位置の英文と組のまま。語義設問の和訳は null のまま", () => {
+      const output = buildGeneratedOutput()
+
+      const { content } = buildDraftContent(buildInput({ random: () => 0 }))
+
+      content.questions.forEach((question, index) => {
+        const original = output.questions[index]
+        const originalChoicesJa = original.choicesJa
+        if (originalChoicesJa === null) {
+          expect(question.choicesJa).toBeNull()
+          return
+        }
+        expect(question.choicesJa).toEqual(question.choices.map((choice) => originalChoicesJa[original.choices.indexOf(choice)]))
+      })
+      expect(content.questions[1]).toMatchObject({ choicesJa: null, type: "vocabulary" })
+    })
+
     it("設問は配列の順の orderIndex（0 始まり）を持ち、検証前なので verificationChoiceIndex は null", () => {
       const output = buildGeneratedOutput()
 
@@ -137,12 +154,14 @@ describe("buildDraftContent", () => {
       expect(content.questions.map((question) => question.orderIndex)).toEqual([0, 1, 2])
       expect(content.questions[2]).toEqual({
         choices: output.questions[2].choices,
+        choicesJa: output.questions[2].choicesJa,
         correctChoiceIndex: 2,
         evidenceBlockIndex: 6,
         evidenceQuote: "4xx errors are returned right away",
         explanationJa: output.questions[2].explanationJa,
         orderIndex: 2,
         prompt: output.questions[2].prompt,
+        promptJa: output.questions[2].promptJa,
         targetGlossaryIndex: null,
         type: "detail",
         verificationChoiceIndex: null,

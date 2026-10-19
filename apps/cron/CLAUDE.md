@@ -96,7 +96,7 @@ Markdown / MDX / HTML から本文を抽出し、200〜600 語の本文候補に
 | `client/anthropic/errors.ts` | `LlmRefusalError`（`stop_reason: "refusal"`。`stop_details.category` を持つ）/ `LlmOutputTruncatedError`（`max_tokens` などで途中で切れた。`stopReason` と `usage.output_tokens` の `outputTokens` を持つ）/ `LlmInvalidJsonError`、`isFatalLlmError`（401 / 403 / 404 / `billing_error` だけ true。タスク全体を止める判定） |
 | `client/anthropic/structured-output-schema.ts` | `convertZodToStructuredOutputSchema`：Zod（`zod/v4`）→ structured output に渡す JSON Schema。API が受け付けない制約（文字数・数値の範囲・`minItems` の 0 / 1 以外・`$schema`）を落とし、全オブジェクトに `additionalProperties: false`。`allOf` / `$ref` などは throw |
 | `prompt/generate-questions.ts` | `PROMPT_VERSION`、`GENERATE_QUESTIONS_SYSTEM_PROMPT`（README の設問・和訳・用語集のルール。英語）、`buildGenerateQuestionsUserContent`（番号つきブロック + 設問数の指示 + 再生成のときは前回の不合格の理由） |
-| `prompt/generate-questions-schema.ts` | 出力の Zod スキーマ `generateQuestionsOutputSchema`（vocabulary の設問だけが `vocabularyTarget` を持つ superRefine つき）と、API に渡す `GENERATE_QUESTIONS_OUTPUT_JSON_SCHEMA`（refine の前のオブジェクトから読み込み時に 1 回だけ作る定数） |
+| `prompt/generate-questions-schema.ts` | 出力の Zod スキーマ `generateQuestionsOutputSchema`（vocabulary の設問だけが `vocabularyTarget` を持ち、選択肢の和訳 `choicesJa` を持たない superRefine つき）と、API に渡す `GENERATE_QUESTIONS_OUTPUT_JSON_SCHEMA`（refine の前のオブジェクトから読み込み時に 1 回だけ作る定数） |
 | `prompt/passage.ts` | `buildPassagePrompt`：本文を `<passage>` / `<block index paragraph type lang translate>` の XML にする（生成と検証で共有）。段落番号は `numberParagraphs`、code には `translate="no"`。本文はエスケープせず属性値だけエスケープ、和訳は渡さない |
 | `prompt/verify-questions.ts` / `prompt/verify-questions-schema.ts` | 解答キーを見ない検証の `VERIFY_QUESTIONS_SYSTEM_PROMPT`（推測でも必ず 1 つ選ぶ）、`buildVerifyQuestionsUserContent`（番号つきブロック + シャッフル後の設問と A〜D の選択肢。**正解・解説・根拠は渡さない**）、出力の `verifyQuestionsOutputSchema`（`answers: { choiceIndex, questionNumber }[]`）と `VERIFY_QUESTIONS_OUTPUT_JSON_SCHEMA` |
 
@@ -113,7 +113,7 @@ Markdown / MDX / HTML から本文を抽出し、200〜600 語の本文候補に
 | ファイル | 役割 |
 | --- | --- |
 | `lib/question-generation/validate-generated-output.ts` | `validateGeneratedOutput`：不合格なら再生成させる検査（Zod・設問数が `calculateQuestionCount` と一致・選択肢が前後の空白と大文字小文字を除いて重複しない・根拠と `vocabularyTarget` のブロック番号が範囲内で code でない）。理由は英語で、そのまま再生成の user message に入る。`isSuitable = false` は以降を見ずに合格 |
-| `lib/question-generation/build-draft-content.ts` | `buildDraftContent`：保存する形への加工と要確認の理由（和訳の欠け・根拠の引用が本文に無い・語義設問の対象の追加 / 不在）。用語集の位置は `findSurfaceRange` で本文から求め、見つからない語句は捨てて `droppedGlossary` に入れる（task のログに出る）。語義設問の対象が用語集に無ければ意味が空の項目を足して紐づける。選択肢のシャッフル（`shuffle-choices.ts`、Fisher–Yates、`random` を DI）と制限時間の計算もここ。要確認のブロックの表記は `numberParagraphs` の「段落 N」と `numberHeadings` の「見出し N」（api の公開の条件のメッセージと同じ規則） |
+| `lib/question-generation/build-draft-content.ts` | `buildDraftContent`：保存する形への加工と要確認の理由（和訳の欠け・根拠の引用が本文に無い・語義設問の対象の追加 / 不在）。用語集の位置は `findSurfaceRange` で本文から求め、見つからない語句は捨てて `droppedGlossary` に入れる（task のログに出る）。語義設問の対象が用語集に無ければ意味が空の項目を足して紐づける。選択肢のシャッフル（`shuffle-choices.ts`、Fisher–Yates、`random` を DI。選択肢の和訳も同じ順に並べ替える）と制限時間の計算もここ。要確認のブロックの表記は `numberParagraphs` の「段落 N」と `numberHeadings` の「見出し N」（api の公開の条件のメッセージと同じ規則） |
 | `lib/question-generation/find-verification-mismatches.ts` | 検証モデルの回答を正解と突き合わせ、`verificationChoiceIndex` と「Q3：検証モデルは A を選択（正解は B）」を作る |
 | `lib/question-generation/parse-args.ts` | `parseGenerateQuestionsArgs`（`--passage-id` を正の整数に） |
 | `lib/question-generation/describe-run-failure.ts` | `describeRunFailure`：実行の件数から exit 1 にすべき理由を返す（`failed` が 1 件以上、または下書き・却下が 0 件で `collected` に戻した件がある）。task が throw に使う |
