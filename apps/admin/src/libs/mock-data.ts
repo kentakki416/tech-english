@@ -310,10 +310,15 @@ export type AdminGlossaryEntry = {
 export type AdminQuestion = {
   id: number
   choices: string[]
+  /**
+   * vocabulary は持たない
+   */
+  choicesJa?: string[]
   correctChoiceIndex: number
   evidence: { blockIndex: number, quote: string }
   explanationJa: string
   prompt: string
+  promptJa?: string
   targetGlossaryEntryId?: number
   type: "detail" | "inference" | "main_idea" | "purpose" | "vocabulary"
   verificationChoiceIndex: number
@@ -401,10 +406,17 @@ export const MOCK_QUESTIONS: AdminQuestion[] = [
       "To argue that Effects should never be used in React components",
       "To introduce third-party widgets that work well with React",
     ],
+    choicesJa: [
+      "React が依存配列を内部でどう比べるかを説明するため",
+      "エフェクトが適している場面と、正しい使い方を説明するため",
+      "React のコンポーネントでエフェクトを決して使うべきでないと主張するため",
+      "React とうまく連携するサードパーティのウィジェットを紹介するため",
+    ],
     correctChoiceIndex: 1,
     evidence: { blockIndex: 1, quote: "Effects let you run code after rendering so that you can synchronize your component with those systems." },
     explanationJa: "本文は、エフェクトが外部のシステムと同期するための手段であること（第 1 段落）、イベントハンドラや計算で済む場合は使わないこと（第 2・3 段落）、使う場合の依存配列とクリーンアップ（第 4・5 段落）を順に説明しています。",
     prompt: "What is the main purpose of this passage?",
+    promptJa: "この文章の主な目的は何か。",
     type: "main_idea",
     verificationChoiceIndex: 1,
   },
@@ -416,10 +428,12 @@ export const MOCK_QUESTIONS: AdminQuestion[] = [
       "In an event handler",
       "In a separate state variable",
     ],
+    choicesJa: ["依存配列が空のエフェクトの中", "エフェクトのクリーンアップ関数の中", "イベントハンドラの中", "別の state 変数の中"],
     correctChoiceIndex: 2,
     evidence: { blockIndex: 2, quote: "it belongs in an event handler, not in an Effect" },
     explanationJa: "第 2 段落に「ユーザーがボタンをクリックしたために実行されるロジックなら、エフェクトではなくイベントハンドラに書くべき」とあります。",
     prompt: "According to the passage, where should logic that runs because the user clicked a button be placed?",
+    promptJa: "本文によると、ユーザーがボタンをクリックしたために実行されるロジックはどこに置くべきか。",
     type: "detail",
     verificationChoiceIndex: 2,
   },
@@ -435,6 +449,7 @@ export const MOCK_QUESTIONS: AdminQuestion[] = [
     evidence: { blockIndex: 1, quote: "They are an escape hatch: you use them to step outside of React's rendering model" },
     explanationJa: "escape hatch は直訳すると「脱出用のハッチ」です。直後に「React のレンダーの仕組みの外に出るために使う」と続いており、通常の仕組みから必要なときだけ抜け出す手段を指しています。",
     prompt: "In paragraph 1, the phrase \"escape hatch\" is closest in meaning to",
+    promptJa: "第 1 段落の \"escape hatch\" に最も意味が近いものはどれか。",
     targetGlossaryEntryId: 2,
     type: "vocabulary",
     verificationChoiceIndex: 0,
@@ -447,10 +462,17 @@ export const MOCK_QUESTIONS: AdminQuestion[] = [
       "To reveal Effects that do not clean up after themselves",
       "To keep state in sync across components",
     ],
+    choicesJa: [
+      "各レンダーにかかる時間を測るため",
+      "本番環境でエフェクトを速く動かすため",
+      "後片付けをしないエフェクトを見つけ出すため",
+      "コンポーネント間で state を同期させるため",
+    ],
     correctChoiceIndex: 2,
     evidence: { blockIndex: 6, quote: "React intentionally mounts your component twice to help you find Effects that are missing a cleanup function" },
     explanationJa: "第 5 段落に「クリーンアップ関数が欠けているエフェクトを見つけやすくするために、React は意図的にコンポーネントを 2 回マウントする」とあります。",
     prompt: "Why does React mount components twice in development?",
+    promptJa: "開発中に React がコンポーネントを 2 回マウントするのはなぜか。",
     type: "inference",
     verificationChoiceIndex: 2,
   },
