@@ -55,6 +55,10 @@ export const readingAttempts = pgTable(
      */
     timeLimitSeconds: integer("time_limit_seconds").notNull(),
     translatedBlockCount: smallint("translated_block_count").notNull().default(0),
+    /**
+     * 和訳を一度でも出した設問の数（docs/spec/question-translation/README.md）
+     */
+    translatedQuestionCount: smallint("translated_question_count").notNull().default(0),
     userId: integer("user_id").notNull(),
     wordLookupCount: smallint("word_lookup_count").notNull().default(0),
     ...timestamps,
