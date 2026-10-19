@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons"
 import { Pressable, StyleSheet, Text, View } from "react-native"
 
+import { SoundEffectToggle } from "@/components/ui/SoundEffectToggle"
 import { THEME_COLORS } from "@/const/design-theme"
 import { formatSeconds } from "@/libs/format"
 
@@ -27,12 +28,13 @@ const PROGRESS_COLORS: Record<TimerPhase, string> = {
 }
 
 /**
- * 解答画面の上部バー（「‹ 中断」・残り時間・全文訳・一時停止）と、その下端の残り時間の進捗線。
+ * 解答画面の上部バー（「‹ 中断」・残り時間・効果音・全文訳・一時停止）と、その下端の残り時間の進捗線。
  * タイトル・出典・文字サイズは出さない（mobile の画面）。
  * isTimerPending の間（端末の経過を戻す前）は数字を出さない（保存していた値に飛ぶのを見せない）
  */
 export function SolvingTopBar({
   isPaused,
+  isSoundEnabled,
   isTimerPending,
   remainingSeconds,
   showAllTranslations,
@@ -40,8 +42,10 @@ export function SolvingTopBar({
   onInterrupt,
   onToggleAllTranslations,
   onTogglePause,
+  onToggleSound,
 }: {
   isPaused: boolean
+  isSoundEnabled: boolean
   isTimerPending: boolean
   remainingSeconds: number
   showAllTranslations: boolean
@@ -49,6 +53,7 @@ export function SolvingTopBar({
   onInterrupt: () => void
   onToggleAllTranslations: () => void
   onTogglePause: () => void
+  onToggleSound: () => void
 }) {
   const phase = determineTimerPhase(remainingSeconds, timeLimitSeconds)
   const isOvertime = phase === "overtime"
@@ -73,6 +78,7 @@ export function SolvingTopBar({
             {isOvertime ? `+${formatSeconds(-remainingSeconds)}` : formatSeconds(remainingSeconds)}
           </Text>
         </View>
+        <SoundEffectToggle isEnabled={isSoundEnabled} style={styles.soundButton} onToggle={onToggleSound} />
         <Pressable
           accessibilityRole="button"
           accessibilityState={{ disabled: isPaused, selected: showAllTranslations }}
@@ -148,6 +154,12 @@ const styles = StyleSheet.create({
   progressTrack: {
     backgroundColor: THEME_COLORS.line,
     height: 2,
+  },
+  soundButton: {
+    alignItems: "center",
+    height: 32,
+    justifyContent: "center",
+    width: 32,
   },
   timer: {
     alignItems: "baseline",

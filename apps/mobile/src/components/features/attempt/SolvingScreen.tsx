@@ -34,6 +34,7 @@ import { useAttemptStore } from "@/features/attempt/attempt.store"
 import { useDictionaryLookup } from "@/features/dictionary/use-dictionary-lookup"
 import { useReadAloud } from "@/features/read-aloud/use-read-aloud"
 import { useReadingAutoScroll } from "@/features/read-aloud/use-reading-auto-scroll"
+import { useSoundEffects } from "@/features/sound-effect/use-sound-effects"
 import { useActiveSeconds } from "@/libs/use-active-seconds"
 
 import { AttributionNote } from "./AttributionNote"
@@ -309,9 +310,17 @@ export function SolvingScreen({ attempt }: { attempt: InProgressAttempt }) {
     return () => subscription.remove()
   }, [interrupt])
 
+  const sound = useSoundEffects()
+  const { playChoice } = sound
+  const isReadAloudPlaying = readAloud.playback?.isPlaying ?? false
+
+  /**
+   * 読み上げの再生中は鳴らさない（効果音のために音声のモードを変えると、再生中の読み上げが消音モードで聞こえなくなるおそれがあるため）
+   */
   const chooseAnswer = useCallback((questionId: number, choiceIndex: number) => {
+    if (answers[questionId] !== choiceIndex && !isReadAloudPlaying) playChoice()
     setAnswers(current => ({ ...current, [questionId]: choiceIndex }))
-  }, [])
+  }, [answers, isReadAloudPlaying, playChoice])
 
   const moveQuestion = useCallback((index: number) => {
     setCurrentIndex(Math.min(Math.max(index, 0), questions.length - 1))
@@ -469,6 +478,7 @@ export function SolvingScreen({ attempt }: { attempt: InProgressAttempt }) {
     <SafeAreaView edges={["top"]} style={styles.screen}>
       <SolvingTopBar
         isPaused={isPaused}
+        isSoundEnabled={sound.isEnabled}
         isTimerPending={!isHydrated}
         remainingSeconds={timeLimitSeconds - elapsedSeconds}
         showAllTranslations={showAllTranslations}
@@ -476,6 +486,7 @@ export function SolvingScreen({ attempt }: { attempt: InProgressAttempt }) {
         onInterrupt={interrupt}
         onToggleAllTranslations={toggleAllTranslations}
         onTogglePause={togglePause}
+        onToggleSound={sound.toggle}
       />
 
       <View style={styles.body}>
