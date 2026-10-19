@@ -64,7 +64,12 @@ describe("AdminStatsRepository", () => {
         const user = await insertAttemptUser()
         const otherUser = await insertAttemptUser()
         await submit(passage, user.id, RANGE.from, { correctness: [true, false, true], elapsedSeconds: 100, translatedBlockCount: 1 })
-        await submit(passage, user.id, at("2026-10-12T00:00:00.000Z"), { elapsedSeconds: 200, isOvertime: true, wordLookupCount: 2 })
+        await submit(passage, user.id, at("2026-10-12T00:00:00.000Z"), {
+          elapsedSeconds: 200,
+          isOvertime: true,
+          translatedQuestionCount: 2,
+          wordLookupCount: 2,
+        })
         await submit(passage, otherUser.id, at("2026-10-14T00:00:00.000Z"), { elapsedSeconds: 300, listenedBlockCount: 3 })
 
         expect(await adminStatsRepository.summarizeOverview(RANGE)).toMatchObject({
@@ -77,6 +82,7 @@ describe("AdminStatsRepository", () => {
           solvedAttempts: 3,
           solvedUsers: 2,
           translatedAttempts: 1,
+          translatedQuestionAttempts: 1,
         })
       })
 
@@ -132,6 +138,7 @@ describe("AdminStatsRepository", () => {
           solvedUsers: 0,
           totalUsers: 0,
           translatedAttempts: 0,
+          translatedQuestionAttempts: 0,
         })
       })
     })
@@ -207,7 +214,7 @@ describe("AdminStatsRepository", () => {
         const unpublished = await insertPassageWithQuestions({ publishedAt: null, status: "draft", title: "Unpublished" })
         await insertPassageWithQuestions({ publishedAt: null, status: "draft", title: "Draft" })
         const [first, second] = [await insertAttemptUser(), await insertAttemptUser()]
-        await submit(popular, first.id, at("2026-10-12T00:00:00.000Z"))
+        await submit(popular, first.id, at("2026-10-12T00:00:00.000Z"), { translatedQuestionCount: 1 })
         await submit(popular, second.id, at("2026-10-12T00:00:00.000Z"))
         await submit(unpublished, first.id, at("2026-10-12T00:00:00.000Z"))
 
@@ -221,6 +228,7 @@ describe("AdminStatsRepository", () => {
         ])
         expect(result.items[2]).toMatchObject({ id: unsolved.id, correctCount: 0, publishedAt: at("2026-10-01T03:00:00.000Z"), status: "published" })
         expect(result.items[0].source).toEqual({ id: popular.sourceId, name: "React 公式ドキュメント" })
+        expect(result.items.map((item) => item.translatedQuestionAttempts)).toEqual([1, 0, 0])
       })
 
       it("正答率の低い順に並べると、解かれていない問題は最後（NULLS LAST）。同じ値は ID の順", async () => {

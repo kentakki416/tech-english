@@ -239,6 +239,7 @@ export class DrizzleReadingAttemptRepository implements ReadingAttemptRepository
         studyDate: input.studyDate,
         submittedAt: input.submittedAt,
         translatedBlockCount: input.translatedBlockCount,
+        translatedQuestionCount: input.translatedQuestionCount,
         wordLookupCount: input.wordLookupCount,
       })
       .where(and(eq(readingAttempts.id, input.attemptId), eq(readingAttempts.status, "in_progress")))

@@ -177,7 +177,11 @@ const convertSubmittedAttemptToView = (attempt: SubmittedAttempt, timeZone: stri
   submittedAt: attempt.submittedAt,
   submittedTime: formatTimeInTimeZone(attempt.submittedAt, timeZone),
   title: attempt.passageTitle,
-  usedAssist: attempt.translatedBlockCount > 0 || attempt.wordLookupCount > 0 || attempt.listenedBlockCount > 0,
+  usedAssist:
+    attempt.translatedBlockCount > 0
+    || attempt.translatedQuestionCount > 0
+    || attempt.wordLookupCount > 0
+    || attempt.listenedBlockCount > 0,
 })
 
 /**

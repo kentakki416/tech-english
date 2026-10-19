@@ -20,6 +20,7 @@ describe("getAdminStatsOverview", () => {
         solvedUsers: 4,
         totalUsers: 20,
         translatedAttempts: 5,
+        translatedQuestionAttempts: 2,
       })
 
       const result = await getAdminStatsOverview("30d", { adminStatsRepository }, { now: FIXED_NOW })
@@ -31,7 +32,7 @@ describe("getAdminStatsOverview", () => {
         ok: true,
         value: {
           activeUsers: 5,
-          assistRates: { listened: 0.1, lookedUp: 0.3, translated: 0.5 },
+          assistRates: { listened: 0.1, lookedUp: 0.3, translated: 0.5, translatedQuestion: 0.2 },
           correctRate: 0.75,
           fromDate: "2026-09-16",
           newUsers: 2,
@@ -75,7 +76,7 @@ describe("getAdminStatsOverview", () => {
 
       expect(result).toMatchObject({
         ok: true,
-        value: { assistRates: { listened: null, lookedUp: null, translated: null }, correctRate: null },
+        value: { assistRates: { listened: null, lookedUp: null, translated: null, translatedQuestion: null }, correctRate: null },
       })
     })
 

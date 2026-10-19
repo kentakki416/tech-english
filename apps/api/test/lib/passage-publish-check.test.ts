@@ -27,6 +27,13 @@ describe("listPublishViolations", () => {
       expect(listPublishViolations({ ...detail, questions: [...detail.questions, ...extra] })).toEqual([])
     })
 
+    it("語義の設問は選択肢の和訳が無くても choice_translation_missing にならない", () => {
+      const detail = buildAdminPassageDetail()
+
+      expect(detail.questions[2]).toMatchObject({ choicesJa: null, type: "vocabulary" })
+      expect(listPublishViolations(detail)).toEqual([])
+    })
+
     it("code のブロックは和訳が無くても translation_missing にならない", () => {
       const detail = buildAdminPassageDetail()
 
@@ -93,6 +100,33 @@ describe("listPublishViolations", () => {
 
       expect(listPublishViolations(detail)).toEqual([
         { code: "correct_choice_missing", message: expect.any(String), path: ["questions", 0, "correct_choice_index"] },
+      ])
+    })
+
+    it.each([
+      ["null（和訳の無い設問）", null],
+      ["空白だけ", "  "],
+    ])("設問文の和訳が %s なら prompt_translation_missing を返す", (_label, promptJa) => {
+      const detail = replaceQuestion(buildAdminPassageDetail(), 0, { promptJa })
+
+      expect(listPublishViolations(detail)).toEqual([
+        { code: "prompt_translation_missing", message: "Q1：設問文の和訳が空です", path: ["questions", 0, "prompt_ja"] },
+      ])
+    })
+
+    it.each([
+      ["null（和訳の無い設問）", null],
+      ["1 つだけ空白", ["依存配列が空のエフェクトの中", " ", "イベントハンドラの中", "別の state 変数の中"]],
+      ["3 つ", ["依存配列が空のエフェクトの中", "エフェクトのクリーンアップ関数の中", "イベントハンドラの中"]],
+    ])("語義以外の設問の選択肢の和訳が %s なら choice_translation_missing を返す", (_label, choicesJa) => {
+      const detail = replaceQuestion(buildAdminPassageDetail(), 1, { choicesJa })
+
+      expect(listPublishViolations(detail)).toEqual([
+        {
+          code: "choice_translation_missing",
+          message: "Q2：選択肢の和訳を 4 つとも入力してください",
+          path: ["questions", 1, "choices_ja"],
+        },
       ])
     })
 

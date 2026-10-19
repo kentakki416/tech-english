@@ -37,6 +37,7 @@ export class AttemptSubmitController {
         listenedBlockCount: body.listened_block_count,
         now: new Date(),
         translatedBlockCount: body.translated_block_count,
+        translatedQuestionCount: body.translated_question_count,
         userId: req.userId!,
         wordLookups: body.word_lookups.map((lookup) => ({
           glossaryEntryId: lookup.glossary_entry_id,

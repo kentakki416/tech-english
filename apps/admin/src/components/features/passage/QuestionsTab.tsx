@@ -29,11 +29,13 @@ const MIN_SAVABLE_QUESTIONS = 1
 const createEmptyQuestion = (clientKey: string, evidenceBlockIndex: number): PassageFormQuestion => ({
   id: null,
   choices: ["", "", "", ""],
+  choices_ja: null,
   clientKey,
   correct_choice_index: 0,
   evidence: { block_index: evidenceBlockIndex, quote: "" },
   explanation_ja: "",
   prompt: "",
+  prompt_ja: null,
   targetGlossaryKey: null,
   type: "detail",
   verification_choice_index: null,

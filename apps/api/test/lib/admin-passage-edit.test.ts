@@ -24,12 +24,14 @@ describe("buildDraftEditContent", () => {
           questions: detail.questions.map((question, index) => ({
             id: question.id,
             choices: question.choices,
+            choicesJa: question.choicesJa,
             correctChoiceIndex: question.correctChoiceIndex,
             evidenceBlockIndex: question.evidenceBlockIndex,
             evidenceQuote: question.evidenceQuote,
             explanationJa: question.explanationJa,
             orderIndex: index,
             prompt: question.prompt,
+            promptJa: question.promptJa,
             targetGlossaryIndex: question.type === "vocabulary" ? 1 : null,
             type: question.type,
           })),
@@ -78,6 +80,41 @@ describe("buildDraftEditContent", () => {
       expect(result.ok).toBe(true)
       if (!result.ok) return
       expect(result.content.questions.map((question) => question.targetGlossaryIndex)).toEqual([null, null, null])
+    })
+
+    it("空白だけの設問文の和訳と、4 つとも空白の選択肢の和訳は null にする", () => {
+      const input = buildInput()
+      input.questions[0] = { ...input.questions[0], choicesJa: [" ", "", "  ", ""], promptJa: "  " }
+
+      const result = buildDraftEditContent(detail, input)
+
+      expect(result.ok).toBe(true)
+      if (!result.ok) return
+      expect(result.content.questions[0]).toMatchObject({ choicesJa: null, promptJa: null })
+    })
+
+    it("一部だけ空白の選択肢の和訳は途中の状態としてそのまま保存する（公開時に検査する）", () => {
+      const input = buildInput()
+      const choicesJa = ["依存配列の比べ方を説明するため", "", "使うべきでないと主張するため", "ウィジェットを紹介するため"]
+      input.questions[0] = { ...input.questions[0], choicesJa }
+
+      const result = buildDraftEditContent(detail, input)
+
+      expect(result.ok).toBe(true)
+      if (!result.ok) return
+      expect(result.content.questions[0]?.choicesJa).toEqual(choicesJa)
+    })
+
+    it("vocabulary の設問の選択肢の和訳は null にし、設問文の和訳は残す（種類を語義に変えたときに残った和訳を消す）", () => {
+      const input = buildInput()
+      input.questions[1] = { ...input.questions[1], targetGlossaryIndex: 1, type: "vocabulary" }
+
+      const result = buildDraftEditContent(detail, input)
+
+      expect(result.ok).toBe(true)
+      if (!result.ok) return
+      expect(input.questions[1]?.choicesJa).not.toBeNull()
+      expect(result.content.questions[1]).toMatchObject({ choicesJa: null, promptJa: input.questions[1]?.promptJa })
     })
 
     it("新規の用語集（id: null）を対象にした設問と、並べ替えた設問の orderIndex を返す", () => {

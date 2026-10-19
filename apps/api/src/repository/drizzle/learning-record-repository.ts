@@ -120,6 +120,7 @@ export class DrizzleLearningRecordRepository implements LearningRecordRepository
       studyDate: requireSubmittedValue(attempt.studyDate, "study_date", attempt.id),
       submittedAt: requireSubmittedValue(attempt.submittedAt, "submitted_at", attempt.id),
       translatedBlockCount: attempt.translatedBlockCount,
+      translatedQuestionCount: attempt.translatedQuestionCount,
       wordLookupCount: attempt.wordLookupCount,
     }))
   }
@@ -207,7 +208,7 @@ export class DrizzleLearningRecordRepository implements LearningRecordRepository
   }
 
   /**
-   * 和訳・単語・読み上げをどれも使っていない挑戦だけ
+   * 段落の和訳・設問の和訳・単語・読み上げをどれも使っていない挑戦だけ
    */
   public async summarizeNoAssistAccuracy(userId: number): Promise<AccuracyCount> {
     const [row] = await this._db
@@ -221,6 +222,7 @@ export class DrizzleLearningRecordRepository implements LearningRecordRepository
           buildSubmittedCondition(userId),
           eq(readingAttempts.listenedBlockCount, 0),
           eq(readingAttempts.translatedBlockCount, 0),
+          eq(readingAttempts.translatedQuestionCount, 0),
           eq(readingAttempts.wordLookupCount, 0),
         ),
       )

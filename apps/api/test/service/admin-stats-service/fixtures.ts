@@ -22,6 +22,7 @@ export const EMPTY_TOTALS: OverviewTotals = {
   solvedUsers: 0,
   totalUsers: 0,
   translatedAttempts: 0,
+  translatedQuestionAttempts: 0,
 }
 
 export const buildPassageStatsRow = (overrides: Partial<PassageStatsRow> = {}): PassageStatsRow => ({
@@ -41,6 +42,7 @@ export const buildPassageStatsRow = (overrides: Partial<PassageStatsRow> = {}): 
   timeLimitSeconds: 360,
   title: "What Is Ownership?",
   translatedAttempts: 0,
+  translatedQuestionAttempts: 0,
   ...overrides,
 })
 

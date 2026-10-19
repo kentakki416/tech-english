@@ -53,6 +53,10 @@ export type SubmitReadingAttemptInput = {
   studyDate: string
   submittedAt: Date
   translatedBlockCount: number
+  /**
+   * 和訳を出した設問の数（設問の数で切り詰めた値）
+   */
+  translatedQuestionCount: number
   wordLookupCount: number
 }
 

@@ -22,10 +22,12 @@ export const convertDetailResponseToUpdateBody = (detail: AdminPassageDetailResp
   questions: detail.questions.map((question) => ({
     id: question.id,
     choices: question.choices,
+    choices_ja: question.choices_ja,
     correct_choice_index: question.correct_choice_index,
     evidence: question.evidence,
     explanation_ja: question.explanation_ja,
     prompt: question.prompt,
+    prompt_ja: question.prompt_ja,
     target_glossary_index: question.target_glossary_entry_id === null
       ? null
       : detail.glossary.findIndex((entry) => entry.id === question.target_glossary_entry_id),

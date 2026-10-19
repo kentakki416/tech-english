@@ -104,7 +104,7 @@ export const EXPECTED_ATTRIBUTION = {
 }
 
 /**
- * 提出済みの挑戦（FIXED_NOW の 14 時間前に開始し、150 秒で 3 問中 1 問正解。和訳 2 段落・単語 3 回・読み上げ 1 段落）
+ * 提出済みの挑戦（FIXED_NOW の 14 時間前に開始し、150 秒で 3 問中 1 問正解。和訳 2 段落・設問の和訳 1 問・単語 3 回・読み上げ 1 段落）
  */
 export const buildSubmittedAttempt = (overrides: Partial<ReadingAttempt> = {}): ReadingAttempt =>
   buildAttempt({
@@ -117,6 +117,7 @@ export const buildSubmittedAttempt = (overrides: Partial<ReadingAttempt> = {}): 
     studyDate: "2026-10-13",
     submittedAt: FIXED_NOW,
     translatedBlockCount: 2,
+    translatedQuestionCount: 1,
     wordLookupCount: 3,
     ...overrides,
   })
@@ -161,8 +162,10 @@ export const EXPECTED_BLOCKS_WITHOUT_SEGMENTS = [
 export const EXPECTED_QUESTIONS = QUESTION_ITEMS.map((item, index) => ({
   id: 201 + index,
   choices: item.choices,
+  choicesJa: item.choicesJa,
   orderIndex: index,
   prompt: item.prompt,
+  promptJa: item.promptJa,
   type: item.type,
 }))
 
@@ -217,6 +220,7 @@ export const buildExpectedSubmittedView = () => ({
   submittedAt: FIXED_NOW,
   timeLimitSeconds: 180,
   translatedBlockCount: 2,
+  translatedQuestionCount: 1,
   wordLookupCount: 3,
   /**
    * 用語集 101 と辞書の effect の 2 回目は除き、用語集が消された paradigm は見出し語で残す

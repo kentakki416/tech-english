@@ -36,7 +36,7 @@ const learningRecordAttemptSchema = z.object({
   submitted_time: z.string(),
   title: z.string(),
   /**
-   * 訳の表示・単語の意味・読み上げのどれかを 1 回以上使った
+   * 段落の和訳・設問の和訳・単語の意味・読み上げのどれかを 1 回以上使った
    */
   used_assist: z.boolean(),
 })

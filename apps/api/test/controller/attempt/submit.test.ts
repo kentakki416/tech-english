@@ -69,6 +69,7 @@ const buildRequestBody = (questionIds: number[], glossaryEntryId: number) => ({
   ],
   listened_block_count: 3,
   translated_block_count: 2,
+  translated_question_count: 1,
   word_lookups: [
     { glossary_entry_id: glossaryEntryId, lemma: "stay in sync with", source: "glossary", surface: "stay in sync with" },
     { glossary_entry_id: null, lemma: "Effect", source: "dictionary", surface: "Effects" },
@@ -148,6 +149,7 @@ describe("POST /api/attempt/:id/submit", () => {
         questions: questions.map((question, index) => ({
           id: question.id,
           choices: QUESTION_ITEMS[index]?.choices,
+          choices_ja: QUESTION_ITEMS[index]?.choicesJa,
           correct_choice_index: QUESTION_ITEMS[index]?.correctChoiceIndex,
           evidence: EXPECTED_EVIDENCES[index],
           explanation_ja: QUESTION_ITEMS[index]?.explanationJa,
@@ -155,6 +157,7 @@ describe("POST /api/attempt/:id/submit", () => {
           is_correct: index === 0,
           order_index: index,
           prompt: QUESTION_ITEMS[index]?.prompt,
+          prompt_ja: QUESTION_ITEMS[index]?.promptJa,
           selected_choice_index: [1, 0, null][index],
           type: QUESTION_ITEMS[index]?.type,
         })),
@@ -164,6 +167,7 @@ describe("POST /api/attempt/:id/submit", () => {
         submitted_at: expect.any(String),
         time_limit_seconds: 180,
         translated_block_count: 2,
+        translated_question_count: 1,
         word_lookup_count: 3,
         word_lookups: [
           { lemma: "stay in sync with", meaning_ja: "〜と同期した状態を保つ", source: "glossary", surface: "stay in sync with" },
@@ -197,6 +201,7 @@ describe("POST /api/attempt/:id/submit", () => {
         studyDate: formatToday("Asia/Tokyo"),
         submittedAt: new Date(res.body.submitted_at),
         translatedBlockCount: 2,
+        translatedQuestionCount: 1,
         wordLookupCount: 3,
       })
       const answers = await selectAnswers(attempt.id)
@@ -243,6 +248,37 @@ describe("POST /api/attempt/:id/submit", () => {
       expect(res.status).toBe(200)
       expect(res.body.listened_block_count).toBe(0)
       expect(await selectAttempt(attempt.id)).toMatchObject({ listenedBlockCount: 0, status: "submitted" })
+    })
+
+    it.each([
+      ["2 なら 2", 2, 2],
+      ["設問の数（3）ちょうどはそのまま（境界値）", 3, 3],
+      ["設問の数（3）より大きければ 3 に切り詰める", 4, 3],
+      ["0 なら 0", 0, 0],
+    ])("translated_question_count が %s を保存して結果に返す", async (_label, translatedQuestionCount, expected) => {
+      const { attempt, token } = await setupAttempt()
+
+      const res = await request(app)
+        .post(`/api/attempt/${attempt.id}/submit`)
+        .set("Authorization", `Bearer ${token}`)
+        .send({ active_seconds: 10, answers: [], translated_block_count: 0, translated_question_count: translatedQuestionCount, word_lookups: [] })
+
+      expect(res.status).toBe(200)
+      expect(res.body.translated_question_count).toBe(expected)
+      expect(await selectAttempt(attempt.id)).toMatchObject({ status: "submitted", translatedQuestionCount: expected })
+    })
+
+    it("translated_question_count を省略すると 0 として保存する（送ってこない古いアプリ）", async () => {
+      const { attempt, token } = await setupAttempt()
+
+      const res = await request(app)
+        .post(`/api/attempt/${attempt.id}/submit`)
+        .set("Authorization", `Bearer ${token}`)
+        .send({ active_seconds: 10, answers: [], translated_block_count: 0, word_lookups: [] })
+
+      expect(res.status).toBe(200)
+      expect(res.body.translated_question_count).toBe(0)
+      expect(await selectAttempt(attempt.id)).toMatchObject({ status: "submitted", translatedQuestionCount: 0 })
     })
 
     it("study_date はユーザーのタイムゾーンの日付にする", async () => {

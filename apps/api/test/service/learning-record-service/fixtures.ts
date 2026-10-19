@@ -71,6 +71,7 @@ export const buildSubmittedAttempt = (overrides: Partial<SubmittedAttempt> = {})
   studyDate: "2026-10-10",
   submittedAt: new Date("2026-10-09T23:14:00.000Z"),
   translatedBlockCount: 0,
+  translatedQuestionCount: 0,
   wordLookupCount: 0,
   ...overrides,
 })
