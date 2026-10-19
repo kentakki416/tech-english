@@ -21,27 +21,23 @@
 
 ### `schema/question.ts`
 
+`choices` の次に `choicesJa`、`prompt` の次に `promptJa` を足す。
+
 ```ts
-export const questions = pgTable(
-  "questions",
-  {
-    id: serial("id").primaryKey(),
-    choices: jsonb("choices").$type<string[]>().notNull(),
     choicesJa: jsonb("choices_ja").$type<string[]>(),
-    correctChoiceIndex: smallint("correct_choice_index").notNull(),
-    // ...
-    prompt: text("prompt").notNull(),
+```
+
+```ts
     promptJa: text("prompt_ja"),
-    // ...
-  },
-  (table) => [
-    // ...
+```
+
+制約の配列の末尾（`questions_target_glossary_entry_check` の後ろ）に足す。
+
+```ts
     check(
       "questions_choices_ja_check",
       sql`${table.choicesJa} IS NULL OR ${table.type} <> 'vocabulary'`,
     ),
-  ],
-)
 ```
 
 - テーブルの先頭のコメント「設問文と選択肢は英語、解説は日本語」を、和訳の列を含む説明に直す
@@ -76,19 +72,7 @@ test DB には `pnpm --filter api test` が流す前に適用する。
 
 ### domain の型
 
-`packages/domain/src/types/question.ts`
-
-```ts
-export type Question = {
-  id: number
-  choices: string[]
-  choicesJa: string[] | null
-  // ...
-  prompt: string
-  promptJa: string | null
-  // ...
-}
-```
+`packages/domain/src/types/question.ts` の `Question` に、`choices` の次に `choicesJa: string[] | null`、`prompt` の次に `promptJa: string | null` を足す。
 
 - 先頭のコメント「設問文と選択肢は英語、解説は日本語」を、和訳を含む説明に直す（DB のスキーマと同じ書き方）
 
@@ -96,11 +80,10 @@ export type Question = {
 
 ```ts
   translatedBlockCount: number
-  /**
-   * 和訳を一度でも出した設問の数
-   */
   translatedQuestionCount: number
 ```
+
+- `translatedQuestionCount` の JSDoc に「和訳を一度でも出した設問の数」と書く
 
 ### 型を組み立てている箇所
 
@@ -114,67 +97,14 @@ domain の型を変えると、api で `Question` / `ReadingAttempt` を組み�
 
 ### `seed-sample-passages.ts`
 
-```ts
-type SampleQuestion = {
-  choices: string[]
-  choicesJa: string[] | null
-  correctChoiceIndex: number
-  evidence: { blockIndex: number; quote: string }
-  explanationJa: string
-  prompt: string
-  promptJa: string
-  targetSurface: string | null
-  type: QuestionType
-  verificationChoiceIndex: number | null
-}
+`SampleQuestion` に、`choices` の次に `choicesJa: string[] | null`、`prompt` の次に `promptJa: string` を足し、4 つのサンプルの設問に次の和訳を入れる（`choicesJa` は今の `choices` と同じ順）。
 
-const QUESTION_MAIN_IDEA: SampleQuestion = {
-  choices: [
-    "To explain how React compares dependencies internally",
-    "To describe when Effects are appropriate and how to use them correctly",
-    "To argue that Effects should never be used in React components",
-    "To introduce third-party widgets that work well with React",
-  ],
-  choicesJa: [
-    "React が依存配列を内部でどう比べるかを説明するため",
-    "エフェクトが適している場面と、正しい使い方を説明するため",
-    "React のコンポーネントでエフェクトを決して使うべきでないと主張するため",
-    "React とうまく連携するサードパーティのウィジェットを紹介するため",
-  ],
-  // ...
-  prompt: "What is the main purpose of this passage?",
-  promptJa: "この文章の主な目的は何か。",
-  // ...
-}
-
-const QUESTION_DETAIL: SampleQuestion = {
-  // ...
-  choicesJa: [
-    "依存配列が空のエフェクトの中",
-    "エフェクトのクリーンアップ関数の中",
-    "イベントハンドラの中",
-    "別の state 変数の中",
-  ],
-  promptJa: "本文によると、ユーザーがボタンをクリックしたために実行されるロジックはどこに置くべきか。",
-}
-
-const QUESTION_VOCABULARY: SampleQuestion = {
-  // ...
-  choicesJa: null,
-  promptJa: "第 1 段落の \"escape hatch\" に最も意味が近いものはどれか。",
-}
-
-const QUESTION_INFERENCE: SampleQuestion = {
-  // ...
-  choicesJa: [
-    "各レンダーにかかる時間を測るため",
-    "本番環境でエフェクトを速く動かすため",
-    "後片付けをしないエフェクトを見つけ出すため",
-    "コンポーネント間で state を同期させるため",
-  ],
-  promptJa: "開発中に React がコンポーネントを 2 回マウントするのはなぜか。",
-}
-```
+| 設問 | `promptJa` | `choicesJa` |
+| --- | --- | --- |
+| `QUESTION_MAIN_IDEA` | この文章の主な目的は何か。 | React が依存配列を内部でどう比べるかを説明するため / エフェクトが適している場面と、正しい使い方を説明するため / React のコンポーネントでエフェクトを決して使うべきでないと主張するため / React とうまく連携するサードパーティのウィジェットを紹介するため |
+| `QUESTION_DETAIL` | 本文によると、ユーザーがボタンをクリックしたために実行されるロジックはどこに置くべきか。 | 依存配列が空のエフェクトの中 / エフェクトのクリーンアップ関数の中 / イベントハンドラの中 / 別の state 変数の中 |
+| `QUESTION_VOCABULARY` | 第 1 段落の "escape hatch" に最も意味が近いものはどれか。 | `null` |
+| `QUESTION_INFERENCE` | 開発中に React がコンポーネントを 2 回マウントするのはなぜか。 | 各レンダーにかかる時間を測るため / 本番環境でエフェクトを速く動かすため / 後片付けをしないエフェクトを見つけ出すため / コンポーネント間で state を同期させるため |
 
 - `verifySampleQuestions` に次の検査を足す：`promptJa` が空でない、`vocabulary` は `choicesJa === null`、それ以外は `choicesJa` が 4 つで空が無い
 - `questionValues` に `choicesJa: question.choicesJa` と `promptJa: question.promptJa` を足す（`onConflictDoUpdate` の `set` にも入るので、seed を流し直せば既存のサンプルにも和訳が入る）

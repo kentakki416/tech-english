@@ -36,39 +36,32 @@ api で設問の和訳を扱う。
 export const attemptQuestionSchema = z.object({
   id: z.number().int(),
   choices: z.array(z.string()).length(4),
-  /**
-   * 選択肢の和訳（choices と同じ順）。和訳の無い設問と、文脈での語義の設問は null
-   */
   choices_ja: z.array(z.string()).length(4).nullable(),
   order_index: z.number().int(),
   prompt: z.string(),
-  /**
-   * 設問文の和訳。和訳の無い設問（docs/spec/question-translation/README.md の「これまでの問題」）は null
-   */
   prompt_ja: z.string().nullable(),
   type: z.enum(QUESTION_TYPES),
 })
 ```
 
+- `choices_ja` の JSDoc に「選択肢の和訳（choices と同じ順）。和訳の無い設問と、文脈での語義の設問は null」、`prompt_ja` に「設問文の和訳。和訳の無い設問（docs/spec/question-translation/README.md の「これまでの問題」）は null」と書く
+
 `submittedAttemptSchema` に足す。
 
 ```ts
   translated_block_count: z.number().int(),
-  /**
-   * 和訳を一度でも出した設問の数
-   */
   translated_question_count: z.number().int(),
 ```
+
+- JSDoc に「和訳を一度でも出した設問の数」と書く
 
 `submitAttemptRequestSchema` に足す。
 
 ```ts
-  /**
-   * 和訳を一度でも出した設問の数。サーバーが設問の数で上限をかける。
-   * 古いアプリ（送ってこない版）のために省略時は 0
-   */
   translated_question_count: z.number().int().nonnegative().default(0),
 ```
+
+- JSDoc に「和訳を一度でも出した設問の数。サーバーが設問の数で上限をかける。古いアプリ（送ってこない版）のために省略時は 0」と書く（`listened_block_count` と同じ書き方）
 
 `packages/schema/src/api-schema/admin/passage.ts`
 
@@ -101,19 +94,7 @@ const assistRatesSchema = z.object({
 
 ### admin の保存
 
-`apps/api/src/lib/admin-passage-edit.ts`
-
-```ts
-  questions: {
-    id: number | null
-    choices: string[]
-    choicesJa: string[] | null
-    // ...
-    prompt: string
-    promptJa: string | null
-    // ...
-  }[]
-```
+`apps/api/src/lib/admin-passage-edit.ts` の `AdminPassageEditInput.questions` に、`choices` の次に `choicesJa: string[] | null`、`prompt` の次に `promptJa: string | null` を足す。
 
 ```ts
 const convertBlankTranslationToNull = (translation: string | null): string | null =>
@@ -123,17 +104,14 @@ const convertBlankChoiceTranslationsToNull = (translations: string[] | null): st
   translations === null || translations.every((translation) => translation.trim() === "") ? null : translations
 ```
 
+`buildDraftEditContent` が返す設問の `choices` の次と `prompt` の次に足す。
+
 ```ts
-    return {
-      id: question.id,
-      choices: question.choices,
       choicesJa: question.type === "vocabulary" ? null : convertBlankChoiceTranslationsToNull(question.choicesJa),
-      // ...
-      prompt: question.prompt,
+```
+
+```ts
       promptJa: convertBlankTranslationToNull(question.promptJa),
-      targetGlossaryIndex,
-      type: question.type,
-    }
 ```
 
 - `choicesJa` を語義の設問で NULL にする理由（DB の `questions_choices_ja_check`、種類を語義に変えたときに残った和訳を消す）は `convertBlankChoiceTranslationsToNull` を呼ぶ行の上に書く
@@ -162,6 +140,8 @@ const hasChoiceTranslations = (choicesJa: string[] | null): boolean =>
   choicesJa !== null && choicesJa.length === QUESTION_CHOICE_COUNT && choicesJa.every((choice) => !isBlank(choice))
 ```
 
+`prompt_empty` の検査の直後に置く。
+
 ```ts
     if (isBlank(question.promptJa)) {
       violations.push({
@@ -170,6 +150,11 @@ const hasChoiceTranslations = (choicesJa: string[] | null): boolean =>
         path: ["questions", index, "prompt_ja"],
       })
     }
+```
+
+`choice_invalid` の検査の直後に置く。
+
+```ts
     if (question.type !== "vocabulary" && !hasChoiceTranslations(question.choicesJa)) {
       violations.push({
         code: "choice_translation_missing",
@@ -179,7 +164,7 @@ const hasChoiceTranslations = (choicesJa: string[] | null): boolean =>
     }
 ```
 
-- `explanation_empty` の検査の後ろに置く（メッセージの並びが設問のフォームの上からの順になるように）
+- メッセージの並びが admin の設問のフォームの上からの順（設問文 → 設問文の和訳 → 選択肢と選択肢の和訳 → 解説）になるように、英語の検査の直後に置く
 
 ### 挑戦
 

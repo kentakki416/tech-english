@@ -68,12 +68,11 @@ const styles = StyleSheet.create({
 props を足す。`memo` しているので、`onToggleTranslation` は呼び出し元で `useCallback` にする（毎秒のタイマーの描画で作り直さない）。
 
 ```tsx
-  /**
-   * 和訳を出している設問の ID
-   */
   translatedQuestionIds: Set<number>
   onToggleTranslation: (questionId: number) => void
 ```
+
+- `translatedQuestionIds` の JSDoc に「和訳を出している設問の ID」と書く
 
 ```tsx
   const question = questions[currentIndex]

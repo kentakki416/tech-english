@@ -48,12 +48,11 @@ export function QuestionTranslationToggle({
 props を足す。
 
 ```tsx
-  /**
-   * 和訳を出している設問の ID
-   */
   translatedQuestionIds: Set<number>
   onToggleTranslation: (questionId: number) => void
 ```
+
+- `translatedQuestionIds` の JSDoc に「和訳を出している設問の ID」と書く
 
 ```tsx
   const isTranslated = question.prompt_ja !== null && translatedQuestionIds.has(question.id)
@@ -87,12 +86,10 @@ props を足す。
 ### `attempt-progress.ts`
 
 ```ts
-  /**
-   * 和訳を一度でも出した設問の ID。設問の和訳より前の版で保存したものには無い
-   * （版は上げない。上げると解答中の挑戦の途中経過〈回答・経過秒数〉が読めなくなるため）
-   */
   translatedQuestionIds?: number[]
 ```
+
+- JSDoc に「和訳を一度でも出した設問の ID。設問の和訳より前の版で保存したものには無い」と書く。版を上げない理由は `listenedBlockIndexes` のコメントにあるので繰り返さない
 
 `isAttemptProgress` に `listenedBlockIndexes` と同じ形の検査を足す。
 
