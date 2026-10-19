@@ -193,6 +193,7 @@ const convertGlossaryEntryRowToDomain = (row: GlossaryEntryRow): GlossaryEntry =
 const convertQuestionRowToDomain = (row: QuestionRow): Question => ({
   id: row.id,
   choices: row.choices,
+  choicesJa: row.choicesJa,
   correctChoiceIndex: row.correctChoiceIndex,
   evidenceBlockIndex: row.evidenceBlockIndex,
   evidenceQuote: row.evidenceQuote,
@@ -200,6 +201,7 @@ const convertQuestionRowToDomain = (row: QuestionRow): Question => ({
   orderIndex: row.orderIndex,
   passageId: row.passageId,
   prompt: row.prompt,
+  promptJa: row.promptJa,
   targetGlossaryEntryId: row.targetGlossaryEntryId,
   type: row.type,
   verificationChoiceIndex: row.verificationChoiceIndex,

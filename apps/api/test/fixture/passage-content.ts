@@ -184,7 +184,9 @@ export const buildQuestions = (glossary: GlossaryEntry[], passageId = 1): Questi
   QUESTION_ITEMS.map(({ targetGlossaryIndex, ...item }, index) => ({
     id: 201 + index,
     ...item,
+    choicesJa: null,
     orderIndex: index,
+    promptJa: null,
     passageId,
     targetGlossaryEntryId: targetGlossaryIndex === null ? null : glossary[targetGlossaryIndex]?.id ?? null,
     createdAt: FIXED_DATE,

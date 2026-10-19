@@ -6,7 +6,7 @@ import type { QUESTION_TYPES } from "../const/question"
 export type QuestionType = (typeof QUESTION_TYPES)[number]
 
 /**
- * 設問。設問文と選択肢は英語、解説は日本語
+ * 設問。設問文と選択肢は英語で、それぞれの和訳を持つ。解説は日本語
  */
 export type Question = {
   id: number
@@ -14,6 +14,10 @@ export type Question = {
    * 4 つ。表示順のまま（A〜D）
    */
   choices: string[]
+  /**
+   * 選択肢の和訳（choices と同じ順）。vocabulary の設問と、和訳の無い設問（設問の和訳より前に生成した設問）は null
+   */
+  choicesJa: string[] | null
   correctChoiceIndex: number
   /**
    * 根拠のブロックの位置（passages.blocks の index）
@@ -27,6 +31,10 @@ export type Question = {
   orderIndex: number
   passageId: number
   prompt: string
+  /**
+   * 設問文の和訳。和訳の無い設問（設問の和訳より前に生成した設問）は null
+   */
+  promptJa: string | null
   /**
    * vocabulary のときだけ。用語集の項目
    */

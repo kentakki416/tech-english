@@ -39,6 +39,10 @@ export type ReadingAttempt = {
    */
   timeLimitSeconds: number
   translatedBlockCount: number
+  /**
+   * 和訳を一度でも出した設問の数
+   */
+  translatedQuestionCount: number
   userId: number
   wordLookupCount: number
   createdAt: Date

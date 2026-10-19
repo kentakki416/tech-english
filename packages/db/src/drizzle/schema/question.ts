@@ -9,7 +9,7 @@ import { passageGlossaryEntries } from "./passage-glossary-entry"
 import { joinSqlValues } from "./sql-values"
 
 /**
- * 設問。設問文と選択肢は英語、解説は日本語
+ * 設問。設問文と選択肢は英語で、それぞれの和訳を持つ。解説は日本語
  *
  * 列の正本は docs/spec/question-generation/README.md の「必要な DB 設計」（verification_choice_index は step1 で追加した列）。
  * 制約・index 名は `{table}_{columns}_key` / `_idx` / `_fkey` の命名にそろえている。
@@ -22,6 +22,11 @@ export const questions = pgTable(
      * 4 つ。表示順のまま（A〜D）
      */
     choices: jsonb("choices").$type<string[]>().notNull(),
+    /**
+     * 選択肢の和訳。choices と同じ順。vocabulary の設問は持たない（和訳から答えが分かるため）。
+     * NULL は和訳が無い（設問の和訳より前に生成した設問）
+     */
+    choicesJa: jsonb("choices_ja").$type<string[]>(),
     correctChoiceIndex: smallint("correct_choice_index").notNull(),
     evidenceBlockIndex: integer("evidence_block_index").notNull(),
     /**
@@ -35,6 +40,10 @@ export const questions = pgTable(
     orderIndex: smallint("order_index").notNull(),
     passageId: integer("passage_id").notNull(),
     prompt: text("prompt").notNull(),
+    /**
+     * 設問文の和訳。NULL は和訳が無い（設問の和訳より前に生成した設問）
+     */
+    promptJa: text("prompt_ja"),
     /**
      * vocabulary のときだけ。用語集の項目
      */
@@ -73,6 +82,10 @@ export const questions = pgTable(
     check(
       "questions_target_glossary_entry_check",
       sql`${table.targetGlossaryEntryId} IS NULL OR ${table.type} = 'vocabulary'`,
+    ),
+    check(
+      "questions_choices_ja_check",
+      sql`${table.choicesJa} IS NULL OR ${table.type} <> 'vocabulary'`,
     ),
   ],
 )

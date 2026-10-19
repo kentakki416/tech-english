@@ -84,6 +84,7 @@ export const buildInProgressAttempt = (overrides: Partial<ReadingAttempt> = {}):
   submittedAt: null,
   timeLimitSeconds: 180,
   translatedBlockCount: 0,
+  translatedQuestionCount: 0,
   userId: 7,
   wordLookupCount: 0,
   createdAt: new Date("2026-10-12T10:00:00.000Z"),
