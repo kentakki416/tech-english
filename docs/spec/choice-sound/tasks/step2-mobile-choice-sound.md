@@ -15,7 +15,6 @@ mobile の解答画面で、選択肢を選んだときにポキンを鳴らす�
 | `apps/mobile/src/components/features/vocabulary/VocabularySession.tsx` | `useFlipSound` → `useSoundEffects`、ボタンを `SoundEffectToggle` に |
 | `apps/mobile/src/components/features/attempt/SolvingScreen.tsx`・`SolvingTopBar.tsx` | `chooseAnswer` で鳴らす、上部バーに `SoundEffectToggle` |
 | `apps/mobile/src/features/read-aloud/use-read-aloud.ts` | 再開（`toggle`）で `requestAudioMode("readAloud")` を待ってから `play` |
-| `docs/spec/vocabulary-cards/README.md` | 効果音の実装の表の `use-flip-sound.ts` を `use-sound-effects.ts` に |
 
 `src/components/mock/use-flip-sound.ts`（デザインモック）は変えない。
 
@@ -156,6 +155,14 @@ const chooseAnswer = useCallback((questionId: number, choiceIndex: number) => {
 ### `use-read-aloud.ts`（再開）
 
 ```ts
+isPauseRequested = false
+const partDurationMs = findBlock(cursor.blockIndex)?.parts[cursor.partIndex]?.durationMs ?? 0
+if (hasPlayedPart && !hasFinishedPart && isPlayerAtPartEnd(partDurationMs)) {
+  hasFinishedPart = true
+  void requestAudioMode("readAloud")
+  startNextPart(cursor)
+  return
+}
 isStarting = true
 updateIsPlaying(true)
 void requestAudioMode("readAloud").then(() => {
@@ -164,7 +171,7 @@ void requestAudioMode("readAloud").then(() => {
 })
 ```
 
-- `toggle` の再開の分岐だけを変える。`start`（最初から読む）は今のまま待たない（パートの mp3 を読み込む間に設定が終わるため）
+- `toggle` の再開の 2 つの分岐を変える。続きから鳴らす分岐は設定を待ってから `play` し、画面を離れている間にパートが終わっていて次のパートから鳴らす分岐は、`startNextPart` の前に頼む（パートの mp3 を読み込む間に設定が終わるので待たない）。`start`（最初から読む）は今のまま
 - 待っている間に一時停止（`pause` が `isPauseRequested` を立てる）か停止（`stop` が `cursor` を消す）が押されたら鳴らさない
 - `toggle` の上のコメント（設定を待たない理由）を、再開は待つ理由（効果音でモードが変わっていることがある）に直す
 
@@ -183,4 +190,4 @@ iOS シミュレーター（無ければ `npx expo start --web --port 8085`。we
 - [ ] 読み上げの再生中に選ぶと鳴らず、一時停止中に選ぶと鳴る
 - [ ] 上部バーのスピーカーでオフにすると鳴らなくなり、単語帳を開くとめくる音もオフになっている（逆も同じ。アプリを開き直しても残る）
 - [ ] 上部バーにスピーカーのアイコンが「全文訳」の左に出て、幅の狭い端末（iPhone SE）でも上部バーの要素が重ならない
-- [ ] **iOS の実機**で、消音モードのまま「読み上げ → 一時停止 → 選択肢を選ぶ → 再開」で読み上げが鳴る。消音モードでは効果音が鳴らない。ほかのアプリの音楽を流したまま選んでも音楽が止まらない
+- [ ] **iOS の実機**で、消音モードのまま「読み上げ → 一時停止 → 選択肢を選ぶ → 再開」で読み上げが鳴る（一時停止中にほかのアプリに切り替えてパートが終わった後に戻って再開しても鳴る）。消音モードでは効果音が鳴らない。ほかのアプリの音楽を流したまま選んでも音楽が止まらない

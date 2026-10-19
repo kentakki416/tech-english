@@ -14,7 +14,6 @@ web の解答画面で、選択肢を選んだときにポキンを鳴らす。�
 | `apps/web/src/components/features/vocabulary/VocabularySession.tsx` | `usePaperSound` → `useSoundEffects`、ボタンを `SoundEffectToggle` に |
 | `apps/web/src/components/features/attempt/SolvingScreen.tsx` | `chooseAnswer` で鳴らす、上部バーに `SoundEffectToggle` |
 | `apps/web/scripts/write-choice-pop-wav.ts`（新規）・`apps/web/package.json` | mobile の WAV を書き出すスクリプトと `sound:choice-pop`、devDependencies に `tsx` |
-| `docs/spec/vocabulary-cards/README.md` | 効果音の実装の表の `paper-sound.ts` を `sound-effects.ts` に、オン / オフが解答画面と共通であることを足す |
 
 `app/mock/_components/paper-sound.ts`（デザインモック）は変えない。
 
@@ -130,17 +129,18 @@ export function useSoundEffects() {
 "use client"
 
 type SoundEffectToggleProps = {
+  className?: string
   isEnabled: boolean
   showsLabel: boolean
   onToggle: () => void
 }
 
-export function SoundEffectToggle({ isEnabled, showsLabel, onToggle }: SoundEffectToggleProps) {
+export function SoundEffectToggle({ className = "", isEnabled, showsLabel, onToggle }: SoundEffectToggleProps) {
   return (
     <button
       aria-label="効果音"
       aria-pressed={isEnabled}
-      className="inline-flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs text-fg-muted hover:bg-raised hover:text-fg"
+      className={`inline-flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs text-fg-muted hover:bg-raised hover:text-fg ${className}`}
       title={isEnabled ? "効果音をオフにする" : "効果音をオンにする"}
       type="button"
       onClick={onToggle}
@@ -156,7 +156,7 @@ export function SoundEffectToggle({ isEnabled, showsLabel, onToggle }: SoundEffe
 ```
 
 - 単語帳の上部バーのボタン（今の `VocabularySession.tsx` のマークアップ）をそのまま部品にする。単語帳は `showsLabel`、解答画面は `showsLabel={false}`
-- 解答画面では、上部バーのほかのボタンと同じフォーカスの輪（`HEADER_BUTTON_FOCUS_CLASS`）を `className` で足せるようにする
+- 解答画面では、上部バーのほかのボタンと同じフォーカスの輪（`HEADER_BUTTON_FOCUS_CLASS`）を `className` で渡す
 
 ### `SolvingScreen.tsx`
 
@@ -173,7 +173,7 @@ const chooseAnswer = useCallback((questionId: number, choiceIndex: number) => {
 
 - クリック（`QuestionPanel` / `QuestionSheet` の `onChoose`）とキーボード（`useAttemptShortcuts` の `onChoose`）はどちらも `chooseAnswer` を通るので、ほかは変えない
 - `playChoice` は `useCallback` で、オン / オフが変わるまで同じ関数を返す（`chooseAnswer` を描画のたびに作り直さないように）
-- 上部バーの「全文訳」の左に `<SoundEffectToggle isEnabled={sound.isEnabled} showsLabel={false} onToggle={sound.toggle} />` を置く
+- 上部バーの「全文訳」の左に `<SoundEffectToggle className={HEADER_BUTTON_FOCUS_CLASS} isEnabled={sound.isEnabled} showsLabel={false} onToggle={sound.toggle} />` を置く
 
 ### `scripts/write-choice-pop-wav.ts`
 
