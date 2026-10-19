@@ -6,8 +6,9 @@ import { useState, useTransition } from "react"
 import type { ReviewVocabularyCardRequest } from "@repo/api-schema"
 
 import type { ReviewVocabularyCardActionResult } from "@/app/vocabulary/session/actions"
+import { SoundEffectToggle } from "@/components/ui/SoundEffectToggle"
 import { formatDayLabel } from "@/libs/format"
-import { usePaperSound } from "@/libs/paper-sound"
+import { useSoundEffects } from "@/libs/sound-effects"
 
 import { FlashCard } from "./FlashCard"
 import { CardStackBehind, PaperSheet, type VocabularyCard } from "./PaperCard"
@@ -51,23 +52,7 @@ function SessionTopBar({
         </div>
       )}
       <span className="flex w-24 justify-end">
-        {/**
-          * 名前は「効果音」に固定し、オン / オフは aria-pressed で伝える（スマホ幅では文字を隠すので aria-label を付ける）
-          */}
-        <button
-          aria-label="効果音"
-          aria-pressed={isSoundEnabled}
-          className="inline-flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs text-fg-muted hover:bg-raised hover:text-fg"
-          onClick={onToggleSound}
-          title={isSoundEnabled ? "効果音をオフにする" : "効果音をオンにする"}
-          type="button"
-        >
-          <svg aria-hidden className="size-4" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" viewBox="0 0 24 24">
-            <path d="M11 5 6 9H3v6h3l5 4V5Z" />
-            {isSoundEnabled ? <path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13" /> : <path d="m16 9 6 6M22 9l-6 6" />}
-          </svg>
-          <span aria-hidden className="hidden sm:inline">効果音</span>
-        </button>
+        <SoundEffectToggle showsLabel isEnabled={isSoundEnabled} onToggle={onToggleSound} />
       </span>
     </header>
   )
@@ -116,7 +101,7 @@ export function VocabularySession({
 }) {
   const [answers, setAnswers] = useState<CardAnswer[]>([])
   const [, startSaving] = useTransition()
-  const sound = usePaperSound()
+  const sound = useSoundEffects()
   const pronunciation = usePronunciation()
   const current = cards[answers.length]
 
@@ -161,7 +146,7 @@ export function VocabularySession({
             pronunciation={pronunciation}
             remainingCount={cards.length - answers.length - 1}
             onAnswer={answer}
-            onFlip={sound.play}
+            onFlip={sound.playFlip}
           />
         ) : (
           <SessionReview answers={answers} cards={cards} onRetrySave={retryFailed} />
