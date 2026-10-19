@@ -16,6 +16,8 @@ import { useReadingAutoScroll } from "@/components/features/read-aloud/use-readi
 import { ScoreSquares } from "@/components/ui/ScoreSquares"
 import { formatSeconds } from "@/libs/format"
 
+import { QuestionTranslationToggle } from "./QuestionTranslationToggle"
+
 const CHOICE_LETTERS = ["A", "B", "C", "D"]
 
 /**
@@ -42,11 +44,16 @@ function ChoiceRow({
   index,
   isCorrectChoice,
   isUserChoice,
+  translation,
 }: {
   choice: string
   index: number
   isCorrectChoice: boolean
   isUserChoice: boolean
+  /**
+   * 設問の和訳を出しているときの選択肢の和訳（出していないときは null）
+   */
+  translation: string | null
 }) {
   const tone = isCorrectChoice
     ? "border-correct/50 bg-correct-wash"
@@ -62,7 +69,10 @@ function ChoiceRow({
       >
         {CHOICE_LETTERS[index]}
       </span>
-      <span className={`flex-1 font-reading text-[15px] leading-snug ${isCorrectChoice || isUserChoice ? "text-fg" : "text-fg-muted"}`}>{choice}</span>
+      <span className="flex flex-1 flex-col">
+        <span className={`font-reading text-[15px] leading-snug ${isCorrectChoice || isUserChoice ? "text-fg" : "text-fg-muted"}`}>{choice}</span>
+        {translation !== null && <span className="mt-1 font-ui text-[13px] leading-snug text-fg-muted">{translation}</span>}
+      </span>
       <span className="flex shrink-0 flex-col items-end gap-0.5 pt-0.5 text-[11px]">
         {isCorrectChoice && <span className="text-correct">正解</span>}
         {isUserChoice && <span className={isCorrectChoice ? "text-correct" : "text-wrong"}>あなたの回答</span>}
@@ -148,6 +158,10 @@ export function ResultScreen({ result }: { result: SubmittedAttempt }) {
   )
   const [translatedBlocks, setTranslatedBlocks] = useState<Set<number>>(() => new Set())
   /**
+   * 和訳を出している設問（結果画面では記録しない）
+   */
+  const [translatedQuestionIds, setTranslatedQuestionIds] = useState<Set<number>>(() => new Set())
+  /**
    * 文字サイズは解答画面で選んだもの（端末に保存したもの）を使う。結果画面では変えない
    */
   const [fontSize] = useReaderFontSize()
@@ -184,6 +198,15 @@ export function ResultScreen({ result }: { result: SubmittedAttempt }) {
 
   const toggleQuestion = (questionId: number) => {
     setOpenQuestionIds((current) => {
+      const next = new Set(current)
+      if (next.has(questionId)) next.delete(questionId)
+      else next.add(questionId)
+      return next
+    })
+  }
+
+  const toggleQuestionTranslation = (questionId: number) => {
+    setTranslatedQuestionIds((current) => {
       const next = new Set(current)
       if (next.has(questionId)) next.delete(questionId)
       else next.add(questionId)
@@ -341,6 +364,7 @@ export function ResultScreen({ result }: { result: SubmittedAttempt }) {
                 <dt className="text-xs text-fg-muted">アシストの使用</dt>
                 <dd className="mt-1 text-fg tabular-nums">
                   和訳 {result.translated_block_count} 段落
+                  <p className="text-fg">設問の和訳 {result.translated_question_count} 問</p>
                   <p className="text-fg">単語 {result.word_lookup_count} 回</p>
                   <p className="text-fg">読み上げ {result.listened_block_count} 段落</p>
                 </dd>
@@ -352,6 +376,7 @@ export function ResultScreen({ result }: { result: SubmittedAttempt }) {
             {questions.map((question, index) => {
               const isOpen = openQuestionIds.has(question.id)
               const isHighlighted = highlightQuestionId === question.id
+              const isTranslated = question.prompt_ja !== null && translatedQuestionIds.has(question.id)
               return (
                 <article key={question.id} className="px-5 py-4 sm:px-6">
                   <button
@@ -370,7 +395,13 @@ export function ResultScreen({ result }: { result: SubmittedAttempt }) {
                   </button>
                   {isOpen && (
                     <div className="mt-3">
-                      <p className="font-reading text-[16px] leading-relaxed text-fg">{question.prompt}</p>
+                      <div className="flex items-start gap-3">
+                        <p className="flex-1 font-reading text-[16px] leading-relaxed text-fg">{question.prompt}</p>
+                        {question.prompt_ja !== null && (
+                          <QuestionTranslationToggle isTranslated={isTranslated} onToggle={() => toggleQuestionTranslation(question.id)} />
+                        )}
+                      </div>
+                      {isTranslated && <p className="mt-1.5 font-ui text-[14px] leading-relaxed text-fg-muted">{question.prompt_ja}</p>}
                       <ul className="mt-3 space-y-1.5">
                         {question.choices.map((choice, choiceIndex) => (
                           <ChoiceRow
@@ -379,6 +410,7 @@ export function ResultScreen({ result }: { result: SubmittedAttempt }) {
                             index={choiceIndex}
                             isCorrectChoice={choiceIndex === question.correct_choice_index}
                             isUserChoice={choiceIndex === question.selected_choice_index}
+                            translation={isTranslated && question.choices_ja !== null ? question.choices_ja[choiceIndex] : null}
                           />
                         ))}
                       </ul>

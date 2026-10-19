@@ -84,7 +84,7 @@ const isValidWordLookup = (lookup: WordLookupRecord): boolean =>
 
 /**
  * 端末に保存した途中経過を読み、いまの挑戦に無い設問・選択肢・ブロックと提出の検証を通らない記録を除く
- * （古い保存や壊れた値のせいで提出できなくならないように）。聞いた段落は読み上げより前の保存には無い
+ * （古い保存や壊れた値のせいで提出できなくならないように）。聞いた段落は読み上げより前の保存に、和訳を出した設問は設問の和訳より前の保存には無い
  */
 const restoreProgress = (
   attempt: InProgressAttempt,
@@ -93,6 +93,7 @@ const restoreProgress = (
   const saved = readAttemptProgress(attempt.id)
   if (saved === null) return null
 
+  const translatableQuestionIds = new Set(attempt.questions.flatMap(question => (question.prompt_ja !== null ? [question.id] : [])))
   const answers: Record<number, number> = {}
   for (const question of attempt.questions) {
     const choiceIndex = saved.answers[question.id]
@@ -105,6 +106,7 @@ const restoreProgress = (
     elapsedSeconds: Number.isFinite(saved.elapsedSeconds) ? Math.max(0, Math.floor(saved.elapsedSeconds)) : 0,
     listenedBlockIndexes: [...new Set(saved.listenedBlockIndexes)].filter(index => blockIndexes.readable.has(index)),
     translatedBlockIndexes: [...new Set(saved.translatedBlockIndexes)].filter(index => blockIndexes.translatable.has(index)),
+    translatedQuestionIds: [...new Set(saved.translatedQuestionIds)].filter(id => translatableQuestionIds.has(id)),
     wordLookups: saved.wordLookups.filter(isValidWordLookup).slice(0, SUBMIT_ATTEMPT_MAX_WORD_LOOKUPS),
   }
 }
@@ -169,6 +171,14 @@ function SolvingSession({
    * 和訳を一度でも見た段落（提出の translated_block_count）
    */
   const [viewedTranslationBlocks, setViewedTranslationBlocks] = useState<Set<number>>(() => new Set(savedProgress?.translatedBlockIndexes))
+  /**
+   * いま和訳を出している設問
+   */
+  const [translatedQuestions, setTranslatedQuestions] = useState<Set<number>>(() => new Set())
+  /**
+   * 和訳を一度でも出した設問（提出の translated_question_count）
+   */
+  const [viewedTranslationQuestions, setViewedTranslationQuestions] = useState<Set<number>>(() => new Set(savedProgress?.translatedQuestionIds))
   const [wordLookups, setWordLookups] = useState<WordLookupRecord[]>(savedProgress?.wordLookups ?? [])
   /**
    * 読み上げを 1 秒以上聞いた段落（提出の listened_block_count）
@@ -218,6 +228,7 @@ function SolvingSession({
       elapsedSeconds,
       listenedBlockIndexes: [...listenedBlocks],
       translatedBlockIndexes: [...viewedTranslationBlocks],
+      translatedQuestionIds: [...viewedTranslationQuestions],
       wordLookups,
     }
     writeAttemptProgress(attempt.id, progress)
@@ -226,7 +237,7 @@ function SolvingSession({
     }
     document.addEventListener("visibilitychange", writeOnHide)
     return () => document.removeEventListener("visibilitychange", writeOnHide)
-  }, [answers, attempt.id, elapsedSeconds, isExpired, isHydrated, listenedBlocks, viewedTranslationBlocks, wordLookups])
+  }, [answers, attempt.id, elapsedSeconds, isExpired, isHydrated, listenedBlocks, viewedTranslationBlocks, viewedTranslationQuestions, wordLookups])
 
   /**
    * 期限（開始から 24 時間）を 1 分ごとと画面に戻ったときに確かめる。端末の時計のずれは server_now で補正する
@@ -274,6 +285,16 @@ function SolvingSession({
       return next
     })
     setViewedTranslationBlocks(current => (current.has(blockIndex) ? current : new Set(current).add(blockIndex)))
+  }, [])
+
+  const toggleQuestionTranslation = useCallback((questionId: number) => {
+    setTranslatedQuestions((current) => {
+      const next = new Set(current)
+      if (next.has(questionId)) next.delete(questionId)
+      else next.add(questionId)
+      return next
+    })
+    setViewedTranslationQuestions(current => (current.has(questionId) ? current : new Set(current).add(questionId)))
   }, [])
 
   const toggleAllTranslations = () => {
@@ -332,6 +353,7 @@ function SolvingSession({
       answers: questions.map(question => ({ question_id: question.id, selected_choice_index: answers[question.id] ?? null })),
       listened_block_count: listenedBlocks.size,
       translated_block_count: viewedTranslationBlocks.size,
+      translated_question_count: viewedTranslationQuestions.size,
       word_lookups: wordLookups.map(lookup => ({
         glossary_entry_id: lookup.glossaryEntryId,
         lemma: lookup.lemma,
@@ -509,7 +531,15 @@ function SolvingSession({
           </main>
 
           <aside aria-label="設問" className="hidden h-full border-l border-line bg-surface lg:block" inert={isPaused}>
-            <QuestionPanel answers={answers} currentIndex={currentIndex} questions={questions} onChoose={chooseAnswer} onMove={moveQuestion} />
+            <QuestionPanel
+              answers={answers}
+              currentIndex={currentIndex}
+              questions={questions}
+              translatedQuestionIds={translatedQuestions}
+              onChoose={chooseAnswer}
+              onMove={moveQuestion}
+              onToggleTranslation={toggleQuestionTranslation}
+            />
           </aside>
 
           <QuestionSheet
@@ -526,8 +556,10 @@ function SolvingSession({
               currentIndex={currentIndex}
               isLabelVisible={false}
               questions={questions}
+              translatedQuestionIds={translatedQuestions}
               onChoose={chooseAnswer}
               onMove={moveQuestion}
+              onToggleTranslation={toggleQuestionTranslation}
             />
           </QuestionSheet>
 
@@ -545,6 +577,7 @@ function SolvingSession({
           <span className="tabular-nums">回答 {answeredCount} / {questions.length}</span>
           <span aria-hidden className="h-3 w-px bg-line-strong" />
           <span className="tabular-nums">和訳 {viewedTranslationBlocks.size} 段落</span>
+          <span className="tabular-nums">設問訳 {viewedTranslationQuestions.size} 問</span>
           <span className="tabular-nums">単語 {wordLookups.length} 回</span>
           <span className="tabular-nums">読み上げ {listenedBlocks.size} 段落</span>
           <div className="ml-auto flex items-center gap-4">

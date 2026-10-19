@@ -31,11 +31,13 @@ function ChoiceRow({
   index,
   isCorrectChoice,
   isUserChoice,
+  translation,
 }: {
   choice: string
   index: number
   isCorrectChoice: boolean
   isUserChoice: boolean
+  translation: string | null
 }) {
   const tone = isCorrectChoice
     ? "border-correct/50 bg-correct-wash"
@@ -51,7 +53,10 @@ function ChoiceRow({
       >
         {CHOICE_LETTERS[index]}
       </span>
-      <span className={`flex-1 font-reading text-[15px] leading-snug ${isCorrectChoice || isUserChoice ? "text-fg" : "text-fg-muted"}`}>{choice}</span>
+      <span className="flex flex-1 flex-col">
+        <span className={`font-reading text-[15px] leading-snug ${isCorrectChoice || isUserChoice ? "text-fg" : "text-fg-muted"}`}>{choice}</span>
+        {translation !== null && <span className="mt-1 font-ui text-[13px] leading-snug text-fg-muted">{translation}</span>}
+      </span>
       <span className="flex shrink-0 flex-col items-end gap-0.5 pt-0.5 text-[11px]">
         {isCorrectChoice && <span className="text-correct">正解</span>}
         {isUserChoice && <span className={isCorrectChoice ? "text-correct" : "text-wrong"}>あなたの回答</span>}
@@ -73,6 +78,7 @@ export function ResultScreen({ elapsedSeconds }: { elapsedSeconds: number }) {
     new Set(MOCK_QUESTIONS.filter(question => MOCK_SUBMITTED_ANSWERS[question.id] !== question.correctChoiceIndex).map(question => question.id)),
   )
   const [translatedBlocks, setTranslatedBlocks] = useState<Set<number>>(new Set())
+  const [translatedQuestionIds, setTranslatedQuestionIds] = useState<Set<number>>(new Set())
   const [isFollowing, setIsFollowing] = useState(true)
   const readAloud = useReadAloudMock({ blocks: MOCK_BLOCKS, glossary: MOCK_GLOSSARY })
   const readingBlockIndex = readAloud.state.blockIndex
@@ -229,6 +235,7 @@ export function ResultScreen({ elapsedSeconds }: { elapsedSeconds: number }) {
                 <dt className="text-xs text-fg-muted">アシストの使用</dt>
                 <dd className="mt-1 text-fg tabular-nums">
                   和訳 {MOCK_RESULT.translatedBlockCount} 段落
+                  <p className="text-fg">設問の和訳 {MOCK_RESULT.translatedQuestionCount} 問</p>
                   <p className="text-fg">単語 {MOCK_RESULT.wordLookups.length} 回</p>
                   <p className="text-fg">読み上げ {MOCK_LISTENED_BLOCK_COUNT} 段落</p>
                 </dd>
@@ -241,6 +248,7 @@ export function ResultScreen({ elapsedSeconds }: { elapsedSeconds: number }) {
               const userChoice = MOCK_SUBMITTED_ANSWERS[question.id]
               const isCorrect = userChoice === question.correctChoiceIndex
               const isOpen = openQuestionIds.has(question.id)
+              const isTranslated = translatedQuestionIds.has(question.id)
               return (
                 <article key={question.id} className="px-5 py-4 sm:px-6">
                   <button
@@ -257,7 +265,26 @@ export function ResultScreen({ elapsedSeconds }: { elapsedSeconds: number }) {
                   </button>
                   {isOpen && (
                     <div className="mt-3">
-                      <p className="font-reading text-[16px] leading-relaxed text-fg">{question.prompt}</p>
+                      <div className="flex items-start gap-3">
+                        <p className="flex-1 font-reading text-[16px] leading-relaxed text-fg">{question.prompt}</p>
+                        <button
+                          aria-label={isTranslated ? "設問の和訳を隠す" : "設問の和訳を表示"}
+                          aria-pressed={isTranslated}
+                          className={`shrink-0 rounded border px-1.5 py-0.5 font-ui text-[11px] outline-none transition-colors focus-visible:ring-2 focus-visible:ring-amber/60 ${
+                            isTranslated ? "border-amber/50 bg-amber-wash text-amber" : "border-line-strong text-fg-muted hover:text-fg"
+                          }`}
+                          onClick={() => setTranslatedQuestionIds((current) => {
+                            const next = new Set(current)
+                            if (next.has(question.id)) next.delete(question.id)
+                            else next.add(question.id)
+                            return next
+                          })}
+                          type="button"
+                        >
+                          訳
+                        </button>
+                      </div>
+                      {isTranslated && <p className="mt-1.5 font-ui text-[14px] leading-relaxed text-fg-muted">{question.promptJa}</p>}
                       <ul className="mt-3 space-y-1.5">
                         {question.choices.map((choice, choiceIndex) => (
                           <ChoiceRow
@@ -266,6 +293,7 @@ export function ResultScreen({ elapsedSeconds }: { elapsedSeconds: number }) {
                             index={choiceIndex}
                             isCorrectChoice={choiceIndex === question.correctChoiceIndex}
                             isUserChoice={choiceIndex === userChoice}
+                            translation={isTranslated && question.choicesJa !== null ? question.choicesJa[choiceIndex] : null}
                           />
                         ))}
                       </ul>
