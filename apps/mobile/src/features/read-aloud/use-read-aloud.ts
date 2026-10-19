@@ -455,15 +455,22 @@ const createReadAloudController = (player: AudioPlayer, events: ControllerEvents
        * （そのまま play すると終わった位置から動かず、再生中の表示のまま止まる）
        */
       const partDurationMs = findBlock(cursor.blockIndex)?.parts[cursor.partIndex]?.durationMs ?? 0
+      /**
+       * 一時停止の間に、解答画面の選択肢の効果音で音声のモードが変わっていることがある。続きから鳴らすときはモードを戻してから play する
+       * （戻る前に鳴らすと、消音モードでは鳴らない）。次のパートから鳴らすときは、パートの mp3 を読み込む間に設定が終わるので待たない
+       */
       if (hasPlayedPart && !hasFinishedPart && isPlayerAtPartEnd(partDurationMs)) {
         hasFinishedPart = true
+        void requestAudioMode("readAloud")
         startNextPart(cursor)
         return
       }
       isStarting = true
       updateIsPlaying(true)
-      void requestAudioMode("readAloud")
-      player.play()
+      void requestAudioMode("readAloud").then(() => {
+        if (isPauseRequested || !cursor) return
+        player.play()
+      })
     },
   }
 }

@@ -9,8 +9,9 @@ import { SafeAreaView } from "react-native-safe-area-context"
 import { appStyles } from "@/components/ui/app-styles"
 import { PrimaryButton } from "@/components/ui/PrimaryButton"
 import { SecondaryButton } from "@/components/ui/SecondaryButton"
+import { SoundEffectToggle } from "@/components/ui/SoundEffectToggle"
 import { THEME_COLORS } from "@/const/design-theme"
-import { useFlipSound } from "@/features/vocabulary/use-flip-sound"
+import { useSoundEffects } from "@/features/sound-effect/use-sound-effects"
 import { usePronunciation } from "@/features/vocabulary/use-pronunciation"
 import { vocabularyApi } from "@/features/vocabulary/vocabulary.api"
 import { formatDayLabel } from "@/libs/format"
@@ -51,16 +52,7 @@ export function SessionTopBar({
         </Text>
       ) : <View />}
       <View style={styles.headerRight}>
-        {sound && (
-          <Pressable
-            accessibilityLabel={sound.isEnabled ? "効果音をオフにする" : "効果音をオンにする"}
-            accessibilityRole="button"
-            hitSlop={8}
-            onPress={sound.toggle}
-          >
-            <Ionicons color={THEME_COLORS.fgMuted} name={sound.isEnabled ? "volume-high-outline" : "volume-mute-outline"} size={20} />
-          </Pressable>
-        )}
+        {sound && <SoundEffectToggle isEnabled={sound.isEnabled} onToggle={sound.toggle} />}
       </View>
     </View>
   )
@@ -112,7 +104,7 @@ export function VocabularySession({
 }) {
   const [answers, setAnswers] = useState<CardAnswer[]>([])
   const isReducedMotion = useReducedMotion()
-  const sound = useFlipSound()
+  const sound = useSoundEffects()
   const pronunciation = usePronunciation()
   const current = cards[answers.length]
 
@@ -166,7 +158,7 @@ export function VocabularySession({
               remainingCount={cards.length - answers.length - 1}
               total={cards.length}
               onAnswer={answer}
-              onFlip={sound.play}
+              onFlip={sound.playFlip}
             />
           </View>
         </>

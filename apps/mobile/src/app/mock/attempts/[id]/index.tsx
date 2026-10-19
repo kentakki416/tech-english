@@ -61,6 +61,7 @@ export default function MockAttemptScreen() {
   const [currentIndex, setCurrentIndex] = useState(initialState === "confirm" ? 3 : 2)
   const [remaining, setRemaining] = useState(INITIAL_REMAINING[initialState])
   const [isPaused, setIsPaused] = useState(initialState === "paused")
+  const [isSoundEnabled, setIsSoundEnabled] = useState(true)
   const [isSheetOpen, setIsSheetOpen] = useState(initialState === "sheet")
   const [isConfirmOpen, setIsConfirmOpen] = useState(initialState === "confirm")
   const [showAllTranslations, setShowAllTranslations] = useState(false)
@@ -146,6 +147,14 @@ export default function MockAttemptScreen() {
             {isOvertime ? `+${formatSeconds(-remaining)}` : formatSeconds(remaining)}
           </Text>
         </View>
+        <Pressable
+          accessibilityLabel={isSoundEnabled ? "効果音をオフにする" : "効果音をオンにする"}
+          hitSlop={8}
+          style={styles.soundButton}
+          onPress={() => setIsSoundEnabled(value => !value)}
+        >
+          <Ionicons color={MOCK_COLORS.fgMuted} name={isSoundEnabled ? "volume-high-outline" : "volume-mute-outline"} size={20} />
+        </Pressable>
         <Pressable
           accessibilityState={{ selected: showAllTranslations }}
           onPress={() => setShowAllTranslations(value => !value)}
@@ -584,6 +593,12 @@ const styles = StyleSheet.create({
     color: MOCK_COLORS.fg,
     fontSize: 15,
     fontWeight: "600",
+  },
+  soundButton: {
+    alignItems: "center",
+    height: 32,
+    justifyContent: "center",
+    width: 32,
   },
   submitArea: {
     borderColor: MOCK_COLORS.line,
