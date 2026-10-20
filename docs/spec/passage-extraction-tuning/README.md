@@ -176,7 +176,7 @@ React 公式ドキュメントのソースの **除外パス** に、次のペ�
 | 項目 | 内容 |
 | --- | --- |
 | 版 | `apps/cron/src/lib/document/const.ts` の `EXTRACTION_VERSION`。生成の `PROMPT_VERSION` と同じ日付の形（`2026-10-20.1`）。`lib/document` の変更のうち、ブロック・切り分け・本文候補の条件が変わるものをしたら上げる |
-| `source_documents.extraction_version` | 文書を切り分けたときの版。`NULL`（この列を足す前に取得した文書・未取得）は古い版として扱う |
+| `source_documents.extraction_version` | 文書を切り分けたときの版。`NULL`（この列を足してから一度も切り分けていない文書。未取得、列を足す前に取得した文書、本文を抽出できなかったサイトのページ）は古い版として扱う |
 | `content_sources.last_collected_extraction_version` | GitHub のみ。`last_collected_commit_sha` を記録したときの版 |
 
 **GitHub**：
@@ -264,7 +264,7 @@ React 公式ドキュメントのソースの **除外パス** に、次のペ�
 
 | テーブル | 列 | 型 | 説明 |
 | --- | --- | --- | --- |
-| `source_documents` | `extraction_version` | `text` nullable | 文書を切り分けたときの抽出の版。`NULL` は列を足す前に取得した文書か未取得 |
+| `source_documents` | `extraction_version` | `text` nullable | 文書を切り分けたときの抽出の版。`NULL` はこの列を足してから一度も切り分けていない文書 |
 | `content_sources` | `last_collected_extraction_version` | `text` nullable | GitHub のみ。`last_collected_commit_sha` を記録したときの抽出の版 |
 
 ```mermaid

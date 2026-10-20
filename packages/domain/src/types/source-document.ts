@@ -21,7 +21,7 @@ export type SourceDocument = {
    */
   etag: string | null
   /**
-   * 文書を切り分けたときの抽出の版（cron の EXTRACTION_VERSION）。null は列を足す前に取得した文書か未取得
+   * 文書を切り分けたときの抽出の版（cron の EXTRACTION_VERSION）。null はこの列を足してから一度も切り分けていない文書
    */
   extractionVersion: string | null
   /**

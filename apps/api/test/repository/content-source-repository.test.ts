@@ -210,7 +210,10 @@ describe("ContentSourceRepository", () => {
 
     it("github の update は渡した列を書き、shouldResetCollectedCommit: false なら last_collected_commit_sha を残す", async () => {
       const created = await createSource(contentSourceRepository, GITHUB_INPUT)
-      await testDb.update(contentSources).set({ lastCollectedCommitSha: "abc123" }).where(eq(contentSources.id, created.id))
+      await testDb
+        .update(contentSources)
+        .set({ lastCollectedCommitSha: "abc123", lastCollectedExtractionVersion: "2026-10-20.1" })
+        .where(eq(contentSources.id, created.id))
       const input: GitHubRepositoryInput = {
         ...GITHUB_INPUT,
         isEnabled: false,
@@ -229,7 +232,7 @@ describe("ContentSourceRepository", () => {
         id: created.id,
         lastCollectedAt: null,
         lastCollectedCommitSha: "abc123",
-        lastCollectedExtractionVersion: null,
+        lastCollectedExtractionVersion: "2026-10-20.1",
         tags: [],
         createdAt: created.createdAt,
         updatedAt: expect.any(Date),
