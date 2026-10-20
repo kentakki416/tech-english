@@ -19,9 +19,15 @@ export const MAX_CODE_LINE_RATIO = 0.4
 export const MIN_ENGLISH_LETTER_RATIO = 0.9
 
 /**
- * 英単語数に占める段落・引用の英単語数の割合の下限（この値ちょうどは本文候補になる）
+ * 英単語数に占める段落・引用・MIN_PROSE_LIST_ITEM_WORDS 語以上の箇条書きの項目の英単語数の割合の下限（この値ちょうどは本文候補になる）
  */
 export const MIN_PROSE_WORD_RATIO = 0.5
+
+/**
+ * 箇条書きの項目を文章に数える英単語数の下限（この値ちょうどは数える）。項目ごとに判定する。
+ * 数文の項目が並ぶ節を本文候補にし、目次・リンク集の数語の項目（react.dev の learn で中央値 9 語）は数えない
+ */
+export const MIN_PROSE_LIST_ITEM_WORDS = 12
 
 /**
  * 文章の 1 行とみなす文字数。段落は 1 行で書かれることが多く、Markdown の行数ではコードと比べられないため
@@ -36,6 +42,7 @@ export const SECTION_HEADING_MAX_DEPTH = 3
 /**
  * 中身を本文として残す MDX / JSX のコンポーネント（文章を包むもの。react.dev の `<Intro>` / `<Note>` など）。タグだけ除いて中の文章を残す。
  * ここに無いコンポーネント（`<Sandpack>` / `<Diagram>` / `<Illustration>` / `<Challenges>` のようにコード・図・演習を包むもの）は中身ごと捨てる。
+ * `<YouWillLearn>`（ページの目次）・`<Recap>`（ページ全体のまとめ）も捨てる。見出しが無いので隣の節の本文候補にくっつき、節の話題と混ざるため。
  * `.mdx` の JSX と、`.md` の HTML ブロックで書かれたコンポーネントの両方に使う
  */
 export const PROSE_COMPONENT_NAMES: ReadonlySet<string> = new Set([
@@ -43,6 +50,4 @@ export const PROSE_COMPONENT_NAMES: ReadonlySet<string> = new Set([
   "Intro",
   "Note",
   "Pitfall",
-  "Recap",
-  "YouWillLearn",
 ])

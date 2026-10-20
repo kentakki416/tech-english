@@ -114,6 +114,18 @@ describe("parseHtml", () => {
 
       expect(title).toBe("Heading Title")
     })
+
+    it("「:」で終わる段落の後ろの表を捨てたら、末尾の「:」を「.」にする", () => {
+      const { root } = parseHtml(
+        "<main><p>For example:</p><table><tr><th>a</th></tr><tr><td>1</td></tr></table><p>Next.</p></main>",
+        { contentSelector: "main", excludeSelectors: [], url: "https://docs.example.dev/" },
+      )
+
+      expect(convertMdastToBlocks(root)).toEqual([
+        { text: "For example.", type: "paragraph" },
+        { text: "Next.", type: "paragraph" },
+      ])
+    })
   })
 
   describe("異常系", () => {

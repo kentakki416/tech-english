@@ -65,7 +65,7 @@ describe("parseMarkdown", () => {
     it.each([
       [".md", false],
       [".mdx", true],
-    ])("components.md を %s として読む：MDX のコメントを消し、文章を包むコンポーネントは中身を残し、コード・図・演習のコンポーネントは中身ごと捨てる", (_, isMdx) => {
+    ])("components.md を %s として読む：MDX のコメントを消し、文章を包むコンポーネントは中身を残し、コード・図・演習とページの目次・まとめ（YouWillLearn・Recap）のコンポーネントは中身ごと捨てる", (_, isMdx) => {
       const { root, title } = parseMarkdown(readFixture("components.md"), { isMdx })
 
       expect(title).toBe("Sharing Data Between Screens")
@@ -74,8 +74,6 @@ describe("parseMarkdown", () => {
           text: "Screens often need the same piece of data. This page shows how to keep that data in one place and pass it down.",
           type: "paragraph",
         },
-        { text: "How to lift data to a common parent", type: "list_item" },
-        { text: "How to pass data down with props", type: "list_item" },
         { headingDepth: 2, text: "Lift the data up", type: "heading" },
         { text: "When two screens read the same value, move the value to their closest common parent.", type: "paragraph" },
         { lang: "jsx", text: "<Profile>{/* children go here */}</Profile>", type: "code" },
@@ -86,7 +84,6 @@ describe("parseMarkdown", () => {
           text: "Do not store a value that you can compute from other values. The text `{/* kept */}` in inline code stays.",
           type: "paragraph",
         },
-        { text: "Keep each value in one place.", type: "list_item" },
       ])
     })
 
@@ -134,6 +131,18 @@ describe("parseMarkdown", () => {
         { text: "Quoted note text.", type: "paragraph" },
         { text: "Item text.", type: "list_item" },
         { text: "Item pitfall text.", type: "paragraph" },
+      ])
+    })
+
+    it.each([
+      [".md", false],
+      [".mdx", true],
+    ])("%s の自己終了のコンポーネントも捨てた内容に数え、手前の「:」で終わる段落を「.」にする", (_, isMdx) => {
+      const source = "Look at this:\n\n<Diagram name=\"copies\" />\n\nNext.\n"
+
+      expect(convertMdastToBlocks(parseMarkdown(source, { isMdx }).root)).toEqual([
+        { text: "Look at this.", type: "paragraph" },
+        { text: "Next.", type: "paragraph" },
       ])
     })
 

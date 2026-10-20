@@ -72,7 +72,8 @@ export const removeMdxComments = (source: string, root: Root): string => {
 
 /**
  * HTML ブロックを、コンポーネントの開始タグ・終了タグと、その間の Markdown に分ける。コンポーネントのタグが無ければ null。
- * 自己終了タグ（`<Diagram />`）は中身が無いので捨てる
+ * 自己終了タグ（`<Diagram />`）は開始タグと終了タグの組にし、中身の無いコンポーネントとして残す
+ * （捨てる内容があったことを、convertMdastToBlocks の「:」で終わる段落の判定に使うため）
  */
 const tokenizeHtml = (html: string): HtmlToken[] | null => {
   const matches = [...html.matchAll(COMPONENT_TAG_PATTERN)]
@@ -85,7 +86,8 @@ const tokenizeHtml = (html: string): HtmlToken[] | null => {
   for (const match of matches) {
     const [tag, closingSlash, name, selfClosingSlash] = match
     pushMarkdown(html.slice(lastIndex, match.index))
-    if (!selfClosingSlash) tokens.push({ kind: closingSlash ? "close" : "open", name })
+    if (selfClosingSlash) tokens.push({ kind: "open", name }, { kind: "close", name })
+    else tokens.push({ kind: closingSlash ? "close" : "open", name })
     lastIndex = match.index + tag.length
   }
   pushMarkdown(html.slice(lastIndex))

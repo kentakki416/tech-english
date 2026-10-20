@@ -124,12 +124,57 @@ const convertListItem = (node: ListItem): DocumentBlock[] => convertContainerChi
 
 const convertBlockquote = (node: Blockquote): DocumentBlock[] => convertContainerChildren(node.children, "quote")
 
+const DANGLING_COLON_PATTERN = /:$/
+
+/**
+ * 内容があるのに本文に残さないノード（文章を包むもの以外のコンポーネント・表・コメント以外の HTML・画像だけの段落）
+ */
+const isDroppedContentNode = (node: RootContent): boolean => {
+  switch (node.type) {
+  case "html":
+    return !node.value.trimStart().startsWith("<!--")
+  case "mdxJsxFlowElement":
+  case "table":
+    return true
+  case "paragraph":
+    return node.children.some((child) => child.type === "image" || child.type === "imageReference")
+  default:
+    return false
+  }
+}
+
+/**
+ * index の段落の続きが本文に残らないか。後ろの兄弟をブロックを作るノードまで順に見て、その手前で内容のあるノードを捨てていたか、
+ * 後ろにブロックを作るノードが無ければ true。空になって捨てられる内容の無いノード（ショートコード・コメントだけの段落、区切り線）は
+ * 飛ばして先を見る（Kubernetes の `{{< tabs >}}` の後ろのコードを続きとみなすため）
+ */
+const isContinuationMissing = (nodes: RootContent[], convertedBlocks: DocumentBlock[][], index: number): boolean => {
+  for (let nextIndex = index + 1; nextIndex < nodes.length; nextIndex++) {
+    if ((convertedBlocks[nextIndex]?.length ?? 0) > 0) return false
+    const nextNode = nodes[nextIndex]
+    if (nextNode && isDroppedContentNode(nextNode)) return true
+  }
+  return true
+}
+
+/**
+ * 兄弟のノード列を変換する。続きが本文に残らない段落は、末尾の「:」を「.」にする（指す先の無い「:」で文が終わらないように。
+ * 文は消さない）。箇条書きの項目・引用の中は、段落をつないで 1 つのブロックにするので対象にしない
+ */
+const convertSiblings = (nodes: RootContent[]): DocumentBlock[] => {
+  const convertedBlocks = nodes.map(convertNode)
+  return convertedBlocks.flatMap((blocks, index) =>
+    nodes[index]?.type === "paragraph" && isContinuationMissing(nodes, convertedBlocks, index)
+      ? blocks.map((block) => ({ ...block, text: block.text.replace(DANGLING_COLON_PATTERN, ".") }))
+      : blocks)
+}
+
 /**
  * 文章を包むコンポーネント（PROSE_COMPONENT_NAMES）はタグだけ除いて中身を変換し、それ以外のコンポーネントは中身ごと捨てる。
  * 名前の無いもの（フラグメント `<>`）も捨てる
  */
 const convertJsxElement = (node: MdxJsxFlowElement): DocumentBlock[] =>
-  node.name !== null && PROSE_COMPONENT_NAMES.has(node.name) ? node.children.flatMap(convertNode) : []
+  node.name !== null && PROSE_COMPONENT_NAMES.has(node.name) ? convertSiblings(node.children) : []
 
 /**
  * table / image / html / thematicBreak / yaml / toml / definition / footnoteDefinition / MDX の ESM・式と、
@@ -159,4 +204,4 @@ const convertNode = (node: RootContent): DocumentBlock[] => {
 /**
  * mdast を本文のブロック列にする。Markdown と HTML のどちらから作った mdast も同じ規則で変換する
  */
-export const convertMdastToBlocks = (root: Root): DocumentBlock[] => root.children.flatMap(convertNode)
+export const convertMdastToBlocks = (root: Root): DocumentBlock[] => convertSiblings(root.children)

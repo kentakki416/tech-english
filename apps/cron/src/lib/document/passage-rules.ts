@@ -3,6 +3,7 @@ import type { PassageBlock } from "@repo/domain"
 import {
   MAX_CODE_LINE_RATIO,
   MIN_ENGLISH_LETTER_RATIO,
+  MIN_PROSE_LIST_ITEM_WORDS,
   MIN_PROSE_WORD_RATIO,
   PASSAGE_MAX_WORDS,
   PASSAGE_MIN_WORDS,
@@ -56,12 +57,18 @@ const calculateEnglishLetterRatio = (blocks: PassageBlock[]): number => {
   return letterCount === 0 ? 0 : asciiLetterCount / letterCount
 }
 
+const isProseWordBlock = (block: PassageBlock): boolean =>
+  block.type === "paragraph"
+  || block.type === "quote"
+  || (block.type === "list_item" && countEnglishWords([block]) >= MIN_PROSE_LIST_ITEM_WORDS)
+
 /**
- * paragraph と quote の英単語数 ÷ 全体の英単語数（箇条書き・リンク集だけの塊を除くため）。英単語が 0 なら 0
+ * paragraph・quote と MIN_PROSE_LIST_ITEM_WORDS 語以上の list_item の英単語数 ÷ 全体の英単語数
+ * （短い項目の箇条書き・リンク集だけの塊を除くため）。英単語が 0 なら 0
  */
 const calculateProseWordRatio = (blocks: PassageBlock[]): number => {
   const totalWords = countEnglishWords(blocks)
-  const proseWords = countEnglishWords(blocks.filter((block) => block.type === "paragraph" || block.type === "quote"))
+  const proseWords = countEnglishWords(blocks.filter(isProseWordBlock))
   return totalWords === 0 ? 0 : proseWords / totalWords
 }
 

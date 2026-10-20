@@ -44,10 +44,10 @@ Markdown / MDX / HTML から本文を抽出し、200〜600 語の本文候補に
 | ファイル | 役割 |
 | --- | --- |
 | `parse-markdown.ts` | unified + remark-parse / frontmatter / gfm（`.mdx` は remark-mdx）で mdast に。タイトルは frontmatter の `title` → 最初の h1 |
-| `markdown-jsx.ts` | `.md` に混ざった MDX の書き方の処理（react.dev の `.md` など）。MDX のコメント（`{/* ... */}`。見出しのアンカーなど）をコード・インラインコードの外で消し、HTML ブロックで書かれたコンポーネントの開始タグから終了タグまでを `mdxJsxFlowElement` にまとめる（HTML ブロックの中の Markdown は読み直す） |
+| `markdown-jsx.ts` | `.md` に混ざった MDX の書き方の処理（react.dev の `.md` など）。MDX のコメント（`{/* ... */}`。見出しのアンカーなど）をコード・インラインコードの外で消し、HTML ブロックで書かれたコンポーネントの開始タグから終了タグまでを `mdxJsxFlowElement` にまとめる（HTML ブロックの中の Markdown は読み直す。自己終了のタグは中身の無い `mdxJsxFlowElement` にする） |
 | `parse-html.ts` | jsdom（スクリプトは実行しない）で DOM に → 本文の CSS セレクタ or Readability で本文を取り出す → rehype-remark で mdast に |
-| `convert-mdast-to-blocks.ts` | mdast → `PassageBlock[]`（見出しの深さつき）。JSX のコンポーネントは `const.ts` の `PROSE_COMPONENT_NAMES`（`<Intro>` / `<Note>` / `<Pitfall>` / `<DeepDive>` / `<Recap>` / `<YouWillLearn>`）だけタグを除いて中身を残し、それ以外（`<Sandpack>` / `<Diagram>` / `<Challenges>` など）は中身ごと捨てる。`.mdx` と `.md` で同じ規則 |
-| `split-into-chunks.ts` / `passage-rules.ts` | 見出し単位の切り分けと結合、本文候補の条件（英単語数・コードの割合・英語・文章） |
+| `convert-mdast-to-blocks.ts` | mdast → `PassageBlock[]`（見出しの深さつき）。JSX のコンポーネントは `const.ts` の `PROSE_COMPONENT_NAMES`（`<Intro>` / `<Note>` / `<Pitfall>` / `<DeepDive>`）だけタグを除いて中身を残し、それ以外（`<Sandpack>` / `<Diagram>` / `<Challenges>` / `<YouWillLearn>` / `<Recap>` など）は中身ごと捨てる。続き（コンポーネント・表・HTML・画像）を捨てて「:」で終わる段落は、末尾を「.」にする。`.mdx` と `.md` で同じ規則 |
+| `split-into-chunks.ts` / `passage-rules.ts` | 見出し単位の切り分けと結合、本文候補の条件（英単語数・コードの割合・英語・文章。文章には段落・引用と `MIN_PROSE_LIST_ITEM_WORDS` 語以上の箇条書きの項目を数える） |
 | `content-hash.ts` | 正規化テキストの SHA-256（`passages.content_hash` / `source_documents.content_hash`） |
 
 壊れた MDX と不正な CSS セレクタは throw する。呼び出し側（task / service）が文書単位の失敗として扱う。`.md` は素の Markdown として読むので、閉じられていないコンポーネントは throw せず、タグだけ無かったことにして中身を残す。
