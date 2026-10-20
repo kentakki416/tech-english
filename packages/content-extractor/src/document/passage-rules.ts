@@ -1,4 +1,4 @@
-import type { PassageBlock } from "@repo/domain"
+import type { ChunkRejectReason, PassageBlock } from "@repo/domain"
 
 import {
   MAX_CODE_LINE_RATIO,
@@ -9,8 +9,6 @@ import {
   PASSAGE_MIN_WORDS,
   PROSE_CHARS_PER_LINE,
 } from "./const"
-
-export type ChunkRejectReason = "not_english" | "not_prose" | "too_long" | "too_much_code" | "too_short"
 
 const INLINE_CODE_PATTERN = /`[^`]*`/g
 

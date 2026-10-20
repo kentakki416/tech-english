@@ -13,11 +13,13 @@ export { GOAL_METRICS, GOAL_TEXT_MAX_LENGTH } from "./const/goal"
 export { MAX_SERIAL_ID } from "./const/id"
 export { MEMBERSHIP_TIERS } from "./const/membership-tier"
 export {
+  CHUNK_REJECT_REASONS,
   PASSAGE_BLOCK_TYPES,
   PASSAGE_DIFFICULTIES,
   PASSAGE_STATUSES,
   READING_WPM_BY_DIFFICULTY,
   SECONDS_PER_QUESTION,
+  SUPERSEDED_PASSAGE_REJECT_REASON,
   TIME_LIMIT_ROUNDING_SECONDS,
 } from "./const/passage"
 export { PASSAGE_SEGMENT_KINDS } from "./const/passage-segment"
@@ -28,6 +30,7 @@ export {
   QUESTION_TYPES,
 } from "./const/question"
 export { TAG_COLORS } from "./const/tag"
+export { URL_IMPORT_CHUNK_STATUSES, URL_IMPORT_ERROR_CODES } from "./const/url-import"
 export {
   VOCABULARY_GRADES,
   VOCABULARY_MASTERED_STAGE,
@@ -79,11 +82,12 @@ export type {
 export type { CalendarLevel, GoalMetric, StreakSummary, UserGoal, WeekRange } from "./types/goal"
 export type { MembershipTier } from "./types/membership-tier"
 export type { Memo } from "./types/memo"
-export type { Passage, PassageBlock, PassageBlockType, PassageDifficulty, PassageStatus } from "./types/passage"
+export type { ChunkRejectReason, Passage, PassageBlock, PassageBlockType, PassageDifficulty, PassageStatus } from "./types/passage"
 export type { PassageSegmentKind } from "./types/passage-segment"
 export type { GlossaryEntry, Question, QuestionType } from "./types/question"
 export type { ReminderSetting } from "./types/reminder"
 export type { SourceDocument } from "./types/source-document"
 export type { Tag, TagColor } from "./types/tag"
+export type { UrlImportChunkStatus, UrlImportErrorCode } from "./types/url-import"
 export type { User } from "./types/user"
 export type { VocabularyCard, VocabularyGrade, VocabularyReview, VocabularySchedule } from "./types/vocabulary"

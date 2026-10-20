@@ -4,6 +4,12 @@
 export const COLLECTOR_USER_AGENT = "TechEnglishBot/1.0"
 
 /**
+ * 収集のリクエストの User-Agent。連絡先の URL（サービスのトップ）があれば `TechEnglishBot/1.0 (+url)` にする
+ */
+export const buildCollectorUserAgent = (contactUrl: string | undefined): string =>
+  contactUrl ? `${COLLECTOR_USER_AGENT} (+${contactUrl})` : COLLECTOR_USER_AGENT
+
+/**
  * robots.txt の User-agent と照合するボットの名前。サイトの管理者はこの名前で止められる（robots.txt を守る）
  */
 export const CRAWLER_NAME = "TechEnglishBot"

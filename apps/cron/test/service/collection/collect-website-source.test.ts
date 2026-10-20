@@ -5,8 +5,9 @@ import {
   extractWebPage,
   WebSourceThrottledError,
 } from "@repo/content-extractor"
+import { SUPERSEDED_PASSAGE_REJECT_REASON } from "@repo/domain"
 
-import { OUT_OF_TARGET_PASSAGE_REJECT_REASON, SUPERSEDED_PASSAGE_REJECT_REASON } from "../../../src/const/collection"
+import { OUT_OF_TARGET_PASSAGE_REJECT_REASON } from "../../../src/const/collection"
 import { collectWebsiteSource, type CollectWebsiteSourceInput } from "../../../src/service/collection"
 
 import {

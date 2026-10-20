@@ -13,6 +13,7 @@ import { createRedisClient } from "@repo/redis"
 import { GitHubLicenseClient } from "./client/github-license"
 import { GitHubOAuthClient } from "./client/github-oauth"
 import { GoogleOAuthClient } from "./client/google-oauth"
+import { PageFetcher } from "./client/page-fetcher"
 import { AdminAuthDevLoginController } from "./controller/admin/auth/dev-login"
 import { AdminAuthGoogleController } from "./controller/admin/auth/google"
 import { AdminAuthLogoutController } from "./controller/admin/auth/logout"
@@ -41,6 +42,8 @@ import { AdminTagCreateController } from "./controller/admin/tag/create"
 import { AdminTagDeleteController } from "./controller/admin/tag/delete"
 import { AdminTagListController } from "./controller/admin/tag/list"
 import { AdminTagUpdateController } from "./controller/admin/tag/update"
+import { AdminUrlImportCreateController } from "./controller/admin/url-import/create"
+import { AdminUrlImportPreviewController } from "./controller/admin/url-import/preview"
 import { AdminUserAttemptsController } from "./controller/admin/user/attempts"
 import { AdminUserCalendarController } from "./controller/admin/user/calendar"
 import { AdminUserDetailController } from "./controller/admin/user/detail"
@@ -101,6 +104,7 @@ import {
   DrizzleReminderSettingRepository,
   DrizzleTagRepository,
   DrizzleTransactionRunner,
+  DrizzleUrlImportRepository,
   DrizzleUserGoalRepository,
   DrizzleUserRepository,
   DrizzleVocabularyRepository,
@@ -174,6 +178,10 @@ const wordAudioRepository = new DrizzleWordAudioRepository(db)
  */
 const adminStatsRepository = new DrizzleAdminStatsRepository(db)
 /**
+ * admin の URL の取り込み（url-import）
+ */
+const urlImportRepository = new DrizzleUrlImportRepository(db)
+/**
  * admin の認証（admin-template）
  */
 const adminRepository = new DrizzleAdminRepository(db)
@@ -188,6 +196,7 @@ const refreshTokenRepository = new IoRedisRefreshTokenRepository(redis)
 const gitHubOAuthClient = new GitHubOAuthClient(env.GITHUB_OAUTH_CLIENT_ID, env.GITHUB_OAUTH_CLIENT_SECRET)
 const googleOAuthClient = new GoogleOAuthClient(env.GOOGLE_CLIENT_ID, env.GOOGLE_CLIENT_SECRET)
 const gitHubLicenseClient = new GitHubLicenseClient(env.GITHUB_LICENSE_TOKEN)
+const pageFetcher = new PageFetcher(env.COLLECT_WEB_CONTACT_URL)
 
 /**
  * 読み上げの音声の URL の base。production で AUDIO_PUBLIC_URL_BASE が無ければローカルにフォールバックせず null にする
@@ -317,6 +326,17 @@ const adminTagCreateController = new AdminTagCreateController(tagRepository)
 const adminTagDeleteController = new AdminTagDeleteController(tagRepository)
 const adminTagListController = new AdminTagListController(tagRepository)
 const adminTagUpdateController = new AdminTagUpdateController(tagRepository)
+
+/**
+ * Admin の URL の取り込み（url-import）Controller のインスタンス化
+ */
+const adminUrlImportCreateController = new AdminUrlImportCreateController(
+  contentSourceRepository,
+  urlImportRepository,
+  transactionRunner,
+  pageFetcher,
+)
+const adminUrlImportPreviewController = new AdminUrlImportPreviewController(contentSourceRepository, urlImportRepository, pageFetcher)
 
 /**
  * admin のダッシュボード（admin-dashboard）と、ユーザー管理（admin-users。マイページと同じ Repository を使う）の Controller のインスタンス化
@@ -483,6 +503,10 @@ mountAdminApi(
       delete: adminTagDeleteController,
       list: adminTagListController,
       update: adminTagUpdateController,
+    },
+    urlImport: {
+      create: adminUrlImportCreateController,
+      preview: adminUrlImportPreviewController,
     },
     user: {
       attempts: adminUserAttemptsController,

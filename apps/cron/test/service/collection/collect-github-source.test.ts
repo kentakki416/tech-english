@@ -1,10 +1,10 @@
 import { extractDocument, EXTRACTION_VERSION } from "@repo/content-extractor"
+import { SUPERSEDED_PASSAGE_REJECT_REASON } from "@repo/domain"
 
 import { GitHubRateLimitError } from "../../../src/client/github"
 import {
   MAX_MARKDOWN_FILE_BYTES,
   OUT_OF_TARGET_PASSAGE_REJECT_REASON,
-  SUPERSEDED_PASSAGE_REJECT_REASON,
 } from "../../../src/const/collection"
 import { collectGitHubSource, type CollectGitHubSourceInput } from "../../../src/service/collection"
 

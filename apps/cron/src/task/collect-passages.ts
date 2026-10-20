@@ -1,4 +1,4 @@
-import { COLLECTOR_USER_AGENT, WebPageClient } from "@repo/content-extractor"
+import { buildCollectorUserAgent, WebPageClient } from "@repo/content-extractor"
 import { logger } from "@repo/logger"
 
 import { GitHubContentClient } from "../client/github"
@@ -38,9 +38,7 @@ runTask("collect-passages", async ({ db }) => {
     passageRepository: new DrizzlePassageRepository(db),
     sourceDocumentRepository: new DrizzleSourceDocumentRepository(db),
   }
-  const userAgent = env.COLLECT_WEB_CONTACT_URL
-    ? `${COLLECTOR_USER_AGENT} (+${env.COLLECT_WEB_CONTACT_URL})`
-    : COLLECTOR_USER_AGENT
+  const userAgent = buildCollectorUserAgent(env.COLLECT_WEB_CONTACT_URL)
   const deps = {
     createWebPageClient: (origin: string) => new WebPageClient({
       allowedOrigin: origin,

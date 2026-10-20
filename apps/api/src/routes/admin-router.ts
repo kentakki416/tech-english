@@ -29,6 +29,8 @@ import { AdminTagCreateController } from "../controller/admin/tag/create"
 import { AdminTagDeleteController } from "../controller/admin/tag/delete"
 import { AdminTagListController } from "../controller/admin/tag/list"
 import { AdminTagUpdateController } from "../controller/admin/tag/update"
+import { AdminUrlImportCreateController } from "../controller/admin/url-import/create"
+import { AdminUrlImportPreviewController } from "../controller/admin/url-import/preview"
 import { AdminUserAttemptsController } from "../controller/admin/user/attempts"
 import { AdminUserCalendarController } from "../controller/admin/user/calendar"
 import { AdminUserDetailController } from "../controller/admin/user/detail"
@@ -78,6 +80,10 @@ type AdminRouterControllers = {
     delete?: AdminTagDeleteController
     list?: AdminTagListController
     update?: AdminTagUpdateController
+  }
+  urlImport?: {
+    create?: AdminUrlImportCreateController
+    preview?: AdminUrlImportPreviewController
   }
   user?: {
     attempts?: AdminUserAttemptsController
@@ -330,6 +336,24 @@ export const adminRouter = (controllers: AdminRouterControllers): Router => {
   if (tag.delete) {
     const controller = tag.delete
     router.delete("/tag/:id", async (req, res) => controller.execute(req, res))
+  }
+
+  const urlImport = controllers.urlImport ?? {}
+
+  /**
+   * POST /api/admin/url-import/preview
+   */
+  if (urlImport.preview) {
+    const controller = urlImport.preview
+    router.post("/url-import/preview", async (req, res) => controller.execute(req, res))
+  }
+
+  /**
+   * POST /api/admin/url-import
+   */
+  if (urlImport.create) {
+    const controller = urlImport.create
+    router.post("/url-import", async (req, res) => controller.execute(req, res))
   }
 
   const user = controllers.user ?? {}

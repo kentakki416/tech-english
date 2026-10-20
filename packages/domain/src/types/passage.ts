@@ -1,4 +1,4 @@
-import type { PASSAGE_BLOCK_TYPES, PASSAGE_DIFFICULTIES, PASSAGE_STATUSES } from "../const/passage"
+import type { CHUNK_REJECT_REASONS, PASSAGE_BLOCK_TYPES, PASSAGE_DIFFICULTIES, PASSAGE_STATUSES } from "../const/passage"
 
 /**
  * 本文候補 / 問題の状態
@@ -14,6 +14,11 @@ export type PassageDifficulty = (typeof PASSAGE_DIFFICULTIES)[number]
  * 本文のブロックの種別
  */
 export type PassageBlockType = (typeof PASSAGE_BLOCK_TYPES)[number]
+
+/**
+ * 塊を本文候補にしない理由
+ */
+export type ChunkRejectReason = (typeof CHUNK_REJECT_REASONS)[number]
 
 /**
  * 本文の 1 ブロック。本文はこの配列として passages.blocks（jsonb）に入る

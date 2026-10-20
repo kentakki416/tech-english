@@ -1,9 +1,9 @@
-import type { PassageBlock } from "@repo/domain"
+import type { ChunkRejectReason, PassageBlock } from "@repo/domain"
 
 import { PASSAGE_MAX_WORDS, PASSAGE_MIN_WORDS, SECTION_HEADING_MAX_DEPTH } from "./const"
 import { calculateContentHash } from "./content-hash"
 import type { DocumentBlock } from "./convert-mdast-to-blocks"
-import { countEnglishWords, findRejectReasons, type ChunkRejectReason } from "./passage-rules"
+import { countEnglishWords, findRejectReasons } from "./passage-rules"
 
 export type PassageChunk = {
   blocks: PassageBlock[]

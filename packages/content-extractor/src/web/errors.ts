@@ -31,6 +31,21 @@ export class CrawlDelayTooLongError extends Error {
 }
 
 /**
+ * 取得の期限（WebPageClientOptions.deadlineAt）までに終わらなかった。api が API Gateway の時間の制限の中で取得するときに使う
+ */
+export class WebDeadlineExceededError extends Error {
+  public readonly deadlineAt: number
+  public readonly url: string
+
+  constructor(input: { deadlineAt: number; url: string }) {
+    super(`Fetching did not finish by the deadline: ${input.url}`)
+    this.name = "WebDeadlineExceededError"
+    this.deadlineAt = input.deadlineAt
+    this.url = input.url
+  }
+}
+
+/**
  * サイトが 429 / 503 を返した。そのソースの処理を打ち切って次回に回す（失敗にはしない）
  */
 export class WebSourceThrottledError extends Error {
