@@ -1,4 +1,4 @@
-import { parseSitemap } from "../../src/lib/parse-sitemap"
+import { parseSitemap } from "../src/parse-sitemap"
 
 describe("parseSitemap", () => {
   describe("正常系", () => {

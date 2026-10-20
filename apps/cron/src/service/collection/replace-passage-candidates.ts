@@ -1,7 +1,7 @@
+import type { PassageChunk } from "@repo/content-extractor"
 import { logger } from "@repo/logger"
 
 import { SUPERSEDED_PASSAGE_REJECT_REASON } from "../../const/collection"
-import type { PassageChunk } from "../../lib/document"
 
 import type { CollectionRepo } from "./types"
 

@@ -1,9 +1,9 @@
 import type { WebsiteSource } from "@repo/domain"
 
-import { BlockedUrlError, type IWebPageClient } from "../../client/web"
-import { extractDocument, type ExtractedDocument } from "../../lib/document"
-import { isTargetPath } from "../../lib/path-filter"
-import { isFetchablePath, normalizePageUrl } from "../../lib/url"
+import { extractDocument, type ExtractedDocument } from "./document"
+import { isTargetPath } from "./path-filter"
+import { isFetchablePath, normalizePageUrl } from "./url"
+import { BlockedUrlError, type IWebPageClient } from "./web"
 
 /**
  * source_documents.path（URL の pathname）から取得する URL を作る。オリジンはソースで決まる

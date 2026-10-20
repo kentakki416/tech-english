@@ -1,5 +1,5 @@
-import { calculateContentHash } from "../../../src/lib/document/content-hash"
-import { splitIntoChunks } from "../../../src/lib/document/split-into-chunks"
+import { calculateContentHash } from "../../src/document/content-hash"
+import { splitIntoChunks } from "../../src/document/split-into-chunks"
 
 import { buildHeading, buildParagraph, buildSection } from "./helpers"
 

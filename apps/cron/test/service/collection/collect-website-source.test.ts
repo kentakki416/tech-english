@@ -1,7 +1,13 @@
-import { BlockedUrlError, CrawlDelayTooLongError, WebSourceThrottledError } from "../../../src/client/web"
+import {
+  BlockedUrlError,
+  CrawlDelayTooLongError,
+  EXTRACTION_VERSION,
+  extractWebPage,
+  WebSourceThrottledError,
+} from "@repo/content-extractor"
+
 import { OUT_OF_TARGET_PASSAGE_REJECT_REASON, SUPERSEDED_PASSAGE_REJECT_REASON } from "../../../src/const/collection"
-import { EXTRACTION_VERSION } from "../../../src/lib/document"
-import { collectWebsiteSource, type CollectWebsiteSourceInput, extractWebPage } from "../../../src/service/collection"
+import { collectWebsiteSource, type CollectWebsiteSourceInput } from "../../../src/service/collection"
 
 import {
   buildHtmlPage,

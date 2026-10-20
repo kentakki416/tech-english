@@ -1,29 +1,28 @@
+import {
+  buildPageUrl,
+  CrawlDelayTooLongError,
+  type ExtractedDocument,
+  EXTRACTION_VERSION,
+  extractWebPage,
+  type FetchPageResult,
+  findFetchablePagePath,
+  findStartPagePath,
+  isPassageTargetUrl,
+  isTargetPath,
+  type IWebPageClient,
+  selectFetchablePagePaths,
+  type SitemapUrl,
+  WebSourceThrottledError,
+} from "@repo/content-extractor"
 import type { SourceDocument, WebsiteSource } from "@repo/domain"
 import { logger } from "@repo/logger"
 
-import {
-  CrawlDelayTooLongError,
-  type FetchPageResult,
-  type IWebPageClient,
-  type SitemapUrl,
-  WebSourceThrottledError,
-} from "../../client/web"
 import { COLLECT_RUN_INTERVAL_MS, GONE_HTTP_STATUSES, MAX_CONSECUTIVE_NETWORK_ERRORS } from "../../const/collection"
-import { EXTRACTION_VERSION, type ExtractedDocument } from "../../lib/document"
-import { isTargetPath } from "../../lib/path-filter"
 import type { DiscoveredDocumentInput } from "../../repository"
 
 import { rejectOutOfTargetPassages } from "./reject-out-of-target-passages"
 import { replacePassageCandidates } from "./replace-passage-candidates"
 import type { CollectionDeps, CollectionRepo, SourceCollectionResult, SourceCollectionStatus } from "./types"
-import {
-  buildPageUrl,
-  extractWebPage,
-  findFetchablePagePath,
-  findStartPagePath,
-  isPassageTargetUrl,
-  selectFetchablePagePaths,
-} from "./website-pages"
 
 export type CollectWebsiteSourceInput = {
   /**

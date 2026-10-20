@@ -1,9 +1,8 @@
+import { COLLECTOR_USER_AGENT, WebPageClient } from "@repo/content-extractor"
 import { logger } from "@repo/logger"
 
 import { GitHubContentClient } from "../client/github"
-import { WebPageClient } from "../client/web"
 import {
-  COLLECTOR_USER_AGENT,
   DRY_RUN_MAX_DOCUMENTS,
   GITHUB_MIN_RATE_LIMIT_REMAINING,
   GITHUB_UNAUTHENTICATED_MIN_RATE_LIMIT_REMAINING,

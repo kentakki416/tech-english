@@ -191,7 +191,7 @@ GitHub に Markdown のソースがあるドキュメントは GitHub から取�
 | 起動 | EventBridge Scheduler で 1 日 1 回（`generate:questions` の 1 時間前） |
 | ローカル実行 | `pnpm collect:passages`（全ソース）、`pnpm collect:passages --source-id=3`（1 ソースだけ） |
 | 試し実行 | `pnpm collect:passages --source-id=3 --dry-run`：文書を最大 5 件取得し、抽出した本文と切り分けの結果を表示する。**DB には書かない**。サイトのソースを登録した直後に、CSS セレクタが正しいかを確かめるのに使う |
-| 外部クライアント | `src/client/github/`（`GitHubContentClient`）、`src/client/web/`（`WebPageClient`。`robots.txt`・間隔・取得先の制限を持つ）。どちらも env を直接読まずコンストラクタ DI |
+| 外部クライアント | `src/client/github/`（`GitHubContentClient`）、`@repo/content-extractor` の `WebPageClient`（`robots.txt`・間隔・取得先の制限を持つ。api の URL からの取り込みと共有）。どちらも env を直接読まずコンストラクタ DI |
 | GitHub の認証 | `GITHUB_CONTENT_TOKEN`（公開リポジトリの読み取りだけを許可した fine-grained token）。認証すると rate limit が 60 → 5,000 req/h になる |
 
 取得方法ごとの違いは **文書を取ってくるところまで** に閉じ込め、本文の抽出以降（mdast → `PassageBlock[]` → 切り分け → 保存）は共通にする。
@@ -309,7 +309,7 @@ cron は AWS の VPC 内で動くため、登録された URL を経由して内
 
 ### 調整できる箇所
 
-本文候補の出来を変えたいときに触る場所。抽出・切り分け・判定は LLM を使わず、`apps/cron/src/lib/document/` の純関数で決まる（下の表の `const.ts` などはこのディレクトリのファイル）。
+本文候補の出来を変えたいときに触る場所。抽出・切り分け・判定は LLM を使わず、`packages/content-extractor/src/document/`（`@repo/content-extractor`。cron の収集と api の URL からの取り込みで共有）の純関数で決まる（下の表の `const.ts` などはこのディレクトリのファイル）。
 
 ```mermaid
 flowchart LR
@@ -339,7 +339,8 @@ flowchart LR
 | mdast のノードをどのブロックにするか | `convert-mdast-to-blocks.ts` | 全ソース（下の注意） |
 | LLM が題材に向かないとする基準 | `apps/cron/src/prompt/generate-questions.ts` の「Suitability」（変えたら `PROMPT_VERSION` を上げる。[question-generation](../question-generation/README.md)） | 次の `generate:questions` から、`collected` の本文候補に |
 
-- **`lib/document` の変更のうち、ブロック・切り分け・本文候補の条件が変わるものは、`const.ts` の `EXTRACTION_VERSION` を上げる。** 上げると取得済みの文書も切り分け直す（GitHub は次の収集で、サイトは取り直しの順番が来たときに条件付きリクエストを送らずに）。前の切り分けの `collected` は却下する（[passage-extraction-tuning](../passage-extraction-tuning/README.md#抽出の版)）。上げないと、GitHub は blob SHA が同じファイルを取り直さず、サイトは 200 でも抽出したブロックのハッシュが前回と同じなら切り分け直さないので、取得済みの文書には効かない
+- **`src/document` の変更のうち、ブロック・切り分け・本文候補の条件が変わるものは、`const.ts` の `EXTRACTION_VERSION` を上げる。** 上げると取得済みの文書も切り分け直す（GitHub は次の収集で、サイトは取り直しの順番が来たときに条件付きリクエストを送らずに）。前の切り分けの `collected` は却下する（[passage-extraction-tuning](../passage-extraction-tuning/README.md#抽出の版)）。上げないと、GitHub は blob SHA が同じファイルを取り直さず、サイトは 200 でも抽出したブロックのハッシュが前回と同じなら切り分け直さないので、取得済みの文書には効かない
+- 変えたら `pnpm --filter @repo/content-extractor build` で build し直す（cron は build した `dist` を読むので、build しないと試し実行も古い規則のまま）
 - 変えた結果は `pnpm collect:passages --source-id={id} --dry-run` で確かめる（DB には書かない）。対象の文書を最大 5 件取得し、塊ごとに本文候補か、捨てた理由（`too_short` / `too_long` / `too_much_code` / `not_english` / `not_prose`）を出す
 
 ### 重複の排除

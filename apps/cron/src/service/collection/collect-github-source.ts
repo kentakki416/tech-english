@@ -1,9 +1,8 @@
+import { type ExtractedDocument, EXTRACTION_VERSION, isTargetPath } from "@repo/content-extractor"
 import type { GitHubRepositorySource, SourceDocument } from "@repo/domain"
 import { logger } from "@repo/logger"
 
 import type { GitHubTreeEntry } from "../../client/github"
-import { EXTRACTION_VERSION, type ExtractedDocument } from "../../lib/document"
-import { isTargetPath } from "../../lib/path-filter"
 
 import { extractGitHubFile } from "./extract-github-file"
 import { listGitHubTargetFiles } from "./list-github-target-files"

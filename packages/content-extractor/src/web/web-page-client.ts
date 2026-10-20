@@ -13,8 +13,8 @@ import {
   MAX_REDIRECTS,
   MAX_SITEMAP_BYTES,
   WEB_REQUEST_TIMEOUT_MS,
-} from "../../const/collection"
-import { type ParsedSitemap, parseSitemap } from "../../lib/parse-sitemap"
+} from "../const"
+import { type ParsedSitemap, parseSitemap } from "../parse-sitemap"
 
 import { BlockedUrlError, CrawlDelayTooLongError, WebSourceThrottledError } from "./errors"
 import { createSafeLookup, isBlockedIpLiteral } from "./safe-lookup"

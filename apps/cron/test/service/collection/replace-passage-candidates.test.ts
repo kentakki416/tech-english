@@ -1,5 +1,6 @@
+import type { PassageChunk } from "@repo/content-extractor"
+
 import { SUPERSEDED_PASSAGE_REJECT_REASON } from "../../../src/const/collection"
-import type { PassageChunk } from "../../../src/lib/document"
 import { replacePassageCandidates } from "../../../src/service/collection"
 
 import { createFakeRepo, NOW } from "./helpers"

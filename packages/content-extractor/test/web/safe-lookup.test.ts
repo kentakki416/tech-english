@@ -1,6 +1,6 @@
 import type { LookupAddress } from "node:dns"
 
-import { BlockedUrlError, createSafeLookup, isBlockedAddress, isBlockedIpLiteral, type LookupAll } from "../../../src/client/web"
+import { BlockedUrlError, createSafeLookup, isBlockedAddress, isBlockedIpLiteral, type LookupAll } from "../../src/web"
 
 /**
  * dns.lookup の偽物。決まったアドレスを返す

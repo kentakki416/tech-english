@@ -149,7 +149,7 @@ React 公式ドキュメントのソースの **除外パス** に、次のペ�
 
 ### 抽出の規則
 
-**`apps/cron/src/lib/document/` の純関数を変える（LLM は使わない。今の切り出しと同じ）。**
+**`apps/cron/src/lib/document/`（今は `packages/content-extractor/src/document/`）の純関数を変える（LLM は使わない。今の切り出しと同じ）。**
 
 - `const.ts` の `PROSE_COMPONENT_NAMES` から `YouWillLearn` と `Recap` を外す。ここに無いコンポーネントは中身ごと捨てる（今の規則）
   - どちらも見出しが無いので、隣の節の本文候補にくっつく。`<YouWillLearn>` はページの目次、`<Recap>` はページ全体のまとめで、節の話題と混ざる
@@ -181,7 +181,7 @@ React 公式ドキュメントのソースの **除外パス** に、次のペ�
 
 | 項目 | 内容 |
 | --- | --- |
-| 版 | `apps/cron/src/lib/document/const.ts` の `EXTRACTION_VERSION`。生成の `PROMPT_VERSION` と同じ日付の形（`2026-10-20.1`）。`lib/document` の変更のうち、ブロック・切り分け・本文候補の条件が変わるものをしたら上げる |
+| 版 | `apps/cron/src/lib/document/const.ts`（今は `packages/content-extractor/src/document/const.ts`）の `EXTRACTION_VERSION`。生成の `PROMPT_VERSION` と同じ日付の形（`2026-10-20.1`）。`lib/document` の変更のうち、ブロック・切り分け・本文候補の条件が変わるものをしたら上げる |
 | `source_documents.extraction_version` | 文書を切り分けたときの版。`NULL`（この列を足してから一度も切り分けていない文書。未取得、列を足す前に取得した文書、本文を抽出できなかったサイトのページ）は古い版として扱う |
 | `content_sources.last_collected_extraction_version` | GitHub のみ。`last_collected_commit_sha` を記録したときの版 |
 

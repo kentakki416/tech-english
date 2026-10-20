@@ -1,5 +1,5 @@
-import { convertMdastToBlocks } from "../../../src/lib/document/convert-mdast-to-blocks"
-import { parseHtml } from "../../../src/lib/document/parse-html"
+import { convertMdastToBlocks } from "../../src/document/convert-mdast-to-blocks"
+import { parseHtml } from "../../src/document/parse-html"
 
 import { readFixture } from "./helpers"
 

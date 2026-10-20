@@ -1,7 +1,7 @@
+import type { FetchPageResult, IWebPageClient, SitemapUrl } from "@repo/content-extractor"
 import type { ContentSource, GitHubRepositorySource, SourceDocument, WebsiteSource } from "@repo/domain"
 
 import type { GitHubTreeEntry, IGitHubContentClient } from "../../../src/client/github"
-import type { FetchPageResult, IWebPageClient, SitemapUrl } from "../../../src/client/web"
 import type {
   CreatePassageInput,
   DiscoveredDocumentInput,

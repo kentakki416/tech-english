@@ -1,4 +1,4 @@
-import { isFetchablePath, normalizePageUrl } from "../../src/lib/url"
+import { isFetchablePath, normalizePageUrl } from "../src/url"
 
 describe("normalizePageUrl", () => {
   describe("正常系", () => {

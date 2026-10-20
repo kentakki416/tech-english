@@ -2,7 +2,7 @@ import { ReadableStream } from "node:stream/web"
 
 import { fetch, Response } from "undici"
 
-import { BlockedUrlError, CrawlDelayTooLongError, WebPageClient, WebSourceThrottledError } from "../../../src/client/web"
+import { BlockedUrlError, CrawlDelayTooLongError, WebPageClient, WebSourceThrottledError } from "../../src/web"
 
 const ORIGIN = "https://docs.example.com"
 

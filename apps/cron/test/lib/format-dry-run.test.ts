@@ -1,4 +1,5 @@
-import type { ExtractedDocument, PassageChunk } from "../../src/lib/document"
+import type { ExtractedDocument, PassageChunk } from "@repo/content-extractor"
+
 import { formatDryRun, type SourcePreview } from "../../src/lib/format-dry-run"
 
 const buildChunk = (overrides: Partial<PassageChunk>): PassageChunk => ({

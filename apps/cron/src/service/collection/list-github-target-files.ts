@@ -1,9 +1,9 @@
+import { findGlobBaseDirectories, isTargetPath } from "@repo/content-extractor"
 import type { GitHubRepositorySource } from "@repo/domain"
 import { logger } from "@repo/logger"
 
 import type { GitHubTreeEntry, IGitHubContentClient } from "../../client/github"
 import { MAX_MARKDOWN_FILE_BYTES } from "../../const/collection"
-import { findGlobBaseDirectories, isTargetPath } from "../../lib/path-filter"
 
 export type GitHubTargetFiles = {
   /**

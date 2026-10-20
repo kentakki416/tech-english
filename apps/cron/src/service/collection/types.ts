@@ -1,5 +1,6 @@
+import type { IWebPageClient } from "@repo/content-extractor"
+
 import type { IGitHubContentClient } from "../../client/github"
-import type { IWebPageClient } from "../../client/web"
 import type { ContentSourceRepository, PassageRepository, SourceDocumentRepository } from "../../repository"
 
 export type CollectionRepo = {

@@ -1,13 +1,13 @@
 import { readFileSync } from "node:fs"
 import path from "node:path"
 
-import type { DocumentBlock } from "../../../src/lib/document/convert-mdast-to-blocks"
+import type { DocumentBlock } from "../../src/document/convert-mdast-to-blocks"
 
 /**
  * test/fixtures/document/ の fixture を読む
  */
 export const readFixture = (name: string): string =>
-  readFileSync(path.join(__dirname, "../../fixtures/document", name), "utf8")
+  readFileSync(path.join(__dirname, "../fixtures/document", name), "utf8")
 
 /**
  * 英単語をちょうど count 語並べた文（"word" を空白でつなぐ。文字数は 5 * count - 1）
