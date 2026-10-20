@@ -1,19 +1,21 @@
+# .dockerignore のパターンはビルドのコンテキストの直下から照合するので、apps/* や packages/* の中にも効かせるものは **/ を付ける
+
 # Dependencies
-node_modules/
+**/node_modules/
 .pnp
 .pnp.js
 
 # Testing
-coverage/
+**/coverage/
 
 # Build output
-.next/
-out/
-dist/
-build/
+**/.next/
+**/out/
+**/dist/
+**/build/
 
 # Misc
-.DS_Store
+**/.DS_Store
 *.pem
 
 # Debug
@@ -23,11 +25,12 @@ yarn-error.log*
 pnpm-debug.log*
 
 # Local env files
-.env*.local
+**/.env*.local
+**/.env.keys
 secret
 
 # Turbo
-.turbo/
+**/.turbo/
 
 # Git
 .git
