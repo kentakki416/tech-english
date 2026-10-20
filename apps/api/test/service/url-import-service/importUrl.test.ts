@@ -5,7 +5,12 @@ import { importUrl } from "../../../src/service/url-import-service"
 import { buildChunk, buildFetchedPage } from "../../fixture/url-import"
 import { buildWebsiteSource, createMockContentSourceRepository } from "../content-source-service/fixtures"
 
-import { buildImportPassage, createMockPageFetcher, createMockUrlImportRepository } from "./fixtures"
+import {
+  buildImportPassage,
+  createMockPageFetcher,
+  createMockUrlImportPageCacheRepository,
+  createMockUrlImportRepository,
+} from "./fixtures"
 
 const NOW = new Date("2026-10-20T03:00:00.000Z")
 const PAGE_URL = "https://go.dev/doc/tutorial/getting-started"
@@ -15,13 +20,16 @@ const TX = { fake: "tx" } as unknown as TransactionContext
 const transactionRunner: TransactionRunner = { run: vi.fn(async (fn) => fn(TX)) }
 const contentSourceRepository = createMockContentSourceRepository()
 const urlImportRepository = createMockUrlImportRepository()
+const urlImportPageCacheRepository = createMockUrlImportPageCacheRepository()
 const pageFetcher = createMockPageFetcher()
-const repo = { contentSourceRepository, transactionRunner, urlImportRepository }
+const repo = { contentSourceRepository, transactionRunner, urlImportPageCacheRepository, urlImportRepository }
 const deps = { pageFetcher }
 
 describe("importUrl", () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    urlImportPageCacheRepository.find.mockResolvedValue(null)
+    urlImportPageCacheRepository.save.mockResolvedValue()
     contentSourceRepository.findAll.mockResolvedValue([buildWebsiteSource()])
     urlImportRepository.upsertFetchedDocument.mockResolvedValue({ id: DOCUMENT_ID })
     urlImportRepository.findDocumentPassages.mockResolvedValue([])
@@ -98,6 +106,17 @@ describe("importUrl", () => {
         reason: SUPERSEDED_PASSAGE_REJECT_REASON,
         sourceDocumentId: DOCUMENT_ID,
       }, TX)
+    })
+
+    it("確認で取得したページがキャッシュにあれば、サイトに取りに行かずにその内容を保存する", async () => {
+      urlImportPageCacheRepository.find.mockResolvedValue(buildFetchedPage({ chunks: [buildChunk({ contentHash: "hash-cached", title: "Cached" })] }))
+      urlImportRepository.insertCandidates.mockResolvedValue([101])
+
+      const result = await importUrl(PAGE_URL, NOW, repo, deps)
+
+      expect(result.ok).toBe(true)
+      expect(pageFetcher.fetchAndExtractPage).not.toHaveBeenCalled()
+      expect(urlImportRepository.insertCandidates.mock.calls[0][0].map((input) => input.contentHash)).toEqual(["hash-cached"])
     })
 
     it("生成した後に却下した見出しの塊は作らず、収集が外した却下の見出しの塊は作る", async () => {

@@ -110,7 +110,7 @@ import {
   DrizzleVocabularyRepository,
   DrizzleWordAudioRepository,
 } from "./repository/drizzle"
-import { IoRedisHealthRepository, IoRedisRefreshTokenRepository } from "./repository/redis"
+import { IoRedisHealthRepository, IoRedisRefreshTokenRepository, IoRedisUrlImportPageCacheRepository } from "./repository/redis"
 import { adminRouter, mountAdminApi } from "./routes/admin-router"
 import { attemptRouter } from "./routes/attempt-router"
 import { authRouter } from "./routes/auth-router"
@@ -181,6 +181,7 @@ const adminStatsRepository = new DrizzleAdminStatsRepository(db)
  * admin の URL の取り込み（url-import）
  */
 const urlImportRepository = new DrizzleUrlImportRepository(db)
+const urlImportPageCacheRepository = new IoRedisUrlImportPageCacheRepository(redis)
 /**
  * admin の認証（admin-template）
  */
@@ -196,7 +197,10 @@ const refreshTokenRepository = new IoRedisRefreshTokenRepository(redis)
 const gitHubOAuthClient = new GitHubOAuthClient(env.GITHUB_OAUTH_CLIENT_ID, env.GITHUB_OAUTH_CLIENT_SECRET)
 const googleOAuthClient = new GoogleOAuthClient(env.GOOGLE_CLIENT_ID, env.GOOGLE_CLIENT_SECRET)
 const gitHubLicenseClient = new GitHubLicenseClient(env.GITHUB_LICENSE_TOKEN)
-const pageFetcher = new PageFetcher(env.COLLECT_WEB_CONTACT_URL)
+/**
+ * 連絡先の URL は、未設定なら web のトップ（どの環境でも設定してある FRONTEND_URL）にする。api の実行環境に env を足さずに済ませるため
+ */
+const pageFetcher = new PageFetcher(env.COLLECT_WEB_CONTACT_URL ?? env.FRONTEND_URL)
 
 /**
  * 読み上げの音声の URL の base。production で AUDIO_PUBLIC_URL_BASE が無ければローカルにフォールバックせず null にする
@@ -333,10 +337,16 @@ const adminTagUpdateController = new AdminTagUpdateController(tagRepository)
 const adminUrlImportCreateController = new AdminUrlImportCreateController(
   contentSourceRepository,
   urlImportRepository,
+  urlImportPageCacheRepository,
   transactionRunner,
   pageFetcher,
 )
-const adminUrlImportPreviewController = new AdminUrlImportPreviewController(contentSourceRepository, urlImportRepository, pageFetcher)
+const adminUrlImportPreviewController = new AdminUrlImportPreviewController(
+  contentSourceRepository,
+  urlImportRepository,
+  urlImportPageCacheRepository,
+  pageFetcher,
+)
 
 /**
  * admin のダッシュボード（admin-dashboard）と、ユーザー管理（admin-users。マイページと同じ Repository を使う）の Controller のインスタンス化

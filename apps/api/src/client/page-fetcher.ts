@@ -3,9 +3,10 @@ import type { PassageChunk } from "@repo/content-extractor"
 import type { UrlImportErrorCode, WebsiteSource } from "@repo/domain"
 
 /**
- * 取得を始めてから打ち切るまで。API Gateway と Lambda の 29 秒に、抽出（jsdom で 1〜2 秒）・DB・コールドスタートの分を残して収める
+ * 取得を始めてから打ち切るまで。API Gateway と Lambda の 29 秒に、抽出・DB・コールドスタートの分を残して収める
+ * （抽出は HTML の上限の 2MB で手元 2.6 秒かかり、Lambda ではその数倍かかる）
  */
-const URL_IMPORT_FETCH_DEADLINE_MS = 20_000
+const URL_IMPORT_FETCH_DEADLINE_MS = 15_000
 
 /**
  * robots.txt の Crawl-delay の上限。収集の上限（30 秒）だと、1 回待つだけで取得の期限を過ぎる
@@ -44,7 +45,7 @@ export type PageFetchErrorCode = Exclude<UrlImportErrorCode, "github_source" | "
 export type PageFetchResult =
   | { kind: "ok"; page: FetchedPage }
   /**
-   * detail は admin に出す補足（HTTP のステータス・エラーのメッセージ）
+   * detail は admin に出す補足（HTTP のステータス・エラーのメッセージ・対象パスに合わなかったソースの表示名）
    */
   | { code: PageFetchErrorCode; detail: string | null; kind: "failed" }
 
@@ -125,7 +126,7 @@ export class PageFetcher implements IPageFetcher {
     const { source } = input
     const normalizedUrl = extractor.normalizePageUrl(input.url, source.siteUrl)
     if (normalizedUrl === null) return buildFailure("blocked_url", null)
-    if (!extractor.isPassageTargetUrl(normalizedUrl, source)) return buildFailure("out_of_target_path", null)
+    if (!extractor.isPassageTargetUrl(normalizedUrl, source)) return buildFailure("out_of_target_path", source.name)
 
     const client = new extractor.WebPageClient({
       allowedOrigin: source.siteUrl,

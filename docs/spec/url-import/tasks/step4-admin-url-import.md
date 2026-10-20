@@ -51,7 +51,7 @@ export const createUrlImportAction = async (_state: UrlImportState, formData: Fo
 | --- | --- |
 | `source_not_found` | このサイトのソースが登録されていません。先にソースを登録してください。（ソースの登録へのリンク） |
 | `github_source` | このサイトは GitHub のソースで収集しています。収集（collect:passages）で取り込んでください。 |
-| `out_of_target_path` | ソースの対象パスに合わないページです。ソースの対象パス・除外パスを確かめてください。 |
+| `out_of_target_path` | 「{ソースの表示名}」の対象パスに合わないページです。ソースの対象パス・除外パスを確かめてください（.pdf などのページでない拡張子も対象外です）。（ソースの一覧へのリンク。step5） |
 | `robots_disallowed` | robots.txt で取得が禁止されているページです。 |
 | `robots_unavailable` | robots.txt を読めませんでした。時間をおいてもう一度お試しください。 |
 | `crawl_delay_too_long` | サイトの robots.txt の Crawl-delay が長いため、この画面からは取得できません。 |
@@ -64,7 +64,7 @@ export const createUrlImportAction = async (_state: UrlImportState, formData: Fo
 | `too_many_redirects` | リダイレクトが多すぎます。 |
 | `redirected_out_of_target` | リダイレクトの行き先が、ソースの対象パスの外です。 |
 | `extraction_failed` | 本文を抽出できませんでした。ソースの本文の CSS セレクタを確かめてください。 |
-| `deadline_exceeded` | ページの取得が 20 秒以内に終わりませんでした。時間をおいてもう一度お試しください。 |
+| `deadline_exceeded` | ページの取得が 15 秒以内に終わりませんでした。時間をおいてもう一度お試しください。 |
 
 ### 画面（`UrlImportForm.tsx`）
 
@@ -73,7 +73,7 @@ export const createUrlImportAction = async (_state: UrlImportState, formData: Fo
 - 入力：URL（`inputClass`）と「確認する」。確認中はボタンを無効にして「確認しています…」
 - 確認の結果：
   - ソース（表示名・ライセンス）、ページ（タイトル・URL・英単語数）
-  - 塊の表：見出し、英単語数、保存したときにどうなるか（`new` は「本文候補になる」 success、`existing` は「本文候補がすでにある（生成を優先）」 info、`duplicated` は「同じ内容の問題がある」 light、`generated_section` は「同じ見出しの問題がある」 warning、`not_candidate` は「本文候補にならない」 light と理由）、冒頭の文
+  - 塊の表：見出し、英単語数、保存したときにどうなるか（`new` は「本文候補になる」 success、`existing` は「本文候補がすでにある（生成を優先）」 info、`duplicated` は「同じ内容の本文候補がある（{状態}）」 light（step5 で、`existing`・`duplicated` に「本文候補を開く」のリンク）、`generated_section` は「同じ見出しの問題がある」 warning、`not_candidate` は「本文候補にならない」 light と理由）、冒頭の文
   - 「本文候補として保存」（`new` か `existing` の塊が 1 つも無ければ無効）。押すと URL を hidden で送る
 - 保存の結果：作った件数・却下した件数、優先した本文候補の一覧（`/passages/{id}` へのリンク、新しく作ったものに「新規」のバッジ）、「次の問題の生成で、ほかの本文候補より先に生成します。」の案内。優先した本文候補が 0 件（確認の後にページか本文候補の状態が変わった）なら、そのことを案内する
 - 理由の文言（`not_candidate`）：`too_short` は「短すぎる」、`too_long` は「長すぎる」、`too_much_code` は「コードが多い」、`not_english` は「英語でない」、`not_prose` は「文章でない」
@@ -92,6 +92,7 @@ dev にサイトのソースが無いので、admin で登録する（無効の�
 | 取得方法 | 公式ドキュメントのサイト |
 | サイトの URL | `https://go.dev` |
 | ページの探し方 | 開始ページ `https://go.dev/doc/`（サイトのソースは sitemap か開始ページのどちらかが要る） |
+| 本文の CSS セレクタ | `article.Doc`（除外する CSS セレクタ `.SiteBreadcrumb`。設定しないと自動で本文を推定し、パンくずの `Documentation` が本文に入る） |
 | 対象パス | `/doc/**` |
 | ライセンス | `CC-BY-4.0`（ライセンスの記載がある URL は `https://go.dev/copyright`） |
 

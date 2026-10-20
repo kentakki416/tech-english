@@ -81,7 +81,7 @@ describe("PageFetcher.fetchAndExtractPage", () => {
 
       expect(mocks.WebPageClient).toHaveBeenCalledWith({
         allowedOrigin: "https://go.dev",
-        deadlineAt: NOW.getTime() + 20_000,
+        deadlineAt: NOW.getTime() + 15_000,
         maxCrawlDelaySeconds: 10,
         requestIntervalMs: 1000,
         userAgent: "TechEnglishBot/1.0 (+https://tech-english.example.com)",
@@ -116,10 +116,10 @@ describe("PageFetcher.fetchAndExtractPage", () => {
       ["対象パスの外", "https://go.dev/blog/"],
       ["除外パス", "https://go.dev/doc/devel/release"],
       ["ページでない拡張子", "https://go.dev/doc/gopher/frontpage.png"],
-    ])("%s の URL は out_of_target_path で、サイトにリクエストしない", async (_label, url) => {
+    ])("%s の URL は out_of_target_path（detail はソースの表示名）で、サイトにリクエストしない", async (_label, url) => {
       const result = await fetchAndExtract(url)
 
-      expect(result).toEqual({ code: "out_of_target_path", detail: null, kind: "failed" })
+      expect(result).toEqual({ code: "out_of_target_path", detail: "Go 公式ドキュメント", kind: "failed" })
       expect(mocks.WebPageClient).not.toHaveBeenCalled()
     })
 

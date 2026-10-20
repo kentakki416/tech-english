@@ -5,7 +5,7 @@ import { createUrlImportRequestSchema, createUrlImportResponseSchema } from "@re
 import type { IPageFetcher } from "../../../client/page-fetcher"
 import { parseRequest, parseResponse } from "../../../lib/parse-schema"
 import { sendError } from "../../../lib/send-error"
-import { ContentSourceRepository, TransactionRunner, UrlImportRepository } from "../../../repository"
+import { ContentSourceRepository, TransactionRunner, UrlImportPageCacheRepository, UrlImportRepository } from "../../../repository"
 import * as service from "../../../service"
 
 /**
@@ -15,6 +15,7 @@ export class AdminUrlImportCreateController {
   constructor(
     private _contentSourceRepository: ContentSourceRepository,
     private _urlImportRepository: UrlImportRepository,
+    private _urlImportPageCacheRepository: UrlImportPageCacheRepository,
     private _transactionRunner: TransactionRunner,
     private _pageFetcher: IPageFetcher,
   ) {}
@@ -25,6 +26,7 @@ export class AdminUrlImportCreateController {
     const result = await service.urlImport.importUrl(url, new Date(), {
       contentSourceRepository: this._contentSourceRepository,
       transactionRunner: this._transactionRunner,
+      urlImportPageCacheRepository: this._urlImportPageCacheRepository,
       urlImportRepository: this._urlImportRepository,
     }, { pageFetcher: this._pageFetcher })
 

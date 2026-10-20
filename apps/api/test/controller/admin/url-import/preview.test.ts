@@ -6,11 +6,12 @@ import type { IPageFetcher } from "../../../../src/client/page-fetcher"
 import { AdminUrlImportPreviewController } from "../../../../src/controller/admin/url-import/preview"
 import { DrizzleContentSourceRepository } from "../../../../src/repository/drizzle/content-source-repository"
 import { DrizzleUrlImportRepository } from "../../../../src/repository/drizzle/url-import-repository"
+import { IoRedisUrlImportPageCacheRepository } from "../../../../src/repository/redis/url-import-page-cache-repository"
 import { adminRouter, mountAdminApi } from "../../../../src/routes/admin-router"
 import { insertPassage } from "../../../fixture/passage"
 import { buildChunk, buildFetchedPage } from "../../../fixture/url-import"
 import { attachUnhandledExceptionHandler, createTestAdmin, createTestApp } from "../../helper"
-import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb } from "../../setup"
+import { cleanupTestData, cleanupTestRedis, disconnectTestDb, disconnectTestRedis, testDb, testRedis } from "../../setup"
 import { insertSourceDocument, insertWebsiteSource } from "../content-source/fixtures"
 
 /**
@@ -27,6 +28,7 @@ mountAdminApi(app, adminRouter({
     preview: new AdminUrlImportPreviewController(
       new DrizzleContentSourceRepository(testDb),
       new DrizzleUrlImportRepository(testDb),
+      new IoRedisUrlImportPageCacheRepository(testRedis),
       fakePageFetcher,
     ),
   },
@@ -37,12 +39,14 @@ let adminToken: string
 
 beforeEach(async () => {
   await cleanupTestData()
+  await cleanupTestRedis()
   adminToken = (await createTestAdmin()).token
   vi.clearAllMocks()
 })
 
 afterAll(async () => {
   await cleanupTestData()
+  await cleanupTestRedis()
   await disconnectTestDb()
   await disconnectTestRedis()
 })
@@ -52,7 +56,7 @@ describe("POST /api/admin/url-import/preview", () => {
     it("200 で、当たったソース・ページ・塊ごとの結果を返し、DB に書かない", async () => {
       const source = await insertWebsiteSource()
       const document = await insertSourceDocument(source.id, "/doc/tutorial/getting-started")
-      await insertPassage(document.id, { contentHash: "hash-collected", generatedAt: null, status: "collected", title: "Collected" })
+      const collected = await insertPassage(document.id, { contentHash: "hash-collected", generatedAt: null, status: "collected", title: "Collected" })
       mockFetchAndExtractPage.mockResolvedValue({
         kind: "ok",
         page: buildFetchedPage({
@@ -75,6 +79,7 @@ describe("POST /api/admin/url-import/preview", () => {
           {
             excerpt: "In this tutorial, you'll get a brief introduction to Go programming.",
             reject_reasons: [],
+            same_content_passage: null,
             status: "new",
             title: "New",
             word_count: 150,
@@ -82,11 +87,12 @@ describe("POST /api/admin/url-import/preview", () => {
           {
             excerpt: "In this tutorial, you'll get a brief introduction to Go programming.",
             reject_reasons: [],
+            same_content_passage: { id: collected.id, status: "collected" },
             status: "existing",
             title: "Collected",
             word_count: 150,
           },
-          { excerpt: "", reject_reasons: ["too_short"], status: "not_candidate", title: "Short", word_count: 3 },
+          { excerpt: "", reject_reasons: ["too_short"], same_content_passage: null, status: "not_candidate", title: "Short", word_count: 3 },
         ],
         page: { path: "/doc/tutorial/getting-started", title: "Tutorial: Get started with Go", url: PAGE_URL, word_count: 900 },
         source: { id: source.id, license_spdx: "CC-BY-4.0", name: "Go 公式ドキュメント" },
@@ -97,6 +103,19 @@ describe("POST /api/admin/url-import/preview", () => {
         url: `${PAGE_URL}?lang=en`,
       })
       expect(await testDb.$count(sourceDocuments)).toBe(1)
+    })
+
+    it("同じ URL を続けて確認すると、2 回目はサイトに取りに行かない", async () => {
+      await insertWebsiteSource()
+      mockFetchAndExtractPage.mockResolvedValue({ kind: "ok", page: buildFetchedPage() })
+      const send = async () => request(app).post("/api/admin/url-import/preview").set("Authorization", `Bearer ${adminToken}`).send({ url: PAGE_URL })
+
+      const first = await send()
+      const second = await send()
+
+      expect(second.status).toBe(200)
+      expect(second.body).toEqual(first.body)
+      expect(mockFetchAndExtractPage).toHaveBeenCalledTimes(1)
     })
   })
 

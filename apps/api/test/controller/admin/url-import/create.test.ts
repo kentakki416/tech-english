@@ -7,11 +7,12 @@ import { AdminUrlImportCreateController } from "../../../../src/controller/admin
 import { DrizzleContentSourceRepository } from "../../../../src/repository/drizzle/content-source-repository"
 import { DrizzleTransactionRunner } from "../../../../src/repository/drizzle/transaction-runner"
 import { DrizzleUrlImportRepository } from "../../../../src/repository/drizzle/url-import-repository"
+import { IoRedisUrlImportPageCacheRepository } from "../../../../src/repository/redis/url-import-page-cache-repository"
 import { adminRouter, mountAdminApi } from "../../../../src/routes/admin-router"
 import { insertPassage } from "../../../fixture/passage"
 import { buildChunk, buildFetchedPage } from "../../../fixture/url-import"
 import { attachUnhandledExceptionHandler, createTestAdmin, createTestApp } from "../../helper"
-import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb } from "../../setup"
+import { cleanupTestData, cleanupTestRedis, disconnectTestDb, disconnectTestRedis, testDb, testRedis } from "../../setup"
 import { insertSourceDocument, insertWebsiteSource } from "../content-source/fixtures"
 
 /**
@@ -29,6 +30,7 @@ mountAdminApi(app, adminRouter({
     create: new AdminUrlImportCreateController(
       new DrizzleContentSourceRepository(testDb),
       new DrizzleUrlImportRepository(testDb),
+      new IoRedisUrlImportPageCacheRepository(testRedis),
       new DrizzleTransactionRunner(testDb),
       fakePageFetcher,
     ),
@@ -40,12 +42,14 @@ let adminToken: string
 
 beforeEach(async () => {
   await cleanupTestData()
+  await cleanupTestRedis()
   adminToken = (await createTestAdmin()).token
   vi.clearAllMocks()
 })
 
 afterAll(async () => {
   await cleanupTestData()
+  await cleanupTestRedis()
   await disconnectTestDb()
   await disconnectTestRedis()
 })

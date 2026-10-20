@@ -25,7 +25,7 @@ const apiEnvSchema = z.object({
 
   /**
    * URL の取り込み（POST /api/admin/url-import）で、サイトに送る User-Agent に入れるサービスのトップの URL（`TechEnglishBot/1.0 (+{url})`）。
-   * cron の収集と同じ値にする。未設定なら `TechEnglishBot/1.0` だけを送る
+   * 未設定なら FRONTEND_URL を使う
    */
   COLLECT_WEB_CONTACT_URL: z.string().url().optional(),
 
