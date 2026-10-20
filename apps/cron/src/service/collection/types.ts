@@ -5,9 +5,9 @@ import type { ContentSourceRepository, PassageRepository, SourceDocumentReposito
 export type CollectionRepo = {
   contentSourceRepository: ContentSourceRepository
   /**
-   * 収集は本文候補の挿入だけを使う（問題生成のメソッドに依存させない）
+   * 収集は本文候補の挿入と、見出しの確認、collected の却下だけを使う（問題生成のメソッドに依存させない）
    */
-  passageRepository: Pick<PassageRepository, "insertIgnoringDuplicates">
+  passageRepository: Pick<PassageRepository, "findGeneratedOrGeneratingTitles" | "insertIgnoringDuplicates" | "rejectCollected">
   sourceDocumentRepository: SourceDocumentRepository
 }
 

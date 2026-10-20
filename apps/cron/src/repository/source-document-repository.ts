@@ -8,6 +8,10 @@ export type MarkFetchedInput = {
   commitSha: string | null
   contentHash: string | null
   etag: string | null
+  /**
+   * 切り分けた抽出の版（EXTRACTION_VERSION）
+   */
+  extractionVersion: string
   fetchedAt: Date
   httpStatus: number | null
   lastModified: string | null
@@ -36,6 +40,10 @@ export interface SourceDocumentRepository {
    * 並びは fetched_at の昇順（NULL が先）→ id
    */
   findFetchQueue(input: { limit: number; refetchBefore: Date; sourceId: number }): Promise<SourceDocument[]>
+  /**
+   * collected の本文候補を持つ文書（id の昇順）。サイトは対象パス外のページ（リンクをたどるための行）が多いので、全行を読まずに済ませる
+   */
+  findWithCollectedPassages(sourceId: number): Promise<SourceDocument[]>
   markFetched(id: number, input: MarkFetchedInput): Promise<void>
   /**
    * fetched_at と http_status だけを更新する（サイトの 304 / HTTP エラー / 取得しなかったページ）

@@ -110,6 +110,35 @@ describe("DrizzleSourceDocumentRepository", () => {
     })
   })
 
+  describe("findWithCollectedPassages", () => {
+    describe("正常系", () => {
+      it("collected の本文候補を持つ文書を id の昇順で返す", async () => {
+        const row = buildRow()
+        const orderBy = vi.fn(async (..._columns: unknown[]) => [row])
+        const where = vi.fn((_condition: unknown) => ({ orderBy }))
+        const from = vi.fn((_table: unknown) => ({ where }))
+        const db = { select: vi.fn(() => ({ from })) } as unknown as DrizzleClient
+
+        const documents = await new DrizzleSourceDocumentRepository(db).findWithCollectedPassages(2)
+
+        expect(documents).toEqual([row])
+        const [condition] = where.mock.calls[0] as [never]
+        const query = renderClient
+          .select()
+          .from(sourceDocuments)
+          .where(condition)
+          .orderBy(...(orderBy.mock.calls[0] as never[]))
+          .toSQL()
+        expect(normalizeParams(query.sql)).toContain([
+          "where ((\"source_documents\".\"source_id\" = $?) and (EXISTS (SELECT 1 FROM \"passages\"",
+          " WHERE \"passages\".\"source_document_id\" = \"source_documents\".\"id\" AND \"passages\".\"status\" = 'collected')))",
+          " order by \"source_documents\".\"id\" asc",
+        ].join(""))
+        expect(query.params).toEqual([2])
+      })
+    })
+  })
+
   describe("upsertDiscovered", () => {
     describe("正常系", () => {
       it("(source_id, path) で upsert し、sitemap_lastmod は新しい値があるときだけ、http_status は 404 / 410 で戻すときだけ更新する", async () => {
@@ -207,13 +236,14 @@ describe("DrizzleSourceDocumentRepository", () => {
 
   describe("markFetched", () => {
     describe("正常系", () => {
-      it("取得の結果を id の行に書く", async () => {
+      it("取得の結果と抽出の版を id の行に書く", async () => {
         const fake = createFakeDb([])
         const input = {
           blobSha: "blob-sha",
           commitSha: "commit-sha",
           contentHash: null,
           etag: null,
+          extractionVersion: "2026-10-20.1",
           fetchedAt: CREATED_AT,
           httpStatus: null,
           lastModified: null,

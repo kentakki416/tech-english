@@ -8,11 +8,13 @@ import {
   type SitemapUrl,
   WebSourceThrottledError,
 } from "../../client/web"
-import { COLLECT_RUN_INTERVAL_MS, MAX_CONSECUTIVE_NETWORK_ERRORS } from "../../const/collection"
-import type { ExtractedDocument } from "../../lib/document"
+import { COLLECT_RUN_INTERVAL_MS, GONE_HTTP_STATUSES, MAX_CONSECUTIVE_NETWORK_ERRORS } from "../../const/collection"
+import { EXTRACTION_VERSION, type ExtractedDocument } from "../../lib/document"
 import { isTargetPath } from "../../lib/path-filter"
 import type { DiscoveredDocumentInput } from "../../repository"
 
+import { rejectOutOfTargetPassages } from "./reject-out-of-target-passages"
+import { replacePassageCandidates } from "./replace-passage-candidates"
 import type { CollectionDeps, CollectionRepo, SourceCollectionResult, SourceCollectionStatus } from "./types"
 import {
   buildPageUrl,
@@ -48,6 +50,14 @@ type Progress = {
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000
+
+/**
+ * 切り分けたときの抽出の版が今と違うか（未取得・列を足す前に取得したページを含む）
+ */
+const isExtractionOutdated = (document: SourceDocument): boolean => document.extractionVersion !== EXTRACTION_VERSION
+
+const isGonePage = (document: SourceDocument): boolean =>
+  document.httpStatus !== null && GONE_HTTP_STATUSES.includes(document.httpStatus)
 
 /**
  * Retry-After（秒数か HTTP の日時）を日時にする。読めなければ null
@@ -164,9 +174,9 @@ const extractPageSafely = (
  *
  * 1. 本文を抽出する。失敗したら（不正な CSS セレクタなど）markResponse で取得の時刻だけ記録して終える
  * 2. ページ内のリンクのうち取得してよいものを未取得の行として入れる（404 / 410 の行は対象に戻す）
- * 3. 対象パスのページで、本文のハッシュが前回と違えば本文候補を挿入する。開始ページなど対象パス外のページと、
- *    リダイレクトの行き先が対象パス外・除外パス・ページでない拡張子のページはリンクだけ使う
- * 4. 最後に markFetched（ハッシュ・ETag・Last-Modified の記録）。途中で落ちても次回やり直し、挿入済みの本文候補は unique で弾く
+ * 3. 対象パスのページで、本文のハッシュが前回と違うか、切り分けたときの抽出の版が古ければ本文候補を保存する（前の切り分けの collected は却下する）。
+ *    開始ページなど対象パス外のページと、リダイレクトの行き先が対象パス外・除外パス・ページでない拡張子のページはリンクだけ使う
+ * 4. 最後に markFetched（ハッシュ・ETag・Last-Modified・抽出の版の記録）。途中で落ちても次回やり直し、挿入済みの本文候補は unique で弾く
  */
 const savePage = async (
   input: { client: IWebPageClient; document: SourceDocument; now: Date; page: Extract<FetchPageResult, { kind: "ok" }>; source: WebsiteSource },
@@ -201,26 +211,25 @@ const savePage = async (
       sourceId: source.id,
     })
   }
-  const shouldCreatePassages = isTargetPage && !isRedirectedOutOfTarget && extracted.contentHash !== document.contentHash
+  const shouldCreatePassages = isTargetPage
+    && !isRedirectedOutOfTarget
+    && (extracted.contentHash !== document.contentHash || isExtractionOutdated(document))
   const createdPassageCount = shouldCreatePassages
-    ? await repo.passageRepository.insertIgnoringDuplicates(
-      extracted.candidates.map((candidate) => ({
-        blocks: candidate.blocks,
-        contentHash: candidate.contentHash,
-        sourceCommitSha: null,
-        sourceDocumentId: document.id,
-        sourcePath: document.path,
-        sourceRetrievedAt: now,
-        title: candidate.title,
-        wordCount: candidate.wordCount,
-      })),
-    )
+    ? await replacePassageCandidates({
+      candidates: extracted.candidates,
+      documentId: document.id,
+      now,
+      sourceCommitSha: null,
+      sourceId: source.id,
+      sourcePath: document.path,
+    }, repo)
     : 0
   await repo.sourceDocumentRepository.markFetched(document.id, {
     blobSha: null,
     commitSha: null,
     contentHash: extracted.contentHash,
     etag: page.etag,
+    extractionVersion: EXTRACTION_VERSION,
     fetchedAt: now,
     httpStatus: page.status,
     lastModified: page.lastModified,
@@ -230,7 +239,8 @@ const savePage = async (
 }
 
 /**
- * ページを取得する。429 / 503（WebSourceThrottledError）は、その行に試した時刻を記録してから throw し直す
+ * ページを取得する。切り分けたときの抽出の版が古いページは、304 で止まらないよう条件付きリクエストを送らない。
+ * 429 / 503（WebSourceThrottledError）は、その行に試した時刻を記録してから throw し直す
  * （記録しないと次回も同じ行が先頭に来て、429 / 503 を返し続けるページがソース全体を止めるため）
  */
 const fetchPageRecordingThrottle = async (
@@ -239,7 +249,12 @@ const fetchPageRecordingThrottle = async (
 ): Promise<FetchPageResult> => {
   const { client, document, now, url } = input
   try {
-    return await client.fetchPage(url, { etag: document.etag, lastModified: document.lastModified })
+    return await client.fetchPage(
+      url,
+      isExtractionOutdated(document)
+        ? { etag: null, lastModified: null }
+        : { etag: document.etag, lastModified: document.lastModified },
+    )
   } catch (error) {
     if (error instanceof WebSourceThrottledError) {
       await repo.sourceDocumentRepository.markResponse(document.id, { fetchedAt: now, httpStatus: error.status })
@@ -302,10 +317,12 @@ const fetchQueuedDocuments = async (
 /**
  * 公式ドキュメントのサイトのソースを 1 つ収集する。source_documents をクロールの待ち行列として使う。
  *
- * 1. robots.txt を読む（読めなければ throw。Crawl-delay が上限を超えていれば crawl_delay_too_long で打ち切る）
- * 2. sitemap と開始ページから URL を見つけて未取得の行として入れる
- * 3. 取得待ちの行（未取得 → 取得から refetchDays 日たったもの）を maxDocuments 件まで、条件付きリクエストで取得する
- * 4. 200 のページはリンクを未取得の行として入れ、本文のハッシュが前回と違えば本文候補を作る
+ * 1. 対象パスから外れたページと 404 / 410 のページの collected を却下する（404 / 410 になったページは、その次の回で却下する）
+ * 2. robots.txt を読む（読めなければ throw。Crawl-delay が上限を超えていれば crawl_delay_too_long で打ち切る）
+ * 3. sitemap と開始ページから URL を見つけて未取得の行として入れる
+ * 4. 取得待ちの行（未取得 → 取得から refetchDays 日たったもの）を maxDocuments 件まで、条件付きリクエストで取得する
+ *    （抽出の版が古いページは条件を付けない）
+ * 5. 200 のページはリンクを未取得の行として入れ、本文のハッシュが前回と違うか抽出の版が古ければ本文候補を作る
  *
  * Crawl-delay が上限を超えるサイトと 429 / 503 はそのソースを打ち切る（失敗にしない）。
  * 取得先の制限（BlockedUrlError）と robots.txt の読込み失敗は throw する。
@@ -319,6 +336,10 @@ export const collectWebsiteSource = async (
   const { now, source } = input
   const client = deps.createWebPageClient(source.siteUrl)
   const progress: Progress = { createdPassageCount: 0, fetchedDocumentCount: 0 }
+  await rejectOutOfTargetPassages({
+    isOutOfTarget: (document) => !isTargetPath(document.path, source) || isGonePage(document),
+    sourceId: source.id,
+  }, repo)
   let status: SourceCollectionStatus
   try {
     await client.loadRobots()

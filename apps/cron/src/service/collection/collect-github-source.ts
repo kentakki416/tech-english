@@ -1,11 +1,14 @@
-import type { GitHubRepositorySource } from "@repo/domain"
+import type { GitHubRepositorySource, SourceDocument } from "@repo/domain"
 import { logger } from "@repo/logger"
 
 import type { GitHubTreeEntry } from "../../client/github"
-import type { ExtractedDocument } from "../../lib/document"
+import { EXTRACTION_VERSION, type ExtractedDocument } from "../../lib/document"
+import { isTargetPath } from "../../lib/path-filter"
 
 import { extractGitHubFile } from "./extract-github-file"
 import { listGitHubTargetFiles } from "./list-github-target-files"
+import { rejectOutOfTargetPassages } from "./reject-out-of-target-passages"
+import { replacePassageCandidates } from "./replace-passage-candidates"
 import type { CollectionDeps, CollectionRepo, SourceCollectionResult, SourceCollectionStatus } from "./types"
 
 export type CollectGitHubSourceInput = {
@@ -59,9 +62,15 @@ const extractFileSafely = (file: GitHubTreeEntry, content: string, sourceId: num
 }
 
 /**
+ * 取得して切り分ける（し直す）ファイルか。未取得、blob SHA が変わった、切り分けたときの抽出の版が今と違う
+ */
+const isFileToExtract = (file: GitHubTreeEntry, document: SourceDocument | undefined): boolean =>
+  document === undefined || document.blobSha !== file.sha || document.extractionVersion !== EXTRACTION_VERSION
+
+/**
  * 1 ファイルを取得して本文候補を保存し、作った本文候補の件数を返す。
- * markFetched（blob SHA の記録）は本文候補の挿入の後に呼ぶ。途中で落ちても blob SHA が古いままなので次回やり直され、
- * 挿入済みの本文候補は content_hash の unique で弾かれる（冪等）
+ * markFetched（blob SHA・抽出の版の記録）は本文候補の保存の後に呼ぶ。途中で落ちても blob SHA・版が古いままなので次回やり直され、
+ * 挿入済みの本文候補は content_hash の unique で弾かれる（冪等）。抽出に失敗したファイルも版を記録する（ファイルか版が変わるまで再試行しない）
  */
 const collectFile = async (
   input: { commitSha: string; file: GitHubTreeEntry; now: Date; source: GitHubRepositorySource },
@@ -73,23 +82,22 @@ const collectFile = async (
   const extracted = extractFileSafely(file, content, source.id)
   const title = extracted?.title ?? null
   const document = await repo.sourceDocumentRepository.upsertByPath({ path: file.path, sourceId: source.id, title })
-  const createdPassageCount = await repo.passageRepository.insertIgnoringDuplicates(
-    (extracted?.candidates ?? []).map((candidate) => ({
-      blocks: candidate.blocks,
-      contentHash: candidate.contentHash,
+  const createdPassageCount = extracted === null
+    ? 0
+    : await replacePassageCandidates({
+      candidates: extracted.candidates,
+      documentId: document.id,
+      now,
       sourceCommitSha: commitSha,
-      sourceDocumentId: document.id,
+      sourceId: source.id,
       sourcePath: file.path,
-      sourceRetrievedAt: now,
-      title: candidate.title,
-      wordCount: candidate.wordCount,
-    })),
-  )
+    }, repo)
   await repo.sourceDocumentRepository.markFetched(document.id, {
     blobSha: file.sha,
     commitSha,
     contentHash: extracted?.contentHash ?? null,
     etag: null,
+    extractionVersion: EXTRACTION_VERSION,
     fetchedAt: now,
     httpStatus: null,
     lastModified: null,
@@ -101,13 +109,14 @@ const collectFile = async (
 /**
  * GitHub リポジトリのソースを 1 つ収集する。
  *
- * 1. 最新コミットの SHA が前回（last_collected_commit_sha）と同じなら up_to_date で終える
- * 2. コミットのツリーから対象のファイルを列挙し、source_documents の blob SHA と比べて新規・変更されたものだけ残す
- * 3. 上限・rate limit に掛かるまで、ファイルごとに本文を取得して本文候補を保存する
- * 4. 全件処理でき、ツリーも完全なら completed として commit SHA を記録する（それ以外は記録せず、次回に続きから処理する）。
+ * 1. 最新コミットの SHA と抽出の版が前回（last_collected_commit_sha・last_collected_extraction_version）と同じなら up_to_date で終える
+ * 2. コミットのツリーから対象のファイルを列挙し、列挙に無い文書（取得元から消えた・対象パスから外れた）の collected を却下する
+ * 3. source_documents の blob SHA・抽出の版と比べて、新規・変更されたものと版が古いものだけ残す
+ * 4. 上限・rate limit に掛かるまで、ファイルごとに本文を取得して本文候補を保存する
+ * 5. 全件処理でき、ツリーも完全なら completed として commit SHA と抽出の版を記録する（それ以外は記録せず、次回に続きから処理する）。
  *    収集の途中で last_collected_commit_sha が変えられていたら記録しない（楽観ロック）
  *
- * 取得元から消えたファイルの source_documents / passages は何もしない（公開済みの問題は残す）
+ * 取得元から消えたファイルの source_documents と、下書き・公開済みの本文候補は残す（公開済みの問題は残す）
  */
 export const collectGitHubSource = async (
   input: CollectGitHubSourceInput,
@@ -116,18 +125,27 @@ export const collectGitHubSource = async (
 ): Promise<SourceCollectionResult> => {
   const { now, source } = input
   const commitSha = await deps.githubContentClient.getLatestCommitSha(source.repository, source.branch)
-  if (commitSha === source.lastCollectedCommitSha) {
+  if (commitSha === source.lastCollectedCommitSha && source.lastCollectedExtractionVersion === EXTRACTION_VERSION) {
     await repo.contentSourceRepository.markCollected(source.id, { lastCollectedAt: now })
     return { createdPassageCount: 0, fetchedDocumentCount: 0, status: "up_to_date" }
   }
 
   const { files, isComplete } = await listGitHubTargetFiles({ commitSha, source }, deps)
+  const listedPaths = new Set(files.map((file) => file.path))
+  /**
+   * ツリーが切り詰められていたら、列挙できなかっただけのファイルを消えたとみなさないよう、対象パスから外れた文書だけを却下する
+   */
+  await rejectOutOfTargetPassages({
+    isOutOfTarget: (document) => !listedPaths.has(document.path) && (isComplete || !isTargetPath(document.path, source)),
+    sourceId: source.id,
+  }, repo)
   const documents = await repo.sourceDocumentRepository.findBySourceId(source.id)
-  const blobShaByPath = new Map(documents.map((document) => [document.path, document.blobSha]))
-  const changedFiles = files.filter((file) => blobShaByPath.get(file.path) !== file.sha)
+  const documentByPath = new Map(documents.map((document) => [document.path, document]))
+  const changedFiles = files.filter((file) => isFileToExtract(file, documentByPath.get(file.path)))
   logger.info("GitHub source files listed", {
     changedFileCount: changedFiles.length,
     commitSha,
+    extractionVersion: EXTRACTION_VERSION,
     isComplete,
     sourceId: source.id,
     targetFileCount: files.length,
@@ -153,7 +171,14 @@ export const collectGitHubSource = async (
   const isRecorded = await repo.contentSourceRepository.markCollected(
     source.id,
     status === "completed"
-      ? { lastCollectedAt: now, lastCollectedCommitSha: { expected: source.lastCollectedCommitSha, next: commitSha } }
+      ? {
+        lastCollectedAt: now,
+        lastCollectedCommit: {
+          expectedSha: source.lastCollectedCommitSha,
+          extractionVersion: EXTRACTION_VERSION,
+          nextSha: commitSha,
+        },
+      }
       : { lastCollectedAt: now },
   )
   if (status === "completed" && !isRecorded) {

@@ -271,6 +271,29 @@ describe("DrizzlePassageRepository", () => {
     })
   })
 
+  describe("findGeneratedOrGeneratingTitles", () => {
+    describe("正常系", () => {
+      it("文書の本文候補のうち、生成中・下書き・公開済みと、生成した後に却下したものの見出しを重複を除いて返す", async () => {
+        const where = vi.fn(async (_condition: unknown) => [{ title: "Refs" }, { title: "Effects" }])
+        const from = vi.fn((_table: unknown) => ({ where }))
+        const selectDistinct = vi.fn((_selection: unknown) => ({ from }))
+        const db = { selectDistinct } as unknown as DrizzleClient
+
+        const titles = await new DrizzlePassageRepository(db).findGeneratedOrGeneratingTitles(10)
+
+        expect(titles).toEqual(["Refs", "Effects"])
+        expect(from).toHaveBeenCalledWith(passages)
+        const [condition] = where.mock.calls[0] as [never]
+        const query = renderClient.select().from(passages).where(condition).toSQL()
+        expect(normalizeParams(query.sql)).toContain([
+          "where ((\"passages\".\"source_document_id\" = $?) and (((\"passages\".\"status\" in ($?, $?, $?))",
+          " or (((\"passages\".\"status\" = $?) and ((\"passages\".\"generated_at\" is not null)))))))",
+        ].join(""))
+        expect(query.params).toEqual([10, "draft", "generating", "published", "rejected"])
+      })
+    })
+  })
+
   describe("findStatusById", () => {
     describe("正常系", () => {
       it("行の状態を返し、行が無ければ null", async () => {
@@ -343,6 +366,57 @@ describe("DrizzlePassageRepository", () => {
 
         expect(await repository.recordGenerationFailure(CLAIM, { error: "e", maxAttempts: 3 })).toBe("collected")
         expect(await staleRepository.recordGenerationFailure(CLAIM, { error: "e", maxAttempts: 3 })).toBeNull()
+      })
+    })
+  })
+
+  describe("rejectCollected", () => {
+    describe("正常系", () => {
+      it("文書の collected のうち content_hash が keepContentHashes に無いものを、理由つきで rejected にして件数を返す", async () => {
+        const fake = createFakeUpdateDb([{ id: 1 }, { id: 2 }])
+
+        const rejectedCount = await new DrizzlePassageRepository(fake.db).rejectCollected({
+          keepContentHashes: ["hash-a", "hash-b"],
+          reason: "切り分け直した",
+          sourceDocumentIds: [10],
+        })
+
+        expect(rejectedCount).toBe(2)
+        expect(fake.set).toHaveBeenCalledWith({ rejectReason: "切り分け直した", status: "rejected" })
+        const { params, sql } = renderUpdate(fake)
+        expect(sql).toContain([
+          "where ((\"passages\".\"source_document_id\" in ($?)) and (\"passages\".\"status\" = $?)",
+          " and (\"passages\".\"content_hash\" not in ($?, $?)))",
+        ].join(""))
+        expect(params.slice(-4)).toEqual([10, "collected", "hash-a", "hash-b"])
+      })
+
+      it("keepContentHashes が空なら not in を付けず、文書の collected をすべて rejected にする", async () => {
+        const fake = createFakeUpdateDb([{ id: 1 }])
+
+        await new DrizzlePassageRepository(fake.db).rejectCollected({
+          keepContentHashes: [],
+          reason: "対象外",
+          sourceDocumentIds: [10, 11],
+        })
+
+        const { params, sql } = renderUpdate(fake)
+        expect(sql).toContain("where ((\"passages\".\"source_document_id\" in ($?, $?)) and (\"passages\".\"status\" = $?))")
+        expect(sql).not.toContain("not in")
+        expect(params.slice(-3)).toEqual([10, 11, "collected"])
+      })
+
+      it("sourceDocumentIds が空なら UPDATE せずに 0 を返す", async () => {
+        const fake = createFakeUpdateDb([])
+
+        const rejectedCount = await new DrizzlePassageRepository(fake.db).rejectCollected({
+          keepContentHashes: [],
+          reason: "対象外",
+          sourceDocumentIds: [],
+        })
+
+        expect(rejectedCount).toBe(0)
+        expect(fake.update).not.toHaveBeenCalled()
       })
     })
   })

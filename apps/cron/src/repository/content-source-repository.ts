@@ -6,12 +6,13 @@ import type { ContentSource } from "@repo/domain"
 export type MarkCollectedInput = {
   lastCollectedAt: Date
   /**
-   * GitHub のみ。全件処理できたときだけ渡す（省略したら last_collected_commit_sha は変えない）。
-   * last_collected_commit_sha が expected（収集を始めたときに読んだ値。null は未収集）のままのときだけ next に書き換える楽観ロック。
+   * GitHub のみ。全件処理できたときだけ渡す（省略したら last_collected_commit_sha・last_collected_extraction_version は変えない）。
+   * last_collected_commit_sha が expectedSha（収集を始めたときに読んだ値。null は未収集）のままのときだけ、
+   * nextSha と extractionVersion を一緒に書く楽観ロック。
    * 収集の途中で admin が収集の範囲を変えて null に戻していたら、last_collected_at も含めて何も書かずに false を返す
    * （古い SHA を書き戻すと、変えた範囲が次のコミットまで収集されないため）
    */
-  lastCollectedCommitSha?: { expected: string | null; next: string }
+  lastCollectedCommit?: { expectedSha: string | null; extractionVersion: string; nextSha: string }
 }
 
 /**
