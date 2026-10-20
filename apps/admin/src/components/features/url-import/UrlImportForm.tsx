@@ -6,19 +6,19 @@ import { type FormEvent, startTransition, useActionState, useState } from "react
 import type { CreateUrlImportResponse, PreviewUrlImportResponse } from "@repo/api-schema"
 
 import { createUrlImportAction, previewUrlImportAction, type UrlImportState } from "@/app/(dashboard)/url-import/actions"
+import ComponentCard from "@/components/layout/ComponentCard"
 import Badge from "@/components/ui/badge/Badge"
+import { tableHeadCellClass } from "@/components/ui/table/LinkTableParts"
 import {
   CHUNK_REJECT_REASON_LABELS,
   isImportableChunk,
   URL_IMPORT_CHUNK_STATUS_LABELS,
 } from "@/features/url-import/url-import.labels"
-import { cardBodyClass, cardClass, descClass, hintClass, inputClass, labelClass, primaryButtonClass, titleClass } from "@/libs/ui-classes"
+import { hintClass, inputClass, labelClass, primaryButtonClass } from "@/libs/ui-classes"
 
 const INITIAL_STATE: UrlImportState = { status: "idle" }
 
 type UrlImportIntent = "create" | "preview"
-
-const headerCellClass = "px-5 py-3 text-left text-theme-xs font-medium whitespace-nowrap text-gray-500 dark:text-gray-400"
 
 const bodyCellClass = "px-5 py-4 align-top text-theme-sm text-gray-700 dark:text-gray-300"
 
@@ -29,18 +29,6 @@ const dispatchUrlImportAction = async (state: UrlImportState, formData: FormData
   formData.get("intent") === "create"
     ? createUrlImportAction(state, formData)
     : previewUrlImportAction(state, formData)
-
-function Card({ children, desc, title }: { children: React.ReactNode, desc?: string, title: string }) {
-  return (
-    <section className={cardClass}>
-      <div className="px-6 py-5">
-        <h3 className={titleClass}>{title}</h3>
-        {desc && <p className={descClass}>{desc}</p>}
-      </div>
-      <div className={cardBodyClass}>{children}</div>
-    </section>
-  )
-}
 
 function ErrorMessage({ state }: { state: Extract<UrlImportState, { status: "error" }> }) {
   return (
@@ -62,7 +50,7 @@ function PreviewResult({ isPending, isSaving, preview, url, onSubmit }: {
 }) {
   const hasImportableChunk = preview.chunks.some(isImportableChunk)
   return (
-    <Card desc="保存するまで DB には書きません。保存のときにページをもう一度取得します。" title="確認の結果">
+    <ComponentCard desc="保存するまで DB には書きません。保存のときにページをもう一度取得します。" title="確認の結果">
       <dl className="grid gap-4 text-sm sm:grid-cols-2">
         <div>
           <dt className="text-gray-500 dark:text-gray-400">ソース</dt>
@@ -79,14 +67,14 @@ function PreviewResult({ isPending, isSaving, preview, url, onSubmit }: {
         </div>
       </dl>
 
-      <div className="mt-6 overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-800">
+      <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-800">
         <table className="min-w-full">
           <thead className="border-b border-gray-100 dark:border-gray-800">
             <tr>
-              <th className={headerCellClass} scope="col">見出し</th>
-              <th className={headerCellClass} scope="col">英単語数</th>
-              <th className={headerCellClass} scope="col">保存したときにどうなるか</th>
-              <th className={headerCellClass} scope="col">冒頭の文</th>
+              <th className={tableHeadCellClass} scope="col">見出し</th>
+              <th className={tableHeadCellClass} scope="col">英単語数</th>
+              <th className={tableHeadCellClass} scope="col">保存したときにどうなるか</th>
+              <th className={tableHeadCellClass} scope="col">冒頭の文</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -112,7 +100,7 @@ function PreviewResult({ isPending, isSaving, preview, url, onSubmit }: {
         </table>
       </div>
 
-      <form className="mt-6 flex flex-wrap items-center gap-3" onSubmit={onSubmit}>
+      <form className="flex flex-wrap items-center gap-3" onSubmit={onSubmit}>
         <input name="intent" type="hidden" value="create" />
         <input name="url" type="hidden" value={url} />
         <button className={primaryButtonClass} disabled={isPending || !hasImportableChunk} type="submit">
@@ -120,18 +108,27 @@ function PreviewResult({ isPending, isSaving, preview, url, onSubmit }: {
         </button>
         {!hasImportableChunk && <p className={hintClass}>本文候補になる塊がありません。</p>}
       </form>
-    </Card>
+    </ComponentCard>
   )
 }
 
+/**
+ * 確認の後にページが変わった・本文候補の生成が始まったなどで、保存の時点で優先した本文候補が無いことがある
+ */
 function ImportResult({ result }: { result: CreateUrlImportResponse }) {
+  const hasPrioritizedPassage = result.passages.length > 0
   return (
-    <Card desc="次の問題の生成で、ほかの本文候補より先に生成します。" title="保存しました">
+    <ComponentCard
+      desc={hasPrioritizedPassage
+        ? "次の問題の生成で、ほかの本文候補より先に生成します。"
+        : "優先した本文候補はありません。確認の後に、ページか本文候補の状態が変わりました。"}
+      title="保存しました"
+    >
       <p className="text-sm text-gray-700 dark:text-gray-300">
         本文候補を {result.created_count} 件作りました。前の切り分けの本文候補を {result.rejected_count} 件却下しました。
       </p>
-      {result.passages.length > 0 && (
-        <ul className="mt-4 space-y-2 text-sm">
+      {hasPrioritizedPassage && (
+        <ul className="space-y-2 text-sm">
           {result.passages.map((passage) => (
             <li key={passage.id} className="flex items-center gap-2">
               <Link className="font-medium text-gray-800 hover:text-brand-500 dark:text-white/90" href={`/passages/${passage.id}`}>
@@ -142,7 +139,7 @@ function ImportResult({ result }: { result: CreateUrlImportResponse }) {
           ))}
         </ul>
       )}
-    </Card>
+    </ComponentCard>
   )
 }
 
@@ -165,28 +162,30 @@ export function UrlImportForm() {
 
   return (
     <div className="space-y-6">
-      <Card
+      <ComponentCard
         desc="登録済みの公式ドキュメントのサイトのソースの、対象パスに合うページの URL を入れます。入れたページの 1 つだけを取り込みます。"
         title="URL から追加"
       >
-        <form className="flex flex-col gap-3 sm:flex-row sm:items-end" noValidate onSubmit={handleSubmit}>
-          <input name="intent" type="hidden" value="preview" />
-          <div className="flex-1">
-            <label className={labelClass} htmlFor="url-import-url">ページの URL</label>
-            <input
-              className={inputClass}
-              id="url-import-url"
-              name="url"
-              placeholder="https://go.dev/doc/tutorial/getting-started"
-              type="url"
-            />
-          </div>
-          <button className={`${primaryButtonClass} whitespace-nowrap`} disabled={isPending} type="submit">
-            {isPending && submittedIntent === "preview" ? "確認しています…" : "確認する"}
-          </button>
-        </form>
-        <p className={hintClass}>クエリ文字列と #... は除いて取得します。取得は 20 秒で打ち切ります。</p>
-      </Card>
+        <div>
+          <form className="flex flex-col gap-3 sm:flex-row sm:items-end" noValidate onSubmit={handleSubmit}>
+            <input name="intent" type="hidden" value="preview" />
+            <div className="flex-1">
+              <label className={labelClass} htmlFor="url-import-url">ページの URL</label>
+              <input
+                className={inputClass}
+                id="url-import-url"
+                name="url"
+                placeholder="https://go.dev/doc/tutorial/getting-started"
+                type="url"
+              />
+            </div>
+            <button className={`${primaryButtonClass} whitespace-nowrap`} disabled={isPending} type="submit">
+              {isPending && submittedIntent === "preview" ? "確認しています…" : "確認する"}
+            </button>
+          </form>
+          <p className={hintClass}>クエリ文字列と #... は除いて取得します。取得は 20 秒で打ち切ります。</p>
+        </div>
+      </ComponentCard>
 
       {state.status === "error" && <ErrorMessage state={state} />}
       {state.status === "previewed" && (

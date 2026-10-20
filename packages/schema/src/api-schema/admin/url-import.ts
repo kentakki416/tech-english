@@ -23,6 +23,8 @@ const urlImportUrlSchema = z
  */
 export const urlImportErrorCodeSchema = z.enum(URL_IMPORT_ERROR_CODES)
 
+export type UrlImportErrorCode = z.infer<typeof urlImportErrorCodeSchema>
+
 // ========================================================
 // POST /api/admin/url-import/preview - URL のページの取り込みの確認
 // ========================================================

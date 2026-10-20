@@ -4,7 +4,6 @@ import "server-only"
 
 import { revalidatePath } from "next/cache"
 import { unstable_rethrow } from "next/navigation"
-import type { z } from "zod"
 
 import {
   type CreateUrlImportResponse,
@@ -12,23 +11,22 @@ import {
   errorResponseSchema,
   type PreviewUrlImportResponse,
   previewUrlImportRequestSchema,
+  type UrlImportErrorCode,
   urlImportErrorCodeSchema,
 } from "@repo/api-schema"
 
 import { urlImportApi } from "@/features/url-import/url-import.api"
 import { ApiClientError } from "@/libs/api-client"
 
-type UrlImportErrorCode = z.infer<typeof urlImportErrorCodeSchema>
-
 /**
- * useActionState に返す状態。url は送った URL（確認の結果から保存するときに hidden で送り直す）。
+ * useActionState に返す状態。previewed の url は確認した URL（保存するときに hidden で送り直す）。
  * errorCode は api が返した取り込めない理由（URL の形の誤り・想定外の失敗は null）
  */
 export type UrlImportState =
   | { status: "idle" }
-  | { errorCode: UrlImportErrorCode | null, message: string, status: "error", url: string }
+  | { errorCode: UrlImportErrorCode | null, message: string, status: "error" }
   | { preview: PreviewUrlImportResponse, status: "previewed", url: string }
-  | { result: CreateUrlImportResponse, status: "imported", url: string }
+  | { result: CreateUrlImportResponse, status: "imported" }
 
 const INVALID_URL_MESSAGE = "URL を確かめてください（https のページの URL）。"
 
@@ -62,20 +60,20 @@ const buildErrorMessage = (code: UrlImportErrorCode, detailMessage: string): str
 /**
  * api の 400 のうち取り込めない理由（details[0].code）は理由ごとの文言にし、それ以外の失敗は再試行を促す
  */
-const convertApiErrorToState = (error: unknown, url: string): UrlImportState => {
+const convertApiErrorToState = (error: unknown): UrlImportState => {
   if (error instanceof ApiClientError && error.status === 400) {
     const body = errorResponseSchema.safeParse(error.body)
     const detail = body.success ? body.data.details?.[0] : undefined
     const code = urlImportErrorCodeSchema.safeParse(detail?.code)
     if (detail !== undefined && code.success) {
-      return { errorCode: code.data, message: buildErrorMessage(code.data, detail.message), status: "error", url }
+      return { errorCode: code.data, message: buildErrorMessage(code.data, detail.message), status: "error" }
     }
   }
   console.error("URL import request failed", error)
-  return { errorCode: null, message: UNEXPECTED_ERROR_MESSAGE, status: "error", url }
+  return { errorCode: null, message: UNEXPECTED_ERROR_MESSAGE, status: "error" }
 }
 
-const readUrl = (formData: FormData): string => {
+const readUrlField = (formData: FormData): string => {
   const value = formData.get("url")
   return typeof value === "string" ? value : ""
 }
@@ -84,16 +82,16 @@ const readUrl = (formData: FormData): string => {
  * URL のページの取り込みを確認する Server Action（DB には書かない）
  */
 export const previewUrlImportAction = async (_state: UrlImportState, formData: FormData): Promise<UrlImportState> => {
-  const url = readUrl(formData)
+  const url = readUrlField(formData)
   const parsed = previewUrlImportRequestSchema.safeParse({ url })
-  if (!parsed.success) return { errorCode: null, message: INVALID_URL_MESSAGE, status: "error", url }
+  if (!parsed.success) return { errorCode: null, message: INVALID_URL_MESSAGE, status: "error" }
 
   try {
     const preview = await urlImportApi.preview(parsed.data)
     return { preview, status: "previewed", url: parsed.data.url }
   } catch (error) {
     unstable_rethrow(error)
-    return convertApiErrorToState(error, url)
+    return convertApiErrorToState(error)
   }
 }
 
@@ -101,18 +99,18 @@ export const previewUrlImportAction = async (_state: UrlImportState, formData: F
  * URL のページを本文候補として保存する Server Action。保存できたら問題一覧（収集済み）を作り直させる
  */
 export const createUrlImportAction = async (_state: UrlImportState, formData: FormData): Promise<UrlImportState> => {
-  const url = readUrl(formData)
+  const url = readUrlField(formData)
   const parsed = createUrlImportRequestSchema.safeParse({ url })
-  if (!parsed.success) return { errorCode: null, message: INVALID_URL_MESSAGE, status: "error", url }
+  if (!parsed.success) return { errorCode: null, message: INVALID_URL_MESSAGE, status: "error" }
 
   let result: CreateUrlImportResponse
   try {
     result = await urlImportApi.create(parsed.data)
   } catch (error) {
     unstable_rethrow(error)
-    return convertApiErrorToState(error, url)
+    return convertApiErrorToState(error)
   }
 
   revalidatePath("/passages")
-  return { result, status: "imported", url: parsed.data.url }
+  return { result, status: "imported" }
 }

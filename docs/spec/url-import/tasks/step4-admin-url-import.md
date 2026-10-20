@@ -12,8 +12,11 @@ admin に「URL から追加」の画面を足す。仕様は [README](../README
 | `apps/admin/src/app/(dashboard)/url-import/actions.ts` | Server Action（確認・保存） |
 | `apps/admin/src/app/(dashboard)/url-import/page.tsx` | 画面 |
 | `apps/admin/src/components/features/url-import/UrlImportForm.tsx` | URL の入力・確認の結果・保存の結果（client component） |
+| `apps/admin/src/features/url-import/url-import.labels.ts` | 塊の状態と、本文候補にならない理由のラベル |
+| `packages/schema/src/api-schema/admin/url-import.ts` | `UrlImportErrorCode`（`urlImportErrorCodeSchema` の型） |
 | `apps/admin/src/components/layout/nav-items.tsx` | メニューに「URL から追加」 |
 | `docs/spec/url-import/README.md` | 「必要な画面」に画面の要素を足す |
+| `apps/admin/CLAUDE.md` | 「接続済みの画面」とメニューの説明に「URL から追加」 |
 
 ### api の呼び出し（`url-import.api.ts`）
 
@@ -31,9 +34,9 @@ export const urlImportApi = {
 ```ts
 export type UrlImportState =
   | { status: "idle" }
-  | { errorCode: UrlImportErrorCode | null; message: string; status: "error"; url: string }
+  | { errorCode: UrlImportErrorCode | null; message: string; status: "error" }
   | { preview: PreviewUrlImportResponse; status: "previewed"; url: string }
-  | { result: CreateUrlImportResponse; status: "imported"; url: string }
+  | { result: CreateUrlImportResponse; status: "imported" }
 
 export const previewUrlImportAction = async (_state: UrlImportState, formData: FormData): Promise<UrlImportState> => ...
 export const createUrlImportAction = async (_state: UrlImportState, formData: FormData): Promise<UrlImportState> => ...
@@ -65,14 +68,14 @@ export const createUrlImportAction = async (_state: UrlImportState, formData: Fo
 
 ### 画面（`UrlImportForm.tsx`）
 
-`useActionState` の 1 つの状態に、確認と保存の 2 つのアクションを form の hidden の `intent` で振り分ける（保存の結果を出したら確認の結果は消える）。送信は `onSubmit` から `startTransition` で呼ぶ（admin の規約。`<form action>` だと送信後に入力がリセットされる）。カードは `cardClass`、ボタンは `primaryButtonClass`・`outlineButtonClass`、状態は `Badge` を使う（ソースの画面と同じ）。
+`useActionState` の 1 つの状態に、確認と保存の 2 つのアクションを form の hidden の `intent` で振り分ける（保存の結果を出したら確認の結果は消える）。送信は `onSubmit` から `startTransition` で呼ぶ（admin の規約。`<form action>` だと送信後に入力がリセットされる）。カードは `ComponentCard`、表の見出しは `tableHeadCellClass`、ボタンは `primaryButtonClass`、状態は `Badge` を使う。
 
 - 入力：URL（`inputClass`）と「確認する」。確認中はボタンを無効にして「確認しています…」
 - 確認の結果：
   - ソース（表示名・ライセンス）、ページ（タイトル・URL・英単語数）
   - 塊の表：見出し、英単語数、保存したときにどうなるか（`new` は「本文候補になる」 success、`existing` は「本文候補がすでにある（生成を優先）」 info、`duplicated` は「同じ内容の問題がある」 light、`generated_section` は「同じ見出しの問題がある」 warning、`not_candidate` は「本文候補にならない」 light と理由）、冒頭の文
   - 「本文候補として保存」（`new` か `existing` の塊が 1 つも無ければ無効）。押すと URL を hidden で送る
-- 保存の結果：作った件数・却下した件数、優先した本文候補の一覧（`/passages/{id}` へのリンク、新しく作ったものに「新規」のバッジ）、「次の問題の生成で、ほかの本文候補より先に生成します。」の案内
+- 保存の結果：作った件数・却下した件数、優先した本文候補の一覧（`/passages/{id}` へのリンク、新しく作ったものに「新規」のバッジ）、「次の問題の生成で、ほかの本文候補より先に生成します。」の案内。優先した本文候補が 0 件（確認の後にページか本文候補の状態が変わった）なら、そのことを案内する
 - 理由の文言（`not_candidate`）：`too_short` は「短すぎる」、`too_long` は「長すぎる」、`too_much_code` は「コードが多い」、`not_english` は「英語でない」、`not_prose` は「文章でない」
 
 ### メニュー
