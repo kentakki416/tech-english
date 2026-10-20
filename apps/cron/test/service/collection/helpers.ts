@@ -1,4 +1,4 @@
-import type { ContentSource, GitHubRepositorySource, SourceDocument, WebsiteSource } from "@repo/domain"
+import type { ContentSource, GitHubRepositorySource, PassageStatus, SourceDocument, WebsiteSource } from "@repo/domain"
 
 import type { GitHubTreeEntry, IGitHubContentClient } from "../../../src/client/github"
 import type { FetchPageResult, IWebPageClient, SitemapUrl } from "../../../src/client/web"
@@ -204,15 +204,24 @@ export const createFakeGitHubClient = (options: FakeGitHubOptions = {}) => {
 
 /**
  * Repository の偽物。upsertByPath は 100 から順に id を振った行を返し、insertIgnoringDuplicates は渡した件数を返す。
- * markCollected は既定で true（行を更新できた）を返す
+ * markCollected は既定で true（行を更新できた）を返し、rejectCollected は既定で 0 を返す
  */
 export const createFakeRepo = (options: {
   documents?: SourceDocument[]
+  /**
+   * findWithCollectedPassages が返す行
+   */
+  documentsWithCollectedPassages?: SourceDocument[]
   enabledSources?: ContentSource[]
+  /**
+   * findTitles が返す見出し（下書き・公開済み・生成中の本文候補の見出し）
+   */
+  inUseTitles?: string[]
   /**
    * findFetchQueue が返す行
    */
   queue?: SourceDocument[]
+  rejectedCount?: number
   source?: ContentSource | null
 } = {}) => {
   let nextDocumentId = 100
@@ -223,11 +232,15 @@ export const createFakeRepo = (options: {
       markCollected: vi.fn(async (_id: number, _input: MarkCollectedInput) => true),
     },
     passageRepository: {
+      findTitles: vi.fn(async (_input: { sourceDocumentId: number; statuses: PassageStatus[] }) => options.inUseTitles ?? []),
       insertIgnoringDuplicates: vi.fn(async (inputs: CreatePassageInput[]) => inputs.length),
+      rejectCollected: vi.fn(async (_input: { keepContentHashes: string[]; reason: string; sourceDocumentIds: number[] }) =>
+        options.rejectedCount ?? 0),
     },
     sourceDocumentRepository: {
       findBySourceId: vi.fn(async (_sourceId: number) => options.documents ?? []),
       findFetchQueue: vi.fn(async (_input: { limit: number; refetchBefore: Date; sourceId: number }) => options.queue ?? []),
+      findWithCollectedPassages: vi.fn(async (_sourceId: number) => options.documentsWithCollectedPassages ?? []),
       markFetched: vi.fn(async (_id: number, _input: MarkFetchedInput) => undefined),
       markResponse: vi.fn(async (_id: number, _input: { fetchedAt: Date; httpStatus: number | null }) => undefined),
       upsertByPath: vi.fn(async (input: { path: string; sourceId: number; title: string | null }) => {

@@ -144,6 +144,7 @@ LLM が語彙・構文・抽象度から判定し、管理者が修正できる�
 stateDiagram-v2
     [*] --> collected: 収集
     collected --> generating: 生成タスクが取得
+    collected --> rejected: 切り分け直し・収集の対象外で外す
     generating --> draft: 生成成功
     generating --> collected: 一時的な失敗<br/>(3 回未満)
     generating --> failed: 3 回失敗
@@ -163,7 +164,7 @@ stateDiagram-v2
 | 生成中 | `generating` | ❌ | 生成タスクが処理中 |
 | 下書き | `draft` | ❌ | 生成済み。管理者の確認待ち |
 | 公開 | `published` | ✅ | ユーザーが解ける |
-| 却下 | `rejected` | ❌ | 題材に不向き（LLM または管理者が判断）。理由を残す。管理者が取り消せる |
+| 却下 | `rejected` | ❌ | 題材に不向き（LLM または管理者が判断）か、収集が外した未生成の本文候補（切り分け直した文書の前の切り分け・除外パスに入った / 取得元から消えた文書。[passage-extraction-tuning](../passage-extraction-tuning/README.md#前の切り分けで作った本文候補)）。理由を残す。管理者が取り消せる |
 | 失敗 | `failed` | ❌ | 生成が 3 回失敗した |
 
 ### 管理者ができること

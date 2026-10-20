@@ -138,7 +138,7 @@ describe("DrizzleContentSourceRepository", () => {
 
   describe("markCollected", () => {
     describe("正常系", () => {
-      it("lastCollectedCommitSha を省略したら id だけを条件に last_collected_at だけを更新し、true を返す", async () => {
+      it("lastCollectedCommit を省略したら id だけを条件に last_collected_at だけを更新し、true を返す", async () => {
         const fake = createFakeDb([])
         const lastCollectedAt = new Date("2026-10-10T03:00:00.000Z")
 
@@ -150,17 +150,21 @@ describe("DrizzleContentSourceRepository", () => {
         expect(fake.updateWhere).toHaveBeenCalledWith(eq(contentSources.id, 1))
       })
 
-      it("lastCollectedCommitSha を渡したら、収集を始めたときの SHA を条件に一緒に更新する", async () => {
+      it("lastCollectedCommit を渡したら、収集を始めたときの SHA を条件に commit SHA と抽出の版を一緒に更新する", async () => {
         const fake = createFakeDb([])
         const lastCollectedAt = new Date("2026-10-10T03:00:00.000Z")
 
         const isUpdated = await new DrizzleContentSourceRepository(fake.db).markCollected(1, {
           lastCollectedAt,
-          lastCollectedCommitSha: { expected: "old-sha", next: "new-sha" },
+          lastCollectedCommit: { expectedSha: "old-sha", extractionVersion: "2026-10-20.1", nextSha: "new-sha" },
         })
 
         expect(isUpdated).toBe(true)
-        expect(fake.set).toHaveBeenCalledWith({ lastCollectedAt, lastCollectedCommitSha: "new-sha" })
+        expect(fake.set).toHaveBeenCalledWith({
+          lastCollectedAt,
+          lastCollectedCommitSha: "new-sha",
+          lastCollectedExtractionVersion: "2026-10-20.1",
+        })
         expect(fake.updateWhere).toHaveBeenCalledWith(
           and(eq(contentSources.id, 1), eq(contentSources.lastCollectedCommitSha, "old-sha")),
         )
@@ -171,7 +175,7 @@ describe("DrizzleContentSourceRepository", () => {
 
         await new DrizzleContentSourceRepository(fake.db).markCollected(1, {
           lastCollectedAt: new Date("2026-10-10T03:00:00.000Z"),
-          lastCollectedCommitSha: { expected: null, next: "new-sha" },
+          lastCollectedCommit: { expectedSha: null, extractionVersion: "2026-10-20.1", nextSha: "new-sha" },
         })
 
         expect(fake.updateWhere).toHaveBeenCalledWith(
@@ -186,7 +190,7 @@ describe("DrizzleContentSourceRepository", () => {
 
         const isUpdated = await new DrizzleContentSourceRepository(fake.db).markCollected(1, {
           lastCollectedAt: new Date("2026-10-10T03:00:00.000Z"),
-          lastCollectedCommitSha: { expected: "old-sha", next: "new-sha" },
+          lastCollectedCommit: { expectedSha: "old-sha", extractionVersion: "2026-10-20.1", nextSha: "new-sha" },
         })
 
         expect(isUpdated).toBe(false)

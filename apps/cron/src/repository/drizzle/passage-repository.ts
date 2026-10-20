@@ -6,6 +6,7 @@ import {
   eq,
   inArray,
   lt,
+  notInArray,
   passageGlossaryEntries,
   passages,
   questions,
@@ -88,6 +89,14 @@ export class DrizzlePassageRepository implements PassageRepository {
     return row && isPassageStatus(row.status) ? row.status : null
   }
 
+  public async findTitles(input: { sourceDocumentId: number; statuses: PassageStatus[] }): Promise<string[]> {
+    const rows = await this._db
+      .selectDistinct({ title: passages.title })
+      .from(passages)
+      .where(and(eq(passages.sourceDocumentId, input.sourceDocumentId), inArray(passages.status, input.statuses)))
+    return rows.map((row) => row.title)
+  }
+
   /**
    * ON CONFLICT (content_hash) DO NOTHING で挿入し、RETURNING で返った行（実際に挿入した行）を数える
    */
@@ -139,6 +148,27 @@ export class DrizzlePassageRepository implements PassageRepository {
       .returning({ status: passages.status })
     if (!row) return null
     return row.status === "failed" ? "failed" : "collected"
+  }
+
+  /**
+   * keepContentHashes が空なら NOT IN を付けない（文書の collected をすべて却下する）
+   */
+  public async rejectCollected(input: {
+    keepContentHashes: string[]
+    reason: string
+    sourceDocumentIds: number[]
+  }): Promise<number> {
+    if (input.sourceDocumentIds.length === 0) return 0
+    const rows = await this._db
+      .update(passages)
+      .set({ rejectReason: input.reason, status: "rejected" })
+      .where(and(
+        inArray(passages.sourceDocumentId, input.sourceDocumentIds),
+        eq(passages.status, "collected"),
+        ...(input.keepContentHashes.length === 0 ? [] : [notInArray(passages.contentHash, input.keepContentHashes)]),
+      ))
+      .returning({ id: passages.id })
+    return rows.length
   }
 
   public async releaseClaim(claim: PassageClaim): Promise<void> {

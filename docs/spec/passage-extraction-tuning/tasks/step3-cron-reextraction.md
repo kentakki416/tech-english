@@ -74,10 +74,7 @@ export type MarkFetchedInput = {
       .from(sourceDocuments)
       .where(and(
         eq(sourceDocuments.sourceId, sourceId),
-        exists(this._db
-          .select({ id: passages.id })
-          .from(passages)
-          .where(and(eq(passages.sourceDocumentId, sourceDocuments.id), eq(passages.status, "collected")))),
+        sql`EXISTS (SELECT 1 FROM ${passages} WHERE ${passages.sourceDocumentId} = ${sourceDocuments.id} AND ${passages.status} = 'collected')`,
       ))
       .orderBy(asc(sourceDocuments.id))
     return rows.map((row) => this._toDomain(row))

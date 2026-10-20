@@ -1,6 +1,10 @@
 import { GitHubRateLimitError } from "../../../src/client/github"
-import { MAX_MARKDOWN_FILE_BYTES } from "../../../src/const/collection"
-import { extractDocument } from "../../../src/lib/document"
+import {
+  MAX_MARKDOWN_FILE_BYTES,
+  OUT_OF_TARGET_PASSAGE_REJECT_REASON,
+  SUPERSEDED_PASSAGE_REJECT_REASON,
+} from "../../../src/const/collection"
+import { extractDocument, EXTRACTION_VERSION } from "../../../src/lib/document"
 import { collectGitHubSource, type CollectGitHubSourceInput } from "../../../src/service/collection"
 
 import {
@@ -55,12 +59,14 @@ describe("collectGitHubSource", () => {
   })
 
   describe("正常系", () => {
-    it("最新コミットが前回と同じなら up_to_date で、ツリーを取らず commit SHA を渡さずに markCollected する", async () => {
+    it("最新コミットと抽出の版が前回と同じなら up_to_date で、ツリーを取らず、却下もせず、commit SHA を渡さずに markCollected する", async () => {
       const client = createFakeGitHubClient()
       const repo = createFakeRepo()
 
       const result = await collectGitHubSource(
-        buildInput({ source: buildGitHubSource({ lastCollectedCommitSha: COMMIT_SHA }) }),
+        buildInput({
+          source: buildGitHubSource({ lastCollectedCommitSha: COMMIT_SHA, lastCollectedExtractionVersion: EXTRACTION_VERSION }),
+        }),
         repo,
         createDeps(client),
       )
@@ -68,7 +74,103 @@ describe("collectGitHubSource", () => {
       expect(result).toEqual({ createdPassageCount: 0, fetchedDocumentCount: 0, status: "up_to_date" })
       expect(client.getLatestCommitSha).toHaveBeenCalledWith("owner/repo", "main")
       expect(client.getTree).not.toHaveBeenCalled()
+      expect(repo.sourceDocumentRepository.findWithCollectedPassages).not.toHaveBeenCalled()
       expect(repo.contentSourceRepository.markCollected).toHaveBeenCalledWith(1, { lastCollectedAt: NOW })
+    })
+
+    it("最新コミットが前回と同じでも抽出の版が違えばツリーを取り、blob SHA が同じでも版が古いファイルを取り直し、版も同じファイルは取らない", async () => {
+      const client = createFakeGitHubClient(buildGitHubOptions(["docs/a.md", "docs/b.md", "docs/c.md"]))
+      const repo = createFakeRepo({
+        documents: [
+          buildSourceDocument({ id: 1, blobSha: "blob-docs/a.md", extractionVersion: null, path: "docs/a.md" }),
+          buildSourceDocument({ id: 2, blobSha: "blob-docs/b.md", extractionVersion: "2026-01-01.1", path: "docs/b.md" }),
+          buildSourceDocument({ id: 3, blobSha: "blob-docs/c.md", extractionVersion: EXTRACTION_VERSION, path: "docs/c.md" }),
+        ],
+      })
+
+      const result = await collectGitHubSource(
+        buildInput({ source: buildGitHubSource({ lastCollectedCommitSha: COMMIT_SHA, lastCollectedExtractionVersion: "2026-01-01.1" }) }),
+        repo,
+        createDeps(client),
+      )
+
+      expect(client.getFileContent.mock.calls.map(([, path]) => path)).toEqual(["docs/a.md", "docs/b.md"])
+      expect(result.status).toBe("completed")
+      expect(repo.contentSourceRepository.markCollected).toHaveBeenCalledWith(1, {
+        lastCollectedAt: NOW,
+        lastCollectedCommit: { expectedSha: COMMIT_SHA, extractionVersion: EXTRACTION_VERSION, nextSha: COMMIT_SHA },
+      })
+    })
+
+    it("ツリーに無い文書と、除外パスに入った文書の collected を、本文を取る前に却下する", async () => {
+      const client = createFakeGitHubClient(buildGitHubOptions(["docs/a.md", "docs/overview.md"]))
+      const repo = createFakeRepo({
+        documentsWithCollectedPassages: [
+          buildSourceDocument({ id: 1, path: "docs/a.md" }),
+          buildSourceDocument({ id: 2, path: "docs/deleted.md" }),
+          buildSourceDocument({ id: 3, path: "docs/overview.md" }),
+        ],
+      })
+
+      await collectGitHubSource(
+        buildInput({ source: buildGitHubSource({ excludeGlobs: ["docs/overview.md"] }) }),
+        repo,
+        createDeps(client),
+      )
+
+      expect(repo.sourceDocumentRepository.findWithCollectedPassages).toHaveBeenCalledWith(1)
+      expect(repo.passageRepository.rejectCollected).toHaveBeenNthCalledWith(1, {
+        keepContentHashes: [],
+        reason: OUT_OF_TARGET_PASSAGE_REJECT_REASON,
+        sourceDocumentIds: [2, 3],
+      })
+      expect(repo.passageRepository.rejectCollected.mock.invocationCallOrder[0])
+        .toBeLessThan(client.getFileContent.mock.invocationCallOrder[0])
+    })
+
+    it("ツリーが切り詰められていたら、ツリーに無い文書のうち除外パス・対象パスに合わないものだけを却下する", async () => {
+      const client = createFakeGitHubClient({
+        contents: { "docs/a.md": buildMarkdown(["Alpha"]) },
+        trees: { [`${COMMIT_SHA}?recursive=1`]: { entries: [buildBlob("docs/a.md", "blob-a")], isTruncated: true } },
+      })
+      const repo = createFakeRepo({
+        documentsWithCollectedPassages: [
+          buildSourceDocument({ id: 1, path: "docs/not-listed.md" }),
+          buildSourceDocument({ id: 2, path: "docs/overview.md" }),
+        ],
+      })
+
+      await collectGitHubSource(
+        buildInput({ source: buildGitHubSource({ excludeGlobs: ["docs/overview.md"], includeGlobs: ["**/*.md"] }) }),
+        repo,
+        createDeps(client),
+      )
+
+      expect(repo.passageRepository.rejectCollected).toHaveBeenNthCalledWith(1, {
+        keepContentHashes: [],
+        reason: OUT_OF_TARGET_PASSAGE_REJECT_REASON,
+        sourceDocumentIds: [2],
+      })
+    })
+
+    it("本文候補を挿入した後、その文書の collected のうち挿入した本文候補に無いものを却下してから markFetched する", async () => {
+      const content = buildMarkdown(["Alpha", "Beta"])
+      const client = createFakeGitHubClient({
+        contents: { "docs/a.md": content },
+        trees: { [`${COMMIT_SHA}?recursive=1`]: { entries: [buildBlob("docs/a.md", "blob-a")] } },
+      })
+      const repo = createFakeRepo()
+      const extracted = extractDocument({ content, fallbackTitle: "a", format: "markdown" })
+
+      await collectGitHubSource(buildInput(), repo, createDeps(client))
+
+      expect(repo.passageRepository.rejectCollected).toHaveBeenCalledWith({
+        keepContentHashes: extracted.candidates.map((candidate) => candidate.contentHash),
+        reason: SUPERSEDED_PASSAGE_REJECT_REASON,
+        sourceDocumentIds: [100],
+      })
+      expect(repo.passageRepository.rejectCollected.mock.invocationCallOrder[0])
+        .toBeLessThan(repo.sourceDocumentRepository.markFetched.mock.invocationCallOrder[0])
     })
 
     it("blob SHA が変わった・新しいファイルだけ本文を取り、変わっていない・対象外・.md / .mdx 以外・大きすぎるファイルは取らない", async () => {
@@ -91,8 +193,8 @@ describe("collectGitHubSource", () => {
       })
       const repo = createFakeRepo({
         documents: [
-          buildSourceDocument({ id: 1, blobSha: "blob-same", path: "docs/unchanged.md" }),
-          buildSourceDocument({ id: 2, blobSha: "blob-changed-1", path: "docs/changed.md" }),
+          buildSourceDocument({ id: 1, blobSha: "blob-same", extractionVersion: EXTRACTION_VERSION, path: "docs/unchanged.md" }),
+          buildSourceDocument({ id: 2, blobSha: "blob-changed-1", extractionVersion: EXTRACTION_VERSION, path: "docs/changed.md" }),
         ],
       })
 
@@ -136,6 +238,7 @@ describe("collectGitHubSource", () => {
         commitSha: COMMIT_SHA,
         contentHash: extracted.contentHash,
         etag: null,
+        extractionVersion: EXTRACTION_VERSION,
         fetchedAt: NOW,
         httpStatus: null,
         lastModified: null,
@@ -151,7 +254,7 @@ describe("collectGitHubSource", () => {
     it.each([
       ["未収集（null）", null],
       ["前回の SHA", "commit-sha-previous"],
-    ])("全件処理すると completed で、収集を始めたときの SHA（%s）を条件に commit SHA を更新する", async (_label, previousSha) => {
+    ])("全件処理すると completed で、収集を始めたときの SHA（%s）を条件に commit SHA と抽出の版を更新する", async (_label, previousSha) => {
       const client = createFakeGitHubClient(buildGitHubOptions(["docs/a.md", "docs/b.md"]))
       const repo = createFakeRepo()
 
@@ -164,7 +267,7 @@ describe("collectGitHubSource", () => {
       expect(result).toEqual({ createdPassageCount: 4, fetchedDocumentCount: 2, status: "completed" })
       expect(repo.contentSourceRepository.markCollected).toHaveBeenCalledWith(1, {
         lastCollectedAt: NOW,
-        lastCollectedCommitSha: { expected: previousSha, next: COMMIT_SHA },
+        lastCollectedCommit: { expectedSha: previousSha, extractionVersion: EXTRACTION_VERSION, nextSha: COMMIT_SHA },
       })
       expect(warnMock).not.toHaveBeenCalled()
     })
@@ -244,7 +347,7 @@ describe("collectGitHubSource", () => {
       expect(repo.contentSourceRepository.markCollected).toHaveBeenCalledWith(1, { lastCollectedAt: NOW })
     })
 
-    it("extractDocument が throw する文書は本文候補 0 件で markFetched され、次の文書へ進む", async () => {
+    it("extractDocument が throw する文書は本文候補の挿入も却下もせず、抽出の版を記録して markFetched され、次の文書へ進む", async () => {
       const client = createFakeGitHubClient({
         contents: { "docs/a-broken.mdx": BROKEN_MDX, "docs/b.md": buildMarkdown(["Alpha"]) },
         trees: {
@@ -263,10 +366,13 @@ describe("collectGitHubSource", () => {
         sourceId: 1,
         title: null,
       })
-      expect(repo.passageRepository.insertIgnoringDuplicates).toHaveBeenNthCalledWith(1, [])
+      expect(repo.passageRepository.insertIgnoringDuplicates).toHaveBeenCalledTimes(1)
+      expect(repo.passageRepository.rejectCollected).toHaveBeenCalledTimes(1)
+      expect(repo.passageRepository.rejectCollected).toHaveBeenCalledWith(expect.objectContaining({ sourceDocumentIds: [101] }))
       expect(repo.sourceDocumentRepository.markFetched).toHaveBeenNthCalledWith(1, 100, expect.objectContaining({
         blobSha: "blob-broken",
         contentHash: null,
+        extractionVersion: EXTRACTION_VERSION,
         title: null,
       }))
       expect(repo.sourceDocumentRepository.markFetched).toHaveBeenNthCalledWith(2, 101, expect.objectContaining({
@@ -274,11 +380,12 @@ describe("collectGitHubSource", () => {
       }))
     })
 
-    it("2 回目の実行（findBySourceId が今回の blob SHA を返す）では本文を取らない（冪等）", async () => {
+    it("2 回目の実行（findBySourceId が今回の blob SHA と抽出の版を返す）では本文を取らない（冪等）", async () => {
       const paths = ["docs/a.md", "docs/b.md"]
       const client = createFakeGitHubClient(buildGitHubOptions(paths))
       const repo = createFakeRepo({
-        documents: paths.map((path, index) => buildSourceDocument({ id: index + 1, blobSha: `blob-${path}`, path })),
+        documents: paths.map((path, index) =>
+          buildSourceDocument({ id: index + 1, blobSha: `blob-${path}`, extractionVersion: EXTRACTION_VERSION, path })),
       })
 
       const result = await collectGitHubSource(buildInput(), repo, createDeps(client))

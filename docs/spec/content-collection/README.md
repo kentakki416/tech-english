@@ -174,8 +174,9 @@ GitHub に Markdown のソースがあるドキュメントは GitHub から取�
 ### 取得元の文書が更新されたとき
 
 - **公開済みの問題は変えない。** 問題は取得した時点の内容のまま残る。出典表示もその時点（GitHub はコミット、サイトは取得日）を指す
-- 更新された箇所は、次回以降の収集で新しい本文候補として取り込まれる（内容が変わっていない箇所は取り込み直さない）
-- 取得元の文書が削除されても、公開済みの問題は残す
+- 更新された箇所は、次回以降の収集で新しい本文候補として取り込まれる（内容が変わっていない箇所は取り込み直さない）。ただし同じ見出しの下書き・公開済み・生成中の本文候補がある節は、新しい本文候補にしない（同じ節の問題を二重に作らないため。今ある下書き・公開済みを使い続ける）
+- 切り分け直した文書の未生成（`collected`）の本文候補のうち、新しい本文候補に無いものは却下（`rejected`。理由「切り分け直したため、前の切り分けの本文候補を外した」）にする（[passage-extraction-tuning](../passage-extraction-tuning/README.md#前の切り分けで作った本文候補)）
+- 取得元の文書が削除されても、公開済みの問題は残す。削除された文書・除外パスに入れた文書の `collected` の本文候補は、次の収集で却下する（理由「除外パスに入ったか取得元から消えたため、収集の対象から外した」。[passage-extraction-tuning](../passage-extraction-tuning/README.md#収集の対象から外れた文書の本文候補)）
 
 ---
 
@@ -216,12 +217,12 @@ flowchart LR
 
 **ファイルの blob SHA で変更を検出し、変わったファイルだけ本文を取得する。** 毎回全ファイルを取り直すと rate limit と処理時間を無駄にするため。
 
-1. `GET /repos/{owner}/{repo}/commits/{branch}` で最新コミットの SHA を得る（`Accept: application/vnd.github.sha` で SHA の文字列だけを受け取る。JSON はコミットの差分まで含んで大きいため）。`content_sources.last_collected_commit_sha` と同じならそのソースは処理を終える
+1. `GET /repos/{owner}/{repo}/commits/{branch}` で最新コミットの SHA を得る（`Accept: application/vnd.github.sha` で SHA の文字列だけを受け取る。JSON はコミットの差分まで含んで大きいため）。`content_sources.last_collected_commit_sha` と同じで、`last_collected_extraction_version` が cron の抽出の版（`EXTRACTION_VERSION`）と同じならそのソースは処理を終える
 2. `GET /repos/{owner}/{repo}/git/trees/{commit_sha}?recursive=1` でファイル一覧と各ファイルの blob SHA を 1 回で得る
-3. 対象パス / 除外パスの glob で絞り込む
-4. `source_documents` の `blob_sha` と比べ、新規・変更されたファイルだけ `GET /repos/{owner}/{repo}/contents/{path}?ref={commit_sha}` で本文を取得する
-5. ファイルごとに解析・切り分けして本文候補を保存し、`source_documents` を upsert する
-6. 全ファイル処理後に `last_collected_commit_sha` を更新する（途中で失敗した、または件数の上限で打ち切った場合は更新しない。次回、未処理のファイルだけを続きから処理する）。収集を始めたときに読んだ値のままのときだけ更新する（楽観ロック）。収集の途中で管理者が取得範囲を変えて api が `null` に戻していたら古い SHA を書き戻さず、次回の実行で新しい範囲を収集する
+3. 対象パス / 除外パスの glob で絞り込む。絞り込んだ一覧に無い文書（取得元から消えた・対象パスから外れた）の `collected` の本文候補を却下する（一覧が切り詰められたときは、対象パス・除外パスに合わない文書だけ）
+4. `source_documents` の `blob_sha` と `extraction_version` と比べ、新規・変更されたファイルと抽出の版が古いファイルだけ `GET /repos/{owner}/{repo}/contents/{path}?ref={commit_sha}` で本文を取得する
+5. ファイルごとに解析・切り分けして本文候補を保存し（前の切り分けの `collected` は却下する）、`source_documents` を upsert して blob SHA と抽出の版を記録する（本文の抽出に失敗したファイルも記録する）
+6. 全ファイル処理後に `last_collected_commit_sha` と `last_collected_extraction_version` を更新する（途中で失敗した、または件数の上限で打ち切った場合は更新しない。次回、未処理のファイルだけを続きから処理する）。収集を始めたときに読んだ値のままのときだけ更新する（楽観ロック）。収集の途中で管理者が取得範囲を変えて api が `null` に戻していたら古い SHA を書き戻さず、次回の実行で新しい範囲を収集する
 
 `trees` API は巨大なリポジトリで結果が切り詰められる（`truncated: true`）ことがある。その場合は対象パスの最上位ディレクトリごとに trees を取り直す。
 
@@ -234,8 +235,10 @@ flowchart LR
 | URL を見つける（sitemap） | 毎回 sitemap（sitemap index も可）を読み、対象パスに合う URL を `source_documents` に upsert する。`<lastmod>` が前回の取得より新しければ取得待ちにする |
 | URL を見つける（リンク） | 初回は開始ページを未取得の行として入れる。ページを取得して **200 が返ったら、ページ内のリンクのうち同じオリジン・対象パスに合うものを未取得の行として入れる** |
 | 取得する順番 | `fetched_at IS NULL` を先に、次に `fetched_at` が `COLLECT_WEB_REFETCH_DAYS`（既定 7 日）より古いものを古い順に。取得できなかったページ（ネットワークエラー・429 / 503）も `fetched_at` に試した時刻を入れて待ち行列から外し、`COLLECT_WEB_REFETCH_DAYS` 日後に取り直す（入れないと次回も同じページが先頭に来て、取得できないページが残りのページを塞ぐため） |
-| 条件付きリクエスト | 前回の `ETag` / `Last-Modified` を `If-None-Match` / `If-Modified-Since` で送り、304 なら本文を取らずに `fetched_at` だけ更新する |
-| 内容の比較 | 200 でも、抽出した本文のハッシュ（`source_documents.content_hash`）が前回と同じなら切り分けをしない（`ETag` を返さないサイト向け）。本文の抽出に失敗したページ（不正な CSS セレクタなど）は `ETag` / `Last-Modified` / ハッシュを保存しない（保存すると、セレクタを直してもページが変わるまで 304 で止まるため） |
+| 条件付きリクエスト | 前回の `ETag` / `Last-Modified` を `If-None-Match` / `If-Modified-Since` で送り、304 なら本文を取らずに `fetched_at` だけ更新する。切り分けたときの抽出の版（`extraction_version`）が今と違うページは送らない |
+| 内容の比較 | 200 でも、抽出した本文のハッシュ（`source_documents.content_hash`）が前回と同じなら切り分けをしない（`ETag` を返さないサイト向け）。抽出の版が今と違うページは、ハッシュが同じでも切り分け直す。本文の抽出に失敗したページ（不正な CSS セレクタなど）は `ETag` / `Last-Modified` / ハッシュを保存しない（保存すると、セレクタを直してもページが変わるまで 304 で止まるため） |
+
+毎回の実行では取得の前に、`collected` の本文候補を持つページのうち、対象パス・除外パスに合わなくなったものと 404 / 410 を返したものの `collected` を却下する。
 
 304 のページからはリンクを読めないが、ページが変わっていなければリンクも変わっていないので、初回の取得で見つけた URL がすでに行として入っている。したがって 2 回目以降も取りこぼしは出ない。
 
@@ -326,7 +329,7 @@ flowchart LR
 
 | 変えたいこと | 変える場所 | 効く範囲 |
 | --- | --- | --- |
-| ソースのどの文書を対象にするか（章の概要ページを外す など） | admin のソースの「対象パス」「除外パス」 | そのソースの次回の収集から。除外した文書から作った本文候補は残る |
+| ソースのどの文書を対象にするか（章の概要ページを外す など） | admin のソースの「対象パス」「除外パス」 | そのソースの次回の収集から。除外した文書から作った未生成（`collected`）の本文候補は次の収集で却下する（下書き・公開済みは残る） |
 | サイトのページのどこを本文にするか | admin のソースの「本文の CSS セレクタ」「除外する CSS セレクタ」 | 取り直しの順番が来たページ（取得から `COLLECT_WEB_REFETCH_DAYS` 日たったもの）から、新しいセレクタで抽出し直す（[ソースの登録](#ソースの登録)） |
 | MDX / JSX のコンポーネントの中身を本文に残すか | `const.ts` の `PROSE_COMPONENT_NAMES`（ここに無いコンポーネントは中身ごと捨てる） | 全ソース（下の注意） |
 | 長さ・コードの割合・英語・文章の判定のしきい値 | `const.ts` の `PASSAGE_MIN_WORDS` / `PASSAGE_MAX_WORDS` / `MAX_CODE_LINE_RATIO` / `MIN_ENGLISH_LETTER_RATIO` / `MIN_PROSE_WORD_RATIO` / `MIN_PROSE_LIST_ITEM_WORDS` | 全ソース（下の注意） |
@@ -336,7 +339,7 @@ flowchart LR
 | mdast のノードをどのブロックにするか | `convert-mdast-to-blocks.ts` | 全ソース（下の注意） |
 | LLM が題材に向かないとする基準 | `apps/cron/src/prompt/generate-questions.ts` の「Suitability」（変えたら `PROMPT_VERSION` を上げる。[question-generation](../question-generation/README.md)） | 次の `generate:questions` から、`collected` の本文候補に |
 
-- **cron のコードの変更は、取得済みの文書には効かない。** GitHub は blob SHA が同じファイルを取り直さない。サイトは 304 のページを抽出し直さず、200 でも抽出したブロックのハッシュが前回と同じなら切り分け直さない。そのため、ブロックが変わる変更（`PROSE_COMPONENT_NAMES` など）は次の取り直しで 200 が返ったページにだけ効き、結合・判定だけの変更はどのページにも効かない。すでに作った本文候補も消えずに残る
+- **`lib/document` の変更のうち、ブロック・切り分け・本文候補の条件が変わるものは、`const.ts` の `EXTRACTION_VERSION` を上げる。** 上げると取得済みの文書も切り分け直す（GitHub は次の収集で、サイトは取り直しの順番が来たときに条件付きリクエストを送らずに）。前の切り分けの `collected` は却下する（[passage-extraction-tuning](../passage-extraction-tuning/README.md#抽出の版)）。上げないと、GitHub は blob SHA が同じファイルを取り直さず、サイトは 200 でも抽出したブロックのハッシュが前回と同じなら切り分け直さないので、取得済みの文書には効かない
 - 変えた結果は `pnpm collect:passages --source-id={id} --dry-run` で確かめる（DB には書かない）。対象の文書を最大 5 件取得し、塊ごとに本文候補か、捨てた理由（`too_short` / `too_long` / `too_much_code` / `not_english` / `not_prose`）を出す
 
 ### 重複の排除

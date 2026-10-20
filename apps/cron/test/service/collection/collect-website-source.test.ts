@@ -1,4 +1,6 @@
 import { BlockedUrlError, CrawlDelayTooLongError, WebSourceThrottledError } from "../../../src/client/web"
+import { OUT_OF_TARGET_PASSAGE_REJECT_REASON, SUPERSEDED_PASSAGE_REJECT_REASON } from "../../../src/const/collection"
+import { EXTRACTION_VERSION } from "../../../src/lib/document"
 import { collectWebsiteSource, type CollectWebsiteSourceInput, extractWebPage } from "../../../src/service/collection"
 
 import {
@@ -42,16 +44,23 @@ const buildInput = (overrides: Partial<CollectWebsiteSourceInput> = {}): Collect
 
 const setup = (options: {
   client?: FakeWebPageClientOptions
+  documentsWithCollectedPassages?: ReturnType<typeof buildSourceDocument>[]
   queue?: ReturnType<typeof buildSourceDocument>[]
 } = {}) => {
   const client = createFakeWebPageClient(options.client)
-  const repo = createFakeRepo({ queue: options.queue ?? [] })
+  const repo = createFakeRepo({
+    documentsWithCollectedPassages: options.documentsWithCollectedPassages,
+    queue: options.queue ?? [],
+  })
   const deps = createDeps(createFakeGitHubClient(), client)
   return { client, deps, repo }
 }
 
+/**
+ * 取得待ちの行。抽出の版は今のもの（版が古いページのテストは extractionVersion を上書きする）
+ */
 const buildQueuedDocument = (id: number, path: string, overrides: Parameters<typeof buildSourceDocument>[0] = {}) =>
-  buildSourceDocument({ id, path, sourceId: SOURCE.id, ...overrides })
+  buildSourceDocument({ id, extractionVersion: EXTRACTION_VERSION, path, sourceId: SOURCE.id, ...overrides })
 
 describe("collectWebsiteSource", () => {
   beforeEach(() => {
@@ -160,17 +169,74 @@ describe("collectWebsiteSource", () => {
         commitSha: null,
         contentHash: extracted.contentHash,
         etag: "\"v2\"",
+        extractionVersion: EXTRACTION_VERSION,
         fetchedAt: NOW,
         httpStatus: 200,
         lastModified: "Sat, 10 Oct 2026 00:00:00 GMT",
         title: "Page A",
+      })
+      expect(repo.passageRepository.rejectCollected).toHaveBeenCalledWith({
+        keepContentHashes: inputs.map(({ contentHash }) => contentHash),
+        reason: SUPERSEDED_PASSAGE_REJECT_REASON,
+        sourceDocumentIds: [10],
       })
       expect(repo.passageRepository.insertIgnoringDuplicates.mock.invocationCallOrder[0])
         .toBeLessThan(repo.sourceDocumentRepository.markFetched.mock.invocationCallOrder[0])
       expect(result).toEqual({ createdPassageCount: 2, fetchedDocumentCount: 1, status: "completed" })
     })
 
-    it("200 でも本文のハッシュが前回と同じなら本文候補を作らず、markFetched だけする", async () => {
+    it("抽出の版が古いページは条件付きリクエストを送らず、本文のハッシュが前回と同じでも本文候補を作り、前の切り分けの collected を却下する", async () => {
+      const html = buildHtmlPage({ sectionTitles: ["Alpha"] })
+      const contentHash = extractWebPage(SOURCE, { body: html, finalUrl: `${SITE}/doc/a`, path: "/doc/a" }).contentHash
+      const { client, deps, repo } = setup({
+        client: { pages: { [`${SITE}/doc/a`]: buildOkPage(`${SITE}/doc/a`, html) } },
+        queue: [buildQueuedDocument(10, "/doc/a", {
+          contentHash,
+          etag: "\"v1\"",
+          extractionVersion: null,
+          lastModified: "Sat, 03 Oct 2026 00:00:00 GMT",
+        })],
+      })
+
+      const result = await collectWebsiteSource(buildInput(), repo, deps)
+
+      expect(client.fetchPage).toHaveBeenCalledWith(`${SITE}/doc/a`, { etag: null, lastModified: null })
+      expect(result.createdPassageCount).toBe(1)
+      expect(repo.passageRepository.rejectCollected).toHaveBeenCalledWith(expect.objectContaining({
+        reason: SUPERSEDED_PASSAGE_REJECT_REASON,
+        sourceDocumentIds: [10],
+      }))
+      expect(repo.sourceDocumentRepository.markFetched).toHaveBeenCalledWith(10, expect.objectContaining({
+        contentHash,
+        extractionVersion: EXTRACTION_VERSION,
+      }))
+    })
+
+    it("取得の前に、対象パス・除外パスに合わないページと 404 / 410 のページの collected を却下する", async () => {
+      const source = { ...SOURCE, excludeGlobs: ["/doc/overview"] }
+      const { client, deps, repo } = setup({
+        documentsWithCollectedPassages: [
+          buildQueuedDocument(10, "/doc/a", { httpStatus: 200 }),
+          buildQueuedDocument(11, "/doc/overview", { httpStatus: 200 }),
+          buildQueuedDocument(12, "/blog/post", { httpStatus: 200 }),
+          buildQueuedDocument(13, "/doc/gone", { httpStatus: 404 }),
+          buildQueuedDocument(14, "/doc/removed", { httpStatus: 410 }),
+        ],
+      })
+
+      await collectWebsiteSource(buildInput({ source }), repo, deps)
+
+      expect(repo.sourceDocumentRepository.findWithCollectedPassages).toHaveBeenCalledWith(2)
+      expect(repo.passageRepository.rejectCollected).toHaveBeenCalledWith({
+        keepContentHashes: [],
+        reason: OUT_OF_TARGET_PASSAGE_REJECT_REASON,
+        sourceDocumentIds: [11, 12, 13, 14],
+      })
+      expect(repo.passageRepository.rejectCollected.mock.invocationCallOrder[0])
+        .toBeLessThan(client.loadRobots.mock.invocationCallOrder[0])
+    })
+
+    it("200 でも本文のハッシュと抽出の版が前回と同じなら本文候補を作らず、前の切り分けも却下せず、markFetched だけする", async () => {
       const html = buildHtmlPage({ sectionTitles: ["Alpha"] })
       const contentHash = extractWebPage(SOURCE, { body: html, finalUrl: `${SITE}/doc/a`, path: "/doc/a" }).contentHash
       const { deps, repo } = setup({
@@ -181,15 +247,16 @@ describe("collectWebsiteSource", () => {
       const result = await collectWebsiteSource(buildInput(), repo, deps)
 
       expect(repo.passageRepository.insertIgnoringDuplicates).not.toHaveBeenCalled()
+      expect(repo.passageRepository.rejectCollected).not.toHaveBeenCalled()
       expect(repo.sourceDocumentRepository.markFetched).toHaveBeenCalledWith(10, expect.objectContaining({ contentHash, httpStatus: 200 }))
       expect(result.createdPassageCount).toBe(0)
     })
 
-    it("対象パス外の開始ページはリンクだけ入れて本文候補を作らない", async () => {
+    it("対象パス外の開始ページは、抽出の版が古くてもリンクだけ入れて本文候補を作らない", async () => {
       const html = buildHtmlPage({ links: ["/doc/intro", "/doc/install"], sectionTitles: ["Welcome"] })
       const { deps, repo } = setup({
         client: { pages: { [`${SITE}/start/`]: buildOkPage(`${SITE}/start/`, html) } },
-        queue: [buildQueuedDocument(11, "/start/")],
+        queue: [buildQueuedDocument(11, "/start/", { extractionVersion: null })],
       })
 
       await collectWebsiteSource(buildInput(), repo, deps)
@@ -227,12 +294,12 @@ describe("collectWebsiteSource", () => {
       ["除外パス", `${SITE}/doc/devel/a`],
       ["対象パスの外", `${SITE}/blog/a`],
       ["ページでない拡張子", `${SITE}/doc/a.txt`],
-    ])("リダイレクトの行き先が%sなら本文候補を作らず、リンクの発見と markFetched は続ける", async (_label, finalUrl) => {
+    ])("リダイレクトの行き先が%sなら、抽出の版が古くても本文候補を作らず、リンクの発見と markFetched は続ける", async (_label, finalUrl) => {
       const source = { ...SOURCE, excludeGlobs: ["/doc/devel/**"] }
       const html = buildHtmlPage({ links: ["/doc/b"], sectionTitles: ["Alpha"] })
       const { deps, repo } = setup({
         client: { pages: { [`${SITE}/doc/a`]: buildOkPage(finalUrl, html) } },
-        queue: [buildQueuedDocument(10, "/doc/a")],
+        queue: [buildQueuedDocument(10, "/doc/a", { extractionVersion: null })],
       })
 
       const result = await collectWebsiteSource(buildInput({ source }), repo, deps)

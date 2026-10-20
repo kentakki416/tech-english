@@ -90,6 +90,10 @@ export interface PassageRepository {
    */
   findStatusById(id: number): Promise<PassageStatus | null>
   /**
+   * 文書の本文候補のうち、statuses の状態のものの見出し（重複を除く）
+   */
+  findTitles(input: { sourceDocumentId: number; statuses: PassageStatus[] }): Promise<string[]>
+  /**
    * content_hash が既にある行は飛ばし、挿入した件数を返す。同じ内容の再取り込みを unique 制約で弾く（冪等）
    */
   insertIgnoringDuplicates(inputs: CreatePassageInput[]): Promise<number>
@@ -106,6 +110,11 @@ export interface PassageRepository {
    * 戻り値は更新後の状態。claim が古ければ何もせず null
    */
   recordGenerationFailure(claim: PassageClaim, input: { error: string; maxAttempts: number }): Promise<"collected" | "failed" | null>
+  /**
+   * 文書（sourceDocumentIds）の collected のうち、content_hash が keepContentHashes に無いものを rejected にして reason を残し、件数を返す。
+   * collected 以外の行（生成中・下書き・公開済みなど）は変えない
+   */
+  rejectCollected(input: { keepContentHashes: string[]; reason: string; sourceDocumentIds: number[] }): Promise<number>
   /**
    * 失敗回数を増やさずに collected へ戻す（API キーやモデル ID の誤りでタスクを止めるとき）
    */

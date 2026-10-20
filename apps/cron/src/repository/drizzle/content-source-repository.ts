@@ -36,21 +36,23 @@ export class DrizzleContentSourceRepository implements ContentSourceRepository {
    * commit SHA を渡したときは、WHERE に収集を始めたときの last_collected_commit_sha を足す（null は IS NULL で比べる）
    */
   public async markCollected(id: number, input: MarkCollectedInput): Promise<boolean> {
-    const commit = input.lastCollectedCommitSha
+    const commit = input.lastCollectedCommit
     const isTarget = eq(contentSources.id, id)
     const result = await this._db
       .update(contentSources)
       .set({
         lastCollectedAt: input.lastCollectedAt,
-        ...(commit === undefined ? {} : { lastCollectedCommitSha: commit.next }),
+        ...(commit === undefined
+          ? {}
+          : { lastCollectedCommitSha: commit.nextSha, lastCollectedExtractionVersion: commit.extractionVersion }),
       })
       .where(commit === undefined
         ? isTarget
         : and(
           isTarget,
-          commit.expected === null
+          commit.expectedSha === null
             ? isNull(contentSources.lastCollectedCommitSha)
-            : eq(contentSources.lastCollectedCommitSha, commit.expected),
+            : eq(contentSources.lastCollectedCommitSha, commit.expectedSha),
         ))
     return (result.rowCount ?? 0) > 0
   }

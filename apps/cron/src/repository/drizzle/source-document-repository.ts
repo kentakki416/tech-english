@@ -1,4 +1,4 @@
-import { and, asc, DrizzleClient, eq, inArray, isNull, lt, or, sourceDocuments, sql } from "@repo/db"
+import { and, asc, DrizzleClient, eq, inArray, isNull, lt, or, passages, sourceDocuments, sql } from "@repo/db"
 import type { SourceDocument } from "@repo/domain"
 
 import { GONE_HTTP_STATUSES } from "../../const/collection"
@@ -53,6 +53,18 @@ export class DrizzleSourceDocumentRepository implements SourceDocumentRepository
     return rows.map((row) => this._toDomain(row))
   }
 
+  public async findWithCollectedPassages(sourceId: number): Promise<SourceDocument[]> {
+    const rows = await this._db
+      .select()
+      .from(sourceDocuments)
+      .where(and(
+        eq(sourceDocuments.sourceId, sourceId),
+        sql`EXISTS (SELECT 1 FROM ${passages} WHERE ${passages.sourceDocumentId} = ${sourceDocuments.id} AND ${passages.status} = 'collected')`,
+      ))
+      .orderBy(asc(sourceDocuments.id))
+    return rows.map((row) => this._toDomain(row))
+  }
+
   public async markFetched(id: number, input: MarkFetchedInput): Promise<void> {
     await this._db
       .update(sourceDocuments)
@@ -61,6 +73,7 @@ export class DrizzleSourceDocumentRepository implements SourceDocumentRepository
         commitSha: input.commitSha,
         contentHash: input.contentHash,
         etag: input.etag,
+        extractionVersion: input.extractionVersion,
         fetchedAt: input.fetchedAt,
         httpStatus: input.httpStatus,
         lastModified: input.lastModified,
