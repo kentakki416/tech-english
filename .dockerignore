@@ -16,7 +16,8 @@
 
 # Misc
 **/.DS_Store
-*.pem
+**/*.pem
+**/*.tsbuildinfo
 
 # Debug
 npm-debug.log*
@@ -27,10 +28,15 @@ pnpm-debug.log*
 # Local env files
 **/.env*.local
 **/.env.keys
-secret
+**/secret
 
 # Turbo
 **/.turbo/
+
+# ローカルの生成物（Playwright のスクショ・ログ、cron が書く音声、Expo のキャッシュ）
+.playwright-mcp/
+.storage/
+**/.expo/
 
 # Git
 .git
