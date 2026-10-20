@@ -136,23 +136,57 @@ const findImportSource = async (url: string, repo: UrlImportRepo): Promise<Resul
 }
 
 /**
- * キャッシュの読み書きの失敗では止めない（取得して進める）。キャッシュはサイトへのリクエストを減らすためだけのもの
+ * キャッシュの読み書きを待つ上限。Redis に繋がらないと ioredis は再接続を試すあいだ待ち続け、取得の期限と API Gateway の 29 秒を食うため
+ */
+const PAGE_CACHE_TIMEOUT_MS = 500
+
+/**
+ * 上限までに終わらなければ timeout を返して先に進む（promise は止めずに走らせたままにする）
+ */
+const waitWithPageCacheTimeout = async <T>(promise: Promise<T>): Promise<{ kind: "done"; value: T } | { kind: "timeout" }> => {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const timeout = new Promise<{ kind: "timeout" }>((resolve) => {
+    timer = setTimeout(() => resolve({ kind: "timeout" }), PAGE_CACHE_TIMEOUT_MS)
+  })
+  try {
+    return await Promise.race([promise.then((value) => ({ kind: "done" as const, value })), timeout])
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+const convertErrorToMessage = (error: unknown): string => (error instanceof Error ? error.message : String(error))
+
+/**
+ * キャッシュの読み書きの失敗・時間切れでは止めない（取得して進める）。キャッシュはサイトへのリクエストを減らすためだけのもの
  */
 const findCachedPage = async (key: UrlImportPageCacheKey, repo: UrlImportRepo): Promise<FetchedPage | null> => {
   try {
-    return await repo.urlImportPageCacheRepository.find(key)
+    const result = await waitWithPageCacheTimeout(repo.urlImportPageCacheRepository.find(key))
+    if (result.kind === "done") return result.value
+    logger.warn("url import page cache read timed out", { timeoutMs: PAGE_CACHE_TIMEOUT_MS })
+    return null
   } catch (error) {
-    logger.warn("url import page cache could not be read", { error: error instanceof Error ? error.message : String(error) })
+    logger.warn("url import page cache could not be read", { error: convertErrorToMessage(error) })
     return null
   }
 }
 
 const cachePage = async (key: UrlImportPageCacheKey, page: FetchedPage, repo: UrlImportRepo): Promise<void> => {
   try {
-    await repo.urlImportPageCacheRepository.save(key, page)
+    const result = await waitWithPageCacheTimeout(repo.urlImportPageCacheRepository.save(key, page))
+    if (result.kind === "timeout") logger.warn("url import page cache write timed out", { timeoutMs: PAGE_CACHE_TIMEOUT_MS })
   } catch (error) {
-    logger.warn("url import page cache could not be written", { error: error instanceof Error ? error.message : String(error) })
+    logger.warn("url import page cache could not be written", { error: convertErrorToMessage(error) })
   }
+}
+
+/**
+ * キャッシュのキーにする URL。取得のときの正規化と同じくクエリとフラグメントを除き、#... だけが違う同じページで取り直さない
+ */
+const buildPageCacheUrl = (url: string): string => {
+  const parsed = new URL(url)
+  return `${parsed.origin}${parsed.pathname}`
 }
 
 /**
@@ -167,7 +201,7 @@ const fetchImportPage = async (
 ): Promise<Result<{ page: FetchedPage; source: WebsiteSource }>> => {
   const source = await findImportSource(url, repo)
   if (!source.ok) return source
-  const cacheKey: UrlImportPageCacheKey = { sourceId: source.value.id, sourceUpdatedAt: source.value.updatedAt, url }
+  const cacheKey: UrlImportPageCacheKey = { sourceId: source.value.id, sourceUpdatedAt: source.value.updatedAt, url: buildPageCacheUrl(url) }
   const cachedPage = await findCachedPage(cacheKey, repo)
   if (cachedPage !== null) return ok({ page: cachedPage, source: source.value })
 

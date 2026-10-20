@@ -58,7 +58,7 @@ function PreviewResult({ isPending, isSaving, preview, saveFailure, url, onSubmi
 }) {
   const hasImportableChunk = preview.chunks.some(isImportableChunk)
   return (
-    <ComponentCard desc="保存するまで DB には書きません。保存のときは確認した内容を保存します（10 分を過ぎたらページを取り直します）。" title="確認の結果">
+    <ComponentCard desc="保存するまで DB には書きません。保存のときは確認した内容を保存します（ページを取得してから 10 分を過ぎたら取り直します）。" title="確認の結果">
       <dl className="grid gap-4 text-sm sm:grid-cols-2">
         <div>
           <dt className="text-gray-500 dark:text-gray-400">ソース</dt>

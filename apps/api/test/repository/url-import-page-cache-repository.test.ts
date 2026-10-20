@@ -63,6 +63,7 @@ describe("IoRedisUrlImportPageCacheRepository", () => {
     it.each([
       ["JSON でない", "not json"],
       ["形が合わない", JSON.stringify({ title: "only title" })],
+      ["知らない項目がある（古い形・新しい形の値）", JSON.stringify({ ...buildFetchedPage(), unknownField: "x" })],
     ])("値が %s なら null", async (_label, value) => {
       await urlImportPageCacheRepository.save(KEY, buildFetchedPage())
       const [key] = await findCacheKeys()

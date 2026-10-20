@@ -6,6 +6,9 @@ import type { FetchedPage } from "../client/page-fetcher"
 export type UrlImportPageCacheKey = {
   sourceId: number
   sourceUpdatedAt: Date
+  /**
+   * クエリとフラグメントを除いた URL
+   */
   url: string
 }
 
@@ -14,7 +17,7 @@ export type UrlImportPageCacheKey = {
  */
 export interface UrlImportPageCacheRepository {
   /**
-   * 置いていない・期限が切れた・形が合わないときは null
+   * 置いていない・期限（最初に置いてから。読んでも延ばさない）が切れた・形が合わないときは null
    */
   find(key: UrlImportPageCacheKey): Promise<FetchedPage | null>
   save(key: UrlImportPageCacheKey, page: FetchedPage): Promise<void>

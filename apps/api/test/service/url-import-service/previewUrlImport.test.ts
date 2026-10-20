@@ -17,7 +17,7 @@ const urlImportRepository = createMockUrlImportRepository()
 const urlImportPageCacheRepository = createMockUrlImportPageCacheRepository()
 const pageFetcher = createMockPageFetcher()
 const repo = { contentSourceRepository, urlImportPageCacheRepository, urlImportRepository }
-const CACHE_KEY = { sourceId: 2, sourceUpdatedAt: buildWebsiteSource().updatedAt, url: PAGE_URL }
+const CACHE_KEY = { sourceId: 2, sourceUpdatedAt: buildWebsiteSource().updatedAt, url: "https://go.dev/doc/tutorial/getting-started" }
 const deps = { pageFetcher }
 
 describe("previewUrlImport", () => {
@@ -71,6 +71,28 @@ describe("previewUrlImport", () => {
       expect(result.ok && result.value.page.title).toBe("Cached")
       expect(pageFetcher.fetchAndExtractPage).not.toHaveBeenCalled()
       expect(urlImportPageCacheRepository.save).not.toHaveBeenCalled()
+    })
+
+    it("キャッシュのキーの URL はクエリとフラグメントを除く", async () => {
+      pageFetcher.fetchAndExtractPage.mockResolvedValue({ kind: "ok", page: buildFetchedPage() })
+
+      await previewUrlImport(PAGE_URL, NOW, repo, deps)
+
+      expect(urlImportPageCacheRepository.find).toHaveBeenCalledWith(CACHE_KEY)
+      expect(pageFetcher.fetchAndExtractPage).toHaveBeenCalledWith({ now: NOW, source: buildWebsiteSource(), url: PAGE_URL })
+    })
+
+    it("キャッシュの読み書きが 500ms で終わらなければ、待たずに取得して結果を返す", async () => {
+      urlImportPageCacheRepository.find.mockReturnValue(new Promise(() => undefined))
+      urlImportPageCacheRepository.save.mockReturnValue(new Promise(() => undefined))
+      pageFetcher.fetchAndExtractPage.mockResolvedValue({ kind: "ok", page: buildFetchedPage() })
+      const startedAt = Date.now()
+
+      const result = await previewUrlImport(PAGE_URL, NOW, repo, deps)
+
+      expect(result.ok).toBe(true)
+      expect(pageFetcher.fetchAndExtractPage).toHaveBeenCalledTimes(1)
+      expect(Date.now() - startedAt).toBeLessThan(3000)
     })
 
     it("キャッシュの読み書きに失敗しても、取得して結果を返す", async () => {
