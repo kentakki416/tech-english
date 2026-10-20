@@ -33,6 +33,8 @@ Markdown / MDX / HTML から本文を抽出して本文候補に切り分ける�
 | `src/website-pages.ts` | 取得してよいページの判定（同じオリジン・ページの拡張子・対象パス・robots.txt）、開始ページの path、HTML の抽出（収集と試し実行で共有） |
 | `src/const.ts` | User-Agent・robots.txt の照合名・Crawl-delay の上限・タイムアウト・HTML / sitemap の大きさの上限・リダイレクトの上限 |
 
+fetch はグローバルではなく undici のもの（npm の undici の `Agent` をグローバルの fetch に渡すと版の違いで動かないことがあるため）。undici は Node 20 で動く v7 に固定している（v8 は Node 22.19 以上が必要）。
+
 取得先の制限（SSRF 対策）・robots.txt・リクエストの間隔の詳細は [content-collection のサイトのクロール](../../docs/spec/content-collection/README.md#サイトのクロール) と `apps/cron/CLAUDE.md` の「サイトのクロール（website）」。
 
 ## ESM 専用の依存（require(esm)）

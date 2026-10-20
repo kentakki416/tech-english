@@ -1,7 +1,10 @@
-import { type FetchPageResult, type IWebPageClient , isTargetPath ,
+import {
   buildPageUrl,
   extractWebPage,
+  type FetchPageResult,
   findStartPagePath,
+  isTargetPath,
+  type IWebPageClient,
   selectFetchablePagePaths,
 } from "@repo/content-extractor"
 import type { GitHubRepositorySource, WebsiteSource } from "@repo/domain"

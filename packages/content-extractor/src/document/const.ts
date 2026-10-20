@@ -54,7 +54,7 @@ export const PROSE_COMPONENT_NAMES: ReadonlySet<string> = new Set([
 
 /**
  * 抽出の版。`source_documents.extraction_version` と、GitHub のソースの `last_collected_extraction_version` に記録する。
- * lib/document の変更のうち、ブロック・切り分け・本文候補の条件が変わるものをしたら上げる（実装した日の日付）。
+ * src/document の変更のうち、ブロック・切り分け・本文候補の条件が変わるものをしたら上げる（実装した日の日付）。
  * 上げると、取得済みの文書を次の収集で切り分け直す（GitHub は次の収集、サイトは取り直しの順番が来たとき）
  */
 export const EXTRACTION_VERSION = "2026-10-20.1"

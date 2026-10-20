@@ -3,8 +3,7 @@ import { defineConfig } from "vitest/config"
 export default defineConfig({
   test: {
     /**
-     * テスト中のログを止める。失敗ジョブのテストは 1 件ごとに
-     * スタックトレースが数十行出て、アサーションの失敗が埋もれる。
+     * テスト中のログを止める。WebPageClient の warn などがテストの出力に混ざり、アサーションの失敗が埋もれるため
      */
     env: {
       LOGGER_TYPE: "silent",

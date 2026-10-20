@@ -1,16 +1,19 @@
 import {
-  CrawlDelayTooLongError,
-  type FetchPageResult,
-  type IWebPageClient,
-  type SitemapUrl,
-  WebSourceThrottledError,
-  EXTRACTION_VERSION, type ExtractedDocument , isTargetPath ,
   buildPageUrl,
+  CrawlDelayTooLongError,
+  type ExtractedDocument,
+  EXTRACTION_VERSION,
   extractWebPage,
+  type FetchPageResult,
   findFetchablePagePath,
   findStartPagePath,
   isPassageTargetUrl,
-  selectFetchablePagePaths } from "@repo/content-extractor"
+  isTargetPath,
+  type IWebPageClient,
+  selectFetchablePagePaths,
+  type SitemapUrl,
+  WebSourceThrottledError,
+} from "@repo/content-extractor"
 import type { SourceDocument, WebsiteSource } from "@repo/domain"
 import { logger } from "@repo/logger"
 

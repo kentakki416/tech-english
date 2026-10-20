@@ -1,4 +1,4 @@
-import { EXTRACTION_VERSION, type ExtractedDocument , isTargetPath } from "@repo/content-extractor"
+import { type ExtractedDocument, EXTRACTION_VERSION, isTargetPath } from "@repo/content-extractor"
 import type { GitHubRepositorySource, SourceDocument } from "@repo/domain"
 import { logger } from "@repo/logger"
 
