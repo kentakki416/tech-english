@@ -81,7 +81,7 @@ admin（`apps/admin`）のサーバー側だけが呼ぶ API。一般ユーザ�
 - **認証は Bearer の admin の JWT**。admin は `admins` テーブル（`users` とは別。事前登録制）で、トークンは admin 専用の鍵（`JWT_ADMIN_ACCESS_SECRET` / `JWT_ADMIN_REFRESH_SECRET`）で署名し、payload は `{ adminId }`（発行・検証は `src/lib/admin-jwt.ts`）。refresh の jti は Redis の `admin_refresh_token:{jti}`（猶予は `admin_refresh_token_rotated:{jti}`）
 - **`adminAuthMiddleware`（`src/middleware/admin-auth.ts`）は全体ではなく `/api/admin` の mount の中に置く**。`src/index.ts` とテストは `mountAdminApi`（`src/routes/admin-router.ts`）で mount する。Express 5 の mount と Router は大文字小文字を区別しないので、全体に適用して文字列で比べると `/API/Admin/...` が判定をすり抜ける。一般ユーザーの `authMiddleware` は `/api/admin` を見ない
 - admin の access token を求めないパスは `ADMIN_PUBLIC_PATHS`（`src/const/index.ts`。mount からの相対で、完全一致で比べる。google / refresh / logout と、production 以外の dev-login）
-- Controller は `src/controller/admin/{resource}/{action}.ts`。Service は `src/service/{content-source,admin-passage,admin-stats,admin-user}-service.ts` と、認証の `admin-auth-service.ts`（Google・dev ログイン）・`admin-service.ts`（`GET /api/admin/me`）。ユーザー向けと同じ Repository を使う（ダッシュボードの集計だけは admin 専用の `AdminStatsRepository`。生の SQL で Postgres をその場で集計する。[admin-dashboard](../../docs/spec/admin-dashboard/README.md)）
+- Controller は `src/controller/admin/{resource}/{action}.ts`。Service は `src/service/{content-source,admin-passage,admin-stats,admin-user,url-import}-service.ts` と、認証の `admin-auth-service.ts`（Google・dev ログイン）・`admin-service.ts`（`GET /api/admin/me`）。ユーザー向けと同じ Repository を使う（ダッシュボードの集計だけは admin 専用の `AdminStatsRepository`。生の SQL で Postgres をその場で集計する。[admin-dashboard](../../docs/spec/admin-dashboard/README.md)）
 - admin の refresh / logout は一般ユーザーの `service.auth.refreshTokens` / `service.auth.logout` に admin 用の Repository・検証関数・発行関数を渡す。`refreshTokens` は持ち主を `tokenOwnerRepository` で確かめるので、admin は `adminRepository` を渡す（`admins` から消された admin の refresh token は 401）
 - ユーザー管理（`/api/admin/user/*`）はマイページの Service を使い回す。マイページの Service はユーザーが居ないと 401 を返すので、admin の Service（`admin-user-service.ts`）が先に存在を確かめて 404 にする
 - スキーマは `@repo/api-schema` の `admin/` に集約。既存と同一なら re-export し、Admin 固有のレスポンスが必要になった時点で新規定義する
@@ -100,6 +100,8 @@ pnpm exec dotenvx set KEY "value" -f .env.local
 
 `GITHUB_LICENSE_TOKEN`（任意）は admin のソース登録で GitHub のライセンスを検出するときに使う。未設定でも動くが、GitHub の rate limit（60 回 / 時）が低くなる。
 
+`COLLECT_WEB_CONTACT_URL`（任意）は admin の URL の取り込みでサイトに送る User-Agent に入れるサービスのトップの URL（`TechEnglishBot/1.0 (+{url})`）。cron の収集と同じ値にする。未設定なら `TechEnglishBot/1.0` だけを送る。
+
 読み上げ（[read-aloud](../../docs/spec/read-aloud/README.md#音声の保存と配信)）の音声の env:
 
 | 変数 | 既定 | 説明 |
@@ -108,6 +110,15 @@ pnpm exec dotenvx set KEY "value" -f .env.local
 | `AUDIO_STORAGE_LOCAL_DIR` | `../../.storage/audio` | `/media` の配信元（`apps/api` からの相対。cron の `generate:audio` の保存先と同じリポジトリ直下の `.storage/audio/`） |
 
 **`/media/*` は開発環境だけ**の配信（cron が書いた mp3。本番は S3 + CloudFront）。dev-login と同じくガードを 1 か所に集めない：`src/index.ts` は `production` で `mediaRouter` を登録せず、`DEV_ONLY_PUBLIC_PATHS`（`<audio>` は Authorization ヘッダを付けられないので認証の対象外にする）も `production` では `/media` を含めず、`src/routes/media-router.ts` も先頭で `production` なら 404 にする。Range のリクエストが続くので `apiRateLimiter` より前に登録し、helmet の `Cross-Origin-Resource-Policy` はこの router だけ `cross-origin` に上書きする（別オリジンの web の `<audio>` が読めるように）。
+
+## サイトのページの取得（`@repo/content-extractor`）
+
+admin の URL の取り込み（`POST /api/admin/url-import`・`/preview`。[url-import](../../docs/spec/url-import/README.md)）は、cron の収集と同じ `@repo/content-extractor` でページを取得・抽出する（取得先の制限・robots.txt・本文の抽出を cron と同じにする）。
+
+- パッケージは `src/client/page-fetcher.ts` の中で、使うときに `import()` で読む。jsdom などが重く、ほかの API のコールドスタートを遅くしないため。service・Repository は型だけを import する
+- パッケージは CommonJS で、ESM だけで配布されている unified などを Node の `require(esm)` で読むので、**Node 20.19 以上**が要る（Docker は `node:20-slim`）。vitest と tsx はこの経路を通らないので、Node のバージョンを変えるときはビルドした dist で読めることを確かめる（[step3 の動作確認](../../docs/spec/url-import/tasks/step3-api-url-import.md#動作確認)）
+- 取得は始めてから 20 秒で打ち切る（API Gateway と Lambda の 29 秒に収めるため）。期限・Crawl-delay の上限・リクエストの間隔は `page-fetcher.ts` の定数
+- api はパッケージの `dist` を読むので、パッケージを変えたら `pnpm --filter @repo/content-extractor build` してから起動・テストする
 
 ## レート制限
 

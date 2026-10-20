@@ -13,7 +13,7 @@ URL のページを取得・抽出して確認する API と、本文候補と�
 | `packages/content-extractor/src/web/web-page-client.ts`・`errors.ts` | `WebPageClientOptions.maxCrawlDelaySeconds`・`deadlineAt`、`WebDeadlineExceededError` |
 | `packages/content-extractor/src/const.ts`・`document/passage-rules.ts`・`index.ts` | `buildCollectorUserAgent`、`ChunkRejectReason` を `@repo/domain` から使う |
 | `packages/schema/src/api-schema/admin/url-import.ts`・`index.ts` | リクエスト・レスポンスのスキーマ |
-| `apps/api/src/env.ts`・`.env.example` | `COLLECT_WEB_CONTACT_URL`（任意） |
+| `apps/api/src/env.ts` | `COLLECT_WEB_CONTACT_URL`（任意） |
 | `apps/api/src/client/page-fetcher.ts` | `IPageFetcher` と、`@repo/content-extractor` を使うときに読む実装 |
 | `apps/api/src/repository/url-import-repository.ts`・`drizzle/url-import-repository.ts`・`index.ts` | 文書の読み書き・本文候補の検索・挿入・優先・却下 |
 | `apps/api/src/service/url-import-service.ts`・`index.ts` | 確認と保存 |
@@ -87,7 +87,7 @@ const urlImportUrlSchema = z
   .trim()
   .url()
   .max(2048)
-  .refine((value) => new URL(value).protocol === "https:", { message: "URL must use https" })
+  .regex(/^https:\/\//i, { message: "Must be an https URL" })
 
 export const previewUrlImportRequestSchema = z.object({ url: urlImportUrlSchema })
 
@@ -142,24 +142,30 @@ export type FetchedPage = {
   contentHash: string
   etag: string | null
   extractionVersion: string
-  fetchedUrl: string
   httpStatus: number
   lastModified: string | null
+  normalizedUrl: string
   path: string
   title: string
   wordCount: number
 }
 
+export type PageFetchErrorCode = Exclude<UrlImportErrorCode, "github_source" | "source_not_found">
+
 export type PageFetchResult =
   | { kind: "ok"; page: FetchedPage }
-  | { code: UrlImportErrorCode; detail: string | null; kind: "failed" }
+  | { code: PageFetchErrorCode; detail: string | null; kind: "failed" }
 
 export interface IPageFetcher {
   fetchAndExtractPage(input: { now: Date; source: WebsiteSource; url: string }): Promise<PageFetchResult>
 }
 
 export class PageFetcher implements IPageFetcher {
-  constructor(private _contactUrl: string | undefined) {}
+  private _contactUrl: string | undefined
+
+  constructor(contactUrl: string | undefined) {
+    this._contactUrl = contactUrl
+  }
 
   public async fetchAndExtractPage(input: { now: Date; source: WebsiteSource; url: string }): Promise<PageFetchResult> {
     const extractor = await import("@repo/content-extractor")
@@ -178,7 +184,7 @@ export class PageFetcher implements IPageFetcher {
 ```
 
 - 手順：URL を `normalizePageUrl` で正規化（クエリ・フラグメントを除く。できなければ `blocked_url`）→ `isPassageTargetUrl` に合わなければ `out_of_target_path` → `loadRobots` → `isAllowedByRobots` で禁止なら `robots_disallowed` → 正規化した URL を `fetchPage(url, { etag: null, lastModified: null })` → 行き先が `isPassageTargetUrl` に合わなければ `redirected_out_of_target` → `extractWebPage`（throw したら `extraction_failed`）
-- `path` は正規化した URL の pathname、`extractionVersion` は `EXTRACTION_VERSION`、`chunks` は条件を満たさない塊も含む（`rejectReasons` で見分ける）
+- `normalizedUrl` は正規化した URL（リダイレクトの前）、`path` はその pathname、`extractionVersion` は `EXTRACTION_VERSION`、`chunks` は条件を満たさない塊も含む（`rejectReasons` で見分ける）
 - 失敗の対応：`loadRobots` の throw（5xx・ネットワーク）は `robots_unavailable`、`CrawlDelayTooLongError` は `crawl_delay_too_long`、`WebSourceThrottledError` は `throttled`、`BlockedUrlError` は `blocked_url`、`WebDeadlineExceededError` は `deadline_exceeded`、`http_error` は `http_error`（`detail` に status）、`network_error` は `network_error`、`skipped` の `reason` はそのまま（`not_html`・`too_large`・`redirect_not_allowed`・`too_many_redirects`。`robots_disallowed` は禁止）
 - `URL_IMPORT_FETCH_DEADLINE_MS = 20_000`・`URL_IMPORT_MAX_CRAWL_DELAY_SECONDS = 10`・`URL_IMPORT_REQUEST_INTERVAL_MS = 1000`。JSDoc に、API Gateway と Lambda の 29 秒に収めるための値であることを書く
 - `@repo/content-extractor` の値は `fetchAndExtractPage` の中で `import()` で読み、型だけを `import type` で読む。JSDoc に、jsdom などを読むのを使うときまで遅らせ、ほかの API のコールドスタートを遅くしないため、と書く。service・Repository は値として import しない
@@ -200,14 +206,19 @@ export type FetchedDocumentInput = {
   title: string
 }
 
-export type CandidateInput = Pick<Passage, "blocks" | "contentHash" | "sourceDocumentId" | "sourcePath" | "sourceRetrievedAt" | "title" | "wordCount">
-  & { generationPrioritizedAt: Date }
+export type CandidateInput = Pick<
+  Passage,
+  "blocks" | "contentHash" | "generationPrioritizedAt" | "sourceDocumentId" | "sourcePath" | "sourceRetrievedAt" | "title" | "wordCount"
+>
 
 export interface UrlImportRepository {
   findDocumentPassages(input: { path: string; sourceId: number }, tx?: TransactionContext): Promise<ImportPassage[]>
   findPassagesByContentHashes(contentHashes: string[], tx?: TransactionContext): Promise<ImportPassage[]>
   insertCandidates(inputs: CandidateInput[], tx: TransactionContext): Promise<number[]>
-  prioritizeCollected(input: { contentHashes: string[]; now: Date }, tx: TransactionContext): Promise<Pick<Passage, "id" | "title">[]>
+  prioritizeCollected(
+    input: { contentHashes: string[]; now: Date },
+    tx: TransactionContext,
+  ): Promise<Pick<Passage, "contentHash" | "id" | "title">[]>
   rejectCollected(
     input: { keepContentHashes: string[]; reason: string; sourceDocumentId: number },
     tx: TransactionContext,
@@ -220,7 +231,7 @@ export interface UrlImportRepository {
 - `findPassagesByContentHashes`：`content_hash` が入るものを、文書を問わずに返す（`content_hash` は全体で unique）。空なら空
 - `upsertFetchedDocument`：`(source_id, path)` で insert ... on conflict do update。取得の結果の列を書き、`blob_sha`・`commit_sha` は null、`sitemap_lastmod` は変えない
 - `insertCandidates`：`on conflict (content_hash) do nothing` で挿入し、挿入した行の id を返す
-- `prioritizeCollected`：`collected` で `content_hash` が入るものに `generation_prioritized_at = coalesce(generation_prioritized_at, now)` を書いて返す（文書で絞らない。すでに優先していれば時刻を変えない）。空なら何もせず空
+- `prioritizeCollected`：`collected` で `content_hash` が入るものに `generation_prioritized_at = coalesce(generation_prioritized_at, now)` を書いて返す（文書で絞らない。すでに優先していれば時刻を変えない）。`now` は生の SQL に入るので `convertInstantToUtcTimestamp` で渡す。`contentHash` を返し、service がページの塊の順に並べる。空なら何もせず空
 - `rejectCollected`：cron の `rejectCollected` と同じ条件（その文書の `collected` で `content_hash` が `keepContentHashes` に無いもの。空なら NOT IN を付けない）。件数を返す
 
 ### Service（`url-import-service.ts`）
@@ -274,7 +285,7 @@ export const importUrl = async (
 
 - `findImportSource`：`findAll` のうち、`fetchType === "website"` でサイトの URL が `new URL(url).origin` と同じもの（`site_url` は登録のときにオリジンに正規化していて unique なので 1 つ）。無ければ、`github_repository` で `publicUrlTemplate` のオリジンが同じものがあれば 400（`github_source`）、それも無ければ 400（`source_not_found`）。対象パスの判定はクライアントが行う（`out_of_target_path`）
 - `isGeneratedOrGenerating(passage)`：`status` が `generating`・`draft`・`published` か、`rejected` で `generatedAt` がある。cron の `findGeneratedOrGeneratingTitles` と同じ条件（JSDoc に、条件を変えるときは cron も直すと書く）
-- `classifyChunks`：`rejectReasons` があれば `not_candidate`。同じ `contentHash` の本文候補があれば、`collected` なら `existing`、それ以外の状態なら `duplicated`。その文書に同じ見出しの `isGeneratedOrGenerating` な本文候補があれば `generated_section`。それ以外は `new`
+- `classifyChunks`：`rejectReasons` があれば `not_candidate`。その文書に同じ見出しの `isGeneratedOrGenerating` な本文候補があれば `generated_section`。同じ `contentHash` の本文候補があれば、`collected` なら `existing`、それ以外の状態なら `duplicated`。それ以外は `new`（判定の順の理由は [README](../README.md#保存)）
 - 保存の後、`logger.info` に source・path・作った件数・優先した件数・却下した件数を出す
 - `buildUrlImportError(code, detail)`：`badRequestError("URL could not be imported", [{ code, message: detail ?? code, path: ["url"] }])`
 - `UrlImportPreview`・`UrlImportResult` の型は service に置く（Controller が response に変える）

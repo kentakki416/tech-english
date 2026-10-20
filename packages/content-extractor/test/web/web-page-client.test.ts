@@ -2,7 +2,7 @@ import { ReadableStream } from "node:stream/web"
 
 import { fetch, Response } from "undici"
 
-import { BlockedUrlError, CrawlDelayTooLongError, WebPageClient, WebSourceThrottledError } from "../../src/web"
+import { BlockedUrlError, CrawlDelayTooLongError, WebDeadlineExceededError, WebPageClient, type WebPageClientOptions, WebSourceThrottledError } from "../../src/web"
 
 const ORIGIN = "https://docs.example.com"
 
@@ -28,7 +28,10 @@ const createXmlResponse = (xml: string): Response =>
  * 外部のサイトに接続しないよう fetch を差し替える。routes に無い URL を取りに来たら throw する（client は network_error にする）。
  * robots.txt は routes に無ければ 404（全許可）。時計は sleep と elapsedPerRequestMs でだけ進む
  */
-const createHarness = (routes: Record<string, Route>, options: { elapsedPerRequestMs?: number } = {}) => {
+const createHarness = (
+  routes: Record<string, Route>,
+  options: { clientOptions?: Pick<WebPageClientOptions, "deadlineAt" | "maxCrawlDelaySeconds">; elapsedPerRequestMs?: number } = {},
+) => {
   let clock = 1_000_000
   const requestStartedAt: number[] = []
   const fetchMock = vi.fn<typeof fetch>(async (input) => {
@@ -49,6 +52,7 @@ const createHarness = (routes: Record<string, Route>, options: { elapsedPerReque
     requestIntervalMs: 1000,
     sleep,
     userAgent: USER_AGENT,
+    ...options.clientOptions,
   })
   return {
     client,
@@ -433,6 +437,48 @@ describe("WebPageClient", () => {
         .toEqual({ kind: "skipped", reason: "robots_disallowed", status: null })
       expect(harness.requestedUrls()).toEqual([ROBOTS_URL])
       expect(harness.sleep).not.toHaveBeenCalled()
+    })
+
+    it("maxCrawlDelaySeconds を渡すと、それを超える Crawl-delay で CrawlDelayTooLongError", async () => {
+      const harness = createHarness(
+        { [ROBOTS_URL]: () => createRobotsResponse("User-agent: *\nCrawl-delay: 11\n") },
+        { clientOptions: { maxCrawlDelaySeconds: 10 } },
+      )
+
+      await expect(harness.client.loadRobots()).rejects.toBeInstanceOf(CrawlDelayTooLongError)
+    })
+
+    it("期限を過ぎる時刻に送ることになるリクエストは、待たずに送らず WebDeadlineExceededError", async () => {
+      const harness = createHarness(
+        {
+          [ROBOTS_URL]: () => createRobotsResponse("User-agent: *\nCrawl-delay: 10\n"),
+          [`${ORIGIN}/doc/a`]: () => createHtmlResponse("<h1>A</h1>"),
+        },
+        { clientOptions: { deadlineAt: 1_000_000 + 5_000 } },
+      )
+      await harness.client.loadRobots()
+
+      await expect(harness.client.fetchPage(`${ORIGIN}/doc/a`, NO_CONDITIONAL)).rejects.toBeInstanceOf(WebDeadlineExceededError)
+      expect(harness.requestedUrls()).toEqual([ROBOTS_URL])
+      expect(harness.sleep).not.toHaveBeenCalled()
+    })
+
+    it("期限までに縮めたタイムアウトで止まったリクエストは network_error にせず WebDeadlineExceededError", async () => {
+      let clock = 1_000_000
+      const client = new WebPageClient({
+        allowedOrigin: ORIGIN,
+        deadlineAt: clock + 3_000,
+        fetch: vi.fn<typeof fetch>(async () => {
+          clock += 3_000
+          throw new DOMException("The operation was aborted due to timeout", "TimeoutError")
+        }),
+        now: () => clock,
+        requestIntervalMs: 1000,
+        sleep: async () => undefined,
+        userAgent: USER_AGENT,
+      })
+
+      await expect(client.loadRobots()).rejects.toBeInstanceOf(WebDeadlineExceededError)
     })
 
     it("別のボット向けの大きい Crawl-delay は TechEnglishBot に影響しない", async () => {

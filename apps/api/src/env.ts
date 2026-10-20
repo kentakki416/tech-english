@@ -24,6 +24,12 @@ const apiEnvSchema = z.object({
   AUDIO_STORAGE_LOCAL_DIR: z.string().min(1).default("../../.storage/audio"),
 
   /**
+   * URL の取り込み（POST /api/admin/url-import）で、サイトに送る User-Agent に入れるサービスのトップの URL（`TechEnglishBot/1.0 (+{url})`）。
+   * cron の収集と同じ値にする。未設定なら `TechEnglishBot/1.0` だけを送る
+   */
+  COLLECT_WEB_CONTACT_URL: z.string().url().optional(),
+
+  /**
    * Postgres 接続文字列
    * 未指定時は packages/db 側でローカル開発用デフォルトにフォールバックする
    */

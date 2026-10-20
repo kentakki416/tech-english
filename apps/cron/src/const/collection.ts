@@ -34,11 +34,6 @@ export const COLLECT_RUN_INTERVAL_MS = 24 * 60 * 60 * 1000
 export const GONE_HTTP_STATUSES = [404, 410]
 
 /**
- * 切り分け直した文書の collected のうち、新しい本文候補に無いものを却下するときの理由（admin の「却下」に出る）
- */
-export const SUPERSEDED_PASSAGE_REJECT_REASON = "切り分け直したため、前の切り分けの本文候補を外した"
-
-/**
  * 収集の対象から外れた文書（除外パス・対象パスから外した、取得元から消えた）の collected を却下するときの理由
  */
 export const OUT_OF_TARGET_PASSAGE_REJECT_REASON = "除外パスに入ったか取得元から消えたため、収集の対象から外した"

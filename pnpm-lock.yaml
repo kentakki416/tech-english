@@ -126,6 +126,9 @@ importers:
       '@repo/api-schema':
         specifier: workspace:^
         version: link:../../packages/schema
+      '@repo/content-extractor':
+        specifier: workspace:^
+        version: link:../../packages/content-extractor
       '@repo/db':
         specifier: workspace:^
         version: link:../../packages/db

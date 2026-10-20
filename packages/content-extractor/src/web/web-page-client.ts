@@ -16,7 +16,7 @@ import {
 } from "../const"
 import { type ParsedSitemap, parseSitemap } from "../parse-sitemap"
 
-import { BlockedUrlError, CrawlDelayTooLongError, WebSourceThrottledError } from "./errors"
+import { BlockedUrlError, CrawlDelayTooLongError, WebDeadlineExceededError, WebSourceThrottledError } from "./errors"
 import { createSafeLookup, isBlockedIpLiteral } from "./safe-lookup"
 
 /**
@@ -58,7 +58,7 @@ export type SitemapUrl = {
  */
 export interface IWebPageClient {
   /**
-   * 429 / 503 は WebSourceThrottledError、取得先の制限に掛かった URL は BlockedUrlError を throw する
+   * 429 / 503 は WebSourceThrottledError、取得先の制限に掛かった URL は BlockedUrlError、期限（deadlineAt）を過ぎたら WebDeadlineExceededError を throw する
    */
   fetchPage(url: string, conditional: ConditionalRequest): Promise<FetchPageResult>
   /**
@@ -71,7 +71,8 @@ export interface IWebPageClient {
   isAllowedByRobots(url: string): boolean
   /**
    * robots.txt を読む。読めない（5xx・ネットワークエラー）なら throw する（読めないまま取得しない）。
-   * Crawl-delay が MAX_CRAWL_DELAY_SECONDS を超えていれば CrawlDelayTooLongError を throw する
+   * Crawl-delay が maxCrawlDelaySeconds（既定は MAX_CRAWL_DELAY_SECONDS）を超えていれば CrawlDelayTooLongError、
+   * 期限（deadlineAt）を過ぎたら WebDeadlineExceededError を throw する
    */
   loadRobots(): Promise<void>
 }
@@ -82,15 +83,23 @@ export type WebPageClientOptions = {
    */
   allowedOrigin: string
   /**
+   * 取得の期限（epoch ミリ秒）。期限を過ぎるリクエストは送らずに WebDeadlineExceededError を throw する。省略時は期限なし
+   */
+  deadlineAt?: number
+  /**
    * テストで差し替える。既定は undici の fetch（undici の Agent を dispatcher に渡すため、グローバルの fetch は使わない）
    */
   fetch?: typeof undiciFetch
+  /**
+   * robots.txt の Crawl-delay（秒）の上限。省略時は MAX_CRAWL_DELAY_SECONDS
+   */
+  maxCrawlDelaySeconds?: number
   /**
    * テストで差し替える。既定は Date.now
    */
   now?: () => number
   /**
-   * 同じオリジンへのリクエストの間隔（ミリ秒）。robots.txt の Crawl-delay の方が長ければそちらに従う（上限は MAX_CRAWL_DELAY_SECONDS）
+   * 同じオリジンへのリクエストの間隔（ミリ秒）。robots.txt の Crawl-delay の方が長ければそちらに従う（上限は maxCrawlDelaySeconds）
    */
   requestIntervalMs: number
   /**
@@ -224,14 +233,17 @@ const isDeclaredTooLarge = (response: Response, maxBytes: number): boolean => {
  * 2. 接続先の IP：undici の Agent の connect.lookup に createSafeLookup を渡し、接続のときに名前解決した全アドレスを検査する
  * 3. リダイレクト：redirect: "manual" で自分でたどり、最大 MAX_REDIRECTS 回、毎回 1 と robots.txt を検査する
  *
- * すべてのリクエストは直列で、前回の開始から max(requestIntervalMs, Crawl-delay) 空ける。Crawl-delay が MAX_CRAWL_DELAY_SECONDS を
- * 超えるサイトは loadRobots で CrawlDelayTooLongError を throw する（従うと処理が長時間止まるため）。env は読まずコンストラクタで受ける
+ * すべてのリクエストは直列で、前回の開始から max(requestIntervalMs, Crawl-delay) 空ける。Crawl-delay が maxCrawlDelaySeconds を
+ * 超えるサイトは loadRobots で CrawlDelayTooLongError を throw する（従うと処理が長時間止まるため）。
+ * deadlineAt を渡したときは、期限を過ぎるリクエストを送らず、各リクエストのタイムアウトも期限までに縮める。env は読まずコンストラクタで受ける
  */
 export class WebPageClient implements IWebPageClient {
   private _crawlDelayMs = 0
+  private _deadlineAt: number | null
   private _dispatcher: Dispatcher
   private _fetch: typeof undiciFetch
   private _lastRequestStartedAt: number | null = null
+  private _maxCrawlDelaySeconds: number
   private _now: () => number
   private _origin: string
   private _requestIntervalMs: number
@@ -241,8 +253,10 @@ export class WebPageClient implements IWebPageClient {
 
   constructor(options: WebPageClientOptions) {
     this._origin = new URL(options.allowedOrigin).origin
+    this._deadlineAt = options.deadlineAt ?? null
     this._dispatcher = new Agent({ connect: { lookup: createSafeLookup() } })
     this._fetch = options.fetch ?? undiciFetch
+    this._maxCrawlDelaySeconds = options.maxCrawlDelaySeconds ?? MAX_CRAWL_DELAY_SECONDS
     this._now = options.now ?? Date.now
     this._requestIntervalMs = options.requestIntervalMs
     this._sleep = options.sleep ?? sleepWithTimer
@@ -273,7 +287,10 @@ export class WebPageClient implements IWebPageClient {
     }
     const body = await readBodyWithLimit(response, MAX_HTML_BYTES)
     if (body.kind === "too_large") return { kind: "skipped", reason: "too_large", status: response.status }
-    if (body.kind === "network_error") return body
+    if (body.kind === "network_error") {
+      this._throwIfDeadlinePassed(url)
+      return body
+    }
     return {
       body: decodeBody(body.bytes, contentType),
       etag: response.headers.get("etag"),
@@ -473,31 +490,50 @@ export class WebPageClient implements IWebPageClient {
     url: string,
     headers: Record<string, string>,
   ): Promise<{ kind: "response"; value: Response } | { errorMessage: string; kind: "network_error" }> {
-    await this._waitForTurn()
+    await this._waitForTurn(url)
     logger.debug("web request", { url })
     try {
       const response = await this._fetch(url, {
         dispatcher: this._dispatcher,
         headers,
         redirect: "manual",
-        signal: AbortSignal.timeout(WEB_REQUEST_TIMEOUT_MS),
+        signal: AbortSignal.timeout(this._calculateTimeoutMs()),
       })
       return { kind: "response", value: response }
     } catch (error) {
       const blocked = findBlockedUrlError(error)
       if (blocked) throw blocked
+      this._throwIfDeadlinePassed(url)
       return { errorMessage: formatErrorMessage(error), kind: "network_error" }
     }
   }
 
   /**
-   * robots.txt の内容を持つ。Crawl-delay が MAX_CRAWL_DELAY_SECONDS を超えていれば CrawlDelayTooLongError を throw する
+   * 1 リクエストのタイムアウト。期限があれば期限までの残りに縮める
+   */
+  private _calculateTimeoutMs(): number {
+    return this._deadlineAt === null
+      ? WEB_REQUEST_TIMEOUT_MS
+      : Math.max(1, Math.min(WEB_REQUEST_TIMEOUT_MS, this._deadlineAt - this._now()))
+  }
+
+  /**
+   * 期限を過ぎていれば WebDeadlineExceededError を throw する（期限までに縮めたタイムアウトで止まったリクエストを、ネットワークエラーと分けるため）
+   */
+  private _throwIfDeadlinePassed(url: string): void {
+    if (this._deadlineAt !== null && this._now() >= this._deadlineAt) {
+      throw new WebDeadlineExceededError({ deadlineAt: this._deadlineAt, url })
+    }
+  }
+
+  /**
+   * robots.txt の内容を持つ。Crawl-delay が maxCrawlDelaySeconds を超えていれば CrawlDelayTooLongError を throw する
    */
   private _setRobots(robotsUrl: string, content: string): void {
     const robots = robotsParser(robotsUrl, content)
     const crawlDelay = robots.getCrawlDelay(CRAWLER_NAME)
-    if (crawlDelay !== undefined && crawlDelay > MAX_CRAWL_DELAY_SECONDS) {
-      throw new CrawlDelayTooLongError({ crawlDelaySeconds: crawlDelay, maxCrawlDelaySeconds: MAX_CRAWL_DELAY_SECONDS, url: robotsUrl })
+    if (crawlDelay !== undefined && crawlDelay > this._maxCrawlDelaySeconds) {
+      throw new CrawlDelayTooLongError({ crawlDelaySeconds: crawlDelay, maxCrawlDelaySeconds: this._maxCrawlDelaySeconds, url: robotsUrl })
     }
     this._robots = robots
     this._crawlDelayMs = crawlDelay !== undefined && Number.isFinite(crawlDelay) && crawlDelay > 0 ? crawlDelay * 1000 : 0
@@ -513,14 +549,17 @@ export class WebPageClient implements IWebPageClient {
   }
 
   /**
-   * 前回のリクエストの開始から max(requestIntervalMs, Crawl-delay) 経つまで待つ
+   * 前回のリクエストの開始から max(requestIntervalMs, Crawl-delay) 経つまで待つ。
+   * 待った後に送る時刻が期限を過ぎるなら、待たずに WebDeadlineExceededError を throw する
    */
-  private async _waitForTurn(): Promise<void> {
-    if (this._lastRequestStartedAt !== null) {
-      const intervalMs = Math.max(this._requestIntervalMs, this._crawlDelayMs)
-      const waitMs = this._lastRequestStartedAt + intervalMs - this._now()
-      if (waitMs > 0) await this._sleep(waitMs)
+  private async _waitForTurn(url: string): Promise<void> {
+    const waitMs = this._lastRequestStartedAt === null
+      ? 0
+      : this._lastRequestStartedAt + Math.max(this._requestIntervalMs, this._crawlDelayMs) - this._now()
+    if (this._deadlineAt !== null && this._now() + Math.max(waitMs, 0) >= this._deadlineAt) {
+      throw new WebDeadlineExceededError({ deadlineAt: this._deadlineAt, url })
     }
+    if (waitMs > 0) await this._sleep(waitMs)
     this._lastRequestStartedAt = this._now()
   }
 }
