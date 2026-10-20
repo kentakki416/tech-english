@@ -1,6 +1,6 @@
 import React from "react"
 
-import { DocsIcon, FolderIcon, GridIcon, ListIcon, UserCircleIcon } from "@/icons"
+import { DocsIcon, FolderIcon, GridIcon, ListIcon, PlusIcon, UserCircleIcon } from "@/icons"
 
 /**
  * path か subItems のどちらかを持つ
@@ -21,6 +21,7 @@ export const mainNavSection: NavSection = {
   items: [
     { icon: <GridIcon />, name: "ダッシュボード", path: "/" },
     { icon: <DocsIcon />, name: "問題", path: "/passages" },
+    { icon: <PlusIcon />, name: "URL から追加", path: "/url-import" },
     { icon: <FolderIcon />, name: "ソース", path: "/content-sources" },
     { icon: <ListIcon />, name: "タグ", path: "/tags" },
     { icon: <UserCircleIcon />, name: "ユーザー", path: "/users" },
