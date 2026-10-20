@@ -89,6 +89,7 @@ export const buildGitHubSource = (overrides: Partial<GitHubRepositorySourceWithT
     ...input,
     lastCollectedAt: new Date("2026-10-09T03:00:00.000Z"),
     lastCollectedCommitSha: "abc123",
+    lastCollectedExtractionVersion: null,
     tags: [],
     createdAt: new Date("2026-10-01T00:00:00.000Z"),
     updatedAt: new Date("2026-10-01T00:00:00.000Z"),

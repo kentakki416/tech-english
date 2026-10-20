@@ -21,6 +21,10 @@ export type SourceDocument = {
    */
   etag: string | null
   /**
+   * 文書を切り分けたときの抽出の版（cron の EXTRACTION_VERSION）。null はこの列を足してから一度も切り分けていない文書
+   */
+  extractionVersion: string | null
+  /**
    * 最後に取得を試みた時刻。null は未取得。
    * サイトは取得できなかったとき（ネットワークエラー・429 / 503）も試した時刻を入れる（待ち行列から外すため）
    */

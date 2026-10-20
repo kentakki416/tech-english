@@ -29,6 +29,10 @@ export const sourceDocuments = pgTable(
      */
     etag: text("etag"),
     /**
+     * 文書を切り分けたときの抽出の版（cron の EXTRACTION_VERSION）。NULL はこの列を足してから一度も切り分けていない文書
+     */
+    extractionVersion: text("extraction_version"),
+    /**
      * 最後に取得を試みた時刻。NULL は未取得（サイトのクロールで先に取得する）。
      * サイトは取得できなかったとき（ネットワークエラー・429 / 503）も試した時刻を入れ、待ち行列から外す
      */

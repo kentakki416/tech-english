@@ -33,7 +33,7 @@
     lastCollectedExtractionVersion: text("last_collected_extraction_version"),
 ```
 
-- まわりの列と同じく、列の意味を JSDoc に書く。`extraction_version` は「文書を切り分けたときの抽出の版（cron の `EXTRACTION_VERSION`）。NULL は列を足す前に取得した文書か未取得」、`last_collected_extraction_version` は「GitHub のみ。`last_collected_commit_sha` を記録したときの抽出の版」
+- まわりの列と同じく、列の意味を JSDoc に書く。`extraction_version` は「文書を切り分けたときの抽出の版（cron の `EXTRACTION_VERSION`）。NULL はこの列を足してから一度も切り分けていない文書」、`last_collected_extraction_version` は「GitHub のみ。`last_collected_commit_sha` を記録したときの抽出の版」
 
 ```bash
 pnpm --filter @repo/db db:generate --name add_extraction_versions
@@ -60,7 +60,7 @@ ALTER TABLE "source_documents" ADD COLUMN "extraction_version" text;
   lastCollectedExtractionVersion: string | null
 ```
 
-- JSDoc はスキーマの列と同じ内容を書く（`null` は列を足す前に取得した文書か未取得、`lastCollectedCommitSha` を記録したときの抽出の版）
+- JSDoc はスキーマの列と同じ内容を書く（`null` はこの列を足してから一度も切り分けていない文書、`lastCollectedCommitSha` を記録したときの抽出の版）
 
 ### 読み込み
 

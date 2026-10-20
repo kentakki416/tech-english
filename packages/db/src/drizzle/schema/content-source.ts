@@ -38,6 +38,10 @@ export const contentSources = pgTable(
      * GitHub のみ。最後に全ファイルを処理し終えたコミット
      */
     lastCollectedCommitSha: text("last_collected_commit_sha"),
+    /**
+     * GitHub のみ。last_collected_commit_sha を記録したときの抽出の版（cron の EXTRACTION_VERSION）
+     */
+    lastCollectedExtractionVersion: text("last_collected_extraction_version"),
     licenseSpdx: text("license_spdx", { enum: ALLOWED_LICENSES }).notNull(),
     licenseUrl: text("license_url").notNull(),
     name: text("name").notNull(),

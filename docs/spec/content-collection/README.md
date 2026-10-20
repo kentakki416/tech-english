@@ -514,8 +514,8 @@ cron タスク：
 
 | テーブル | 主要カラム | 説明 |
 | --- | --- | --- |
-| `content_sources` | 共通：`id`, `name`, `kind`, `fetch_type`, `include_globs(jsonb)`, `exclude_globs(jsonb)`, `license_spdx`, `license_url`, `is_enabled`, `last_collected_at`<br/>GitHub：`repository`, `branch`, `public_url_template`, `public_url_strip_prefix`, `last_collected_commit_sha`<br/>サイト：`site_url`, `sitemap_url`, `start_url`, `content_selector`, `exclude_selectors(jsonb)` | 取得元。管理者が登録する。技術タグは `content_source_tags` で `tags` に紐付ける（[source-tags](../source-tags/README.md#必要な-db-設計)） |
-| `source_documents` | `id`, `source_id`, `path`, `title`, `fetched_at`, `content_hash`<br/>GitHub：`blob_sha`, `commit_sha`<br/>サイト：`etag`, `last_modified`, `sitemap_lastmod`, `http_status` | 取得した文書。差分検出・出典の組み立て・サイトのクロールの待ち行列に使う |
+| `content_sources` | 共通：`id`, `name`, `kind`, `fetch_type`, `include_globs(jsonb)`, `exclude_globs(jsonb)`, `license_spdx`, `license_url`, `is_enabled`, `last_collected_at`<br/>GitHub：`repository`, `branch`, `public_url_template`, `public_url_strip_prefix`, `last_collected_commit_sha`, `last_collected_extraction_version`<br/>サイト：`site_url`, `sitemap_url`, `start_url`, `content_selector`, `exclude_selectors(jsonb)` | 取得元。管理者が登録する。技術タグは `content_source_tags` で `tags` に紐付ける（[source-tags](../source-tags/README.md#必要な-db-設計)） |
+| `source_documents` | `id`, `source_id`, `path`, `title`, `fetched_at`, `content_hash`, `extraction_version`<br/>GitHub：`blob_sha`, `commit_sha`<br/>サイト：`etag`, `last_modified`, `sitemap_lastmod`, `http_status` | 取得した文書。差分検出・出典の組み立て・サイトのクロールの待ち行列に使う |
 | `passages` | ― | 本文候補 / 問題。**列定義の正本は [question-generation](../question-generation/README.md#必要な-db-設計)**。この spec では `source_document_id` / `source_path` / `source_commit_sha`（GitHub のみ）/ `source_retrieved_at` / `title` / `blocks` / `word_count` / `content_hash` / `status = collected` を埋めて作る |
 
 ```mermaid
@@ -538,6 +538,7 @@ erDiagram
         text public_url_template "GitHub のみ, nullable"
         text public_url_strip_prefix "GitHub のみ, nullable"
         text last_collected_commit_sha "GitHub のみ, nullable"
+        text last_collected_extraction_version "GitHub のみ, nullable"
         text site_url "サイトのみ。オリジン"
         text sitemap_url "サイトのみ, nullable"
         text start_url "サイトのみ, nullable"
@@ -553,6 +554,7 @@ erDiagram
         text title "nullable"
         timestamp fetched_at "最後に取得を試みた時刻（失敗を含む）, nullable = 未取得"
         text content_hash "抽出した本文のハッシュ, nullable"
+        text extraction_version "切り分けたときの抽出の版, nullable"
         text blob_sha "GitHub のみ"
         text commit_sha "GitHub のみ。取得したときのコミット"
         text etag "サイトのみ, nullable"
