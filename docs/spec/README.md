@@ -33,6 +33,7 @@
 | question-translation | 完了 | 解答画面で設問（設問文と選択肢）の和訳を設問ごとの「訳」で英文の下に出す。和訳は問題の生成で設問と一緒に作り、公開の条件に入れる。「文脈での語義」の設問は設問文だけ訳す。4 つめのアシストとして数える。web と mobile | [./question-translation/README.md](./question-translation/README.md) |
 | word-lookup-targets | 完了 | 本文で押して意味を出せる単語を名詞・動詞（wink-nlp で品詞を判定）と用語集の語句に絞る。句動詞は生成で本文のものをすべて用語集に入れ、用語集の語句は 2 回目以降の出現でも用語集の意味を出す。web と mobile | [./word-lookup-targets/README.md](./word-lookup-targets/README.md) |
 | passage-extraction-tuning | 完了 | 本文候補の切り出しの調整。`<YouWillLearn>`・`<Recap>` を捨て、12 語以上の箇条書きの項目を文章に数え、続きが捨てられて「:」で終わる段落を「.」にする。章の概要ページは除外パスで外す。抽出の版を記録し、規則を変えたら取得済みの文書も切り分け直す（下書き・公開済みと同じ見出しの節は作り直さない）。前の切り分けと、除外・取得元から消えた文書の未生成の本文候補は却下する | [./passage-extraction-tuning/README.md](./passage-extraction-tuning/README.md) |
+| url-import | 設計中 | admin で URL を 1 つ入れて、そのページを取得・抽出して確認し、本文候補として保存する。登録済みのサイトのソースの対象パスのページだけ（ライセンスはソースのもの）。保存した本文候補は次の問題の生成で先に生成する。抽出の処理を共有パッケージ `@repo/content-extractor` に移し、api でも使う | [./url-import/README.md](./url-import/README.md) |
 | admin-users | 完了 | admin のユーザー管理（見るだけ）。ユーザー一覧（絞り込み・並べ替え）と、1 人の学習の状況（マイページと同じ集計を使い回す）。利用停止・削除は MVP 対象外 | [./admin-users/README.md](./admin-users/README.md) |
 | admin-template | 完了 | admin を project-template の管理画面に揃える。TailAdmin のデモを `/demo` に分け、Basic 認証と `X-Admin-Token` を `admins` テーブル + admin 専用の JWT + Google のサインインに置き換え、ヘッダー・マイページ・Tooltip を足す。ユーザー管理は tech-english のものを残す | [./admin-template/README.md](./admin-template/README.md) |
 | dev-login | 完了 | 開発環境専用ログイン。Google OAuth を介さず seed 済み dev ユーザー（alice/bob）として 1 クリックでログインできる | [./dev-login/README.md](./dev-login/README.md) |
