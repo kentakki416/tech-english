@@ -1,20 +1,23 @@
+# .dockerignore のパターンはビルドのコンテキストの直下から照合するので、apps/* や packages/* の中にも効かせるものは **/ を付ける
+
 # Dependencies
-node_modules/
+**/node_modules/
 .pnp
 .pnp.js
 
 # Testing
-coverage/
+**/coverage/
 
 # Build output
-.next/
-out/
-dist/
-build/
+**/.next/
+**/out/
+**/dist/
+**/build/
 
 # Misc
-.DS_Store
-*.pem
+**/.DS_Store
+**/*.pem
+**/*.tsbuildinfo
 
 # Debug
 npm-debug.log*
@@ -23,11 +26,17 @@ yarn-error.log*
 pnpm-debug.log*
 
 # Local env files
-.env*.local
-secret
+**/.env*.local
+**/.env.keys
+**/secret
 
 # Turbo
-.turbo/
+**/.turbo/
+
+# ローカルの生成物（Playwright のスクショ・ログ、cron が書く音声、Expo のキャッシュ）
+.playwright-mcp/
+.storage/
+**/.expo/
 
 # Git
 .git
