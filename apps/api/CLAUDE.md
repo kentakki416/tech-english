@@ -100,7 +100,7 @@ pnpm exec dotenvx set KEY "value" -f .env.local
 
 `GITHUB_LICENSE_TOKEN`（任意）は admin のソース登録で GitHub のライセンスを検出するときに使う。未設定でも動くが、GitHub の rate limit（60 回 / 時）が低くなる。
 
-`COLLECT_WEB_CONTACT_URL`（任意）は admin の URL の取り込みでサイトに送る User-Agent に入れるサービスのトップの URL（`TechEnglishBot/1.0 (+{url})`）。cron の収集と同じ値にする。未設定なら `TechEnglishBot/1.0` だけを送る。
+`COLLECT_WEB_CONTACT_URL`（任意）は admin の URL の取り込みでサイトに送る User-Agent に入れるサービスのトップの URL（`TechEnglishBot/1.0 (+{url})`）。未設定なら `FRONTEND_URL`（web のトップ）を使うので、ふつうは設定しなくてよい。
 
 読み上げ（[read-aloud](../../docs/spec/read-aloud/README.md#音声の保存と配信)）の音声の env:
 
@@ -117,7 +117,8 @@ admin の URL の取り込み（`POST /api/admin/url-import`・`/preview`。[url
 
 - パッケージは `src/client/page-fetcher.ts` の中で、使うときに `import()` で読む。jsdom などが重く、ほかの API のコールドスタートを遅くしないため。service・Repository は型だけを import する
 - パッケージは CommonJS で、ESM だけで配布されている unified などを Node の `require(esm)` で読むので、**Node 20.19 以上**が要る（Docker は `node:20-slim`）。vitest と tsx はこの経路を通らないので、Node のバージョンを変えるときはビルドした dist で読めることを確かめる（[step3 の動作確認](../../docs/spec/url-import/tasks/step3-api-url-import.md#動作確認)）
-- 取得は始めてから 20 秒で打ち切る（API Gateway と Lambda の 29 秒に収めるため）。期限・Crawl-delay の上限・リクエストの間隔は `page-fetcher.ts` の定数
+- 取得は始めてから 15 秒で打ち切る（API Gateway と Lambda の 29 秒に、抽出・DB・コールドスタートの分を残して収めるため）。期限・Crawl-delay の上限・リクエストの間隔は `page-fetcher.ts` の定数
+- 取得・抽出したページは Redis（`url_import_page:*`、10 分）に置き、確認と保存で使い回す（`IoRedisUrlImportPageCacheRepository`）。キャッシュの読み書きに失敗しても取得して進める
 - api はパッケージの `dist` を読むので、パッケージを変えたら `pnpm --filter @repo/content-extractor build` してから起動・テストする
 
 ## レート制限

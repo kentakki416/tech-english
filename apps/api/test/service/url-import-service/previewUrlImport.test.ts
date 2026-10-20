@@ -2,20 +2,29 @@ import { previewUrlImport } from "../../../src/service/url-import-service"
 import { buildChunk, buildFetchedPage } from "../../fixture/url-import"
 import { buildGitHubSource, buildWebsiteSource, createMockContentSourceRepository } from "../content-source-service/fixtures"
 
-import { buildImportPassage, createMockPageFetcher, createMockUrlImportRepository } from "./fixtures"
+import {
+  buildImportPassage,
+  createMockPageFetcher,
+  createMockUrlImportPageCacheRepository,
+  createMockUrlImportRepository,
+} from "./fixtures"
 
 const NOW = new Date("2026-10-20T03:00:00.000Z")
 const PAGE_URL = "https://go.dev/doc/tutorial/getting-started?lang=en#top"
 
 const contentSourceRepository = createMockContentSourceRepository()
 const urlImportRepository = createMockUrlImportRepository()
+const urlImportPageCacheRepository = createMockUrlImportPageCacheRepository()
 const pageFetcher = createMockPageFetcher()
-const repo = { contentSourceRepository, urlImportRepository }
+const repo = { contentSourceRepository, urlImportPageCacheRepository, urlImportRepository }
+const CACHE_KEY = { sourceId: 2, sourceUpdatedAt: buildWebsiteSource().updatedAt, url: "https://go.dev/doc/tutorial/getting-started" }
 const deps = { pageFetcher }
 
 describe("previewUrlImport", () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    urlImportPageCacheRepository.find.mockResolvedValue(null)
+    urlImportPageCacheRepository.save.mockResolvedValue()
     contentSourceRepository.findAll.mockResolvedValue([buildGitHubSource(), buildWebsiteSource()])
     urlImportRepository.findDocumentPassages.mockResolvedValue([])
     urlImportRepository.findPassagesByContentHashes.mockResolvedValue([])
@@ -33,6 +42,7 @@ describe("previewUrlImport", () => {
           chunks: [{
             excerpt: "In this tutorial, you'll get a brief introduction to Go programming.",
             rejectReasons: [],
+            sameContentPassage: null,
             status: "new",
             title: "Getting started",
             wordCount: 150,
@@ -49,6 +59,51 @@ describe("previewUrlImport", () => {
       expect(pageFetcher.fetchAndExtractPage).toHaveBeenCalledWith({ now: NOW, source: buildWebsiteSource(), url: PAGE_URL })
       expect(urlImportRepository.findDocumentPassages).toHaveBeenCalledWith({ path: "/doc/tutorial/getting-started", sourceId: 2 })
       expect(urlImportRepository.findPassagesByContentHashes).toHaveBeenCalledWith(["hash-getting-started"])
+      expect(urlImportPageCacheRepository.find).toHaveBeenCalledWith(CACHE_KEY)
+      expect(urlImportPageCacheRepository.save).toHaveBeenCalledWith(CACHE_KEY, buildFetchedPage())
+    })
+
+    it("キャッシュにあるページはサイトに取りに行かずに使い、キャッシュに置き直さない", async () => {
+      urlImportPageCacheRepository.find.mockResolvedValue(buildFetchedPage({ title: "Cached" }))
+
+      const result = await previewUrlImport(PAGE_URL, NOW, repo, deps)
+
+      expect(result.ok && result.value.page.title).toBe("Cached")
+      expect(pageFetcher.fetchAndExtractPage).not.toHaveBeenCalled()
+      expect(urlImportPageCacheRepository.save).not.toHaveBeenCalled()
+    })
+
+    it("キャッシュのキーの URL はクエリとフラグメントを除く", async () => {
+      pageFetcher.fetchAndExtractPage.mockResolvedValue({ kind: "ok", page: buildFetchedPage() })
+
+      await previewUrlImport(PAGE_URL, NOW, repo, deps)
+
+      expect(urlImportPageCacheRepository.find).toHaveBeenCalledWith(CACHE_KEY)
+      expect(pageFetcher.fetchAndExtractPage).toHaveBeenCalledWith({ now: NOW, source: buildWebsiteSource(), url: PAGE_URL })
+    })
+
+    it("キャッシュの読み書きが 500ms で終わらなければ、待たずに取得して結果を返す", async () => {
+      urlImportPageCacheRepository.find.mockReturnValue(new Promise(() => undefined))
+      urlImportPageCacheRepository.save.mockReturnValue(new Promise(() => undefined))
+      pageFetcher.fetchAndExtractPage.mockResolvedValue({ kind: "ok", page: buildFetchedPage() })
+      const startedAt = Date.now()
+
+      const result = await previewUrlImport(PAGE_URL, NOW, repo, deps)
+
+      expect(result.ok).toBe(true)
+      expect(pageFetcher.fetchAndExtractPage).toHaveBeenCalledTimes(1)
+      expect(Date.now() - startedAt).toBeLessThan(3000)
+    })
+
+    it("キャッシュの読み書きに失敗しても、取得して結果を返す", async () => {
+      urlImportPageCacheRepository.find.mockRejectedValue(new Error("redis down"))
+      urlImportPageCacheRepository.save.mockRejectedValue(new Error("redis down"))
+      pageFetcher.fetchAndExtractPage.mockResolvedValue({ kind: "ok", page: buildFetchedPage() })
+
+      const result = await previewUrlImport(PAGE_URL, NOW, repo, deps)
+
+      expect(result.ok).toBe(true)
+      expect(pageFetcher.fetchAndExtractPage).toHaveBeenCalledTimes(1)
     })
 
     it("無効のソースも当たる", async () => {
@@ -70,7 +125,7 @@ describe("previewUrlImport", () => {
       expect(result.ok).toBe(true)
     })
 
-    it("冒頭の文は最初の見出しでないブロックの先頭 160 文字。見出しだけの塊は空", async () => {
+    it("冒頭の文は最初の見出しでないブロックの先頭 160 文字（超えたら「…」を付ける）。見出しだけの塊は空", async () => {
       const longText = "a".repeat(200)
       pageFetcher.fetchAndExtractPage.mockResolvedValue({
         kind: "ok",
@@ -84,7 +139,7 @@ describe("previewUrlImport", () => {
 
       const result = await previewUrlImport(PAGE_URL, NOW, repo, deps)
 
-      expect(result.ok && result.value.chunks.map((chunk) => chunk.excerpt)).toEqual(["a".repeat(160), ""])
+      expect(result.ok && result.value.chunks.map((chunk) => chunk.excerpt)).toEqual([`${"a".repeat(160)}…`, ""])
     })
 
     it("塊を、条件を満たさない・同じ見出しの問題がある・同じ内容の collected がある・同じ内容の問題がある・新しい、に分ける", async () => {
@@ -110,12 +165,12 @@ describe("previewUrlImport", () => {
 
       const result = await previewUrlImport(PAGE_URL, NOW, repo, deps)
 
-      expect(result.ok && result.value.chunks.map((chunk) => [chunk.title, chunk.status, chunk.rejectReasons])).toEqual([
-        ["Short", "not_candidate", ["too_short", "too_much_code"]],
-        ["Drafted", "generated_section", []],
-        ["Collected", "existing", []],
-        ["Published elsewhere", "duplicated", []],
-        ["New", "new", []],
+      expect(result.ok && result.value.chunks.map((chunk) => [chunk.title, chunk.status, chunk.rejectReasons, chunk.sameContentPassage])).toEqual([
+        ["Short", "not_candidate", ["too_short", "too_much_code"], null],
+        ["Drafted", "generated_section", [], null],
+        ["Collected", "existing", [], { id: 2, status: "collected" }],
+        ["Published elsewhere", "duplicated", [], { id: 3, status: "published" }],
+        ["New", "new", [], null],
       ])
     })
 
@@ -186,6 +241,7 @@ describe("previewUrlImport", () => {
 
       expect(result).toMatchObject({ error: { details: [{ code, path: ["url"] }], statusCode: 400 }, ok: false })
       expect(urlImportRepository.findDocumentPassages).not.toHaveBeenCalled()
+      expect(urlImportPageCacheRepository.save).not.toHaveBeenCalled()
     })
 
     it("取得で想定外のエラーが throw されたら伝播する", async () => {

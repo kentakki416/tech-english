@@ -5,10 +5,16 @@ import { type FormEvent, startTransition, useActionState, useState } from "react
 
 import type { CreateUrlImportResponse, PreviewUrlImportResponse } from "@repo/api-schema"
 
-import { createUrlImportAction, previewUrlImportAction, type UrlImportState } from "@/app/(dashboard)/url-import/actions"
+import {
+  createUrlImportAction,
+  previewUrlImportAction,
+  type UrlImportFailure,
+  type UrlImportState,
+} from "@/app/(dashboard)/url-import/actions"
 import ComponentCard from "@/components/layout/ComponentCard"
 import Badge from "@/components/ui/badge/Badge"
 import { tableHeadCellClass } from "@/components/ui/table/LinkTableParts"
+import { PASSAGE_STATUS_LABELS } from "@/features/passage/passage.labels"
 import {
   CHUNK_REJECT_REASON_LABELS,
   isImportableChunk,
@@ -30,27 +36,29 @@ const dispatchUrlImportAction = async (state: UrlImportState, formData: FormData
     ? createUrlImportAction(state, formData)
     : previewUrlImportAction(state, formData)
 
-function ErrorMessage({ state }: { state: Extract<UrlImportState, { status: "error" }> }) {
+const errorLinkClass = "mt-2 inline-block text-brand-500 hover:text-brand-600"
+
+function ErrorMessage({ failure }: { failure: UrlImportFailure }) {
   return (
     <div className="rounded-xl border border-error-500 bg-error-50 p-4 text-sm dark:border-error-500/30 dark:bg-error-500/15" role="alert">
-      <p className="font-medium text-gray-800 dark:text-white/90">{state.message}</p>
-      {state.errorCode === "source_not_found" && (
-        <Link className="mt-2 inline-block text-brand-500 hover:text-brand-600" href="/content-sources/new">ソースを登録する</Link>
-      )}
+      <p className="font-medium text-gray-800 dark:text-white/90">{failure.message}</p>
+      {failure.errorCode === "source_not_found" && <Link className={errorLinkClass} href="/content-sources/new">ソースを登録する</Link>}
+      {failure.errorCode === "out_of_target_path" && <Link className={errorLinkClass} href="/content-sources">ソースの一覧を開く</Link>}
     </div>
   )
 }
 
-function PreviewResult({ isPending, isSaving, preview, url, onSubmit }: {
+function PreviewResult({ isPending, isSaving, preview, saveFailure, url, onSubmit }: {
   isPending: boolean
   isSaving: boolean
   preview: PreviewUrlImportResponse
+  saveFailure: UrlImportFailure | null
   url: string
   onSubmit: (event: FormEvent<HTMLFormElement>) => void
 }) {
   const hasImportableChunk = preview.chunks.some(isImportableChunk)
   return (
-    <ComponentCard desc="保存するまで DB には書きません。保存のときにページをもう一度取得します。" title="確認の結果">
+    <ComponentCard desc="保存するまで DB には書きません。保存のときは確認した内容を保存します（ページを取得してから 10 分を過ぎたら取り直します）。" title="確認の結果">
       <dl className="grid gap-4 text-sm sm:grid-cols-2">
         <div>
           <dt className="text-gray-500 dark:text-gray-400">ソース</dt>
@@ -85,7 +93,21 @@ function PreviewResult({ isPending, isSaving, preview, url, onSubmit }: {
                   <td className={`${bodyCellClass} font-medium text-gray-800 dark:text-white/90`}>{chunk.title}</td>
                   <td className={`${bodyCellClass} tabular-nums`}>{chunk.word_count}</td>
                   <td className={bodyCellClass}>
-                    <Badge color={statusLabel.color} size="sm">{statusLabel.label}</Badge>
+                    <Badge color={statusLabel.color} size="sm">
+                      {chunk.status === "duplicated" && chunk.same_content_passage
+                        ? `${statusLabel.label}（${PASSAGE_STATUS_LABELS[chunk.same_content_passage.status]}）`
+                        : statusLabel.label}
+                    </Badge>
+                    {(chunk.status === "existing" || chunk.status === "duplicated") && chunk.same_content_passage && (
+                      <p className="mt-1">
+                        <Link
+                          className="text-theme-xs whitespace-nowrap text-brand-500 hover:text-brand-600"
+                          href={`/passages/${chunk.same_content_passage.id}`}
+                        >
+                          本文候補を開く
+                        </Link>
+                      </p>
+                    )}
                     {chunk.reject_reasons.length > 0 && (
                       <p className="mt-1 text-theme-xs text-gray-500 dark:text-gray-400">
                         {chunk.reject_reasons.map((reason) => CHUNK_REJECT_REASON_LABELS[reason]).join("・")}
@@ -100,6 +122,7 @@ function PreviewResult({ isPending, isSaving, preview, url, onSubmit }: {
         </table>
       </div>
 
+      {saveFailure && <ErrorMessage failure={saveFailure} />}
       <form className="flex flex-wrap items-center gap-3" onSubmit={onSubmit}>
         <input name="intent" type="hidden" value="create" />
         <input name="url" type="hidden" value={url} />
@@ -120,7 +143,7 @@ function ImportResult({ result }: { result: CreateUrlImportResponse }) {
   return (
     <ComponentCard
       desc={hasPrioritizedPassage
-        ? "次の問題の生成で、ほかの本文候補より先に生成します。"
+        ? "次の問題の生成で、ほかの本文候補より先に生成します。確認待ちの下書きが多いあいだは生成しません。"
         : "優先した本文候補はありません。確認の後に、ページか本文候補の状態が変わりました。"}
       title="保存しました"
     >
@@ -183,16 +206,17 @@ export function UrlImportForm() {
               {isPending && submittedIntent === "preview" ? "確認しています…" : "確認する"}
             </button>
           </form>
-          <p className={hintClass}>クエリ文字列と #... は除いて取得します。取得は 20 秒で打ち切ります。</p>
+          <p className={hintClass}>クエリ文字列と #... は除いて取得します。取得は 15 秒で打ち切ります。</p>
         </div>
       </ComponentCard>
 
-      {state.status === "error" && <ErrorMessage state={state} />}
+      {state.status === "error" && <ErrorMessage failure={state} />}
       {state.status === "previewed" && (
         <PreviewResult
           isPending={isPending}
           isSaving={isPending && submittedIntent === "create"}
           preview={state.preview}
+          saveFailure={state.saveFailure}
           url={state.url}
           onSubmit={handleSubmit}
         />

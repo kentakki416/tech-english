@@ -1,7 +1,7 @@
 /**
  * URL から取り込むときの、塊ごとの「保存したときにどうなるか」
  *
- * - duplicated: 同じ内容の本文候補が、生成中・下書き・公開済み・却下・失敗のどれかにある。何もしない
+ * - duplicated: 同じ内容の本文候補が、生成中・下書き・公開済み・却下・失敗のどれかにある。何もしない（admin はその本文候補へのリンクを出す）
  * - existing: 同じ内容の未生成（collected）の本文候補がある（別の URL の文書のものも含む）。増えないが、生成を優先する
  * - generated_section: 同じ文書に同じ見出しの、生成中・下書き・公開済み・生成した後に却下した本文候補がある。作らない
  * - new: 新しい本文候補として保存する
@@ -14,7 +14,7 @@ export const URL_IMPORT_CHUNK_STATUSES = ["duplicated", "existing", "generated_s
  *
  * - blocked_url: サイトの外を指す・正規化できない URL（SSRF 対策で弾くアドレスを含む）
  * - crawl_delay_too_long: robots.txt の Crawl-delay が api の上限を超える
- * - deadline_exceeded: 取得が期限（始めてから 20 秒）までに終わらない
+ * - deadline_exceeded: 取得が期限（始めてから 15 秒）までに終わらない
  * - extraction_failed: 本文を抽出できない（ソースの CSS セレクタが不正）
  * - github_source: GitHub のソースで収集しているサイトのページ
  * - http_error: ページが HTTP エラーを返した（details の message に status）

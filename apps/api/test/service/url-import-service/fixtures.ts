@@ -1,5 +1,5 @@
 import type { IPageFetcher } from "../../../src/client/page-fetcher"
-import type { ImportPassage, UrlImportRepository } from "../../../src/repository"
+import type { ImportPassage, UrlImportPageCacheRepository, UrlImportRepository } from "../../../src/repository"
 
 /**
  * url-import-service のユニットテストで共有する Repository・クライアントのモックと値
@@ -11,6 +11,14 @@ export const createMockUrlImportRepository = () => ({
   prioritizeCollected: vi.fn<UrlImportRepository["prioritizeCollected"]>(),
   rejectCollected: vi.fn<UrlImportRepository["rejectCollected"]>(),
   upsertFetchedDocument: vi.fn<UrlImportRepository["upsertFetchedDocument"]>(),
+})
+
+/**
+ * 既定はキャッシュに無い（find は null）
+ */
+export const createMockUrlImportPageCacheRepository = () => ({
+  find: vi.fn<UrlImportPageCacheRepository["find"]>().mockResolvedValue(null),
+  save: vi.fn<UrlImportPageCacheRepository["save"]>().mockResolvedValue(),
 })
 
 export const createMockPageFetcher = () => ({

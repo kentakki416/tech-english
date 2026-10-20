@@ -10,7 +10,7 @@ type UrlImportChunk = PreviewUrlImportResponse["chunks"][number]
 type BadgeColor = "dark" | "error" | "info" | "light" | "primary" | "success" | "warning"
 
 export const URL_IMPORT_CHUNK_STATUS_LABELS: Record<UrlImportChunk["status"], { color: BadgeColor, label: string }> = {
-  duplicated: { color: "light", label: "同じ内容の問題がある" },
+  duplicated: { color: "light", label: "同じ内容の本文候補がある" },
   existing: { color: "info", label: "本文候補がすでにある（生成を優先）" },
   generated_section: { color: "warning", label: "同じ見出しの問題がある" },
   new: { color: "success", label: "本文候補になる" },

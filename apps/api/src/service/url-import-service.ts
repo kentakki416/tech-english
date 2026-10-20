@@ -11,10 +11,18 @@ import { badRequestError, err, ok, Result } from "@repo/errors"
 import { logger } from "@repo/logger"
 
 import type { FetchedPage, IPageFetcher } from "../client/page-fetcher"
-import type { ContentSourceRepository, ImportPassage, TransactionRunner, UrlImportRepository } from "../repository"
+import type {
+  ContentSourceRepository,
+  ImportPassage,
+  TransactionRunner,
+  UrlImportPageCacheKey,
+  UrlImportPageCacheRepository,
+  UrlImportRepository,
+} from "../repository"
 
 type UrlImportRepo = {
   contentSourceRepository: Pick<ContentSourceRepository, "findAll">
+  urlImportPageCacheRepository: UrlImportPageCacheRepository
   urlImportRepository: UrlImportRepository
 }
 
@@ -25,10 +33,14 @@ type UrlImportDeps = { pageFetcher: IPageFetcher }
  */
 export type UrlImportChunk = {
   /**
-   * 最初の見出しでないブロックの先頭（EXCERPT_LENGTH 文字）
+   * 最初の見出しでないブロックの先頭（EXCERPT_LENGTH 文字。超えたら切って「…」を付ける）
    */
   excerpt: string
   rejectReasons: ChunkRejectReason[]
+  /**
+   * 同じ内容（content_hash）の本文候補（状態を問わない）。admin はその本文候補へのリンクを出す
+   */
+  sameContentPassage: Pick<ImportPassage, "id" | "status"> | null
   status: UrlImportChunkStatus
   title: string
   wordCount: number
@@ -81,8 +93,10 @@ const isGeneratedOrGenerating = (passage: ImportPassage): boolean =>
 const findGeneratedOrGeneratingTitles = (documentPassages: ImportPassage[]): Set<string> =>
   new Set(documentPassages.filter(isGeneratedOrGenerating).map((passage) => passage.title))
 
-const buildExcerpt = (chunk: PassageChunk): string =>
-  chunk.blocks.find((block) => block.type !== "heading")?.text.slice(0, EXCERPT_LENGTH) ?? ""
+const buildExcerpt = (chunk: PassageChunk): string => {
+  const text = chunk.blocks.find((block) => block.type !== "heading")?.text ?? ""
+  return text.length > EXCERPT_LENGTH ? `${text.slice(0, EXCERPT_LENGTH)}…` : text
+}
 
 /**
  * 保存（importUrl）と同じ順で判定する。同じ見出しの問題がある塊は、同じ内容の collected があっても挿入も優先もしない（その collected が同じ文書のものなら、前の切り分けとして却下する）
@@ -99,6 +113,14 @@ const classifyChunk = (
   return sameContentPassage.status === "collected" ? "existing" : "duplicated"
 }
 
+const findSameContentPassage = (
+  chunk: PassageChunk,
+  passagesByContentHash: Map<string, ImportPassage>,
+): Pick<ImportPassage, "id" | "status"> | null => {
+  const passage = passagesByContentHash.get(chunk.contentHash)
+  return passage === undefined ? null : { id: passage.id, status: passage.status }
+}
+
 /**
  * URL のオリジンのサイトのソース（無効のソースも含む）。site_url はオリジンに正規化して unique なので 1 つだけ当たる。
  * 無ければ、GitHub のソースの公開ページのオリジンなら github_source、それも無ければ source_not_found
@@ -113,6 +135,64 @@ const findImportSource = async (url: string, repo: UrlImportRepo): Promise<Resul
   return err(buildUrlImportError(isGitHubSourceSite ? "github_source" : "source_not_found", null))
 }
 
+/**
+ * キャッシュの読み書きを待つ上限。Redis に繋がらないと ioredis は再接続を試すあいだ待ち続け、取得の期限と API Gateway の 29 秒を食うため
+ */
+const PAGE_CACHE_TIMEOUT_MS = 500
+
+/**
+ * 上限までに終わらなければ timeout を返して先に進む（promise は止めずに走らせたままにする）
+ */
+const waitWithPageCacheTimeout = async <T>(promise: Promise<T>): Promise<{ kind: "done"; value: T } | { kind: "timeout" }> => {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const timeout = new Promise<{ kind: "timeout" }>((resolve) => {
+    timer = setTimeout(() => resolve({ kind: "timeout" }), PAGE_CACHE_TIMEOUT_MS)
+  })
+  try {
+    return await Promise.race([promise.then((value) => ({ kind: "done" as const, value })), timeout])
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+const convertErrorToMessage = (error: unknown): string => (error instanceof Error ? error.message : String(error))
+
+/**
+ * キャッシュの読み書きの失敗・時間切れでは止めない（取得して進める）。キャッシュはサイトへのリクエストを減らすためだけのもの
+ */
+const findCachedPage = async (key: UrlImportPageCacheKey, repo: UrlImportRepo): Promise<FetchedPage | null> => {
+  try {
+    const result = await waitWithPageCacheTimeout(repo.urlImportPageCacheRepository.find(key))
+    if (result.kind === "done") return result.value
+    logger.warn("url import page cache read timed out", { timeoutMs: PAGE_CACHE_TIMEOUT_MS })
+    return null
+  } catch (error) {
+    logger.warn("url import page cache could not be read", { error: convertErrorToMessage(error) })
+    return null
+  }
+}
+
+const cachePage = async (key: UrlImportPageCacheKey, page: FetchedPage, repo: UrlImportRepo): Promise<void> => {
+  try {
+    const result = await waitWithPageCacheTimeout(repo.urlImportPageCacheRepository.save(key, page))
+    if (result.kind === "timeout") logger.warn("url import page cache write timed out", { timeoutMs: PAGE_CACHE_TIMEOUT_MS })
+  } catch (error) {
+    logger.warn("url import page cache could not be written", { error: convertErrorToMessage(error) })
+  }
+}
+
+/**
+ * キャッシュのキーにする URL。取得のときの正規化と同じくクエリとフラグメントを除き、#... だけが違う同じページで取り直さない
+ */
+const buildPageCacheUrl = (url: string): string => {
+  const parsed = new URL(url)
+  return `${parsed.origin}${parsed.pathname}`
+}
+
+/**
+ * ソースを決め、ページを取得・抽出する。確認と保存で同じページを取り直さないよう、取得・抽出したページはキャッシュに置いて使い回す
+ * （Crawl-delay を守り、保存の内容を確認した内容とそろえるため。取得に失敗したときは置かない）
+ */
 const fetchImportPage = async (
   url: string,
   now: Date,
@@ -121,6 +201,10 @@ const fetchImportPage = async (
 ): Promise<Result<{ page: FetchedPage; source: WebsiteSource }>> => {
   const source = await findImportSource(url, repo)
   if (!source.ok) return source
+  const cacheKey: UrlImportPageCacheKey = { sourceId: source.value.id, sourceUpdatedAt: source.value.updatedAt, url: buildPageCacheUrl(url) }
+  const cachedPage = await findCachedPage(cacheKey, repo)
+  if (cachedPage !== null) return ok({ page: cachedPage, source: source.value })
+
   const fetched = await deps.pageFetcher.fetchAndExtractPage({ now, source: source.value, url })
   if (fetched.kind === "failed") {
     /**
@@ -129,6 +213,7 @@ const fetchImportPage = async (
     logger.info("url could not be imported", { code: fetched.code, detail: fetched.detail, sourceId: source.value.id, url })
     return err(buildUrlImportError(fetched.code, fetched.detail))
   }
+  await cachePage(cacheKey, fetched.page, repo)
   return ok({ page: fetched.page, source: source.value })
 }
 
@@ -154,6 +239,7 @@ export const previewUrlImport = async (
     chunks: page.chunks.map((chunk) => ({
       excerpt: buildExcerpt(chunk),
       rejectReasons: chunk.rejectReasons,
+      sameContentPassage: findSameContentPassage(chunk, passagesByContentHash),
       status: classifyChunk(chunk, generatedOrGeneratingTitles, passagesByContentHash),
       title: chunk.title,
       wordCount: chunk.wordCount,

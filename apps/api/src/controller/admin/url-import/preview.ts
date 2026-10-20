@@ -5,7 +5,7 @@ import { previewUrlImportRequestSchema, previewUrlImportResponseSchema } from "@
 import type { IPageFetcher } from "../../../client/page-fetcher"
 import { parseRequest, parseResponse } from "../../../lib/parse-schema"
 import { sendError } from "../../../lib/send-error"
-import { ContentSourceRepository, UrlImportRepository } from "../../../repository"
+import { ContentSourceRepository, UrlImportPageCacheRepository, UrlImportRepository } from "../../../repository"
 import * as service from "../../../service"
 
 /**
@@ -15,6 +15,7 @@ export class AdminUrlImportPreviewController {
   constructor(
     private _contentSourceRepository: ContentSourceRepository,
     private _urlImportRepository: UrlImportRepository,
+    private _urlImportPageCacheRepository: UrlImportPageCacheRepository,
     private _pageFetcher: IPageFetcher,
   ) {}
 
@@ -23,6 +24,7 @@ export class AdminUrlImportPreviewController {
 
     const result = await service.urlImport.previewUrlImport(url, new Date(), {
       contentSourceRepository: this._contentSourceRepository,
+      urlImportPageCacheRepository: this._urlImportPageCacheRepository,
       urlImportRepository: this._urlImportRepository,
     }, { pageFetcher: this._pageFetcher })
 
@@ -35,6 +37,7 @@ export class AdminUrlImportPreviewController {
       chunks: chunks.map((chunk) => ({
         excerpt: chunk.excerpt,
         reject_reasons: chunk.rejectReasons,
+        same_content_passage: chunk.sameContentPassage,
         status: chunk.status,
         title: chunk.title,
         word_count: chunk.wordCount,

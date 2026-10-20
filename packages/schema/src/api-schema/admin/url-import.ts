@@ -3,6 +3,7 @@ import { z } from "zod"
 import { CHUNK_REJECT_REASONS, URL_IMPORT_CHUNK_STATUSES, URL_IMPORT_ERROR_CODES } from "@repo/domain"
 
 import { allowedLicenseSchema } from "./content-source"
+import { adminPassageStatusSchema } from "./passage"
 
 // ========================================================
 // 共通: 取り込むページの URL
@@ -37,12 +38,16 @@ export const previewUrlImportRequestSchema = z.object({
 })
 
 /**
- * URL のページの取り込みの確認のレスポンススキーマ。chunks は切り分けた塊ごとに、保存したときにどうなるか（status）
+ * URL のページの取り込みの確認のレスポンススキーマ。chunks は切り分けた塊ごとに、保存したときにどうなるか（status）と、同じ内容の本文候補（same_content_passage。状態を問わない）
  */
 export const previewUrlImportResponseSchema = z.object({
   chunks: z.array(z.object({
     excerpt: z.string(),
     reject_reasons: z.array(z.enum(CHUNK_REJECT_REASONS)),
+    same_content_passage: z.object({
+      id: z.number().int().positive(),
+      status: adminPassageStatusSchema,
+    }).nullable(),
     status: z.enum(URL_IMPORT_CHUNK_STATUSES),
     title: z.string(),
     word_count: z.number().int().nonnegative(),
