@@ -135,6 +135,7 @@ describe("convertMdastToBlocks", () => {
       ["表", "| a | b |\n| --- | --- |\n| 1 | 2 |"],
       ["画像だけの段落", "![diagram](/diagram.png)"],
       ["HTML", "<div>Banner</div>"],
+      ["リンクで包んだ画像の段落", "[![diagram](/diagram.png)](/diagram.png)"],
     ])("「:」で終わる段落の後ろの%sを捨てたら「.」にする", (_, dropped) => {
       const blocks = convertMarkdown(`For example:\n\n${dropped}\n\nNext.\n`)
 
@@ -148,14 +149,20 @@ describe("convertMdastToBlocks", () => {
       expect(convertMarkdown("Run this command:\n")).toEqual([{ text: "Run this command.", type: "paragraph" }])
     })
 
+    it("末尾の絵文字のショートコードの「:」は変えない", () => {
+      expect(convertMarkdown("Happy hacking :rocket:\n")).toEqual([{ text: "Happy hacking :rocket:", type: "paragraph" }])
+    })
+
     it.each([
       ["コード", "```sh\nnpm install\n```"],
       ["箇条書き", "* one"],
       ["引用", "> quoted"],
       ["段落", "Second paragraph."],
+      ["見出し", "## Next step"],
       ["ショートコードだけの段落とコード", "{{< tabs >}}\n\n```yaml\nkind: Pod\n```"],
       ["区切り線とコード", "---\n\n```yaml\nkind: Pod\n```"],
       ["HTML のコメントとコード", "<!-- generated -->\n\n```yaml\nkind: Pod\n```"],
+      ["囲みのタグだけの HTML とコード", "<div class=\"tabs\">\n\n```yaml\nkind: Pod\n```\n\n</div>"],
     ])("「:」で終わる段落の後ろに%sが続けば「:」のまま", (_, next) => {
       const blocks = convertMarkdown(`Apply the manifest:\n\n${next}\n`)
 

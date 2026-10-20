@@ -124,20 +124,53 @@ const convertListItem = (node: ListItem): DocumentBlock[] => convertContainerChi
 
 const convertBlockquote = (node: Blockquote): DocumentBlock[] => convertContainerChildren(node.children, "quote")
 
-const DANGLING_COLON_PATTERN = /:$/
+/**
+ * 段落の末尾の「:」。GitHub の絵文字のショートコード（`Happy hacking :rocket:`）の閉じの「:」は除く
+ */
+const DANGLING_COLON_PATTERN = /(?<!:[\w+-]+):$/
+
+const HTML_COMMENT_PATTERN = /<!--[\s\S]*?-->/g
+
+const HTML_TAG_PATTERN = /<[^>]*>/g
+
+const HTML_MEDIA_TAG_PATTERN = /<(?:iframe|img|picture|svg|table|video)\b/i
 
 /**
- * 内容があるのに本文に残さないノード（文章を包むもの以外のコンポーネント・表・コメント以外の HTML・画像だけの段落）
+ * テキストかメディアの要素を持つ HTML か。囲みのタグだけの HTML（`<div class="tabs">`）は、間の Markdown が兄弟のノードに残るので内容に数えない
+ */
+const hasHtmlContent = (html: string): boolean => {
+  const withoutComments = html.replace(HTML_COMMENT_PATTERN, "")
+  return HTML_MEDIA_TAG_PATTERN.test(withoutComments) || withoutComments.replace(HTML_TAG_PATTERN, "").trim() !== ""
+}
+
+/**
+ * 画像か、画像をリンクで包んだもの（`[![diagram](d.png)](d.png)`・サイトの `<a><img></a>`）
+ */
+const isImageContent = (node: PhrasingContent): boolean => {
+  switch (node.type) {
+  case "image":
+  case "imageReference":
+    return true
+  case "link":
+  case "linkReference":
+    return node.children.some(isImageContent)
+  default:
+    return false
+  }
+}
+
+/**
+ * 内容があるのに本文に残さないノード（文章を包むもの以外のコンポーネント・表・テキストかメディアのある HTML・画像のある段落）
  */
 const isDroppedContentNode = (node: RootContent): boolean => {
   switch (node.type) {
   case "html":
-    return !node.value.trimStart().startsWith("<!--")
+    return hasHtmlContent(node.value)
   case "mdxJsxFlowElement":
   case "table":
     return true
   case "paragraph":
-    return node.children.some((child) => child.type === "image" || child.type === "imageReference")
+    return node.children.some(isImageContent)
   default:
     return false
   }
@@ -161,7 +194,7 @@ const isContinuationMissing = (nodes: RootContent[], convertedBlocks: DocumentBl
  * 兄弟のノード列を変換する。続きが本文に残らない段落は、末尾の「:」を「.」にする（指す先の無い「:」で文が終わらないように。
  * 文は消さない）。箇条書きの項目・引用の中は、段落をつないで 1 つのブロックにするので対象にしない
  */
-const convertSiblings = (nodes: RootContent[]): DocumentBlock[] => {
+const convertSiblingsFixingDanglingColons = (nodes: RootContent[]): DocumentBlock[] => {
   const convertedBlocks = nodes.map(convertNode)
   return convertedBlocks.flatMap((blocks, index) =>
     nodes[index]?.type === "paragraph" && isContinuationMissing(nodes, convertedBlocks, index)
@@ -174,7 +207,7 @@ const convertSiblings = (nodes: RootContent[]): DocumentBlock[] => {
  * 名前の無いもの（フラグメント `<>`）も捨てる
  */
 const convertJsxElement = (node: MdxJsxFlowElement): DocumentBlock[] =>
-  node.name !== null && PROSE_COMPONENT_NAMES.has(node.name) ? convertSiblings(node.children) : []
+  node.name !== null && PROSE_COMPONENT_NAMES.has(node.name) ? convertSiblingsFixingDanglingColons(node.children) : []
 
 /**
  * table / image / html / thematicBreak / yaml / toml / definition / footnoteDefinition / MDX の ESM・式と、
@@ -204,4 +237,4 @@ const convertNode = (node: RootContent): DocumentBlock[] => {
 /**
  * mdast を本文のブロック列にする。Markdown と HTML のどちらから作った mdast も同じ規則で変換する
  */
-export const convertMdastToBlocks = (root: Root): DocumentBlock[] => convertSiblings(root.children)
+export const convertMdastToBlocks = (root: Root): DocumentBlock[] => convertSiblingsFixingDanglingColons(root.children)

@@ -58,17 +58,41 @@ const calculateProseWordRatio = (blocks: PassageBlock[]): number => {
 ### `convert-mdast-to-blocks.ts`
 
 ```ts
-const DANGLING_COLON_PATTERN = /:$/
+const DANGLING_COLON_PATTERN = /(?<!:[\w+-]+):$/
+
+const HTML_COMMENT_PATTERN = /<!--[\s\S]*?-->/g
+
+const HTML_TAG_PATTERN = /<[^>]*>/g
+
+const HTML_MEDIA_TAG_PATTERN = /<(?:iframe|img|picture|svg|table|video)\b/i
+
+const hasHtmlContent = (html: string): boolean => {
+  const withoutComments = html.replace(HTML_COMMENT_PATTERN, "")
+  return HTML_MEDIA_TAG_PATTERN.test(withoutComments) || withoutComments.replace(HTML_TAG_PATTERN, "").trim() !== ""
+}
+
+const isImageContent = (node: PhrasingContent): boolean => {
+  switch (node.type) {
+  case "image":
+  case "imageReference":
+    return true
+  case "link":
+  case "linkReference":
+    return node.children.some(isImageContent)
+  default:
+    return false
+  }
+}
 
 const isDroppedContentNode = (node: RootContent): boolean => {
   switch (node.type) {
   case "html":
-    return !node.value.trimStart().startsWith("<!--")
+    return hasHtmlContent(node.value)
   case "mdxJsxFlowElement":
   case "table":
     return true
   case "paragraph":
-    return node.children.some((child) => child.type === "image" || child.type === "imageReference")
+    return node.children.some(isImageContent)
   default:
     return false
   }
@@ -83,7 +107,7 @@ const isContinuationMissing = (nodes: RootContent[], convertedBlocks: DocumentBl
   return true
 }
 
-const convertSiblings = (nodes: RootContent[]): DocumentBlock[] => {
+const convertSiblingsFixingDanglingColons = (nodes: RootContent[]): DocumentBlock[] => {
   const convertedBlocks = nodes.map(convertNode)
   return convertedBlocks.flatMap((blocks, index) =>
     nodes[index]?.type === "paragraph" && isContinuationMissing(nodes, convertedBlocks, index)
@@ -92,12 +116,13 @@ const convertSiblings = (nodes: RootContent[]): DocumentBlock[] => {
 }
 
 const convertJsxElement = (node: MdxJsxFlowElement): DocumentBlock[] =>
-  node.name !== null && PROSE_COMPONENT_NAMES.has(node.name) ? convertSiblings(node.children) : []
+  node.name !== null && PROSE_COMPONENT_NAMES.has(node.name) ? convertSiblingsFixingDanglingColons(node.children) : []
 
-export const convertMdastToBlocks = (root: Root): DocumentBlock[] => convertSiblings(root.children)
+export const convertMdastToBlocks = (root: Root): DocumentBlock[] => convertSiblingsFixingDanglingColons(root.children)
 ```
 
-- `isContinuationMissing` と `convertSiblings` には、置き換える条件（内容のあるノードを捨てたか、後ろにブロックを作るノードが無い）と、空のノード（ショートコード・コメントだけの段落、区切り線）は飛ばして先を見ることを JSDoc に書く
+- `isContinuationMissing` と `convertSiblingsFixingDanglingColons` には、置き換える条件（内容のあるノードを捨てたか、後ろにブロックを作るノードが無い）と、空のノード（ショートコード・コメントだけの段落、区切り線）は飛ばして先を見ることを JSDoc に書く
+- `DANGLING_COLON_PATTERN` には、GitHub の絵文字のショートコード（`Happy hacking :rocket:`）の閉じの「:」を除くことを、`hasHtmlContent` には、囲みのタグだけの HTML（`<div class="tabs">`）は間の Markdown が兄弟に残るので内容に数えないことを JSDoc に書く
 - 箇条書きの項目・引用（`convertContainerChildren`）は変えない
 
 ### `markdown-jsx.ts`
@@ -125,9 +150,11 @@ export const convertMdastToBlocks = (root: Root): DocumentBlock[] => convertSibl
 `convert-mdast-to-blocks.test.ts`（`convertMarkdown` で Markdown から作る）：
 
 - 「:」で終わる段落の後ろに `<Sandpack>` があれば「.」にする
-- 後ろが表・画像だけの段落・HTML のときも「.」にする
+- 後ろが表・画像だけの段落・リンクで包んだ画像の段落・HTML のときも「.」にする
+- 末尾の絵文字のショートコード（`:rocket:`）の「:」は変えない
 - 文書の最後の「:」で終わる段落は「.」にする
-- 後ろにコード・箇条書き・引用・段落があれば「:」のまま
+- 後ろにコード・箇条書き・引用・段落・見出しがあれば「:」のまま
+- 後ろに囲みのタグだけの HTML（`<div class="tabs">`）があり、その先にコードがあれば「:」のまま
 - 後ろにショートコードだけの段落（`{{< tabs >}}`）・区切り線があり、その先にコードがあれば「:」のまま
 - 後ろが HTML のコメントだけで、その先にコードがあれば「:」のまま
 - `<Note>` の中の「:」で終わる段落の後ろに `<Sandpack>` があれば「.」にする
