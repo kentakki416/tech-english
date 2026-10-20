@@ -49,7 +49,7 @@ admin で URL を 1 つ入れると、そのページを取得して本文を抽
 - 入れた URL の 1 ページだけを取得する。ページ内のリンクはたどらない
 - robots.txt で禁止されたページは取得しない
 - クエリ文字列とフラグメント（`#...`）は除く（収集と同じ）
-- GitHub リポジトリのソースのページ（react.dev など）は対象外（収集で取り込む）
+- GitHub リポジトリのソースのページ（react.dev など。公開ページの URL 規則のオリジンが同じもの）は対象外で、「GitHub のソースで収集しているサイト」と案内する（収集で取り込む）
 
 ### 確認と保存
 
@@ -64,7 +64,8 @@ admin で URL を 1 つ入れると、そのページを取得して本文を抽
 | 表示 | 意味 |
 | --- | --- |
 | 本文候補になる | 新しい本文候補として保存する |
-| 本文候補がすでにある | 同じ内容の本文候補がある。増えない（未生成なら生成を優先する） |
+| 本文候補がすでにある | 同じ内容の未生成の本文候補がある（別の URL の文書のものも含む）。増えないが、生成を優先する |
+| 同じ内容の問題がある | 同じ内容の本文候補が、生成中・下書き・公開済み・却下・失敗のどれかにある。何もしない |
 | 同じ見出しの問題がある | 同じ文書に同じ見出しの、生成中・下書き・公開済み・生成した後に却下した本文候補がある。作らない |
 | 本文候補にならない | 本文候補の条件を満たさない。理由（短すぎる・コードが多い・文章でない など）を出す |
 
@@ -87,11 +88,12 @@ admin で URL を 1 つ入れると、そのページを取得して本文を抽
 
 | 状況 | 出す内容 |
 | --- | --- |
-| URL の形が不正・`https` でない | URL を確かめるよう案内する |
+| URL の形が不正・`https` でない | URL を確かめるよう案内する（admin のフォームで止める） |
 | 同じオリジンのサイトのソースが無い | 先にソースを登録するよう案内する（ソースの登録へのリンク） |
+| GitHub のソースで収集しているサイト | 収集で取り込むよう案内する |
 | ソースはあるが対象パス・除外パス・拡張子に合わない | どのソースの対象パスに合わないかを出す |
 | robots.txt で禁止されている | 取得できないことを出す |
-| ページを取得できない（404 などの HTTP エラー・タイムアウト・HTML でない・2MB を超える・リダイレクトでサイトの外や対象パスの外に出る・429 / 503） | 理由ごとの文言を出す |
+| ページを取得できない（404 などの HTTP エラー・タイムアウト・HTML でない・2MB を超える・リダイレクトでサイトの外や対象パスの外に出る・429 / 503・20 秒以内に終わらない） | 理由ごとの文言を出す |
 | 本文を抽出できない（ソースの CSS セレクタが不正） | ソースの CSS セレクタを確かめるよう案内する |
 | 本文候補になる塊が 0 | 確認の結果は出すが、保存のボタンは押せない |
 
@@ -120,19 +122,23 @@ admin で URL を 1 つ入れると、そのページを取得して本文を抽
 
 ### api での取得と抽出
 
-**1 ページの取得と抽出は api の中で行う。** API Gateway の 29 秒に収まる（robots.txt とページの 2 リクエスト、それぞれタイムアウト 10 秒、リクエストの間隔 1 秒、抽出は 1〜2 秒）。
+**1 ページの取得と抽出は api の中で行い、取得は始めてから 20 秒で打ち切る。** API Gateway と Lambda の 29 秒に収めるため。
 
-- 取得は `WebPageClient` をソースのサイトのオリジンで作り、robots.txt を読んでから条件なしで取得する。取得先の制限・リダイレクトの扱い・大きさの上限は収集と同じ
-- api では robots.txt の `Crawl-delay` の上限を 10 秒にする（`WebPageClient` の上限を設定できるようにする）。2 リクエストの間に Crawl-delay を待つので、収集と同じ 30 秒だと 29 秒を超える
+- 取得は `WebPageClient` をソースのサイトのオリジンで作り、robots.txt を読んでから条件なしで取得する。取得先の制限・リダイレクトの扱い（同じオリジンの中で最大 3 回）・大きさの上限は収集と同じ
+- リクエストは robots.txt・ページ・リダイレクト（最大 3 回）で最大 5 回。それぞれタイムアウト 10 秒で、前のリクエストから max(1 秒, Crawl-delay) 空ける。最悪の場合は 29 秒を超えるので、`WebPageClient` に期限（始めてから 20 秒）を渡す。期限を過ぎるリクエストは送らず、各リクエストのタイムアウトも期限までに縮める。期限を過ぎたら `deadline_exceeded` にする
+  - 残りの 9 秒は、抽出（jsdom で 1〜2 秒）・DB・コールドスタートの分
+- api では robots.txt の `Crawl-delay` の上限を 10 秒にする（`WebPageClient` の上限を設定できるようにする）。収集と同じ 30 秒だと、1 回待つだけで期限を過ぎる
 - User-Agent は収集と同じ（`TechEnglishBot/1.0 (+COLLECT_WEB_CONTACT_URL)`）。api の env に `COLLECT_WEB_CONTACT_URL`（任意）を足す
-- `@repo/content-extractor` は api のクライアント（`client/page-extractor`）の中で、使うときに `import()` で読む。jsdom などが重く、ほかの API のコールドスタートを遅くしないため
+- `@repo/content-extractor` は api のクライアント（`client/page-fetcher`）の中で、使うときに `import()` で読む。jsdom などが重く、ほかの API のコールドスタートを遅くしないため。URL の正規化・対象パスの判定・抽出の版もクライアントが返し、service は値として import しない
+- 入れた URL は、クエリ文字列とフラグメントを除いて正規化してから取得し、出典の path もその pathname にする
 - 確認と保存は、どちらもページを取得する。確認の結果を admin から送り返させない（admin の入力を本文として信用しないため。取得し直す費用は 1 ページ）
 
 ### ソースの決め方
 
-**`fetch_type = 'website'` のソースのうち、サイトの URL のオリジンが入れた URL のオリジンと同じで、対象パスに合うもの。** 複数当たったら id の小さいもの。
+**`fetch_type = 'website'` のソースのうち、サイトの URL が入れた URL のオリジンと同じもの。** `site_url` は登録のときにオリジンに正規化していて unique なので、当たるのは 1 つだけ。
 
-- 同じオリジンのソースが無ければ「ソースが無い」、あるが対象パスに合わなければ「対象パスの外」として区別する（admin の文言を分けるため）
+- 当たるソースが無ければ「ソースが無い」、あるが対象パス・除外パス・拡張子に合わなければ「対象パスの外」として区別する（admin の文言を分けるため）
+- `website` のソースが無く、GitHub のソースの公開ページの URL 規則（`public_url_template`）のオリジンが同じなら「GitHub のソースで収集しているサイト」にする
 - リダイレクトの行き先も、そのソースの対象パスに合うことを確かめる（収集と同じ。除外パスへリダイレクトされたページの本文を、元のパスの出典で保存しないため）
 
 ### 保存
@@ -144,7 +150,7 @@ admin で URL を 1 つ入れると、そのページを取得して本文を抽
 | 文書 | `source_documents` を `(source_id, path)` で upsert し、取得の結果（タイトル・`fetched_at`・`http_status`・`content_hash`・`etag`・`last_modified`・`extraction_version`）を書く。`path` は URL の pathname（収集と同じ） |
 | 見出しの確認 | その文書の生成中・生成した本文候補（`generating`・`draft`・`published`、`generated_at` がある `rejected`）の見出しと同じ塊は挿入しない |
 | 挿入 | 残りの塊を `collected` で挿入する（同じ `content_hash` は飛ばす）。`generation_prioritized_at` に保存した時刻を入れる |
-| 優先 | その文書の `collected` のうち、`content_hash` が残した塊のものに `generation_prioritized_at` を入れる（収集で取り込み済みだった本文候補も優先する） |
+| 優先 | `collected` のうち、`content_hash` が残した塊のものに `generation_prioritized_at` を入れる。文書で絞らない（`content_hash` は全体で unique なので、末尾の `/` の違いなどで別の文書として取り込み済みの本文候補も優先する） |
 | 却下 | その文書の `collected` のうち、`content_hash` が残した塊のどれでもないものを `rejected`（「切り分け直したため、前の切り分けの本文候補を外した」）にする |
 
 - 規則は cron の `replacePassageCandidates`（[passage-extraction-tuning](../passage-extraction-tuning/README.md#古い本文候補の却下)）と同じ。api と cron の Repository は分けている（api は CRUD、cron は batch）ので、同じ条件の SQL をそれぞれに持つ。見出しの確認の条件を変えるときは両方を直す
@@ -155,7 +161,7 @@ admin で URL を 1 つ入れると、そのページを取得して本文を抽
 **`passages.generation_prioritized_at`（nullable）を足し、生成タスクの取得（`claimNextCollected`）を `generation_prioritized_at` の古い順（NULL は後ろ）→ `created_at` → `id` にする。**
 
 - 時刻にするのは、優先した本文候補どうしを保存した順に生成するため
-- 生成した後も値は残す（いつ優先して取り込んだかの記録）。admin の「再生成」で `collected` に戻ったときも優先のまま
+- 生成した後も値は残す（いつ優先して取り込んだかの記録）。admin の「再生成」・「却下の取り消し」で `collected` に戻ったときも優先のまま
 - 取得の条件は `status = 'collected'` のままで、件数は数百なので索引は足さない（`passages (status, created_at)` で絞った後に並べる）
 
 ### MVP 対象外（将来検討）
@@ -183,7 +189,7 @@ admin に 1 つ足す。
 | POST | `/api/admin/url-import` | URL のページを取得して抽出し、本文候補として保存する。作った本文候補の件数と、優先した本文候補を返す |
 
 - どちらもほかの admin の API と同じく admin の認証が要る
-- 取り込めないときは 400 で、`details[0].code` に理由（`source_not_found` / `out_of_target_path` / `robots_disallowed` / `page_fetch_failed` / `redirected_out_of_target` / `extraction_failed`）を入れる。admin は code で文言を分ける
+- 取り込めないときは 400 で、`details[0].code` に理由（`source_not_found`・`out_of_target_path`・`robots_disallowed` など。一覧は [step3](./tasks/step3-api-url-import.md#ドメインの定数) の `URL_IMPORT_ERROR_CODES`）を入れる。admin は code で文言を分ける
 - リクエスト・レスポンスの形は [step3](./tasks/step3-api-url-import.md)
 
 ## 必要な DB 設計
@@ -230,11 +236,11 @@ sequenceDiagram
     participant Cron as generate:questions
 
     Admin->>Api: POST /url-import/preview { url }
-    Api->>DB: website のソース（オリジンと対象パスで決める）
+    Api->>DB: website のソース（オリジンで決める）
     Api->>Site: robots.txt
     Api->>Site: ページ（条件なし）
     Api->>Api: 本文の抽出・切り分け
-    Api->>DB: その文書の本文候補（同じ内容・同じ見出しの問題）
+    Api->>DB: 同じ内容の本文候補・その文書の同じ見出しの問題
     Api-->>Admin: ソース・ページ・塊ごとの結果
     Admin->>Api: POST /url-import { url }
     Api->>Site: robots.txt・ページ（もう一度）

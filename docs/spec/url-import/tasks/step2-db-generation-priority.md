@@ -14,6 +14,7 @@
 | `apps/api/src/repository/drizzle/passage-repository.ts` | 行 → ドメインの変換に足す |
 | `apps/cron/src/repository/drizzle/passage-repository.ts` | `claimNextCollected` の並び |
 | api・cron のテストの fixture・期待値 | 新しい項目 |
+| `apps/cron/CLAUDE.md` | generate:questions の表の `claimNextCollected` の説明（取得の順番） |
 | `docs/spec/question-generation/README.md` | DB 設計の表と ER 図、生成タスクの取得の順番 |
 
 ### スキーマ
@@ -71,7 +72,7 @@ pnpm --filter api exec tsc --noEmit
 pnpm --filter cron exec tsc --noEmit
 ```
 
-- dev DB で、`collected` の 1 件に `generation_prioritized_at` を入れて `pnpm --filter cron generate:questions --dry-run` 相当の確認はできないので、SQL で並びを確かめる
+- 生成タスクは Claude API を呼ぶので dev では流さず、SQL で並びを確かめる（`collected` の 1 件に `generation_prioritized_at` を入れて先頭に来ること。確かめたら NULL に戻す）
 
 ```bash
 docker exec -i tech-english-postgres psql -U postgres -d "tech-english_dev" -c \

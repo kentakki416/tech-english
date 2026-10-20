@@ -30,6 +30,7 @@ cron の本文の抽出とサイトの取得を、共有パッケージ `@repo/c
 {
   "name": "@repo/content-extractor",
   "version": "1.0.0",
+  "private": true,
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "sideEffects": false,
@@ -37,13 +38,16 @@ cron の本文の抽出とサイトの取得を、共有パッケージ `@repo/c
     "build": "tsc --project tsconfig.build.json",
     "clean": "rm -rf dist",
     "dev": "tsc --project tsconfig.build.json --watch",
-    "lint": "eslint 'src/**/*.ts'",
-    "lint:fix": "eslint 'src/**/*.ts' --fix",
-    "test": "vitest run"
+    "lint": "eslint 'src/**/*.ts' 'test/**/*.ts'",
+    "lint:fix": "eslint 'src/**/*.ts' 'test/**/*.ts' --fix",
+    "test": "vitest run",
+    "test:ci": "vitest run",
+    "test:watch": "vitest"
   }
 }
 ```
 
+- `test:ci` は必ず置く（CI は `turbo run test:ci` だけを流すので、無いと移したテスト〈SSRF 対策の `safe-lookup` を含む〉が CI から外れる）
 - `dependencies` は cron から移す：`@mozilla/readability`・`@repo/domain`・`@repo/logger`・`jsdom`・`picomatch`・`rehype-parse`・`rehype-remark`・`remark-frontmatter`・`remark-gfm`・`remark-mdx`・`remark-parse`・`robots-parser`・`undici`・`unified`・`yaml`（版は cron の今のものと同じ）。型（`@types/mdast` など）も同じく移す
 - cron の `package.json` から、cron で使わなくなった依存を外し、`@repo/content-extractor: workspace:^` を足す。`jsdom` の版の固定（v29）の注意は、パッケージの README に移す
 

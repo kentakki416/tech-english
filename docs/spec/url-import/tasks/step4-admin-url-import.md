@@ -39,13 +39,14 @@ export const previewUrlImportAction = async (_state: UrlImportState, formData: F
 export const createUrlImportAction = async (_state: UrlImportState, formData: FormData): Promise<UrlImportState> => ...
 ```
 
-- `url` は `previewUrlImportRequestSchema` で検証し、不正なら「URL を確かめてください（https のページの URL）」
+- `url` は `previewUrlImportRequestSchema` で検証し、不正（`https` でないものを含む）なら「URL を確かめてください（https のページの URL）」。api には送らない
 - api の 400 は `errorResponseSchema` で読み、`details[0].code` を `urlImportErrorCodeSchema` で読んで文言にする（下の表）。それ以外の失敗は「取り込みに失敗しました。時間をおいてもう一度お試しください。」
 - 保存できたら `revalidatePath("/passages")`
 
 | code | 文言 |
 | --- | --- |
 | `source_not_found` | このサイトのソースが登録されていません。先にソースを登録してください。（ソースの登録へのリンク） |
+| `github_source` | このサイトは GitHub のソースで収集しています。収集（collect:passages）で取り込んでください。 |
 | `out_of_target_path` | ソースの対象パスに合わないページです。ソースの対象パス・除外パスを確かめてください。 |
 | `robots_disallowed` | robots.txt で取得が禁止されているページです。 |
 | `robots_unavailable` | robots.txt を読めませんでした。時間をおいてもう一度お試しください。 |
@@ -59,6 +60,7 @@ export const createUrlImportAction = async (_state: UrlImportState, formData: Fo
 | `too_many_redirects` | リダイレクトが多すぎます。 |
 | `redirected_out_of_target` | リダイレクトの行き先が、ソースの対象パスの外です。 |
 | `extraction_failed` | 本文を抽出できませんでした。ソースの本文の CSS セレクタを確かめてください。 |
+| `deadline_exceeded` | ページの取得が 20 秒以内に終わりませんでした。時間をおいてもう一度お試しください。 |
 
 ### 画面（`UrlImportForm.tsx`）
 
@@ -67,7 +69,7 @@ export const createUrlImportAction = async (_state: UrlImportState, formData: Fo
 - 入力：URL（`inputClass`）と「確認する」。確認中はボタンを無効にして「確認しています…」
 - 確認の結果：
   - ソース（表示名・ライセンス）、ページ（タイトル・URL・英単語数）
-  - 塊の表：見出し、英単語数、保存したときにどうなるか（`new` は「本文候補になる」 success、`existing` は「本文候補がすでにある」 light、`generated_section` は「同じ見出しの問題がある」 warning、`not_candidate` は「本文候補にならない」 light と理由）、冒頭の文
+  - 塊の表：見出し、英単語数、保存したときにどうなるか（`new` は「本文候補になる」 success、`existing` は「本文候補がすでにある（生成を優先）」 info、`duplicated` は「同じ内容の問題がある」 light、`generated_section` は「同じ見出しの問題がある」 warning、`not_candidate` は「本文候補にならない」 light と理由）、冒頭の文
   - 「本文候補として保存」（`new` か `existing` の塊が 1 つも無ければ無効）。押すと URL を hidden で送る
 - 保存の結果：作った件数・却下した件数、優先した本文候補の一覧（`/passages/{id}` へのリンク、新しく作ったものに「新規」のバッジ）、「次の問題の生成で、ほかの本文候補より先に生成します。」の案内
 - 理由の文言（`not_candidate`）：`too_short` は「短すぎる」、`too_long` は「長すぎる」、`too_much_code` は「コードが多い」、`not_english` は「英語でない」、`not_prose` は「文章でない」
@@ -90,7 +92,7 @@ dev にサイトのソースが無いので、admin で登録する（無効の�
 
 1. `/url-import` で `https://go.dev/doc/tutorial/getting-started` を確認し、ソースと塊の表が出ること。console のエラー 0 件
 2. 保存して、作った件数と本文候補へのリンクが出ること。もう一度保存すると、作った件数が 0 で「本文候補がすでにある」になること
-3. `https://example.com/` は「ソースが登録されていません」、`https://go.dev/blog/` は「対象パスに合わない」になること
+3. `https://example.com/` は「ソースが登録されていません」、`https://go.dev/blog/` は「対象パスに合わない」、`https://react.dev/learn` は「GitHub のソースで収集しています」、`http://go.dev/doc/` はフォームで止まること
 4. DB で、作った本文候補に `generation_prioritized_at` が入っていること
 
 ```bash
