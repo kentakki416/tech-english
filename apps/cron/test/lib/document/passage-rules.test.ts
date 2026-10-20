@@ -59,6 +59,11 @@ describe("passage-rules", () => {
       expect(calculateProseWordRatio([])).toBe(0)
     })
 
+    it("calculateProseWordRatio は 12 語以上の list_item を文章に数え、11 語の list_item は数えない", () => {
+      expect(calculateProseWordRatio([buildParagraph(12), buildListItem(12)])).toBe(1)
+      expect(calculateProseWordRatio([buildParagraph(11), buildListItem(11)])).toBe(0.5)
+    })
+
     it.each([
       ["200 語", [buildParagraph(200)]],
       ["600 語", [buildParagraph(600)]],
@@ -70,7 +75,11 @@ describe("passage-rules", () => {
        * 225 語で ASCII 英字 900 文字。かな 100 文字で 900 / 1,000 = 90%
        */
       ["英字 90%", [buildParagraph(225), { text: "あ".repeat(100), type: "paragraph" }]],
-      ["文章 50%", [buildParagraph(150), buildListItem(150)]],
+      /**
+       * 11 語の項目は文章に数えないので 154 / 308 = 50%
+       */
+      ["文章 50%", [buildParagraph(154), ...Array.from({ length: 14 }, () => buildListItem(11))]],
+      ["12 語の項目が並ぶ塊", [buildParagraph(150), ...Array.from({ length: 14 }, () => buildListItem(12))]],
     ] satisfies [string, PassageBlock[]][])("境界値：%s は本文候補になる", (_, blocks) => {
       expect(findRejectReasons(blocks)).toEqual([])
     })
@@ -87,7 +96,11 @@ describe("passage-rules", () => {
         [buildParagraph(225), { text: "あ".repeat(101), type: "paragraph" }],
         ["not_english"],
       ],
-      ["文章 150 / 301 語は not_prose", [buildParagraph(150), buildListItem(151)], ["not_prose"]],
+      [
+        "文章 150 / 304 語（11 語の項目 14 個）は not_prose",
+        [buildParagraph(150), ...Array.from({ length: 14 }, () => buildListItem(11))],
+        ["not_prose"],
+      ],
       [
         "リンク集のリストだけの塊は not_prose",
         Array.from({ length: 50 }, () => buildListItem(5)),

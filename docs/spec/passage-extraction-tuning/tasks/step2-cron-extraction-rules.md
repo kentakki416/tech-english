@@ -14,6 +14,7 @@
 | `apps/cron/src/lib/document/passage-rules.ts` | 文章の割合に長い箇条書きの項目を数える |
 | `apps/cron/src/lib/document/convert-mdast-to-blocks.ts` | 「:」で終わる段落の置き換え |
 | `apps/cron/src/lib/document/markdown-jsx.ts` | `.md` の自己終了のコンポーネントを、中身の無い `mdxJsxFlowElement` として残す |
+| `apps/cron/src/lib/document/split-into-chunks.ts` | 長い節を分けた 2 つめ以降の塊のタイトルに番号を付ける |
 | `apps/cron/test/lib/document/*.test.ts` | 下の「動作確認」 |
 | `apps/cron/CLAUDE.md` | `lib/document` の表の `convert-mdast-to-blocks.ts` の行（`PROSE_COMPONENT_NAMES` の列挙から `<Recap>` / `<YouWillLearn>` を外し、「:」の置き換えを足す）と `markdown-jsx.ts` の行（自己終了のコンポーネント） |
 | `docs/spec/content-collection/README.md` | 「本文候補の条件」「本文の抽出と解析」「本文候補への切り分け」の英単語数・文章の判定の段落、「調整できる箇所」のしきい値の行 |
@@ -58,17 +59,41 @@ const calculateProseWordRatio = (blocks: PassageBlock[]): number => {
 ### `convert-mdast-to-blocks.ts`
 
 ```ts
-const DANGLING_COLON_PATTERN = /:$/
+const DANGLING_COLON_PATTERN = /(?<!:[\w+-]+):$/
+
+const HTML_COMMENT_PATTERN = /<!--[\s\S]*?-->/g
+
+const HTML_TAG_PATTERN = /<[^>]*>/g
+
+const HTML_MEDIA_TAG_PATTERN = /<(?:iframe|img|picture|svg|table|video)\b/i
+
+const hasHtmlContent = (html: string): boolean => {
+  const withoutComments = html.replace(HTML_COMMENT_PATTERN, "")
+  return HTML_MEDIA_TAG_PATTERN.test(withoutComments) || withoutComments.replace(HTML_TAG_PATTERN, "").trim() !== ""
+}
+
+const isImageContent = (node: PhrasingContent): boolean => {
+  switch (node.type) {
+  case "image":
+  case "imageReference":
+    return true
+  case "link":
+  case "linkReference":
+    return node.children.some(isImageContent)
+  default:
+    return false
+  }
+}
 
 const isDroppedContentNode = (node: RootContent): boolean => {
   switch (node.type) {
   case "html":
-    return !node.value.trimStart().startsWith("<!--")
+    return hasHtmlContent(node.value)
   case "mdxJsxFlowElement":
   case "table":
     return true
   case "paragraph":
-    return node.children.some((child) => child.type === "image" || child.type === "imageReference")
+    return node.children.some(isImageContent)
   default:
     return false
   }
@@ -83,7 +108,7 @@ const isContinuationMissing = (nodes: RootContent[], convertedBlocks: DocumentBl
   return true
 }
 
-const convertSiblings = (nodes: RootContent[]): DocumentBlock[] => {
+const convertSiblingsFixingDanglingColons = (nodes: RootContent[]): DocumentBlock[] => {
   const convertedBlocks = nodes.map(convertNode)
   return convertedBlocks.flatMap((blocks, index) =>
     nodes[index]?.type === "paragraph" && isContinuationMissing(nodes, convertedBlocks, index)
@@ -92,12 +117,13 @@ const convertSiblings = (nodes: RootContent[]): DocumentBlock[] => {
 }
 
 const convertJsxElement = (node: MdxJsxFlowElement): DocumentBlock[] =>
-  node.name !== null && PROSE_COMPONENT_NAMES.has(node.name) ? convertSiblings(node.children) : []
+  node.name !== null && PROSE_COMPONENT_NAMES.has(node.name) ? convertSiblingsFixingDanglingColons(node.children) : []
 
-export const convertMdastToBlocks = (root: Root): DocumentBlock[] => convertSiblings(root.children)
+export const convertMdastToBlocks = (root: Root): DocumentBlock[] => convertSiblingsFixingDanglingColons(root.children)
 ```
 
-- `isContinuationMissing` と `convertSiblings` には、置き換える条件（内容のあるノードを捨てたか、後ろにブロックを作るノードが無い）と、空のノード（ショートコード・コメントだけの段落、区切り線）は飛ばして先を見ることを JSDoc に書く
+- `isContinuationMissing` と `convertSiblingsFixingDanglingColons` には、置き換える条件（内容のあるノードを捨てたか、後ろにブロックを作るノードが無い）と、空のノード（ショートコード・コメントだけの段落、区切り線）は飛ばして先を見ることを JSDoc に書く
+- `DANGLING_COLON_PATTERN` には、GitHub の絵文字のショートコード（`Happy hacking :rocket:`）の閉じの「:」を除くことを、`hasHtmlContent` には、囲みのタグだけの HTML（`<div class="tabs">`）は間の Markdown が兄弟に残るので内容に数えないことを JSDoc に書く
 - 箇条書きの項目・引用（`convertContainerChildren`）は変えない
 
 ### `markdown-jsx.ts`
@@ -112,6 +138,20 @@ export const convertMdastToBlocks = (root: Root): DocumentBlock[] => convertSibl
 - `groupHtmlComponents` は今のまま。開始タグの直後に同じ名前の終了タグが来るので、中身の無い `mdxJsxFlowElement` になり、`convertJsxElement` が捨てる（本文は変わらない）
 - `tokenizeHtml` の JSDoc の「自己終了タグ（`<Diagram />`）は中身が無いので捨てる」を、中身の無いコンポーネントにする（続きを捨てたことを「:」の判定に残すため）に直す
 
+### `split-into-chunks.ts`
+
+`Unit` に `partNumber`（分けていない節は 1）を足し、`splitLongSection` で 2 つめ以降に 2, 3, … を入れる。`mergeShortUnits` で結合した塊は前の塊の `partNumber` を引き継ぐ。
+
+```ts
+const buildChunkTitle = (unit: Unit, firstHeadingText: string | undefined, documentTitle: string): string => {
+  if (firstHeadingText !== undefined) return firstHeadingText
+  const title = unit.sectionTitle ?? documentTitle
+  return unit.partNumber > 1 ? `${title} (${unit.partNumber})` : title
+}
+```
+
+- `buildChunkTitle` の JSDoc に、番号を付ける理由（収集が同じ見出しの下書きがある塊を作らないため）を書く
+
 ## 動作確認
 
 ### テスト
@@ -125,9 +165,11 @@ export const convertMdastToBlocks = (root: Root): DocumentBlock[] => convertSibl
 `convert-mdast-to-blocks.test.ts`（`convertMarkdown` で Markdown から作る）：
 
 - 「:」で終わる段落の後ろに `<Sandpack>` があれば「.」にする
-- 後ろが表・画像だけの段落・HTML のときも「.」にする
+- 後ろが表・画像だけの段落・リンクで包んだ画像の段落・HTML のときも「.」にする
+- 末尾の絵文字のショートコード（`:rocket:`）の「:」は変えない
 - 文書の最後の「:」で終わる段落は「.」にする
-- 後ろにコード・箇条書き・引用・段落があれば「:」のまま
+- 後ろにコード・箇条書き・引用・段落・見出しがあれば「:」のまま
+- 後ろに囲みのタグだけの HTML（`<div class="tabs">`）があり、その先にコードがあれば「:」のまま
 - 後ろにショートコードだけの段落（`{{< tabs >}}`）・区切り線があり、その先にコードがあれば「:」のまま
 - 後ろが HTML のコメントだけで、その先にコードがあれば「:」のまま
 - `<Note>` の中の「:」で終わる段落の後ろに `<Sandpack>` があれば「.」にする
@@ -138,6 +180,11 @@ export const convertMdastToBlocks = (root: Root): DocumentBlock[] => convertSibl
 
 - `components.md` の期待値から `<YouWillLearn>` の 2 項目と `<Recap>` の 1 項目を消す（fixture は変えない。中身ごと捨てることの確かめになる）
 - `.md` で `Look at this:` の後に自己終了の `<Diagram name="x" />`（HTML ブロック）、その後に段落があれば `Look at this.` になる。`.mdx` でも同じ
+
+`split-into-chunks.test.ts`：
+
+- 700 語の節の後ろの塊のタイトルは「Long (2)」。最初の見出しより前の 700 語は、後ろの塊が「文書のタイトル (2)」
+- 分けた後ろの塊に h4 の見出しがあれば、番号を付けずにその見出しをタイトルにする
 
 `parse-html.test.ts`：
 

@@ -114,6 +114,21 @@ describe("parseHtml", () => {
 
       expect(title).toBe("Heading Title")
     })
+
+    it.each([
+      ["表", "<table><tr><th>a</th></tr><tr><td>1</td></tr></table>"],
+      ["リンクで包んだ画像", "<a href=\"/diagram.png\"><img src=\"/diagram.png\" alt=\"\"></a>"],
+    ])("「:」で終わる段落の後ろの%sを捨てたら、末尾の「:」を「.」にする", (_, dropped) => {
+      const { root } = parseHtml(
+        `<main><p>For example:</p>${dropped}<p>Next.</p></main>`,
+        { contentSelector: "main", excludeSelectors: [], url: "https://docs.example.dev/" },
+      )
+
+      expect(convertMdastToBlocks(root)).toEqual([
+        { text: "For example.", type: "paragraph" },
+        { text: "Next.", type: "paragraph" },
+      ])
+    })
   })
 
   describe("異常系", () => {
