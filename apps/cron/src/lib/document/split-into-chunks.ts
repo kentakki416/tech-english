@@ -17,10 +17,12 @@ export type PassageChunk = {
 }
 
 /**
- * 切り分けの途中の塊。sectionTitle は塊が属する節の先頭の見出し（無ければ null）
+ * 切り分けの途中の塊。sectionTitle は塊が属する節の先頭の見出し（無ければ null）。
+ * partNumber は長い節を分けたときの何番目の塊か（分けていない節は 1）
  */
 type Unit = {
   blocks: DocumentBlock[]
+  partNumber: number
   sectionTitle: string | null
   wordCount: number
 }
@@ -28,8 +30,9 @@ type Unit = {
 const isSectionHeading = (block: DocumentBlock): boolean =>
   block.type === "heading" && block.headingDepth !== undefined && block.headingDepth <= SECTION_HEADING_MAX_DEPTH
 
-const buildUnit = (blocks: DocumentBlock[], sectionTitle: string | null): Unit => ({
+const buildUnit = (blocks: DocumentBlock[], sectionTitle: string | null, partNumber = 1): Unit => ({
   blocks,
+  partNumber,
   sectionTitle,
   wordCount: countEnglishWords(blocks),
 })
@@ -54,8 +57,8 @@ const groupIntoSections = (blocks: DocumentBlock[]): Unit[] => {
 }
 
 /**
- * PASSAGE_MAX_WORDS を超える節を、ブロックを前から足して超える手前で分ける。分けた後ろの塊も同じ sectionTitle を持つ。
- * 1 ブロックで上限を超えるものはそのまま残す（too_long で本文候補から外れる）
+ * PASSAGE_MAX_WORDS を超える節を、ブロックを前から足して超える手前で分ける。分けた後ろの塊も同じ sectionTitle を持ち、
+ * partNumber で何番目かを区別する。1 ブロックで上限を超えるものはそのまま残す（too_long で本文候補から外れる）
  */
 const splitLongSection = (section: Unit): Unit[] => {
   if (section.wordCount <= PASSAGE_MAX_WORDS) return [section]
@@ -73,7 +76,7 @@ const splitLongSection = (section: Unit): Unit[] => {
     currentWordCount += wordCount
   }
   if (current.length > 0) groups.push(current)
-  return groups.map((blocks) => buildUnit(blocks, section.sectionTitle))
+  return groups.map((blocks, index) => buildUnit(blocks, section.sectionTitle, index + 1))
 }
 
 /**
@@ -86,6 +89,7 @@ const mergeShortUnits = (units: Unit[]): Unit[] => {
     if (current && current.wordCount < PASSAGE_MIN_WORDS && current.wordCount + unit.wordCount <= PASSAGE_MAX_WORDS) {
       merged[merged.length - 1] = {
         blocks: [...current.blocks, ...unit.blocks],
+        partNumber: current.partNumber,
         sectionTitle: current.sectionTitle ?? unit.sectionTitle,
         wordCount: current.wordCount + unit.wordCount,
       }
@@ -99,8 +103,16 @@ const mergeShortUnits = (units: Unit[]): Unit[] => {
 const convertToPassageBlock = ({ headingDepth: _headingDepth, ...block }: DocumentBlock): PassageBlock => block
 
 /**
- * タイトルは塊の中の最初の見出し → 節の見出し → 文書のタイトルの順
+ * タイトルは塊の中の最初の見出し → 節の見出し → 文書のタイトルの順。長い節を分けた 2 つめ以降の塊で、塊の中に見出しが無ければ
+ * 「 (2)」のように番号を付ける（同じ見出しの本文候補が並ばないように。収集では、下書き・公開済みと同じ見出しの塊を作らないため、
+ * 番号が無いと前の塊に下書きがあるときに後ろの塊が作られない）
  */
+const buildChunkTitle = (unit: Unit, firstHeadingText: string | undefined, documentTitle: string): string => {
+  if (firstHeadingText !== undefined) return firstHeadingText
+  const title = unit.sectionTitle ?? documentTitle
+  return unit.partNumber > 1 ? `${title} (${unit.partNumber})` : title
+}
+
 const buildChunk = (unit: Unit, documentTitle: string): PassageChunk => {
   const blocks = unit.blocks.map(convertToPassageBlock)
   const firstHeading = blocks.find((block) => block.type === "heading")
@@ -108,7 +120,7 @@ const buildChunk = (unit: Unit, documentTitle: string): PassageChunk => {
     blocks,
     contentHash: calculateContentHash(blocks),
     rejectReasons: findRejectReasons(blocks),
-    title: firstHeading?.text ?? unit.sectionTitle ?? documentTitle,
+    title: buildChunkTitle(unit, firstHeading?.text, documentTitle),
     wordCount: unit.wordCount,
   }
 }

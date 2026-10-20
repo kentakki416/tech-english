@@ -59,16 +59,33 @@ describe("splitIntoChunks", () => {
       ])
     })
 
-    it("700 語の節は 600 語以下の塊に分かれ、後ろの塊のタイトルは節の見出しになる", () => {
+    it("700 語の節は 600 語以下の塊に分かれ、後ろの塊のタイトルは節の見出しに番号を付けたものになる", () => {
       const blocks = [buildHeading("Long", 2), ...Array.from({ length: 7 }, () => buildParagraph(100))]
 
       const chunks = splitIntoChunks(blocks, DOCUMENT_TITLE)
 
       expect(chunks.map(({ rejectReasons, title, wordCount }) => ({ rejectReasons, title, wordCount }))).toEqual([
         { rejectReasons: [], title: "Long", wordCount: 501 },
-        { rejectReasons: [], title: "Long", wordCount: 200 },
+        { rejectReasons: [], title: "Long (2)", wordCount: 200 },
       ])
       expect(chunks[1]?.blocks.some((block) => block.type === "heading")).toBe(false)
+    })
+
+    it("最初の見出しより前の 700 語は、後ろの塊のタイトルが文書のタイトルに番号を付けたものになる", () => {
+      const chunks = splitIntoChunks(Array.from({ length: 7 }, () => buildParagraph(100)), DOCUMENT_TITLE)
+
+      expect(chunks.map(({ title }) => title)).toEqual([DOCUMENT_TITLE, `${DOCUMENT_TITLE} (2)`])
+    })
+
+    it("分けた後ろの塊に h4 の見出しがあれば、番号を付けずにその見出しをタイトルにする", () => {
+      /**
+       * 見出し 1 語 + 599 語でちょうど 600 語になり、h4 の前で分かれる
+       */
+      const blocks = [buildHeading("Long", 2), buildParagraph(599), buildHeading("Detail", 4), buildParagraph(100)]
+
+      const chunks = splitIntoChunks(blocks, DOCUMENT_TITLE)
+
+      expect(chunks.map(({ title }) => title)).toEqual(["Long", "Detail"])
     })
 
     it("塊のブロックは headingDepth を落とした PassageBlock で、contentHash は塊のブロックのハッシュ", () => {
