@@ -31,7 +31,7 @@ export const urlImportApi = {
 ```ts
 export type UrlImportState =
   | { status: "idle" }
-  | { message: string; status: "error"; url: string }
+  | { errorCode: UrlImportErrorCode | null; message: string; status: "error"; url: string }
   | { preview: PreviewUrlImportResponse; status: "previewed"; url: string }
   | { result: CreateUrlImportResponse; status: "imported"; url: string }
 
@@ -42,6 +42,7 @@ export const createUrlImportAction = async (_state: UrlImportState, formData: Fo
 - `url` は `previewUrlImportRequestSchema` で検証し、不正（`https` でないものを含む）なら「URL を確かめてください（https のページの URL）」。api には送らない
 - api の 400 は `errorResponseSchema` で読み、`details[0].code` を `urlImportErrorCodeSchema` で読んで文言にする（下の表）。それ以外の失敗は「取り込みに失敗しました。時間をおいてもう一度お試しください。」
 - 保存できたら `revalidatePath("/passages")`
+- `errorCode` は api が返した取り込めない理由（URL の形の誤り・想定外の失敗は null）。画面が `source_not_found` のときにソースの登録へのリンクを出すのに使う
 
 | code | 文言 |
 | --- | --- |
@@ -64,7 +65,7 @@ export const createUrlImportAction = async (_state: UrlImportState, formData: Fo
 
 ### 画面（`UrlImportForm.tsx`）
 
-`useActionState` で 2 つのアクションを持つ。カードは `cardClass`、ボタンは `primaryButtonClass`・`outlineButtonClass`、状態は `Badge` を使う（ソースの画面と同じ）。
+`useActionState` の 1 つの状態に、確認と保存の 2 つのアクションを form の hidden の `intent` で振り分ける（保存の結果を出したら確認の結果は消える）。送信は `onSubmit` から `startTransition` で呼ぶ（admin の規約。`<form action>` だと送信後に入力がリセットされる）。カードは `cardClass`、ボタンは `primaryButtonClass`・`outlineButtonClass`、状態は `Badge` を使う（ソースの画面と同じ）。
 
 - 入力：URL（`inputClass`）と「確認する」。確認中はボタンを無効にして「確認しています…」
 - 確認の結果：
@@ -87,6 +88,7 @@ dev にサイトのソースが無いので、admin で登録する（無効の�
 | 表示名 | Go 公式ドキュメント |
 | 取得方法 | 公式ドキュメントのサイト |
 | サイトの URL | `https://go.dev` |
+| ページの探し方 | 開始ページ `https://go.dev/doc/`（サイトのソースは sitemap か開始ページのどちらかが要る） |
 | 対象パス | `/doc/**` |
 | ライセンス | `CC-BY-4.0`（ライセンスの記載がある URL は `https://go.dev/copyright`） |
 
