@@ -13,6 +13,8 @@
 | `apps/cron/src/repository/source-document-repository.ts`・`drizzle/` | `markFetched` で `extraction_version` を書く |
 | `apps/cron/src/repository/content-source-repository.ts`・`drizzle/` | `markCollected` で commit SHA と抽出の版を一緒に書く |
 | `apps/cron/src/repository/passage-repository.ts`・`drizzle/` | `rejectSupersededCollected` |
+| `apps/cron/src/service/collection/types.ts` | `CollectionRepo.passageRepository` の `Pick` に `"rejectSupersededCollected"` を足し、JSDoc を「収集は本文候補の挿入と、切り分け直した文書の前の本文候補の却下だけを使う」に直す |
+| `apps/cron/src/service/collection/reject-superseded-passages.ts`・`index.ts` | `rejectSupersededPassages`（GitHub とサイトで共有）。`index.ts` の `export *` にファイル名順で足す |
 | `apps/cron/src/service/collection/collect-github-source.ts` | 版の比較、切り分け直し、却下 |
 | `apps/cron/src/service/collection/collect-website-source.ts` | 同上 |
 | `apps/cron/test/` | 下の「動作確認」 |
@@ -178,7 +180,7 @@ const isFileToExtract = (file: GitHubTreeEntry, document: SourceDocument | undef
 
 ### 却下（GitHub とサイトで共有）
 
-`service/collection/` に置き、両方から呼ぶ。
+`service/collection/reject-superseded-passages.ts` に置き、両方から呼ぶ。
 
 ```ts
 export const rejectSupersededPassages = async (
@@ -305,4 +307,4 @@ docker exec -i tech-english-postgres psql -U postgres -d "tech-english_dev" -c \
 
 3. 上限なしで収集して `completed` になり、`content_sources` に commit SHA と版が記録されること。もう一度実行すると `up_to_date` になること
 4. 作った本文候補を数件 admin のプレビューで開き、`<YouWillLearn>`・`<Recap>` の一覧が無いこと、続きの捨てられた段落が「.」で終わっていることを見る
-5. 除外した `adding-interactivity.md` の `collected` の本文候補は残るので、admin で却下する
+5. 除外した `adding-interactivity.md` の `collected` の本文候補は却下されずに残ること（今と同じ。admin の却下は下書きからなので、ここでは生成も却下もしない）

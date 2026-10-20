@@ -24,23 +24,19 @@
 `source-document.ts`（`etag` の後ろ）：
 
 ```ts
-    /**
-     * 文書を切り分けたときの抽出の版（cron の EXTRACTION_VERSION）。NULL は列を足す前に取得した文書か未取得
-     */
     extractionVersion: text("extraction_version"),
 ```
 
 `content-source.ts`（`lastCollectedCommitSha` の後ろ）：
 
 ```ts
-    /**
-     * GitHub のみ。last_collected_commit_sha を記録したときの抽出の版
-     */
     lastCollectedExtractionVersion: text("last_collected_extraction_version"),
 ```
 
+- まわりの列と同じく、列の意味を JSDoc に書く。`extraction_version` は「文書を切り分けたときの抽出の版（cron の `EXTRACTION_VERSION`）。NULL は列を足す前に取得した文書か未取得」、`last_collected_extraction_version` は「GitHub のみ。`last_collected_commit_sha` を記録したときの抽出の版」
+
 ```bash
-pnpm --filter @repo/db db:generate
+pnpm --filter @repo/db db:generate --name add_extraction_versions
 ```
 
 生成された SQL が次の 2 文だけであることを確かめる。
@@ -55,20 +51,16 @@ ALTER TABLE "source_documents" ADD COLUMN "extraction_version" text;
 `SourceDocument`（`etag` の後ろ）：
 
 ```ts
-  /**
-   * 文書を切り分けたときの抽出の版。null は列を足す前に取得した文書か未取得
-   */
   extractionVersion: string | null
 ```
 
 `GitHubRepositorySource`（`lastCollectedCommitSha` の後ろ）：
 
 ```ts
-  /**
-   * lastCollectedCommitSha を記録したときの抽出の版
-   */
   lastCollectedExtractionVersion: string | null
 ```
+
+- JSDoc はスキーマの列と同じ内容を書く（`null` は列を足す前に取得した文書か未取得、`lastCollectedCommitSha` を記録したときの抽出の版）
 
 ### 読み込み
 

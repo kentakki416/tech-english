@@ -13,7 +13,9 @@
 | `apps/cron/src/lib/document/const.ts` | `PROSE_COMPONENT_NAMES` から `YouWillLearn`・`Recap` を外す、`MIN_PROSE_LIST_ITEM_WORDS` |
 | `apps/cron/src/lib/document/passage-rules.ts` | 文章の割合に長い箇条書きの項目を数える |
 | `apps/cron/src/lib/document/convert-mdast-to-blocks.ts` | 「:」で終わる段落の置き換え |
+| `apps/cron/src/lib/document/markdown-jsx.ts` | `.md` の自己終了のコンポーネントを、中身の無い `mdxJsxFlowElement` として残す |
 | `apps/cron/test/lib/document/*.test.ts` | 下の「動作確認」 |
+| `apps/cron/CLAUDE.md` | `lib/document` の表の `convert-mdast-to-blocks.ts` の行（`PROSE_COMPONENT_NAMES` の列挙から `<Recap>` / `<YouWillLearn>` を外し、「:」の置き換えを足す）と `markdown-jsx.ts` の行（自己終了のコンポーネント） |
 | `docs/spec/content-collection/README.md` | 「本文候補の条件」「本文の抽出と解析」「本文候補への切り分け」の英単語数・文章の判定の段落、「調整できる箇所」のしきい値の行 |
 
 ### `const.ts`
@@ -72,7 +74,7 @@ const isDroppedContentNode = (node: RootContent): boolean => {
   }
 }
 
-const isFollowedByDroppedContent = (nodes: RootContent[], convertedBlocks: DocumentBlock[][], index: number): boolean => {
+const isContinuationMissing = (nodes: RootContent[], convertedBlocks: DocumentBlock[][], index: number): boolean => {
   for (let nextIndex = index + 1; nextIndex < nodes.length; nextIndex++) {
     if ((convertedBlocks[nextIndex]?.length ?? 0) > 0) return false
     const nextNode = nodes[nextIndex]
@@ -84,7 +86,7 @@ const isFollowedByDroppedContent = (nodes: RootContent[], convertedBlocks: Docum
 const convertSiblings = (nodes: RootContent[]): DocumentBlock[] => {
   const convertedBlocks = nodes.map(convertNode)
   return convertedBlocks.flatMap((blocks, index) =>
-    nodes[index]?.type === "paragraph" && isFollowedByDroppedContent(nodes, convertedBlocks, index)
+    nodes[index]?.type === "paragraph" && isContinuationMissing(nodes, convertedBlocks, index)
       ? blocks.map((block) => ({ ...block, text: block.text.replace(DANGLING_COLON_PATTERN, ".") }))
       : blocks)
 }
@@ -95,8 +97,20 @@ const convertJsxElement = (node: MdxJsxFlowElement): DocumentBlock[] =>
 export const convertMdastToBlocks = (root: Root): DocumentBlock[] => convertSiblings(root.children)
 ```
 
-- `isFollowedByDroppedContent` と `convertSiblings` には、置き換える条件（内容のあるノードを捨てたか、後ろにブロックを作るノードが無い）と、空のノード（ショートコード・コメントだけの段落、区切り線）は飛ばして先を見ることを JSDoc に書く
+- `isContinuationMissing` と `convertSiblings` には、置き換える条件（内容のあるノードを捨てたか、後ろにブロックを作るノードが無い）と、空のノード（ショートコード・コメントだけの段落、区切り線）は飛ばして先を見ることを JSDoc に書く
 - 箇条書きの項目・引用（`convertContainerChildren`）は変えない
+
+### `markdown-jsx.ts`
+
+`tokenizeHtml`：自己終了タグを、開始タグと終了タグの組にする。
+
+```ts
+    if (selfClosingSlash) tokens.push({ kind: "open", name }, { kind: "close", name })
+    else tokens.push({ kind: closingSlash ? "close" : "open", name })
+```
+
+- `groupHtmlComponents` は今のまま。開始タグの直後に同じ名前の終了タグが来るので、中身の無い `mdxJsxFlowElement` になり、`convertJsxElement` が捨てる（本文は変わらない）
+- `tokenizeHtml` の JSDoc の「自己終了タグ（`<Diagram />`）は中身が無いので捨てる」を、中身の無いコンポーネントにする（続きを捨てたことを「:」の判定に残すため）に直す
 
 ## 動作確認
 
@@ -123,6 +137,7 @@ export const convertMdastToBlocks = (root: Root): DocumentBlock[] => convertSibl
 `parse-markdown.test.ts`：
 
 - `components.md` の期待値から `<YouWillLearn>` の 2 項目と `<Recap>` の 1 項目を消す（fixture は変えない。中身ごと捨てることの確かめになる）
+- `.md` で `Look at this:` の後に自己終了の `<Diagram name="x" />`（HTML ブロック）、その後に段落があれば `Look at this.` になる。`.mdx` でも同じ
 
 `parse-html.test.ts`：
 
