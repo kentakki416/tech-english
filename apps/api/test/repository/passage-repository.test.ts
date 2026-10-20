@@ -491,11 +491,12 @@ describe("PassageRepository", () => {
 
   describe("resetForRegeneration", () => {
     describe("正常系", () => {
-      it("設問・用語集を消し、和訳と生成の記録を空にして collected に戻す（英文とタイトルは残す）", async () => {
+      it("設問・用語集を消し、和訳と生成の記録を空にして collected に戻す（英文とタイトル・生成の優先は残す）", async () => {
         const { passage } = await insertGeneratedPassage({
           attentionReasons: ["Q3：検証モデルは A を選択（正解は B）"],
           generationAttemptCount: 2,
           generationError: "timeout",
+          generationPrioritizedAt: at("2026-10-12T01:00:00.000Z"),
           generationStartedAt: at("2026-10-12T02:59:00.000Z"),
           needsAttention: true,
           rejectReason: "不向き",
@@ -512,6 +513,7 @@ describe("PassageRepository", () => {
           generationAttemptCount: 0,
           generationError: null,
           generationModel: null,
+          generationPrioritizedAt: at("2026-10-12T01:00:00.000Z"),
           generationPromptVersion: null,
           generationStartedAt: null,
           needsAttention: false,
@@ -882,11 +884,12 @@ describe("PassageRepository", () => {
         expect(await selectGlossary(passage.id)).toHaveLength(3)
       })
 
-      it("設問が無ければ（LLM が不向きと判定）生成の記録・失敗の回数・却下の理由を空にして collected を返す", async () => {
+      it("設問が無ければ（LLM が不向きと判定）生成の記録・失敗の回数・却下の理由を空にして collected を返す（生成の優先は残す）", async () => {
         const source = await insertPassageSource()
         const document = await insertPassageDocument(source.id)
         const passage = await insertPassage(document.id, {
           generationAttemptCount: 2,
+          generationPrioritizedAt: at("2026-10-12T01:00:00.000Z"),
           generationStartedAt: at("2026-10-12T02:59:00.000Z"),
           rejectReason: "目次だけ",
           status: "rejected",
@@ -900,6 +903,7 @@ describe("PassageRepository", () => {
           generatedAt: null,
           generationAttemptCount: 0,
           generationModel: null,
+          generationPrioritizedAt: at("2026-10-12T01:00:00.000Z"),
           generationPromptVersion: null,
           generationStartedAt: null,
           needsAttention: false,
