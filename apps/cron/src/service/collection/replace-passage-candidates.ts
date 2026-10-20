@@ -6,16 +6,16 @@ import type { PassageChunk } from "../../lib/document"
 import type { CollectionRepo } from "./types"
 
 /**
- * 文書を切り分けた本文候補を保存し、挿入した件数を返す。
+ * 文書の未生成（collected）の本文候補を、新しく切り分けた塊で置き換え、挿入した件数を返す。
  *
- * 1. 同じ見出しの下書き・公開済み・生成中の本文候補がある塊は挿入しない（同じ節の問題を二重に作らないため）
+ * 1. 同じ見出しの本文候補が IN_USE_PASSAGE_STATUSES の状態である塊は挿入しない
  * 2. 残りの塊を挿入する（同じ content_hash の行は飛ばす）
- * 3. その文書の collected のうち、挿入した塊に無いもの（前の切り分け・同じ見出しの下書きがある節）を却下する
+ * 3. その文書の collected のうち、残した塊に無いもの（前の切り分け・同じ見出しの下書きがある節）を却下する
  *
  * 挿入と却下は同じトランザクションにしない。間で落ちても、呼び出し側が抽出の版を最後に記録するので次の収集でやり直し、
  * 却下は何度行っても結果が同じ
  */
-export const savePassageCandidates = async (
+export const replacePassageCandidates = async (
   input: {
     candidates: PassageChunk[]
     documentId: number
@@ -30,9 +30,9 @@ export const savePassageCandidates = async (
     sourceDocumentId: input.documentId,
     statuses: IN_USE_PASSAGE_STATUSES,
   }))
-  const newCandidates = input.candidates.filter((candidate) => !inUseTitles.has(candidate.title))
+  const candidatesToInsert = input.candidates.filter((candidate) => !inUseTitles.has(candidate.title))
   const createdPassageCount = await repo.passageRepository.insertIgnoringDuplicates(
-    newCandidates.map((candidate) => ({
+    candidatesToInsert.map((candidate) => ({
       blocks: candidate.blocks,
       contentHash: candidate.contentHash,
       sourceCommitSha: input.sourceCommitSha,
@@ -44,7 +44,7 @@ export const savePassageCandidates = async (
     })),
   )
   const rejectedCount = await repo.passageRepository.rejectCollected({
-    keepContentHashes: newCandidates.map((candidate) => candidate.contentHash),
+    keepContentHashes: candidatesToInsert.map((candidate) => candidate.contentHash),
     reason: SUPERSEDED_PASSAGE_REJECT_REASON,
     sourceDocumentIds: [input.documentId],
   })

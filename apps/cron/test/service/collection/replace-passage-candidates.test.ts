@@ -1,6 +1,6 @@
 import { IN_USE_PASSAGE_STATUSES, SUPERSEDED_PASSAGE_REJECT_REASON } from "../../../src/const/collection"
 import type { PassageChunk } from "../../../src/lib/document"
-import { savePassageCandidates } from "../../../src/service/collection"
+import { replacePassageCandidates } from "../../../src/service/collection"
 
 import { createFakeRepo, NOW } from "./helpers"
 
@@ -23,7 +23,7 @@ const buildInput = (candidates: PassageChunk[]) => ({
   sourcePath: "docs/a.md",
 })
 
-describe("savePassageCandidates", () => {
+describe("replacePassageCandidates", () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
@@ -32,7 +32,7 @@ describe("savePassageCandidates", () => {
     it("同じ見出しの下書き・公開済み・生成中がある塊は挿入せず、残りを挿入して、挿入した塊に無い collected を却下する", async () => {
       const repo = createFakeRepo({ inUseTitles: ["Alpha"] })
 
-      const createdPassageCount = await savePassageCandidates(
+      const createdPassageCount = await replacePassageCandidates(
         buildInput([buildCandidate("Alpha"), buildCandidate("Beta")]),
         repo,
       )
@@ -59,7 +59,7 @@ describe("savePassageCandidates", () => {
     it("すべての塊の見出しに下書きがあれば何も挿入せず、その文書の collected をすべて却下する", async () => {
       const repo = createFakeRepo({ inUseTitles: ["Alpha"] })
 
-      const createdPassageCount = await savePassageCandidates(buildInput([buildCandidate("Alpha")]), repo)
+      const createdPassageCount = await replacePassageCandidates(buildInput([buildCandidate("Alpha")]), repo)
 
       expect(createdPassageCount).toBe(0)
       expect(repo.passageRepository.insertIgnoringDuplicates).toHaveBeenCalledWith([])
@@ -72,7 +72,7 @@ describe("savePassageCandidates", () => {
       const repo = createFakeRepo()
       repo.passageRepository.insertIgnoringDuplicates.mockRejectedValueOnce(new Error("db connection failed"))
 
-      await expect(savePassageCandidates(buildInput([buildCandidate("Alpha")]), repo)).rejects.toThrow("db connection failed")
+      await expect(replacePassageCandidates(buildInput([buildCandidate("Alpha")]), repo)).rejects.toThrow("db connection failed")
       expect(repo.passageRepository.rejectCollected).not.toHaveBeenCalled()
     })
   })

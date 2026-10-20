@@ -14,7 +14,7 @@
 | `apps/cron/src/repository/content-source-repository.ts`・`drizzle/` | `markCollected` で commit SHA と抽出の版を一緒に書く |
 | `apps/cron/src/repository/passage-repository.ts`・`drizzle/` | `findTitles`・`rejectCollected` |
 | `apps/cron/src/service/collection/types.ts` | `CollectionRepo.passageRepository` の `Pick` に `"findTitles"`・`"rejectCollected"` を足し、JSDoc を「収集は本文候補の挿入と、見出しの確認、`collected` の却下だけを使う」に直す |
-| `apps/cron/src/service/collection/save-passage-candidates.ts`・`reject-out-of-target-passages.ts`・`index.ts` | 本文候補の保存と前の切り分けの却下、対象から外れた文書の却下（GitHub とサイトで共有）。`index.ts` の `export *` にファイル名順で足す |
+| `apps/cron/src/service/collection/replace-passage-candidates.ts`・`reject-out-of-target-passages.ts`・`index.ts` | 本文候補の保存と前の切り分けの却下、対象から外れた文書の却下（GitHub とサイトで共有）。`index.ts` の `export *` にファイル名順で足す |
 | `apps/cron/src/service/collection/collect-github-source.ts` | 版の比較、切り分け直し、対象から外れた文書の却下 |
 | `apps/cron/src/service/collection/collect-website-source.ts` | 同上 |
 | `apps/cron/test/` | 下の「動作確認」 |
@@ -185,7 +185,7 @@ const isFileToExtract = (file: GitHubTreeEntry, document: SourceDocument | undef
 ```ts
   const createdPassageCount = extracted === null
     ? 0
-    : await savePassageCandidates({
+    : await replacePassageCandidates({
       candidates: extracted.candidates,
       documentId: document.id,
       now,
@@ -226,10 +226,10 @@ const isFileToExtract = (file: GitHubTreeEntry, document: SourceDocument | undef
 
 ### 本文候補の保存と却下（GitHub とサイトで共有）
 
-`service/collection/save-passage-candidates.ts`：
+`service/collection/replace-passage-candidates.ts`：
 
 ```ts
-export const savePassageCandidates = async (
+export const replacePassageCandidates = async (
   input: {
     candidates: PassageChunk[]
     documentId: number
@@ -244,9 +244,9 @@ export const savePassageCandidates = async (
     sourceDocumentId: input.documentId,
     statuses: IN_USE_PASSAGE_STATUSES,
   }))
-  const newCandidates = input.candidates.filter((candidate) => !inUseTitles.has(candidate.title))
+  const candidatesToInsert = input.candidates.filter((candidate) => !inUseTitles.has(candidate.title))
   const createdPassageCount = await repo.passageRepository.insertIgnoringDuplicates(
-    newCandidates.map((candidate) => ({
+    candidatesToInsert.map((candidate) => ({
       blocks: candidate.blocks,
       contentHash: candidate.contentHash,
       sourceCommitSha: input.sourceCommitSha,
@@ -258,7 +258,7 @@ export const savePassageCandidates = async (
     })),
   )
   const rejectedCount = await repo.passageRepository.rejectCollected({
-    keepContentHashes: newCandidates.map((candidate) => candidate.contentHash),
+    keepContentHashes: candidatesToInsert.map((candidate) => candidate.contentHash),
     reason: SUPERSEDED_PASSAGE_REJECT_REASON,
     sourceDocumentIds: [input.documentId],
   })
@@ -337,7 +337,7 @@ const isGonePage = (document: SourceDocument): boolean =>
     && !isRedirectedOutOfTarget
     && (extracted.contentHash !== document.contentHash || isExtractionOutdated(document))
   const createdPassageCount = shouldCreatePassages
-    ? await savePassageCandidates({
+    ? await replacePassageCandidates({
       candidates: extracted.candidates,
       documentId: document.id,
       now,
@@ -383,7 +383,7 @@ const isGonePage = (document: SourceDocument): boolean =>
   - `findTitles` の SQL（`source_document_id` と `status in (...)`）と、見出しの配列を返すこと
   - `rejectCollected` の UPDATE の SQL（`source_document_id in (...)`・`status = 'collected'`・`content_hash not in`）と値。`keepContentHashes` が空なら `not in` を付けない。`sourceDocumentIds` が空なら UPDATE せずに 0。件数を返す
 
-`test/service/collection/save-passage-candidates.test.ts`：
+`test/service/collection/replace-passage-candidates.test.ts`：
 
 - 同じ見出しの下書き・公開済み・生成中があれば、その塊は挿入しない（`findTitles` に `IN_USE_PASSAGE_STATUSES` を渡す）
 - 挿入した塊の `content_hash` を残して、その文書の `collected` を `SUPERSEDED_PASSAGE_REJECT_REASON` で却下する。すべての塊が同じ見出しで飛ばされたら、`keepContentHashes` は空

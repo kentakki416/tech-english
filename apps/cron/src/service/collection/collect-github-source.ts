@@ -8,7 +8,7 @@ import { isTargetPath } from "../../lib/path-filter"
 import { extractGitHubFile } from "./extract-github-file"
 import { listGitHubTargetFiles } from "./list-github-target-files"
 import { rejectOutOfTargetPassages } from "./reject-out-of-target-passages"
-import { savePassageCandidates } from "./save-passage-candidates"
+import { replacePassageCandidates } from "./replace-passage-candidates"
 import type { CollectionDeps, CollectionRepo, SourceCollectionResult, SourceCollectionStatus } from "./types"
 
 export type CollectGitHubSourceInput = {
@@ -84,7 +84,7 @@ const collectFile = async (
   const document = await repo.sourceDocumentRepository.upsertByPath({ path: file.path, sourceId: source.id, title })
   const createdPassageCount = extracted === null
     ? 0
-    : await savePassageCandidates({
+    : await replacePassageCandidates({
       candidates: extracted.candidates,
       documentId: document.id,
       now,

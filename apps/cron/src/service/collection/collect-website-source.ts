@@ -14,7 +14,7 @@ import { isTargetPath } from "../../lib/path-filter"
 import type { DiscoveredDocumentInput } from "../../repository"
 
 import { rejectOutOfTargetPassages } from "./reject-out-of-target-passages"
-import { savePassageCandidates } from "./save-passage-candidates"
+import { replacePassageCandidates } from "./replace-passage-candidates"
 import type { CollectionDeps, CollectionRepo, SourceCollectionResult, SourceCollectionStatus } from "./types"
 import {
   buildPageUrl,
@@ -215,7 +215,7 @@ const savePage = async (
     && !isRedirectedOutOfTarget
     && (extracted.contentHash !== document.contentHash || isExtractionOutdated(document))
   const createdPassageCount = shouldCreatePassages
-    ? await savePassageCandidates({
+    ? await replacePassageCandidates({
       candidates: extracted.candidates,
       documentId: document.id,
       now,
