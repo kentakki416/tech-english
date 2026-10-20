@@ -230,7 +230,7 @@ type PassageBlock = {
 1. 下書きの件数が上限（`GENERATE_MAX_PENDING_DRAFTS`）以上なら何もせず終える（確認が追いつかないのに生成して費用を使わないため）
 2. `generating` のまま 30 分以上たった行を `collected` に戻す（前回の実行が途中で落ちた場合の回収）
 3. 最大 `GENERATE_MAX_PASSAGES_PER_RUN` 件まで、1 件ずつ次を繰り返す（取れる行が無くなったら終える）
-   1. `collected` の最も古い 1 行を `generating` に更新しながら取得する（`FOR UPDATE SKIP LOCKED`。実行が重なっても同じ行を二重に処理しない）。`generation_started_at` はその行を取った時刻
+   1. `collected` のうち、生成を優先したもの（`generation_prioritized_at` の古い順。URL から取り込んだ本文候補）→ 古いもの（`created_at`）の順で 1 行を `generating` に更新しながら取得する（`FOR UPDATE SKIP LOCKED`。実行が重なっても同じ行を二重に処理しない）。`generation_started_at` はその行を取った時刻
    2. 生成 → 検証と後処理 → 解答キーを見ない検証 → `passages` / `questions` / `passage_glossary_entries` を 1 トランザクションで保存して `draft` に更新
 
 最初にまとめて取得しないのは、全件に同じ `generation_started_at` が入り、1 回の実行が 30 分を超えると後半の（まだ処理していない）行が次の実行に回収・再取得されて LLM の費用が二重にかかるため。保存は `id` + `status = generating` + `generation_started_at` が取得したときと同じ場合だけ行う（回収・再取得された行を古い実行が上書きしない）。
@@ -506,7 +506,7 @@ cron タスク：
 
 | テーブル | 主要カラム | 説明 |
 | --- | --- | --- |
-| `passages` | `id`, `source_document_id`, `source_path`, `source_commit_sha`, `source_retrieved_at`, `status`, `title`, `blocks(jsonb)`, `word_count`, `content_hash`, `difficulty`, `time_limit_seconds`, 生成の記録, 確認の記録 | 本文候補 / 問題。状態で一生を表す |
+| `passages` | `id`, `source_document_id`, `source_path`, `source_commit_sha`, `source_retrieved_at`, `status`, `title`, `blocks(jsonb)`, `word_count`, `content_hash`, `difficulty`, `time_limit_seconds`, 生成の記録, `generation_prioritized_at`（生成を優先した時刻。[url-import](../url-import/README.md#生成の優先)）, 確認の記録 | 本文候補 / 問題。状態で一生を表す |
 | `questions` | `id`, `passage_id`, `order_index`, `type`, `prompt`, `prompt_ja`, `choices(jsonb)`, `choices_ja(jsonb)`, `correct_choice_index`, `explanation_ja`, `evidence_block_index`, `evidence_quote`, `target_glossary_entry_id`, `verification_choice_index` | 設問 |
 | `passage_glossary_entries` | `id`, `passage_id`, `block_index`, `start_offset`, `end_offset`, `surface`, `lemma`, `meaning_ja`, `part_of_speech`, `note_ja` | 用語集（単語の文脈での意味） |
 
@@ -534,6 +534,7 @@ erDiagram
         text generation_error "nullable"
         text generation_model "nullable"
         text generation_prompt_version "nullable"
+        timestamp generation_prioritized_at "nullable"
         timestamp generated_at "nullable"
         boolean needs_attention "default false"
         jsonb attention_reasons "string[]"
@@ -598,7 +599,7 @@ sequenceDiagram
     Cron->>DB: 下書きが上限未満か確認
     Cron->>DB: 古い generating を collected に戻す
     loop 最大 N 件、1 件ずつ
-        Cron->>DB: collected の最も古い 1 行を generating に<br/>(SKIP LOCKED。generation_started_at = 取った時刻)
+        Cron->>DB: collected の 1 行（優先したもの → 古いもの）を generating に<br/>(SKIP LOCKED。generation_started_at = 取った時刻)
         Cron->>Gen: 本文（番号つきブロック）
         Gen-->>Cron: 設問・和訳・用語集・難易度
         Cron->>Cron: Zod 検証 / 位置の検索 /<br/>選択肢シャッフル / 制限時間

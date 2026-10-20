@@ -53,6 +53,10 @@ export type Passage = {
   generationAttemptCount: number
   generationError: string | null
   generationModel: string | null
+  /**
+   * 生成を優先した時刻（URL から取り込んだとき）。生成タスクはこの値がある本文候補を古い順に先に取る。生成した後も残す
+   */
+  generationPrioritizedAt: Date | null
   generationPromptVersion: string | null
   generationStartedAt: Date | null
   needsAttention: boolean

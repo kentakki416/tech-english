@@ -78,7 +78,7 @@ export type DraftContent = {
  */
 export interface PassageRepository {
   /**
-   * collected のうち最も古い（created_at → id）1 行を、generating にしながら取る（FOR UPDATE SKIP LOCKED。実行が重なっても同じ行を二重に取らない）。
+   * collected のうち、生成を優先したもの（generation_prioritized_at の古い順）→ 古いもの（created_at → id）の順で 1 行を、generating にしながら取る（FOR UPDATE SKIP LOCKED。実行が重なっても同じ行を二重に取らない）。
    * generation_started_at は now（取った時刻）になる。生成タスクは 1 件ずつ「取得 → 生成 → 保存」を繰り返す
    * （まとめて取ると全件に同じ時刻が入り、実行が 30 分を超えたときに後半の行が回収・再取得されて二重に生成されるため）。
    * passageId があればその行だけを対象にする。取れる行が無ければ null
