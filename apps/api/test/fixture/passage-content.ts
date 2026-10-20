@@ -165,6 +165,7 @@ export const buildPassage = (overrides: Partial<Passage> = {}): Passage => ({
   generationAttemptCount: 0,
   generationError: null,
   generationModel: "claude-sonnet-5-5",
+  generationPrioritizedAt: null,
   generationPromptVersion: "2026-10-13",
   generationStartedAt: FIXED_DATE,
   needsAttention: false,

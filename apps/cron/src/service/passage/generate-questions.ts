@@ -380,7 +380,7 @@ const calculateClaimLimit = async (input: GenerateQuestionsInput, repo: Generate
  *
  * 1. 下書きの件数が上限以上なら何もせず終える（passageId の指定時は見ない）
  * 2. generating のまま 30 分以上たった行を collected に戻す
- * 3. 上限の件数まで、1 件ずつ「collected の最も古い行を generating にしながら取る（FOR UPDATE SKIP LOCKED）→ 処理する」を繰り返す。
+ * 3. 上限の件数まで、1 件ずつ「collected のうち生成を優先したもの → 古いものの順で 1 行を generating にしながら取る（FOR UPDATE SKIP LOCKED）→ 処理する」を繰り返す。
  *    まとめて取らないのは、全件に同じ generation_started_at が入り、実行が 30 分を超えたときに後半の行が別の実行に回収・再取得されて
  *    LLM の費用が二重にかかるため（1 件ずつ取れば、各行の generation_started_at はその行を取った時刻になる）。
  *    passageId の指定で取れなければ throw

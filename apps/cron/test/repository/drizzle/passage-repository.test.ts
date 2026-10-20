@@ -208,7 +208,7 @@ describe("DrizzlePassageRepository", () => {
 
   describe("claimNextCollected", () => {
     describe("正常系", () => {
-      it("collected のうち最も古い 1 行を FOR UPDATE SKIP LOCKED で選び、同じ UPDATE 文で generating にする", async () => {
+      it("collected のうち生成を優先したもの（generation_prioritized_at の古い順）→ 古いものの順で 1 行を FOR UPDATE SKIP LOCKED で選び、同じ UPDATE 文で generating にする", async () => {
         const fake = createFakeUpdateDb([])
 
         await new DrizzlePassageRepository(fake.db).claimNextCollected({ now: NOW })
@@ -217,7 +217,8 @@ describe("DrizzlePassageRepository", () => {
         expect(sql).toBe([
           "update \"passages\" set \"generation_started_at\" = $?, \"status\" = $?, \"updated_at\" = $?",
           " where \"passages\".\"id\" in (select \"id\" from \"passages\" where \"passages\".\"status\" = $?",
-          " order by \"passages\".\"created_at\" asc, \"passages\".\"id\" asc limit $? for update skip locked)",
+          " order by \"passages\".\"generation_prioritized_at\" ASC NULLS LAST, \"passages\".\"created_at\" asc,",
+          " \"passages\".\"id\" asc limit $? for update skip locked)",
         ].join(""))
         expect(params[0]).toBe("2026-10-13T03:00:00.000Z")
         expect(params[1]).toBe("generating")

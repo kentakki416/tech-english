@@ -55,7 +55,7 @@ export class DrizzlePassageRepository implements PassageRepository {
           input.passageId === undefined ? undefined : eq(passages.id, input.passageId),
         ),
       )
-      .orderBy(asc(passages.createdAt), asc(passages.id))
+      .orderBy(sql`${passages.generationPrioritizedAt} ASC NULLS LAST`, asc(passages.createdAt), asc(passages.id))
       .limit(1)
       .for("update", { skipLocked: true })
     const [row] = await this._db

@@ -49,6 +49,10 @@ export const passages = pgTable(
     generationAttemptCount: integer("generation_attempt_count").notNull().default(0),
     generationError: text("generation_error"),
     generationModel: text("generation_model"),
+    /**
+     * 生成を優先した時刻（URL から取り込んだとき）。生成タスクはこの値がある本文候補を古い順に先に取る。生成した後も残す
+     */
+    generationPrioritizedAt: timestamp("generation_prioritized_at", { mode: "date", precision: 3 }),
     generationPromptVersion: text("generation_prompt_version"),
     generationStartedAt: timestamp("generation_started_at", { mode: "date", precision: 3 }),
     needsAttention: boolean("needs_attention").notNull().default(false),

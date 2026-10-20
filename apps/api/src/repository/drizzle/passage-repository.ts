@@ -157,6 +157,7 @@ const convertPassageRowToDomain = (row: PassageRow): Passage => ({
   generationAttemptCount: row.generationAttemptCount,
   generationError: row.generationError,
   generationModel: row.generationModel,
+  generationPrioritizedAt: row.generationPrioritizedAt,
   generationPromptVersion: row.generationPromptVersion,
   generationStartedAt: row.generationStartedAt,
   needsAttention: row.needsAttention,

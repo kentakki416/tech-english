@@ -1,0 +1,1 @@
+ALTER TABLE "passages" ADD COLUMN "generation_prioritized_at" timestamp(3);
