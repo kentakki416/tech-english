@@ -1,4 +1,4 @@
-import { IN_USE_PASSAGE_STATUSES, SUPERSEDED_PASSAGE_REJECT_REASON } from "../../../src/const/collection"
+import { SUPERSEDED_PASSAGE_REJECT_REASON } from "../../../src/const/collection"
 import type { PassageChunk } from "../../../src/lib/document"
 import { replacePassageCandidates } from "../../../src/service/collection"
 
@@ -29,8 +29,8 @@ describe("replacePassageCandidates", () => {
   })
 
   describe("正常系", () => {
-    it("同じ見出しの下書き・公開済み・生成中がある塊は挿入せず、残りを挿入して、挿入した塊に無い collected を却下する", async () => {
-      const repo = createFakeRepo({ inUseTitles: ["Alpha"] })
+    it("同じ見出しの本文候補が生成中か生成した（下書き・公開済み・生成した後に却下した）塊は挿入せず、残りを挿入して、挿入した塊に無い collected を却下する", async () => {
+      const repo = createFakeRepo({ generatedTitles: ["Alpha"] })
 
       const createdPassageCount = await replacePassageCandidates(
         buildInput([buildCandidate("Alpha"), buildCandidate("Beta")]),
@@ -38,7 +38,7 @@ describe("replacePassageCandidates", () => {
       )
 
       expect(createdPassageCount).toBe(1)
-      expect(repo.passageRepository.findTitles).toHaveBeenCalledWith({ sourceDocumentId: 10, statuses: IN_USE_PASSAGE_STATUSES })
+      expect(repo.passageRepository.findGeneratedOrGeneratingTitles).toHaveBeenCalledWith(10)
       expect(repo.passageRepository.insertIgnoringDuplicates).toHaveBeenCalledWith([{
         blocks: [{ text: "Beta text.", type: "paragraph" }],
         contentHash: "hash-Beta",
@@ -57,7 +57,7 @@ describe("replacePassageCandidates", () => {
     })
 
     it("すべての塊の見出しに下書きがあれば何も挿入せず、その文書の collected をすべて却下する", async () => {
-      const repo = createFakeRepo({ inUseTitles: ["Alpha"] })
+      const repo = createFakeRepo({ generatedTitles: ["Alpha"] })
 
       const createdPassageCount = await replacePassageCandidates(buildInput([buildCandidate("Alpha")]), repo)
 

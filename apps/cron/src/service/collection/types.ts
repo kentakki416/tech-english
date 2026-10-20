@@ -7,7 +7,7 @@ export type CollectionRepo = {
   /**
    * 収集は本文候補の挿入と、見出しの確認、collected の却下だけを使う（問題生成のメソッドに依存させない）
    */
-  passageRepository: Pick<PassageRepository, "findTitles" | "insertIgnoringDuplicates" | "rejectCollected">
+  passageRepository: Pick<PassageRepository, "findGeneratedOrGeneratingTitles" | "insertIgnoringDuplicates" | "rejectCollected">
   sourceDocumentRepository: SourceDocumentRepository
 }
 

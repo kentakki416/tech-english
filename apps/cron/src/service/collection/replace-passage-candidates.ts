@@ -1,6 +1,6 @@
 import { logger } from "@repo/logger"
 
-import { IN_USE_PASSAGE_STATUSES, SUPERSEDED_PASSAGE_REJECT_REASON } from "../../const/collection"
+import { SUPERSEDED_PASSAGE_REJECT_REASON } from "../../const/collection"
 import type { PassageChunk } from "../../lib/document"
 
 import type { CollectionRepo } from "./types"
@@ -8,7 +8,8 @@ import type { CollectionRepo } from "./types"
 /**
  * 文書の未生成（collected）の本文候補を、新しく切り分けた塊で置き換え、挿入した件数を返す。
  *
- * 1. 同じ見出しの本文候補が IN_USE_PASSAGE_STATUSES の状態である塊は挿入しない
+ * 1. 同じ見出しの本文候補が生成中か生成した（下書き・公開済み・生成した後に却下した）塊は挿入しない。同じ節の問題を二重に作らず、
+ *    題材に向かないと判断した節をもう一度生成に回さないため
  * 2. 残りの塊を挿入する（同じ content_hash の行は飛ばす）
  * 3. その文書の collected のうち、残した塊に無いもの（前の切り分け・同じ見出しの下書きがある節）を却下する
  *
@@ -26,11 +27,8 @@ export const replacePassageCandidates = async (
   },
   repo: CollectionRepo,
 ): Promise<number> => {
-  const inUseTitles = new Set(await repo.passageRepository.findTitles({
-    sourceDocumentId: input.documentId,
-    statuses: IN_USE_PASSAGE_STATUSES,
-  }))
-  const candidatesToInsert = input.candidates.filter((candidate) => !inUseTitles.has(candidate.title))
+  const generatedTitles = new Set(await repo.passageRepository.findGeneratedOrGeneratingTitles(input.documentId))
+  const candidatesToInsert = input.candidates.filter((candidate) => !generatedTitles.has(candidate.title))
   const createdPassageCount = await repo.passageRepository.insertIgnoringDuplicates(
     candidatesToInsert.map((candidate) => ({
       blocks: candidate.blocks,

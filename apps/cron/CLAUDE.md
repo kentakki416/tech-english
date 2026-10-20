@@ -64,7 +64,7 @@ Markdown / MDX / HTML から本文を抽出し、200〜600 語の本文候補に
 | `service/collection/list-github-target-files.ts` | コミットのツリーから対象の `.md` / `.mdx` を列挙する。trees API が切り詰められたら glob の固定部分のディレクトリごとに取り直す |
 | `service/collection/collect-github-source.ts` | 1 ソース分。最新コミットと抽出の版が前回と同じなら終える。ツリーの一覧に無い文書の `collected` を却下（`rejectOutOfTargetPassages`）→ blob SHA が変わったか抽出の版が古いファイルだけ取得し、本文候補を保存（`replacePassageCandidates`）→ `markFetched`（blob SHA・版）の順で保存する |
 | `service/collection/collect-website-source.ts` | サイトの 1 ソース分。対象パスから外れた・404 / 410 のページの `collected` を却下 → robots.txt → sitemap / 開始ページから URL を発見（`upsertDiscovered`）→ 取得待ちの行（`findFetchQueue`）を条件付きリクエスト（抽出の版が古いページは条件なし）で取得 → 200 はリンクを発見し、本文のハッシュが変わったか抽出の版が古ければ本文候補を保存 → `markFetched`。304 / エラー / 取得できなかったページ / 抽出に失敗したページは `markResponse` |
-| `service/collection/replace-passage-candidates.ts` | 本文候補の保存（GitHub とサイトで共有）。同じ見出しの下書き・公開済み・生成中がある塊は挿入せず、残りを挿入して、その文書の `collected` のうち挿入した塊に無いものを却下する |
+| `service/collection/replace-passage-candidates.ts` | 本文候補の保存（GitHub とサイトで共有）。同じ見出しの生成中・生成した本文候補（下書き・公開済み・生成した後に却下したもの）がある塊は挿入せず、残りを挿入して、その文書の `collected` のうち挿入した塊に無いものを却下する |
 | `service/collection/reject-out-of-target-passages.ts` | `collected` の本文候補を持つ文書（`findWithCollectedPassages`）のうち、収集の対象から外れたものの `collected` を却下する（GitHub とサイトで共有） |
 | `service/collection/website-pages.ts` | 取得してよいページの判定（同じオリジン・ページの拡張子・対象パス・robots.txt）、開始ページの path、HTML の抽出（収集と試し実行で共有） |
 | `service/collection/collect-passages.ts` | 全ソース。ソースごとに try-catch し、失敗は `failedSourceIds` に集めて次へ（task が最後に exit 1） |

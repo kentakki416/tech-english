@@ -86,13 +86,14 @@ export interface PassageRepository {
   claimNextCollected(input: { now: Date; passageId?: number }): Promise<ClaimedPassage | null>
   countByStatus(status: PassageStatus): Promise<number>
   /**
+   * 文書の本文候補のうち、生成中か生成したもの（generating・draft・published と、生成した後に却下した rejected）の見出し（重複を除く）。
+   * 生成した後の却下は generated_at で見分ける（LLM・管理者の却下は入り、収集が外した未生成の collected の却下は入らない）
+   */
+  findGeneratedOrGeneratingTitles(sourceDocumentId: number): Promise<string[]>
+  /**
    * 行が無ければ null（`--passage-id` の行を取れなかったときのメッセージに使う）
    */
   findStatusById(id: number): Promise<PassageStatus | null>
-  /**
-   * 文書の本文候補のうち、statuses の状態のものの見出し（重複を除く）
-   */
-  findTitles(input: { sourceDocumentId: number; statuses: PassageStatus[] }): Promise<string[]>
   /**
    * content_hash が既にある行は飛ばし、挿入した件数を返す。同じ内容の再取り込みを unique 制約で弾く（冪等）
    */

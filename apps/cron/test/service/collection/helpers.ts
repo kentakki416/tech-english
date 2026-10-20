@@ -1,4 +1,4 @@
-import type { ContentSource, GitHubRepositorySource, PassageStatus, SourceDocument, WebsiteSource } from "@repo/domain"
+import type { ContentSource, GitHubRepositorySource, SourceDocument, WebsiteSource } from "@repo/domain"
 
 import type { GitHubTreeEntry, IGitHubContentClient } from "../../../src/client/github"
 import type { FetchPageResult, IWebPageClient, SitemapUrl } from "../../../src/client/web"
@@ -214,9 +214,9 @@ export const createFakeRepo = (options: {
   documentsWithCollectedPassages?: SourceDocument[]
   enabledSources?: ContentSource[]
   /**
-   * findTitles が返す見出し（下書き・公開済み・生成中の本文候補の見出し）
+   * findGeneratedOrGeneratingTitles が返す見出し
    */
-  inUseTitles?: string[]
+  generatedTitles?: string[]
   /**
    * findFetchQueue が返す行
    */
@@ -232,7 +232,7 @@ export const createFakeRepo = (options: {
       markCollected: vi.fn(async (_id: number, _input: MarkCollectedInput) => true),
     },
     passageRepository: {
-      findTitles: vi.fn(async (_input: { sourceDocumentId: number; statuses: PassageStatus[] }) => options.inUseTitles ?? []),
+      findGeneratedOrGeneratingTitles: vi.fn(async (_sourceDocumentId: number) => options.generatedTitles ?? []),
       insertIgnoringDuplicates: vi.fn(async (inputs: CreatePassageInput[]) => inputs.length),
       rejectCollected: vi.fn(async (_input: { keepContentHashes: string[]; reason: string; sourceDocumentIds: number[] }) =>
         options.rejectedCount ?? 0),

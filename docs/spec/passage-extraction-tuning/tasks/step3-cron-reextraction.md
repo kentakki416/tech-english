@@ -1,6 +1,6 @@
 # step3-cron-reextraction
 
-抽出の版 `EXTRACTION_VERSION` を持ち、版が古い取得済みの文書を次の収集で切り分け直す。切り分け直すときは、下書き・公開済み・生成中と同じ見出しの塊を新しい本文候補にせず、その文書の `collected` のうち新しい切り分けに無いものを却下する。収集の対象から外れた文書の `collected` も却下する。仕様と理由は [README](../README.md#抽出の版)。
+抽出の版 `EXTRACTION_VERSION` を持ち、版が古い取得済みの文書を次の収集で切り分け直す。切り分け直すときは、生成中・生成した本文候補（下書き・公開済み・生成した後に却下したもの）と同じ見出しの塊を新しい本文候補にせず、その文書の `collected` のうち新しい切り分けに無いものを却下する。収集の対象から外れた文書の `collected` も却下する。仕様と理由は [README](../README.md#抽出の版)。
 
 ## 対応内容
 
@@ -9,11 +9,11 @@
 | ファイル | 内容 |
 | --- | --- |
 | `apps/cron/src/lib/document/const.ts`・`index.ts` | `EXTRACTION_VERSION` |
-| `apps/cron/src/const/collection.ts` | 却下の理由 2 つ、`IN_USE_PASSAGE_STATUSES` |
+| `apps/cron/src/const/collection.ts` | 却下の理由 2 つ |
 | `apps/cron/src/repository/source-document-repository.ts`・`drizzle/` | `markFetched` で `extraction_version` を書く、`findWithCollectedPassages` |
 | `apps/cron/src/repository/content-source-repository.ts`・`drizzle/` | `markCollected` で commit SHA と抽出の版を一緒に書く |
-| `apps/cron/src/repository/passage-repository.ts`・`drizzle/` | `findTitles`・`rejectCollected` |
-| `apps/cron/src/service/collection/types.ts` | `CollectionRepo.passageRepository` の `Pick` に `"findTitles"`・`"rejectCollected"` を足し、JSDoc を「収集は本文候補の挿入と、見出しの確認、`collected` の却下だけを使う」に直す |
+| `apps/cron/src/repository/passage-repository.ts`・`drizzle/` | `findGeneratedOrGeneratingTitles`・`rejectCollected` |
+| `apps/cron/src/service/collection/types.ts` | `CollectionRepo.passageRepository` の `Pick` に `"findGeneratedOrGeneratingTitles"`・`"rejectCollected"` を足し、JSDoc を「収集は本文候補の挿入と、見出しの確認、`collected` の却下だけを使う」に直す |
 | `apps/cron/src/service/collection/replace-passage-candidates.ts`・`reject-out-of-target-passages.ts`・`index.ts` | 本文候補の保存と前の切り分けの却下、対象から外れた文書の却下（GitHub とサイトで共有）。`index.ts` の `export *` にファイル名順で足す |
 | `apps/cron/src/service/collection/collect-github-source.ts` | 版の比較、切り分け直し、対象から外れた文書の却下 |
 | `apps/cron/src/service/collection/collect-website-source.ts` | 同上 |
@@ -39,11 +39,7 @@ export const EXTRACTION_VERSION = "2026-10-20.1"
 export const SUPERSEDED_PASSAGE_REJECT_REASON = "切り分け直したため、前の切り分けの本文候補を外した"
 
 export const OUT_OF_TARGET_PASSAGE_REJECT_REASON = "除外パスに入ったか取得元から消えたため、収集の対象から外した"
-
-export const IN_USE_PASSAGE_STATUSES: PassageStatus[] = ["draft", "generating", "published"]
 ```
-
-- `IN_USE_PASSAGE_STATUSES` の JSDoc に「同じ文書にこの状態の同じ見出しの本文候補があれば、切り分け直しても新しい本文候補にしない（同じ節の問題を二重に作らないため）」と書く
 
 ### Repository
 
@@ -119,16 +115,22 @@ export type MarkCollectedInput = {
 `passage-repository.ts`：
 
 ```ts
-  findTitles(input: { sourceDocumentId: number; statuses: PassageStatus[] }): Promise<string[]>
+  findGeneratedOrGeneratingTitles(sourceDocumentId: number): Promise<string[]>
   rejectCollected(input: { keepContentHashes: string[]; reason: string; sourceDocumentIds: number[] }): Promise<number>
 ```
 
 ```ts
-  public async findTitles(input: { sourceDocumentId: number; statuses: PassageStatus[] }): Promise<string[]> {
+  public async findGeneratedOrGeneratingTitles(sourceDocumentId: number): Promise<string[]> {
     const rows = await this._db
       .selectDistinct({ title: passages.title })
       .from(passages)
-      .where(and(eq(passages.sourceDocumentId, input.sourceDocumentId), inArray(passages.status, input.statuses)))
+      .where(and(
+        eq(passages.sourceDocumentId, sourceDocumentId),
+        or(
+          inArray(passages.status, ["draft", "generating", "published"]),
+          and(eq(passages.status, "rejected"), isNotNull(passages.generatedAt)),
+        ),
+      ))
     return rows.map((row) => row.title)
   }
 
@@ -240,11 +242,8 @@ export const replacePassageCandidates = async (
   },
   repo: CollectionRepo,
 ): Promise<number> => {
-  const inUseTitles = new Set(await repo.passageRepository.findTitles({
-    sourceDocumentId: input.documentId,
-    statuses: IN_USE_PASSAGE_STATUSES,
-  }))
-  const candidatesToInsert = input.candidates.filter((candidate) => !inUseTitles.has(candidate.title))
+  const generatedTitles = new Set(await repo.passageRepository.findGeneratedOrGeneratingTitles(input.documentId))
+  const candidatesToInsert = input.candidates.filter((candidate) => !generatedTitles.has(candidate.title))
   const createdPassageCount = await repo.passageRepository.insertIgnoringDuplicates(
     candidatesToInsert.map((candidate) => ({
       blocks: candidate.blocks,
@@ -273,7 +272,8 @@ export const replacePassageCandidates = async (
 }
 ```
 
-- JSDoc に、同じ見出しの下書き・公開済み・生成中がある塊は挿入しないこと、その文書の `collected` のうち挿入した塊に無いもの（同じ見出しの下書きがある `collected` を含む）を却下すること、挿入と却下を同じトランザクションにしない理由（[README](../README.md#古い本文候補の却下)）を書く
+- `findGeneratedOrGeneratingTitles` の interface の JSDoc に、生成した後の却下を `generated_at` で見分けること（LLM・管理者の却下は入り、収集が外した未生成の却下は入らない）を書く
+- JSDoc に、同じ見出しの生成中・生成した本文候補がある塊は挿入しないこと（同じ節の問題を二重に作らず、題材に向かないと判断した節をもう一度生成に回さないため）、その文書の `collected` のうち挿入した塊に無いもの（同じ見出しの下書きがある `collected` を含む）を却下すること、挿入と却下を同じトランザクションにしない理由（[README](../README.md#古い本文候補の却下)）を書く
 
 `service/collection/reject-out-of-target-passages.ts`：
 
@@ -364,7 +364,7 @@ const isGonePage = (document: SourceDocument): boolean =>
 ### ドキュメント
 
 - `content-collection/README.md`
-  - 「取得元の文書が更新されたとき」：「更新された箇所は、次回以降の収集で新しい本文候補として取り込まれる」に、同じ見出しの下書き・公開済み・生成中がある塊は新しい本文候補にしないこと、切り分け直した文書の `collected` のうち新しい本文候補に無いものを却下することを足す。「取得元の文書が削除されても、公開済みの問題は残す」に、削除された文書・除外パスに入れた文書の `collected` は却下することを足す
+  - 「取得元の文書が更新されたとき」：「更新された箇所は、次回以降の収集で新しい本文候補として取り込まれる」に、同じ見出しの生成中・生成した本文候補がある塊は新しい本文候補にしないこと、切り分け直した文書の `collected` のうち新しい本文候補に無いものを却下することを足す。「取得元の文書が削除されても、公開済みの問題は残す」に、削除された文書・除外パスに入れた文書の `collected` は却下することを足す
   - 「GitHub API での取得と差分検出」：手順 1（抽出の版も同じときだけ終える）・2（列挙の後に対象から外れた文書の `collected` を却下する）・4（版が違うファイルも取る）・6（版も記録する）
   - 「サイトのクロール」：「条件付きリクエスト」「内容の比較」の行に、版が古いページは条件付きリクエストを送らず、ハッシュが同じでも切り分け直すことを足す。取得の前に対象から外れたページの `collected` を却下することを足す
   - 「調整できる箇所」：「cron のコードの変更は、取得済みの文書には効かない」の箇条を、`EXTRACTION_VERSION` を上げると取得済みの文書も次の収集で切り分け直す（GitHub は次の収集、サイトは取り直しの順番が来たとき）に書き換え、表の `lib/document` の行の「効く範囲」に「`EXTRACTION_VERSION` を上げる」を添える。「ソースのどの文書を対象にするか」の行の「除外した文書から作った本文候補は残る」を、次の収集で未生成の本文候補を却下する（下書き・公開済みは残る）に直す
@@ -380,12 +380,12 @@ const isGonePage = (document: SourceDocument): boolean =>
 - `source-document-repository.test.ts`：`markFetched` が `extractionVersion` を書く。`findWithCollectedPassages` の SQL（`source_id` と、`status = 'collected'` の本文候補の `exists`）
 - `content-source-repository.test.ts`：`lastCollectedCommit` を渡すと `last_collected_commit_sha` と `last_collected_extraction_version` を同じ UPDATE で書き、WHERE に期待する commit SHA が入る。渡さなければ `last_collected_at` だけ
 - `passage-repository.test.ts`：
-  - `findTitles` の SQL（`source_document_id` と `status in (...)`）と、見出しの配列を返すこと
+  - `findGeneratedOrGeneratingTitles` の SQL（`source_document_id` と、`status in (draft, generating, published)` か `status = rejected` かつ `generated_at is not null`）と、見出しの配列を返すこと
   - `rejectCollected` の UPDATE の SQL（`source_document_id in (...)`・`status = 'collected'`・`content_hash not in`）と値。`keepContentHashes` が空なら `not in` を付けない。`sourceDocumentIds` が空なら UPDATE せずに 0。件数を返す
 
 `test/service/collection/replace-passage-candidates.test.ts`：
 
-- 同じ見出しの下書き・公開済み・生成中があれば、その塊は挿入しない（`findTitles` に `IN_USE_PASSAGE_STATUSES` を渡す）
+- `findGeneratedOrGeneratingTitles` が返す見出しの塊は挿入しない
 - 挿入した塊の `content_hash` を残して、その文書の `collected` を `SUPERSEDED_PASSAGE_REJECT_REASON` で却下する。すべての塊が同じ見出しで飛ばされたら、`keepContentHashes` は空
 - 作った本文候補の件数を返す
 
@@ -413,7 +413,7 @@ const isGonePage = (document: SourceDocument): boolean =>
 - 対象パス外のページ・リダイレクトで対象パス外になったページは、版が古くても本文候補を作らない
 - `markFetched` に `extractionVersion: EXTRACTION_VERSION`
 
-`test/service/collection/helpers.ts` の偽の Repository に `findTitles`・`rejectCollected`・`findWithCollectedPassages` を足す。
+`test/service/collection/helpers.ts` の偽の Repository に `findGeneratedOrGeneratingTitles`・`rejectCollected`・`findWithCollectedPassages` を足す。
 
 ```bash
 pnpm --filter cron test

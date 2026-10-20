@@ -5,8 +5,10 @@ import {
   DrizzleClient,
   eq,
   inArray,
+  isNotNull,
   lt,
   notInArray,
+  or,
   passageGlossaryEntries,
   passages,
   questions,
@@ -84,17 +86,23 @@ export class DrizzlePassageRepository implements PassageRepository {
     return row?.count ?? 0
   }
 
-  public async findStatusById(id: number): Promise<PassageStatus | null> {
-    const [row] = await this._db.select({ status: passages.status }).from(passages).where(eq(passages.id, id))
-    return row && isPassageStatus(row.status) ? row.status : null
-  }
-
-  public async findTitles(input: { sourceDocumentId: number; statuses: PassageStatus[] }): Promise<string[]> {
+  public async findGeneratedOrGeneratingTitles(sourceDocumentId: number): Promise<string[]> {
     const rows = await this._db
       .selectDistinct({ title: passages.title })
       .from(passages)
-      .where(and(eq(passages.sourceDocumentId, input.sourceDocumentId), inArray(passages.status, input.statuses)))
+      .where(and(
+        eq(passages.sourceDocumentId, sourceDocumentId),
+        or(
+          inArray(passages.status, ["draft", "generating", "published"]),
+          and(eq(passages.status, "rejected"), isNotNull(passages.generatedAt)),
+        ),
+      ))
     return rows.map((row) => row.title)
+  }
+
+  public async findStatusById(id: number): Promise<PassageStatus | null> {
+    const [row] = await this._db.select({ status: passages.status }).from(passages).where(eq(passages.id, id))
+    return row && isPassageStatus(row.status) ? row.status : null
   }
 
   /**

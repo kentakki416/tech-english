@@ -271,36 +271,34 @@ describe("DrizzlePassageRepository", () => {
     })
   })
 
-  describe("findStatusById", () => {
+  describe("findGeneratedOrGeneratingTitles", () => {
     describe("正常系", () => {
-      it("行の状態を返し、行が無ければ null", async () => {
-        expect(await new DrizzlePassageRepository(createFakeSelectDb([{ status: "draft" }]).db).findStatusById(1)).toBe("draft")
-        expect(await new DrizzlePassageRepository(createFakeSelectDb([]).db).findStatusById(1)).toBeNull()
-      })
-    })
-  })
-
-  describe("findTitles", () => {
-    describe("正常系", () => {
-      it("文書の本文候補のうち、指定した状態のものの見出しを重複を除いて返す", async () => {
+      it("文書の本文候補のうち、生成中・下書き・公開済みと、生成した後に却下したものの見出しを重複を除いて返す", async () => {
         const where = vi.fn(async (_condition: unknown) => [{ title: "Refs" }, { title: "Effects" }])
         const from = vi.fn((_table: unknown) => ({ where }))
         const selectDistinct = vi.fn((_selection: unknown) => ({ from }))
         const db = { selectDistinct } as unknown as DrizzleClient
 
-        const titles = await new DrizzlePassageRepository(db).findTitles({
-          sourceDocumentId: 10,
-          statuses: ["draft", "generating", "published"],
-        })
+        const titles = await new DrizzlePassageRepository(db).findGeneratedOrGeneratingTitles(10)
 
         expect(titles).toEqual(["Refs", "Effects"])
         expect(from).toHaveBeenCalledWith(passages)
         const [condition] = where.mock.calls[0] as [never]
         const query = renderClient.select().from(passages).where(condition).toSQL()
-        expect(normalizeParams(query.sql)).toContain(
-          "where ((\"passages\".\"source_document_id\" = $?) and (\"passages\".\"status\" in ($?, $?, $?)))",
-        )
-        expect(query.params).toEqual([10, "draft", "generating", "published"])
+        expect(normalizeParams(query.sql)).toContain([
+          "where ((\"passages\".\"source_document_id\" = $?) and (((\"passages\".\"status\" in ($?, $?, $?))",
+          " or (((\"passages\".\"status\" = $?) and ((\"passages\".\"generated_at\" is not null)))))))",
+        ].join(""))
+        expect(query.params).toEqual([10, "draft", "generating", "published", "rejected"])
+      })
+    })
+  })
+
+  describe("findStatusById", () => {
+    describe("正常系", () => {
+      it("行の状態を返し、行が無ければ null", async () => {
+        expect(await new DrizzlePassageRepository(createFakeSelectDb([{ status: "draft" }]).db).findStatusById(1)).toBe("draft")
+        expect(await new DrizzlePassageRepository(createFakeSelectDb([]).db).findStatusById(1)).toBeNull()
       })
     })
   })

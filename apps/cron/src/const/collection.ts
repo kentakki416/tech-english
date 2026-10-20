@@ -1,5 +1,3 @@
-import type { PassageStatus } from "@repo/domain"
-
 /**
  * 収集のリクエストに付ける User-Agent。取得先の管理者がどのサービスのボットか分かるようにする
  */
@@ -85,8 +83,3 @@ export const SUPERSEDED_PASSAGE_REJECT_REASON = "切り分け直したため、�
  * 収集の対象から外れた文書（除外パス・対象パスから外した、取得元から消えた）の collected を却下するときの理由
  */
 export const OUT_OF_TARGET_PASSAGE_REJECT_REASON = "除外パスに入ったか取得元から消えたため、収集の対象から外した"
-
-/**
- * 同じ文書にこの状態の同じ見出しの本文候補があれば、切り分け直しても新しい本文候補にしない（同じ節の問題を二重に作らないため）
- */
-export const IN_USE_PASSAGE_STATUSES: PassageStatus[] = ["draft", "generating", "published"]
