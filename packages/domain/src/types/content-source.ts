@@ -55,6 +55,10 @@ export type GitHubRepositorySource = ContentSourceBase & {
    */
   lastCollectedCommitSha: string | null
   /**
+   * lastCollectedCommitSha を記録したときの抽出の版（cron の EXTRACTION_VERSION）
+   */
+  lastCollectedExtractionVersion: string | null
+  /**
    * 公開ページの URL を作るときにファイルパスから取り除くプレフィックス
    */
   publicUrlStripPrefix: string | null

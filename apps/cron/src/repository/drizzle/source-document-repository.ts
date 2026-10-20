@@ -125,6 +125,7 @@ export class DrizzleSourceDocumentRepository implements SourceDocumentRepository
       commitSha: row.commitSha,
       contentHash: row.contentHash,
       etag: row.etag,
+      extractionVersion: row.extractionVersion,
       fetchedAt: row.fetchedAt,
       httpStatus: row.httpStatus,
       lastModified: row.lastModified,

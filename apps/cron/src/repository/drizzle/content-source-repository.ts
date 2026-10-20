@@ -81,6 +81,7 @@ export class DrizzleContentSourceRepository implements ContentSourceRepository {
         branch: row.branch,
         fetchType: row.fetchType,
         lastCollectedCommitSha: row.lastCollectedCommitSha,
+        lastCollectedExtractionVersion: row.lastCollectedExtractionVersion,
         publicUrlStripPrefix: row.publicUrlStripPrefix,
         publicUrlTemplate: row.publicUrlTemplate,
         repository: row.repository,

@@ -12,6 +12,7 @@ const buildRow = (overrides: Partial<SourceDocumentRow> = {}): SourceDocumentRow
   commitSha: "commit-sha",
   contentHash: "content-hash",
   etag: null,
+  extractionVersion: null,
   fetchedAt: CREATED_AT,
   httpStatus: null,
   lastModified: null,
