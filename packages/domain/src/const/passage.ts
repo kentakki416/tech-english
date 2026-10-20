@@ -47,7 +47,6 @@ export const TIME_LIMIT_ROUNDING_SECONDS = 30
 export const CHUNK_REJECT_REASONS = ["not_english", "not_prose", "too_long", "too_much_code", "too_short"] as const
 
 /**
- * 切り分け直した文書の collected のうち、新しい本文候補に無いものを却下するときの理由（admin の「却下」に出る）。
- * cron の収集と api の URL からの取り込みで使う
+ * 切り分け直した文書の collected のうち、新しい本文候補に無いものを却下するときの理由（admin の「却下」に出る）
  */
 export const SUPERSEDED_PASSAGE_REJECT_REASON = "切り分け直したため、前の切り分けの本文候補を外した"

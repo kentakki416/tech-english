@@ -31,7 +31,7 @@ export class CrawlDelayTooLongError extends Error {
 }
 
 /**
- * 取得の期限（WebPageClientOptions.deadlineAt）までに終わらなかった。api が API Gateway の時間の制限の中で取得するときに使う
+ * 取得の期限（WebPageClientOptions.deadlineAt）までに終わらなかった
  */
 export class WebDeadlineExceededError extends Error {
   public readonly deadlineAt: number

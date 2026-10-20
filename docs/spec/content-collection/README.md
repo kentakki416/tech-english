@@ -335,7 +335,7 @@ flowchart LR
 | 長さ・コードの割合・英語・文章の判定のしきい値 | `const.ts` の `PASSAGE_MIN_WORDS` / `PASSAGE_MAX_WORDS` / `MAX_CODE_LINE_RATIO` / `MIN_ENGLISH_LETTER_RATIO` / `MIN_PROSE_WORD_RATIO` / `MIN_PROSE_LIST_ITEM_WORDS` | 全ソース（下の注意） |
 | 区切る見出しの深さ | `const.ts` の `SECTION_HEADING_MAX_DEPTH` | 全ソース（下の注意） |
 | 結合・分割のしかた | `split-into-chunks.ts` | 全ソース（下の注意） |
-| 本文候補にしない条件そのもの（理由を足す など） | `passage-rules.ts` の `findRejectReasons`（理由を足すときは `ChunkRejectReason` にも足す） | 全ソース（下の注意） |
+| 本文候補にしない条件そのもの（理由を足す など） | `passage-rules.ts` の `findRejectReasons`（理由を足すときは `@repo/domain` の `CHUNK_REJECT_REASONS` にも足す。URL の取り込みの確認の API の `reject_reasons` と、admin の理由の文言も変わる） | 全ソース（下の注意） |
 | mdast のノードをどのブロックにするか | `convert-mdast-to-blocks.ts` | 全ソース（下の注意） |
 | LLM が題材に向かないとする基準 | `apps/cron/src/prompt/generate-questions.ts` の「Suitability」（変えたら `PROMPT_VERSION` を上げる。[question-generation](../question-generation/README.md)） | 次の `generate:questions` から、`collected` の本文候補に |
 

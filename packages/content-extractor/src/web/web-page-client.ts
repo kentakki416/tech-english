@@ -58,7 +58,7 @@ export type SitemapUrl = {
  */
 export interface IWebPageClient {
   /**
-   * 429 / 503 は WebSourceThrottledError、取得先の制限に掛かった URL は BlockedUrlError を throw する
+   * 429 / 503 は WebSourceThrottledError、取得先の制限に掛かった URL は BlockedUrlError、期限（deadlineAt）を過ぎたら WebDeadlineExceededError を throw する
    */
   fetchPage(url: string, conditional: ConditionalRequest): Promise<FetchPageResult>
   /**
@@ -71,7 +71,8 @@ export interface IWebPageClient {
   isAllowedByRobots(url: string): boolean
   /**
    * robots.txt を読む。読めない（5xx・ネットワークエラー）なら throw する（読めないまま取得しない）。
-   * Crawl-delay が MAX_CRAWL_DELAY_SECONDS を超えていれば CrawlDelayTooLongError を throw する
+   * Crawl-delay が maxCrawlDelaySeconds（既定は MAX_CRAWL_DELAY_SECONDS）を超えていれば CrawlDelayTooLongError、
+   * 期限（deadlineAt）を過ぎたら WebDeadlineExceededError を throw する
    */
   loadRobots(): Promise<void>
 }

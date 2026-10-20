@@ -78,22 +78,22 @@ const findOrigin = (url: string): string | null => {
 const isGeneratedOrGenerating = (passage: ImportPassage): boolean =>
   GENERATED_OR_GENERATING_STATUSES.includes(passage.status) || (passage.status === "rejected" && passage.generatedAt !== null)
 
-const findGeneratedTitles = (documentPassages: ImportPassage[]): Set<string> =>
+const findGeneratedOrGeneratingTitles = (documentPassages: ImportPassage[]): Set<string> =>
   new Set(documentPassages.filter(isGeneratedOrGenerating).map((passage) => passage.title))
 
 const buildExcerpt = (chunk: PassageChunk): string =>
   chunk.blocks.find((block) => block.type !== "heading")?.text.slice(0, EXCERPT_LENGTH) ?? ""
 
 /**
- * 保存（importUrl）と同じ順で判定する。同じ見出しの問題がある塊は、同じ内容の collected があっても挿入も優先もしない（その collected は却下する）
+ * 保存（importUrl）と同じ順で判定する。同じ見出しの問題がある塊は、同じ内容の collected があっても挿入も優先もしない（その collected が同じ文書のものなら、前の切り分けとして却下する）
  */
 const classifyChunk = (
   chunk: PassageChunk,
-  generatedTitles: Set<string>,
+  generatedOrGeneratingTitles: Set<string>,
   passagesByContentHash: Map<string, ImportPassage>,
 ): UrlImportChunkStatus => {
   if (chunk.rejectReasons.length > 0) return "not_candidate"
-  if (generatedTitles.has(chunk.title)) return "generated_section"
+  if (generatedOrGeneratingTitles.has(chunk.title)) return "generated_section"
   const sameContentPassage = passagesByContentHash.get(chunk.contentHash)
   if (sameContentPassage === undefined) return "new"
   return sameContentPassage.status === "collected" ? "existing" : "duplicated"
@@ -122,7 +122,13 @@ const fetchImportPage = async (
   const source = await findImportSource(url, repo)
   if (!source.ok) return source
   const fetched = await deps.pageFetcher.fetchAndExtractPage({ now, source: source.value, url })
-  if (fetched.kind === "failed") return err(buildUrlImportError(fetched.code, fetched.detail))
+  if (fetched.kind === "failed") {
+    /**
+     * 失敗の多くは外部のサイトの状態で決まり、sendError のログには details が出ないので、調べるための値をここで残す
+     */
+    logger.info("url could not be imported", { code: fetched.code, detail: fetched.detail, sourceId: source.value.id, url })
+    return err(buildUrlImportError(fetched.code, fetched.detail))
+  }
   return ok({ page: fetched.page, source: source.value })
 }
 
@@ -142,13 +148,13 @@ export const previewUrlImport = async (
     repo.urlImportRepository.findDocumentPassages({ path: page.path, sourceId: source.id }),
     repo.urlImportRepository.findPassagesByContentHashes(page.chunks.map((chunk) => chunk.contentHash)),
   ])
-  const generatedTitles = findGeneratedTitles(documentPassages)
+  const generatedOrGeneratingTitles = findGeneratedOrGeneratingTitles(documentPassages)
   const passagesByContentHash = new Map(sameContentPassages.map((passage) => [passage.contentHash, passage]))
   return ok({
     chunks: page.chunks.map((chunk) => ({
       excerpt: buildExcerpt(chunk),
       rejectReasons: chunk.rejectReasons,
-      status: classifyChunk(chunk, generatedTitles, passagesByContentHash),
+      status: classifyChunk(chunk, generatedOrGeneratingTitles, passagesByContentHash),
       title: chunk.title,
       wordCount: chunk.wordCount,
     })),
@@ -188,8 +194,9 @@ export const importUrl = async (
       title: page.title,
     }, tx)
     const documentPassages = await repo.urlImportRepository.findDocumentPassages({ path: page.path, sourceId: source.id }, tx)
-    const generatedTitles = findGeneratedTitles(documentPassages)
-    const candidatesToInsert = page.chunks.filter((chunk) => chunk.rejectReasons.length === 0 && !generatedTitles.has(chunk.title))
+    const generatedOrGeneratingTitles = findGeneratedOrGeneratingTitles(documentPassages)
+    const candidatesToInsert = page.chunks.filter((chunk) =>
+      chunk.rejectReasons.length === 0 && !generatedOrGeneratingTitles.has(chunk.title))
     const createdIds = await repo.urlImportRepository.insertCandidates(
       candidatesToInsert.map((chunk) => ({
         blocks: chunk.blocks,
