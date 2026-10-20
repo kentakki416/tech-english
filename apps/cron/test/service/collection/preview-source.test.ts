@@ -1,4 +1,5 @@
-import { BlockedUrlError } from "../../../src/client/web"
+import { BlockedUrlError } from "@repo/content-extractor"
+
 import { previewSource } from "../../../src/service/collection"
 
 import {

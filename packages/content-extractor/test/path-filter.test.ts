@@ -1,4 +1,4 @@
-import { findGlobBaseDirectories, isTargetPath } from "../../src/lib/path-filter"
+import { findGlobBaseDirectories, isTargetPath } from "../src/path-filter"
 
 describe("isTargetPath", () => {
   describe("正常系", () => {

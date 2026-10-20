@@ -1,5 +1,5 @@
-import { convertMdastToBlocks } from "../../../src/lib/document/convert-mdast-to-blocks"
-import { parseMarkdown } from "../../../src/lib/document/parse-markdown"
+import { convertMdastToBlocks } from "../../src/document/convert-mdast-to-blocks"
+import { parseMarkdown } from "../../src/document/parse-markdown"
 
 const convertMarkdown = (source: string, isMdx = false) => convertMdastToBlocks(parseMarkdown(source, { isMdx }).root)
 

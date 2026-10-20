@@ -1,6 +1,6 @@
 import type { PassageBlock } from "@repo/domain"
 
-import { countEnglishWords, findRejectReasons, forTesting } from "../../../src/lib/document/passage-rules"
+import { countEnglishWords, findRejectReasons, forTesting } from "../../src/document/passage-rules"
 
 import { buildParagraph, buildWords } from "./helpers"
 

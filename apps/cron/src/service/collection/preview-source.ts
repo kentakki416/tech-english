@@ -1,19 +1,17 @@
-import type { GitHubRepositorySource, WebsiteSource } from "@repo/domain"
-import { logger } from "@repo/logger"
-
-import type { FetchPageResult, IWebPageClient } from "../../client/web"
-import type { DocumentPreview, SourcePreview } from "../../lib/format-dry-run"
-import { isTargetPath } from "../../lib/path-filter"
-
-import { extractGitHubFile } from "./extract-github-file"
-import { listGitHubTargetFiles } from "./list-github-target-files"
-import type { CollectionDeps, CollectionRepo } from "./types"
-import {
+import { type FetchPageResult, type IWebPageClient , isTargetPath ,
   buildPageUrl,
   extractWebPage,
   findStartPagePath,
   selectFetchablePagePaths,
-} from "./website-pages"
+} from "@repo/content-extractor"
+import type { GitHubRepositorySource, WebsiteSource } from "@repo/domain"
+import { logger } from "@repo/logger"
+
+import type { DocumentPreview, SourcePreview } from "../../lib/format-dry-run"
+
+import { extractGitHubFile } from "./extract-github-file"
+import { listGitHubTargetFiles } from "./list-github-target-files"
+import type { CollectionDeps, CollectionRepo } from "./types"
 
 type PreviewInput = {
   maxDocuments: number

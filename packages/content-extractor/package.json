@@ -1,0 +1,46 @@
+{
+  "name": "@repo/content-extractor",
+  "version": "1.0.0",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsc --project tsconfig.build.json",
+    "clean": "rm -rf dist",
+    "dev": "tsc --project tsconfig.build.json --watch",
+    "lint": "eslint 'src/**/*.ts' 'test/**/*.ts'",
+    "lint:fix": "eslint 'src/**/*.ts' 'test/**/*.ts' --fix",
+    "test": "vitest run",
+    "test:ci": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@mozilla/readability": "^0.6.0",
+    "@repo/domain": "workspace:^",
+    "@repo/logger": "workspace:^",
+    "@types/mdast": "^4.0.4",
+    "jsdom": "^29.1.1",
+    "picomatch": "^4.0.7",
+    "rehype-parse": "^9.0.1",
+    "rehype-remark": "^10.0.1",
+    "remark-frontmatter": "^5.0.0",
+    "remark-gfm": "^4.0.1",
+    "remark-mdx": "^3.1.1",
+    "remark-parse": "^11.0.0",
+    "robots-parser": "^3.0.1",
+    "undici": "^7.16.0",
+    "unified": "^11.0.5",
+    "yaml": "^2.9.1"
+  },
+  "devDependencies": {
+    "@repo/eslint-config": "workspace:^",
+    "@repo/typescript-config": "workspace:^",
+    "@types/jsdom": "^28.0.3",
+    "@types/node": "^24.10.1",
+    "@types/picomatch": "^4.0.3",
+    "eslint": "^9.39.1",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.5"
+  }
+}

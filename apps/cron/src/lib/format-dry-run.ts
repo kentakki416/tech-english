@@ -1,4 +1,4 @@
-import type { ExtractedDocument, PassageChunk } from "./document"
+import type { ExtractedDocument, PassageChunk } from "@repo/content-extractor"
 
 /**
  * 試し実行で取得した 1 文書の結果。抽出が throw した文書（壊れた MDX など）は failed、

@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto"
 
-import { extractDocument, type ExtractDocumentInput } from "../../../src/lib/document"
+import { extractDocument, type ExtractDocumentInput } from "../../src/document"
 
 import { buildWords, readFixture } from "./helpers"
 

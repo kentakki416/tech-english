@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto"
 
-import { calculateContentHash } from "../../../src/lib/document/content-hash"
+import { calculateContentHash } from "../../src/document/content-hash"
 
 describe("calculateContentHash", () => {
   describe("正常系", () => {

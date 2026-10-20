@@ -1,6 +1,6 @@
 import path from "node:path"
 
-import { extractDocument, type ExtractedDocument } from "../../lib/document"
+import { extractDocument, type ExtractedDocument } from "@repo/content-extractor"
 
 /**
  * GitHub の Markdown ファイルの本文を抽出して本文候補に切り分ける。`.mdx` は MDX として読む。
