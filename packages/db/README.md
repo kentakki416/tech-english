@@ -36,7 +36,6 @@ packages/db/
 
 | コマンド | 実体 | 用途 |
 | --- | --- | --- |
-| `admin:create` | `tsx drizzle/create-admin.ts` | `admins` に `--email` の email を登録し、その Google アカウントで admin にサインインできるようにする。何度流してもよい。ローカルは `apps/api` の `db:admin:create` から、dev / min / prd は GitHub Actions の「Admin Create」から流す |
 | `db:generate` | `drizzle-kit generate` | スキーマの差分からマイグレーション SQL を作る（DB 接続は不要） |
 | `db:migrate` | `drizzle-kit migrate` | 未適用のマイグレーションを適用する。ローカル / CI / 本番の migration イメージで共通 |
 | `db:push` | `drizzle-kit push` | マイグレーションを作らずにスキーマを DB へ直接反映する（ローカルでの試行錯誤用） |

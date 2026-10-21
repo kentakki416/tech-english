@@ -11,7 +11,6 @@ pnpm test:ci       # CI 用（env は外部から渡す前提。migrate + vitest
 pnpm test:watch    # 変更ファイルだけ再実行
 pnpm test:coverage # カバレッジ計測（coverage/ に出力）
 pnpm db:seed:sample-passages # 開発用のサンプル問題（公開 1・下書き 2）を dev DB に入れる。何度流してもよい（状態と内容が初期値に戻る）
-pnpm db:admin:create --email <email> # dev DB の admins に email を登録し、その Google アカウントで admin にサインインできるようにする。何度流してもよい
 ```
 
 テストランナーは Vitest。`describe` / `it` / `expect` / `vi` は `globals: true` で展開済みなので import 不要。
@@ -86,7 +85,7 @@ admin（`apps/admin`）のサーバー側だけが呼ぶ API。一般ユーザ�
 - admin の refresh / logout は一般ユーザーの `service.auth.refreshTokens` / `service.auth.logout` に admin 用の Repository・検証関数・発行関数を渡す。`refreshTokens` は持ち主を `tokenOwnerRepository` で確かめるので、admin は `adminRepository` を渡す（`admins` から消された admin の refresh token は 401）
 - ユーザー管理（`/api/admin/user/*`）はマイページの Service を使い回す。マイページの Service はユーザーが居ないと 401 を返すので、admin の Service（`admin-user-service.ts`）が先に存在を確かめて 404 にする
 - スキーマは `@repo/api-schema` の `admin/` に集約。既存と同一なら re-export し、Admin 固有のレスポンスが必要になった時点で新規定義する
-- **admin の登録**: ローカルは `pnpm db:admin:create --email <email>`。dev / min / prd は GitHub Actions の「Admin Create」（`docs/deploy/prd.md`）。ローカルは seed で `admin@dev.local` が入り、`POST /api/admin/auth/dev-login` でログインできる（dev-login は `@dev.local` の admin しか受け付けない）
+- **admin の登録**: `pnpm --filter @repo/db admin:create --email <email>`。dev / min / prd は GitHub Actions の「Admin Create」（`docs/deploy/prd.md`）。ローカルは seed で `admin@dev.local` が入り、`POST /api/admin/auth/dev-login` でログインできる（dev-login は `@dev.local` の admin しか受け付けない）
 
 ## 環境変数
 

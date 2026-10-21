@@ -74,7 +74,6 @@ cd apps/api
 pnpm db:migrate             # 未適用の migration を適用
 pnpm db:seed                # シードデータ投入 (任意)
 pnpm db:seed:dictionary     # 英和辞書（EJDict-hand）の投入。GitHub から取得する。単語の意味を引く API に必要
-pnpm db:admin:create --email <email>  # 管理画面に Google でサインインする email を登録 (任意)
 pnpm db:studio              # Drizzle Studio で DB を見る (任意)
 ```
 
