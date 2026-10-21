@@ -4,6 +4,7 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc --project tsconfig.build.json",
+    "db:admin:create": "dotenvx run -f .env.local -- pnpm --filter @repo/db admin:create",
     "db:generate": "dotenvx run -f .env.local -- pnpm --filter @repo/db db:generate",
     "db:migrate": "dotenvx run -f .env.local -- pnpm --filter @repo/db db:migrate",
     "db:push": "dotenvx run -f .env.local -- pnpm --filter @repo/db db:push",

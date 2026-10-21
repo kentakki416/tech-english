@@ -3,8 +3,8 @@
  * admins に email を登録する。既にあれば何もしない（何度流しても同じ結果になる）
  *
  * 使い方:
- * - ローカル: pnpm --filter @repo/db admin:create --email someone@example.com
- * - 本番: GitHub Actions の「Admin Create」（.github/workflows/admin-create.yml）が、最後に deploy した migration イメージで流す
+ * - ローカル: apps/api で pnpm db:admin:create --email someone@example.com
+ * - dev / min / prd: GitHub Actions の「Admin Create」（.github/workflows/admin-create.yml）が、最後に deploy した migration イメージで流す
  *
  * 成功しても失敗しても、出力に email を出さない。本番の出力は CloudWatch Logs と Actions のログに残る
  * （email は Actions の入力として既に残るので、コマンドの出力にまで重ねない）

@@ -50,7 +50,7 @@ cd apps/admin && pnpm exec dotenvx set API_URL "http://localhost:8080" -f .env.l
 - サインイン後の戻り先は `src/libs/safe-redirect.ts` の `resolveSafeRedirectPath` を必ず通す（外のサイトに飛ばさない）
 - ログアウトは `src/features/auth/auth.actions.ts` の `logoutAction`（ヘッダーのユーザーメニューの「ログアウト」）
 - 認証の処理（proxy の refresh・Google の callback・ログアウト）の失敗は、`console.error` に HTTP の status と `src/libs/error-name.ts` の `getErrorName`（エラーの名前）だけを出す。token・code・cookie・email を含みうる message や応答の中身は出さない
-- **admin の登録**: 画面からは足せない。ローカルは seed が `admin@dev.local` を入れる。それ以外の email は `pnpm --filter @repo/db admin:create --email <email>`、本番は GitHub Actions の「Admin Create」（`docs/deploy/prd.md`）
+- **admin の登録**: 画面からは足せない。ローカルは seed が `admin@dev.local` を入れる。それ以外の email は `apps/api` で `pnpm db:admin:create --email <email>`、dev / min / prd は GitHub Actions の「Admin Create」（`docs/deploy/prd.md`）
 
 Google Cloud の OAuth クライアント（api・web と同じもの）の「承認済みのリダイレクト URI」に、admin の callback を足す。ローカルは Google でのサインインを試すときだけ要る（dev ログインには要らない）。
 
