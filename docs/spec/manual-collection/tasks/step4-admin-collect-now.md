@@ -113,7 +113,7 @@ export function SourceCollectionCard({ activeStatuses, isEnabled, run, sourceId 
 - ボタン：`isEnabled` が false・収集中・送信中は `disabled`。無効のときはボタンの下に「無効のソースは収集しません。有効にして保存してから押してください」
 - 状態：バッジ（`SOURCE_COLLECTION_RUN_STATUS_LABELS`）と、README の「収集の状態」の表の文（件数・時刻は `formatDateTime`）。`failed` は `run.error` を出す。記録が無ければ「まだ今すぐ収集をしていません」
 - `state.message` があればボタンの下にエラーの文
-- 「収集の状況」のカードの中（最終収集・取り込んだコミット・本文候補の件数の下）に置く。サイトのソースには出さない
+- 「収集の状況」のカードの下に、試し実行のカードの代わりに「今すぐ収集」のカードとして置く。サイトのソースには出さない
 - `isEnabled` は保存済みの値（`detail.source.is_enabled`）を渡す。フォームで切り替えただけ（未保存）では変わらない
 
 ### 文言

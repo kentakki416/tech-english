@@ -14,3 +14,22 @@ const PERSONAL_USE_LICENSE: Extract<SourceLicense, "LicenseRef-personal-use"> = 
  */
 export const formatLicenseLabel = (license: string): string =>
   license === PERSONAL_USE_LICENSE ? "個人の学習用（ライセンスなし）" : license
+
+type SourceCollectionRun = NonNullable<GetSourceResponse["latest_collection_run"]>
+
+export type SourceCollectionRunStatus = SourceCollectionRun["status"]
+
+type BadgeColor = "dark" | "error" | "info" | "light" | "primary" | "success" | "warning"
+
+/**
+ * 収集の状態のバッジ（queued と running はどちらも「収集中」）
+ */
+export const SOURCE_COLLECTION_RUN_STATUS_LABELS: Record<SourceCollectionRunStatus, { color: BadgeColor; label: string }> = {
+  completed: { color: "success", label: "完了" },
+  failed: { color: "error", label: "失敗" },
+  limit_reached: { color: "warning", label: "上限で打ち切り" },
+  queued: { color: "info", label: "収集中" },
+  rate_limited: { color: "warning", label: "rate limit で打ち切り" },
+  running: { color: "info", label: "収集中" },
+  up_to_date: { color: "light", label: "変更なし" },
+}

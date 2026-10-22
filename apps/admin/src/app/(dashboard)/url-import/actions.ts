@@ -42,7 +42,7 @@ const URL_IMPORT_ERROR_MESSAGES: Record<Exclude<UrlImportErrorCode, "http_error"
   crawl_delay_too_long: "サイトの robots.txt の Crawl-delay が長いため、この画面からは取得できません。",
   deadline_exceeded: "ページの取得が 15 秒以内に終わりませんでした。時間をおいてもう一度お試しください。",
   extraction_failed: "本文を抽出できませんでした。ソースの本文の CSS セレクタを確かめてください。",
-  github_source: "このサイトは GitHub のソースで収集しています。収集（collect:passages）で取り込んでください。",
+  github_source: "このサイトは GitHub のソースで収集しています。ソースの編集画面の「今すぐ収集」で取り込んでください。",
   network_error: "ページを取得できませんでした（タイムアウト・接続エラー）。",
   not_html: "HTML のページではありません。",
   redirect_not_allowed: "サイトの外を指す URL・リダイレクトは取得できません。",

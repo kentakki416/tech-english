@@ -2,6 +2,8 @@ import "server-only"
 
 import {
   type CreateSourceRequest,
+  type CreateSourceCollectionRunResponse,
+  createSourceCollectionRunResponseSchema,
   type CreateSourceResponse,
   createSourceResponseSchema,
   type DetectSourceLicenseResponse,
@@ -41,6 +43,14 @@ export const sourceApi = {
   getList: async (): Promise<GetSourceListResponse> => {
     const raw = await apiClient.get<unknown>(BASE_PATH)
     return getSourceListResponseSchema.parse(raw)
+  },
+
+  /**
+   * 今すぐ収集を依頼する（収集は worker が裏で行う）。409 は収集中、400 は収集できないソース、404 はこの環境に今すぐ収集が無い
+   */
+  requestCollection: async (id: number): Promise<CreateSourceCollectionRunResponse> => {
+    const raw = await apiClient.post<unknown>(`${BASE_PATH}/${id}/collection-runs`, {})
+    return createSourceCollectionRunResponseSchema.parse(raw)
   },
 
   update: async (id: number, input: UpdateSourceRequest): Promise<UpdateSourceResponse> => {

@@ -48,7 +48,7 @@ const convertApiErrorToFormState = (error: unknown, fallbackMessage: string, rev
 }
 
 /**
- * ソース登録の Server Action。成功したら、GitHub のソースの試し実行のコマンド（id 入り）を見せるため編集画面へ遷移する
+ * ソース登録の Server Action。成功したら、今すぐ収集を押せるよう編集画面へ遷移する
  */
 export const createSourceAction = async (
   _prev: SourceFormState,
@@ -98,4 +98,39 @@ export const updateSourceAction = async (
   revalidatePath("/sources")
   revalidatePath(`/sources/${id}`)
   redirect("/sources")
+}
+
+/**
+ * 今すぐ収集の依頼の結果。message は依頼できなかったときの文言
+ */
+export type SourceCollectionRequestState = {
+  message?: string
+}
+
+/**
+ * 今すぐ収集の依頼が失敗したときの文言。404 はソースが無いときにも返るが、編集画面を開けている（ソースがある）ので、
+ * この環境に今すぐ収集のルートが無い（api の SOURCE_COLLECTION_TYPE=none）とみなす
+ */
+const buildCollectionRequestErrorMessage = (status: number): string => {
+  if (status === 409) return "ほかの収集が実行中です。終わるまで待ってください。"
+  if (status === 400) return "無効のソースは収集しません。有効にして保存してから押してください。"
+  if (status === 404) return "この環境では今すぐ収集を使えません（worker がありません）。"
+  return "収集を始められませんでした。時間をおいてもう一度押してください。"
+}
+
+/**
+ * 今すぐ収集の依頼の Server Action。収集は worker が裏で行うので、依頼が通ったら編集画面を読み直して「収集中」を出す。
+ * 失敗したときも読み直す（409 は別の管理者が先に押したので、最新の記録が収集中で返り、画面が収集中と読み直しに切り替わる）
+ */
+export const requestSourceCollectionAction = async (sourceId: number): Promise<SourceCollectionRequestState> => {
+  try {
+    await sourceApi.requestCollection(sourceId)
+  } catch (error) {
+    unstable_rethrow(error)
+    if (!(error instanceof ApiClientError)) throw error
+    revalidatePath(`/sources/${sourceId}`)
+    return { message: buildCollectionRequestErrorMessage(error.status) }
+  }
+  revalidatePath(`/sources/${sourceId}`)
+  return {}
 }
