@@ -12,7 +12,7 @@ export class GitHubNotFoundError extends Error {
 }
 
 /**
- * GitHub API の rate limit を使い切った（403 / 429）。rate limit は token 単位なので、以降の GitHub のソースも処理できない
+ * GitHub API の rate limit を使い切った（403 / 429）
  */
 export class GitHubRateLimitError extends Error {
   public readonly path: string

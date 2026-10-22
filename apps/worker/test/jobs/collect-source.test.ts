@@ -129,7 +129,11 @@ describe("collectSource", () => {
       )
     })
 
-    it.each(["disabled", "not_found", "website"] as const)("収集できないソース（%s）は、理由つきの failed として書く", async (reason) => {
+    it.each([
+      ["disabled", "ソースが無効になっていた"],
+      ["not_found", "ソースが無かった"],
+      ["website", "サイトのソースは収集しない"],
+    ] as const)("収集できないソース（%s）は、理由の文つきの failed として書く", async (reason, error) => {
       const { deps, sourceCollectionRunRepository } = createDeps({
         collect: async () => {
           throw new SourceNotCollectableError(reason, 3)
@@ -138,13 +142,17 @@ describe("collectSource", () => {
 
       await collectSource(deps)(buildMessage(10))
 
-      expect(sourceCollectionRunRepository.finish).toHaveBeenCalledWith(CLAIM, { error: expect.any(String), status: "failed" }, NOW)
+      expect(sourceCollectionRunRepository.finish).toHaveBeenCalledWith(CLAIM, { error, status: "failed" }, NOW)
     })
 
     it.each([
-      ["GitHub に見つからない（404）", () => new GitHubNotFoundError("/repos/example/docs/commits/main")],
-      ["想定外の例外", () => new Error("boom")],
-    ])("%s は failed として書き、ジョブは throw しない", async (_label, buildError) => {
+      [
+        "GitHub に見つからない（404）",
+        () => new GitHubNotFoundError("/repos/example/docs/commits/main"),
+        "GitHub に見つからない（リポジトリ・ブランチ・ファイルが無いか、非公開）: /repos/example/docs/commits/main",
+      ],
+      ["想定外の例外", () => new Error("boom"), "収集に失敗した: boom"],
+    ])("%s は failed として書き、ジョブは throw しない", async (_label, buildError, error) => {
       const { deps, sourceCollectionRunRepository } = createDeps({
         collect: async () => {
           throw buildError()
@@ -152,7 +160,41 @@ describe("collectSource", () => {
       })
 
       await expect(collectSource(deps)(buildMessage(10))).resolves.toBeUndefined()
-      expect(sourceCollectionRunRepository.finish).toHaveBeenCalledWith(CLAIM, { error: expect.any(String), status: "failed" }, NOW)
+      expect(sourceCollectionRunRepository.finish).toHaveBeenCalledWith(CLAIM, { error, status: "failed" }, NOW)
+    })
+
+    it("包まれた例外（DB の失敗）は、SQL と値の message ではなく元の例外の message を書く", async () => {
+      const { deps, sourceCollectionRunRepository } = createDeps({
+        collect: async () => {
+          throw Object.assign(new Error("Failed query: insert into \"passages\" ...\nparams: 本文候補の全文"), {
+            cause: new Error("duplicate key value violates unique constraint"),
+          })
+        },
+      })
+
+      await collectSource(deps)(buildMessage(10))
+
+      expect(sourceCollectionRunRepository.finish).toHaveBeenCalledWith(
+        CLAIM,
+        { error: "収集に失敗した: duplicate key value violates unique constraint", status: "failed" },
+        NOW,
+      )
+    })
+
+    it("想定外の例外の message は 200 文字で切って書く", async () => {
+      const { deps, sourceCollectionRunRepository } = createDeps({
+        collect: async () => {
+          throw new Error("x".repeat(500))
+        },
+      })
+
+      await collectSource(deps)(buildMessage(10))
+
+      expect(sourceCollectionRunRepository.finish).toHaveBeenCalledWith(
+        CLAIM,
+        { error: `収集に失敗した: ${"x".repeat(200)}`, status: "failed" },
+        NOW,
+      )
     })
 
     it("想定外の例外は error のログを出す", async () => {

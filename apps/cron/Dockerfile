@@ -1,8 +1,6 @@
 # ==============================================================================
 # Stage 1: base - pnpm をインストールしたベースイメージ
 # ==============================================================================
-# Node 22: CommonJS でビルドした dist から ESM 専用の unified / remark / rehype を
-# require(esm) で読む（22.12 以上で既定で有効）。runner も同じバージョンにそろえる。
 FROM node:22-slim AS base
 
 RUN corepack enable && corepack prepare pnpm@9.0.0 --activate
