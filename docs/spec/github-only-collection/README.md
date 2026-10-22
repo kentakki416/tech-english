@@ -138,7 +138,7 @@
 ### 個人の学習用のライセンスの持ち方
 
 - `@repo/domain` に `PERSONAL_USE_LICENSE`（`"LicenseRef-personal-use"`）を足す。`ALLOWED_LICENSES` には入れない（許可リストは「公開してよいライセンス」の一覧のまま）。`LicenseRef-` は SPDX で独自のライセンスを表す書き方（[deferred-more-sources](../content-collection/deferred-more-sources.md#許諾を得た技術ブログ) の許諾の案の `LicenseRef-permission` と同じ）
-- ソースのライセンスの型は `AllowedLicense | PersonalUseLicense`（`SourceLicense`）
+- ソースのライセンスの型は `SourceLicense`（`SOURCE_LICENSES` の値。GitHub のソースの型は今までどおり `AllowedLicense`）
 - DB：`sources_license_spdx_check` を両方を許すように直し、`fetch_type = 'website' OR license_spdx <> 'LicenseRef-personal-use'` の CHECK（`sources_personal_use_license_check`）を足す。GitHub のソースに入らないことを DB でも守る
 - api-schema：GitHub の入力は `ALLOWED_LICENSES` だけ、サイトの入力は両方。レスポンスは両方
 - production ではサイトのソースそのものを拒否するので、個人の学習用の値もデプロイした環境には入らない
@@ -298,7 +298,7 @@ sequenceDiagram
 | PR | step |
 | --- | --- |
 | cron | step1 |
-| DB・api | step2〜3 |
+| DB・api | step2〜3（step2 でライセンスの型を広げると、step3 の api-schema まで api の型チェックが通らないので、同じ PR にする） |
 | admin | step4 |
 | クロールの列の削除 | step5 |
 

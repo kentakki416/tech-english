@@ -24,6 +24,8 @@ admin の「URL から追加」とサイトの取得方法をローカルだけ�
 | `apps/admin/src/components/features/source/SourceTable.tsx` | サイトの状態を「収集しない」にする |
 | `apps/admin/src/app/(dashboard)/sources/page.tsx` | 「無効のサイトのソースがあります」の案内を消す |
 | `apps/admin/CLAUDE.md` | サイドバーと接続済みの画面の表の `/url-import` に「ローカルだけ」 |
+| `docs/spec/content-collection/README.md` | 「必要な画面」「UI 設計」のソース一覧（サイトの状態は「収集しない」・無効のサイトの案内を消す）と登録・編集（取得方法の「サイト」はローカルだけ・サイトの収集のスイッチと試し実行を消す・ライセンスに個人の学習用・GitHub の `license_url` の案内と検出の初期値・`LICENSE_NOTE` の文言） |
+| `docs/spec/url-import/README.md` | 「必要な画面」の URL から追加はローカルだけ（メニューに出さない・production では 404） |
 
 ### ローカルの判定
 
@@ -176,9 +178,14 @@ const FETCH_TYPE_OPTIONS: { description: string, key: FetchType, label: string }
 
 ### ソース一覧
 
-- 状態の列は、サイトのソースなら `Badge color="light"` で「収集しない」（有効・無効を出さない）
+- 状態の列は、サイトのソースなら `Badge color="light"` で「収集しない」（有効・無効を出さない）。Filter が見る状態のラベル（`statusLabel`）も「収集しない」にし、Filter の選択肢に「収集しない」を足す（「無効」で絞り込んだときにサイトのソースが混ざらないように）
+- ソースが 0 件のときの文言は「GitHub のリポジトリを登録すると、翌日の収集から本文候補が作られます」にする（サイトは収集しない）
 - `sources/page.tsx` の「無効のサイトのソースがあります」の案内を消す（サイトのソースは常に無効なので、ローカルでは常に出てしまう）
 - 「取得失敗」の列は step5 で消す
+
+### 編集の補助のカード
+
+- サイトのソースの「収集の状況」の「最終収集」は出さない（収集しないので常に「未収集」になる）。本文候補の件数は出す
 
 ### mock
 

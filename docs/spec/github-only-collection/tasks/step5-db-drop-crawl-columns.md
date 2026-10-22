@@ -157,7 +157,7 @@ ALTER TABLE "sources" DROP COLUMN "start_url";
 
 | ファイル | 直すところ |
 | --- | --- |
-| `docs/spec/content-collection/README.md` | 「ソースの登録」のサイトの項目（sitemap の URL・開始ページの URL を消す）と、CSS セレクタを変えたときに ETag などを消す段落、「必要な画面」のソース一覧の「取得に失敗しているページの数（サイト）」、「UI 設計」のソース一覧・登録・編集（取得失敗・ページの見つけ方・サイトの収集のスイッチ・試し実行・無効のサイトの案内）、「必要な API」の更新の「CSS セレクタを変えると…消す」、「必要な DB 設計」の表と ER 図と制約（消した列・`sources_website_check`・index。step2 の 2 つの CHECK を足す） |
+| `docs/spec/content-collection/README.md` | 「ソースの登録」のサイトの項目（sitemap の URL・開始ページの URL を消す）、「必要な画面」のソース一覧の「取得に失敗しているページの数（サイト）」、「UI 設計」のソース一覧・登録・編集の取得失敗・ページの見つけ方、「必要な API」の更新の「CSS セレクタを変えると…消す」、「必要な DB 設計」の表と ER 図と制約（消した列・`sources_website_check`・index） |
 | `docs/spec/url-import/README.md` | 「api での取得と抽出」の条件付きリクエストの記述、「保存」の文書の記録で書く列 |
 | `apps/api/CLAUDE.md`・`packages/content-extractor/README.md` | 条件付きリクエストの記述 |
 | `docs/spec/README.md` | github-only-collection のステータスを「完了」にし、url-import の概要に「ローカルだけ」を足す |
