@@ -99,7 +99,7 @@ api（Lambda）の中で収集を実行すると、時間制限（API Gateway �
 
 抽出のプレビュー（URL を 1 つ入れて抽出結果を見る）は 1 ページの取得で済むため api の中で実行できる。ただし抽出のロジックを cron と api で共有する必要がある。
 
-URL の 1 ページの取り込み（確認と保存）は [url-import](../url-import/README.md) で行う（抽出の処理は `@repo/content-extractor` に移して共有した）。ソースの収集の即時実行は [manual-collection](../manual-collection/README.md) で案 B を実装する（収集の処理は `@repo/collection` に移して cron と worker で共有する）。CSS セレクタの調整のための抽出のプレビューは引き続き対象外。
+URL の 1 ページの取り込み（確認と保存）は [url-import](../url-import/README.md) で行う（抽出の処理は `@repo/content-extractor` に移して共有した）。ソースの収集の即時実行は [manual-collection](../manual-collection/README.md) で案 B を実装する（cron の収集はやめ、収集の処理を worker に移す）。CSS セレクタの調整のための抽出のプレビューは引き続き対象外。
 
 ### 既存仕様との差分（着手時のチェックリスト）
 

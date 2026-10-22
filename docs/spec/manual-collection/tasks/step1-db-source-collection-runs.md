@@ -1,6 +1,6 @@
-# step2-db-source-collection-runs
+# step1-db-source-collection-runs
 
-今すぐ収集の実行の記録（`source_collection_runs`）のテーブルと、状態の値の定数・ドメインの型を足す。仕様と理由は [README](../README.md#収集の実行の記録)。
+収集の実行の記録（`source_collection_runs`）のテーブルと、状態の値の定数・ドメインの型を足す。仕様と理由は [README](../README.md#収集の実行の記録)。
 
 ## 対応内容
 
@@ -11,7 +11,7 @@
 | domain | `packages/domain/src/const/source-collection-run.ts`（新規）・`types/source-collection-run.ts`（新規）・`index.ts` | 状態の値・時間切れの分数と型 |
 | db | `packages/db/src/drizzle/schema/source-collection-run.ts`（新規）・`schema/index.ts` | テーブル定義 |
 | db | `packages/db/drizzle/migrations/` | `db:generate` で作るマイグレーション |
-| collection | `packages/collection/src/service/types.ts` | `SourceCollectionStatus` を `@repo/domain` の `SourceCollectionResultStatus` にする |
+| cron | `apps/cron/src/service/collection/types.ts` | `SourceCollectionStatus` を `@repo/domain` の `SourceCollectionResultStatus` の別名にする（step3 で worker に移す） |
 | test | `apps/api/test/schema/source-collection-run.test.ts`（新規） | CHECK・部分 unique index・外部キー |
 | docs | `packages/domain/README.md` | 定数の一覧に足す（一覧があれば） |
 
@@ -55,7 +55,7 @@ export type SourceCollectionRun = {
 ```
 
 - JSDoc に各状態の意味（README の「収集の状態」の表）、`startedAt` が worker の書き込みのトークンであること、`SOURCE_COLLECTION_RUN_TIMEOUT_MINUTES` を 30 にした理由（README の「終わらなかった実行の片付け」）を書く
-- `@repo/collection` の `SourceCollectionStatus` は `SourceCollectionResultStatus` の別名にし、各値の説明の JSDoc はドメインの側に 1 か所だけ置く
+- `SourceCollectionStatus` は `SourceCollectionResultStatus` の別名にし、各値の説明の JSDoc はドメインの側に 1 か所だけ置く
 
 ### スキーマ
 
@@ -93,7 +93,7 @@ export const sourceCollectionRuns = pgTable(
 )
 ```
 
-- テーブルの JSDoc：今すぐ収集の 1 回ごとの状態と結果。cron の収集は書かない
+- テーブルの JSDoc：収集（admin の今すぐ収集）の 1 回ごとの状態と結果
 - 部分 unique index の JSDoc：同じソースの収集を 1 つに限る（SELECT で確かめると同時に押したときに両方通るため、DB で保証する）
 
 ```bash
@@ -109,7 +109,7 @@ pnpm --filter api db:generate --name add_source_collection_runs
 ```bash
 pnpm --filter api db:migrate
 pnpm --filter api test   # vitest を直接叩かない（dev DB が消える）
-pnpm --filter @repo/collection exec tsc --noEmit
+pnpm --filter cron exec tsc --noEmit
 ```
 
 `apps/api/test/schema/source-collection-run.test.ts`（実 DB）：

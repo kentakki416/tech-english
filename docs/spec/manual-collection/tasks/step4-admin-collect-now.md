@@ -1,6 +1,6 @@
-# step5-admin-collect-now
+# step4-admin-collect-now
 
-ソースの編集画面（GitHub のソース）の「収集の状況」に「今すぐ収集」のボタンと、最後の今すぐ収集の状態・結果を出す。仕様と理由は [README](../README.md#収集の状態)。
+ソースの編集画面（GitHub のソース）の「収集の状況」に「今すぐ収集」のボタンと、最後の収集の状態・結果を出す。cron の収集をやめたのに合わせて、試し実行のカードと「毎日の収集」の文言を直す。仕様と理由は [README](../README.md#収集の状態)。
 
 ## 対応内容
 
@@ -12,7 +12,10 @@
 | `apps/admin/src/features/source/source.labels.ts` | 状態の表示名と色 |
 | `apps/admin/src/app/(dashboard)/sources/actions.ts` | `requestSourceCollectionAction` |
 | `apps/admin/src/components/features/source/SourceCollectionCard.tsx`（新規） | ボタン・状態の表示・収集中の読み直し |
-| `apps/admin/src/components/features/source/SourceForm.tsx` | 右の「収集の状況」の GitHub のときに `SourceCollectionCard` を使う |
+| `apps/admin/src/components/features/source/SourceForm.tsx` | 右の「収集の状況」の GitHub のときに `SourceCollectionCard` を使う。「試し実行」のカードを消す。「このソースを収集する」の説明を直す |
+| `apps/admin/src/app/(dashboard)/sources/page.tsx` | 一覧の説明の文言 |
+| `apps/admin/src/app/(dashboard)/url-import/actions.ts` | `github_source` の文言（「収集（collect:passages）で取り込んでください」） |
+| `apps/admin/src/app/(dashboard)/mock/sources/**` | モックの試し実行のカードと一覧の説明（本番の画面に合わせる） |
 | `apps/admin/CLAUDE.md` | `/sources/[id]` の行に今すぐ収集 |
 | `docs/screenshots/manual-collection/` | 編集画面の before / after |
 
@@ -104,6 +107,15 @@ export function SourceCollectionCard({ isEnabled, run, sourceId }: { isEnabled: 
 - 「収集の状況」のカードの中（最終収集・取り込んだコミット・本文候補の件数の下）に置く。サイトのソースには出さない
 - `isEnabled` は保存済みの値（`detail.source.is_enabled`）を渡す。フォームで切り替えただけ（未保存）では変わらない
 
+### 文言
+
+| 場所 | 変更前 | 変更後 |
+| --- | --- | --- |
+| ソース一覧の説明 | 英文の取得元。有効な GitHub のソースだけを毎日の収集（collect:passages）が取り込みます。 | 英文の取得元。GitHub のソースの編集画面の「今すぐ収集」で本文候補を取り込みます。 |
+| 「このソースを収集する」の説明 | 無効にすると次回から収集しません。公開済みの問題は残ります。 | 無効にすると「今すぐ収集」を押せなくなります。公開済みの問題は残ります。 |
+| URL から追加の `github_source` | このサイトは GitHub のソースで収集しています。収集（collect:passages）で取り込んでください。 | このサイトは GitHub のソースで収集しています。ソースの編集画面の「今すぐ収集」で取り込んでください。 |
+| ソース一覧の空のとき | GitHub のリポジトリを登録すると、翌日の収集から本文候補が作られます。 | GitHub のリポジトリを登録し、編集画面の「今すぐ収集」で本文候補を作ります。 |
+
 ## 動作確認
 
 ```bash
@@ -119,5 +131,6 @@ pnpm dev
 - [ ] 収集中はボタンを押せない。2 つのタブで同時に押すと、片方は 409 の文言
 - [ ] 無効のソースではボタンを押せず、案内が出る
 - [ ] サイトのソースにはボタンが出ない
+- [ ] 「試し実行」のカードが無い。一覧・URL から追加の文言に `collect:passages` が残っていない（`git grep -n "collect:passages" apps/admin`）
 - [ ] api を `SOURCE_COLLECTION_TYPE=none` で起動すると、押したときに「この環境では今すぐ収集を使えません」
 - [ ] console の error が 0 件

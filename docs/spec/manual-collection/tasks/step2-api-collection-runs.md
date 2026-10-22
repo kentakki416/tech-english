@@ -1,6 +1,6 @@
-# step3-api-collection-runs
+# step2-api-collection-runs
 
-今すぐ収集を依頼する API（`POST /api/admin/source/:id/collection-runs`）と、ソース詳細の `latest_collection_run` を足す。Queue の型も足す（ジョブを処理する worker は step4）。仕様と理由は [README](../README.md#api-が-queue-に積みworker-が実行する)。
+今すぐ収集を依頼する API（`POST /api/admin/source/:id/collection-runs`）と、ソース詳細の `latest_collection_run` を足す。Queue の型も足す（ジョブを処理する worker は step3）。仕様と理由は [README](../README.md#api-が-queue-に積みworker-が実行する)。
 
 ## 対応内容
 
