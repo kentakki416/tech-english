@@ -4,7 +4,7 @@
 
 ## 前提
 
-- なし（github-auth の最初の step）。他機能のテーブル追加（[content-collection step1](../../content-collection/tasks/step1-db-content-sources.md) 以降）より先に入れる
+- なし（github-auth の最初の step）。他機能のテーブル追加（[content-collection step1](../../content-collection/tasks/step1-db-sources.md) 以降）より先に入れる
 - 仕様: [必要な DB 設計](../README.md#必要な-db-設計)（`timezone text NOT NULL DEFAULT 'Asia/Tokyo'`、CHECK 制約にしない理由も同節）
 
 ## 対応内容

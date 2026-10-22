@@ -11,7 +11,7 @@ export type AdminFetchType = "github_repository" | "website"
 
 export type AdminPassageStatus = "collected" | "draft" | "failed" | "generating" | "published" | "rejected"
 
-export type AdminContentSource = {
+export type AdminSource = {
   id: number
   branch?: string
   contentSelector?: string
@@ -48,7 +48,7 @@ export const ALLOWED_LICENSES = [
   "Unlicense",
 ]
 
-export const MOCK_SOURCES: AdminContentSource[] = [
+export const MOCK_SOURCES: AdminSource[] = [
   {
     id: 1,
     branch: "main",

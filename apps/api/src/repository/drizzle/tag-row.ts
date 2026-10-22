@@ -7,7 +7,7 @@ import type { Tag } from "@repo/domain"
 export type TagRow = typeof tags.$inferSelect
 
 /**
- * Drizzleの型 → ドメインの型。TagRepository と ContentSourceRepository（ソースのタグ）で共有する
+ * Drizzleの型 → ドメインの型。TagRepository と SourceRepository（ソースのタグ）で共有する
  */
 export const convertTagRowToDomain = (row: TagRow): Tag => ({
   id: row.id,

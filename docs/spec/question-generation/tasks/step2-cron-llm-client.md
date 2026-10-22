@@ -5,7 +5,7 @@
 ## 前提
 
 - [step1-db-questions](./step1-db-questions.md)：`QUESTION_TYPES`
-- [content-collection step1-db-content-sources](../../content-collection/tasks/step1-db-content-sources.md)：`PassageBlock`、`PASSAGE_DIFFICULTIES`、`PASSAGE_BLOCK_TYPES`
+- [content-collection step1-db-sources](../../content-collection/tasks/step1-db-sources.md)：`PassageBlock`、`PASSAGE_DIFFICULTIES`、`PASSAGE_BLOCK_TYPES`
 - 何を 1 回で生成させるか・offset を答えさせない理由は README の [LLM の呼び出し](../README.md#llm-の呼び出し)、設問・和訳・用語集のルールは [設問のルール](../README.md#設問のルール) と [和訳と単語の意味のルール](../README.md#和訳と単語の意味のルール)
 
 > **SDK の細かい API は実装時に公式ドキュメントで確認する。** 特に structured output の指定方法（`output_config.format` の形、Zod から JSON Schema を作る helper が cron の zod のバージョンで使えるか）、プロンプトキャッシュの `cache_control` の書き方、エラークラス名、リトライ・タイムアウトの設定名。以下のコード例の SDK 呼び出し部分は形の目安で、断定ではない。

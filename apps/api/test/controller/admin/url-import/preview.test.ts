@@ -4,7 +4,7 @@ import { sourceDocuments } from "@repo/db"
 
 import type { IPageFetcher } from "../../../../src/client/page-fetcher"
 import { AdminUrlImportPreviewController } from "../../../../src/controller/admin/url-import/preview"
-import { DrizzleContentSourceRepository } from "../../../../src/repository/drizzle/content-source-repository"
+import { DrizzleSourceRepository } from "../../../../src/repository/drizzle/source-repository"
 import { DrizzleUrlImportRepository } from "../../../../src/repository/drizzle/url-import-repository"
 import { IoRedisUrlImportPageCacheRepository } from "../../../../src/repository/redis/url-import-page-cache-repository"
 import { adminRouter, mountAdminApi } from "../../../../src/routes/admin-router"
@@ -12,7 +12,7 @@ import { insertPassage } from "../../../fixture/passage"
 import { buildChunk, buildFetchedPage } from "../../../fixture/url-import"
 import { attachUnhandledExceptionHandler, createTestAdmin, createTestApp } from "../../helper"
 import { cleanupTestData, cleanupTestRedis, disconnectTestDb, disconnectTestRedis, testDb, testRedis } from "../../setup"
-import { insertSourceDocument, insertWebsiteSource } from "../content-source/fixtures"
+import { insertSourceDocument, insertWebsiteSource } from "../source/fixtures"
 
 /**
  * サイトの取得だけを fake にする
@@ -26,7 +26,7 @@ const app = createTestApp()
 mountAdminApi(app, adminRouter({
   urlImport: {
     preview: new AdminUrlImportPreviewController(
-      new DrizzleContentSourceRepository(testDb),
+      new DrizzleSourceRepository(testDb),
       new DrizzleUrlImportRepository(testDb),
       new IoRedisUrlImportPageCacheRepository(testRedis),
       fakePageFetcher,

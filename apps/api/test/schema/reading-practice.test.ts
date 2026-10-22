@@ -1,7 +1,6 @@
 import {
   attemptAnswers,
   attemptWordLookups,
-  contentSources,
   dictionaryEntries,
   eq,
   passageGlossaryEntries,
@@ -9,6 +8,7 @@ import {
   questions,
   readingAttempts,
   sourceDocuments,
+  sources,
   sql,
   users,
 } from "@repo/db"
@@ -58,7 +58,7 @@ const SUBMITTED_COLUMNS = {
 const setupUserAndPassage = async () => {
   const [user] = await testDb.insert(users).values({ email: "reader@example.com", name: "Reader" }).returning()
   const [source] = await testDb
-    .insert(contentSources)
+    .insert(sources)
     .values({
       branch: "main",
       fetchType: "github_repository",

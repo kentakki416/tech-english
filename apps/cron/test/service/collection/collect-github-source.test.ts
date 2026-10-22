@@ -76,7 +76,7 @@ describe("collectGitHubSource", () => {
       expect(client.getLatestCommitSha).toHaveBeenCalledWith("owner/repo", "main")
       expect(client.getTree).not.toHaveBeenCalled()
       expect(repo.sourceDocumentRepository.findWithCollectedPassages).not.toHaveBeenCalled()
-      expect(repo.contentSourceRepository.markCollected).toHaveBeenCalledWith(1, { lastCollectedAt: NOW })
+      expect(repo.sourceRepository.markCollected).toHaveBeenCalledWith(1, { lastCollectedAt: NOW })
     })
 
     it("最新コミットが前回と同じでも抽出の版が違えばツリーを取り、blob SHA が同じでも版が古いファイルを取り直し、版も同じファイルは取らない", async () => {
@@ -97,7 +97,7 @@ describe("collectGitHubSource", () => {
 
       expect(client.getFileContent.mock.calls.map(([, path]) => path)).toEqual(["docs/a.md", "docs/b.md"])
       expect(result.status).toBe("completed")
-      expect(repo.contentSourceRepository.markCollected).toHaveBeenCalledWith(1, {
+      expect(repo.sourceRepository.markCollected).toHaveBeenCalledWith(1, {
         lastCollectedAt: NOW,
         lastCollectedCommit: { expectedSha: COMMIT_SHA, extractionVersion: EXTRACTION_VERSION, nextSha: COMMIT_SHA },
       })
@@ -266,7 +266,7 @@ describe("collectGitHubSource", () => {
       )
 
       expect(result).toEqual({ createdPassageCount: 4, fetchedDocumentCount: 2, status: "completed" })
-      expect(repo.contentSourceRepository.markCollected).toHaveBeenCalledWith(1, {
+      expect(repo.sourceRepository.markCollected).toHaveBeenCalledWith(1, {
         lastCollectedAt: NOW,
         lastCollectedCommit: { expectedSha: previousSha, extractionVersion: EXTRACTION_VERSION, nextSha: COMMIT_SHA },
       })
@@ -276,7 +276,7 @@ describe("collectGitHubSource", () => {
     it("収集の途中で admin が last_collected_commit_sha を変えて markCollected が false を返したら、warn を出して completed で終える", async () => {
       const client = createFakeGitHubClient(buildGitHubOptions(["docs/a.md"]))
       const repo = createFakeRepo()
-      repo.contentSourceRepository.markCollected.mockResolvedValue(false)
+      repo.sourceRepository.markCollected.mockResolvedValue(false)
 
       const result = await collectGitHubSource(
         buildInput({ source: buildGitHubSource({ lastCollectedCommitSha: "commit-sha-previous" }) }),
@@ -299,7 +299,7 @@ describe("collectGitHubSource", () => {
 
       expect(result).toEqual({ createdPassageCount: 4, fetchedDocumentCount: 2, status: "limit_reached" })
       expect(client.getFileContent).toHaveBeenCalledTimes(2)
-      expect(repo.contentSourceRepository.markCollected).toHaveBeenCalledWith(1, { lastCollectedAt: NOW })
+      expect(repo.sourceRepository.markCollected).toHaveBeenCalledWith(1, { lastCollectedAt: NOW })
     })
 
     it("maxPassages に達すると limit_reached で、1 文書の本文候補は途中で切らずに全部保存する", async () => {
@@ -311,7 +311,7 @@ describe("collectGitHubSource", () => {
       expect(result).toEqual({ createdPassageCount: 2, fetchedDocumentCount: 1, status: "limit_reached" })
       expect(repo.passageRepository.insertIgnoringDuplicates).toHaveBeenCalledTimes(1)
       expect(repo.passageRepository.insertIgnoringDuplicates.mock.calls[0][0]).toHaveLength(2)
-      expect(repo.contentSourceRepository.markCollected).toHaveBeenCalledWith(1, { lastCollectedAt: NOW })
+      expect(repo.sourceRepository.markCollected).toHaveBeenCalledWith(1, { lastCollectedAt: NOW })
     })
 
     it("rate limit の残りが閾値を切ると、取得済みの文書を保存して rate_limited で終え、commit SHA を更新しない", async () => {
@@ -328,7 +328,7 @@ describe("collectGitHubSource", () => {
 
       expect(result).toEqual({ createdPassageCount: 4, fetchedDocumentCount: 2, status: "rate_limited" })
       expect(repo.sourceDocumentRepository.markFetched).toHaveBeenCalledTimes(2)
-      expect(repo.contentSourceRepository.markCollected).toHaveBeenCalledWith(1, { lastCollectedAt: NOW })
+      expect(repo.sourceRepository.markCollected).toHaveBeenCalledWith(1, { lastCollectedAt: NOW })
     })
 
     it("ツリーが切り詰められ glob の base が空（ルート）なら、取れた分を処理して commit SHA を更新しない", async () => {
@@ -345,7 +345,7 @@ describe("collectGitHubSource", () => {
       )
 
       expect(result).toEqual({ createdPassageCount: 1, fetchedDocumentCount: 1, status: "limit_reached" })
-      expect(repo.contentSourceRepository.markCollected).toHaveBeenCalledWith(1, { lastCollectedAt: NOW })
+      expect(repo.sourceRepository.markCollected).toHaveBeenCalledWith(1, { lastCollectedAt: NOW })
     })
 
     it("extractDocument が throw する文書は本文候補の挿入も却下もせず、抽出の版を記録して markFetched され、次の文書へ進む", async () => {
@@ -405,7 +405,7 @@ describe("collectGitHubSource", () => {
       const repo = createFakeRepo()
 
       await expect(collectGitHubSource(buildInput(), repo, createDeps(client))).rejects.toBeInstanceOf(GitHubRateLimitError)
-      expect(repo.contentSourceRepository.markCollected).not.toHaveBeenCalled()
+      expect(repo.sourceRepository.markCollected).not.toHaveBeenCalled()
     })
 
     it("Repository が throw したらそのまま伝搬する（blob SHA は記録されない）", async () => {

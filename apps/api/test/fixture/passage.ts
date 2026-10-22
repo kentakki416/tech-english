@@ -1,11 +1,11 @@
 import {
-  contentSources,
   passageAudios,
   passageGlossaryEntries,
   passages,
   questions,
   readingAttempts,
   sourceDocuments,
+  sources,
   users,
 } from "@repo/db"
 
@@ -20,15 +20,15 @@ import { insertSourceTags } from "./source-tag"
  * Repository のテストと Controller のインテグレーションテストで使う（reading-practice の API のテストでも使う想定）
  */
 
-type ContentSourceInsert = typeof contentSources.$inferInsert
+type SourceInsert = typeof sources.$inferInsert
 type PassageAudioInsert = typeof passageAudios.$inferInsert
 type PassageInsert = typeof passages.$inferInsert
 type ReadingAttemptInsert = typeof readingAttempts.$inferInsert
 
 /**
- * ソースの列と、付けるタグの名前（content_source_tags で付ける）
+ * ソースの列と、付けるタグの名前（source_tags で付ける）
  */
-type PassageSourceOverrides = Partial<ContentSourceInsert> & { tags?: string[] }
+type PassageSourceOverrides = Partial<SourceInsert> & { tags?: string[] }
 
 let sequence = 0
 
@@ -45,7 +45,7 @@ const issueSequence = (): number => {
  */
 export const insertPassageSource = async ({ tags: tagNames = ["react"], ...overrides }: PassageSourceOverrides = {}) => {
   const [row] = await testDb
-    .insert(contentSources)
+    .insert(sources)
     .values({
       branch: "main",
       fetchType: "github_repository",

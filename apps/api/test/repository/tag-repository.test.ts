@@ -1,4 +1,4 @@
-import { contentSources, contentSourceTags, eq, tags } from "@repo/db"
+import { eq, sources, sourceTags, tags } from "@repo/db"
 
 import { DrizzleTagRepository } from "../../src/repository/drizzle/tag-repository"
 import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb } from "../controller/setup"
@@ -7,7 +7,7 @@ const tagRepository = new DrizzleTagRepository(testDb)
 
 const insertSource = async (repository: string) => {
   const [row] = await testDb
-    .insert(contentSources)
+    .insert(sources)
     .values({
       branch: "main",
       excludeGlobs: [],
@@ -65,10 +65,10 @@ describe("DrizzleTagRepository", () => {
       const apple = await insertTag("apple")
       const sourceA = await insertSource("owner/a")
       const sourceB = await insertSource("owner/b")
-      await testDb.insert(contentSourceTags).values([
-        { contentSourceId: sourceA.id, tagId: apple.id },
-        { contentSourceId: sourceB.id, tagId: apple.id },
-        { contentSourceId: sourceA.id, tagId: banana.id },
+      await testDb.insert(sourceTags).values([
+        { sourceId: sourceA.id, tagId: apple.id },
+        { sourceId: sourceB.id, tagId: apple.id },
+        { sourceId: sourceA.id, tagId: banana.id },
       ])
 
       const result = await tagRepository.findAll()
@@ -133,21 +133,21 @@ describe("DrizzleTagRepository", () => {
       expect(row.name).toBe("React")
     })
 
-    it("delete は true を返し、そのタグの content_source_tags も消えるが、ソースとほかのタグの紐付けは残る", async () => {
+    it("delete は true を返し、そのタグの source_tags も消えるが、ソースとほかのタグの紐付けは残る", async () => {
       const react = await insertTag("React")
       const vue = await insertTag("Vue")
       const source = await insertSource("owner/a")
-      await testDb.insert(contentSourceTags).values([
-        { contentSourceId: source.id, tagId: react.id },
-        { contentSourceId: source.id, tagId: vue.id },
+      await testDb.insert(sourceTags).values([
+        { sourceId: source.id, tagId: react.id },
+        { sourceId: source.id, tagId: vue.id },
       ])
 
       const result = await tagRepository.delete(react.id)
 
       expect(result).toBe(true)
       expect(await testDb.select().from(tags)).toEqual([vue])
-      expect(await testDb.select().from(contentSourceTags)).toEqual([{ contentSourceId: source.id, tagId: vue.id }])
-      expect(await testDb.select().from(contentSources)).toHaveLength(1)
+      expect(await testDb.select().from(sourceTags)).toEqual([{ sourceId: source.id, tagId: vue.id }])
+      expect(await testDb.select().from(sources)).toHaveLength(1)
     })
   })
 

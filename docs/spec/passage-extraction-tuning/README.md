@@ -11,7 +11,7 @@
 
 ## 関連 spec
 
-- [`../content-collection/README.md`](../content-collection/README.md) — 収集・本文の抽出・本文候補への切り分けの規則の正本。この機能の変更はそちらに反映する。`content_sources` / `source_documents` の列の正本もこちら
+- [`../content-collection/README.md`](../content-collection/README.md) — 収集・本文の抽出・本文候補への切り分けの規則の正本。この機能の変更はそちらに反映する。`sources` / `source_documents` の列の正本もこちら
 - [`../question-generation/README.md`](../question-generation/README.md) — `collected` の本文候補を問題にする。`passages` の列と状態の遷移の正本
 
 ## 目次
@@ -183,7 +183,7 @@ React 公式ドキュメントのソースの **除外パス** に、次のペ�
 | --- | --- |
 | 版 | `apps/cron/src/lib/document/const.ts`（今は `packages/content-extractor/src/document/const.ts`）の `EXTRACTION_VERSION`。生成の `PROMPT_VERSION` と同じ日付の形（`2026-10-20.1`）。`lib/document` の変更のうち、ブロック・切り分け・本文候補の条件が変わるものをしたら上げる |
 | `source_documents.extraction_version` | 文書を切り分けたときの版。`NULL`（この列を足してから一度も切り分けていない文書。未取得、列を足す前に取得した文書、本文を抽出できなかったサイトのページ）は古い版として扱う |
-| `content_sources.last_collected_extraction_version` | GitHub のみ。`last_collected_commit_sha` を記録したときの版 |
+| `sources.last_collected_extraction_version` | GitHub のみ。`last_collected_commit_sha` を記録したときの版 |
 
 **GitHub**：
 
@@ -272,13 +272,13 @@ React 公式ドキュメントのソースの **除外パス** に、次のペ�
 | テーブル | 列 | 型 | 説明 |
 | --- | --- | --- | --- |
 | `source_documents` | `extraction_version` | `text` nullable | 文書を切り分けたときの抽出の版。`NULL` はこの列を足してから一度も切り分けていない文書 |
-| `content_sources` | `last_collected_extraction_version` | `text` nullable | GitHub のみ。`last_collected_commit_sha` を記録したときの抽出の版 |
+| `sources` | `last_collected_extraction_version` | `text` nullable | GitHub のみ。`last_collected_commit_sha` を記録したときの抽出の版 |
 
 ```mermaid
 erDiagram
-    content_sources ||--o{ source_documents : has
+    sources ||--o{ source_documents : has
     source_documents ||--o{ passages : "切り分けて作る"
-    content_sources {
+    sources {
         int id PK
         text last_collected_commit_sha "GitHub のみ, nullable"
         text last_collected_extraction_version "GitHub のみ, nullable（追加）"
@@ -334,6 +334,6 @@ sequenceDiagram
 
 | step | 内容 |
 | --- | --- |
-| [step1](./tasks/step1-db-extraction-version.md) | db：`source_documents.extraction_version` と `content_sources.last_collected_extraction_version` を足し、ドメインの型と api・cron の読み込みに通す |
+| [step1](./tasks/step1-db-extraction-version.md) | db：`source_documents.extraction_version` と `sources.last_collected_extraction_version` を足し、ドメインの型と api・cron の読み込みに通す |
 | [step2](./tasks/step2-cron-extraction-rules.md) | cron：`<YouWillLearn>`・`<Recap>` を捨てる、長い箇条書きの項目を文章に数える、「:」で終わる段落の置き換え |
 | [step3](./tasks/step3-cron-reextraction.md) | cron：`EXTRACTION_VERSION` と、抽出の版が古い文書の切り分け直し（同じ見出しの生成中・生成した本文候補がある塊は作らない）、前の切り分けと収集の対象から外れた文書の `collected` の却下。dev のソースに除外パスを足して確かめる |

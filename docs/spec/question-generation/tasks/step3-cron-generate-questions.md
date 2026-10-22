@@ -5,7 +5,7 @@ LLM の出力の検証と後処理（純関数）、解答キーを見ない検�
 ## 前提
 
 - [step1-db-questions](./step1-db-questions.md)、[step2-cron-llm-client](./step2-cron-llm-client.md)
-- [content-collection step1-db-content-sources](../../content-collection/tasks/step1-db-content-sources.md)：`passages`
+- [content-collection step1-db-sources](../../content-collection/tasks/step1-db-sources.md)：`passages`
 - 動きの理由は README の [生成タスクの動き](../README.md#生成タスクの動き)・[出力の検証と後処理](../README.md#出力の検証と後処理)・[解答キーを見ない検証](../README.md#解答キーを見ない検証)・[失敗時の扱い](../README.md#失敗時の扱い)・[費用の上限](../README.md#費用の上限)
 
 ## 対応内容

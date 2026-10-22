@@ -1,15 +1,15 @@
 import type { IWebPageClient } from "@repo/content-extractor"
 
 import type { IGitHubContentClient } from "../../client/github"
-import type { ContentSourceRepository, PassageRepository, SourceDocumentRepository } from "../../repository"
+import type { PassageRepository, SourceDocumentRepository, SourceRepository } from "../../repository"
 
 export type CollectionRepo = {
-  contentSourceRepository: ContentSourceRepository
   /**
    * 収集は本文候補の挿入と、見出しの確認、collected の却下だけを使う（問題生成のメソッドに依存させない）
    */
   passageRepository: Pick<PassageRepository, "findGeneratedOrGeneratingTitles" | "insertIgnoringDuplicates" | "rejectCollected">
   sourceDocumentRepository: SourceDocumentRepository
+  sourceRepository: SourceRepository
 }
 
 export type CollectionDeps = {

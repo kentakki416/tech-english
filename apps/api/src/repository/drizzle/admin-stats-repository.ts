@@ -316,7 +316,7 @@ export class DrizzleAdminStatsRepository implements AdminStatsRepository {
              count(*) OVER () AS total
         FROM passages p
         JOIN source_documents sd ON sd.id = p.source_document_id
-        JOIN content_sources cs ON cs.id = sd.source_id
+        JOIN sources cs ON cs.id = sd.source_id
         LEFT JOIN s ON s.passage_id = p.id
        WHERE ${condition}
     `

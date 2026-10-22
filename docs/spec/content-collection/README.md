@@ -217,7 +217,7 @@ flowchart LR
 
 **ファイルの blob SHA で変更を検出し、変わったファイルだけ本文を取得する。** 毎回全ファイルを取り直すと rate limit と処理時間を無駄にするため。
 
-1. `GET /repos/{owner}/{repo}/commits/{branch}` で最新コミットの SHA を得る（`Accept: application/vnd.github.sha` で SHA の文字列だけを受け取る。JSON はコミットの差分まで含んで大きいため）。`content_sources.last_collected_commit_sha` と同じで、`last_collected_extraction_version` が cron の抽出の版（`EXTRACTION_VERSION`）と同じならそのソースは処理を終える
+1. `GET /repos/{owner}/{repo}/commits/{branch}` で最新コミットの SHA を得る（`Accept: application/vnd.github.sha` で SHA の文字列だけを受け取る。JSON はコミットの差分まで含んで大きいため）。`sources.last_collected_commit_sha` と同じで、`last_collected_extraction_version` が cron の抽出の版（`EXTRACTION_VERSION`）と同じならそのソースは処理を終える
 2. `GET /repos/{owner}/{repo}/git/trees/{commit_sha}?recursive=1` でファイル一覧と各ファイルの blob SHA を 1 回で得る
 3. 対象パス / 除外パスの glob で絞り込む。絞り込んだ一覧に無い文書（取得元から消えた・対象パスから外れた）の `collected` の本文候補を却下する（一覧が切り詰められたときは、対象パス・除外パスに合わない文書だけ）
 4. `source_documents` の `blob_sha` と `extraction_version` と比べ、新規・変更されたファイルと抽出の版が古いファイルだけ `GET /repos/{owner}/{repo}/contents/{path}?ref={commit_sha}` で本文を取得する
@@ -405,9 +405,9 @@ api は許可リストに無いライセンスでの登録を 400 で拒否す�
 
 | パス（admin） | 画面名 | モック |
 | --- | --- | --- |
-| `/content-sources` | ソース一覧 | `/mock/content-sources` |
-| `/content-sources/new` | ソースの登録 | `/mock/content-sources/new` |
-| `/content-sources/[id]` | ソースの編集 | `/mock/content-sources/1`（GitHub）、`/7`（サイト）、`/6`（未収集のサイト） |
+| `/sources` | ソース一覧 | `/mock/sources` |
+| `/sources/new` | ソースの登録 | `/mock/sources/new` |
+| `/sources/[id]` | ソースの編集 | `/mock/sources/1`（GitHub）、`/7`（サイト）、`/6`（未収集のサイト） |
 
 ### ソース一覧
 
@@ -503,11 +503,11 @@ admin 向け。アクセス制御は [question-generation](../question-generatio
 
 | メソッド | パス | 説明 |
 | --- | --- | --- |
-| GET | `/api/admin/content-source` | ソース一覧（状態別の本文候補件数つき） |
-| GET | `/api/admin/content-source/:id` | ソース詳細 |
-| POST | `/api/admin/content-source` | ソースの登録。取得方法ごとの必須項目を Zod の discriminated union で検証する。許可リスト外のライセンスは 400。`website` は無効の状態で作る |
-| PUT | `/api/admin/content-source/:id` | ソースの更新（有効 / 無効の切り替えを含む）。取得方法は変更できない。文書を取得したソースの取得元（`repository` / `site_url`）の変更は 400。本文の CSS セレクタ・除外する CSS セレクタを変えると、そのソースの `source_documents` の `etag` / `last_modified` / `content_hash` を消す |
-| GET | `/api/admin/content-source/license?repository=owner/name` | GitHub が検出したライセンスを返す（`github_repository` の登録フォームの初期値用） |
+| GET | `/api/admin/source` | ソース一覧（状態別の本文候補件数つき） |
+| GET | `/api/admin/source/:id` | ソース詳細 |
+| POST | `/api/admin/source` | ソースの登録。取得方法ごとの必須項目を Zod の discriminated union で検証する。許可リスト外のライセンスは 400。`website` は無効の状態で作る |
+| PUT | `/api/admin/source/:id` | ソースの更新（有効 / 無効の切り替えを含む）。取得方法は変更できない。文書を取得したソースの取得元（`repository` / `site_url`）の変更は 400。本文の CSS セレクタ・除外する CSS セレクタを変えると、そのソースの `source_documents` の `etag` / `last_modified` / `content_hash` を消す |
+| GET | `/api/admin/source/license?repository=owner/name` | GitHub が検出したライセンスを返す（`github_repository` の登録フォームの初期値用） |
 
 cron タスク：
 
@@ -519,15 +519,15 @@ cron タスク：
 
 | テーブル | 主要カラム | 説明 |
 | --- | --- | --- |
-| `content_sources` | 共通：`id`, `name`, `kind`, `fetch_type`, `include_globs(jsonb)`, `exclude_globs(jsonb)`, `license_spdx`, `license_url`, `is_enabled`, `last_collected_at`<br/>GitHub：`repository`, `branch`, `public_url_template`, `public_url_strip_prefix`, `last_collected_commit_sha`, `last_collected_extraction_version`<br/>サイト：`site_url`, `sitemap_url`, `start_url`, `content_selector`, `exclude_selectors(jsonb)` | 取得元。管理者が登録する。技術タグは `content_source_tags` で `tags` に紐付ける（[source-tags](../source-tags/README.md#必要な-db-設計)） |
+| `sources` | 共通：`id`, `name`, `kind`, `fetch_type`, `include_globs(jsonb)`, `exclude_globs(jsonb)`, `license_spdx`, `license_url`, `is_enabled`, `last_collected_at`<br/>GitHub：`repository`, `branch`, `public_url_template`, `public_url_strip_prefix`, `last_collected_commit_sha`, `last_collected_extraction_version`<br/>サイト：`site_url`, `sitemap_url`, `start_url`, `content_selector`, `exclude_selectors(jsonb)` | 取得元。管理者が登録する。技術タグは `source_tags` で `tags` に紐付ける（[source-tags](../source-tags/README.md#必要な-db-設計)） |
 | `source_documents` | `id`, `source_id`, `path`, `title`, `fetched_at`, `content_hash`, `extraction_version`<br/>GitHub：`blob_sha`, `commit_sha`<br/>サイト：`etag`, `last_modified`, `sitemap_lastmod`, `http_status` | 取得した文書。差分検出・出典の組み立て・サイトのクロールの待ち行列に使う |
 | `passages` | ― | 本文候補 / 問題。**列定義の正本は [question-generation](../question-generation/README.md#必要な-db-設計)**。この spec では `source_document_id` / `source_path` / `source_commit_sha`（GitHub のみ）/ `source_retrieved_at` / `title` / `blocks` / `word_count` / `content_hash` / `status = collected` を埋めて作る |
 
 ```mermaid
 erDiagram
-    content_sources ||--o{ source_documents : has
+    sources ||--o{ source_documents : has
     source_documents ||--o{ passages : "切り分けて作る"
-    content_sources {
+    sources {
         int id PK
         text name
         text kind "github / docs"
@@ -575,10 +575,10 @@ erDiagram
 
 制約：
 
-- `content_sources.kind` は `SOURCE_KINDS`、`fetch_type` は `SOURCE_FETCH_TYPES`、`license_spdx` は `ALLOWED_LICENSES` から CHECK 制約を作る（`@repo/domain` が正本）
+- `sources.kind` は `SOURCE_KINDS`、`fetch_type` は `SOURCE_FETCH_TYPES`、`license_spdx` は `ALLOWED_LICENSES` から CHECK 制約を作る（`@repo/domain` が正本）
 - CHECK：`fetch_type = 'github_repository'` なら `repository` と `branch` が NOT NULL
 - CHECK：`fetch_type = 'website'` なら `site_url` が NOT NULL、かつ `sitemap_url` と `start_url` の少なくとも一方が NOT NULL
-- `content_sources.repository` と `content_sources.site_url` はそれぞれ unique（NULL は重複可）
+- `sources.repository` と `sources.site_url` はそれぞれ unique（NULL は重複可）
 - `source_documents (source_id, path)` は unique
 - index：`source_documents (source_id, fetched_at)`（クロールの取得順）
 
@@ -632,9 +632,9 @@ sequenceDiagram
 
 | step | 内容 |
 | --- | --- |
-| [step1-db-content-sources](./tasks/step1-db-content-sources.md) | `content_sources` / `source_documents` / `passages`（**全列**。列は question-generation の定義どおり）のスキーマとマイグレーション、`@repo/domain` の定数（ソース・`passages` の状態・難易度・ブロック種別）と `PassageBlock` 型 |
-| [step2-api-admin-content-source](./tasks/step2-api-admin-content-source.md) | ソースの CRUD（取得方法ごとの検証）と検出ライセンス取得の API |
-| [step3-admin-content-source](./tasks/step3-admin-content-source.md) | admin のソース一覧・登録画面 |
+| [step1-db-sources](./tasks/step1-db-sources.md) | `sources` / `source_documents` / `passages`（**全列**。列は question-generation の定義どおり）のスキーマとマイグレーション、`@repo/domain` の定数（ソース・`passages` の状態・難易度・ブロック種別）と `PassageBlock` 型 |
+| [step2-api-admin-source](./tasks/step2-api-admin-source.md) | ソースの CRUD（取得方法ごとの検証）と検出ライセンス取得の API |
+| [step3-admin-source](./tasks/step3-admin-source.md) | admin のソース一覧・登録画面 |
 | [step4-cron-document-parser](./tasks/step4-cron-document-parser.md) | Markdown / HTML → mdast → `PassageBlock[]` の変換と本文候補への切り分け（純関数 + fixture を使ったテスト） |
 | [step5-cron-collect-github](./tasks/step5-cron-collect-github.md) | `GitHubContentClient`、blob SHA での差分検出、`collect:passages` タスクの骨格と試し実行 |
 | [step6-cron-collect-website](./tasks/step6-cron-collect-website.md) | `WebPageClient`（`robots.txt`・間隔・取得先の制限・条件付きリクエスト）、sitemap とリンクからの URL 発見、待ち行列での取得 |

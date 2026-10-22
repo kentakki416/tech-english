@@ -1,6 +1,6 @@
 import request from "supertest"
 
-import { contentSources, contentSourceTags, tags } from "@repo/db"
+import { sources, sourceTags, tags } from "@repo/db"
 
 import { AdminTagDeleteController } from "../../../../src/controller/admin/tag/delete"
 import { DrizzleTagRepository } from "../../../../src/repository/drizzle/tag-repository"
@@ -44,8 +44,8 @@ describe("DELETE /api/admin/tag/:id", () => {
       expect(res.status).toBe(204)
       expect(res.text).toBe("")
       expect(await testDb.select().from(tags)).toHaveLength(0)
-      expect(await testDb.select().from(contentSourceTags)).toHaveLength(0)
-      expect(await testDb.select().from(contentSources)).toHaveLength(1)
+      expect(await testDb.select().from(sourceTags)).toHaveLength(0)
+      expect(await testDb.select().from(sources)).toHaveLength(1)
     })
   })
 

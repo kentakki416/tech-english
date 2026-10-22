@@ -2,8 +2,8 @@ import { z } from "zod"
 
 import { CHUNK_REJECT_REASONS, URL_IMPORT_CHUNK_STATUSES, URL_IMPORT_ERROR_CODES } from "@repo/domain"
 
-import { allowedLicenseSchema } from "./content-source"
 import { adminPassageStatusSchema } from "./passage"
+import { allowedLicenseSchema } from "./source"
 
 // ========================================================
 // 共通: 取り込むページの URL

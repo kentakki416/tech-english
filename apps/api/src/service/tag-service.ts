@@ -55,7 +55,7 @@ export const updateTag = async (id: number, input: TagInput, repo: TagRepo): Pro
 }
 
 /**
- * タグを消す。付けていたソースからも外れる（content_source_tags の CASCADE）
+ * タグを消す。付けていたソースからも外れる（source_tags の CASCADE）
  */
 export const deleteTag = async (id: number, repo: TagRepo): Promise<Result<{ deleted: true }>> => {
   if (!(await repo.tagRepository.delete(id))) {

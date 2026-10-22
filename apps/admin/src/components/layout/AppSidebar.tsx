@@ -29,7 +29,7 @@ const MENU_PATHS = navSections.flatMap((section) =>
 )
 
 /**
- * 今のページに対応するメニューのリンク先。下の階層のページ（/content-sources/new など）は、前方一致するうち最も長いものにする
+ * 今のページに対応するメニューのリンク先。下の階層のページ（/sources/new など）は、前方一致するうち最も長いものにする
  * （`/` は `${path}/` の前方一致が `//` になるので、完全一致のときだけ当たる）。MENU_PATH_ALIASES のページはその寄せ先
  */
 const findActiveMenuPath = (pathname: string): string | null =>

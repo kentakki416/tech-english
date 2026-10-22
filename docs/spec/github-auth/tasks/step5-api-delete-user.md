@@ -130,7 +130,7 @@ expect(result.rows).toEqual([])
 
 あわせて、`users` から cascade でたどれるテーブル名の一覧が `["attempt_answers", "attempt_word_lookups", "auth_accounts", "reading_attempts", "reminder_settings", "user_goals", "users"]` と一致することも確かめる（テーブルを足したら、この一覧と README の表を更新する合図になる）。
 
-**データのテスト**（`test/controller/user/delete.test.ts` 内）: 1 人のユーザーに `auth_accounts`・`user_goals`・`reminder_settings`・`reading_attempts`（＋ `attempt_answers`・`attempt_word_lookups`）を入れ、別のユーザーにも同じものを入れてから `DELETE /api/user` を呼ぶ。挑戦の行に必要な `content_sources` → `source_documents` → `passages` → `questions` は `testDb` で必須列だけ埋めて作る（列は各テーブルの step のスキーマに合わせる。共通で使うならテストヘルパに切り出す）。
+**データのテスト**（`test/controller/user/delete.test.ts` 内）: 1 人のユーザーに `auth_accounts`・`user_goals`・`reminder_settings`・`reading_attempts`（＋ `attempt_answers`・`attempt_word_lookups`）を入れ、別のユーザーにも同じものを入れてから `DELETE /api/user` を呼ぶ。挑戦の行に必要な `sources` → `source_documents` → `passages` → `questions` は `testDb` で必須列だけ埋めて作る（列は各テーブルの step のスキーマに合わせる。共通で使うならテストヘルパに切り出す）。
 
 ## 動作確認
 

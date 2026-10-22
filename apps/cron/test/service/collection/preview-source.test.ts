@@ -24,7 +24,7 @@ const SITE = "https://example.dev"
  * Repository の書き込みメソッドが 1 つも呼ばれていないこと
  */
 const expectNoWrites = (repo: ReturnType<typeof createFakeRepo>): void => {
-  expect(repo.contentSourceRepository.markCollected).not.toHaveBeenCalled()
+  expect(repo.sourceRepository.markCollected).not.toHaveBeenCalled()
   expect(repo.passageRepository.insertIgnoringDuplicates).not.toHaveBeenCalled()
   expect(repo.sourceDocumentRepository.markFetched).not.toHaveBeenCalled()
   expect(repo.sourceDocumentRepository.markResponse).not.toHaveBeenCalled()

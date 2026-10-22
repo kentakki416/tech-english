@@ -1,4 +1,4 @@
-import { asc, contentSourceTags, count, DrizzleClient, eq, inArray, sql, tags } from "@repo/db"
+import { asc, count, DrizzleClient, eq, inArray, sourceTags, sql, tags } from "@repo/db"
 import type { Tag, TagColor } from "@repo/domain"
 
 import type { TagInput, TagRepository, TagSaveResult, TagWithSourceCount } from "../tag-repository"
@@ -37,12 +37,12 @@ export class DrizzleTagRepository implements TagRepository {
         id: tags.id,
         color: tags.color,
         name: tags.name,
-        sourceCount: count(contentSourceTags.contentSourceId),
+        sourceCount: count(sourceTags.sourceId),
         createdAt: tags.createdAt,
         updatedAt: tags.updatedAt,
       })
       .from(tags)
-      .leftJoin(contentSourceTags, eq(contentSourceTags.tagId, tags.id))
+      .leftJoin(sourceTags, eq(sourceTags.tagId, tags.id))
       .groupBy(tags.id)
       .orderBy(sql`lower(${tags.name})`, asc(tags.id))
     return rows.map(({ sourceCount, ...row }) => ({ ...convertTagRowToDomain(row), sourceCount }))

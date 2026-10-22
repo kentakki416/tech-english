@@ -3,7 +3,7 @@ import { SUPERSEDED_PASSAGE_REJECT_REASON } from "@repo/domain"
 import type { TransactionContext, TransactionRunner } from "../../../src/repository"
 import { importUrl } from "../../../src/service/url-import-service"
 import { buildChunk, buildFetchedPage } from "../../fixture/url-import"
-import { buildWebsiteSource, createMockContentSourceRepository } from "../content-source-service/fixtures"
+import { buildWebsiteSource, createMockSourceRepository } from "../source-service/fixtures"
 
 import {
   buildImportPassage,
@@ -18,11 +18,11 @@ const DOCUMENT_ID = 30
 
 const TX = { fake: "tx" } as unknown as TransactionContext
 const transactionRunner: TransactionRunner = { run: vi.fn(async (fn) => fn(TX)) }
-const contentSourceRepository = createMockContentSourceRepository()
+const sourceRepository = createMockSourceRepository()
 const urlImportRepository = createMockUrlImportRepository()
 const urlImportPageCacheRepository = createMockUrlImportPageCacheRepository()
 const pageFetcher = createMockPageFetcher()
-const repo = { contentSourceRepository, transactionRunner, urlImportPageCacheRepository, urlImportRepository }
+const repo = { sourceRepository, transactionRunner, urlImportPageCacheRepository, urlImportRepository }
 const deps = { pageFetcher }
 
 describe("importUrl", () => {
@@ -30,7 +30,7 @@ describe("importUrl", () => {
     vi.clearAllMocks()
     urlImportPageCacheRepository.find.mockResolvedValue(null)
     urlImportPageCacheRepository.save.mockResolvedValue()
-    contentSourceRepository.findAll.mockResolvedValue([buildWebsiteSource()])
+    sourceRepository.findAll.mockResolvedValue([buildWebsiteSource()])
     urlImportRepository.upsertFetchedDocument.mockResolvedValue({ id: DOCUMENT_ID })
     urlImportRepository.findDocumentPassages.mockResolvedValue([])
     urlImportRepository.insertCandidates.mockResolvedValue([])
@@ -158,7 +158,7 @@ describe("importUrl", () => {
 
   describe("異常系", () => {
     it("ソースが無ければ 400（source_not_found）で、トランザクションを始めない", async () => {
-      contentSourceRepository.findAll.mockResolvedValue([])
+      sourceRepository.findAll.mockResolvedValue([])
 
       const result = await importUrl(PAGE_URL, NOW, repo, deps)
 

@@ -1,6 +1,6 @@
 # step4-admin-tags
 
-admin にタグの画面（`/tags`）を足し、サイドバーに「タグ」を足す。色付きのタグの共通コンポーネント `TagChip` もここで作り、[step5](./step5-admin-content-source-tags.md) のソースの画面でも使う。仕様は [README のタグの管理](../README.md#タグの管理)・[タグの名前](../README.md#タグの名前)・[タグの色](../README.md#タグの色)。
+admin にタグの画面（`/tags`）を足し、サイドバーに「タグ」を足す。色付きのタグの共通コンポーネント `TagChip` もここで作り、[step5](./step5-admin-source-tags.md) のソースの画面でも使う。仕様は [README のタグの管理](../README.md#タグの管理)・[タグの名前](../README.md#タグの名前)・[タグの色](../README.md#タグの色)。
 
 ## 前提
 
@@ -49,7 +49,7 @@ export const apiClient = {
 
 ### API の呼び出し層
 
-`content-source.api.ts` と同じ書き方。メソッド名も揃える（一覧は `getList`）。
+`source.api.ts` と同じ書き方。メソッド名も揃える（一覧は `getList`）。
 
 ```ts
 /** apps/admin/src/features/tag/tag.api.ts */
@@ -384,7 +384,7 @@ const convertApiErrorToResult = (error: unknown, fallbackMessage: string): TagAc
  */
 const revalidateTagPaths = () => {
   revalidatePath("/tags")
-  revalidatePath("/content-sources", "layout")
+  revalidatePath("/sources", "layout")
 }
 
 /**
@@ -430,7 +430,7 @@ export const deleteTagAction = async (id: number): Promise<TagActionResult> => {
 ```
 
 - 色の検証の失敗（パレットに無い色）は画面から起きない（選択肢しか送らない）ので、名前の文言にまとめる
-- `revalidatePath("/content-sources", "layout")` は `/content-sources/new`・`/content-sources/[id]` も含めて作り直す（タグの名前・色を変えた直後にソースの画面を開いても古い表示にしない）
+- `revalidatePath("/sources", "layout")` は `/sources/new`・`/sources/[id]` も含めて作り直す（タグの名前・色を変えた直後にソースの画面を開いても古い表示にしない）
 
 ### サイドバー
 
@@ -440,7 +440,7 @@ export const deleteTagAction = async (id: number): Promise<TagActionResult> => {
 const navItems: NavItem[] = [
   { icon: <GridIcon />, name: "ダッシュボード", path: "/" },
   { icon: <DocsIcon />, name: "問題", path: "/passages" },
-  { icon: <FolderIcon />, name: "ソース", path: "/content-sources" },
+  { icon: <FolderIcon />, name: "ソース", path: "/sources" },
   { icon: <ListIcon />, name: "タグ", path: "/tags" },
   { icon: <UserCircleIcon />, name: "ユーザー", path: "/users" },
 ]
@@ -473,10 +473,10 @@ api（step2 まで入ったもの）と admin を起動し、`verify-web-page` s
 - [ ] 色を選んで追加すると、その色になる。プレビューが選んだ色で出る
 - [ ] `React` があるときに `react` を追加・別のタグを `REACT` に変えると、名前の欄の下に「同じ名前のタグがあります（大文字・小文字は区別しません）。」が出て、モーダルは閉じない
 - [ ] 空・31 文字・カンマを含む名前は名前の欄の下にエラーが出る
-- [ ] 編集で名前と色を変えると一覧に反映され、`/content-sources` のそのタグの表示も変わる（step5 の後）
+- [ ] 編集で名前と色を変えると一覧に反映され、`/sources` のそのタグの表示も変わる（step5 の後）
 - [ ] 使われているタグの削除の確認に「N 件のソースで使われています。削除するとソースから外れます。」が出て、削除すると一覧から消える。使われていないタグは「このタグはどのソースにも使われていません。」
 - [ ] 別のタブで消したタグを編集・削除すると「このタグは見つかりませんでした。…」が出る
 - [ ] Esc・背景のクリック・「キャンセル」でモーダルが閉じる。別のタグの編集を開き直すと、前の入力・エラーが残っていない
 - [ ] ライトとダークの両方でタグの文字が読める（10 色すべて。step1 の移行の後に 10 個以上のタグを作って確かめる）
 - [ ] `browser_console_messages` の error が 0 件
-- [ ] スクリーンショット：サイドバーの before（`/content-sources` を開いた状態）を `docs/screenshots/source-tags/before-sidebar.png`、タグの画面と追加のモーダルの after を `docs/screenshots/source-tags/after-tags.png`・`after-tag-form.png` に撮って PR に載せる（タグの画面は新しい画面なので before は無し）
+- [ ] スクリーンショット：サイドバーの before（`/sources` を開いた状態）を `docs/screenshots/source-tags/before-sidebar.png`、タグの画面と追加のモーダルの after を `docs/screenshots/source-tags/after-tags.png`・`after-tag-form.png` に撮って PR に載せる（タグの画面は新しい画面なので before は無し）

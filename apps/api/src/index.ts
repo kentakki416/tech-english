@@ -18,11 +18,6 @@ import { AdminAuthDevLoginController } from "./controller/admin/auth/dev-login"
 import { AdminAuthGoogleController } from "./controller/admin/auth/google"
 import { AdminAuthLogoutController } from "./controller/admin/auth/logout"
 import { AdminAuthRefreshController } from "./controller/admin/auth/refresh"
-import { AdminContentSourceCreateController } from "./controller/admin/content-source/create"
-import { AdminContentSourceDetailController } from "./controller/admin/content-source/detail"
-import { AdminContentSourceDetectLicenseController } from "./controller/admin/content-source/detect-license"
-import { AdminContentSourceListController } from "./controller/admin/content-source/list"
-import { AdminContentSourceUpdateController } from "./controller/admin/content-source/update"
 import { AdminMeGetController } from "./controller/admin/me/get"
 import { AdminPassageDetailController } from "./controller/admin/passage/detail"
 import { AdminPassageListController } from "./controller/admin/passage/list"
@@ -35,6 +30,11 @@ import { AdminPassageRestoreController } from "./controller/admin/passage/restor
 import { AdminPassageRetryAudioController } from "./controller/admin/passage/retry-audio"
 import { AdminPassageUnpublishController } from "./controller/admin/passage/unpublish"
 import { AdminPassageUpdateController } from "./controller/admin/passage/update"
+import { AdminSourceCreateController } from "./controller/admin/source/create"
+import { AdminSourceDetailController } from "./controller/admin/source/detail"
+import { AdminSourceDetectLicenseController } from "./controller/admin/source/detect-license"
+import { AdminSourceListController } from "./controller/admin/source/list"
+import { AdminSourceUpdateController } from "./controller/admin/source/update"
 import { AdminStatsOverviewController } from "./controller/admin/stats/overview"
 import { AdminPassageStatsDetailController } from "./controller/admin/stats/passage-detail"
 import { AdminPassageStatsListController } from "./controller/admin/stats/passage-list"
@@ -93,7 +93,6 @@ import {
   DrizzleAdminRepository,
   DrizzleAdminStatsRepository,
   DrizzleAuthAccountRepository,
-  DrizzleContentSourceRepository,
   DrizzleDatabaseHealthRepository,
   DrizzleDictionaryRepository,
   DrizzleLearningRecordRepository,
@@ -102,6 +101,7 @@ import {
   DrizzlePassageRepository,
   DrizzleReadingAttemptRepository,
   DrizzleReminderSettingRepository,
+  DrizzleSourceRepository,
   DrizzleTagRepository,
   DrizzleTransactionRunner,
   DrizzleUrlImportRepository,
@@ -144,7 +144,7 @@ const userRepository = new DrizzleUserRepository(db)
 const authAccountRepository = new DrizzleAuthAccountRepository(db)
 const transactionRunner = new DrizzleTransactionRunner(db)
 const memoRepository = new DrizzleMemoRepository(db)
-const contentSourceRepository = new DrizzleContentSourceRepository(db)
+const sourceRepository = new DrizzleSourceRepository(db)
 const tagRepository = new DrizzleTagRepository(db)
 /**
  * reading-practice のユーザー向け API と共有する
@@ -306,11 +306,11 @@ const adminMeGetController = new AdminMeGetController(adminRepository)
 /**
  * Admin のソース管理 Controller のインスタンス化
  */
-const adminContentSourceCreateController = new AdminContentSourceCreateController(contentSourceRepository, tagRepository)
-const adminContentSourceDetailController = new AdminContentSourceDetailController(contentSourceRepository)
-const adminContentSourceDetectLicenseController = new AdminContentSourceDetectLicenseController(gitHubLicenseClient)
-const adminContentSourceListController = new AdminContentSourceListController(contentSourceRepository)
-const adminContentSourceUpdateController = new AdminContentSourceUpdateController(contentSourceRepository, tagRepository)
+const adminSourceCreateController = new AdminSourceCreateController(sourceRepository, tagRepository)
+const adminSourceDetailController = new AdminSourceDetailController(sourceRepository)
+const adminSourceDetectLicenseController = new AdminSourceDetectLicenseController(gitHubLicenseClient)
+const adminSourceListController = new AdminSourceListController(sourceRepository)
+const adminSourceUpdateController = new AdminSourceUpdateController(sourceRepository, tagRepository)
 
 /**
  * Admin の問題の確認・公開 Controller のインスタンス化
@@ -335,14 +335,14 @@ const adminTagUpdateController = new AdminTagUpdateController(tagRepository)
  * Admin の URL の取り込み（url-import）Controller のインスタンス化
  */
 const adminUrlImportCreateController = new AdminUrlImportCreateController(
-  contentSourceRepository,
+  sourceRepository,
   urlImportRepository,
   urlImportPageCacheRepository,
   transactionRunner,
   pageFetcher,
 )
 const adminUrlImportPreviewController = new AdminUrlImportPreviewController(
-  contentSourceRepository,
+  sourceRepository,
   urlImportRepository,
   urlImportPageCacheRepository,
   pageFetcher,
@@ -482,12 +482,12 @@ mountAdminApi(
       logout: adminAuthLogoutController,
       refresh: adminAuthRefreshController,
     },
-    contentSource: {
-      create: adminContentSourceCreateController,
-      detail: adminContentSourceDetailController,
-      detectLicense: adminContentSourceDetectLicenseController,
-      list: adminContentSourceListController,
-      update: adminContentSourceUpdateController,
+    source: {
+      create: adminSourceCreateController,
+      detail: adminSourceDetailController,
+      detectLicense: adminSourceDetectLicenseController,
+      list: adminSourceListController,
+      update: adminSourceUpdateController,
     },
     me: { get: adminMeGetController },
     passage: {

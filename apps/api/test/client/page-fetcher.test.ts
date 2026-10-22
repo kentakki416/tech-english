@@ -9,7 +9,7 @@ import {
 } from "@repo/content-extractor"
 
 import { PageFetcher } from "../../src/client/page-fetcher"
-import { buildWebsiteSource } from "../service/content-source-service/fixtures"
+import { buildWebsiteSource } from "../service/source-service/fixtures"
 
 /**
  * サイトへのリクエスト（WebPageClient）だけを fake にし、URL の正規化・対象パスの判定・本文の抽出は本物を使う

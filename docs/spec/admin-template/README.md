@@ -82,7 +82,7 @@
 - サイドバーは見出し付きの 2 つのセクションにする
   - 「メニュー」：ダッシュボード・問題・ソース・タグ・ユーザー（今と同じ並び）
   - 「デモ」：デモの画面。項目名は TailAdmin のまま（英語）
-- 下の階層の画面（`/content-sources/new`・`/analytics/passages/1` など）を開いたときに選択中になるメニューは今と同じ
+- 下の階層の画面（`/sources/new`・`/analytics/passages/1` など）を開いたときに選択中になるメニューは今と同じ
 - EC のダッシュボードの見本（今はどこからも開けない）を `/demo/ecommerce` で見られるようにする
 - `/mock` は今のまま。サイドバーに出さず、URL を直接開いて見る。サインインしないと開けない点は、ほかの画面と同じ
 
@@ -399,7 +399,7 @@ admin（Next.js）のサーバー側からだけ呼ぶ。`/api/admin/auth/google
 | POST | `/api/admin/auth/logout` | admin の refresh token を無効にする。access token は要らない |
 | POST | `/api/admin/auth/dev-login` | production 以外だけ。seed の `@dev.local` の admin のトークンを返す |
 | GET | `/api/admin/me` | サインイン中の admin |
-| （既存） | `/api/admin/{content-source,passage,stats,tag,user}/...` | パス・リクエスト・レスポンスは変えない。認証だけ `X-Admin-Token` から admin の access token にする |
+| （既存） | `/api/admin/{source,passage,stats,tag,user}/...` | パス・リクエスト・レスポンスは変えない。認証だけ `X-Admin-Token` から admin の access token にする |
 
 admin（Next.js）の Route Handler：
 
@@ -408,7 +408,7 @@ admin（Next.js）の Route Handler：
 | GET | `/api/auth/callback/google` | Google からの戻り先。state を照合し、api で code を検証して cookie に保存する |
 | GET | `/api/auth/signout` | cookie を消してサインイン画面へ（api-client が 401 を受けたときの行き先） |
 | GET | `/api/dev/login` | production 以外だけ。dev admin でログインする |
-| GET | `/api/content-sources/license`（変更） | api の 401 を redirect せず 401 で返す |
+| GET | `/api/sources/license`（変更） | api の 401 を redirect せず 401 で返す |
 
 ## 必要な DB 設計
 

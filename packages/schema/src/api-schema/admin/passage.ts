@@ -11,7 +11,7 @@ import {
   QUESTION_TYPES,
 } from "@repo/domain"
 
-import { passageCountsSchema } from "./content-source"
+import { passageCountsSchema } from "./source"
 
 // ========================================================
 // 共通: 問題の入力・出力の部品

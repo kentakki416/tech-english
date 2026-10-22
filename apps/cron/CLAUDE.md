@@ -54,12 +54,12 @@ Markdown / MDX / HTML からの本文の抽出・切り分け（`extractDocument
 | `service/collection/reject-out-of-target-passages.ts` | `collected` の本文候補を持つ文書（`findWithCollectedPassages`）のうち、収集の対象から外れたものの `collected` を却下する（GitHub とサイトで共有） |
 | `service/collection/collect-passages.ts` | 全ソース。ソースごとに try-catch し、失敗は `failedSourceIds` に集めて次へ（task が最後に exit 1） |
 | `service/collection/preview-source.ts` | 試し実行。Repository の書き込みメソッドを呼ばない。サイトは sitemap があればその先頭から、無ければ開始ページからリンクを幅優先でたどって取得する（開始ページを含めて 5 ページまで。条件付きヘッダは付けない） |
-| `repository/{content-source,source-document,passage}-repository.ts` | cron 用の Repository（api の CRUD 用とは別） |
+| `repository/{source,source-document,passage}-repository.ts` | cron 用の Repository（api の CRUD 用とは別） |
 
 - **冪等**：`markFetched`（blob SHA・抽出の版の記録）は本文候補の置き換え（挿入と前の切り分けの却下）の後。途中で落ちても次回同じファイルをやり直し、挿入済みの本文候補は `passages.content_hash` の unique で弾く（`insertIgnoringDuplicates`）。却下は何度行っても結果が同じ
 - **`last_collected_commit_sha`・`last_collected_extraction_version` は `completed` のときだけ（同じ UPDATE で）更新**する。文書数・本文候補数の上限、rate limit、ツリーの切り詰めで打ち切った場合（シグナルで中断された場合も）は更新せず、次回は未処理（blob SHA か抽出の版が違う）ファイルだけを続きから処理する。上限は文書単位で判定し、1 文書の本文候補は途中で切らない。更新は収集を始めたときに読んだ値のままのときだけ行う（`markCollected` の楽観ロック）。収集の途中で admin が収集の範囲を変えて api が null に戻していたら書き戻さず、warn を出す
 - **rate limit**：`x-ratelimit-remaining` が閾値（token ありは 100、token なしは 10。`const/collection.ts`）を切ったらそのソースを `rate_limited` で打ち切り、以降の GitHub のソースも飛ばす（rate limit は token 単位）。`GitHubRateLimitError` も失敗にしない
-- **抽出の版（`EXTRACTION_VERSION`、`packages/content-extractor/src/document/const.ts`）**：`src/document` の変更のうち、ブロック・切り分け・本文候補の条件が変わるものをしたら上げる（実装した日の日付）。上げると、GitHub は次の収集で、サイトは取り直しの順番が来たときに、取得済みの文書を切り分け直す。版は `source_documents.extraction_version` と、GitHub の `content_sources.last_collected_extraction_version` に記録する
+- **抽出の版（`EXTRACTION_VERSION`、`packages/content-extractor/src/document/const.ts`）**：`src/document` の変更のうち、ブロック・切り分け・本文候補の条件が変わるものをしたら上げる（実装した日の日付）。上げると、GitHub は次の収集で、サイトは取り直しの順番が来たときに、取得済みの文書を切り分け直す。版は `source_documents.extraction_version` と、GitHub の `sources.last_collected_extraction_version` に記録する
 - **古い本文候補の却下**：切り分け直した文書の `collected` のうち新しい本文候補に無いもの（`SUPERSEDED_PASSAGE_REJECT_REASON`）と、収集の対象から外れた文書（除外パス・対象パスから外した、取得元から消えた。サイトは 404 / 410）の `collected`（`OUT_OF_TARGET_PASSAGE_REJECT_REASON`）を `rejected` にする。下書き・公開済み・生成中・失敗は変えない（公開済みの問題は取得元から消えても残す）。`source_documents` の行は消さない
 
 **サイトのクロール（website）**：`source_documents` をクロールの待ち行列として使う（[content-collection のサイトのクロール](../../docs/spec/content-collection/README.md#サイトのクロール)）。

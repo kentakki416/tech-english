@@ -4,7 +4,7 @@
 
 ## 前提
 
-- [content-collection step1-db-content-sources](../../content-collection/tasks/step1-db-content-sources.md)（`passages`。`passage_audios.passage_id` の参照先）
+- [content-collection step1-db-sources](../../content-collection/tasks/step1-db-sources.md)（`passages`。`passage_audios.passage_id` の参照先）
 - [reading-practice step1-db-reading-attempts](../../reading-practice/tasks/step1-db-reading-attempts.md)（`reading_attempts` と domain の `ReadingAttempt`）
 - 実装の順番は [reading-practice step4-api-attempt-submit](../../reading-practice/tasks/step4-api-attempt-submit.md)・[step6-web-attempt](../../reading-practice/tasks/step6-web-attempt.md)・[step7-web-result](../../reading-practice/tasks/step7-web-result.md) と [learning-record step2-api-user-stats](../../learning-record/tasks/step2-api-user-stats.md) の後（[README の実装ステップ](../README.md#実装ステップ予定)）
 - 文字位置（`startOffset` / `endOffset`）の定義は [question-generation step1-db-questions](../../question-generation/tasks/step1-db-questions.md) と同じ（`PassageBlock.text` 上の UTF-16 の index、`[start, end)`）

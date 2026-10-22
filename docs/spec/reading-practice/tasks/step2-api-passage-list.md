@@ -5,7 +5,7 @@
 ## 前提
 
 - [step1-db-reading-attempts](./step1-db-reading-attempts.md)
-- [content-collection step1-db-content-sources](../../content-collection/tasks/step1-db-content-sources.md)（`content_sources` / `source_documents` / `passages`、`SOURCE_KINDS`）
+- [content-collection step1-db-sources](../../content-collection/tasks/step1-db-sources.md)（`sources` / `source_documents` / `passages`、`SOURCE_KINDS`）
 - [question-generation step1-db-questions](../../question-generation/tasks/step1-db-questions.md)
 - api の `PassageRepository` は [question-generation step5](../../question-generation/tasks/step5-api-admin-passage.md) と共有する。**先に着手した方が interface と Drizzle の実装クラスを作り、もう片方はメソッドを足す**
 
@@ -103,7 +103,7 @@ export type PublishedPassageFilter = {
 }
 export type PassageCursor = { id: number; publishedAt: Date }
 /** 出典と一覧の表示に使うソースの列 */
-export type PassageSource = Pick<ContentSource, "branch" | "fetchType" | "kind" | "licenseSpdx" | "licenseUrl" | "name" | "publicUrlStripPrefix" | "publicUrlTemplate" | "repository" | "siteUrl" | "tags">
+export type PassageSource = Pick<Source, "branch" | "fetchType" | "kind" | "licenseSpdx" | "licenseUrl" | "name" | "publicUrlStripPrefix" | "publicUrlTemplate" | "repository" | "siteUrl" | "tags">
 /** blocks を読まない一覧用の列 */
 export type PassageOverview = Pick<Passage, "id" | "difficulty" | "publishedAt" | "sourceCommitSha" | "sourcePath" | "sourceRetrievedAt" | "timeLimitSeconds" | "title" | "wordCount">
 export type PublishedPassageSummary = { passage: PassageOverview; questionCount: number; source: PassageSource }
@@ -127,9 +127,9 @@ export interface ReadingAttemptRepository {
 }
 ```
 
-- `ContentSource` 型が `@repo/domain` に無ければ、上の列をそのまま書いた型にする
-- Drizzle（`DrizzlePassageRepository`）：`passages` → `source_documents` → `content_sources` を inner join、`status = 'published'`。設問数は `(SELECT count(*) FROM questions WHERE passage_id = passages.id)`
-  - タグ：`` sql`${contentSources.tags} ?| array[${sql.join(filter.tags.map((tag) => sql`${tag}`), sql`, `)}]` ``
+- `Source` 型が `@repo/domain` に無ければ、上の列をそのまま書いた型にする
+- Drizzle（`DrizzlePassageRepository`）：`passages` → `source_documents` → `sources` を inner join、`status = 'published'`。設問数は `(SELECT count(*) FROM questions WHERE passage_id = passages.id)`
+  - タグ：`` sql`${sources.tags} ?| array[${sql.join(filter.tags.map((tag) => sql`${tag}`), sql`, `)}]` ``
   - 未挑戦：`notExists(...)`（`reading_attempts` の `user_id` 一致かつ `status = 'submitted'`）
   - カーソル：`or(lt(publishedAt, cursor.publishedAt), and(eq(publishedAt, cursor.publishedAt), lt(id, cursor.id)))`
   - ランダム：`orderBy(sql\`random()\`).limit(1)`

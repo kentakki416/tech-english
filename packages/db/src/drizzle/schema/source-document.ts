@@ -1,7 +1,7 @@
 import { foreignKey, index, integer, pgTable, serial, smallint, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core"
 
 import { timestamps } from "./columns"
-import { contentSources } from "./content-source"
+import { sources } from "./source"
 
 /**
  * 取得した文書（GitHub のファイル / サイトのページ）。差分検出・出典の組み立て・サイトのクロールの待ち行列に使う
@@ -63,7 +63,7 @@ export const sourceDocuments = pgTable(
      */
     foreignKey({
       columns: [table.sourceId],
-      foreignColumns: [contentSources.id],
+      foreignColumns: [sources.id],
       name: "source_documents_source_id_fkey",
     })
       .onDelete("restrict")

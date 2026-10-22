@@ -1,6 +1,6 @@
 import { previewUrlImport } from "../../../src/service/url-import-service"
 import { buildChunk, buildFetchedPage } from "../../fixture/url-import"
-import { buildGitHubSource, buildWebsiteSource, createMockContentSourceRepository } from "../content-source-service/fixtures"
+import { buildGitHubSource, buildWebsiteSource, createMockSourceRepository } from "../source-service/fixtures"
 
 import {
   buildImportPassage,
@@ -12,11 +12,11 @@ import {
 const NOW = new Date("2026-10-20T03:00:00.000Z")
 const PAGE_URL = "https://go.dev/doc/tutorial/getting-started?lang=en#top"
 
-const contentSourceRepository = createMockContentSourceRepository()
+const sourceRepository = createMockSourceRepository()
 const urlImportRepository = createMockUrlImportRepository()
 const urlImportPageCacheRepository = createMockUrlImportPageCacheRepository()
 const pageFetcher = createMockPageFetcher()
-const repo = { contentSourceRepository, urlImportPageCacheRepository, urlImportRepository }
+const repo = { sourceRepository, urlImportPageCacheRepository, urlImportRepository }
 const CACHE_KEY = { sourceId: 2, sourceUpdatedAt: buildWebsiteSource().updatedAt, url: "https://go.dev/doc/tutorial/getting-started" }
 const deps = { pageFetcher }
 
@@ -25,7 +25,7 @@ describe("previewUrlImport", () => {
     vi.clearAllMocks()
     urlImportPageCacheRepository.find.mockResolvedValue(null)
     urlImportPageCacheRepository.save.mockResolvedValue()
-    contentSourceRepository.findAll.mockResolvedValue([buildGitHubSource(), buildWebsiteSource()])
+    sourceRepository.findAll.mockResolvedValue([buildGitHubSource(), buildWebsiteSource()])
     urlImportRepository.findDocumentPassages.mockResolvedValue([])
     urlImportRepository.findPassagesByContentHashes.mockResolvedValue([])
   })
@@ -108,7 +108,7 @@ describe("previewUrlImport", () => {
 
     it("無効のソースも当たる", async () => {
       const source = buildWebsiteSource({ isEnabled: false })
-      contentSourceRepository.findAll.mockResolvedValue([source])
+      sourceRepository.findAll.mockResolvedValue([source])
       pageFetcher.fetchAndExtractPage.mockResolvedValue({ kind: "ok", page: buildFetchedPage() })
 
       const result = await previewUrlImport(PAGE_URL, NOW, repo, deps)
@@ -204,7 +204,7 @@ describe("previewUrlImport", () => {
 
   describe("異常系", () => {
     it("同じオリジンのサイトのソースが無ければ 400（source_not_found）で、ページを取得しない", async () => {
-      contentSourceRepository.findAll.mockResolvedValue([buildWebsiteSource({ siteUrl: "https://example.com" })])
+      sourceRepository.findAll.mockResolvedValue([buildWebsiteSource({ siteUrl: "https://example.com" })])
 
       const result = await previewUrlImport(PAGE_URL, NOW, repo, deps)
 
@@ -223,7 +223,7 @@ describe("previewUrlImport", () => {
     })
 
     it("公開ページの URL 規則が無い GitHub のソースには当たらない（source_not_found）", async () => {
-      contentSourceRepository.findAll.mockResolvedValue([buildGitHubSource({ publicUrlTemplate: null })])
+      sourceRepository.findAll.mockResolvedValue([buildGitHubSource({ publicUrlTemplate: null })])
 
       const result = await previewUrlImport("https://react.dev/learn", NOW, repo, deps)
 

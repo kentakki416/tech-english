@@ -125,7 +125,7 @@
   - 管理者は 1〜2 人で、開く回数が少ない
 - 集計は API の Repository に SQL で書く（`count(*) FILTER (WHERE …)`・`count(DISTINCT user_id)`・`generate_series`）。Service は期間の解釈と、比率・「要確認」の判定を受け持つ
 - 比率は API で 0〜1 の小数にして返す（分母が 0 なら `null`）。表示の丸めは admin がする
-- 問題ごとの成績は、`reading_attempts` を `passage_id` で集計した結果に `passages`・`content_sources` を結び、並べ替えとページ分けまで SQL でする。並べ替えの列が集計の結果なので、ページ分けは cursor ではなく offset にする（問題は数百〜数千の想定で、offset でも十分速い）
+- 問題ごとの成績は、`reading_attempts` を `passage_id` で集計した結果に `passages`・`sources` を結び、並べ替えとページ分けまで SQL でする。並べ替えの列が集計の結果なので、ページ分けは cursor ではなく offset にする（問題は数百〜数千の想定で、offset でも十分速い）
 - 問題の分析は、その問題の期間内の提出済みの挑戦について `attempt_answers` を `question_id`・`selected_choice_index` で集計する
 - 「要確認」の判定と、画面で橙にする選択肢は `@repo/domain` の純関数（`rules/admin-stats.ts`）にして、テストで境界（解答 4 件 / 5 件、同数）を確かめる。API が判定の結果（`needs_review`・`misleading_choice_indexes`）を返し、画面は出すだけにする（admin は domain を import できないので、判定を書き直すとずれる）
 
@@ -329,7 +329,7 @@ erDiagram
     users ||--o{ vocabulary_reviews : "単語帳で答える"
     passages ||--o{ reading_attempts : "解かれる"
     passages ||--o{ questions : "設問"
-    content_sources ||--o{ source_documents : "文書"
+    sources ||--o{ source_documents : "文書"
     source_documents ||--o{ passages : "本文"
     reading_attempts ||--o{ attempt_answers : "設問ごとの解答"
     questions ||--o{ attempt_answers : "解答される"

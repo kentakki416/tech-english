@@ -30,19 +30,19 @@ apps/admin/
 ├── src/libs/api-client.ts                      # Bearer を付ける。401 で signout へ
 ├── src/features/auth/auth.actions.ts           # 新設 logoutAction
 ├── src/features/auth/sign-in-errors.ts         # 新設 ?error= の値と文言
-├── src/features/content-source/content-source.api.ts  # detectLicense は 401 を投げる
+├── src/features/source/source.api.ts  # detectLicense は 401 を投げる
 ├── src/app/(auth)/signin/page.tsx              # 作り直す
 ├── src/app/(auth)/signin/actions.ts            # 新設 startGoogleOAuth
 ├── src/app/(auth)/demo/signin/page.tsx         # 新設 今のフォームをデモへ
 ├── src/app/api/auth/callback/google/route.ts   # 新設
 ├── src/app/api/auth/signout/route.ts           # 新設
 ├── src/app/api/dev/login/route.ts              # 新設
-├── src/app/api/content-sources/license/route.ts  # 401 を返す
+├── src/app/api/sources/license/route.ts  # 401 を返す
 ├── src/components/features/auth/GoogleSignInButton.tsx  # 新設
 ├── src/components/demo/auth/SignInForm.tsx     # components/features/auth/ から移す
 ├── src/components/demo/demo-nav-items.tsx      # Sign In を /demo/signin に
 ├── src/components/features/header/UserDropdown.tsx      # 「Sign out」を logoutAction に繋ぐ
-├── src/components/features/content-source/SourceForm.tsx  # ライセンスの検出の 401
+├── src/components/features/source/SourceForm.tsx  # ライセンスの検出の 401
 └── catch の先頭に unstable_rethrow を足す 19 か所（後述）
 .claude/skills/verify-web-page/SKILL.md          # admin の確認のときのログインの仕方
 .claude/skills/create-pr/SKILL.md                # 「admin 認証は将来対応」を消す
@@ -237,17 +237,17 @@ api-client が 401 で投げる redirect（`NEXT_REDIRECT`）を握りつぶさ�
 import { unstable_rethrow } from "next/navigation"
 
   try {
-    id = (await contentSourceApi.create(parsed.data)).id
+    id = (await sourceApi.create(parsed.data)).id
   } catch (error) {
     unstable_rethrow(error)
-    return convertApiErrorToFormState(error, "登録に失敗しました。時間をおいて再度お試しください。", ["/content-sources/new"])
+    return convertApiErrorToFormState(error, "登録に失敗しました。時間をおいて再度お試しください。", ["/sources/new"])
   }
 ```
 
 | ファイル | catch の数 |
 | --- | --- |
-| `src/app/(dashboard)/content-sources/actions.ts` | 2 |
-| `src/app/(dashboard)/content-sources/[id]/page.tsx` | 1 |
+| `src/app/(dashboard)/sources/actions.ts` | 2 |
+| `src/app/(dashboard)/sources/[id]/page.tsx` | 1 |
 | `src/app/(dashboard)/passages/[id]/actions.ts` | 9 |
 | `src/app/(dashboard)/tags/actions.ts` | 3 |
 | `src/app/(dashboard)/users/[id]/actions.ts` | 1 |
@@ -255,23 +255,23 @@ import { unstable_rethrow } from "next/navigation"
 | `src/features/stats/stats.api.ts` | 1 |
 | `src/features/user/user.api.ts` | 1 |
 
-- 404 だけを見て残りを `throw error` で投げ直している所（`*.api.ts`・`content-sources/[id]/page.tsx`）は、今も redirect を通すが、同じ形にそろえて先頭に置く
+- 404 だけを見て残りを `throw error` で投げ直している所（`*.api.ts`・`sources/[id]/page.tsx`）は、今も redirect を通すが、同じ形にそろえて先頭に置く
 - `features/auth/auth.actions.ts` の `logoutAction` の catch には足さない（logout は公開のパスで 401 にならず、失敗しても cookie を消して終える）
 - クライアント側の catch（`SourceForm` のライセンスの検出、`UserAttemptList` の「さらに読み込む」）は対象外。Server Action の redirect は Next.js が画面の遷移として扱う
 - 実装で catch を足したら `grep -rn "catch (error)" apps/admin/src --include=*.ts --include=*.tsx` の結果と上の表を見比べ、漏れが無いことを確かめる
 
 ### ライセンスの検出（ブラウザの `fetch` から呼ぶ Route Handler）
 
-`features/content-source/content-source.api.ts`：
+`features/source/source.api.ts`：
 
 ```typescript
-  detectLicense: async (repository: string): Promise<DetectContentSourceLicenseResponse> => {
+  detectLicense: async (repository: string): Promise<DetectSourceLicenseResponse> => {
     const raw = await apiClient.get<unknown>(`${BASE_PATH}/license?repository=${encodeURIComponent(repository)}`, { onUnauthorized: "throw" })
-    return detectContentSourceLicenseResponseSchema.parse(raw)
+    return detectSourceLicenseResponseSchema.parse(raw)
   },
 ```
 
-`app/api/content-sources/license/route.ts` の catch:
+`app/api/sources/license/route.ts` の catch:
 
 ```typescript
   } catch (error) {
@@ -283,7 +283,7 @@ import { unstable_rethrow } from "next/navigation"
   }
 ```
 
-`components/features/content-source/SourceForm.tsx` の `detectLicense`（`res.status === 400` の次）:
+`components/features/source/SourceForm.tsx` の `detectLicense`（`res.status === 400` の次）:
 
 ```typescript
       if (res.status === 401) {

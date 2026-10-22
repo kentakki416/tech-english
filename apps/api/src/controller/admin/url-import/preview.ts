@@ -5,7 +5,7 @@ import { previewUrlImportRequestSchema, previewUrlImportResponseSchema } from "@
 import type { IPageFetcher } from "../../../client/page-fetcher"
 import { parseRequest, parseResponse } from "../../../lib/parse-schema"
 import { sendError } from "../../../lib/send-error"
-import { ContentSourceRepository, UrlImportPageCacheRepository, UrlImportRepository } from "../../../repository"
+import { SourceRepository, UrlImportPageCacheRepository, UrlImportRepository } from "../../../repository"
 import * as service from "../../../service"
 
 /**
@@ -13,7 +13,7 @@ import * as service from "../../../service"
  */
 export class AdminUrlImportPreviewController {
   constructor(
-    private _contentSourceRepository: ContentSourceRepository,
+    private _sourceRepository: SourceRepository,
     private _urlImportRepository: UrlImportRepository,
     private _urlImportPageCacheRepository: UrlImportPageCacheRepository,
     private _pageFetcher: IPageFetcher,
@@ -23,7 +23,7 @@ export class AdminUrlImportPreviewController {
     const { url } = parseRequest(previewUrlImportRequestSchema, req.body)
 
     const result = await service.urlImport.previewUrlImport(url, new Date(), {
-      contentSourceRepository: this._contentSourceRepository,
+      sourceRepository: this._sourceRepository,
       urlImportPageCacheRepository: this._urlImportPageCacheRepository,
       urlImportRepository: this._urlImportRepository,
     }, { pageFetcher: this._pageFetcher })

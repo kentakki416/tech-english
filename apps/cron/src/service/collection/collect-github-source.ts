@@ -125,7 +125,7 @@ export const collectGitHubSource = async (
   const { now, source } = input
   const commitSha = await deps.githubContentClient.getLatestCommitSha(source.repository, source.branch)
   if (commitSha === source.lastCollectedCommitSha && source.lastCollectedExtractionVersion === EXTRACTION_VERSION) {
-    await repo.contentSourceRepository.markCollected(source.id, { lastCollectedAt: now })
+    await repo.sourceRepository.markCollected(source.id, { lastCollectedAt: now })
     return { createdPassageCount: 0, fetchedDocumentCount: 0, status: "up_to_date" }
   }
 
@@ -167,7 +167,7 @@ export const collectGitHubSource = async (
    * commit SHA は、収集を始めたときに読んだ値のままのときだけ書く（楽観ロック）。
    * 収集の途中で admin が収集の範囲を変えて null に戻していたら書かず、次回の実行で新しい範囲を収集する
    */
-  const isRecorded = await repo.contentSourceRepository.markCollected(
+  const isRecorded = await repo.sourceRepository.markCollected(
     source.id,
     status === "completed"
       ? {

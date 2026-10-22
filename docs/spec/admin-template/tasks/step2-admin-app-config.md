@@ -148,7 +148,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
 | `/` | ダッシュボード |
 | `/passages`・`/passages/[id]` | 問題・問題の確認・修正 |
 | `/analytics/passages/[id]` | 問題の分析 |
-| `/content-sources`・`/content-sources/new`・`/content-sources/[id]` | ソース・ソースの登録・ソースの編集 |
+| `/sources`・`/sources/new`・`/sources/[id]` | ソース・ソースの登録・ソースの編集 |
 | `/tags` | タグ |
 | `/users`・`/users/[id]` | ユーザー・ユーザーの詳細 |
 | `/signin`（今は TailAdmin のフォーム。step5 で作り直す） | Sign In |
@@ -177,7 +177,7 @@ export const formatDate = (value: string | Date, timeZone: string = appConfig.ti
 - `DEFAULT_TIME_ZONE`（`"Asia/Tokyo"` の直書き）を消し、既定を `appConfig.timeZone` にする
 - `getDateTimeFormat` の `Intl.DateTimeFormat` のロケールを `appConfig.locale` にする
 - 引数は ISO 8601 の文字列に加えて `Date` も受け取る（step6 のマイページ・通知で使う）
-- import している 10 ファイルの `@/libs/format-date` を `@/libs/date` に直す（`analytics/passages/[id]/page.tsx`、`content-source/SourceTable.tsx`・`SourceForm.tsx`、`user/UserTable.tsx`・`UserAttemptList.tsx`・`UserProfileCard.tsx`、`passage/PassageAudioCard.tsx`・`PassageTable.tsx`・`PassageReview.tsx`、`stats/PassageStatsTable.tsx`）
+- import している 10 ファイルの `@/libs/format-date` を `@/libs/date` に直す（`analytics/passages/[id]/page.tsx`、`source/SourceTable.tsx`・`SourceForm.tsx`、`user/UserTable.tsx`・`UserAttemptList.tsx`・`UserProfileCard.tsx`、`passage/PassageAudioCard.tsx`・`PassageTable.tsx`・`PassageReview.tsx`、`stats/PassageStatsTable.tsx`）
 - `UserAttemptList` はユーザーのタイムゾーンを渡したまま（`formatDateTime(attempt.submitted_at, timeZone)`）
 
 ### ドキュメント

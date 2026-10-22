@@ -6,7 +6,7 @@ admin 用の API（`/api/admin/*`）と admin 画面を共有シークレット�
 
 - 実装の順番（取り決めの 5.6）で、reading-practice step1 / learning-record step1 / study-reminder step1 のテーブルが入った後に着手する（コード上の依存は無い）
 - 保護の方式と理由は README の [管理画面のアクセス制御](../README.md#管理画面のアクセス制御)
-- この step の後に [content-collection step2-api-admin-content-source](../../content-collection/tasks/step2-api-admin-content-source.md) と [step5-api-admin-passage](./step5-api-admin-passage.md) が `admin-router.ts` にルートを足す
+- この step の後に [content-collection step2-api-admin-source](../../content-collection/tasks/step2-api-admin-source.md) と [step5-api-admin-passage](./step5-api-admin-passage.md) が `admin-router.ts` にルートを足す
 
 ## 対応内容
 
@@ -73,7 +73,7 @@ export const adminRouter = (): Router => {
 }
 ```
 
-- **ルートを最初に足す step（content-collection step2 か step5 のどちらか先）が `controllers` 引数を足す。** 形はリソースごとにネストした `AdminRouterControllers = { contentSource?: {...}, passage?: {...} }` とし、既存の router と同じく渡されたコントローラーのルートだけを登録する。パスは `/content-source/...`、`/passage/...`
+- **ルートを最初に足す step（content-collection step2 か step5 のどちらか先）が `controllers` 引数を足す。** 形はリソースごとにネストした `AdminRouterControllers = { source?: {...}, passage?: {...} }` とし、既存の router と同じく渡されたコントローラーのルートだけを登録する。パスは `/source/...`、`/passage/...`
 - `apps/api/src/index.ts` で `apiRateLimiter` の後、`/api/auth` などと並べてマウントする
 
 ```typescript
@@ -84,9 +84,9 @@ app.use("/api/admin", adminRouter())
 
 見出しから「（未実装）」を外し、次の内容にする。
 
-- すべて `/api/admin/` 配下に置き、`src/routes/admin-router.ts` にマッピングする（リソースごとに `controllers.contentSource` / `controllers.passage` のようにネストして渡す）
+- すべて `/api/admin/` 配下に置き、`src/routes/admin-router.ts` にマッピングする（リソースごとに `controllers.source` / `controllers.passage` のようにネストして渡す）
 - **認証は `X-Admin-Token` ヘッダ**。`adminAuthMiddleware`（`src/middleware/admin-auth.ts`）が `ADMIN_API_TOKEN` と定数時間で比較する。ユーザーの JWT 認証の対象外にするため `/api/admin` を `PUBLIC_PATHS` に入れている。**`/api/admin` 配下のルートは必ず admin-router に足す**（別の router に足すと無認証で公開される）
-- Controller は `src/controller/admin/{resource}/{action}.ts`、Service は `src/service/{content-source,admin-passage}-service.ts`。ユーザー向けと同じ Repository を使う
+- Controller は `src/controller/admin/{resource}/{action}.ts`、Service は `src/service/{source,admin-passage}-service.ts`。ユーザー向けと同じ Repository を使う
 - スキーマは `@repo/api-schema` の `admin/` に置く（既存の記述を残す）
 - 管理者が増えたら GitHub ログイン + 権限管理に移行する（question-generation の README へのリンク）
 - 「認証は当面無し（`PUBLIC_PATHS`）」の行は消す。`ADMIN_USE_DUMMY` の記述はこの step では触らない

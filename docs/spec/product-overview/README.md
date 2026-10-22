@@ -12,7 +12,7 @@
 ## 関連 spec
 
 - [`../github-auth/README.md`](../github-auth/README.md) — GitHub ログインとアカウント削除（web / mobile）。`users` / `auth_accounts` の正本
-- [`../content-collection/README.md`](../content-collection/README.md) — 英文の収集（GitHub の Markdown と公式ドキュメントのサイト）。`content_sources` / `source_documents` の正本
+- [`../content-collection/README.md`](../content-collection/README.md) — 英文の収集（GitHub の Markdown と公式ドキュメントのサイト）。`sources` / `source_documents` の正本
 - [`../question-generation/README.md`](../question-generation/README.md) — LLM による問題生成と管理者承認。`passages` / `questions` / `passage_glossary_entries` の正本
 - [`../reading-practice/README.md`](../reading-practice/README.md) — 問題を解く・採点・解説・アシスト。`reading_attempts` 系テーブルの正本
 - [`../learning-record/README.md`](../learning-record/README.md) — 学習記録（カレンダー）と目標。`user_goals` の正本
@@ -142,7 +142,7 @@ web と mobile を同時に提供する。admin は web のみ。
 ```mermaid
 flowchart LR
     auth["github-auth<br/>users / auth_accounts"]
-    collect["content-collection<br/>content_sources / source_documents"]
+    collect["content-collection<br/>sources / source_documents"]
     gen["question-generation<br/>passages / questions /<br/>passage_glossary_entries"]
     practice["reading-practice<br/>reading_attempts / attempt_answers /<br/>attempt_word_lookups / dictionary_entries"]
     record["learning-record<br/>user_goals"]
@@ -559,7 +559,7 @@ admin の画面のモックは `apps/admin/src/app/(dashboard)/mock/**`（`/mock
 | `/api/passage/*`、`/api/attempt/*`、`/api/dictionary` | reading-practice |
 | `/api/user/calendar`、`/api/user/stats`、`/api/user/attempts`、`/api/user/goal` | learning-record |
 | `/api/user/reminder` | study-reminder |
-| `/api/admin/content-source/*` | content-collection |
+| `/api/admin/source/*` | content-collection |
 | `/api/admin/passage/*` | question-generation |
 | `/api/admin/stats/*` | admin-dashboard |
 | `/api/admin/user/*` | admin-users |
@@ -574,7 +574,7 @@ erDiagram
     users ||--o{ reading_attempts : "reading-practice"
     users ||--o| user_goals : "learning-record"
     users ||--o| reminder_settings : "study-reminder"
-    content_sources ||--o{ source_documents : "content-collection"
+    sources ||--o{ source_documents : "content-collection"
     source_documents ||--o{ passages : "question-generation"
     passages ||--o{ questions : "question-generation"
     passages ||--o{ passage_glossary_entries : "question-generation"

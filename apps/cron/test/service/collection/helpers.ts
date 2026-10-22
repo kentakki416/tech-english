@@ -1,5 +1,5 @@
 import type { FetchPageResult, IWebPageClient, SitemapUrl } from "@repo/content-extractor"
-import type { ContentSource, GitHubRepositorySource, SourceDocument, WebsiteSource } from "@repo/domain"
+import type { GitHubRepositorySource, Source, SourceDocument, WebsiteSource } from "@repo/domain"
 
 import type { GitHubTreeEntry, IGitHubContentClient } from "../../../src/client/github"
 import type {
@@ -212,7 +212,7 @@ export const createFakeRepo = (options: {
    * findWithCollectedPassages が返す行
    */
   documentsWithCollectedPassages?: SourceDocument[]
-  enabledSources?: ContentSource[]
+  enabledSources?: Source[]
   /**
    * findGeneratedOrGeneratingTitles が返す見出し
    */
@@ -222,11 +222,11 @@ export const createFakeRepo = (options: {
    */
   queue?: SourceDocument[]
   rejectedCount?: number
-  source?: ContentSource | null
+  source?: Source | null
 } = {}) => {
   let nextDocumentId = 100
   return {
-    contentSourceRepository: {
+    sourceRepository: {
       findById: vi.fn(async (_id: number) => options.source ?? null),
       findEnabled: vi.fn(async () => options.enabledSources ?? []),
       markCollected: vi.fn(async (_id: number, _input: MarkCollectedInput) => true),

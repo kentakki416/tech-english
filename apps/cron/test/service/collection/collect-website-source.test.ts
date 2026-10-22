@@ -105,7 +105,7 @@ describe("collectWebsiteSource", () => {
         [2, [{ path: "/start/", sitemapLastmod: null }], { shouldReviveGone: false }],
       ])
       expect(result).toEqual({ createdPassageCount: 0, fetchedDocumentCount: 0, status: "completed" })
-      expect(repo.contentSourceRepository.markCollected).toHaveBeenCalledWith(2, { lastCollectedAt: NOW })
+      expect(repo.sourceRepository.markCollected).toHaveBeenCalledWith(2, { lastCollectedAt: NOW })
     })
 
     it("findFetchQueue を refetchBefore = now - refetchDays 日、limit = maxDocuments で呼ぶ", async () => {
@@ -375,7 +375,7 @@ describe("collectWebsiteSource", () => {
         [1, { fetchedAt: NOW, httpStatus: 304 }],
         [2, { fetchedAt: NOW, httpStatus: 429 }],
       ])
-      expect(repo.contentSourceRepository.markCollected).not.toHaveBeenCalled()
+      expect(repo.sourceRepository.markCollected).not.toHaveBeenCalled()
     })
 
     it("Retry-After が次回の実行（24 時間後）より先なら warn を出す", async () => {
@@ -433,7 +433,7 @@ describe("collectWebsiteSource", () => {
       expect(client.fetchPage).not.toHaveBeenCalled()
       expect(repo.sourceDocumentRepository.upsertDiscovered).not.toHaveBeenCalled()
       expect(repo.sourceDocumentRepository.findFetchQueue).not.toHaveBeenCalled()
-      expect(repo.contentSourceRepository.markCollected).not.toHaveBeenCalled()
+      expect(repo.sourceRepository.markCollected).not.toHaveBeenCalled()
       expect(warnMock).toHaveBeenCalledWith(
         "Crawl-delay in robots.txt exceeds the limit; the source is skipped in this run",
         expect.objectContaining({ crawlDelaySeconds: 3600, maxCrawlDelaySeconds: 30, sourceId: 2 }),
@@ -471,7 +471,7 @@ describe("collectWebsiteSource", () => {
       const result = await collectWebsiteSource(buildInput({ maxDocuments: 2 }), repo, deps)
 
       expect(result.status).toBe("limit_reached")
-      expect(repo.contentSourceRepository.markCollected).toHaveBeenCalledWith(2, { lastCollectedAt: NOW })
+      expect(repo.sourceRepository.markCollected).toHaveBeenCalledWith(2, { lastCollectedAt: NOW })
     })
 
     it("本文候補の上限に達したら残りの行を取得せず limit_reached", async () => {
@@ -499,7 +499,7 @@ describe("collectWebsiteSource", () => {
       await expect(collectWebsiteSource(buildInput(), repo, deps)).rejects.toThrow("Network errors occurred 3 times in a row")
       expect(client.fetchPage).toHaveBeenCalledTimes(3)
       expect(repo.sourceDocumentRepository.markResponse.mock.calls).toEqual([1, 2, 3].map((id) => [id, { fetchedAt: NOW, httpStatus: null }]))
-      expect(repo.contentSourceRepository.markCollected).not.toHaveBeenCalled()
+      expect(repo.sourceRepository.markCollected).not.toHaveBeenCalled()
     })
 
     it("BlockedUrlError はそのまま throw される", async () => {

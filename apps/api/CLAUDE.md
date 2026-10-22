@@ -76,12 +76,12 @@ try/catch を許容するのは次の 2 つだけ。
 
 admin（`apps/admin`）のサーバー側だけが呼ぶ API。一般ユーザーの API と認証を完全に分ける（設計: [admin-template の「admin 認証」](../../docs/spec/admin-template/README.md#admin-認証)）。
 
-- すべて `/api/admin/` 配下に置き、`src/routes/admin-router.ts` にマッピングする。コントローラーはリソースごとに `controllers.contentSource` / `controllers.passage` のようにネストして渡し、既存の router と同じく渡されたものだけを登録する
+- すべて `/api/admin/` 配下に置き、`src/routes/admin-router.ts` にマッピングする。コントローラーはリソースごとに `controllers.source` / `controllers.passage` のようにネストして渡し、既存の router と同じく渡されたものだけを登録する
 - **`/api/admin` の下のルートは必ず admin-router に足す**（別の router に足すと admin の認証を通らない）
 - **認証は Bearer の admin の JWT**。admin は `admins` テーブル（`users` とは別。事前登録制）で、トークンは admin 専用の鍵（`JWT_ADMIN_ACCESS_SECRET` / `JWT_ADMIN_REFRESH_SECRET`）で署名し、payload は `{ adminId }`（発行・検証は `src/lib/admin-jwt.ts`）。refresh の jti は Redis の `admin_refresh_token:{jti}`（猶予は `admin_refresh_token_rotated:{jti}`）
 - **`adminAuthMiddleware`（`src/middleware/admin-auth.ts`）は全体ではなく `/api/admin` の mount の中に置く**。`src/index.ts` とテストは `mountAdminApi`（`src/routes/admin-router.ts`）で mount する。Express 5 の mount と Router は大文字小文字を区別しないので、全体に適用して文字列で比べると `/API/Admin/...` が判定をすり抜ける。一般ユーザーの `authMiddleware` は `/api/admin` を見ない
 - admin の access token を求めないパスは `ADMIN_PUBLIC_PATHS`（`src/const/index.ts`。mount からの相対で、完全一致で比べる。google / refresh / logout と、production 以外の dev-login）
-- Controller は `src/controller/admin/{resource}/{action}.ts`。Service は `src/service/{content-source,admin-passage,admin-stats,admin-user,url-import}-service.ts` と、認証の `admin-auth-service.ts`（Google・dev ログイン）・`admin-service.ts`（`GET /api/admin/me`）。ユーザー向けと同じ Repository を使う（ダッシュボードの集計だけは admin 専用の `AdminStatsRepository`。生の SQL で Postgres をその場で集計する。[admin-dashboard](../../docs/spec/admin-dashboard/README.md)）
+- Controller は `src/controller/admin/{resource}/{action}.ts`。Service は `src/service/{source,admin-passage,admin-stats,admin-user,url-import}-service.ts` と、認証の `admin-auth-service.ts`（Google・dev ログイン）・`admin-service.ts`（`GET /api/admin/me`）。ユーザー向けと同じ Repository を使う（ダッシュボードの集計だけは admin 専用の `AdminStatsRepository`。生の SQL で Postgres をその場で集計する。[admin-dashboard](../../docs/spec/admin-dashboard/README.md)）
 - admin の refresh / logout は一般ユーザーの `service.auth.refreshTokens` / `service.auth.logout` に admin 用の Repository・検証関数・発行関数を渡す。`refreshTokens` は持ち主を `tokenOwnerRepository` で確かめるので、admin は `adminRepository` を渡す（`admins` から消された admin の refresh token は 401）
 - ユーザー管理（`/api/admin/user/*`）はマイページの Service を使い回す。マイページの Service はユーザーが居ないと 401 を返すので、admin の Service（`admin-user-service.ts`）が先に存在を確かめて 404 にする
 - スキーマは `@repo/api-schema` の `admin/` に集約。既存と同一なら re-export し、Admin 固有のレスポンスが必要になった時点で新規定義する

@@ -64,7 +64,7 @@ const apiEnvSchema = z.object({
   FRONTEND_URL: z.string().url().default("http://localhost:3000"),
 
   /**
-   * GET /api/admin/content-source/license で GitHub のライセンス検出 API を呼ぶときの token。
+   * GET /api/admin/source/license で GitHub のライセンス検出 API を呼ぶときの token。
    * 任意（未設定でも認証無しの 60 req/h の範囲で動く）。公開リポジトリを読むだけなので権限は不要
    */
   GITHUB_LICENSE_TOKEN: z.string().optional(),

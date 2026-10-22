@@ -1,4 +1,4 @@
-import { contentSourceTags, inArray, sql, tags } from "@repo/db"
+import { inArray, sourceTags, sql, tags } from "@repo/db"
 import { TAG_COLORS } from "@repo/domain"
 
 import { testDb } from "../controller/setup"
@@ -6,7 +6,7 @@ import { testDb } from "../controller/setup"
 type TagRow = typeof tags.$inferSelect
 
 /**
- * ソースのタグ（tags / content_source_tags）を DB に入れるテスト用のヘルパー。Repository のテストと Controller のインテグレーションテストで使う
+ * ソースのタグ（tags / source_tags）を DB に入れるテスト用のヘルパー。Repository のテストと Controller のインテグレーションテストで使う
  */
 
 /**
@@ -33,6 +33,6 @@ export const insertTags = async (names: string[]): Promise<TagRow[]> => {
 export const insertSourceTags = async (sourceId: number, names: string[]): Promise<TagRow[]> => {
   const rows = await insertTags(names)
   if (rows.length === 0) return []
-  await testDb.insert(contentSourceTags).values(rows.map((row) => ({ contentSourceId: sourceId, tagId: row.id })))
+  await testDb.insert(sourceTags).values(rows.map((row) => ({ sourceId: sourceId, tagId: row.id })))
   return rows
 }

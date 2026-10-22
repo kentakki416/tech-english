@@ -163,8 +163,8 @@ describe("collectPassages", () => {
 
       await collectPassages(buildInput({ sourceId: 7 }), repo, createDeps(createFakeGitHubClient()))
 
-      expect(repo.contentSourceRepository.findById).toHaveBeenCalledWith(7)
-      expect(repo.contentSourceRepository.findEnabled).not.toHaveBeenCalled()
+      expect(repo.sourceRepository.findById).toHaveBeenCalledWith(7)
+      expect(repo.sourceRepository.findEnabled).not.toHaveBeenCalled()
       expect(collectGitHubSourceMock.mock.calls[0][0].source).toBe(source)
     })
   })

@@ -52,7 +52,7 @@
 
 ## ソースごと・難易度ごとの集計
 
-- 問題ごとの成績を `content_sources`・`passages.difficulty` で束ねた表を足す
+- 問題ごとの成績を `sources`・`passages.difficulty` で束ねた表を足す
 - 難易度ごとの正答率・時間超過の割合を見て、制限時間の式（[question-generation](../question-generation/README.md)）を直す材料にする
 
 ## 行動イベントを使う分析
