@@ -60,7 +60,7 @@ admin の「今すぐ収集」で、GitHub のソースを 1 つ収集する。c
 | `workers/collect-source-worker.ts` | concurrency 1（GitHub の rate limit は token 単位で、並べても速くならない） |
 | `runtime/collection.ts` | 収集の service を、最初のジョブで `import()` で読む（`@repo/content-extractor` の index は jsdom も読むので、起動時に読まない） |
 | `client/github/` | `GitHubContentClient`（commits / git trees / contents の 3 API。`x-ratelimit-remaining` を保持）と `GitHubNotFoundError` / `GitHubRateLimitError` |
-| `service/collection/collect-source-by-id.ts` | 1 ソースの入口。収集できるか（`@repo/domain` の `findSourceNotCollectableReason`。api と同じ判定）を確かめてから `collectGitHubSource` を呼ぶ。できなければ `SourceNotCollectableError` |
+| `service/collection/collect-source-by-id.ts` | 1 ソースの入口。収集できるか（`@repo/domain` の `checkSourceCollectability`。api と同じ判定）を確かめてから `collectGitHubSource` を呼ぶ。できなければ `SourceNotCollectableError` |
 | `service/collection/list-github-target-files.ts` | コミットのツリーから対象の `.md` / `.mdx` を列挙する。trees API が切り詰められたら glob の固定部分のディレクトリごとに取り直す |
 | `service/collection/collect-github-source.ts` | 1 ソース分。最新コミットと抽出の版が前回と同じなら終える。ツリーの一覧に無い文書の `collected` を却下（`rejectOutOfTargetPassages`）→ blob SHA が変わったか抽出の版が古いファイルだけ取得し、本文候補を保存（`replacePassageCandidates`）→ `markFetched`（blob SHA・版）の順で保存する |
 | `service/collection/replace-passage-candidates.ts` | 本文候補の保存。同じ見出しの生成中・生成した本文候補（下書き・公開済み・生成した後に却下したもの）がある塊は挿入せず、残りを挿入して、その文書の `collected` のうち挿入した塊に無いものを却下する |
