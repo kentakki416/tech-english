@@ -61,24 +61,20 @@ const createHarness = (
   }
 }
 
-const NO_CONDITIONAL = { etag: null, lastModified: null }
-
 describe("WebPageClient", () => {
   describe("正常系", () => {
-    it("fetchPage は User-Agent を付けて GET し、本文・ETag・Last-Modified を返す（条件が無ければ条件付きヘッダを付けない）", async () => {
+    it("fetchPage は User-Agent を付けて条件なしで GET し、本文を返す", async () => {
       const harness = createHarness({
         [`${ORIGIN}/doc/a`]: () => createHtmlResponse("<h1>A</h1>", { etag: "\"v1\"", "last-modified": "Sat, 10 Oct 2026 00:00:00 GMT" }),
       })
       await harness.client.loadRobots()
 
-      const result = await harness.client.fetchPage(`${ORIGIN}/doc/a`, NO_CONDITIONAL)
+      const result = await harness.client.fetchPage(`${ORIGIN}/doc/a`)
 
       expect(result).toEqual({
         body: "<h1>A</h1>",
-        etag: "\"v1\"",
         finalUrl: `${ORIGIN}/doc/a`,
         kind: "ok",
-        lastModified: "Sat, 10 Oct 2026 00:00:00 GMT",
         status: 200,
       })
       expect(harness.requestedUrls()).toEqual([ROBOTS_URL, `${ORIGIN}/doc/a`])
@@ -89,28 +85,11 @@ describe("WebPageClient", () => {
       expect(harness.fetchMock.mock.calls[1][1]).toMatchObject({ redirect: "manual", signal: expect.any(AbortSignal) })
     })
 
-    it("etag / lastModified があるときだけ If-None-Match / If-Modified-Since を付け、304 は not_modified", async () => {
-      const harness = createHarness({
-        [`${ORIGIN}/doc/a`]: () => new Response(null, { status: 304 }),
-        [`${ORIGIN}/doc/b`]: () => new Response(null, { status: 304 }),
-      })
-      await harness.client.loadRobots()
-
-      const both = await harness.client.fetchPage(`${ORIGIN}/doc/a`, { etag: "\"v1\"", lastModified: "Sat, 10 Oct 2026 00:00:00 GMT" })
-      const etagOnly = await harness.client.fetchPage(`${ORIGIN}/doc/b`, { etag: "\"v2\"", lastModified: null })
-
-      expect(both).toEqual({ kind: "not_modified", status: 304 })
-      expect(etagOnly).toEqual({ kind: "not_modified", status: 304 })
-      expect(harness.readHeaders(1)).toMatchObject({ "If-Modified-Since": "Sat, 10 Oct 2026 00:00:00 GMT", "If-None-Match": "\"v1\"" })
-      expect(harness.readHeaders(2)["If-None-Match"]).toBe("\"v2\"")
-      expect(harness.readHeaders(2)).not.toHaveProperty("If-Modified-Since")
-    })
-
     it.each([404, 410, 500])("%s は http_error", async (status) => {
       const harness = createHarness({ [`${ORIGIN}/doc/a`]: () => createHtmlResponse("error", {}, status) })
       await harness.client.loadRobots()
 
-      expect(await harness.client.fetchPage(`${ORIGIN}/doc/a`, NO_CONDITIONAL)).toEqual({ kind: "http_error", status })
+      expect(await harness.client.fetchPage(`${ORIGIN}/doc/a`)).toEqual({ kind: "http_error", status })
     })
 
     it("Content-Type が text/html でなければ not_html", async () => {
@@ -119,7 +98,7 @@ describe("WebPageClient", () => {
       })
       await harness.client.loadRobots()
 
-      expect(await harness.client.fetchPage(`${ORIGIN}/doc/a`, NO_CONDITIONAL))
+      expect(await harness.client.fetchPage(`${ORIGIN}/doc/a`))
         .toEqual({ kind: "skipped", reason: "not_html", status: 200 })
     })
 
@@ -129,7 +108,7 @@ describe("WebPageClient", () => {
       })
       await harness.client.loadRobots()
 
-      expect(await harness.client.fetchPage(`${ORIGIN}/doc/a`, NO_CONDITIONAL))
+      expect(await harness.client.fetchPage(`${ORIGIN}/doc/a`))
         .toEqual({ kind: "skipped", reason: "too_large", status: 200 })
     })
 
@@ -146,7 +125,7 @@ describe("WebPageClient", () => {
       const harness = createHarness({ [`${ORIGIN}/doc/a`]: () => new Response(stream, { headers: { "content-type": "text/html" } }) })
       await harness.client.loadRobots()
 
-      const result = await harness.client.fetchPage(`${ORIGIN}/doc/a`, NO_CONDITIONAL)
+      const result = await harness.client.fetchPage(`${ORIGIN}/doc/a`)
 
       expect(result).toEqual({ kind: "skipped", reason: "too_large", status: 200 })
       expect(pulledChunkCount).toBeLessThan(10)
@@ -161,8 +140,8 @@ describe("WebPageClient", () => {
       })
       await harness.client.loadRobots()
 
-      const latin1 = await harness.client.fetchPage(`${ORIGIN}/doc/latin1`, NO_CONDITIONAL)
-      const unknown = await harness.client.fetchPage(`${ORIGIN}/doc/unknown`, NO_CONDITIONAL)
+      const latin1 = await harness.client.fetchPage(`${ORIGIN}/doc/latin1`)
+      const unknown = await harness.client.fetchPage(`${ORIGIN}/doc/unknown`)
 
       expect(latin1).toMatchObject({ body: "café", kind: "ok" })
       expect(unknown).toMatchObject({ body: "café", kind: "ok" })
@@ -177,7 +156,7 @@ describe("WebPageClient", () => {
       })
       await harness.client.loadRobots()
 
-      const result = await harness.client.fetchPage(`${ORIGIN}/doc/a`, NO_CONDITIONAL)
+      const result = await harness.client.fetchPage(`${ORIGIN}/doc/a`)
 
       expect(result).toMatchObject({ finalUrl: `${ORIGIN}/doc/d`, kind: "ok", status: 200 })
       expect(harness.requestedUrls().slice(1)).toEqual([`${ORIGIN}/doc/a`, `${ORIGIN}/doc/b`, `${ORIGIN}/doc/c`, `${ORIGIN}/doc/d`])
@@ -192,7 +171,7 @@ describe("WebPageClient", () => {
       })
       await harness.client.loadRobots()
 
-      const result = await harness.client.fetchPage(`${ORIGIN}/doc/1`, NO_CONDITIONAL)
+      const result = await harness.client.fetchPage(`${ORIGIN}/doc/1`)
 
       expect(result).toEqual({ kind: "skipped", reason: "too_many_redirects", status: 301 })
       expect(harness.requestedUrls()).not.toContain(`${ORIGIN}/doc/5`)
@@ -207,7 +186,7 @@ describe("WebPageClient", () => {
       const harness = createHarness({ [`${ORIGIN}/doc/a`]: () => createRedirect(location, 302) })
       await harness.client.loadRobots()
 
-      const result = await harness.client.fetchPage(`${ORIGIN}/doc/a`, NO_CONDITIONAL)
+      const result = await harness.client.fetchPage(`${ORIGIN}/doc/a`)
 
       expect(result).toEqual({ kind: "skipped", reason: "redirect_not_allowed", status: 302 })
       expect(harness.requestedUrls()).toEqual([ROBOTS_URL, `${ORIGIN}/doc/a`])
@@ -220,8 +199,8 @@ describe("WebPageClient", () => {
       })
       await harness.client.loadRobots()
 
-      const direct = await harness.client.fetchPage(`${ORIGIN}/doc/secret/x`, NO_CONDITIONAL)
-      const redirected = await harness.client.fetchPage(`${ORIGIN}/doc/moved`, NO_CONDITIONAL)
+      const direct = await harness.client.fetchPage(`${ORIGIN}/doc/secret/x`)
+      const redirected = await harness.client.fetchPage(`${ORIGIN}/doc/moved`)
 
       expect(direct).toEqual({ kind: "skipped", reason: "robots_disallowed", status: null })
       expect(redirected).toEqual({ kind: "skipped", reason: "robots_disallowed", status: null })
@@ -242,7 +221,7 @@ describe("WebPageClient", () => {
       const harness = createHarness({ [`${ORIGIN}/doc/a`]: () => createHtmlResponse("<h1>A</h1>") })
 
       expect(harness.client.isAllowedByRobots(`${ORIGIN}/doc/a`)).toBe(false)
-      expect(await harness.client.fetchPage(`${ORIGIN}/doc/a`, NO_CONDITIONAL))
+      expect(await harness.client.fetchPage(`${ORIGIN}/doc/a`))
         .toEqual({ kind: "skipped", reason: "robots_disallowed", status: null })
       expect(harness.fetchMock).not.toHaveBeenCalled()
     })
@@ -251,7 +230,7 @@ describe("WebPageClient", () => {
       const harness = createHarness({ [`${ORIGIN}/doc/a`]: () => createHtmlResponse("<h1>A</h1>") }, { elapsedPerRequestMs: 300 })
       await harness.client.loadRobots()
 
-      await harness.client.fetchPage(`${ORIGIN}/doc/a`, NO_CONDITIONAL)
+      await harness.client.fetchPage(`${ORIGIN}/doc/a`)
 
       expect(harness.sleep).toHaveBeenCalledTimes(1)
       expect(harness.sleep).toHaveBeenCalledWith(700)
@@ -266,8 +245,8 @@ describe("WebPageClient", () => {
       })
       await harness.client.loadRobots()
 
-      await harness.client.fetchPage(`${ORIGIN}/doc/a`, NO_CONDITIONAL)
-      await harness.client.fetchPage(`${ORIGIN}/doc/b`, NO_CONDITIONAL)
+      await harness.client.fetchPage(`${ORIGIN}/doc/a`)
+      await harness.client.fetchPage(`${ORIGIN}/doc/b`)
 
       expect(harness.sleep.mock.calls).toEqual([[5000], [5000]])
       expect(harness.requestStartedAt).toEqual([1_000_000, 1_005_000, 1_010_000])
@@ -280,7 +259,7 @@ describe("WebPageClient", () => {
       })
       await harness.client.loadRobots()
 
-      await harness.client.fetchPage(`${ORIGIN}/doc/a`, NO_CONDITIONAL)
+      await harness.client.fetchPage(`${ORIGIN}/doc/a`)
 
       expect(harness.sleep.mock.calls).toEqual([[30_000]])
     })
@@ -295,7 +274,7 @@ describe("WebPageClient", () => {
       const harness = createHarness({})
       await harness.client.loadRobots()
 
-      await expect(harness.client.fetchPage(url, NO_CONDITIONAL)).rejects.toBeInstanceOf(BlockedUrlError)
+      await expect(harness.client.fetchPage(url)).rejects.toBeInstanceOf(BlockedUrlError)
       expect(harness.requestedUrls()).toEqual([ROBOTS_URL])
     })
 
@@ -305,7 +284,7 @@ describe("WebPageClient", () => {
       })
       await harness.client.loadRobots()
 
-      const promise = harness.client.fetchPage(`${ORIGIN}/doc/a`, NO_CONDITIONAL)
+      const promise = harness.client.fetchPage(`${ORIGIN}/doc/a`)
 
       await expect(promise).rejects.toBeInstanceOf(WebSourceThrottledError)
       await expect(promise).rejects.toMatchObject({ retryAfter: "120", status, url: `${ORIGIN}/doc/a` })
@@ -319,7 +298,7 @@ describe("WebPageClient", () => {
       })
       await harness.client.loadRobots()
 
-      expect(await harness.client.fetchPage(`${ORIGIN}/doc/a`, NO_CONDITIONAL))
+      expect(await harness.client.fetchPage(`${ORIGIN}/doc/a`))
         .toEqual({ errorMessage: "The operation was aborted due to timeout", kind: "network_error" })
     })
 
@@ -331,7 +310,7 @@ describe("WebPageClient", () => {
       })
       await harness.client.loadRobots()
 
-      await expect(harness.client.fetchPage(`${ORIGIN}/doc/a`, NO_CONDITIONAL)).rejects.toBeInstanceOf(BlockedUrlError)
+      await expect(harness.client.fetchPage(`${ORIGIN}/doc/a`)).rejects.toBeInstanceOf(BlockedUrlError)
     })
 
     it("robots.txt が 500 なら loadRobots が throw する", async () => {
@@ -369,7 +348,7 @@ describe("WebPageClient", () => {
 
       expect(error).toBeInstanceOf(CrawlDelayTooLongError)
       expect(error).toMatchObject({ crawlDelaySeconds, maxCrawlDelaySeconds: 30, url: ROBOTS_URL })
-      expect(await harness.client.fetchPage(`${ORIGIN}/doc/a`, NO_CONDITIONAL))
+      expect(await harness.client.fetchPage(`${ORIGIN}/doc/a`))
         .toEqual({ kind: "skipped", reason: "robots_disallowed", status: null })
       expect(harness.requestedUrls()).toEqual([ROBOTS_URL])
       expect(harness.sleep).not.toHaveBeenCalled()
@@ -394,7 +373,7 @@ describe("WebPageClient", () => {
       )
       await harness.client.loadRobots()
 
-      await expect(harness.client.fetchPage(`${ORIGIN}/doc/a`, NO_CONDITIONAL)).rejects.toBeInstanceOf(WebDeadlineExceededError)
+      await expect(harness.client.fetchPage(`${ORIGIN}/doc/a`)).rejects.toBeInstanceOf(WebDeadlineExceededError)
       expect(harness.requestedUrls()).toEqual([ROBOTS_URL])
       expect(harness.sleep).not.toHaveBeenCalled()
     })

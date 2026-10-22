@@ -10,7 +10,6 @@ const STATES = [
   { href: "/mock/sources/new?state=website", key: "new-website", label: "新規（サイト）" },
   { href: "/mock/sources/1", key: "edit-github", label: "編集（GitHub）" },
   { href: "/mock/sources/7", key: "edit-website", label: "編集（サイト）" },
-  { href: "/mock/sources/6", key: "edit-website-disabled", label: "編集（未収集のサイト）" },
 ]
 
 /**
@@ -27,7 +26,7 @@ export default async function MockSourceFormPage({
   const { state } = await searchParams
   const source = MOCK_SOURCES.find(item => String(item.id) === id) ?? null
   const current = source
-    ? source.id === 6 ? "edit-website-disabled" : source.fetchType === "website" ? "edit-website" : "edit-github"
+    ? source.fetchType === "website" ? "edit-website" : "edit-github"
     : state === "website" ? "new-website" : "new-github"
 
   return (

@@ -46,7 +46,6 @@ describe("GET /api/admin/source/:id", () => {
 
       expect(res.status).toBe(200)
       expect(res.body).toEqual({
-        failed_pages: [],
         passage_counts: { collected: 0, draft: 2, failed: 1, generating: 0, published: 0, rejected: 0 },
         source: {
           id: github.id,
@@ -74,12 +73,8 @@ describe("GET /api/admin/source/:id", () => {
       })
     })
 
-    it("website のソースを website の形で返し、タグの無いソースは tags: []、failed_pages は path の昇順で 400 以上だけ", async () => {
+    it("website のソースを website の形で返し、タグの無いソースは tags: []", async () => {
       const website = await insertWebsiteSource()
-      await insertSourceDocument(website.id, "/doc/c", 404)
-      await insertSourceDocument(website.id, "/doc/a", 500)
-      await insertSourceDocument(website.id, "/doc/b", 200)
-      await insertSourceDocument(website.id, "/doc/d", 304)
 
       const res = await request(app)
         .get(`/api/admin/source/${website.id}`)
@@ -87,10 +82,6 @@ describe("GET /api/admin/source/:id", () => {
 
       expect(res.status).toBe(200)
       expect(res.body).toEqual({
-        failed_pages: [
-          { http_status: 500, path: "/doc/a" },
-          { http_status: 404, path: "/doc/c" },
-        ],
         passage_counts: { collected: 0, draft: 0, failed: 0, generating: 0, published: 0, rejected: 0 },
         source: {
           id: website.id,
@@ -105,9 +96,7 @@ describe("GET /api/admin/source/:id", () => {
           license_spdx: "CC-BY-4.0",
           license_url: "https://go.dev/copyright",
           name: "Go 公式ドキュメント",
-          sitemap_url: "https://go.dev/sitemap.xml",
           site_url: "https://go.dev",
-          start_url: null,
           tags: [],
           created_at: expect.any(String),
           updated_at: expect.any(String),

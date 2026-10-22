@@ -25,9 +25,7 @@ const buildRow = (overrides: Partial<SourceRow> = {}): SourceRow => ({
   publicUrlStripPrefix: null,
   publicUrlTemplate: null,
   repository: "owner/repo",
-  sitemapUrl: null,
   siteUrl: null,
-  startUrl: null,
   createdAt: CREATED_AT,
   updatedAt: CREATED_AT,
   ...overrides,
@@ -106,7 +104,6 @@ describe("DrizzleSourceRepository", () => {
           fetchType: "website",
           lastCollectedCommitSha: null,
           repository: null,
-          sitemapUrl: "https://example.dev/sitemap.xml",
           siteUrl: "https://example.dev",
         })])
 
@@ -115,9 +112,7 @@ describe("DrizzleSourceRepository", () => {
         expect(source).toMatchObject({
           contentSelector: "main article",
           fetchType: "website",
-          sitemapUrl: "https://example.dev/sitemap.xml",
           siteUrl: "https://example.dev",
-          startUrl: null,
         })
         expect(source).not.toHaveProperty("repository")
       })

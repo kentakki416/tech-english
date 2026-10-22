@@ -27,10 +27,6 @@ export class AdminSourceDetailController {
     }
 
     const response = parseResponse(getSourceResponseSchema, {
-      failed_pages: result.value.failedPages.map((page) => ({
-        http_status: page.httpStatus,
-        path: page.path,
-      })),
       passage_counts: result.value.passageCounts,
       source: convertSourceToResponse(result.value.source),
     })

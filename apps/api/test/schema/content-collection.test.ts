@@ -44,7 +44,6 @@ const WEBSITE_SOURCE = {
   licenseSpdx: "CC-BY-4.0",
   licenseUrl: "https://go.dev/copyright",
   name: "Go 公式ドキュメント",
-  sitemapUrl: "https://go.dev/sitemap.xml",
   siteUrl: "https://go.dev",
 } satisfies SourceInsert
 
@@ -130,18 +129,10 @@ describe("sources", () => {
       })
     })
 
-    it("website を site_url と sitemap_url だけで insert できる", async () => {
+    it("website を site_url つきで insert できる", async () => {
       const row = await insertSource(WEBSITE_SOURCE)
 
-      expect(row).toMatchObject({ ...WEBSITE_SOURCE, branch: null, repository: null, startUrl: null })
-    })
-
-    it("website を site_url と start_url だけで insert できる", async () => {
-      const values = { ...WEBSITE_SOURCE, sitemapUrl: null, startUrl: "https://go.dev/doc/" }
-
-      const row = await insertSource(values)
-
-      expect(row).toMatchObject(values)
+      expect(row).toMatchObject({ ...WEBSITE_SOURCE, branch: null, repository: null })
     })
 
     it("website は license_spdx に LicenseRef-personal-use を入れられる", async () => {
@@ -152,7 +143,7 @@ describe("sources", () => {
 
     it("website を 2 件入れても repository が NULL 同士なので unique に掛からない", async () => {
       await insertSource(WEBSITE_SOURCE)
-      await insertSource({ ...WEBSITE_SOURCE, sitemapUrl: "https://docs.python.org/sitemap.xml", siteUrl: "https://docs.python.org" })
+      await insertSource({ ...WEBSITE_SOURCE, siteUrl: "https://docs.python.org" })
 
       expect(await testDb.$count(sources)).toBe(2)
     })
@@ -191,12 +182,6 @@ describe("sources", () => {
     it("website を有効にすると失敗する", async () => {
       await expect(insertSource({ ...WEBSITE_SOURCE, isEnabled: true })).rejects.toMatchObject(
         buildViolationMatcher(CHECK_VIOLATION, "sources_website_disabled_check"),
-      )
-    })
-
-    it("website で sitemap_url と start_url が両方 NULL なら失敗する", async () => {
-      await expect(insertSource({ ...WEBSITE_SOURCE, sitemapUrl: null, startUrl: null })).rejects.toMatchObject(
-        buildViolationMatcher(CHECK_VIOLATION, "sources_website_check"),
       )
     })
 
@@ -247,12 +232,8 @@ describe("source_documents", () => {
         blobSha: null,
         commitSha: null,
         contentHash: null,
-        etag: null,
         fetchedAt: null,
-        httpStatus: null,
-        lastModified: null,
         path: "src/content/learn/index.md",
-        sitemapLastmod: null,
         sourceId: source.id,
         title: null,
       })

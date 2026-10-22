@@ -3,7 +3,6 @@ export { createSafeLookup, isBlockedAddress, isBlockedIpLiteral } from "./safe-l
 export type { LookupAll } from "./safe-lookup"
 export { WebPageClient } from "./web-page-client"
 export type {
-  ConditionalRequest,
   FetchPageResult,
   FetchPageSkipReason,
   IWebPageClient,

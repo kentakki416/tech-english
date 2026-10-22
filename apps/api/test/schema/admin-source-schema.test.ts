@@ -35,9 +35,7 @@ const WEBSITE_REQUEST = {
   license_spdx: "CC-BY-4.0",
   license_url: "https://go.dev/copyright",
   name: "Go 公式ドキュメント",
-  sitemap_url: "https://go.dev/sitemap.xml",
   site_url: "https://go.dev",
-  start_url: null,
   tag_ids: [],
 }
 

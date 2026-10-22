@@ -5,7 +5,6 @@ import {
   DrizzleClient,
   type DrizzleTransaction,
   eq,
-  gte,
   inArray,
   passages,
   sourceDocuments,
@@ -17,7 +16,6 @@ import {
 import { isAllowedLicense, type Source, type Tag } from "@repo/domain"
 
 import type {
-  FailedPage,
   PassageCountRow,
   SourceInput,
   SourceRepository,
@@ -33,11 +31,6 @@ import { convertTagRowToDomain } from "./tag-row"
  * Drizzleの型
  */
 type SourceRow = typeof sources.$inferSelect
-
-/**
- * 取得に失敗したとみなす HTTP ステータスの下限
- */
-const FAILED_HTTP_STATUS = 400
 
 /**
  * 入力から、取得方法ごとの列と共通の列の値を作る（fetch_type は含めない）
@@ -65,9 +58,7 @@ const buildColumnValues = (input: SourceInput) => {
     ...common,
     contentSelector: input.contentSelector,
     excludeSelectors: input.excludeSelectors,
-    sitemapUrl: input.sitemapUrl,
     siteUrl: input.siteUrl,
-    startUrl: input.startUrl,
   }
 }
 
@@ -133,14 +124,6 @@ export class DrizzleSourceRepository implements SourceRepository {
     this._db = db
   }
 
-  public async countFailedPagesBySource(): Promise<{ count: number; sourceId: number }[]> {
-    return this._db
-      .select({ count: count(), sourceId: sourceDocuments.sourceId })
-      .from(sourceDocuments)
-      .where(gte(sourceDocuments.httpStatus, FAILED_HTTP_STATUS))
-      .groupBy(sourceDocuments.sourceId)
-  }
-
   public async countPassagesBySource(sourceId?: number): Promise<PassageCountRow[]> {
     return this._db
       .select({ count: count(), sourceId: sourceDocuments.sourceId, status: passages.status })
@@ -189,21 +172,6 @@ export class DrizzleSourceRepository implements SourceRepository {
     return row ? this._toDomain(row) : null
   }
 
-  public async findFailedPages(sourceId: number): Promise<FailedPage[]> {
-    const rows = await this._db
-      .select({ httpStatus: sourceDocuments.httpStatus, path: sourceDocuments.path })
-      .from(sourceDocuments)
-      .where(and(eq(sourceDocuments.sourceId, sourceId), gte(sourceDocuments.httpStatus, FAILED_HTTP_STATUS)))
-      .orderBy(asc(sourceDocuments.path))
-    return rows.map(({ httpStatus, path }) => {
-      /**
-       * WHERE で http_status >= 400 に絞っているので NULL は来ない
-       */
-      if (httpStatus === null) throw new Error(`Unexpected null http_status: sourceId=${sourceId}, path=${path}`)
-      return { httpStatus, path }
-    })
-  }
-
   public async hasSourceDocuments(sourceId: number): Promise<boolean> {
     const rows = await this._db
       .select({ id: sourceDocuments.id })
@@ -232,12 +200,6 @@ export class DrizzleSourceRepository implements SourceRepository {
           .where(and(eq(sources.id, id), eq(sources.fetchType, input.fetchType)))
           .returning()
         if (!updated) throw new Error(`Source not found: id=${id}, fetchType=${input.fetchType}`)
-        if (options.shouldResetDocumentCache) {
-          await tx
-            .update(sourceDocuments)
-            .set({ contentHash: null, etag: null, lastModified: null })
-            .where(eq(sourceDocuments.sourceId, id))
-        }
         await replaceSourceTags(tx, id, input.tagIds)
         const [saved] = await attachTags(tx, [this._toDomain(updated)])
         return saved
@@ -288,9 +250,7 @@ export class DrizzleSourceRepository implements SourceRepository {
       excludeSelectors: row.excludeSelectors,
       fetchType: row.fetchType,
       licenseSpdx: row.licenseSpdx,
-      sitemapUrl: row.sitemapUrl,
       siteUrl: row.siteUrl,
-      startUrl: row.startUrl,
     }
   }
 }

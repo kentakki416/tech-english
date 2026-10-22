@@ -150,7 +150,6 @@ export const buildWebsiteSourceValues = (overrides: PassageSourceOverrides = {})
   publicUrlTemplate: null,
   repository: null,
   siteUrl: `https://go-${issueSequence()}.example.com`,
-  startUrl: "https://go.dev/doc/",
   tags: ["go"],
   ...overrides,
 })

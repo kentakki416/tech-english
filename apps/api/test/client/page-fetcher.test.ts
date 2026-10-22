@@ -54,10 +54,8 @@ const PAGE_HTML = `<!doctype html><html lang="en"><head><title>Tutorial: Get sta
 
 const buildOkResult = (overrides: Partial<Extract<FetchPageResult, { kind: "ok" }>> = {}): FetchPageResult => ({
   body: PAGE_HTML,
-  etag: "\"etag-1\"",
   finalUrl: PAGE_URL,
   kind: "ok",
-  lastModified: "Mon, 19 Oct 2026 00:00:00 GMT",
   status: 200,
   ...overrides,
 })
@@ -86,15 +84,12 @@ describe("PageFetcher.fetchAndExtractPage", () => {
         userAgent: "TechEnglishBot/1.0 (+https://tech-english.example.com)",
       })
       expect(mocks.client.isAllowedByRobots).toHaveBeenCalledWith(PAGE_URL)
-      expect(mocks.client.fetchPage).toHaveBeenCalledWith(PAGE_URL, { etag: null, lastModified: null })
+      expect(mocks.client.fetchPage).toHaveBeenCalledWith(PAGE_URL)
       expect(result).toMatchObject({
         kind: "ok",
         page: {
           contentHash: expect.any(String),
-          etag: "\"etag-1\"",
           extractionVersion: EXTRACTION_VERSION,
-          httpStatus: 200,
-          lastModified: "Mon, 19 Oct 2026 00:00:00 GMT",
           normalizedUrl: PAGE_URL,
           path: "/doc/tutorial/getting-started",
           title: "Tutorial: Get started with Go",

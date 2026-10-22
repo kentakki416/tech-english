@@ -140,7 +140,6 @@ describe("POST /api/admin/source", () => {
         fetchType: "website",
         isEnabled: false,
         repository: null,
-        sitemapUrl: "https://go.dev/sitemap.xml",
         siteUrl: "https://go.dev",
       })
     })
@@ -175,16 +174,6 @@ describe("POST /api/admin/source", () => {
       const [row] = await testDb.select().from(sources).where(eq(sources.id, res.body.id))
       expect(row).toMatchObject({ repository: "reactjs/react.dev" })
     })
-
-    it("website は start_url だけでも登録できる", async () => {
-      const res = await request(app)
-        .post("/api/admin/source")
-        .set("Authorization", `Bearer ${adminToken}`)
-        .send({ ...WEBSITE_REQUEST, sitemap_url: null, start_url: "https://go.dev/doc/" })
-
-      expect(res.status).toBe(201)
-      expect(res.body).toMatchObject({ sitemap_url: null, start_url: "https://go.dev/doc/" })
-    })
   })
 
   describe("異常系", () => {
@@ -200,11 +189,7 @@ describe("POST /api/admin/source", () => {
       ["github で license_url が別のリポジトリのファイル", { ...GITHUB_REQUEST, license_url: "https://github.com/facebook/react/blob/main/LICENSE" }],
       ["github で license_spdx が LicenseRef-personal-use", { ...GITHUB_REQUEST, license_spdx: "LicenseRef-personal-use" }],
       ["fetch_type が無い", { ...GITHUB_REQUEST, fetch_type: undefined }],
-      ["website で sitemap_url と start_url が両方 null", { ...WEBSITE_REQUEST, sitemap_url: null, start_url: null }],
       ["website で site_url が http", { ...WEBSITE_REQUEST, site_url: "http://go.dev" }],
-      ["website で sitemap_url が別オリジン", { ...WEBSITE_REQUEST, sitemap_url: "https://example.com/sitemap.xml" }],
-      ["website で start_url が別オリジン", { ...WEBSITE_REQUEST, start_url: "https://go.dev.example.com/doc/" }],
-      ["website で sitemap_url が URL でない", { ...WEBSITE_REQUEST, sitemap_url: "not a url" }],
       ["website で glob が / で始まらない", { ...WEBSITE_REQUEST, include_globs: ["doc/**"] }],
       ["website で exclude_globs が / で始まらない", { ...WEBSITE_REQUEST, exclude_globs: ["doc/devel/**"] }],
       ["tag_ids に重複がある", { ...GITHUB_REQUEST, tag_ids: [1, 1] }],

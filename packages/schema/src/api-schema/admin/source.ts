@@ -125,9 +125,7 @@ const websiteInputSchema = sourceInputBaseSchema.extend({
   exclude_selectors: z.array(z.string().trim().min(1).max(200)).max(20),
   fetch_type: z.literal("website"),
   license_spdx: sourceLicenseSchema,
-  sitemap_url: z.string().url().nullable(),
   site_url: httpsOriginSchema,
-  start_url: z.string().url().nullable(),
 })
 
 type SourceInput =
@@ -175,27 +173,6 @@ const validateSourceInput = (value: SourceInput, ctx: z.RefinementCtx): void => 
         path: ["license_url"],
       })
     }
-    return
-  }
-
-  /**
-   * website: sitemap_url と start_url の少なくとも一方があり、どちらもサイトの外を指さない（取得先の制限）
-   */
-  if (value.sitemap_url === null && value.start_url === null) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: "Either sitemap_url or start_url is required",
-      path: ["sitemap_url"],
-    })
-  }
-  for (const key of ["sitemap_url", "start_url"] as const) {
-    const url = value[key]
-    if (url === null || tryParseUrl(url)?.origin === value.site_url) continue
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: "Must have the same origin as site_url",
-      path: [key],
-    })
   }
 }
 
@@ -231,9 +208,7 @@ export const sourceSchema = z.discriminatedUnion("fetch_type", [
     exclude_selectors: z.array(z.string()),
     fetch_type: z.literal("website"),
     license_spdx: sourceLicenseSchema,
-    sitemap_url: z.string().nullable(),
     site_url: z.string(),
-    start_url: z.string().nullable(),
   }),
 ])
 
@@ -259,10 +234,6 @@ export const getSourceListResponseSchema = z.object({
   sources: z.array(
     z.object({
       id: z.number().int(),
-      /**
-       * 取得に失敗したページ（http_status >= 400）の件数
-       */
-      failed_page_count: z.number().int(),
       fetch_type: z.enum(SOURCE_FETCH_TYPES),
       is_enabled: z.boolean(),
       kind: z.enum(SOURCE_KINDS),
@@ -291,15 +262,9 @@ export const getSourcePathParamSchema = z.object({
 })
 
 /**
- * ソース詳細のレスポンススキーマ。failed_pages は path の昇順
+ * ソース詳細のレスポンススキーマ
  */
 export const getSourceResponseSchema = z.object({
-  failed_pages: z.array(
-    z.object({
-      http_status: z.number().int(),
-      path: z.string(),
-    }),
-  ),
   passage_counts: passageCountsSchema,
   source: sourceSchema,
 })

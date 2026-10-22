@@ -30,8 +30,6 @@ import {
 
 type FetchType = GetSourceResponse["source"]["fetch_type"]
 
-type Discovery = "sitemap" | "start"
-
 /**
  * 「ライセンスを検出」の状態
  */
@@ -158,7 +156,6 @@ export function SourceForm({
   const [state, formAction, isPending] = useActionState<SourceFormState, FormData>(action, {})
 
   const [fetchType, setFetchType] = useState<FetchType>(source?.fetch_type ?? "github_repository")
-  const [discovery, setDiscovery] = useState<Discovery>(websiteSource?.sitemap_url ? "sitemap" : "start")
   const [licenseDetection, setLicenseDetection] = useState<LicenseDetection>({ status: "idle" })
   const [licenseSpdx, setLicenseSpdx] = useState<string>(source?.license_spdx ?? "")
   const [licenseUrl, setLicenseUrl] = useState<string>(source?.license_url ?? "")
@@ -286,26 +283,6 @@ export function SourceForm({
           <Section desc="このサイトのオリジンの外には取りに行きません。robots.txt を守り、1 秒以上の間隔を空けて取得します。" title="取得元（サイト）">
             <Field error={getFieldError("site_url")} htmlFor="site-url" label="サイトの URL">
               <input className={`${inputClass} font-mono`} defaultValue={websiteSource?.site_url} id="site-url" name="site_url" placeholder="https://go.dev" />
-            </Field>
-            <Field error={getFieldError("sitemap_url") ?? getFieldError("start_url")} label="ページの見つけ方">
-              <div className="space-y-3">
-                <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-                  <input checked={discovery === "sitemap"} className="size-4 accent-brand-500" name="discovery" onChange={() => setDiscovery("sitemap")} type="radio" value="sitemap" />
-                  sitemap からページの一覧を得る
-                </label>
-                <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-                  <input checked={discovery === "start"} className="size-4 accent-brand-500" name="discovery" onChange={() => setDiscovery("start")} type="radio" value="start" />
-                  開始ページからリンクをたどる（sitemap が無いサイト）
-                </label>
-                <input
-                  key={discovery}
-                  aria-label={discovery === "sitemap" ? "sitemap の URL" : "開始ページの URL"}
-                  className={`${inputClass} font-mono`}
-                  defaultValue={(discovery === "sitemap" ? websiteSource?.sitemap_url : websiteSource?.start_url) ?? undefined}
-                  name="discovery_url"
-                  placeholder={discovery === "sitemap" ? "https://example.com/sitemap.xml" : "https://go.dev/doc/"}
-                />
-              </div>
             </Field>
             <div className="grid gap-5 sm:grid-cols-2">
               <Field error={getFieldError("include_globs")} hint="URL のパスに対する glob。1 行に 1 つ。" htmlFor="include" label="対象パス">
@@ -464,25 +441,6 @@ export function SourceForm({
                     <Badge color="error" size="sm">却下 {detail.passage_counts.rejected}</Badge>
                   </dd>
                 </div>
-                {websiteSource && (
-                  <div>
-                    <dt className="text-gray-500 dark:text-gray-400">取得に失敗しているページ</dt>
-                    <dd className="mt-2">
-                      {detail.failed_pages.length === 0 ? (
-                        <span className="text-gray-400">ありません</span>
-                      ) : (
-                        <ul className="divide-y divide-gray-100 rounded-lg border border-gray-100 dark:divide-gray-800 dark:border-gray-800">
-                          {detail.failed_pages.map((page) => (
-                            <li key={page.path} className="flex items-center justify-between gap-3 px-3 py-2">
-                              <span className="truncate font-mono text-theme-xs text-gray-600 dark:text-gray-300">{page.path}</span>
-                              <Badge color="error" size="sm">{page.http_status}</Badge>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </dd>
-                  </div>
-                )}
               </dl>
             </section>
             {githubSource && (

@@ -34,9 +34,7 @@ export const WEBSITE_REQUEST = {
   license_spdx: "CC-BY-4.0",
   license_url: "https://go.dev/copyright",
   name: "Go 公式ドキュメント",
-  sitemap_url: "https://go.dev/sitemap.xml",
   site_url: "https://go.dev",
-  start_url: null,
   tag_ids: [],
 }
 
@@ -80,7 +78,6 @@ export const insertWebsiteSource = async (overrides: Partial<SourceInsert> = {})
       licenseSpdx: "CC-BY-4.0",
       licenseUrl: "https://go.dev/copyright",
       name: "Go 公式ドキュメント",
-      sitemapUrl: "https://go.dev/sitemap.xml",
       siteUrl: "https://go.dev",
       ...overrides,
     })
@@ -88,8 +85,8 @@ export const insertWebsiteSource = async (overrides: Partial<SourceInsert> = {})
   return row
 }
 
-export const insertSourceDocument = async (sourceId: number, path: string, httpStatus: number | null = null) => {
-  const [row] = await testDb.insert(sourceDocuments).values({ httpStatus, path, sourceId }).returning()
+export const insertSourceDocument = async (sourceId: number, path: string) => {
+  const [row] = await testDb.insert(sourceDocuments).values({ path, sourceId }).returning()
   return row
 }
 

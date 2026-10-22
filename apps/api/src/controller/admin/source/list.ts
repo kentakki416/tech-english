@@ -24,9 +24,8 @@ export class AdminSourceListController {
     }
 
     const response = parseResponse(getSourceListResponseSchema, {
-      sources: result.value.map(({ failedPageCount, passageCounts, source }) => ({
+      sources: result.value.map(({ passageCounts, source }) => ({
         id: source.id,
-        failed_page_count: failedPageCount,
         fetch_type: source.fetchType,
         is_enabled: source.isEnabled,
         kind: source.kind,

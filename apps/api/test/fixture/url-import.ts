@@ -20,10 +20,7 @@ export const buildChunk = (overrides: Partial<PassageChunk> = {}): PassageChunk 
 export const buildFetchedPage = (overrides: Partial<FetchedPage> = {}): FetchedPage => ({
   chunks: [buildChunk()],
   contentHash: "hash-page",
-  etag: "\"etag-1\"",
   extractionVersion: "2026-10-18",
-  httpStatus: 200,
-  lastModified: "Mon, 19 Oct 2026 00:00:00 GMT",
   normalizedUrl: "https://go.dev/doc/tutorial/getting-started",
   path: "/doc/tutorial/getting-started",
   title: "Tutorial: Get started with Go",

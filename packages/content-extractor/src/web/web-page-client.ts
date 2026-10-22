@@ -11,21 +11,12 @@ import { BlockedUrlError, CrawlDelayTooLongError, WebDeadlineExceededError, WebS
 import { createSafeLookup, isBlockedIpLiteral } from "./safe-lookup"
 
 /**
- * 条件付きリクエストに使う前回のレスポンスの値。どちらも null なら条件付きにしない
- */
-export type ConditionalRequest = {
-  etag: string | null
-  lastModified: string | null
-}
-
-/**
  * ページを取得しなかった理由
  */
 export type FetchPageSkipReason = "not_html" | "redirect_not_allowed" | "robots_disallowed" | "too_large" | "too_many_redirects"
 
 export type FetchPageResult =
-  | { body: string; etag: string | null; finalUrl: string; kind: "ok"; lastModified: string | null; status: number }
-  | { kind: "not_modified"; status: 304 }
+  | { body: string; finalUrl: string; kind: "ok"; status: number }
   /**
    * 404 / 410 と、429 / 503 以外の 4xx・5xx
    */
@@ -43,7 +34,7 @@ export interface IWebPageClient {
   /**
    * 429 / 503 は WebSourceThrottledError、取得先の制限に掛かった URL は BlockedUrlError、期限（deadlineAt）を過ぎたら WebDeadlineExceededError を throw する
    */
-  fetchPage(url: string, conditional: ConditionalRequest): Promise<FetchPageResult>
+  fetchPage(url: string): Promise<FetchPageResult>
   /**
    * robots.txt で許可されている URL か。loadRobots の前は false
    */
@@ -238,14 +229,10 @@ export class WebPageClient implements IWebPageClient {
     this._userAgent = options.userAgent
   }
 
-  public async fetchPage(url: string, conditional: ConditionalRequest): Promise<FetchPageResult> {
-    const result = await this._requestFollowingRedirects(url, { accept: HTML_ACCEPT, checkRobots: true, conditional })
+  public async fetchPage(url: string): Promise<FetchPageResult> {
+    const result = await this._requestFollowingRedirects(url, { accept: HTML_ACCEPT, checkRobots: true })
     if (result.kind !== "response") return result
     const { finalUrl, response } = result
-    if (response.status === 304) {
-      await discardBody(response)
-      return { kind: "not_modified", status: 304 }
-    }
     await this._throwIfThrottled(response, finalUrl)
     if (!response.ok) {
       await discardBody(response)
@@ -268,10 +255,8 @@ export class WebPageClient implements IWebPageClient {
     }
     return {
       body: decodeBody(body.bytes, contentType),
-      etag: response.headers.get("etag"),
       finalUrl,
       kind: "ok",
-      lastModified: response.headers.get("last-modified"),
       status: response.status,
     }
   }
@@ -282,11 +267,7 @@ export class WebPageClient implements IWebPageClient {
 
   public async loadRobots(): Promise<void> {
     const robotsUrl = `${this._origin}/robots.txt`
-    const result = await this._requestFollowingRedirects(robotsUrl, {
-      accept: ROBOTS_ACCEPT,
-      checkRobots: false,
-      conditional: null,
-    })
+    const result = await this._requestFollowingRedirects(robotsUrl, { accept: ROBOTS_ACCEPT, checkRobots: false })
     if (result.kind === "network_error") throw new Error(`Failed to fetch robots.txt: ${result.errorMessage} (${robotsUrl})`)
     if (result.kind === "skipped") throw new Error(`Failed to fetch robots.txt: ${result.reason} (${robotsUrl})`)
 
@@ -325,13 +306,8 @@ export class WebPageClient implements IWebPageClient {
     }
   }
 
-  private _buildHeaders(accept: string, conditional: ConditionalRequest | null): Record<string, string> {
-    return {
-      Accept: accept,
-      "User-Agent": this._userAgent,
-      ...(conditional?.etag ? { "If-None-Match": conditional.etag } : {}),
-      ...(conditional?.lastModified ? { "If-Modified-Since": conditional.lastModified } : {}),
-    }
+  private _buildHeaders(accept: string): Record<string, string> {
+    return { Accept: accept, "User-Agent": this._userAgent }
   }
 
   /**
@@ -340,7 +316,7 @@ export class WebPageClient implements IWebPageClient {
    */
   private async _requestFollowingRedirects(
     url: string,
-    options: { accept: string; checkRobots: boolean; conditional: ConditionalRequest | null },
+    options: { accept: string; checkRobots: boolean },
   ): Promise<RequestResult> {
     this._assertAllowedUrl(url)
     let currentUrl = url
@@ -348,7 +324,7 @@ export class WebPageClient implements IWebPageClient {
       if (options.checkRobots && !this.isAllowedByRobots(currentUrl)) {
         return { kind: "skipped", reason: "robots_disallowed", status: null }
       }
-      const response = await this._send(currentUrl, this._buildHeaders(options.accept, options.conditional))
+      const response = await this._send(currentUrl, this._buildHeaders(options.accept))
       if (response.kind === "network_error") return response
       const location = REDIRECT_STATUSES.has(response.value.status) ? response.value.headers.get("location") : null
       if (location === null) return { finalUrl: currentUrl, kind: "response", response: response.value }

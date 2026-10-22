@@ -87,11 +87,8 @@ export class DrizzleUrlImportRepository implements UrlImportRepository {
       blobSha: null,
       commitSha: null,
       contentHash: input.contentHash,
-      etag: input.etag,
       extractionVersion: input.extractionVersion,
       fetchedAt: input.fetchedAt,
-      httpStatus: input.httpStatus,
-      lastModified: input.lastModified,
       title: input.title,
     }
     const [row] = await resolveDrizzleClient(this._db, tx)

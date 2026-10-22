@@ -12,11 +12,8 @@ export type ImportPassage = Pick<Passage, "contentHash" | "generatedAt" | "id" |
  */
 export type FetchedDocumentInput = {
   contentHash: string
-  etag: string | null
   extractionVersion: string
   fetchedAt: Date
-  httpStatus: number
-  lastModified: string | null
   /**
    * URL の pathname
    */
@@ -61,7 +58,7 @@ export interface UrlImportRepository {
    */
   rejectCollected(input: { keepContentHashes: string[]; reason: string; sourceDocumentId: number }, tx: TransactionContext): Promise<number>
   /**
-   * (sourceId, path) で文書を作るか、取得の結果の列を更新する（GitHub の列は null にし、sitemap_lastmod は変えない）
+   * (sourceId, path) で文書を作るか、取得の結果の列を更新する（GitHub の列は null にする）
    */
   upsertFetchedDocument(input: FetchedDocumentInput, tx: TransactionContext): Promise<{ id: number }>
 }

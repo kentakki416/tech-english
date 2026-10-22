@@ -116,8 +116,6 @@
 | 項目 | 必須 | 例 | 説明 |
 | --- | --- | --- | --- |
 | サイトの URL | ✅ | `https://go.dev` | このオリジン（スキーム + ホスト）の外には取りに行かない |
-| sitemap の URL | どちらか一方 | `https://go.dev/sitemap.xml` | あればページの一覧をここから得る |
-| 開始ページの URL | どちらか一方 | `https://go.dev/doc/` | sitemap が無いサイトは、ここからリンクをたどって対象パスのページを見つける |
 | 本文の CSS セレクタ | | `main article` | 本文が入っている要素。未設定なら自動で本文を推定する |
 | 除外する CSS セレクタ | | `.feedback`, `nav.toc` | 本文の中から取り除く要素（「このページは役に立ちましたか？」など） |
 
@@ -376,7 +374,7 @@ api は次の登録・更新を 400 で拒否する。
 
 | 画面 | 概要 |
 | --- | --- |
-| ソース一覧 | 登録済みソースの一覧。表示名・取得方法・取得元・ライセンス・有効/無効（サイトは「収集しない」）・最終収集日時・本文候補の件数（状態別）・取得に失敗しているページの数（サイト） |
+| ソース一覧 | 登録済みソースの一覧。表示名・取得方法・取得元・ライセンス・有効/無効（サイトは「収集しない」）・最終収集日時・本文候補の件数（状態別） |
 | ソースの登録・編集 | [ソースの登録](#ソースの登録) の項目を入力する。取得方法で入力欄を切り替える（サイトはローカルだけ）。GitHub はリポジトリを入力すると検出されたライセンスとライセンスのファイルの URL を初期値に入れる |
 
 具体的な UI は [UI 設計](#ui-設計) を参照。
@@ -389,7 +387,7 @@ api は次の登録・更新を 400 で拒否する。
 | --- | --- | --- |
 | `/sources` | ソース一覧 | `/mock/sources` |
 | `/sources/new` | ソースの登録 | `/mock/sources/new` |
-| `/sources/[id]` | ソースの編集 | `/mock/sources/1`（GitHub）、`/7`（サイト）、`/6`（未収集のサイト） |
+| `/sources/[id]` | ソースの編集 | `/mock/sources/1`（GitHub）、`/7`（サイト） |
 
 ### ソース一覧
 
@@ -421,7 +419,7 @@ api は次の登録・更新を 400 で拒否する。
 ```
 
 - 表は Basic Tables と同じ `DataTable`。検索はソース名・リポジトリ・URL、Filter は取得方法（GitHub / サイト）と状態（有効 / 無効 / 収集しない）。ソースは数十件程度の想定なのでページ送りは付けない
-- 列：ソース（表示名と、等幅の取得元）、取得方法（GitHub は `dark`、サイトは `info` のバッジ。下に種別「公式ドキュメント / GitHub の文書」）、ライセンス、状態（有効は `success`、無効は `light`、サイトは `light` の「収集しない」）、最終収集（未収集なら「未収集」）、本文候補（収集済み・下書き・公開・却下の件数）、取得失敗（サイトのみ。1 件以上なら `error` の文字。GitHub は「―」）、編集
+- 列：ソース（表示名と、等幅の取得元）、取得方法（GitHub は `dark`、サイトは `info` のバッジ。下に種別「公式ドキュメント / GitHub の文書」）、ライセンス、状態（有効は `success`、無効は `light`、サイトは `light` の「収集しない」）、最終収集（未収集なら「未収集」）、本文候補（収集済み・下書き・公開・却下の件数）、編集
 - ソース名と「編集」で編集画面へ。「ソースを登録」で登録画面へ
 - ソースが 0 件のときは表の下に「まだソースがありません」と、GitHub のリポジトリを登録すると翌日の収集から本文候補が作られることを書く
 
@@ -462,7 +460,7 @@ api は次の登録・更新を 400 で拒否する。
 | --- | --- |
 | 基本情報 | 表示名、種別（ラジオ：公式ドキュメント / GitHub の文書）、取得方法（カードから選ぶ。「サイト（URL から追加）」はローカルだけ出す。選択中は `brand-500` の枠。**編集時は変更不可**で、選ばれていない方を薄く表示）、技術タグ（登録済みのタグを押して選ぶ。[source-tags](../source-tags/README.md)） |
 | 取得元（GitHub リポジトリ） | リポジトリ（`owner/name`）と「ライセンスを検出」、ブランチ、対象パス・除外パス（テキストエリア。1 行に 1 つ）、公開ページの URL 規則と取り除くプレフィックス（URL 規則があるときは変換の例を表示） |
-| 取得元（サイト） | サイトの URL、ページの見つけ方（ラジオ：sitemap / 開始ページからリンクをたどる。選んだ方の URL の入力欄を出す）、対象パス・除外パス、本文の CSS セレクタ（未設定なら自動で推定）、除外する CSS セレクタ |
+| 取得元（サイト） | サイトの URL、対象パス・除外パス、本文の CSS セレクタ（未設定なら自動で推定）、除外する CSS セレクタ |
 | ライセンス | ライセンス（GitHub は許可リスト、サイトは許可リストと「個人の学習用（ライセンスなし）」のセレクト）、ライセンスの記載がある URL（GitHub はリポジトリの中のライセンスのファイルの URL と案内する）。サイトのときは上に warning の囲み「サイトのソースはローカルでだけ使います」（ライセンスの記載が無ければ個人の学習用を選ぶよう案内） |
 | 収集 | 「このソースを収集する」のスイッチ。GitHub のときだけ出す（サイトは常に無効） |
 
@@ -475,7 +473,7 @@ api は次の登録・更新を 400 で拒否する。
 | 場面 | カード |
 | --- | --- |
 | 新規 | 「登録の前に確認すること」：GitHub ではリポジトリの中にライセンスの記載がある・そのライセンスが文章に掛かっている・許可リストにある・「GitHub に Markdown のソースがあるドキュメントはこちらで登録する」。サイトではローカルでだけ使う・robots.txt・JavaScript で描画していないこと |
-| 編集 | 「収集の状況」：最終収集（GitHub だけ）、取り込んだコミット（GitHub）、本文候補の件数のバッジ（収集済み `light`・下書き `primary`・公開 `success`・却下 `error`）、取得に失敗しているページ（サイト。パスと HTTP ステータスのバッジ） |
+| 編集 | 「収集の状況」：最終収集（GitHub だけ）、取り込んだコミット（GitHub）、本文候補の件数のバッジ（収集済み `light`・下書き `primary`・公開 `success`・却下 `error`） |
 | 編集 | 「試し実行」（GitHub だけ）：`pnpm collect:passages --source-id={id} --dry-run` を黒地の等幅で表示し、DB に書かずに最大 5 件の抽出結果を表示することを説明する |
 
 ## 必要な API
@@ -487,7 +485,7 @@ admin 向け。アクセス制御は [question-generation](../question-generatio
 | GET | `/api/admin/source` | ソース一覧（状態別の本文候補件数つき） |
 | GET | `/api/admin/source/:id` | ソース詳細 |
 | POST | `/api/admin/source` | ソースの登録。取得方法ごとの必須項目を Zod の discriminated union で検証する。許可リスト外のライセンスと、リポジトリのファイルでない GitHub の `license_url` は 400。`website` は production では 400、ローカルでは無効の状態で作る |
-| PUT | `/api/admin/source/:id` | ソースの更新（GitHub は有効 / 無効の切り替えを含む。`website` は `is_enabled` を受け取らず、production では 400）。取得方法は変更できない。文書を取得したソースの取得元（`repository` / `site_url`）の変更は 400。本文の CSS セレクタ・除外する CSS セレクタを変えると、そのソースの `source_documents` の `etag` / `last_modified` / `content_hash` を消す |
+| PUT | `/api/admin/source/:id` | ソースの更新（GitHub は有効 / 無効の切り替えを含む。`website` は `is_enabled` を受け取らず、production では 400）。取得方法は変更できない。文書を取得したソースの取得元（`repository` / `site_url`）の変更は 400 |
 | GET | `/api/admin/source/license?repository=owner/name` | GitHub が検出したライセンスと、そのライセンスのファイルの URL を返す（`github_repository` の登録フォームの初期値用） |
 
 cron タスク：
@@ -500,8 +498,8 @@ cron タスク：
 
 | テーブル | 主要カラム | 説明 |
 | --- | --- | --- |
-| `sources` | 共通：`id`, `name`, `kind`, `fetch_type`, `include_globs(jsonb)`, `exclude_globs(jsonb)`, `license_spdx`, `license_url`, `is_enabled`, `last_collected_at`<br/>GitHub：`repository`, `branch`, `public_url_template`, `public_url_strip_prefix`, `last_collected_commit_sha`, `last_collected_extraction_version`<br/>サイト：`site_url`, `sitemap_url`, `start_url`, `content_selector`, `exclude_selectors(jsonb)` | 取得元。管理者が登録する。技術タグは `source_tags` で `tags` に紐付ける（[source-tags](../source-tags/README.md#必要な-db-設計)） |
-| `source_documents` | `id`, `source_id`, `path`, `title`, `fetched_at`, `content_hash`, `extraction_version`<br/>GitHub：`blob_sha`, `commit_sha`<br/>サイト：`etag`, `last_modified`, `sitemap_lastmod`, `http_status` | 取得した文書。差分検出・出典の組み立て・サイトのクロールの待ち行列に使う |
+| `sources` | 共通：`id`, `name`, `kind`, `fetch_type`, `include_globs(jsonb)`, `exclude_globs(jsonb)`, `license_spdx`, `license_url`, `is_enabled`, `last_collected_at`<br/>GitHub：`repository`, `branch`, `public_url_template`, `public_url_strip_prefix`, `last_collected_commit_sha`, `last_collected_extraction_version`<br/>サイト：`site_url`, `content_selector`, `exclude_selectors(jsonb)` | 取得元。管理者が登録する。技術タグは `source_tags` で `tags` に紐付ける（[source-tags](../source-tags/README.md#必要な-db-設計)） |
+| `source_documents` | `id`, `source_id`, `path`, `title`, `fetched_at`, `content_hash`, `extraction_version`<br/>GitHub：`blob_sha`, `commit_sha` | 取得した文書（GitHub のファイル / URL から追加で取り込んだページ）。差分の検出・出典の組み立てに使う |
 | `passages` | ― | 本文候補 / 問題。**列定義の正本は [question-generation](../question-generation/README.md#必要な-db-設計)**。この spec では `source_document_id` / `source_path` / `source_commit_sha`（GitHub のみ）/ `source_retrieved_at` / `title` / `blocks` / `word_count` / `content_hash` / `status = collected` を埋めて作る |
 
 ```mermaid
@@ -526,8 +524,6 @@ erDiagram
         text last_collected_commit_sha "GitHub のみ, nullable"
         text last_collected_extraction_version "GitHub のみ, nullable"
         text site_url "サイトのみ。オリジン"
-        text sitemap_url "サイトのみ, nullable"
-        text start_url "サイトのみ, nullable"
         text content_selector "サイトのみ, nullable"
         jsonb exclude_selectors "サイトのみ, string[]"
         timestamp created_at
@@ -538,15 +534,11 @@ erDiagram
         int source_id FK
         text path "ファイルパス or URL のパス"
         text title "nullable"
-        timestamp fetched_at "最後に取得を試みた時刻（失敗を含む）, nullable = 未取得"
+        timestamp fetched_at "最後に取得した時刻, nullable = 未取得"
         text content_hash "抽出した本文のハッシュ, nullable"
         text extraction_version "切り分けたときの抽出の版, nullable"
         text blob_sha "GitHub のみ"
         text commit_sha "GitHub のみ。取得したときのコミット"
-        text etag "サイトのみ, nullable"
-        text last_modified "サイトのみ, nullable"
-        timestamp sitemap_lastmod "サイトのみ, nullable"
-        smallint http_status "サイトのみ, nullable"
         timestamp created_at
         timestamp updated_at
     }
@@ -560,10 +552,9 @@ erDiagram
 - CHECK：`license_spdx = 'LicenseRef-personal-use'` はサイトのソースだけ（`sources_personal_use_license_check`）
 - CHECK：サイトのソースは `is_enabled = false`（`sources_website_disabled_check`。収集しないため）
 - CHECK：`fetch_type = 'github_repository'` なら `repository` と `branch` が NOT NULL
-- CHECK：`fetch_type = 'website'` なら `site_url` が NOT NULL、かつ `sitemap_url` と `start_url` の少なくとも一方が NOT NULL
+- CHECK：`fetch_type = 'website'` なら `site_url` が NOT NULL
 - `sources.repository` と `sources.site_url` はそれぞれ unique（NULL は重複可）
 - `source_documents (source_id, path)` は unique
-- index：`source_documents (source_id, fetched_at)`（クロールの取得順）
 
 ## フロー図
 

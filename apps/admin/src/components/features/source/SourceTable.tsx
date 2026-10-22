@@ -82,18 +82,6 @@ const COLUMNS: Column<SourceRow>[] = [
     ),
   },
   {
-    className: "px-5 py-4 text-theme-sm whitespace-nowrap text-gray-500 dark:text-gray-400",
-    header: "取得失敗",
-    render: (row) =>
-      row.fetch_type === "website" ? (
-        <span className={row.failed_page_count > 0 ? "font-medium text-error-600 dark:text-error-500" : ""}>
-          {row.failed_page_count} ページ
-        </span>
-      ) : (
-        <span className="text-gray-300 dark:text-gray-600">―</span>
-      ),
-  },
-  {
     className: "px-5 py-4 text-right text-theme-sm whitespace-nowrap",
     header: "",
     render: (row) => (

@@ -17,11 +17,8 @@ const EARLIER_PRIORITIZED_AT = new Date("2026-10-18T03:00:00.000Z")
 
 const buildDocumentInput = (sourceId: number, overrides: Partial<FetchedDocumentInput> = {}): FetchedDocumentInput => ({
   contentHash: "hash-page-1",
-  etag: "\"etag-1\"",
   extractionVersion: "2026-10-18",
   fetchedAt: FETCHED_AT,
-  httpStatus: 200,
-  lastModified: "Mon, 19 Oct 2026 00:00:00 GMT",
   path: PATH,
   sourceId,
   title: "Tutorial: Get started with Go",
@@ -65,17 +62,14 @@ describe("UrlImportRepository", () => {
   describe("正常系", () => {
     it("upsertFetchedDocument は文書が無ければ作り、同じ (source_id, path) の 2 回目は同じ行の取得の結果を更新する", async () => {
       const source = await insertPassageSource(buildWebsiteSourceValues())
-      const sitemapLastmod = new Date("2026-10-01T00:00:00.000Z")
 
       const first = await transactionRunner.run(async (tx) => urlImportRepository.upsertFetchedDocument(buildDocumentInput(source.id), tx))
-      await testDb.update(sourceDocuments).set({ blobSha: "blob", commitSha: "commit", sitemapLastmod }).where(eq(sourceDocuments.id, first.id))
+      await testDb.update(sourceDocuments).set({ blobSha: "blob", commitSha: "commit" }).where(eq(sourceDocuments.id, first.id))
       const refetchedAt = new Date("2026-10-21T03:00:00.000Z")
       const second = await transactionRunner.run(async (tx) => urlImportRepository.upsertFetchedDocument(buildDocumentInput(source.id, {
         contentHash: "hash-page-2",
-        etag: null,
         extractionVersion: "2026-10-19",
         fetchedAt: refetchedAt,
-        lastModified: null,
         title: "Tutorial: Get started with Go (updated)",
       }), tx))
 
@@ -86,13 +80,9 @@ describe("UrlImportRepository", () => {
         blobSha: null,
         commitSha: null,
         contentHash: "hash-page-2",
-        etag: null,
         extractionVersion: "2026-10-19",
         fetchedAt: refetchedAt,
-        httpStatus: 200,
-        lastModified: null,
         path: PATH,
-        sitemapLastmod,
         title: "Tutorial: Get started with Go (updated)",
         updatedAt: refetchedAt,
       })
