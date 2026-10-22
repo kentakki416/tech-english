@@ -19,21 +19,6 @@ export const DRY_RUN_MAX_DOCUMENTS = 5
 export const MAX_MARKDOWN_FILE_BYTES = 1_000_000
 
 /**
- * ネットワークエラー（タイムアウト・接続エラー）がこの回数続いたら、サイトの障害とみなしてそのソースを失敗にする
- */
-export const MAX_CONSECUTIVE_NETWORK_ERRORS = 3
-
-/**
- * collect:passages の実行の間隔（ミリ秒。1 日 1 回）。429 / 503 の Retry-After がこれより先なら warn を出す
- */
-export const COLLECT_RUN_INTERVAL_MS = 24 * 60 * 60 * 1000
-
-/**
- * ページが無くなったことを表す HTTP ステータス。この行は取り直しの対象から外す（sitemap やリンクで再び見つかったら戻す）
- */
-export const GONE_HTTP_STATUSES = [404, 410]
-
-/**
  * 収集の対象から外れた文書（除外パス・対象パスから外した、取得元から消えた）の collected を却下するときの理由
  */
 export const OUT_OF_TARGET_PASSAGE_REJECT_REASON = "除外パスに入ったか取得元から消えたため、収集の対象から外した"

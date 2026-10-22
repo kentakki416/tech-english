@@ -1,29 +1,20 @@
 import { GitHubRateLimitError } from "../../../src/client/github"
-import {
-  collectGitHubSource,
-  collectPassages,
-  type CollectPassagesInput,
-  collectWebsiteSource,
-} from "../../../src/service/collection"
+import { collectGitHubSource, collectPassages, type CollectPassagesInput } from "../../../src/service/collection"
 
 import { buildGitHubSource, buildWebsiteSource, createDeps, createFakeGitHubClient, createFakeRepo, NOW } from "./helpers"
 
 /**
- * 1 ソース分の収集は collect-github-source.test.ts / collect-website-source.test.ts で確かめるので、ここでは差し替えて結果だけを返す
+ * 1 ソース分の収集は collect-github-source.test.ts で確かめるので、ここでは差し替えて結果だけを返す
  */
 vi.mock("../../../src/service/collection/collect-github-source", () => ({ collectGitHubSource: vi.fn() }))
-vi.mock("../../../src/service/collection/collect-website-source", () => ({ collectWebsiteSource: vi.fn() }))
 
 const collectGitHubSourceMock = vi.mocked(collectGitHubSource)
-
-const collectWebsiteSourceMock = vi.mocked(collectWebsiteSource)
 
 const buildInput = (overrides: Partial<CollectPassagesInput> = {}): CollectPassagesInput => ({
   githubMinRateLimitRemaining: 100,
   maxDocumentsPerSource: 100,
   maxPassagesPerRun: 200,
   now: NOW,
-  refetchDays: 7,
   sourceId: null,
   ...overrides,
 })
@@ -67,7 +58,7 @@ describe("collectPassages", () => {
       expect(result).toEqual({ createdPassageCount: 3, failedSourceIds: [1], results: [{ ...buildCompletedResult(3), sourceId: 2 }] })
     })
 
-    it("GitHubRateLimitError は失敗にならず、以降の GitHub のソースが飛ばされる", async () => {
+    it("GitHubRateLimitError は失敗にならず、以降のソースが飛ばされる", async () => {
       const repo = createFakeRepo({
         enabledSources: [buildGitHubSource({ id: 1 }), buildGitHubSource({ id: 2 }), buildGitHubSource({ id: 3 })],
       })
@@ -79,7 +70,7 @@ describe("collectPassages", () => {
       expect(collectGitHubSourceMock).toHaveBeenCalledTimes(2)
     })
 
-    it("rate_limited で終えたソースの後も、以降の GitHub のソースが飛ばされる", async () => {
+    it("rate_limited で終えたソースの後も、以降のソースが飛ばされる", async () => {
       const repo = createFakeRepo({ enabledSources: [buildGitHubSource({ id: 1 }), buildGitHubSource({ id: 2 })] })
       collectGitHubSourceMock.mockResolvedValueOnce({ createdPassageCount: 4, fetchedDocumentCount: 2, status: "rate_limited" })
 
@@ -99,63 +90,6 @@ describe("collectPassages", () => {
       expect(collectGitHubSourceMock).toHaveBeenCalledTimes(1)
     })
 
-    it("website のソースは collectWebsiteSource で処理し、残りの本文候補数と refetchDays を渡す", async () => {
-      const website = buildWebsiteSource({ id: 2 })
-      const repo = createFakeRepo({ enabledSources: [buildGitHubSource({ id: 1 }), website] })
-      collectGitHubSourceMock.mockResolvedValueOnce(buildCompletedResult(15))
-      collectWebsiteSourceMock.mockResolvedValueOnce(buildCompletedResult(4))
-
-      const result = await collectPassages(buildInput({ refetchDays: 3 }), repo, createDeps(createFakeGitHubClient()))
-
-      expect(result).toEqual({
-        createdPassageCount: 19,
-        failedSourceIds: [],
-        results: [{ ...buildCompletedResult(15), sourceId: 1 }, { ...buildCompletedResult(4), sourceId: 2 }],
-      })
-      expect(collectWebsiteSourceMock).toHaveBeenCalledWith(
-        { maxDocuments: 100, maxPassages: 185, now: NOW, refetchDays: 3, source: website },
-        repo,
-        expect.objectContaining({ createWebPageClient: expect.any(Function) }),
-      )
-    })
-
-    it.each(["throttled", "crawl_delay_too_long"] as const)("website の %s は失敗に数えず、次のソースへ進む", async (status) => {
-      const repo = createFakeRepo({ enabledSources: [buildWebsiteSource({ id: 2 }), buildGitHubSource({ id: 1 })] })
-      collectWebsiteSourceMock.mockResolvedValueOnce({ createdPassageCount: 1, fetchedDocumentCount: 3, status })
-      collectGitHubSourceMock.mockResolvedValueOnce(buildCompletedResult(2))
-
-      const result = await collectPassages(buildInput(), repo, createDeps(createFakeGitHubClient()))
-
-      expect(result.failedSourceIds).toEqual([])
-      expect(result.results.map(({ sourceId, status: resultStatus }) => ({ sourceId, status: resultStatus }))).toEqual([
-        { sourceId: 2, status },
-        { sourceId: 1, status: "completed" },
-      ])
-    })
-
-    it("GitHub の rate limit で GitHub のソースを飛ばしても、website のソースは処理する", async () => {
-      const repo = createFakeRepo({
-        enabledSources: [buildGitHubSource({ id: 1 }), buildGitHubSource({ id: 3 }), buildWebsiteSource({ id: 2 })],
-      })
-      collectGitHubSourceMock.mockRejectedValueOnce(new GitHubRateLimitError("/x"))
-      collectWebsiteSourceMock.mockResolvedValueOnce(buildCompletedResult(1))
-
-      const result = await collectPassages(buildInput(), repo, createDeps(createFakeGitHubClient()))
-
-      expect(collectGitHubSourceMock).toHaveBeenCalledTimes(1)
-      expect(collectWebsiteSourceMock).toHaveBeenCalledTimes(1)
-      expect(result.results.map(({ sourceId }) => sourceId)).toEqual([2])
-    })
-
-    it("website のソースが throw したら failedSourceIds に入る（BlockedUrlError・robots.txt の読込み失敗など）", async () => {
-      const repo = createFakeRepo({ enabledSources: [buildWebsiteSource({ id: 2 })] })
-      collectWebsiteSourceMock.mockRejectedValueOnce(new Error("Failed to fetch robots.txt: 500"))
-
-      const result = await collectPassages(buildInput(), repo, createDeps(createFakeGitHubClient()))
-
-      expect(result.failedSourceIds).toEqual([2])
-    })
-
     it("--source-id の指定があれば findById のソースだけを処理する", async () => {
       const source = buildGitHubSource({ id: 7 })
       const repo = createFakeRepo({ source })
@@ -164,7 +98,7 @@ describe("collectPassages", () => {
       await collectPassages(buildInput({ sourceId: 7 }), repo, createDeps(createFakeGitHubClient()))
 
       expect(repo.sourceRepository.findById).toHaveBeenCalledWith(7)
-      expect(repo.sourceRepository.findEnabled).not.toHaveBeenCalled()
+      expect(repo.sourceRepository.findEnabledGitHubSources).not.toHaveBeenCalled()
       expect(collectGitHubSourceMock.mock.calls[0][0].source).toBe(source)
     })
   })
@@ -183,6 +117,14 @@ describe("collectPassages", () => {
 
       await expect(collectPassages(buildInput({ sourceId: 5 }), repo, createDeps(createFakeGitHubClient())))
         .rejects.toThrow("Source is disabled: id=5")
+      expect(collectGitHubSourceMock).not.toHaveBeenCalled()
+    })
+
+    it("--source-id にサイトのソースを指定したら、有効でも収集せずに throw する", async () => {
+      const repo = createFakeRepo({ source: buildWebsiteSource({ id: 7, isEnabled: true }) })
+
+      await expect(collectPassages(buildInput({ sourceId: 7 }), repo, createDeps(createFakeGitHubClient())))
+        .rejects.toThrow("Website sources are not collected: id=7")
       expect(collectGitHubSourceMock).not.toHaveBeenCalled()
     })
   })

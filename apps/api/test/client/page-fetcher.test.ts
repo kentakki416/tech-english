@@ -17,7 +17,6 @@ import { buildWebsiteSource } from "../service/source-service/fixtures"
 const mocks = vi.hoisted(() => {
   const client = {
     fetchPage: vi.fn<IWebPageClient["fetchPage"]>(),
-    fetchSitemapUrls: vi.fn<IWebPageClient["fetchSitemapUrls"]>(),
     isAllowedByRobots: vi.fn<IWebPageClient["isAllowedByRobots"]>(),
     loadRobots: vi.fn<IWebPageClient["loadRobots"]>(),
   }

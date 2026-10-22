@@ -15,8 +15,8 @@ export const buildCollectorUserAgent = (contactUrl: string | undefined): string 
 export const CRAWLER_NAME = "TechEnglishBot"
 
 /**
- * robots.txt の Crawl-delay（秒）の上限（この値ちょうどは従う）。これを超える値を返すサイトは、そのソースを今回の実行では打ち切る（失敗にはしない）。
- * 極端に大きい値（3600 など）にそのまま従うと、1 ソースの処理が何時間も止まるため
+ * robots.txt の Crawl-delay（秒）の既定の上限（この値ちょうどは従う）。これを超える値を返すサイトは、loadRobots が CrawlDelayTooLongError を throw する。
+ * 極端に大きい値（3600 など）にそのまま従うと、取得が何時間も止まるため（api の URL から追加は maxCrawlDelaySeconds でさらに縮める）
  */
 export const MAX_CRAWL_DELAY_SECONDS = 30
 
@@ -29,16 +29,6 @@ export const WEB_REQUEST_TIMEOUT_MS = 10_000
  * 受け取るページ（text/html）のサイズの上限（バイト）。超えたら読むのをやめて取得しない
  */
 export const MAX_HTML_BYTES = 2 * 1024 * 1024
-
-/**
- * sitemap のサイズの上限（バイト）
- */
-export const MAX_SITEMAP_BYTES = 10 * 1024 * 1024
-
-/**
- * sitemap index から取得する子の sitemap の数の上限
- */
-export const MAX_CHILD_SITEMAPS = 50
 
 /**
  * たどるリダイレクトの回数の上限（同じオリジンの中だけ）

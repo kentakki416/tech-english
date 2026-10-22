@@ -238,11 +238,8 @@ describe("collectGitHubSource", () => {
         blobSha: "blob-a",
         commitSha: COMMIT_SHA,
         contentHash: extracted.contentHash,
-        etag: null,
         extractionVersion: EXTRACTION_VERSION,
         fetchedAt: NOW,
-        httpStatus: null,
-        lastModified: null,
         title: "Doc",
       })
       const [upsertOrder] = repo.sourceDocumentRepository.upsertByPath.mock.invocationCallOrder

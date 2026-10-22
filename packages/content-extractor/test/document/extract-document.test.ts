@@ -33,7 +33,6 @@ describe("extractDocument", () => {
       const result = extractDocument({ content, fallbackTitle: "docs/guide.md", format: "markdown" })
 
       expect(result.title).toBe("Guide")
-      expect(result.links).toEqual([])
       expect(result.chunks.map(({ rejectReasons, title, wordCount }) => ({ rejectReasons, title, wordCount }))).toEqual([
         { rejectReasons: [], title: "Guide", wordCount: 301 },
         { rejectReasons: [], title: "Beta", wordCount: 400 },
@@ -50,11 +49,10 @@ describe("extractDocument", () => {
       expect(result.chunks[0]?.title).toBe("docs/plain.md")
     })
 
-    it("HTML は links を返し、文書全体の contentHash を持つ", () => {
+    it("HTML も文書全体の contentHash を持つ", () => {
       const result = extractDocument(GO_DOC_INPUT)
 
       expect(result.title).toBe("Writing Tidy Go Programs")
-      expect(result.links).toContain("https://go.example.dev/doc/modules")
       expect(result.contentHash).toMatch(/^[0-9a-f]{64}$/)
       expect(result.wordCount).toBeGreaterThan(0)
     })

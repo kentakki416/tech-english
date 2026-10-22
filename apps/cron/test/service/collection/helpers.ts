@@ -1,13 +1,7 @@
-import type { FetchPageResult, IWebPageClient, SitemapUrl } from "@repo/content-extractor"
 import type { GitHubRepositorySource, Source, SourceDocument, WebsiteSource } from "@repo/domain"
 
 import type { GitHubTreeEntry, IGitHubContentClient } from "../../../src/client/github"
-import type {
-  CreatePassageInput,
-  DiscoveredDocumentInput,
-  MarkCollectedInput,
-  MarkFetchedInput,
-} from "../../../src/repository"
+import type { CreatePassageInput, MarkCollectedInput, MarkFetchedInput } from "../../../src/repository"
 
 export const NOW = new Date("2026-10-10T03:00:00.000Z")
 
@@ -96,61 +90,6 @@ export const buildMarkdown = (sectionTitles: string[]): string =>
   ].join("\n")
 
 /**
- * サイトのページの HTML。nav にリンク、main に h1 と「見出し + 300 語」の節を並べる（節ごとに 1 つの本文候補になる）。
- * 本文の CSS セレクタを main にしたソースで使う
- */
-export const buildHtmlPage = (input: { links?: string[]; sectionTitles: string[]; title?: string }): string => {
-  const title = input.title ?? "Doc"
-  const links = (input.links ?? []).map((href) => `<a href="${href}">${href}</a>`).join(" ")
-  const sections = input.sectionTitles
-    .map((sectionTitle) => `<h2>${sectionTitle}</h2><p>${buildWords(sectionTitle.toLowerCase(), 299)}.</p>`)
-    .join("")
-  return `<!doctype html><html><head><title>${title}</title></head><body><nav>${links}</nav><main><h1>${title}</h1>${sections}</main></body></html>`
-}
-
-/**
- * fetchPage の ok の結果
- */
-export const buildOkPage = (
-  finalUrl: string,
-  body: string,
-  overrides: Partial<Extract<FetchPageResult, { kind: "ok" }>> = {},
-): FetchPageResult => ({ body, etag: null, finalUrl, kind: "ok", lastModified: null, status: 200, ...overrides })
-
-export type FakeWebPageClientOptions = {
-  /**
-   * robots.txt で禁止する pathname の接頭辞
-   */
-  disallowedPathPrefixes?: string[]
-  loadRobotsError?: Error
-  /**
-   * URL → fetchPage の結果（Error なら throw する）
-   */
-  pages?: Record<string, Error | FetchPageResult>
-  sitemapUrls?: SitemapUrl[]
-}
-
-/**
- * WebPageClient の偽物。登録されていないページを取りに来たら throw する
- */
-export const createFakeWebPageClient = (options: FakeWebPageClientOptions = {}) => ({
-  fetchPage: vi.fn<IWebPageClient["fetchPage"]>(async (url) => {
-    const result = options.pages?.[url]
-    if (result === undefined) throw new Error(`Unexpected page: ${url}`)
-    if (result instanceof Error) throw result
-    return result
-  }),
-  fetchSitemapUrls: vi.fn<IWebPageClient["fetchSitemapUrls"]>(async () => options.sitemapUrls ?? []),
-  isAllowedByRobots: vi.fn<IWebPageClient["isAllowedByRobots"]>((url) => {
-    const { pathname } = new URL(url)
-    return !(options.disallowedPathPrefixes ?? []).some((prefix) => pathname.startsWith(prefix))
-  }),
-  loadRobots: vi.fn<IWebPageClient["loadRobots"]>(async () => {
-    if (options.loadRobotsError) throw options.loadRobotsError
-  }),
-})
-
-/**
  * 閉じていない JSX。remark-mdx が throw する
  */
 export const BROKEN_MDX = "# Title\n\n<Sandpack>\n\nThe component is never closed.\n"
@@ -212,15 +151,11 @@ export const createFakeRepo = (options: {
    * findWithCollectedPassages が返す行
    */
   documentsWithCollectedPassages?: SourceDocument[]
-  enabledSources?: Source[]
+  enabledSources?: GitHubRepositorySource[]
   /**
    * findGeneratedOrGeneratingTitles が返す見出し
    */
   generatedTitles?: string[]
-  /**
-   * findFetchQueue が返す行
-   */
-  queue?: SourceDocument[]
   rejectedCount?: number
   source?: Source | null
 } = {}) => {
@@ -228,7 +163,7 @@ export const createFakeRepo = (options: {
   return {
     sourceRepository: {
       findById: vi.fn(async (_id: number) => options.source ?? null),
-      findEnabled: vi.fn(async () => options.enabledSources ?? []),
+      findEnabledGitHubSources: vi.fn(async () => options.enabledSources ?? []),
       markCollected: vi.fn(async (_id: number, _input: MarkCollectedInput) => true),
     },
     passageRepository: {
@@ -239,28 +174,17 @@ export const createFakeRepo = (options: {
     },
     sourceDocumentRepository: {
       findBySourceId: vi.fn(async (_sourceId: number) => options.documents ?? []),
-      findFetchQueue: vi.fn(async (_input: { limit: number; refetchBefore: Date; sourceId: number }) => options.queue ?? []),
       findWithCollectedPassages: vi.fn(async (_sourceId: number) => options.documentsWithCollectedPassages ?? []),
       markFetched: vi.fn(async (_id: number, _input: MarkFetchedInput) => undefined),
-      markResponse: vi.fn(async (_id: number, _input: { fetchedAt: Date; httpStatus: number | null }) => undefined),
       upsertByPath: vi.fn(async (input: { path: string; sourceId: number; title: string | null }) => {
         const id = nextDocumentId
         nextDocumentId += 1
         return buildSourceDocument({ id, path: input.path, sourceId: input.sourceId, title: input.title })
       }),
-      upsertDiscovered: vi.fn(async (
-        _sourceId: number,
-        _inputs: DiscoveredDocumentInput[],
-        _options: { shouldReviveGone: boolean },
-      ) => undefined),
     },
   }
 }
 
-export const createDeps = (
-  githubContentClient: ReturnType<typeof createFakeGitHubClient>,
-  webPageClient: ReturnType<typeof createFakeWebPageClient> = createFakeWebPageClient(),
-) => ({
-  createWebPageClient: vi.fn((_origin: string) => webPageClient),
+export const createDeps = (githubContentClient: ReturnType<typeof createFakeGitHubClient>) => ({
   githubContentClient,
 })

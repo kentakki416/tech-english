@@ -21,9 +21,6 @@ const createRedirect = (location: string, status = 301): Response =>
 const createRobotsResponse = (content: string): Response =>
   new Response(content, { headers: { "content-type": "text/plain" }, status: 200 })
 
-const createXmlResponse = (xml: string): Response =>
-  new Response(xml, { headers: { "content-type": "application/xml" }, status: 200 })
-
 /**
  * 外部のサイトに接続しないよう fetch を差し替える。routes に無い URL を取りに来たら throw する（client は network_error にする）。
  * robots.txt は routes に無ければ 404（全許可）。時計は sleep と elapsedPerRequestMs でだけ進む
@@ -287,59 +284,6 @@ describe("WebPageClient", () => {
 
       expect(harness.sleep.mock.calls).toEqual([[30_000]])
     })
-
-    it("fetchSitemapUrls は urlset の loc / lastmod を返す", async () => {
-      const harness = createHarness({
-        [`${ORIGIN}/sitemap.xml`]: () => createXmlResponse([
-          "<?xml version=\"1.0\" encoding=\"UTF-8\"?>",
-          "<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">",
-          `<url><loc>${ORIGIN}/doc/a</loc><lastmod>2026-10-01</lastmod></url>`,
-          `<url><loc>${ORIGIN}/doc/b</loc></url>`,
-          "</urlset>",
-        ].join("")),
-      })
-      await harness.client.loadRobots()
-
-      const urls = await harness.client.fetchSitemapUrls(`${ORIGIN}/sitemap.xml`)
-
-      expect(urls).toEqual([
-        { lastmod: new Date("2026-10-01T00:00:00.000Z"), url: `${ORIGIN}/doc/a` },
-        { lastmod: null, url: `${ORIGIN}/doc/b` },
-      ])
-    })
-
-    it("sitemap index なら同じオリジンの子を取得し、別オリジン・.gz の子は取得しない", async () => {
-      const harness = createHarness({
-        [`${ORIGIN}/sitemap-index.xml`]: () => createXmlResponse([
-          "<sitemapindex xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">",
-          `<sitemap><loc>${ORIGIN}/sitemap-1.xml</loc></sitemap>`,
-          "<sitemap><loc>https://cdn.example.net/sitemap-2.xml</loc></sitemap>",
-          `<sitemap><loc>${ORIGIN}/sitemap-3.xml.gz</loc></sitemap>`,
-          `<sitemap><loc>${ORIGIN}/sitemap-4.xml</loc></sitemap>`,
-          "</sitemapindex>",
-        ].join("")),
-        [`${ORIGIN}/sitemap-1.xml`]: () => createXmlResponse(`<urlset><url><loc>${ORIGIN}/doc/a</loc></url></urlset>`),
-        [`${ORIGIN}/sitemap-4.xml`]: () => createXmlResponse(`<urlset><url><loc>${ORIGIN}/doc/b</loc></url></urlset>`),
-      })
-      await harness.client.loadRobots()
-
-      const urls = await harness.client.fetchSitemapUrls(`${ORIGIN}/sitemap-index.xml`)
-
-      expect(urls.map(({ url }) => url)).toEqual([`${ORIGIN}/doc/a`, `${ORIGIN}/doc/b`])
-      expect(harness.requestedUrls()).toEqual([
-        ROBOTS_URL,
-        `${ORIGIN}/sitemap-index.xml`,
-        `${ORIGIN}/sitemap-1.xml`,
-        `${ORIGIN}/sitemap-4.xml`,
-      ])
-    })
-
-    it("取得できない sitemap は空にする（ページの取得は続けられる）", async () => {
-      const harness = createHarness({ [`${ORIGIN}/sitemap.xml`]: () => new Response("Not Found", { status: 404 }) })
-      await harness.client.loadRobots()
-
-      expect(await harness.client.fetchSitemapUrls(`${ORIGIN}/sitemap.xml`)).toEqual([])
-    })
   })
 
   describe("異常系", () => {
@@ -352,14 +296,6 @@ describe("WebPageClient", () => {
       await harness.client.loadRobots()
 
       await expect(harness.client.fetchPage(url, NO_CONDITIONAL)).rejects.toBeInstanceOf(BlockedUrlError)
-      expect(harness.requestedUrls()).toEqual([ROBOTS_URL])
-    })
-
-    it("fetchSitemapUrls は別オリジンの sitemap でリクエストせずに BlockedUrlError", async () => {
-      const harness = createHarness({})
-      await harness.client.loadRobots()
-
-      await expect(harness.client.fetchSitemapUrls("https://evil.example.com/sitemap.xml")).rejects.toBeInstanceOf(BlockedUrlError)
       expect(harness.requestedUrls()).toEqual([ROBOTS_URL])
     })
 

@@ -24,7 +24,7 @@ Turborepo + pnpm モノレポ。
 - **packages/redis**: `createRedisClient` factory（BullMQ / Pub/Sub 対応）(`@repo/redis`)
 - **packages/queue**: Queue 抽象 (`JobQueue<T>` / `JobProcessor<T>` / `JobConsumer`) + BullMQ 実装 (`@repo/queue`)。ハンドラ側は実装を知らないため、SQS / Cloud Tasks 等への差し替えが可能
 - **packages/domain**: api / cron / worker が共有するドメイン型 (`@repo/domain`)。型・定数・純粋関数のみ・依存ゼロ。**Repository interface と Drizzle の型は置かない**。enum 的な値の集合はここが SSOT で、api-schema は `z.enum` をここの定数から作り、DB は Drizzle のスキーマでここの定数から `CHECK` 制約を作る（`packages/domain/README.md` 参照）
-- **packages/content-extractor**: Markdown / MDX / HTML の本文の抽出と本文候補への切り分け、公式ドキュメントのサイトの取得（robots.txt・SSRF 対策）(`@repo/content-extractor`)。cron の収集と api の URL からの取り込みで共有する。env も DB も知らない（`packages/content-extractor/README.md` 参照）
+- **packages/content-extractor**: Markdown / MDX / HTML の本文の抽出と本文候補への切り分け、サイトのページの取得（robots.txt・SSRF 対策）(`@repo/content-extractor`)。本文の抽出は cron の収集と api の URL からの取り込みで共有し、サイトの取得は api の URL からの取り込みだけが使う。env も DB も知らない（`packages/content-extractor/README.md` 参照）
 - **packages/data-warehouse**: `DataWarehouse` 抽象 + ClickHouse 実装 + `createDataWarehouse` factory (`@repo/data-warehouse`)。分析イベントの書き込み先。ClickHouse の DDL（版管理する migration / CDC の view）と migration コマンドは `clickhouse/` に置き、ライブラリの build には含めない（採用理由・CDC・migration の書き方は `docs/tech-stack/clickhouse/`）
 - **packages/events**: 行動イベントの型定義 + `EventTracker` 抽象 + Queue 実装 (`@repo/events`)。送出は fire-and-forget で、失敗を呼び出し元に伝播させない
 - **packages/storage**: `createStorage` factory + local / S3 実装 (`@repo/storage`)

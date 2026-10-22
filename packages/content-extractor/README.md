@@ -1,6 +1,6 @@
 # packages/content-extractor（`@repo/content-extractor`）
 
-Markdown / MDX / HTML から本文を抽出して本文候補に切り分ける処理と、公式ドキュメントのサイトを礼儀正しく安全に取得する処理。cron の収集（`collect:passages`）と api の URL からの取り込み（[url-import](../../docs/spec/url-import/README.md)）で共有する。env も DB も知らない（設定はコンストラクタ・引数で受け取る）。
+Markdown / MDX / HTML から本文を抽出して本文候補に切り分ける処理と、サイトのページを礼儀正しく安全に取得する処理。本文の抽出は cron の収集（`collect:passages`。GitHub の Markdown）と api の URL からの取り込み（[url-import](../../docs/spec/url-import/README.md)。サイトの HTML）で共有し、サイトの取得は api の URL からの取り込みだけが使う（cron はサイトを収集しない。[github-only-collection](../../docs/spec/github-only-collection/README.md)）。env も DB も知らない（設定はコンストラクタ・引数で受け取る）。
 
 規則の正本は [content-collection](../../docs/spec/content-collection/README.md#本文の抽出と解析)。
 
@@ -27,15 +27,15 @@ Markdown / MDX / HTML から本文を抽出して本文候補に切り分ける�
 
 | ファイル | 役割 |
 | --- | --- |
-| `src/web/` | `WebPageClient`（1 ソースにつき 1 つ。robots.txt・リクエストの間隔・取得先の制限・条件付きリクエスト・sitemap。任意で取得の期限〈`deadlineAt`〉と Crawl-delay の上限〈`maxCrawlDelaySeconds`〉）、`safe-lookup.ts`（接続のときに名前解決したアドレスを検査する lookup）、`BlockedUrlError` / `WebSourceThrottledError` / `CrawlDelayTooLongError` / `WebDeadlineExceededError` |
+| `src/web/` | `WebPageClient`（1 ソースにつき 1 つ。robots.txt・リクエストの間隔・取得先の制限・条件付きリクエスト。任意で取得の期限〈`deadlineAt`〉と Crawl-delay の上限〈`maxCrawlDelaySeconds`〉）、`safe-lookup.ts`（接続のときに名前解決したアドレスを検査する lookup）、`BlockedUrlError` / `WebSourceThrottledError` / `CrawlDelayTooLongError` / `WebDeadlineExceededError` |
 | `src/path-filter.ts` | 対象パス / 除外パスの glob 判定（picomatch）と、glob の固定部分のディレクトリ |
-| `src/url.ts` / `src/parse-sitemap.ts` | ページの URL の正規化（クエリ・フラグメントを除く。https のみ）と取得しない拡張子、sitemap（urlset / sitemapindex）の解析（jsdom の XML モード） |
-| `src/website-pages.ts` | 取得してよいページの判定（同じオリジン・ページの拡張子・対象パス・robots.txt）、開始ページの path、HTML の抽出（収集と試し実行で共有） |
-| `src/const.ts` | User-Agent・robots.txt の照合名・Crawl-delay の上限・タイムアウト・HTML / sitemap の大きさの上限・リダイレクトの上限 |
+| `src/url.ts` | ページの URL の正規化（クエリ・フラグメントを除く。https のみ）と取得しない拡張子 |
+| `src/website-pages.ts` | 取得したページ（リダイレクトの行き先）が本文候補を作ってよい URL か（ページの拡張子・対象パス）と、HTML の抽出 |
+| `src/const.ts` | User-Agent・robots.txt の照合名・Crawl-delay の上限・タイムアウト・HTML の大きさの上限・リダイレクトの上限 |
 
 fetch はグローバルではなく undici のもの（npm の undici の `Agent` をグローバルの fetch に渡すと版の違いで動かないことがあるため）。undici は Node 20 で動く v7 に固定している（v8 は Node 22.19 以上が必要）。
 
-取得先の制限（SSRF 対策）・robots.txt・リクエストの間隔の詳細は [content-collection のサイトのクロール](../../docs/spec/content-collection/README.md#サイトのクロール) と `apps/cron/CLAUDE.md` の「サイトのクロール（website）」。
+取得先の制限（SSRF 対策）・robots.txt・リクエストの間隔の詳細は [content-collection のサイトの取得](../../docs/spec/content-collection/README.md#サイトの取得url-から追加) と `apps/api/CLAUDE.md` の「サイトのページの取得」。
 
 ## ESM 専用の依存（require(esm)）
 
