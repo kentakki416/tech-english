@@ -9,7 +9,7 @@ import * as service from "../../../service"
 import { convertTagToResponse } from "../tag/tag-mapper"
 
 /**
- * admin のソース一覧取得API（状態別の本文候補件数と取得失敗のページ数つき）
+ * admin のソース一覧取得API（状態別の本文候補件数つき）
  */
 export class AdminSourceListController {
   constructor(private _sourceRepository: SourceRepository) {}
@@ -24,9 +24,8 @@ export class AdminSourceListController {
     }
 
     const response = parseResponse(getSourceListResponseSchema, {
-      sources: result.value.map(({ failedPageCount, passageCounts, source }) => ({
+      sources: result.value.map(({ passageCounts, source }) => ({
         id: source.id,
-        failed_page_count: failedPageCount,
         fetch_type: source.fetchType,
         is_enabled: source.isEnabled,
         kind: source.kind,

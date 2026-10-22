@@ -20,7 +20,6 @@ const SCREENS: { description: string, href: string, spec: string, states: { href
       { href: "/mock/sources/new?state=website", label: "新規（サイト）" },
       { href: "/mock/sources/1", label: "編集（GitHub）" },
       { href: "/mock/sources/7", label: "編集（サイト）" },
-      { href: "/mock/sources/6", label: "編集（未収集のサイト）" },
     ],
     title: "ソースの登録・編集",
   },

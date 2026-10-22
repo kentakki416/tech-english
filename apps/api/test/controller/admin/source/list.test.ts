@@ -33,16 +33,13 @@ afterAll(async () => {
 
 describe("GET /api/admin/source", () => {
   describe("正常系", () => {
-    it("200 とソースごとのタグ（名前の順）・状態別の件数・取得失敗の件数を id の昇順で返す", async () => {
+    it("200 とソースごとのタグ（名前の順）・状態別の件数を id の昇順で返す", async () => {
       const github = await insertGitHubSource({ lastCollectedAt: new Date("2026-10-09T03:00:00.000Z") })
       const website = await insertWebsiteSource()
       const [react, frontend] = await insertSourceTags(github.id, ["react", "Frontend"])
       const document = await insertSourceDocument(github.id, "src/content/learn/a.md")
       await insertPassages(document.id, "collected", 2)
       await insertPassages(document.id, "published", 1)
-      await insertSourceDocument(website.id, "/doc/a", 404)
-      await insertSourceDocument(website.id, "/doc/b", 500)
-      await insertSourceDocument(website.id, "/doc/c", 304)
 
       const res = await request(app)
         .get("/api/admin/source")
@@ -53,7 +50,6 @@ describe("GET /api/admin/source", () => {
         sources: [
           {
             id: github.id,
-            failed_page_count: 0,
             fetch_type: "github_repository",
             is_enabled: true,
             kind: "docs",
@@ -70,7 +66,6 @@ describe("GET /api/admin/source", () => {
           },
           {
             id: website.id,
-            failed_page_count: 2,
             fetch_type: "website",
             is_enabled: false,
             kind: "docs",

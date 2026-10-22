@@ -71,18 +71,11 @@ export const convertFormDataToSourceRequest = (formData: FormData): Record<strin
   }
 
   if (fetchType === "website") {
-    /**
-     * ページの見つけ方で選ばなかった方の URL は null にする
-     */
-    const discoveryUrl = getNullableText(formData, "discovery_url")
-    const isSitemap = getText(formData, "discovery") === "sitemap"
     return {
       ...common,
       content_selector: getNullableText(formData, "content_selector"),
       exclude_selectors: splitLines(formData, "exclude_selectors"),
       site_url: getText(formData, "site_url").trim(),
-      sitemap_url: isSitemap ? discoveryUrl : null,
-      start_url: isSitemap ? null : discoveryUrl,
     }
   }
 

@@ -24,10 +24,7 @@ export type FetchedPage = {
    */
   chunks: PassageChunk[]
   contentHash: string
-  etag: string | null
   extractionVersion: string
-  httpStatus: number
-  lastModified: string | null
   /**
    * 入れた URL からクエリとフラグメントを除いたもの（リダイレクトの前）。出典のパスはこの pathname
    */
@@ -99,7 +96,7 @@ const fetchPageOrFailure = async (
   extractor: ContentExtractorModule,
 ): Promise<ContentExtractor.FetchPageResult | PageFetchFailure> => {
   try {
-    return await client.fetchPage(url, { etag: null, lastModified: null })
+    return await client.fetchPage(url)
   } catch (error) {
     const code = findThrownErrorCode(error, extractor)
     if (code === null) throw error
@@ -144,10 +141,6 @@ export class PageFetcher implements IPageFetcher {
     case "failed":
       return fetched
     case "http_error":
-      /**
-       * 条件なしで送るので 304 は返らないはずだが、返ればサイトの誤りとして HTTP エラーにする
-       */
-    case "not_modified":
       return buildFailure("http_error", String(fetched.status))
     case "network_error":
       return buildFailure("network_error", fetched.errorMessage)
@@ -170,10 +163,7 @@ export class PageFetcher implements IPageFetcher {
       page: {
         chunks: extracted.chunks,
         contentHash: extracted.contentHash,
-        etag: fetched.etag,
         extractionVersion: extractor.EXTRACTION_VERSION,
-        httpStatus: fetched.status,
-        lastModified: fetched.lastModified,
         normalizedUrl,
         path,
         title: extracted.title,

@@ -2,7 +2,7 @@
 
 admin で URL を 1 つ入れると、そのページを取得して本文を抽出し、本文候補（`collected`）として保存する。保存した本文候補は、次の問題の生成（`generate:questions`）でほかの本文候補より先に生成する（issue #76）。**ローカルだけの機能**で、dev / min / prd では使えない（[github-only-collection](../github-only-collection/README.md#url-から追加ローカルだけ)）。
 
-今は、ソースを登録して有効にし、cron の収集（`collect:passages`）が sitemap か開始ページからリンクをたどって取得するのを待つ必要がある。「このページを題材にしたい」と思ったページを、すぐ本文候補にできるようにする。
+サイトは cron の収集（`collect:passages`）の対象ではない（GitHub のリポジトリだけを収集する）。「このページを題材にしたい」と思ったページを、ローカルで本文候補にできるようにする。
 
 このドキュメントは **仕様（What）** と **設計（How）** を分けて記述する：
 
@@ -110,8 +110,8 @@ admin で URL を 1 つ入れると、そのページを取得して本文を抽
 | 移すもの（cron から） | 内容 |
 | --- | --- |
 | `lib/document/*` | 本文の抽出・切り分け・本文候補の条件・抽出の版（`EXTRACTION_VERSION`） |
-| `client/web/*` | `WebPageClient`（robots.txt・リクエストの間隔・取得先の制限〈SSRF 対策〉・条件付きリクエスト・sitemap）とエラー |
-| `lib/url.ts`・`lib/parse-sitemap.ts`・`lib/path-filter.ts` | URL の正規化、sitemap の解析、対象パス・除外パスの判定 |
+| `client/web/*` | `WebPageClient`（robots.txt・リクエストの間隔・取得先の制限〈SSRF 対策〉）とエラー |
+| `lib/url.ts`・`lib/path-filter.ts` | URL の正規化、対象パス・除外パスの判定 |
 | `service/collection/website-pages.ts` | 取得してよいページの判定、ページの本文の抽出（`extractWebPage`） |
 | `const/collection.ts` のうち取得の定数 | User-Agent・タイムアウト・HTML の上限・リダイレクトの上限・Crawl-delay の上限など |
 
@@ -153,7 +153,7 @@ admin で URL を 1 つ入れると、そのページを取得して本文を抽
 
 | 項目 | 内容 |
 | --- | --- |
-| 文書 | `source_documents` を `(source_id, path)` で upsert し、取得の結果（タイトル・`fetched_at`・`http_status`・`content_hash`・`etag`・`last_modified`・`extraction_version`）を書く。`path` は URL の pathname（収集と同じ） |
+| 文書 | `source_documents` を `(source_id, path)` で upsert し、取得の結果（タイトル・`fetched_at`・`content_hash`・`extraction_version`）を書く。`path` は URL の pathname（収集と同じ） |
 | 見出しの確認 | その文書の生成中・生成した本文候補（`generating`・`draft`・`published`、`generated_at` がある `rejected`）の見出しと同じ塊は挿入しない |
 | 挿入 | 残りの塊を `collected` で挿入する（同じ `content_hash` は飛ばす）。`generation_prioritized_at` に保存した時刻を入れる |
 | 優先 | `collected` のうち、`content_hash` が残した塊のものに `generation_prioritized_at` を入れる。文書で絞らない（`content_hash` は全体で unique なので、末尾の `/` の違いなどで別の文書として取り込み済みの本文候補も優先する） |

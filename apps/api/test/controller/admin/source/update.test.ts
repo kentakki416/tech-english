@@ -47,15 +47,12 @@ const selectSource = async (id: number) => {
 }
 
 /**
- * 取得済みのページ（ETag / Last-Modified / 本文のハッシュつき）を入れる
+ * 取得済みのページ（本文のハッシュつき）を入れる
  */
 const insertFetchedDocument = async (sourceId: number, path: string) => {
   const [row] = await testDb.insert(sourceDocuments).values({
     contentHash: "content-hash",
-    etag: "\"v1\"",
     fetchedAt: new Date("2026-10-10T03:00:00.000Z"),
-    httpStatus: 200,
-    lastModified: "Sat, 10 Oct 2026 00:00:00 GMT",
     path,
     sourceId,
   }).returning()
@@ -101,8 +98,6 @@ describe("PUT /api/admin/source/:id", () => {
         exclude_selectors: [],
         is_enabled: true,
         name: "Go Docs",
-        sitemap_url: null,
-        start_url: "https://go.dev/doc/",
         tag_ids: [go.id, backend.id],
       }
 
@@ -129,8 +124,6 @@ describe("PUT /api/admin/source/:id", () => {
         excludeSelectors: [],
         isEnabled: false,
         name: "Go Docs",
-        sitemapUrl: null,
-        startUrl: "https://go.dev/doc/",
       })
       expect(await selectSourceTagIds(website.id)).toEqual([go.id, backend.id])
     })
@@ -203,38 +196,19 @@ describe("PUT /api/admin/source/:id", () => {
       })
     })
 
-    it("website の content_selector を変えると、そのソースの source_documents の etag / last_modified / content_hash が null になる", async () => {
+    it("website の content_selector を変えても、取得済みの文書は変わらない", async () => {
       const website = await insertWebsiteSource()
       const document = await insertFetchedDocument(website.id, "/doc/a")
 
       const res = await request(app)
         .put(`/api/admin/source/${website.id}`)
         .set("Authorization", `Bearer ${adminToken}`)
-        .send({ ...WEBSITE_REQUEST, content_selector: "main", is_enabled: true })
-
-      expect(res.status).toBe(200)
-      expect(await selectSourceDocument(document.id)).toMatchObject({
-        contentHash: null,
-        etag: null,
-        fetchedAt: new Date("2026-10-10T03:00:00.000Z"),
-        lastModified: null,
-      })
-    })
-
-    it("website の name だけを変えると source_documents は変わらない", async () => {
-      const website = await insertWebsiteSource()
-      const document = await insertFetchedDocument(website.id, "/doc/a")
-
-      const res = await request(app)
-        .put(`/api/admin/source/${website.id}`)
-        .set("Authorization", `Bearer ${adminToken}`)
-        .send({ ...WEBSITE_REQUEST, is_enabled: true, name: "Go Docs" })
+        .send({ ...WEBSITE_REQUEST, content_selector: "main" })
 
       expect(res.status).toBe(200)
       expect(await selectSourceDocument(document.id)).toMatchObject({
         contentHash: "content-hash",
-        etag: "\"v1\"",
-        lastModified: "Sat, 10 Oct 2026 00:00:00 GMT",
+        fetchedAt: new Date("2026-10-10T03:00:00.000Z"),
       })
     })
 
@@ -398,7 +372,7 @@ describe("PUT /api/admin/source/:id", () => {
         const website = await insertWebsiteSource()
         await insertSourceDocument(website.id, "/doc/a")
         return {
-          body: { ...WEBSITE_REQUEST, is_enabled: true, site_url: "https://go.example.dev", sitemap_url: "https://go.example.dev/sitemap.xml" },
+          body: { ...WEBSITE_REQUEST, site_url: "https://go.example.dev" },
           id: website.id,
         }
       }],

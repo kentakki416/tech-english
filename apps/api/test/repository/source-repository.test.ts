@@ -42,16 +42,14 @@ const WEBSITE_INPUT: WebsiteInput = {
   licenseSpdx: "CC-BY-4.0",
   licenseUrl: "https://go.dev/copyright",
   name: "Go 公式ドキュメント",
-  sitemapUrl: "https://go.dev/sitemap.xml",
   siteUrl: "https://go.dev",
-  startUrl: null,
   tagIds: [],
 }
 
 /**
  * 収集の状態を何も戻さない update の options
  */
-const NO_RESET: SourceUpdateOptions = { shouldResetCollectedCommit: false, shouldResetDocumentCache: false }
+const NO_RESET: SourceUpdateOptions = { shouldResetCollectedCommit: false }
 
 /**
  * 入力から tagIds を外したもの（ソースの列）。期待値を組み立てるのに使う
@@ -98,30 +96,8 @@ const selectSourceTagIds = async (sourceId: number): Promise<number[]> => {
   return rows.map((row) => row.tagId)
 }
 
-const insertSourceDocument = async (sourceId: number, path: string, httpStatus: number | null = null) => {
-  const [row] = await testDb.insert(sourceDocuments).values({ httpStatus, path, sourceId }).returning()
-  return row
-}
-
-/**
- * 取得済みのページ（ETag / Last-Modified / 本文のハッシュつき）を入れる
- */
-const insertFetchedDocument = async (sourceId: number, path: string) => {
-  const [row] = await testDb.insert(sourceDocuments).values({
-    contentHash: `content-hash-${path}`,
-    etag: "\"v1\"",
-    fetchedAt: new Date("2026-10-10T03:00:00.000Z"),
-    httpStatus: 200,
-    lastModified: "Sat, 10 Oct 2026 00:00:00 GMT",
-    path,
-    sourceId,
-    title: "Title",
-  }).returning()
-  return row
-}
-
-const selectSourceDocument = async (id: number) => {
-  const [row] = await testDb.select().from(sourceDocuments).where(eq(sourceDocuments.id, id))
+const insertSourceDocument = async (sourceId: number, path: string) => {
+  const [row] = await testDb.insert(sourceDocuments).values({ path, sourceId }).returning()
   return row
 }
 
@@ -262,8 +238,6 @@ describe("SourceRepository", () => {
         excludeSelectors: [],
         includeGlobs: ["/doc/tutorial/**"],
         isEnabled: false,
-        sitemapUrl: null,
-        startUrl: "https://go.dev/doc/",
       }
 
       const updated = await updateSource(sourceRepository, created.id, input, NO_RESET)
@@ -277,47 +251,6 @@ describe("SourceRepository", () => {
         updatedAt: expect.any(Date),
       })
       expect(await sourceRepository.findById(created.id)).toEqual(updated)
-    })
-
-    it("update は shouldResetDocumentCache なら、そのソースの source_documents の etag / last_modified / content_hash だけを null にする", async () => {
-      const website = await createSource(sourceRepository, WEBSITE_INPUT)
-      const other = await createSource(sourceRepository, { ...WEBSITE_INPUT, siteUrl: "https://docs.python.org" })
-      const document = await insertFetchedDocument(website.id, "/doc/a")
-      const otherDocument = await insertFetchedDocument(other.id, "/3/tutorial/")
-
-      await updateSource(
-        sourceRepository,
-        website.id,
-        { ...WEBSITE_INPUT, contentSelector: "main" },
-        { ...NO_RESET, shouldResetDocumentCache: true },
-      )
-
-      expect(await selectSourceDocument(document.id)).toMatchObject({
-        contentHash: null,
-        etag: null,
-        fetchedAt: new Date("2026-10-10T03:00:00.000Z"),
-        httpStatus: 200,
-        lastModified: null,
-        title: "Title",
-      })
-      expect(await selectSourceDocument(otherDocument.id)).toMatchObject({
-        contentHash: "content-hash-/3/tutorial/",
-        etag: "\"v1\"",
-        lastModified: "Sat, 10 Oct 2026 00:00:00 GMT",
-      })
-    })
-
-    it("update は shouldResetDocumentCache: false なら source_documents を変えない", async () => {
-      const website = await createSource(sourceRepository, WEBSITE_INPUT)
-      const document = await insertFetchedDocument(website.id, "/doc/a")
-
-      await updateSource(sourceRepository, website.id, { ...WEBSITE_INPUT, name: "Go Docs" }, NO_RESET)
-
-      expect(await selectSourceDocument(document.id)).toMatchObject({
-        contentHash: "content-hash-/doc/a",
-        etag: "\"v1\"",
-        lastModified: "Sat, 10 Oct 2026 00:00:00 GMT",
-      })
     })
 
     it("create に tagIds を渡すと source_tags に入り、create / findById / findAll はタグを lower(name) → id の順で返す", async () => {
@@ -391,7 +324,7 @@ describe("SourceRepository", () => {
       expect(await sourceRepository.hasSourceDocuments(website.id)).toBe(false)
     })
 
-    it("countPassagesBySource / countFailedPagesBySource / findFailedPages が source_documents と passages の内容と一致する", async () => {
+    it("countPassagesBySource が source_documents と passages の内容と一致する", async () => {
       const github = await createSource(sourceRepository, GITHUB_INPUT)
       const website = await createSource(sourceRepository, WEBSITE_INPUT)
       const learn = await insertSourceDocument(github.id, "src/content/learn/a.md")
@@ -400,16 +333,7 @@ describe("SourceRepository", () => {
       await insertPassages(learn.id, "draft", 1)
       await insertPassages(reference.id, "collected", 1)
       await insertPassages(reference.id, "published", 1)
-      /**
-       * http_status が 400 以上の行だけを取得失敗として数える（399 / 304 / 200 / NULL は数えない）
-       */
-      await insertSourceDocument(website.id, "/doc/b", 404)
-      await insertSourceDocument(website.id, "/doc/a", 500)
-      await insertSourceDocument(website.id, "/doc/e", 400)
-      await insertSourceDocument(website.id, "/doc/f", 399)
-      await insertSourceDocument(website.id, "/doc/c", 304)
-      const fetchedPage = await insertSourceDocument(website.id, "/doc/d", 200)
-      await insertSourceDocument(website.id, "/doc/g", null)
+      const fetchedPage = await insertSourceDocument(website.id, "/doc/d")
       await insertPassages(fetchedPage.id, "rejected", 1)
 
       expect(sortCountRows(await sourceRepository.countPassagesBySource())).toEqual([
@@ -423,21 +347,13 @@ describe("SourceRepository", () => {
         { count: 1, sourceId: github.id, status: "draft" },
         { count: 1, sourceId: github.id, status: "published" },
       ])
-      expect(await sourceRepository.countFailedPagesBySource()).toEqual([{ count: 3, sourceId: website.id }])
-      expect(await sourceRepository.findFailedPages(website.id)).toEqual([
-        { httpStatus: 500, path: "/doc/a" },
-        { httpStatus: 404, path: "/doc/b" },
-        { httpStatus: 400, path: "/doc/e" },
-      ])
-      expect(await sourceRepository.findFailedPages(github.id)).toEqual([])
     })
 
-    it("本文候補も取得失敗も無ければ集計は空になる", async () => {
+    it("本文候補が無ければ集計は空になる", async () => {
       const github = await createSource(sourceRepository, GITHUB_INPUT)
 
       expect(await sourceRepository.countPassagesBySource()).toEqual([])
       expect(await sourceRepository.countPassagesBySource(github.id)).toEqual([])
-      expect(await sourceRepository.countFailedPagesBySource()).toEqual([])
     })
   })
 
@@ -482,21 +398,6 @@ describe("SourceRepository", () => {
       expect(await sourceRepository.update(otherWebsite.id, WEBSITE_INPUT, NO_RESET)).toEqual({ kind: "duplicate" })
       expect(await sourceRepository.findById(otherGitHub.id)).toEqual(otherGitHub)
       expect(await sourceRepository.findById(otherWebsite.id)).toEqual(otherWebsite)
-    })
-
-    it("update が duplicate を返したときは shouldResetDocumentCache でも source_documents を変えない", async () => {
-      await createSource(sourceRepository, WEBSITE_INPUT)
-      const other = await createSource(sourceRepository, { ...WEBSITE_INPUT, siteUrl: "https://docs.python.org" })
-      const document = await insertFetchedDocument(other.id, "/3/tutorial/")
-
-      const result = await sourceRepository.update(
-        other.id,
-        { ...WEBSITE_INPUT, contentSelector: "div.body" },
-        { ...NO_RESET, shouldResetDocumentCache: true },
-      )
-
-      expect(result).toEqual({ kind: "duplicate" })
-      expect(await selectSourceDocument(document.id)).toMatchObject({ contentHash: "content-hash-/3/tutorial/", etag: "\"v1\"" })
     })
 
     it("create は存在しない tag の id なら throw せず missing_tags を返し、sources の行も作らない（巻き戻る）", async () => {

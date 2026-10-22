@@ -91,15 +91,10 @@ export type WebsiteSource = SourceBase & {
   excludeSelectors: string[]
   fetchType: "website"
   licenseSpdx: SourceLicense
-  sitemapUrl: string | null
   /**
    * オリジン（https://go.dev）
    */
   siteUrl: string
-  /**
-   * 開始ページの URL。sitemapUrl とどちらか一方は必ずある
-   */
-  startUrl: string | null
 }
 
 /**

@@ -4,14 +4,12 @@ import {
   PASSAGE_STATUSES,
   type PassageStatus,
   type Source,
-  type WebsiteSource,
 } from "@repo/domain"
 import { badRequestError, conflictError, err, notFoundError, ok, Result } from "@repo/errors"
 import { logger } from "@repo/logger"
 
 import type { IGitHubLicenseClient } from "../client/github-license"
 import {
-  FailedPage,
   PassageCountRow,
   SourceInput,
   SourceRepository,
@@ -27,8 +25,6 @@ type SourceRepo = { sourceRepository: SourceRepository }
 type SourceWriteRepo = SourceRepo & { tagRepository: Pick<TagRepository, "findByIds"> }
 
 type GitHubRepositoryInput = Extract<SourceInput, { fetchType: "github_repository" }>
-
-type WebsiteInput = Extract<SourceInput, { fetchType: "website" }>
 
 const DUPLICATE_SOURCE_MESSAGE = "Source already registered"
 
@@ -123,48 +119,35 @@ const hasOriginChanged = (existing: Source, input: SourceInput): boolean => {
 }
 
 /**
- * 本文の抽出の設定（本文の CSS セレクタ / 除外する CSS セレクタ）が変わったか
- */
-const hasExtractionChanged = (existing: WebsiteSource, input: WebsiteInput): boolean =>
-  existing.contentSelector !== input.contentSelector
-  || !isSameStringList(existing.excludeSelectors, input.excludeSelectors)
-
-/**
- * ソース一覧（状態別の本文候補件数と取得失敗のページ数つき）
+ * ソース一覧（状態別の本文候補件数つき）
  */
 export const getSources = async (
   repo: SourceRepo,
-): Promise<Result<{ failedPageCount: number; passageCounts: PassageCounts; source: SourceWithTags }[]>> => {
-  const [sources, passageCountRows, failedPageCountRows] = await Promise.all([
+): Promise<Result<{ passageCounts: PassageCounts; source: SourceWithTags }[]>> => {
+  const [sources, passageCountRows] = await Promise.all([
     repo.sourceRepository.findAll(),
     repo.sourceRepository.countPassagesBySource(),
-    repo.sourceRepository.countFailedPagesBySource(),
   ])
-  const failedPageCounts = new Map(failedPageCountRows.map((row) => [row.sourceId, row.count]))
   return ok(sources.map((source) => ({
-    failedPageCount: failedPageCounts.get(source.id) ?? 0,
     passageCounts: buildPassageCounts(passageCountRows, source.id),
     source,
   })))
 }
 
 /**
- * ソース詳細（状態別の本文候補件数と取得失敗のページつき）
+ * ソース詳細（状態別の本文候補件数つき）
  */
 export const getSourceById = async (
   id: number,
   repo: SourceRepo,
-): Promise<Result<{ failedPages: FailedPage[]; passageCounts: PassageCounts; source: SourceWithTags }>> => {
+): Promise<Result<{ passageCounts: PassageCounts; source: SourceWithTags }>> => {
   const source = await repo.sourceRepository.findById(id)
   if (!source) {
     logger.debug("SourceService: Source not found", { id })
     return err(notFoundError("Source not found"))
   }
-  const [passageCountRows, failedPages] = await Promise.all([
-    repo.sourceRepository.countPassagesBySource(id),
-    repo.sourceRepository.findFailedPages(id),
-  ])
-  return ok({ failedPages, passageCounts: buildPassageCounts(passageCountRows, id), source })
+  const passageCountRows = await repo.sourceRepository.countPassagesBySource(id)
+  return ok({ passageCounts: buildPassageCounts(passageCountRows, id), source })
 }
 
 /**
@@ -263,14 +246,7 @@ export const updateSource = async (
   const shouldResetCollectedCommit = existing.fetchType === "github_repository"
     && input.fetchType === "github_repository"
     && hasCollectionScopeChanged(existing, input)
-  /**
-   * 本文の抽出の設定が変わったら、取得済みの文書の ETag / Last-Modified / 本文のハッシュを消す。
-   * 消さないと、ページが変わっていない間は 304 か同じハッシュで止まり、新しいセレクタで抽出し直されない
-   */
-  const shouldResetDocumentCache = existing.fetchType === "website"
-    && input.fetchType === "website"
-    && hasExtractionChanged(existing, input)
-  const result = await repo.sourceRepository.update(id, disableWebsiteSource(input), { shouldResetCollectedCommit, shouldResetDocumentCache })
+  const result = await repo.sourceRepository.update(id, disableWebsiteSource(input), { shouldResetCollectedCommit })
   if (result.kind === "duplicate") {
     logger.debug("SourceService: Source registered concurrently", { fetchType: input.fetchType, id })
     return err(conflictError(DUPLICATE_SOURCE_MESSAGE))
@@ -279,7 +255,7 @@ export const updateSource = async (
     logger.debug("SourceService: Tag deleted during the request", { id })
     return err(buildTagNotFoundError("Tag was deleted during the request"))
   }
-  logger.info("SourceService: Source updated", { id, shouldResetCollectedCommit, shouldResetDocumentCache })
+  logger.info("SourceService: Source updated", { id, shouldResetCollectedCommit })
   return ok(result.source)
 }
 

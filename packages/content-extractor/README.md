@@ -27,7 +27,7 @@ Markdown / MDX / HTML から本文を抽出して本文候補に切り分ける�
 
 | ファイル | 役割 |
 | --- | --- |
-| `src/web/` | `WebPageClient`（1 ソースにつき 1 つ。robots.txt・リクエストの間隔・取得先の制限・条件付きリクエスト。任意で取得の期限〈`deadlineAt`〉と Crawl-delay の上限〈`maxCrawlDelaySeconds`〉）、`safe-lookup.ts`（接続のときに名前解決したアドレスを検査する lookup）、`BlockedUrlError` / `WebSourceThrottledError` / `CrawlDelayTooLongError` / `WebDeadlineExceededError` |
+| `src/web/` | `WebPageClient`（1 ソースにつき 1 つ。robots.txt・リクエストの間隔・取得先の制限。任意で取得の期限〈`deadlineAt`〉と Crawl-delay の上限〈`maxCrawlDelaySeconds`〉）、`safe-lookup.ts`（接続のときに名前解決したアドレスを検査する lookup）、`BlockedUrlError` / `WebSourceThrottledError` / `CrawlDelayTooLongError` / `WebDeadlineExceededError` |
 | `src/path-filter.ts` | 対象パス / 除外パスの glob 判定（picomatch）と、glob の固定部分のディレクトリ |
 | `src/url.ts` | ページの URL の正規化（クエリ・フラグメントを除く。https のみ）と取得しない拡張子 |
 | `src/website-pages.ts` | 取得したページ（リダイレクトの行き先）が本文候補を作ってよい URL か（ページの拡張子・対象パス）と、HTML の抽出 |

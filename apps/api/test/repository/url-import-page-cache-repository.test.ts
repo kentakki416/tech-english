@@ -30,8 +30,6 @@ describe("IoRedisUrlImportPageCacheRepository", () => {
     it("置いたページを同じキーで読め、10 分の TTL が付く", async () => {
       const page = buildFetchedPage({
         chunks: [buildChunk({ blocks: [{ lang: "go", text: "package main", type: "code" }], rejectReasons: ["too_much_code"] })],
-        etag: null,
-        lastModified: null,
       })
 
       await urlImportPageCacheRepository.save(KEY, page)

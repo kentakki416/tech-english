@@ -58,17 +58,9 @@ export const sources = pgTable(
      */
     repository: text("repository"),
     /**
-     * サイトのみ
-     */
-    sitemapUrl: text("sitemap_url"),
-    /**
      * サイトのみ。オリジン（https://go.dev）
      */
     siteUrl: text("site_url"),
-    /**
-     * サイトのみ。開始ページの URL
-     */
-    startUrl: text("start_url"),
     ...timestamps,
   },
   (table) => [
@@ -88,7 +80,7 @@ export const sources = pgTable(
     ),
     check(
       "sources_website_check",
-      sql`${table.fetchType} <> 'website' OR (${table.siteUrl} IS NOT NULL AND (${table.sitemapUrl} IS NOT NULL OR ${table.startUrl} IS NOT NULL))`,
+      sql`${table.fetchType} <> 'website' OR ${table.siteUrl} IS NOT NULL`,
     ),
     /**
      * サイトのソースは収集しないので有効にしない（URL から追加は有効・無効を見ない）

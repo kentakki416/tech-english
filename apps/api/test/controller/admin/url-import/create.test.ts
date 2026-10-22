@@ -105,7 +105,6 @@ describe("POST /api/admin/url-import", () => {
         contentHash: "hash-page",
         extractionVersion: "2026-10-18",
         fetchedAt: expect.any(Date),
-        httpStatus: 200,
         path: PATH,
         title: "Tutorial: Get started with Go",
       })

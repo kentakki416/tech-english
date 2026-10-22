@@ -48,7 +48,10 @@ const COLUMNS: Column<SourceRow>[] = [
   {
     className: "px-5 py-4 text-theme-sm whitespace-nowrap text-gray-500 dark:text-gray-400",
     header: "最終収集",
-    render: row => row.lastCollectedAt ?? <span className="text-gray-400">未収集</span>,
+    render: row => {
+      if (row.fetchType === "website") return <span className="text-gray-300 dark:text-gray-600">―</span>
+      return row.lastCollectedAt ?? <span className="text-gray-400">未収集</span>
+    },
   },
   {
     header: "本文候補",
@@ -64,18 +67,6 @@ const COLUMNS: Column<SourceRow>[] = [
     ),
   },
   {
-    className: "px-5 py-4 text-theme-sm whitespace-nowrap text-gray-500 dark:text-gray-400",
-    header: "取得失敗",
-    render: row =>
-      row.fetchType === "website" ? (
-        <span className={(row.failedPages?.length ?? 0) > 0 ? "font-medium text-error-600 dark:text-error-500" : ""}>
-          {row.failedPages?.length ?? 0} ページ
-        </span>
-      ) : (
-        <span className="text-gray-300 dark:text-gray-600">―</span>
-      ),
-  },
-  {
     className: "px-5 py-4 text-right text-theme-sm whitespace-nowrap",
     header: "",
     render: row => (
@@ -88,8 +79,17 @@ const COLUMNS: Column<SourceRow>[] = [
 
 const FILTERS: FilterConfig<SourceRow>[] = [
   { key: "fetchTypeLabel", label: "取得方法", options: [{ label: "GitHub", value: "GitHub" }, { label: "サイト", value: "サイト" }] },
-  { key: "statusLabel", label: "状態", options: [{ label: "有効", value: "有効" }, { label: "無効", value: "無効" }] },
+  {
+    key: "statusLabel",
+    label: "状態",
+    options: [{ label: "有効", value: "有効" }, { label: "無効", value: "無効" }, { label: "収集しない", value: "収集しない" }],
+  },
 ]
+
+const buildStatusLabel = (source: AdminSource): string => {
+  if (source.fetchType === "website") return "収集しない"
+  return source.isEnabled ? "有効" : "無効"
+}
 
 /**
  * ソース一覧の表（モック）。Basic Table と同じ DataTable を使う
@@ -98,7 +98,7 @@ export function SourceTable({ sources }: { sources: AdminSource[] }) {
   const rows: SourceRow[] = sources.map(source => ({
     ...source,
     fetchTypeLabel: source.fetchType === "website" ? "サイト" : "GitHub",
-    statusLabel: source.isEnabled ? "有効" : "無効",
+    statusLabel: buildStatusLabel(source),
   }))
 
   return (
@@ -109,7 +109,7 @@ export function SourceTable({ sources }: { sources: AdminSource[] }) {
         <div>
           <p className="text-base font-medium text-gray-800 dark:text-white/90">まだソースがありません</p>
           <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-            GitHub リポジトリか公式ドキュメントのサイトを登録すると、翌日の収集から本文候補が作られます。
+            GitHub のリポジトリを登録すると、翌日の収集から本文候補が作られます。
           </p>
         </div>
       }

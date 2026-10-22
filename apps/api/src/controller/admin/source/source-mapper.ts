@@ -36,9 +36,7 @@ export const convertSourceRequestToInput = (
     fetchType: request.fetch_type,
     isEnabled: false,
     licenseSpdx: request.license_spdx,
-    sitemapUrl: request.sitemap_url,
     siteUrl: request.site_url,
-    startUrl: request.start_url,
   }
 }
 
@@ -77,8 +75,6 @@ export const convertSourceToResponse = (source: SourceWithTags): SourceResponse 
     exclude_selectors: source.excludeSelectors,
     fetch_type: source.fetchType,
     license_spdx: source.licenseSpdx,
-    sitemap_url: source.sitemapUrl,
     site_url: source.siteUrl,
-    start_url: source.startUrl,
   }
 }

@@ -2,7 +2,7 @@
  * admin のデザインモック（/mock 配下）用のダミーデータ
  *
  * API を呼ばずに画面を表現するためのハードコード値。本実装では `@repo/api-schema/admin/` の
- * レスポンス型に置き換わる。ソースの CSS セレクタや sitemap の URL は実在のサイトを確認した値ではない。
+ * レスポンス型に置き換わる。ソースの CSS セレクタは実在のサイトを確認した値ではない。
  */
 
 export type AdminSourceKind = "docs" | "github"
@@ -17,7 +17,6 @@ export type AdminSource = {
   contentSelector?: string
   excludeGlobs: string[]
   excludeSelectors?: string[]
-  failedPages?: { httpStatus: number, path: string }[]
   fetchType: AdminFetchType
   includeGlobs: string[]
   isEnabled: boolean
@@ -31,8 +30,6 @@ export type AdminSource = {
   passageCounts: { collected: number, draft: number, published: number, rejected: number }
   publicUrlStripPrefix?: string
   publicUrlTemplate?: string
-  sitemapUrl?: string
-  startUrl?: string
   tags: string[]
 }
 
@@ -47,6 +44,8 @@ export const ALLOWED_LICENSES = [
   "CC0-1.0",
   "Unlicense",
 ]
+
+export const PERSONAL_USE_LICENSE = "LicenseRef-personal-use"
 
 export const MOCK_SOURCES: AdminSource[] = [
   {
@@ -126,21 +125,16 @@ export const MOCK_SOURCES: AdminSource[] = [
     contentSelector: "main",
     excludeGlobs: ["/doc/devel/**"],
     excludeSelectors: [".Breadcrumb", ".Article-footer"],
-    failedPages: [
-      { httpStatus: 404, path: "/doc/articles/go_command.html" },
-      { httpStatus: 404, path: "/doc/gdb" },
-    ],
     fetchType: "website",
     includeGlobs: ["/doc/**"],
-    isEnabled: true,
+    isEnabled: false,
     kind: "docs",
-    lastCollectedAt: "2026-10-10 03:11",
+    lastCollectedAt: null,
     licenseSpdx: "CC-BY-4.0",
     licenseUrl: "https://go.dev/copyright",
     name: "Go 公式ドキュメント",
     origin: "https://go.dev",
     passageCounts: { collected: 18, draft: 0, published: 27, rejected: 4 },
-    startUrl: "https://go.dev/doc/",
     tags: ["go", "backend"],
   },
   {
@@ -148,7 +142,6 @@ export const MOCK_SOURCES: AdminSource[] = [
     contentSelector: "div.body",
     excludeGlobs: [],
     excludeSelectors: [],
-    failedPages: [],
     fetchType: "website",
     includeGlobs: ["/3/tutorial/**", "/3/howto/**"],
     isEnabled: false,
@@ -159,7 +152,6 @@ export const MOCK_SOURCES: AdminSource[] = [
     name: "Python ドキュメント",
     origin: "https://docs.python.org",
     passageCounts: { collected: 0, draft: 0, published: 0, rejected: 0 },
-    startUrl: "https://docs.python.org/3/tutorial/",
     tags: ["python"],
   },
   {
@@ -167,22 +159,16 @@ export const MOCK_SOURCES: AdminSource[] = [
     contentSelector: "article.devsite-article",
     excludeGlobs: [],
     excludeSelectors: [".devsite-article-meta", "devsite-feedback"],
-    failedPages: [
-      { httpStatus: 404, path: "/run/docs/legacy/overview" },
-      { httpStatus: 410, path: "/run/docs/quickstarts/build-and-deploy/old" },
-      { httpStatus: 404, path: "/run/docs/fit-for-run" },
-    ],
     fetchType: "website",
     includeGlobs: ["/run/docs/**"],
-    isEnabled: true,
+    isEnabled: false,
     kind: "docs",
-    lastCollectedAt: "2026-10-10 03:24",
+    lastCollectedAt: null,
     licenseSpdx: "CC-BY-4.0",
     licenseUrl: "https://cloud.google.com/site-policies",
     name: "Google Cloud ドキュメント",
     origin: "https://cloud.google.com",
     passageCounts: { collected: 9, draft: 2, published: 19, rejected: 2 },
-    sitemapUrl: "https://cloud.google.com/sitemap.xml",
     tags: ["gcp", "infra"],
   },
 ]

@@ -16,14 +16,12 @@ type WebsiteSourceWithTags = Extract<SourceWithTags, { fetchType: "website" }>
  * source-service のユニットテストで共有する Repository のモックと値
  */
 export const createMockSourceRepository = () => ({
-  countFailedPagesBySource: vi.fn<SourceRepository["countFailedPagesBySource"]>(),
   countPassagesBySource: vi.fn<SourceRepository["countPassagesBySource"]>(),
   create: vi.fn<SourceRepository["create"]>(),
   findAll: vi.fn<SourceRepository["findAll"]>(),
   findById: vi.fn<SourceRepository["findById"]>(),
   findByRepository: vi.fn<SourceRepository["findByRepository"]>(),
   findBySiteUrl: vi.fn<SourceRepository["findBySiteUrl"]>(),
-  findFailedPages: vi.fn<SourceRepository["findFailedPages"]>(),
   hasSourceDocuments: vi.fn<SourceRepository["hasSourceDocuments"]>(),
   update: vi.fn<SourceRepository["update"]>(),
 })
@@ -79,9 +77,7 @@ export const buildWebsiteInput = (overrides: Partial<WebsiteInput> = {}): Websit
   licenseSpdx: "CC-BY-4.0",
   licenseUrl: "https://go.dev/copyright",
   name: "Go 公式ドキュメント",
-  sitemapUrl: "https://go.dev/sitemap.xml",
   siteUrl: "https://go.dev",
-  startUrl: null,
   tagIds: [],
   ...overrides,
 })

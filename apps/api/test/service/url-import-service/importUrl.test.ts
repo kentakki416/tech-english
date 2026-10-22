@@ -77,11 +77,8 @@ describe("importUrl", () => {
       expect(transactionRunner.run).toHaveBeenCalledTimes(1)
       expect(urlImportRepository.upsertFetchedDocument).toHaveBeenCalledWith({
         contentHash: "hash-page",
-        etag: "\"etag-1\"",
         extractionVersion: "2026-10-18",
         fetchedAt: NOW,
-        httpStatus: 200,
-        lastModified: "Mon, 19 Oct 2026 00:00:00 GMT",
         path: "/doc/tutorial/getting-started",
         sourceId: 2,
         title: "Tutorial: Get started with Go",

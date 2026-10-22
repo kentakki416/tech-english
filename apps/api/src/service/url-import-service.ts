@@ -270,11 +270,8 @@ export const importUrl = async (
   const saved = await repo.transactionRunner.run(async (tx) => {
     const document = await repo.urlImportRepository.upsertFetchedDocument({
       contentHash: page.contentHash,
-      etag: page.etag,
       extractionVersion: page.extractionVersion,
       fetchedAt: now,
-      httpStatus: page.httpStatus,
-      lastModified: page.lastModified,
       path: page.path,
       sourceId: source.id,
       title: page.title,

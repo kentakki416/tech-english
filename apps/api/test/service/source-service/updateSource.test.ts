@@ -42,7 +42,6 @@ describe("updateSource", () => {
       expect(result).toEqual({ ok: true, value: updated })
       expect(sourceRepository.update).toHaveBeenCalledWith(1, input, {
         shouldResetCollectedCommit: true,
-        shouldResetDocumentCache: false,
       })
     })
 
@@ -57,7 +56,6 @@ describe("updateSource", () => {
       expect(result.ok).toBe(true)
       expect(sourceRepository.update).toHaveBeenCalledWith(1, input, {
         shouldResetCollectedCommit: false,
-        shouldResetDocumentCache: false,
       })
     })
 
@@ -72,27 +70,6 @@ describe("updateSource", () => {
       expect(result.ok).toBe(true)
       expect(sourceRepository.update).toHaveBeenCalledWith(2, { ...input, isEnabled: false }, {
         shouldResetCollectedCommit: false,
-        shouldResetDocumentCache: false,
-      })
-    })
-
-    it.each([
-      ["content_selector を変える", { contentSelector: "main" }],
-      ["content_selector を消す", { contentSelector: null }],
-      ["exclude_selectors を足す", { excludeSelectors: [".feedback", "nav.toc"] }],
-      ["exclude_selectors の順序を変える", { excludeSelectors: [".b", ".a"] }],
-    ])("website の%sと shouldResetDocumentCache: true で update する", async (_label, overrides) => {
-      const existing = buildWebsiteSource({ excludeSelectors: [".a", ".b"], id: 2 })
-      const input = buildWebsiteInput({ excludeSelectors: [".a", ".b"], ...overrides })
-      sourceRepository.findById.mockResolvedValue(existing)
-      sourceRepository.update.mockResolvedValue({ kind: "saved", source: buildWebsiteSource({ ...input, id: 2 }) })
-
-      const result = await updateSource(2, input, { sourceRepository, tagRepository }, LOCAL_POLICY)
-
-      expect(result.ok).toBe(true)
-      expect(sourceRepository.update).toHaveBeenCalledWith(2, input, {
-        shouldResetCollectedCommit: false,
-        shouldResetDocumentCache: true,
       })
     })
 
@@ -124,7 +101,7 @@ describe("updateSource", () => {
 
     it.each([
       ["repository", buildGitHubSource({ id: 1 }), buildGitHubInput({ repository: "vercel/next.js" })],
-      ["site_url", buildWebsiteSource({ id: 1 }), buildWebsiteInput({ sitemapUrl: null, siteUrl: "https://docs.python.org", startUrl: "https://docs.python.org/3/" })],
+      ["site_url", buildWebsiteSource({ id: 1 }), buildWebsiteInput({ siteUrl: "https://docs.python.org" })],
     ])("取得した文書が無ければ %s を変えられる", async (_label, existing, input) => {
       sourceRepository.findById.mockResolvedValue(existing)
       sourceRepository.update.mockResolvedValue({ kind: "saved", source: existing })
@@ -177,7 +154,6 @@ describe("updateSource", () => {
       expect(tagRepository.findByIds).toHaveBeenCalledWith([2, 3])
       expect(sourceRepository.update).toHaveBeenCalledWith(1, input, {
         shouldResetCollectedCommit: false,
-        shouldResetDocumentCache: false,
       })
     })
 
@@ -249,7 +225,7 @@ describe("updateSource", () => {
 
     it.each([
       ["repository", buildGitHubSource({ id: 1 }), buildGitHubInput({ repository: "vercel/next.js" })],
-      ["site_url", buildWebsiteSource({ id: 1 }), buildWebsiteInput({ sitemapUrl: null, siteUrl: "https://docs.python.org", startUrl: "https://docs.python.org/3/" })],
+      ["site_url", buildWebsiteSource({ id: 1 }), buildWebsiteInput({ siteUrl: "https://docs.python.org" })],
     ])("取得した文書があるソースの %s を変えると 400 BAD_REQUEST を返し、update を呼ばない", async (_label, existing, input) => {
       sourceRepository.findById.mockResolvedValue(existing)
       sourceRepository.hasSourceDocuments.mockResolvedValue(true)
@@ -285,7 +261,7 @@ describe("updateSource", () => {
 
       const result = await updateSource(
         2,
-        buildWebsiteInput({ sitemapUrl: null, siteUrl: "https://docs.python.org", startUrl: "https://docs.python.org/3/" }),
+        buildWebsiteInput({ siteUrl: "https://docs.python.org" }),
         { sourceRepository, tagRepository },
         LOCAL_POLICY,
       )

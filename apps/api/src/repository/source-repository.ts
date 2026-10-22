@@ -20,12 +20,7 @@ export type SourceWithTags = Source & { tags: Tag[] }
  */
 export type SourceInput =
   | (SourceInputBase & Pick<GitHubRepositorySource, "branch" | "fetchType" | "licenseSpdx" | "publicUrlStripPrefix" | "publicUrlTemplate" | "repository">)
-  | (SourceInputBase & Pick<WebsiteSource, "contentSelector" | "excludeSelectors" | "fetchType" | "licenseSpdx" | "sitemapUrl" | "siteUrl" | "startUrl">)
-
-/**
- * 取得に失敗したページ（source_documents.http_status >= 400）
- */
-export type FailedPage = { httpStatus: number; path: string }
+  | (SourceInputBase & Pick<WebsiteSource, "contentSelector" | "excludeSelectors" | "fetchType" | "licenseSpdx" | "siteUrl">)
 
 /**
  * ソース × 本文候補の状態ごとの件数。件数が 0 の組み合わせは行が無い
@@ -50,21 +45,12 @@ export type SourceUpdateOptions = {
    * last_collected_commit_sha を null に戻す（github の収集の範囲が変わったとき）
    */
   shouldResetCollectedCommit: boolean
-  /**
-   * そのソースの source_documents の etag / last_modified / content_hash を null に戻す（website の本文の CSS セレクタが変わったとき）。
-   * 次回の収集で条件付きリクエスト（304）と本文のハッシュの比較が効かなくなり、全ページを新しいセレクタで抽出し直す
-   */
-  shouldResetDocumentCache: boolean
 }
 
 /**
  * 英文の取得元（sources）のリポジトリ
  */
 export interface SourceRepository {
-  /**
-   * ソースごとの取得失敗のページ数。0 件のソースは行が無い
-   */
-  countFailedPagesBySource(): Promise<{ count: number; sourceId: number }[]>
   /**
    * sourceId を省略すると全ソース分
    */
@@ -86,10 +72,6 @@ export interface SourceRepository {
    * 重複の検査に使うだけなのでタグは読まない
    */
   findBySiteUrl(siteUrl: string): Promise<Source | null>
-  /**
-   * path の昇順
-   */
-  findFailedPages(sourceId: number): Promise<FailedPage[]>
   /**
    * 取得した文書（source_documents）を 1 件でも持つか
    */

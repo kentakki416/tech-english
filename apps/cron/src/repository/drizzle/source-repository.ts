@@ -99,9 +99,7 @@ export class DrizzleSourceRepository implements SourceRepository {
       excludeSelectors: row.excludeSelectors,
       fetchType: row.fetchType,
       licenseSpdx: row.licenseSpdx,
-      sitemapUrl: row.sitemapUrl,
       siteUrl: row.siteUrl,
-      startUrl: row.startUrl,
     }
   }
 }
