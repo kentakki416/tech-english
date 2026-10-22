@@ -13,11 +13,16 @@ import { SourceNotCollectableError } from "../service/collection/errors"
 /**
  * 収集できないソースの理由ごとの、記録の失敗の理由（admin にそのまま出す）
  */
-const NOT_COLLECTABLE_ERRORS = {
+const NOT_COLLECTABLE_ERROR_MESSAGES = {
   disabled: "ソースが無効になっていた",
   not_found: "ソースが無かった",
   website: "サイトのソースは収集しない",
 } satisfies Record<SourceNotCollectableError["reason"], string>
+
+/**
+ * 記録に書く想定外の失敗の理由の長さの上限（admin のカードにそのまま出す。全文は error のログに出す）
+ */
+const UNEXPECTED_ERROR_REASON_MAX_LENGTH = 200
 
 export type CollectSourceDeps = {
   githubToken: string | undefined
@@ -28,20 +33,29 @@ export type CollectSourceDeps = {
 }
 
 /**
+ * 想定外の例外から、記録に書く理由を取り出す。DB の失敗は Drizzle が包み、message が SQL と値（本文候補の全文）になるので、
+ * 包まれた元の例外（cause）の message を使う
+ */
+const extractUnexpectedErrorReason = (error: unknown): string => {
+  if (!(error instanceof Error)) return String(error).slice(0, UNEXPECTED_ERROR_REASON_MAX_LENGTH)
+  const reason = "cause" in error && error.cause instanceof Error ? error.cause.message : error.message
+  return reason.slice(0, UNEXPECTED_ERROR_REASON_MAX_LENGTH)
+}
+
+/**
  * 収集の例外を記録の結果にする。rate limit は打ち切りとして扱い、ほかは失敗にする
  */
 const convertCollectionErrorToOutcome = (error: unknown, claim: SourceCollectionRunClaim): SourceCollectionOutcome => {
   if (error instanceof GitHubRateLimitError) return { createdPassageCount: 0, fetchedDocumentCount: 0, status: "rate_limited" }
-  if (error instanceof SourceNotCollectableError) return { error: NOT_COLLECTABLE_ERRORS[error.reason], status: "failed" }
+  if (error instanceof SourceNotCollectableError) return { error: NOT_COLLECTABLE_ERROR_MESSAGES[error.reason], status: "failed" }
   if (error instanceof GitHubNotFoundError) {
     return { error: `GitHub に見つからない（リポジトリ・ブランチ・ファイルが無いか、非公開）: ${error.path}`, status: "failed" }
   }
-  const message = error instanceof Error ? error.message : String(error)
-  logger.error("collectSource: collection failed", error instanceof Error ? error : new Error(message), {
+  logger.error("collectSource: collection failed", error instanceof Error ? error : new Error(String(error)), {
     runId: claim.runId,
     sourceId: claim.sourceId,
   })
-  return { error: `収集に失敗した: ${message}`, status: "failed" }
+  return { error: `収集に失敗した: ${extractUnexpectedErrorReason(error)}`, status: "failed" }
 }
 
 /**

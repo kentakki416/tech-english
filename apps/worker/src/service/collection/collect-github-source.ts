@@ -16,7 +16,7 @@ export type CollectGitHubSourceInput = {
    */
   maxDocuments: number
   /**
-   * このソースで作る本文候補数の上限（実行全体の残り）
+   * このソースで作る本文候補数の上限
    */
   maxPassages: number
   /**

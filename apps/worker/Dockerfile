@@ -1,6 +1,8 @@
 # ==============================================================================
 # Stage 1: base - pnpm をインストールしたベースイメージ
 # ==============================================================================
+# Node 20.19 以上: CommonJS でビルドした dist から、@repo/content-extractor が使う ESM 専用の
+# unified / remark / rehype を require(esm) で読む。runner も同じバージョンにそろえる。
 FROM node:20-slim AS base
 
 RUN corepack enable && corepack prepare pnpm@9.0.0 --activate

@@ -29,7 +29,7 @@ cron で消すもの：
 | `src/task/generate-questions.ts` の JSDoc の「collect:passages の 1 時間後」 | 起動の想定から外す |
 
 - `SourceRepository.findEnabledGitHubSources` は使わなくなるので、移さずに消す（worker は `findById` だけを使う）
-- worker の `package.json` に `@repo/content-extractor`・`picomatch`（移したファイルが使うもの）を足す
+- worker の `package.json` に `@repo/content-extractor`（移したファイルが使うもの）を足す
 
 ### 1 ソースの収集の入口
 
@@ -201,7 +201,7 @@ const runCollection = async (claim: SourceCollectionRunClaim, deps: CollectSourc
 | `GitHubRateLimitError` | `{ createdPassageCount: 0, fetchedDocumentCount: 0, status: "rate_limited" }` |
 | `SourceNotCollectableError` | `failed`。`not_found`：ソースが無かった、`website`：サイトのソースは収集しない、`disabled`：ソースが無効になっていた |
 | `GitHubNotFoundError` | `failed`：GitHub にリポジトリかブランチが無い |
-| ほか | `failed`：収集に失敗した: {message}。`logger.error` も出す |
+| ほか | `failed`：収集に失敗した: {理由}。理由は包まれた元の例外（`cause`）があればその message で、200 文字まで。`logger.error` も出す |
 
 - 収集の失敗は記録に書いて正常に終える（BullMQ のリトライに回さない）。`claim`・`finish` の DB の失敗だけが throw され、BullMQ のリトライ（3 回）になる
 - `instanceof` で見分ける例外のクラスは `client/github/errors.ts`・`service/collection/errors.ts` にあり、どちらも `@repo/content-extractor` を読まないので、`jobs/` から通常の import で使う（`service/collection/index.ts` を経由すると jsdom まで読むので、`service/collection/errors.ts` は直接 import する）
