@@ -1,1 +1,5 @@
 export * from "./memo-repository"
+export * from "./passage-repository"
+export * from "./source-collection-run-repository"
+export * from "./source-document-repository"
+export * from "./source-repository"

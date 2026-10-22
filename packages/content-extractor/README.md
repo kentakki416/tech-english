@@ -1,6 +1,6 @@
 # packages/content-extractor（`@repo/content-extractor`）
 
-Markdown / MDX / HTML から本文を抽出して本文候補に切り分ける処理と、サイトのページを礼儀正しく安全に取得する処理。本文の抽出は cron の収集（`collect:passages`。GitHub の Markdown）と api の URL からの取り込み（[url-import](../../docs/spec/url-import/README.md)。サイトの HTML）で共有し、サイトの取得は api の URL からの取り込みだけが使う（cron はサイトを収集しない。[github-only-collection](../../docs/spec/github-only-collection/README.md)）。env も DB も知らない（設定はコンストラクタ・引数で受け取る）。
+Markdown / MDX / HTML から本文を抽出して本文候補に切り分ける処理と、サイトのページを礼儀正しく安全に取得する処理。本文の抽出は worker の収集（`collect-source`。admin の今すぐ収集。GitHub の Markdown）と api の URL からの取り込み（[url-import](../../docs/spec/url-import/README.md)。サイトの HTML）で共有し、サイトの取得は api の URL からの取り込みだけが使う（サイトは収集しない。[github-only-collection](../../docs/spec/github-only-collection/README.md)）。env も DB も知らない（設定はコンストラクタ・引数で受け取る）。
 
 規則の正本は [content-collection](../../docs/spec/content-collection/README.md#本文の抽出と解析)。
 
@@ -42,7 +42,7 @@ fetch はグローバルではなく undici のもの（npm の undici の `Agen
 このパッケージは CommonJS でビルドするが、unified / remark / rehype は ESM 専用で配布されている。そのため:
 
 - `tsconfig.json` は `"module": "nodenext"` / `"moduleResolution": "nodenext"`（TypeScript 5.8 以降は CommonJS から ESM の import を許す）
-- 実行時は Node の `require(esm)` で読む。**使う側（cron・api）は Node 20.19 以上 / 22.12 以上が必要**
+- 実行時は Node の `require(esm)` で読む。**使う側（worker・api）は Node 20.19 以上 / 22.12 以上が必要**
 - `jsdom` は v29 に固定している。v30 は Node `^22.22.2 || ^24.15.0 || >=26` を要求し、CI（Node 20）で動かないため
 - ビルド後に読めるかの確認: `pnpm build && node -e "require('./dist')"`
 

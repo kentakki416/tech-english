@@ -7,7 +7,6 @@
 | タスク | コマンド | 処理内容 |
 | --- | --- | --- |
 | `cleanup:old-memos` | `pnpm cleanup:old-memos` | `CLEANUP_MEMO_OLDER_THAN_DAYS`（既定 90）日より前の memo を一括削除 |
-| `collect:passages` | `pnpm collect:passages [--source-id=N] [--dry-run]` | 有効なソースから英文を取得して本文候補（`passages`、`status = collected`）を作る（[content-collection](../../docs/spec/content-collection/README.md)）。`--source-id` で 1 ソースに絞り、`--dry-run`（`--source-id` 必須）は最大 5 件を取得して抽出結果を表示する（DB に書かない・無効のソースも可）。`github_repository`（GitHub API）だけを扱い、`website` のソースは収集しない（`--source-id` に指定したら exit 1。[github-only-collection](../../docs/spec/github-only-collection/README.md)） |
 | `generate:questions` | `pnpm generate:questions [--passage-id=N]` | `collected` の本文候補から Claude API で設問・和訳・用語集を生成し、解答キーを見ない検証をして `draft` にする（[question-generation](../../docs/spec/question-generation/README.md#生成タスクの動き)）。`ANTHROPIC_API_KEY` が必須。`--passage-id` で 1 件だけ（`collected` でなければ throw。下書きの上限を見ない）。1 件でも `failed` になる、または取得した全件が一時的な失敗で `collected` に戻る（下書き・却下が 0 件）と exit 1 |
 | `generate:audio` | `pnpm generate:audio` | 公開済みの問題の読み上げの音声（mp3 と単語の時刻のマニフェスト）を Amazon Polly で作り、`passage_audios` を `ready` にする（[read-aloud](../../docs/spec/read-aloud/README.md#音声の生成タスク)）。本番は 1 時間ごと。`production` 以外の既定は `TTS_PROVIDER=fake`（無音の mp3 と等間隔の単語の時刻。ローカルの確認用）。`polly` で AWS の資格情報を解決できなければ、`production` 以外は warn を出して何もせず exit 0。`production` で `AUDIO_STORAGE_TYPE=local` なら起動時に throw（exit 1）。却下（`rejected`）の問題の mp3 と行は毎回消す。今月の Polly の課金文字数が `AUDIO_MONTHLY_CHARACTER_LIMIT` を超えそうなら止めて exit 1。1 件でも失敗（失敗の上限に達した・次の実行に回した失敗）があれば exit 1 |
 | `generate:word-audio` | `pnpm generate:word-audio` | 単語帳に出うる見出し語（調べた単語のうち英和辞書の見出し語と一致するもの・公開中の問題の用語集の語句）の発音の mp3 を Amazon Polly で 1 語ずつ作り、`word_audios` を `ready` にする（[vocabulary-pronunciation](../../docs/spec/vocabulary-pronunciation/README.md#単語の音声の生成タスク)）。本番は 1 時間ごと。音声合成・保存先・月の上限（読み上げと合算）は `generate:audio` と共有する。月の上限で止めたら・1 語でも失敗があれば exit 1 |
@@ -17,7 +16,6 @@
 ```bash
 pnpm dev               # tsx watch で起動
 pnpm cleanup:old-memos # タスクを 1 回実行
-pnpm collect:passages --source-id=3 --dry-run  # 1 ソースの試し実行（DB に書かない）
 pnpm generate:questions --passage-id=42        # 1 件だけ生成（ANTHROPIC_API_KEY が必要）
 pnpm generate:audio                            # 読み上げの音声を作る（production 以外は無音の mp3。リポジトリ直下の .storage/audio/ に保存）
 pnpm generate:word-audio                       # 単語の発音の音声を作る（同上。.storage/audio/words/ に保存）
@@ -33,35 +31,11 @@ pnpm test              # Vitest（DB client を mock するので DB 不要）
 - **`repository/`**: interface は `repository/<name>.ts`、実装は `repository/drizzle/`。interface の引数・戻り値は `@repo/domain` の型か素の値にする。Drizzle の型は実装クラスの内側に閉じる（`@repo/eslint-config/db-boundary` が lint で強制）
 - **`lib/`**（任意）: env も DB も知らない純関数のみ
 - **`client/<service>/`**（任意）: 外部 API クライアント。env を直接 import せずコンストラクタ DI（`fetch` もコンストラクタで差し替えられるようにしてテストで偽物を渡す）
-- **`const/`**（任意）: タスク横断の定数（`const/collection.ts` の rate limit の閾値・却下の理由など）
+- **`const/`**（任意）: タスク横断の定数（`const/audio.ts` など）
 
 Repository の interface は api / worker と意図的に分離する（api は CRUD、cron は batch 系と操作セットが違うため）。一方ドメイン型は `@repo/domain` で共有する。
 
-### 本文の抽出（`@repo/content-extractor`）
-
-Markdown / MDX からの本文の抽出・切り分け（`extractDocument`・`EXTRACTION_VERSION`）と、対象パスの判定（`isTargetPath`）は共有パッケージ [`packages/content-extractor`](../../packages/content-extractor/README.md) にある（api の URL からの取り込みと共有するため）。cron はサイトの取得（`WebPageClient`）を使わない。ファイルの役割・ESM の依存・抽出の版を上げる規則はそちらの README。
-
-### collect:passages（英文の収集）
-
-| ファイル | 役割 |
-| --- | --- |
-| `client/github/` | `GitHubContentClient`（commits / git trees / contents の 3 API。`x-ratelimit-remaining` を保持）と `GitHubNotFoundError` / `GitHubRateLimitError` |
-| `lib/parse-collect-args.ts` / `lib/format-dry-run.ts` | 引数の解釈と試し実行の表示（純関数） |
-| `service/collection/list-github-target-files.ts` | コミットのツリーから対象の `.md` / `.mdx` を列挙する。trees API が切り詰められたら glob の固定部分のディレクトリごとに取り直す |
-| `service/collection/collect-github-source.ts` | 1 ソース分。最新コミットと抽出の版が前回と同じなら終える。ツリーの一覧に無い文書の `collected` を却下（`rejectOutOfTargetPassages`）→ blob SHA が変わったか抽出の版が古いファイルだけ取得し、本文候補を保存（`replacePassageCandidates`）→ `markFetched`（blob SHA・版）の順で保存する |
-| `service/collection/replace-passage-candidates.ts` | 本文候補の保存。同じ見出しの生成中・生成した本文候補（下書き・公開済み・生成した後に却下したもの）がある塊は挿入せず、残りを挿入して、その文書の `collected` のうち挿入した塊に無いものを却下する |
-| `service/collection/reject-out-of-target-passages.ts` | `collected` の本文候補を持つ文書（`findWithCollectedPassages`）のうち、収集の対象から外れたものの `collected` を却下する |
-| `service/collection/collect-passages.ts` | 有効な GitHub の全ソース（`findEnabledGitHubSources` が SQL で GitHub だけに絞る）。ソースごとに try-catch し、失敗は `failedSourceIds` に集めて次へ（task が最後に exit 1） |
-| `service/collection/preview-source.ts` | 試し実行。Repository の書き込みメソッドを呼ばない。サイトのソースは throw する |
-| `repository/{source,source-document,passage}-repository.ts` | cron 用の Repository（api の CRUD 用とは別） |
-
-- **冪等**：`markFetched`（blob SHA・抽出の版の記録）は本文候補の置き換え（挿入と前の切り分けの却下）の後。途中で落ちても次回同じファイルをやり直し、挿入済みの本文候補は `passages.content_hash` の unique で弾く（`insertIgnoringDuplicates`）。却下は何度行っても結果が同じ
-- **`last_collected_commit_sha`・`last_collected_extraction_version` は `completed` のときだけ（同じ UPDATE で）更新**する。文書数・本文候補数の上限、rate limit、ツリーの切り詰めで打ち切った場合（シグナルで中断された場合も）は更新せず、次回は未処理（blob SHA か抽出の版が違う）ファイルだけを続きから処理する。上限は文書単位で判定し、1 文書の本文候補は途中で切らない。更新は収集を始めたときに読んだ値のままのときだけ行う（`markCollected` の楽観ロック）。収集の途中で admin が収集の範囲を変えて api が null に戻していたら書き戻さず、warn を出す
-- **rate limit**：`x-ratelimit-remaining` が閾値（token ありは 100、token なしは 10。`const/collection.ts`）を切ったらそのソースを `rate_limited` で打ち切り、以降の GitHub のソースも飛ばす（rate limit は token 単位）。`GitHubRateLimitError` も失敗にしない
-- **抽出の版（`EXTRACTION_VERSION`、`packages/content-extractor/src/document/const.ts`）**：`src/document` の変更のうち、ブロック・切り分け・本文候補の条件が変わるものをしたら上げる（実装した日の日付）。上げると、次の収集で取得済みの文書を切り分け直す（URL から追加で取り込んだサイトのページは、取り込み直したときに切り分け直す）。版は `source_documents.extraction_version` と、GitHub の `sources.last_collected_extraction_version` に記録する
-- **古い本文候補の却下**：切り分け直した文書の `collected` のうち新しい本文候補に無いもの（`SUPERSEDED_PASSAGE_REJECT_REASON`）と、収集の対象から外れた文書（除外パス・対象パスから外した、取得元から消えた）の `collected`（`OUT_OF_TARGET_PASSAGE_REJECT_REASON`）を `rejected` にする。下書き・公開済み・生成中・失敗は変えない（公開済みの問題は取得元から消えても残す）。`source_documents` の行は消さない
-
-**サイトのクロール（website）はしない**：やめた理由と、戻すときに足し直すものは [github-only-collection](../../docs/spec/github-only-collection/README.md) と [deferred-website-collection](../../docs/spec/github-only-collection/deferred-website-collection.md)。User-Agent は `TechEnglishBot/1.0 (+COLLECT_WEB_CONTACT_URL)`（未設定なら `TechEnglishBot/1.0`）で、GitHub API に送る
+**英文の収集（`collect:passages`）は cron でやめ、worker の `collect-source`（admin の今すぐ収集）に移した**（[manual-collection](../../docs/spec/manual-collection/README.md)。収集の処理と規則は [`apps/worker/CLAUDE.md`](../worker/CLAUDE.md#collect-source英文の収集)）。
 
 ### 問題の生成（LLM のクライアントとプロンプト）
 
@@ -157,12 +131,6 @@ Markdown / MDX からの本文の抽出・切り分け（`extractDocument`・`EX
 - **消さない**：問題の却下・アカウント削除では `word_audios` を消さない（単語の発音は本文でも個人のデータでもないため）
 - SQL の確かめ方：`claimTargets` の候補の SQL と確保は SQL の文字列までしかテストしないので、変えたらローカル DB で確かめる（2 回目の実行で何も確保しないこと、2 つを同時に流しても同じ見出し語を二重に作らないこと、`AUDIO_MONTHLY_CHARACTER_LIMIT=1` で確保を外して exit 1 になること、`TTS_VOICE_ID` を変えると全語を ready のまま作り直して前の mp3 が消えること）
 
-## ESM 専用の依存（require(esm)）
-
-`@repo/content-extractor` が使う unified / remark / rehype は ESM 専用で配布されていて、実行時は Node の `require(esm)` で読む。**Node 20.19 以上 / 22.12 以上が必要**（Dockerfile は `node:22-slim`。詳細は [`packages/content-extractor`](../../packages/content-extractor/README.md#esm-専用の依存requireesm)）。
-
-- ビルド後に読めるかの確認: `pnpm build && node -e "require('./dist/service/collection')"`
-
 ## 中断は失敗として扱う
 
 run-once モデルなので、**処理の途中でシグナルを受けて終了した場合はタスクが未完了**を意味する。ここで exit 0 を返すとスケジューラが成功と誤認し、削除が途中で止まっても次回まで気付けない。
@@ -177,7 +145,6 @@ task は `src/run-task.ts` の `runTask(name, async ({ db }) => { ... })` で包
 
 中断時は task の完了を待たずに終了する（実行中のクエリ・トランザクションの完了を待ってから切断する）。**task / service の中でシグナルを見てループを break する処理は書かない**（JS は実行中の処理を外から止められず、チェックが回る前にプロセスが終わる）。代わりに、途中で止まっても次の実行で続きから拾い直せる処理にする。
 
-- `collect:passages`：`markFetched`（blob SHA・抽出の版）は本文候補の置き換えの後なので、途中の文書は次の実行でやり直す（挿入済みの本文候補は `content_hash` の unique で弾き、却下は何度行っても同じ）。`last_collected_commit_sha` / `last_collected_extraction_version` / `last_collected_at` は進まない
 - `generate:questions` / `generate:audio` / `generate:word-audio`：確保した行は `generation_started_at` が 30 分を過ぎると、次の実行で回収・再確保される
 - `cleanup:old-memos`：1 回の `DELETE` なので途中の状態は残らない
 
@@ -191,10 +158,6 @@ task は `src/run-task.ts` の `runTask(name, async ({ db }) => { ... })` で包
 | --- | --- | --- | --- |
 | `DATABASE_URL` | `NODE_ENV !== "test"` で必須 | - | DB の接続文字列 |
 | `CLEANUP_MEMO_OLDER_THAN_DAYS` | no | `90` | 削除対象とする経過日数 |
-| `GITHUB_CONTENT_TOKEN` | no | - | collect:passages が GitHub API に使う token（公開リポジトリの読み取りだけを許可した fine-grained token）。未設定なら認証なし（60 req/h）で動き、起動時に warn を出す |
-| `COLLECT_MAX_DOCUMENTS_PER_SOURCE` | no | `100` | collect:passages が 1 回の実行で 1 ソースから取得する文書数の上限 |
-| `COLLECT_MAX_PASSAGES_PER_RUN` | no | `200` | collect:passages が 1 回の実行で作る本文候補の上限 |
-| `COLLECT_WEB_CONTACT_URL` | no | - | 収集のリクエスト（GitHub API）の User-Agent に入れるサービスのトップの URL（`TechEnglishBot/1.0 (+{url})`）。未設定なら `TechEnglishBot/1.0` だけを送る（他のタスクのため必須にしない） |
 | `ANTHROPIC_API_KEY` | `generate:questions` で必須 | - | Claude API のキー。他のタスクでは不要なのでスキーマでは任意にし、`generate:questions` の起動時に検査する（空文字は未設定と同じ） |
 | `GENERATION_MODEL` | no | `claude-sonnet-5-5` | generate:questions の生成モデル。adaptive thinking と effort を受け付けるモデル（Claude 4.6 以降）にする（生成は両方を明示して送る） |
 | `VERIFICATION_MODEL` | no | `claude-haiku-4-5-20251001` | generate:questions の解答キーを見ない検証のモデル |
@@ -215,11 +178,11 @@ task は `src/run-task.ts` の `runTask(name, async ({ db }) => { ... })` で包
 
 ## テスト戦略
 
-- **Repository / Service / lib / client / prompt の unit test のみ**。DB client は `vi.fn()` で mock するので DB 不要。GitHub API は `fetch`（client のテスト）か client の偽物（service のテスト。`test/service/collection/helpers.ts`）に差し替える。**実在のサイト・リポジトリにリクエストを送るテストは書かない**
+- **Repository / Service / lib / client / prompt の unit test のみ**。DB client は `vi.fn()` で mock するので DB 不要。**実在のサイト・リポジトリにリクエストを送るテストは書かない**
 - 問題生成の取得・保存の SQL（`claimNextCollected` の `FOR UPDATE SKIP LOCKED`、`recordGenerationFailure` の `CASE`、`saveDraft` のトランザクション、claim のガード）も同じく SQL の文字列までなので、変えたらローカル DB で確かめる（別のトランザクションで行をロックしたまま取得して飛ばされること、31 分前の generating が戻ること、3 回目で failed になること、古い claim で更新されないこと）
 - `generate:questions` の service のテストは Repository を `vi.fn()`、`ILlmClient` を偽物（モデル名で生成と検証の応答を分ける）にする。生成の出力の例は `test/lib/question-generation/helpers.ts`
 - **Amazon Polly は呼ばない**。`PollyTtsClient` のテストは `send` を `vi.fn()` にした SDK の偽物（`AudioStream` は `Readable` に `transformToByteArray` などを足したもの）を渡す。`generate:audio` の service のテストは Repository を `vi.fn()`、音声合成を `FakeTtsClient`、`audioStorage` を `vi.fn()` にする。音声の確保・結果の書き込みの SQL（`claimTargets` の `FOR UPDATE OF passages SKIP LOCKED` と `ON CONFLICT ... WHERE`・ready のまま確保する `UPDATE`、`completeClaim` のガードと `CASE`）も SQL の文字列までなので、変えたらローカル DB で確かめる（ロック中の問題が飛ばされること、3 回目で failed になること、古い claim で書かれないこと、生成中の本文の変更で pending に戻ること、`voice_id` が違う・作り直しの依頼がある ready が ready のまま確保されて `updated_at` が変わらないこと、確保中・失敗が 3 回の ready が取られないこと、マニフェストのある pending が unchanged で ready に戻ること、却下の問題の行が消えること）。月の上限は `AUDIO_MONTHLY_CHARACTER_LIMIT=1` で `TTS_PROVIDER=fake` のまま確かめられる（fake は記録しないが、見込みだけで上限を超える）
 - **Claude API は呼ばない**（キーも費用も要るため）。`AnthropicClient` のテストは `messages.create` を `vi.fn()` にした SDK の偽物を渡し、リトライの設定は実物の SDK に `fetch` の偽物を渡して確かめる（`createAnthropicClient({ apiKey, fetch })`。レスポンスの `retry-after-ms: 1` で待ち時間を縮める）。プロンプトのテストは `test/fixtures/prompt/` の本文で組み立てた文字列を確かめる
-- プロンプトのテストは `test/fixtures/prompt/` の fixture を使う（本文の抽出のテストと fixture は `packages/content-extractor`）。**fixture の英文は自作する**（実在のドキュメントをコピーしない。ライセンスのため）
+- プロンプトのテストは `test/fixtures/prompt/` の fixture を使う。**fixture の英文は自作する**（実在のドキュメントをコピーしない。ライセンスのため）
 - 統合テストは無い（task はエントリポイントから直接 service を呼ぶフラットな構造のため）
 - テストケースは `describe` を「正常系」「異常系」で分類する（`apps/api` と同じ）

@@ -22,7 +22,7 @@
 #   GITHUB_OAUTH_CLIENT_ID
 #   GITHUB_OAUTH_CLIENT_SECRET
 #   GITHUB_LICENSE_TOKEN   (任意。admin のライセンス検出 API が使う。未設定でも 60 req/h で動く)
-#   GITHUB_CONTENT_TOKEN   (任意。cron の collect:passages が GitHub から英文を取得するのに使う。
+#   GITHUB_CONTENT_TOKEN   (任意。worker の collect-source（admin の今すぐ収集）が GitHub から英文を取得するのに使う。
 #                           公開リポジトリの読み取りだけの fine-grained token。未設定でも動くが 60 req/h で 1 回に数十ファイルまで)
 #   CRON_ANTHROPIC_API_KEY (→ ANTHROPIC_API_KEY。cron の generate:questions が Claude API に使う。generate:questions を動かす環境では必須。
 #                           個人のシェルによくある ANTHROPIC_API_KEY を誤って書き込まないよう別名で受ける。

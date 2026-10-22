@@ -1,13 +1,15 @@
 import { createDataWarehouse } from "@repo/data-warehouse"
 import { createDrizzleClient } from "@repo/db"
 import { logger } from "@repo/logger"
-import { PROCESS_MEMO_QUEUE_NAME, TRACK_EVENT_QUEUE_NAME } from "@repo/queue"
+import { COLLECT_SOURCE_QUEUE_NAME, PROCESS_MEMO_QUEUE_NAME, TRACK_EVENT_QUEUE_NAME } from "@repo/queue"
 import { createRedisClient } from "@repo/redis"
 
 import { env } from "./env"
 import { DataWarehouseEventRepository } from "./repository/data-warehouse"
-import { DrizzleMemoRepository } from "./repository/drizzle"
+import { DrizzleMemoRepository, DrizzleSourceCollectionRunRepository } from "./repository/drizzle"
+import { createCollectionRuntimeLoader } from "./runtime/collection"
 import { setupGracefulShutdown } from "./runtime/graceful-shutdown"
+import { startCollectSourceWorker } from "./workers/collect-source-worker"
 import { startProcessMemoWorker } from "./workers/process-memo-worker"
 import { startTrackEventWorker } from "./workers/track-event-worker"
 
@@ -58,8 +60,25 @@ const main = (): void => {
 
   const memoRepository = new DrizzleMemoRepository(db)
   const eventRepository = new DataWarehouseEventRepository(dataWarehouse)
+  const sourceCollectionRunRepository = new DrizzleSourceCollectionRunRepository(db)
+
+  if (!env.GITHUB_CONTENT_TOKEN) {
+    logger.warn("GITHUB_CONTENT_TOKEN is not set; GitHub API is used without authentication (60 req/h)")
+  }
 
   const consumers = [
+    startCollectSourceWorker({
+      githubToken: env.GITHUB_CONTENT_TOKEN,
+      limits: { maxDocuments: env.COLLECT_MAX_DOCUMENTS_PER_SOURCE, maxPassages: env.COLLECT_MAX_PASSAGES_PER_RUN },
+      loadCollectionRuntime: createCollectionRuntimeLoader({
+        contactUrl: env.COLLECT_WEB_CONTACT_URL,
+        db,
+        token: env.GITHUB_CONTENT_TOKEN,
+      }),
+      now: () => new Date(),
+      redis,
+      sourceCollectionRunRepository,
+    }),
     startProcessMemoWorker({
       concurrency: env.WORKER_CONCURRENCY,
       memoRepository,
@@ -77,7 +96,7 @@ const main = (): void => {
   logger.info("worker started", {
     concurrency: env.WORKER_CONCURRENCY,
     dataWarehouseType: env.DATA_WAREHOUSE_TYPE,
-    queues: [PROCESS_MEMO_QUEUE_NAME, TRACK_EVENT_QUEUE_NAME],
+    queues: [COLLECT_SOURCE_QUEUE_NAME, PROCESS_MEMO_QUEUE_NAME, TRACK_EVENT_QUEUE_NAME],
   })
 }
 

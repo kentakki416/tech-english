@@ -4,10 +4,7 @@ import type { IGitHubContentClient } from "../../client/github"
 import type { PassageRepository, SourceDocumentRepository, SourceRepository } from "../../repository"
 
 export type CollectionRepo = {
-  /**
-   * 収集は本文候補の挿入と、見出しの確認、collected の却下だけを使う（問題生成のメソッドに依存させない）
-   */
-  passageRepository: Pick<PassageRepository, "findGeneratedOrGeneratingTitles" | "insertIgnoringDuplicates" | "rejectCollected">
+  passageRepository: PassageRepository
   sourceDocumentRepository: SourceDocumentRepository
   sourceRepository: SourceRepository
 }

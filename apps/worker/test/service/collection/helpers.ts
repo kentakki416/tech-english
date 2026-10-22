@@ -145,7 +145,6 @@ export const createFakeRepo = (options: {
    * findWithCollectedPassages が返す行
    */
   documentsWithCollectedPassages?: SourceDocument[]
-  enabledSources?: GitHubRepositorySource[]
   /**
    * findGeneratedOrGeneratingTitles が返す見出し
    */
@@ -157,7 +156,6 @@ export const createFakeRepo = (options: {
   return {
     sourceRepository: {
       findById: vi.fn(async (_id: number) => options.source ?? null),
-      findEnabledGitHubSources: vi.fn(async () => options.enabledSources ?? []),
       markCollected: vi.fn(async (_id: number, _input: MarkCollectedInput) => true),
     },
     passageRepository: {
