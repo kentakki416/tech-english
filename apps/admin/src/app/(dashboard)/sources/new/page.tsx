@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import { connection } from "next/server"
 
-import { allowedLicenseSchema } from "@repo/api-schema"
+import { allowedLicenseSchema, personalUseLicenseSchema } from "@repo/api-schema"
 
 import { SourceForm } from "@/components/features/source/SourceForm"
 import PageBreadcrumb from "@/components/layout/PageBreadCrumb"
@@ -24,7 +24,12 @@ export default async function NewSourcePage() {
   return (
     <>
       <PageBreadcrumb pageTitle="ソースの登録" />
-      <SourceForm allowedLicenses={allowedLicenseSchema.options} detail={null} tags={tags} />
+      <SourceForm
+        allowedLicenses={allowedLicenseSchema.options}
+        detail={null}
+        personalUseLicense={personalUseLicenseSchema.value}
+        tags={tags}
+      />
     </>
   )
 }

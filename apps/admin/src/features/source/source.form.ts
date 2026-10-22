@@ -52,7 +52,6 @@ export const convertFormDataToSourceRequest = (formData: FormData): Record<strin
     exclude_globs: splitLines(formData, "exclude_globs"),
     fetch_type: fetchType,
     include_globs: splitLines(formData, "include_globs"),
-    is_enabled: getText(formData, "is_enabled") === "true",
     kind: getChoice(formData, "kind"),
     license_spdx: getChoice(formData, "license_spdx"),
     license_url: getText(formData, "license_url").trim(),
@@ -64,6 +63,7 @@ export const convertFormDataToSourceRequest = (formData: FormData): Record<strin
     return {
       ...common,
       branch: getText(formData, "branch"),
+      is_enabled: getText(formData, "is_enabled") === "true",
       public_url_strip_prefix: getNullableText(formData, "public_url_strip_prefix"),
       public_url_template: getNullableText(formData, "public_url_template"),
       repository: getText(formData, "repository").trim(),
