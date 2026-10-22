@@ -40,7 +40,8 @@ describe("getSourceById", () => {
           source: website,
         },
       })
-      expect(sourceRepository.countPassagesBySource).toHaveBeenCalledWith(2)
+      expect(sourceRepository.findById).toHaveBeenCalledWith(2, { fromPrimary: true })
+      expect(sourceRepository.countPassagesBySource).toHaveBeenCalledWith(2, { fromPrimary: true })
       expect(sourceCollectionRunRepository.findLatestBySourceId).toHaveBeenCalledWith(2, { fromPrimary: true })
     })
 

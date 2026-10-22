@@ -32,7 +32,7 @@ export const createMockSourceCollectionRunRepository = () => ({
   create: vi.fn<SourceCollectionRunRepository["create"]>(),
   failTimedOut: vi.fn<SourceCollectionRunRepository["failTimedOut"]>(),
   findLatestBySourceId: vi.fn<SourceCollectionRunRepository["findLatestBySourceId"]>(),
-  markFailed: vi.fn<SourceCollectionRunRepository["markFailed"]>(),
+  markQueuedAsFailed: vi.fn<SourceCollectionRunRepository["markQueuedAsFailed"]>(),
 })
 
 export const createMockCollectSourceQueue = () => ({

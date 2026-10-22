@@ -1,4 +1,4 @@
-import { findSourceNotCollectableReason, type GitHubRepositorySource } from "@repo/domain"
+import { checkSourceCollectability, type GitHubRepositorySource } from "@repo/domain"
 
 import { collectGitHubSource } from "./collect-github-source"
 import { SourceNotCollectableError } from "./errors"
@@ -19,15 +19,9 @@ export type CollectSourceByIdInput = {
  * 収集できるソースを読む。収集できなければ SourceNotCollectableError を throw する
  */
 const findCollectableSource = async (sourceId: number, repo: CollectionRepo): Promise<GitHubRepositorySource> => {
-  const source = await repo.sourceRepository.findById(sourceId)
-  const notCollectableReason = findSourceNotCollectableReason(source)
-  /**
-   * fetchType の条件は型を GitHub のソースに絞るためだけのもの（判定は findSourceNotCollectableReason が済ませている）
-   */
-  if (notCollectableReason !== null || source?.fetchType !== "github_repository") {
-    throw new SourceNotCollectableError(notCollectableReason ?? "website", sourceId)
-  }
-  return source
+  const collectability = checkSourceCollectability(await repo.sourceRepository.findById(sourceId))
+  if (!collectability.isCollectable) throw new SourceNotCollectableError(collectability.reason, sourceId)
+  return collectability.source
 }
 
 /**

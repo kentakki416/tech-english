@@ -1,49 +1,14 @@
-import { eq, sourceCollectionRuns, sources } from "@repo/db"
+import { eq, sourceCollectionRuns } from "@repo/db"
 
 import { DrizzleSourceCollectionRunRepository } from "../../src/repository/drizzle/source-collection-run-repository"
+import { insertGitHubSource } from "../controller/admin/source/fixtures"
 import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb } from "../controller/setup"
+import { insertSourceCollectionRun } from "../fixture/source-collection-run"
 
 const sourceCollectionRunRepository = new DrizzleSourceCollectionRunRepository(testDb)
 
-type SourceCollectionRunInsert = typeof sourceCollectionRuns.$inferInsert
-
 const NOW = new Date("2026-10-22T04:00:00.000Z")
 const STALE_BEFORE = new Date("2026-10-22T03:30:00.000Z")
-
-const insertGitHubSource = async (repository = "example/docs") => {
-  const [row] = await testDb
-    .insert(sources)
-    .values({
-      branch: "main",
-      fetchType: "github_repository",
-      includeGlobs: ["docs/**/*.md"],
-      kind: "docs",
-      licenseSpdx: "MIT",
-      licenseUrl: `https://github.com/${repository}/blob/main/LICENSE`,
-      name: repository,
-      repository,
-    })
-    .returning()
-  return row
-}
-
-const RUN_TIME = new Date("2026-10-22T03:00:00.000Z")
-
-/**
- * CHECK が求める時刻（running の started_at・終わった記録の finished_at）を、渡されなければ入れる
- */
-const insertRun = async (values: SourceCollectionRunInsert) => {
-  const isActive = values.status === "queued" || values.status === "running"
-  const [row] = await testDb
-    .insert(sourceCollectionRuns)
-    .values({
-      finishedAt: isActive ? null : RUN_TIME,
-      startedAt: values.status === "queued" ? null : RUN_TIME,
-      ...values,
-    })
-    .returning()
-  return row
-}
 
 const selectRun = async (id: number) => {
   const [row] = await testDb.select().from(sourceCollectionRuns).where(eq(sourceCollectionRuns.id, id))
@@ -87,9 +52,9 @@ describe("DrizzleSourceCollectionRunRepository", () => {
 
       it("終わった記録しか無ければ作れ、別のソースが収集中でも作れる", async () => {
         const source = await insertGitHubSource()
-        const otherSource = await insertGitHubSource("example/other")
-        await insertRun({ sourceId: source.id, status: "completed" })
-        await insertRun({ sourceId: otherSource.id, status: "running" })
+        const otherSource = await insertGitHubSource({ repository: "example/other" })
+        await insertSourceCollectionRun({ sourceId: source.id, status: "completed" })
+        await insertSourceCollectionRun({ sourceId: otherSource.id, status: "running" })
 
         const result = await sourceCollectionRunRepository.create(source.id)
 
@@ -100,7 +65,7 @@ describe("DrizzleSourceCollectionRunRepository", () => {
     describe("異常系", () => {
       it.each(["queued", "running"] as const)("そのソースに %s の記録があれば active_exists を返し、行を足さない", async (status) => {
         const source = await insertGitHubSource()
-        await insertRun({ sourceId: source.id, status })
+        await insertSourceCollectionRun({ sourceId: source.id, status })
 
         const result = await sourceCollectionRunRepository.create(source.id)
 
@@ -114,7 +79,7 @@ describe("DrizzleSourceCollectionRunRepository", () => {
     describe("正常系", () => {
       it("queued は依頼した時刻、running は始めた時刻が staleBefore より前なら failed にし、境界ちょうどは残す", async () => {
         const source = await insertGitHubSource()
-        const oldQueued = await insertRun({ createdAt: new Date(STALE_BEFORE.getTime() - 1), sourceId: source.id, status: "queued" })
+        const oldQueued = await insertSourceCollectionRun({ createdAt: new Date(STALE_BEFORE.getTime() - 1), sourceId: source.id, status: "queued" })
 
         const count = await sourceCollectionRunRepository.failTimedOut({
           error: "30 分を過ぎても終わらなかった",
@@ -137,7 +102,7 @@ describe("DrizzleSourceCollectionRunRepository", () => {
         ["completed（どれだけ古くても）", { createdAt: new Date("2026-10-01T00:00:00.000Z"), status: "completed" }],
       ] as const)("%s なら変えない", async (_label, values) => {
         const source = await insertGitHubSource()
-        const run = await insertRun({ ...values, sourceId: source.id })
+        const run = await insertSourceCollectionRun({ ...values, sourceId: source.id })
 
         const count = await sourceCollectionRunRepository.failTimedOut({
           error: "30 分を過ぎても終わらなかった",
@@ -152,7 +117,7 @@ describe("DrizzleSourceCollectionRunRepository", () => {
 
       it("running は依頼した時刻が古くても、始めた時刻が新しければ変えない。始めた時刻が 1ms 前なら failed にする", async () => {
         const source = await insertGitHubSource()
-        const run = await insertRun({
+        const run = await insertSourceCollectionRun({
           createdAt: new Date("2026-10-22T03:00:00.000Z"),
           sourceId: source.id,
           startedAt: new Date(STALE_BEFORE.getTime() + 1),
@@ -171,8 +136,8 @@ describe("DrizzleSourceCollectionRunRepository", () => {
 
       it("別のソースの記録は変えない", async () => {
         const source = await insertGitHubSource()
-        const otherSource = await insertGitHubSource("example/other")
-        const otherRun = await insertRun({ createdAt: new Date("2026-10-22T03:00:00.000Z"), sourceId: otherSource.id, status: "queued" })
+        const otherSource = await insertGitHubSource({ repository: "example/other" })
+        const otherRun = await insertSourceCollectionRun({ createdAt: new Date("2026-10-22T03:00:00.000Z"), sourceId: otherSource.id, status: "queued" })
 
         await sourceCollectionRunRepository.failTimedOut({
           error: "30 分を過ぎても終わらなかった",
@@ -190,10 +155,10 @@ describe("DrizzleSourceCollectionRunRepository", () => {
     describe("正常系", () => {
       it("そのソースの id が一番大きい記録を返す", async () => {
         const source = await insertGitHubSource()
-        const otherSource = await insertGitHubSource("example/other")
-        await insertRun({ sourceId: source.id, status: "completed" })
-        const latest = await insertRun({ sourceId: source.id, status: "failed" })
-        await insertRun({ sourceId: otherSource.id, status: "queued" })
+        const otherSource = await insertGitHubSource({ repository: "example/other" })
+        await insertSourceCollectionRun({ sourceId: source.id, status: "completed" })
+        const latest = await insertSourceCollectionRun({ sourceId: source.id, status: "failed" })
+        await insertSourceCollectionRun({ sourceId: otherSource.id, status: "queued" })
 
         expect(await sourceCollectionRunRepository.findLatestBySourceId(source.id)).toMatchObject({ id: latest.id, status: "failed" })
       })
@@ -206,24 +171,24 @@ describe("DrizzleSourceCollectionRunRepository", () => {
     })
   })
 
-  describe("markFailed", () => {
+  describe("markQueuedAsFailed", () => {
     describe("正常系", () => {
       it("queued の記録を failed にする", async () => {
         const source = await insertGitHubSource()
-        const run = await insertRun({ sourceId: source.id, status: "queued" })
+        const run = await insertSourceCollectionRun({ sourceId: source.id, status: "queued" })
 
-        await sourceCollectionRunRepository.markFailed({ error: "Queue に積めなかった", id: run.id, now: NOW })
+        await sourceCollectionRunRepository.markQueuedAsFailed({ error: "Queue に積めなかった", id: run.id })
 
-        expect(await selectRun(run.id)).toMatchObject({ error: "Queue に積めなかった", finishedAt: NOW, status: "failed" })
+        expect(await selectRun(run.id)).toMatchObject({ error: "Queue に積めなかった", finishedAt: expect.any(Date), status: "failed" })
       })
     })
 
     describe("異常系", () => {
       it("queued でなければ変えない（worker が先に running にした）", async () => {
         const source = await insertGitHubSource()
-        const run = await insertRun({ sourceId: source.id, startedAt: NOW, status: "running" })
+        const run = await insertSourceCollectionRun({ sourceId: source.id, startedAt: NOW, status: "running" })
 
-        await sourceCollectionRunRepository.markFailed({ error: "Queue に積めなかった", id: run.id, now: NOW })
+        await sourceCollectionRunRepository.markQueuedAsFailed({ error: "Queue に積めなかった", id: run.id })
 
         expect(await selectRun(run.id)).toMatchObject({ error: null, status: "running" })
       })

@@ -8,6 +8,7 @@ import { DrizzleSourceCollectionRunRepository } from "../../../../src/repository
 import { DrizzleSourceRepository } from "../../../../src/repository/drizzle/source-repository"
 import { adminRouter, mountAdminApi } from "../../../../src/routes/admin-router"
 import { FakeJobQueue } from "../../../fixture/fake-job-queue"
+import { insertSourceCollectionRun } from "../../../fixture/source-collection-run"
 import { attachUnhandledExceptionHandler, createTestAdmin, createTestApp } from "../../helper"
 import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb } from "../../setup"
 
@@ -74,7 +75,7 @@ describe("POST /api/admin/source/:id/collection-runs", () => {
 
     it("前の収集が終わっていれば、もう一度依頼できる", async () => {
       const github = await insertGitHubSource()
-      await testDb.insert(sourceCollectionRuns).values({ finishedAt: new Date(), sourceId: github.id, startedAt: new Date(), status: "completed" })
+      await insertSourceCollectionRun({ sourceId: github.id, status: "completed" })
 
       const res = await request(app)
         .post(`/api/admin/source/${github.id}/collection-runs`)
@@ -86,9 +87,7 @@ describe("POST /api/admin/source/:id/collection-runs", () => {
 
     it("30 分より前から queued のままの記録は failed にしてから、新しく依頼できる", async () => {
       const github = await insertGitHubSource()
-      await testDb
-        .insert(sourceCollectionRuns)
-        .values({ createdAt: new Date(Date.now() - 31 * 60_000), sourceId: github.id, status: "queued" })
+      await insertSourceCollectionRun({ createdAt: new Date(Date.now() - 31 * 60_000), sourceId: github.id, status: "queued" })
 
       const res = await request(app)
         .post(`/api/admin/source/${github.id}/collection-runs`)
@@ -103,7 +102,7 @@ describe("POST /api/admin/source/:id/collection-runs", () => {
   describe("異常系", () => {
     it("収集中なら 409 を返し、記録を足さず Queue にも積まない", async () => {
       const github = await insertGitHubSource()
-      await testDb.insert(sourceCollectionRuns).values({ sourceId: github.id, startedAt: new Date(), status: "running" })
+      await insertSourceCollectionRun({ sourceId: github.id, startedAt: new Date(), status: "running" })
 
       const res = await request(app)
         .post(`/api/admin/source/${github.id}/collection-runs`)

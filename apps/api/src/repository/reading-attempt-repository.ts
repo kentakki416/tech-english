@@ -1,5 +1,6 @@
 import type { AttemptAnswer, AttemptWordLookup, ReadingAttempt } from "@repo/domain"
 
+import type { ReadOptions } from "./read-options"
 import type { TransactionContext } from "./transaction"
 
 /**
@@ -74,12 +75,6 @@ export type InsertAttemptWordLookupInput = Omit<AttemptWordLookup, "createdAt" |
  * 調べた単語と、その意味（用語集は文脈での意味、辞書は辞書の意味。用語集が消された・辞書に無いものは null）
  */
 export type WordLookupWithMeaning = AttemptWordLookup & { meaningJa: string | null }
-
-/**
- * 読み取りの指定。fromPrimary: true は read replica の遅れを避けて primary から読む
- * （書き込みの直後の読み直しや、同時操作で書き込めなかった後の読み直しに使う）
- */
-export type ReadOptions = { fromPrimary?: boolean }
 
 /**
  * 挑戦（reading_attempts）のリポジトリ。期限切れ（開始から 24 時間）の判定は aliveSince で受け取り、

@@ -59,12 +59,9 @@ export type CollectSourceByIdInput = {
 }
 
 const findCollectableSource = async (sourceId: number, repo: CollectionRepo): Promise<GitHubRepositorySource> => {
-  const source = await repo.sourceRepository.findById(sourceId)
-  const notCollectableReason = findSourceNotCollectableReason(source)
-  if (notCollectableReason !== null || source?.fetchType !== "github_repository") {
-    throw new SourceNotCollectableError(notCollectableReason ?? "website", sourceId)
-  }
-  return source
+  const collectability = checkSourceCollectability(await repo.sourceRepository.findById(sourceId))
+  if (!collectability.isCollectable) throw new SourceNotCollectableError(collectability.reason, sourceId)
+  return collectability.source
 }
 
 export const collectSourceById = async (
@@ -87,7 +84,7 @@ export const collectSourceById = async (
 }
 ```
 
-- 収集できるかの判定は api と同じ `@repo/domain` の `findSourceNotCollectableReason`（step2）を使う。`fetchType` の 2 つ目の条件は型を `GitHubRepositorySource` に絞るためだけのもの（判定は同じ関数が済ませている）
+- 収集できるかの判定は api と同じ `@repo/domain` の `checkSourceCollectability`（step2）を使う（収集できるときは GitHub のソースに絞った値が返る）
 - `collectGitHubSource` のログ（`GitHub source files listed` など）は今のまま
 
 `src/const/collection.ts` に足す（cron の task の三項演算子を移す）：

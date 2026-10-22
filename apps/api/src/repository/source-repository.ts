@@ -1,5 +1,7 @@
 import type { GitHubRepositorySource, PassageStatus, Source, Tag, WebsiteSource } from "@repo/domain"
 
+import type { ReadOptions } from "./read-options"
+
 type SourceInputBase = Pick<
   Source,
   "excludeGlobs" | "includeGlobs" | "isEnabled" | "kind" | "licenseUrl" | "name"
@@ -54,7 +56,7 @@ export interface SourceRepository {
   /**
    * sourceId を省略すると全ソース分
    */
-  countPassagesBySource(sourceId?: number): Promise<PassageCountRow[]>
+  countPassagesBySource(sourceId?: number, options?: ReadOptions): Promise<PassageCountRow[]>
   /**
    * ソースと source_tags（input.tagIds）を 1 トランザクションで作る
    */
@@ -63,7 +65,7 @@ export interface SourceRepository {
    * id の昇順。各ソースのタグは名前の順
    */
   findAll(): Promise<SourceWithTags[]>
-  findById(id: number): Promise<SourceWithTags | null>
+  findById(id: number, options?: ReadOptions): Promise<SourceWithTags | null>
   /**
    * 重複の検査に使うだけなのでタグは読まない
    */

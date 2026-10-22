@@ -298,7 +298,8 @@ locals {
 # =============================================================================
 # ECS Workload: worker (BullMQ 常駐。enable_worker のときだけ Fargate Spot で作る)
 # =============================================================================
-# - enable_worker = false (既定) なら作らない。そのとき api は EVENT_TRACKER_TYPE=none でイベントを捨てる
+# - enable_worker = false (既定) なら作らない。そのとき api は EVENT_TRACKER_TYPE=none でイベントを捨て、
+#   SOURCE_COLLECTION_TYPE=none で今すぐ収集のルートを作らない (ソースを収集できない)
 #   (deploy workflow が worker の Service の有無を見て切り替える)
 # - ALB は付けない (inbound が要らない)。Spot の中断は SIGTERM で通知され、graceful shutdown で
 #   処理中のジョブを終えるか、BullMQ が止まったジョブとして拾い直す
