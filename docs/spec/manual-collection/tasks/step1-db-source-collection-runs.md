@@ -8,7 +8,7 @@
 
 | 層 | ファイル | 内容 |
 | --- | --- | --- |
-| domain | `packages/domain/src/const/source-collection-run.ts`（新規）・`types/source-collection-run.ts`（新規）・`index.ts` | 状態の値・時間切れの分数と型 |
+| domain | `packages/domain/src/const/source-collection-run.ts`（新規）・`types/source-collection-run.ts`（新規）・`index.ts` | 状態の値と型 |
 | db | `packages/db/src/drizzle/schema/source-collection-run.ts`（新規）・`schema/index.ts` | テーブル定義 |
 | db | `packages/db/drizzle/migrations/` | `db:generate` で作るマイグレーション |
 | cron | `apps/cron/src/service/collection/types.ts` | `SourceCollectionStatus` を `@repo/domain` の `SourceCollectionResultStatus` の別名にする（step3 で worker に移す） |
@@ -29,8 +29,6 @@ export const SOURCE_COLLECTION_RUN_STATUSES = [
   ...SOURCE_COLLECTION_RESULT_STATUSES,
   "failed",
 ] as const
-
-export const SOURCE_COLLECTION_RUN_TIMEOUT_MINUTES = 30
 ```
 
 `types/source-collection-run.ts`：
@@ -54,7 +52,7 @@ export type SourceCollectionRun = {
 }
 ```
 
-- JSDoc に各状態の意味（README の「収集の状態」の表）、`startedAt` が worker の書き込みのトークンであること、`SOURCE_COLLECTION_RUN_TIMEOUT_MINUTES` を 30 にした理由（README の「終わらなかった実行の片付け」）を書く
+- JSDoc に各状態の意味（README の「収集の状態」の表）と、`startedAt` が worker の書き込みのトークンであることを書く。時間切れの分数は api に置く（step2）
 - `SourceCollectionStatus` は `SourceCollectionResultStatus` の別名にし、各値の説明の JSDoc はドメインの側に 1 か所だけ置く
 
 ### スキーマ
@@ -80,12 +78,20 @@ export const sourceCollectionRuns = pgTable(
       "source_collection_runs_status_check",
       sql`${table.status} IN (${joinSqlValues(SOURCE_COLLECTION_RUN_STATUSES)})`,
     ),
+    check(
+      "source_collection_runs_running_columns_check",
+      sql`${table.status} <> 'running' OR ${table.startedAt} IS NOT NULL`,
+    ),
+    check(
+      "source_collection_runs_finished_columns_check",
+      sql`${table.status} IN (${joinSqlValues(ACTIVE_SOURCE_COLLECTION_RUN_STATUSES)}) OR ${table.finishedAt} IS NOT NULL`,
+    ),
     foreignKey({
       columns: [table.sourceId],
       foreignColumns: [sources.id],
       name: "source_collection_runs_source_id_fkey",
     }).onDelete("cascade"),
-    uniqueIndex("source_collection_runs_active_source_id_key")
+    uniqueIndex("source_collection_runs_source_id_active_key")
       .on(table.sourceId)
       .where(sql`${table.status} IN (${joinSqlValues(ACTIVE_SOURCE_COLLECTION_RUN_STATUSES)})`),
     index("source_collection_runs_source_id_id_idx").on(table.sourceId, table.id),
@@ -102,7 +108,7 @@ pnpm --filter @repo/db build
 pnpm --filter api db:generate --name add_source_collection_runs
 ```
 
-生成された `migration.sql` が `CREATE TABLE "source_collection_runs"`・外部キー・2 つの index・CHECK だけであることを確かめる。
+生成された `migration.sql` が `CREATE TABLE "source_collection_runs"`・外部キー・2 つの index・3 つの CHECK だけであることを確かめる。
 
 ## 動作確認
 
@@ -120,4 +126,5 @@ pnpm --filter cron exec tsc --noEmit
 | 同じソースに `completed` / `failed` の行が複数ある状態で、`queued` の行を足す | 入る |
 | 別のソースなら `queued` が並んでも | 入る |
 | `status` が値の集合の外 | CHECK 違反 |
+| `running` で `started_at` が null・終わった状態で `finished_at` が null | CHECK 違反 |
 | ソースを消す | 記録も消える |

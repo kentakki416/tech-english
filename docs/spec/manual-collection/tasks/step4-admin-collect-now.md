@@ -10,7 +10,8 @@
 | --- | --- |
 | `apps/admin/src/features/source/source.api.ts` | `requestCollection(id)`（`POST /api/admin/source/:id/collection-runs`） |
 | `apps/admin/src/features/source/source.labels.ts` | 状態の表示名と色 |
-| `apps/admin/src/app/(dashboard)/sources/actions.ts` | `requestSourceCollectionAction` |
+| `apps/admin/src/app/(dashboard)/sources/actions.ts` | `requestSourceCollectionAction`。`createSourceAction` の JSDoc の「試し実行のコマンド（id 入り）を見せるため」 |
+| `apps/admin/src/app/(dashboard)/sources/[id]/page.tsx` | 収集中の状態の値（`activeSourceCollectionRunStatusSchema.options`）を渡す。JSDoc の「GitHub のソースは試し実行のコマンドを出す」 |
 | `apps/admin/src/components/features/source/SourceCollectionCard.tsx`（新規） | ボタン・状態の表示・収集中の読み直し |
 | `apps/admin/src/components/features/source/SourceForm.tsx` | 右の「収集の状況」の GitHub のときに `SourceCollectionCard` を使う。「試し実行」のカードを消す。「このソースを収集する」の説明を直す |
 | `apps/admin/src/app/(dashboard)/sources/page.tsx` | 一覧の説明の文言 |
@@ -45,11 +46,10 @@ export const SOURCE_COLLECTION_RUN_STATUS_LABELS: Record<SourceCollectionRunStat
   up_to_date: { color: "light", label: "変更なし" },
 }
 
-export const isSourceCollectionRunActive = (status: SourceCollectionRunStatus): boolean =>
-  status === "queued" || status === "running"
 ```
 
 - `BadgeColor` は `url-import.labels.ts` と同じ型（共通にできるなら 1 か所に移す）
+- 「収集中か」は admin で値を書き写さず、Server Component（`sources/[id]/page.tsx`）が `activeSourceCollectionRunStatusSchema.options`（step2。`@repo/domain` の `ACTIVE_SOURCE_COLLECTION_RUN_STATUSES` から作る）を `activeStatuses` の props で渡し、カードは `activeStatuses.includes(run.status)` で判定する（`allowedLicenses` と同じ形）
 
 ### Server Action
 
@@ -60,8 +60,10 @@ export const requestSourceCollectionAction = async (sourceId: number): Promise<S
   try {
     await sourceApi.requestCollection(sourceId)
   } catch (error) {
-    if (error instanceof ApiClientError) return { message: buildCollectionRequestErrorMessage(error.status) }
-    throw error
+    unstable_rethrow(error)
+    if (!(error instanceof ApiClientError)) throw error
+    revalidatePath(`/sources/${sourceId}`)
+    return { message: buildCollectionRequestErrorMessage(error.status) }
   }
   revalidatePath(`/sources/${sourceId}`)
   return {}
@@ -72,21 +74,28 @@ export const requestSourceCollectionAction = async (sourceId: number): Promise<S
 | --- | --- |
 | 409 | ほかの収集が実行中です。終わるまで待ってください |
 | 400 | 無効のソースは収集しません。有効にして保存してから押してください |
-| 404 | この環境では今すぐ収集を使えません（worker がありません）。毎日の収集を待つか、cron を手動で実行してください |
+| 404 | この環境では今すぐ収集を使えません（worker がありません） |
 | ほか | 収集を始められませんでした。時間をおいてもう一度押してください |
 
 - 404 はソースが無いときにも返るが、編集画面を開けている（ソースがある）ので、ルートが無い（`SOURCE_COLLECTION_TYPE=none`）とみなす
+- 失敗のときも `revalidatePath` する。409（別の管理者が先に押した）のとき、最新の記録が `queued` / `running` で返り、カードが「収集中」と 3 秒ごとの読み直しに切り替わるようにするため
+- catch の先頭の `unstable_rethrow` は `createSourceAction` と同じ（`apps/admin/src/libs/api-client.ts` の JSDoc）
 
 ### カード
 
 `SourceCollectionCard.tsx`（client component）：
 
 ```tsx
-export function SourceCollectionCard({ isEnabled, run, sourceId }: { isEnabled: boolean; run: SourceCollectionRun | null; sourceId: number }) {
+export function SourceCollectionCard({ activeStatuses, isEnabled, run, sourceId }: {
+  activeStatuses: readonly SourceCollectionRunStatus[]
+  isEnabled: boolean
+  run: SourceCollectionRun | null
+  sourceId: number
+}) {
   const router = useRouter()
   const [state, setState] = useState<SourceCollectionRequestState>({})
   const [isPending, startTransition] = useTransition()
-  const isActive = run !== null && isSourceCollectionRunActive(run.status)
+  const isActive = run !== null && activeStatuses.includes(run.status)
 
   useEffect(() => {
     if (!isActive) return
@@ -131,6 +140,6 @@ pnpm dev
 - [ ] 収集中はボタンを押せない。2 つのタブで同時に押すと、片方は 409 の文言
 - [ ] 無効のソースではボタンを押せず、案内が出る
 - [ ] サイトのソースにはボタンが出ない
-- [ ] 「試し実行」のカードが無い。一覧・URL から追加の文言に `collect:passages` が残っていない（`git grep -n "collect:passages" apps/admin`）
+- [ ] 「試し実行」のカードが無い。一覧・URL から追加の文言に `collect:passages` が残っていない（`git grep -n "collect:passages\|試し実行" apps/admin` がモックの外に出ない）
 - [ ] api を `SOURCE_COLLECTION_TYPE=none` で起動すると、押したときに「この環境では今すぐ収集を使えません」
 - [ ] console の error が 0 件
