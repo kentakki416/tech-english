@@ -38,7 +38,7 @@ const convertApiErrorToResult = (error: unknown, fallbackMessage: string): TagAc
  */
 const revalidateTagPaths = () => {
   revalidatePath("/tags")
-  revalidatePath("/content-sources", "layout")
+  revalidatePath("/sources", "layout")
 }
 
 /**

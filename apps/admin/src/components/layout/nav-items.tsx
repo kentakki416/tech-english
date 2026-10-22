@@ -22,7 +22,7 @@ export const mainNavSection: NavSection = {
     { icon: <GridIcon />, name: "ダッシュボード", path: "/" },
     { icon: <DocsIcon />, name: "問題", path: "/passages" },
     { icon: <PlusIcon />, name: "URL から追加", path: "/url-import" },
-    { icon: <FolderIcon />, name: "ソース", path: "/content-sources" },
+    { icon: <FolderIcon />, name: "ソース", path: "/sources" },
     { icon: <ListIcon />, name: "タグ", path: "/tags" },
     { icon: <UserCircleIcon />, name: "ユーザー", path: "/users" },
   ],

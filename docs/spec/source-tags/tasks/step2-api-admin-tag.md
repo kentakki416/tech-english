@@ -2,12 +2,12 @@
 
 admin 向けのタグの一覧・作成・更新・削除の API（`/api/admin/tag`）を作る。仕様は README の [タグの管理](../README.md#タグの管理)・[タグの名前](../README.md#タグの名前)・[タグの色](../README.md#タグの色)、作り方は [表記ゆれの防ぎ方](../README.md#表記ゆれの防ぎ方)・[色の持ち方と自動の割り当て](../README.md#色の持ち方と自動の割り当て)。
 
-ソースへのタグ付け（`tag_ids`）はこの step では触らない（[step3](./step3-api-content-source-tags.md)）。
+ソースへのタグ付け（`tag_ids`）はこの step では触らない（[step3](./step3-api-source-tags.md)）。
 
 ## 前提
 
-- [step1-db-tags](./step1-db-tags.md)：`tags` / `content_source_tags`、`@repo/domain` の `TAG_COLORS`・`Tag`・`TagColor`・`selectTagColor`
-- 既存の admin の API の形（`src/routes/admin-router.ts`・`src/controller/admin/content-source/*`）。方針は `apps/api/CLAUDE.md` の「Admin API 設計方針」
+- [step1-db-tags](./step1-db-tags.md)：`tags` / `source_tags`、`@repo/domain` の `TAG_COLORS`・`Tag`・`TagColor`・`selectTagColor`
+- 既存の admin の API の形（`src/routes/admin-router.ts`・`src/controller/admin/source/*`）。方針は `apps/api/CLAUDE.md` の「Admin API 設計方針」
 
 ## 対応内容
 
@@ -18,7 +18,7 @@ admin 向けのタグの一覧・作成・更新・削除の API（`/api/admin/t
 | PUT | `/api/admin/tag/:id` | 200 | 400（スキーマ）/ 404 / 409 |
 | DELETE | `/api/admin/tag/:id` | 204（ボディなし） | 400（`:id` が不正）/ 404 |
 
-ステータスは既存の content-source に合わせる（作成は 201・更新は 200）。admin に削除の API はまだ無いので、ボディの要らない削除は `DELETE /api/user` と同じ 204 にする。
+ステータスは既存の source に合わせる（作成は 201・更新は 200）。admin に削除の API はまだ無いので、ボディの要らない削除は `DELETE /api/user` と同じ 204 にする。
 
 ```mermaid
 sequenceDiagram
@@ -171,7 +171,7 @@ export type DeleteTagPathParam = z.infer<typeof deleteTagPathParamSchema>
 
 ### unique 制約違反の判定を共有する
 
-`src/repository/drizzle/content-source-repository.ts` の中にある `isUniqueViolation`（と `UNIQUE_VIOLATION`）を `src/repository/drizzle/pg-error.ts` に移し、content-source とタグの Repository の両方から import する。content-source 側の挙動は変えない。
+`src/repository/drizzle/source-repository.ts` の中にある `isUniqueViolation`（と `UNIQUE_VIOLATION`）を `src/repository/drizzle/pg-error.ts` に移し、source とタグの Repository の両方から import する。source 側の挙動は変えない。
 
 ```typescript
 /** apps/api/src/repository/drizzle/pg-error.ts */
@@ -184,7 +184,7 @@ const UNIQUE_VIOLATION = "23505"
 /**
  * unique 制約違反か。Drizzle は pg のエラーを DrizzleQueryError の cause に入れる。
  * どの制約かは見ないので、呼び出し側は「そのテーブルの unique 制約が重複の登録しか表さない」ときだけ使う
- * （content_sources は repository / site_url、tags は lower(name)）
+ * （sources は repository / site_url、tags は lower(name)）
  */
 export const isUniqueViolation = (error: unknown): boolean => {
   const cause = typeof error === "object" && error !== null && "cause" in error ? error.cause : undefined
@@ -196,7 +196,7 @@ export const isUniqueViolation = (error: unknown): boolean => {
 
 ### 行の変換を共有する
 
-タグの行 → ドメインの変換は、[step3](./step3-api-content-source-tags.md) の `DrizzleContentSourceRepository`（ソースのタグを返す）でも使う。`passage-audio-row.ts` と同じ形で `src/repository/drizzle/tag-row.ts` に置く。`pg-error.ts` と同じく `drizzle/index.ts` のバレルには足さない。
+タグの行 → ドメインの変換は、[step3](./step3-api-source-tags.md) の `DrizzleSourceRepository`（ソースのタグを返す）でも使う。`passage-audio-row.ts` と同じ形で `src/repository/drizzle/tag-row.ts` に置く。`pg-error.ts` と同じく `drizzle/index.ts` のバレルには足さない。
 
 ```typescript
 /** apps/api/src/repository/drizzle/tag-row.ts */
@@ -209,7 +209,7 @@ import type { Tag } from "@repo/domain"
 export type TagRow = typeof tags.$inferSelect
 
 /**
- * Drizzleの型 → ドメインの型。TagRepository と ContentSourceRepository（ソースのタグ）で共有する
+ * Drizzleの型 → ドメインの型。TagRepository と SourceRepository（ソースのタグ）で共有する
  */
 export const convertTagRowToDomain = (row: TagRow): Tag => ({
   id: row.id,
@@ -247,7 +247,7 @@ export type TagSaveResult = { kind: "duplicate" } | { kind: "saved"; tag: Tag }
 export interface TagRepository {
   create(input: TagInput): Promise<TagSaveResult>
   /**
-   * 消せたら true、無ければ false。紐付いた content_source_tags は CASCADE で消える
+   * 消せたら true、無ければ false。紐付いた source_tags は CASCADE で消える
    */
   delete(id: number): Promise<boolean>
   /**
@@ -271,7 +271,7 @@ export interface TagRepository {
 
 ```typescript
 /** apps/api/src/repository/drizzle/tag-repository.ts */
-import { asc, contentSourceTags, count, DrizzleClient, eq, inArray, sql, tags } from "@repo/db"
+import { asc, sourceTags, count, DrizzleClient, eq, inArray, sql, tags } from "@repo/db"
 import type { Tag, TagColor } from "@repo/domain"
 
 import type { TagInput, TagRepository, TagSaveResult, TagWithSourceCount } from "../tag-repository"
@@ -310,12 +310,12 @@ export class DrizzleTagRepository implements TagRepository {
         id: tags.id,
         color: tags.color,
         name: tags.name,
-        sourceCount: count(contentSourceTags.contentSourceId),
+        sourceCount: count(sourceTags.sourceId),
         createdAt: tags.createdAt,
         updatedAt: tags.updatedAt,
       })
       .from(tags)
-      .leftJoin(contentSourceTags, eq(contentSourceTags.tagId, tags.id))
+      .leftJoin(sourceTags, eq(sourceTags.tagId, tags.id))
       .groupBy(tags.id)
       .orderBy(sql`lower(${tags.name})`, asc(tags.id))
     return rows.map(({ sourceCount, ...row }) => ({ ...convertTagRowToDomain(row), sourceCount }))
@@ -348,7 +348,7 @@ export class DrizzleTagRepository implements TagRepository {
 }
 ```
 
-- `count(contentSourceTags.contentSourceId)` は left join で紐付けが無いタグを 0 にする（`count()` だと 1 になる）
+- `count(sourceTags.sourceId)` は left join で紐付けが無いタグを 0 にする（`count()` だと 1 になる）
 - `src/repository/index.ts` に `export * from "./tag-repository"`、`drizzle/index.ts` に `export * from "./tag-repository"` を足す（ファイル名順で `./reminder-setting-repository` の後）
 
 ### Service
@@ -414,7 +414,7 @@ export const updateTag = async (id: number, input: TagInput, repo: TagRepo): Pro
 }
 
 /**
- * タグを消す。付けていたソースからも外れる（content_source_tags の CASCADE）
+ * タグを消す。付けていたソースからも外れる（source_tags の CASCADE）
  */
 export const deleteTag = async (id: number, repo: TagRepo): Promise<Result<{ deleted: true }>> => {
   if (!(await repo.tagRepository.delete(id))) {
@@ -426,12 +426,12 @@ export const deleteTag = async (id: number, repo: TagRepo): Promise<Result<{ del
 }
 ```
 
-- 重複は事前に `findByName` で調べず、Repository の `duplicate` だけで判定する（content-source は取得元で重複を事前に調べているが、タグは unique index が `lower(name)` そのものなので 1 回で済む）
+- 重複は事前に `findByName` で調べず、Repository の `duplicate` だけで判定する（source は取得元で重複を事前に調べているが、タグは unique index が `lower(name)` そのものなので 1 回で済む）
 - タグの名前はログに出さない理由は無いが、出す必要も無いので id だけを出す
 
 ### Controller
 
-`src/controller/admin/tag/` に置く。書き方は `controller/admin/content-source/` と同じ（`parseRequest` → service → `sendError` / `parseResponse`）。
+`src/controller/admin/tag/` に置く。書き方は `controller/admin/source/` と同じ（`parseRequest` → service → `sendError` / `parseResponse`）。
 
 ```typescript
 /** apps/api/src/controller/admin/tag/tag-mapper.ts */
@@ -623,13 +623,13 @@ Repository のテスト（`test/repository/tag-repository.test.ts`。実 DB）�
   - [ ] `findColors` が全タグの色を重複込みで返す。タグが 0 個なら空の配列
   - [ ] `findByIds` は存在する id だけを返す。空の配列なら DB に問い合わせずに空の配列
   - [ ] `update` が名前と色を書き、`updatedAt` が進む。自分自身の名前の大文字・小文字だけを変える（`react` → `React`）のは `duplicate` にならない
-  - [ ] `delete` が true を返し、そのタグの `content_source_tags` の行も消える（ソースとほかのタグの紐付けは残る）
+  - [ ] `delete` が true を返し、そのタグの `source_tags` の行も消える（ソースとほかのタグの紐付けは残る）
 - 異常系
   - [ ] `React` があると、`create({ name: "react" })` は throw せず `{ kind: "duplicate" }` を返し、行は増えない
   - [ ] ほかのタグと同じ名前（大文字・小文字違いを含む）への `update` は `{ kind: "duplicate" }` を返し、行は変わらない
   - [ ] 存在しない id の `update` は `{ kind: "not_found" }`、`delete` は false
 
-Controller のインテグレーションテスト（`test/controller/admin/tag/{list,create,update,delete}.test.ts`。実 DB。`X-Admin-Token` は `content-source` のテストと同じく `.set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)`。タグとソースの投入は `fixtures.ts` にまとめる）：
+Controller のインテグレーションテスト（`test/controller/admin/tag/{list,create,update,delete}.test.ts`。実 DB。`X-Admin-Token` は `source` のテストと同じく `.set(ADMIN_TOKEN_HEADER, env.ADMIN_API_TOKEN)`。タグとソースの投入は `fixtures.ts` にまとめる）：
 
 - 正常系
   - [ ] GET：200。`testDb` で入れたタグが名前の順に、`source_count` 付きで返る（`toEqual`）

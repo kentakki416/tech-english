@@ -163,8 +163,8 @@ describe("collectPassages", () => {
 
       await collectPassages(buildInput({ sourceId: 7 }), repo, createDeps(createFakeGitHubClient()))
 
-      expect(repo.contentSourceRepository.findById).toHaveBeenCalledWith(7)
-      expect(repo.contentSourceRepository.findEnabled).not.toHaveBeenCalled()
+      expect(repo.sourceRepository.findById).toHaveBeenCalledWith(7)
+      expect(repo.sourceRepository.findEnabled).not.toHaveBeenCalled()
       expect(collectGitHubSourceMock.mock.calls[0][0].source).toBe(source)
     })
   })
@@ -174,7 +174,7 @@ describe("collectPassages", () => {
       const repo = createFakeRepo({ source: null })
 
       await expect(collectPassages(buildInput({ sourceId: 99 }), repo, createDeps(createFakeGitHubClient())))
-        .rejects.toThrow("Content source not found: id=99")
+        .rejects.toThrow("Source not found: id=99")
       expect(collectGitHubSourceMock).not.toHaveBeenCalled()
     })
 
@@ -182,7 +182,7 @@ describe("collectPassages", () => {
       const repo = createFakeRepo({ source: buildGitHubSource({ id: 5, isEnabled: false }) })
 
       await expect(collectPassages(buildInput({ sourceId: 5 }), repo, createDeps(createFakeGitHubClient())))
-        .rejects.toThrow("Content source is disabled: id=5")
+        .rejects.toThrow("Source is disabled: id=5")
       expect(collectGitHubSourceMock).not.toHaveBeenCalled()
     })
   })

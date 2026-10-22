@@ -1,8 +1,6 @@
 import {
   and,
   asc,
-  contentSources,
-  contentSourceTags,
   count,
   desc,
   DrizzleClient,
@@ -20,6 +18,8 @@ import {
   questions,
   readingAttempts,
   sourceDocuments,
+  sources,
+  sourceTags,
   sql,
   tags,
 } from "@repo/db"
@@ -51,13 +51,13 @@ import { resolveDrizzleClient } from "./transaction-runner"
 type PassageRow = typeof passages.$inferSelect
 type GlossaryEntryRow = typeof passageGlossaryEntries.$inferSelect
 type QuestionRow = typeof questions.$inferSelect
-type ContentSourceRow = typeof contentSources.$inferSelect
+type SourceRow = typeof sources.$inferSelect
 type PassageOverviewRow = Pick<
   PassageRow,
   "id" | "difficulty" | "publishedAt" | "sourceCommitSha" | "sourcePath" | "sourceRetrievedAt" | "timeLimitSeconds" | "title" | "wordCount"
 >
 type PassageSourceRow = Pick<
-  ContentSourceRow,
+  SourceRow,
   "branch" | "fetchType" | "kind" | "licenseSpdx" | "licenseUrl" | "name" | "publicUrlStripPrefix" | "publicUrlTemplate" | "repository" | "siteUrl"
 > & { tags: string[] }
 
@@ -72,35 +72,35 @@ const ATTEMPT_COUNT_SQL = sql<number>`(SELECT count(*) FROM ${readingAttempts} W
 const QUESTION_COUNT_SQL = sql<number>`(SELECT count(*) FROM ${questions} WHERE ${questions.passageId} = ${passages.id})`.mapWith(Number)
 
 /**
- * ソースのタグの名前（lower(name) → id の順）。content_sources を FROM に持つクエリの select で使う。
+ * ソースのタグの名前（lower(name) → id の順）。sources を FROM に持つクエリの select で使う。
  * 相関サブクエリなので、問題の行ごとに別のクエリを投げない（N+1 にならない）。text[] は pg が string[] にする
  */
 const SOURCE_TAG_NAMES_SQL = sql<string[]>`ARRAY(
-  SELECT ${tags.name} FROM ${contentSourceTags}
-  INNER JOIN ${tags} ON ${tags.id} = ${contentSourceTags.tagId}
-  WHERE ${contentSourceTags.contentSourceId} = ${contentSources.id}
+  SELECT ${tags.name} FROM ${sourceTags}
+  INNER JOIN ${tags} ON ${tags.id} = ${sourceTags.tagId}
+  WHERE ${sourceTags.sourceId} = ${sources.id}
   ORDER BY lower(${tags.name}), ${tags.id}
 )`
 
 /**
- * 出典と一覧の表示に使うソースの列。passages → source_documents → content_sources を結合したクエリで使う
+ * 出典と一覧の表示に使うソースの列。passages → source_documents → sources を結合したクエリで使う
  */
 const PASSAGE_SOURCE_COLUMNS = {
-  branch: contentSources.branch,
-  fetchType: contentSources.fetchType,
-  kind: contentSources.kind,
-  licenseSpdx: contentSources.licenseSpdx,
-  licenseUrl: contentSources.licenseUrl,
-  name: contentSources.name,
-  publicUrlStripPrefix: contentSources.publicUrlStripPrefix,
-  publicUrlTemplate: contentSources.publicUrlTemplate,
-  repository: contentSources.repository,
-  siteUrl: contentSources.siteUrl,
+  branch: sources.branch,
+  fetchType: sources.fetchType,
+  kind: sources.kind,
+  licenseSpdx: sources.licenseSpdx,
+  licenseUrl: sources.licenseUrl,
+  name: sources.name,
+  publicUrlStripPrefix: sources.publicUrlStripPrefix,
+  publicUrlTemplate: sources.publicUrlTemplate,
+  repository: sources.repository,
+  siteUrl: sources.siteUrl,
   tags: SOURCE_TAG_NAMES_SQL,
 }
 
 /**
- * ユーザー向けの一覧・概要で読む列（blocks は読まない）。passages → source_documents → content_sources を結合したクエリで使う
+ * ユーザー向けの一覧・概要で読む列（blocks は読まない）。passages → source_documents → sources を結合したクエリで使う
  */
 const PUBLISHED_SUMMARY_COLUMNS = {
   passage: {
@@ -303,7 +303,7 @@ export class DrizzlePassageRepository implements PassageRepository {
       .select({ count: count() })
       .from(passages)
       .innerJoin(sourceDocuments, eq(passages.sourceDocumentId, sourceDocuments.id))
-      .innerJoin(contentSources, eq(sourceDocuments.sourceId, contentSources.id))
+      .innerJoin(sources, eq(sourceDocuments.sourceId, sources.id))
       .where(this._buildPublishedCondition(filter))
     return row?.count ?? 0
   }
@@ -318,12 +318,12 @@ export class DrizzlePassageRepository implements PassageRepository {
         attemptCount: ATTEMPT_COUNT_SQL,
         audio: passageAudios,
         passage: passages,
-        sourceId: contentSources.id,
-        sourceName: contentSources.name,
+        sourceId: sources.id,
+        sourceName: sources.name,
       })
       .from(passages)
       .innerJoin(sourceDocuments, eq(passages.sourceDocumentId, sourceDocuments.id))
-      .innerJoin(contentSources, eq(sourceDocuments.sourceId, contentSources.id))
+      .innerJoin(sources, eq(sourceDocuments.sourceId, sources.id))
       .leftJoin(passageAudios, eq(passageAudios.passageId, passages.id))
       .where(eq(passages.id, id))
     if (!row) return null
@@ -353,16 +353,16 @@ export class DrizzlePassageRepository implements PassageRepository {
         attemptCount: ATTEMPT_COUNT_SQL,
         passage: passages,
         questionCount: QUESTION_COUNT_SQL,
-        sourceId: contentSources.id,
-        sourceName: contentSources.name,
+        sourceId: sources.id,
+        sourceName: sources.name,
       })
       .from(passages)
       .innerJoin(sourceDocuments, eq(passages.sourceDocumentId, sourceDocuments.id))
-      .innerJoin(contentSources, eq(sourceDocuments.sourceId, contentSources.id))
+      .innerJoin(sources, eq(sourceDocuments.sourceId, sources.id))
       .where(
         and(
           eq(passages.status, query.status),
-          query.sourceId === undefined ? undefined : eq(contentSources.id, query.sourceId),
+          query.sourceId === undefined ? undefined : eq(sources.id, query.sourceId),
           query.needsAttention === undefined ? undefined : eq(passages.needsAttention, query.needsAttention),
           this._buildCursorCondition(query),
         ),
@@ -386,7 +386,7 @@ export class DrizzlePassageRepository implements PassageRepository {
       .select({ passage: passages, source: PASSAGE_SOURCE_COLUMNS })
       .from(passages)
       .innerJoin(sourceDocuments, eq(passages.sourceDocumentId, sourceDocuments.id))
-      .innerJoin(contentSources, eq(sourceDocuments.sourceId, contentSources.id))
+      .innerJoin(sources, eq(sourceDocuments.sourceId, sources.id))
       .where(eq(passages.id, passageId))
     if (!row) return null
 
@@ -411,7 +411,7 @@ export class DrizzlePassageRepository implements PassageRepository {
       .select(PUBLISHED_SUMMARY_COLUMNS)
       .from(passages)
       .innerJoin(sourceDocuments, eq(passages.sourceDocumentId, sourceDocuments.id))
-      .innerJoin(contentSources, eq(sourceDocuments.sourceId, contentSources.id))
+      .innerJoin(sources, eq(sourceDocuments.sourceId, sources.id))
       .where(and(eq(passages.id, id), eq(passages.status, "published")))
     return row ? convertPublishedSummaryRowToDomain(row) : null
   }
@@ -425,7 +425,7 @@ export class DrizzlePassageRepository implements PassageRepository {
       .select(PUBLISHED_SUMMARY_COLUMNS)
       .from(passages)
       .innerJoin(sourceDocuments, eq(passages.sourceDocumentId, sourceDocuments.id))
-      .innerJoin(contentSources, eq(sourceDocuments.sourceId, contentSources.id))
+      .innerJoin(sources, eq(sourceDocuments.sourceId, sources.id))
       .where(
         and(
           this._buildPublishedCondition(filter),
@@ -455,8 +455,8 @@ export class DrizzlePassageRepository implements PassageRepository {
             .select({ id: passages.id })
             .from(passages)
             .innerJoin(sourceDocuments, eq(passages.sourceDocumentId, sourceDocuments.id))
-            .innerJoin(contentSourceTags, eq(contentSourceTags.contentSourceId, sourceDocuments.sourceId))
-            .where(and(eq(contentSourceTags.tagId, tags.id), eq(passages.status, "published"))),
+            .innerJoin(sourceTags, eq(sourceTags.sourceId, sourceDocuments.sourceId))
+            .where(and(eq(sourceTags.tagId, tags.id), eq(passages.status, "published"))),
         ),
       )
       .orderBy(sql`lower(${tags.name})`, asc(tags.id))
@@ -468,7 +468,7 @@ export class DrizzlePassageRepository implements PassageRepository {
       .select({ id: passages.id })
       .from(passages)
       .innerJoin(sourceDocuments, eq(passages.sourceDocumentId, sourceDocuments.id))
-      .innerJoin(contentSources, eq(sourceDocuments.sourceId, contentSources.id))
+      .innerJoin(sources, eq(sourceDocuments.sourceId, sources.id))
       .where(this._buildPublishedCondition(filter))
       .orderBy(sql`random()`)
       .limit(1)
@@ -616,13 +616,13 @@ export class DrizzlePassageRepository implements PassageRepository {
   }
 
   /**
-   * 公開中の問題の絞り込みの条件。passages → source_documents → content_sources を結合したクエリで使う
+   * 公開中の問題の絞り込みの条件。passages → source_documents → sources を結合したクエリで使う
    */
   private _buildPublishedCondition(filter: PublishedPassageFilter) {
     const { unattemptedByUserId } = filter
     return and(
       eq(passages.status, "published"),
-      filter.kind === null ? undefined : eq(contentSources.kind, filter.kind),
+      filter.kind === null ? undefined : eq(sources.kind, filter.kind),
       filter.difficulties.length === 0 ? undefined : inArray(passages.difficulty, filter.difficulties),
       /**
        * ソースにどれかのタグ（名前の完全一致）が付いていれば当てはまる
@@ -631,10 +631,10 @@ export class DrizzlePassageRepository implements PassageRepository {
         ? undefined
         : exists(
           this._db
-            .select({ tagId: contentSourceTags.tagId })
-            .from(contentSourceTags)
-            .innerJoin(tags, eq(contentSourceTags.tagId, tags.id))
-            .where(and(eq(contentSourceTags.contentSourceId, contentSources.id), inArray(tags.name, filter.tags))),
+            .select({ tagId: sourceTags.tagId })
+            .from(sourceTags)
+            .innerJoin(tags, eq(sourceTags.tagId, tags.id))
+            .where(and(eq(sourceTags.sourceId, sources.id), inArray(tags.name, filter.tags))),
         ),
       unattemptedByUserId === null
         ? undefined

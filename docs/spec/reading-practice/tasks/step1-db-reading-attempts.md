@@ -5,7 +5,7 @@
 ## 前提
 
 - [github-auth step1-db-user-timezone](../../github-auth/tasks/step1-db-user-timezone.md)（`users.timezone`）
-- [content-collection step1-db-content-sources](../../content-collection/tasks/step1-db-content-sources.md)（`passages`）
+- [content-collection step1-db-sources](../../content-collection/tasks/step1-db-sources.md)（`passages`）
 - [question-generation step1-db-questions](../../question-generation/tasks/step1-db-questions.md)（`questions` / `passage_glossary_entries`）
 
 ## 対応内容

@@ -16,12 +16,12 @@ import {
 
 import { createDrizzleClient, type DrizzleTransaction } from "../src/drizzle/client"
 import {
-  contentSources,
-  contentSourceTags,
   passageGlossaryEntries,
   passages,
   questions,
   sourceDocuments,
+  sources,
+  sourceTags,
   tags,
 } from "../src/drizzle/schema"
 
@@ -432,8 +432,8 @@ const ensureSourceTags = async (tx: DrizzleTransaction, sourceId: number): Promi
     .from(tags)
     .where(inArray(sql`lower(${tags.name})`, SOURCE_TAGS.map((tag) => tag.name.toLowerCase())))
   await tx
-    .insert(contentSourceTags)
-    .values(rows.map((row) => ({ contentSourceId: sourceId, tagId: row.id })))
+    .insert(sourceTags)
+    .values(rows.map((row) => ({ sourceId, tagId: row.id })))
     .onConflictDoNothing()
 }
 
@@ -441,8 +441,8 @@ const ensureSourceTags = async (tx: DrizzleTransaction, sourceId: number): Promi
  * ソースと取得文書は既存があればそれを使う（admin から同じリポジトリを登録していても壊さない）
  */
 const ensureSourceDocument = async (tx: DrizzleTransaction): Promise<number> => {
-  await tx.insert(contentSources).values(SOURCE).onConflictDoNothing({ target: contentSources.repository })
-  const [source] = await tx.select({ id: contentSources.id }).from(contentSources).where(eq(contentSources.repository, SOURCE.repository))
+  await tx.insert(sources).values(SOURCE).onConflictDoNothing({ target: sources.repository })
+  const [source] = await tx.select({ id: sources.id }).from(sources).where(eq(sources.repository, SOURCE.repository))
   if (!source) throw new Error(`Failed to find source: ${SOURCE.repository}`)
   await ensureSourceTags(tx, source.id)
 

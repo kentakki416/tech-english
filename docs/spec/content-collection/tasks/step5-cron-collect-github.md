@@ -4,7 +4,7 @@
 
 ## 前提
 
-- [step1-db-content-sources](./step1-db-content-sources.md)
+- [step1-db-sources](./step1-db-sources.md)
 - [step4-cron-document-parser](./step4-cron-document-parser.md)（`extractDocument`）
 - [question-generation step1-db-questions](../../question-generation/tasks/step1-db-questions.md)（実装の順番）
 
@@ -29,7 +29,7 @@ pnpm --filter cron add picomatch && pnpm --filter cron add -D @types/picomatch
 | `src/lib/path-filter.ts` | `isTargetPath(path, { excludeGlobs, includeGlobs })`（picomatch。step6 も使う）、`findGlobBaseDirectories(globs)` |
 | `src/lib/parse-collect-args.ts` | `parseCollectArgs(argv)` → `{ dryRun: boolean; sourceId: number \| null }` |
 | `src/lib/format-dry-run.ts` | 試し実行の表示（純関数） |
-| `src/repository/{content-source,source-document,passage}-repository.ts` と `drizzle/` | cron 用の Repository（api とは別） |
+| `src/repository/{source,source-document,passage}-repository.ts` と `drizzle/` | cron 用の Repository（api とは別） |
 | `src/service/collection/types.ts` | `CollectionRepo`（3 つの Repository をまとめた型）と `SourceCollectionResult` |
 | `src/service/collection/list-github-target-files.ts` | ツリーの取得と絞り込み（truncated 対応） |
 | `src/service/collection/collect-github-source.ts` | 1 ソース分の収集 |
@@ -96,10 +96,10 @@ export const listGitHubTargetFiles = async (
 ### 5. Repository（cron 用。interface は `@repo/domain` の型か素の値だけ）
 
 ```ts
-export interface ContentSourceRepository {
-  findById(id: number): Promise<ContentSource | null>
+export interface SourceRepository {
+  findById(id: number): Promise<Source | null>
   /** is_enabled = true を last_collected_at の古い順（未収集が先）。上限で後ろのソースが毎回あふれないように */
-  findEnabled(): Promise<ContentSource[]>
+  findEnabled(): Promise<Source[]>
   /**
    * 行を更新できたら true。lastCollectedCommitSha を省略したら変えない。
    * 渡したら、last_collected_commit_sha が expected（収集を始めたときに読んだ値。null も含む）のままのときだけ next に書き換える（楽観ロック）。
@@ -143,7 +143,7 @@ export interface PassageRepository {
 ```ts
 /** src/service/collection/types.ts */
 export type CollectionRepo = {
-  contentSourceRepository: ContentSourceRepository
+  sourceRepository: SourceRepository
   passageRepository: PassageRepository
   sourceDocumentRepository: SourceDocumentRepository
 }
@@ -204,7 +204,7 @@ flowchart TD
 runTask("collect-passages", async ({ db }) => {
   const args = parseCollectArgs(process.argv.slice(2))
   const repo = {
-    contentSourceRepository: new DrizzleContentSourceRepository(db),
+    sourceRepository: new DrizzleSourceRepository(db),
     passageRepository: new DrizzlePassageRepository(db),
     sourceDocumentRepository: new DrizzleSourceDocumentRepository(db),
   }

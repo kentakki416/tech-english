@@ -46,7 +46,7 @@ npx dotenvx set API_URL "http://localhost:8080" -f apps/admin/.env.local
 - **`src/proxy.ts` は cookie の有無と期限（`exp`）しか見ない UX 用のガード。** 署名は api が確かめる。api を呼ばずに機密を描く画面を作らない（偽の cookie でも画面までは開ける）。`_next/static`・`_next/image`・`favicon.svg`・`images/` 以外のすべて（モックの `/mock` も）が対象で、サインインせずに開けるのは `PUBLIC_PATHS` だけ
 - **access token の更新（refresh）は `src/proxy.ts` だけが行う。** 期限まで 30 秒を切っているか無ければ `/api/admin/auth/refresh` を呼び、レスポンスとリクエストの cookie を書き換えて画面に渡す。`apiClient` は refresh しない（Server Component の中では cookie を書けず、セッションが切れる）
 - サインインが要るとき、画面は `/signin?redirect=...` に送る。**`/api/` の下の Route Handler は redirect せず 401 の JSON を返す**（ブラウザの `fetch` から呼ばれるため）。**Server Action は止めずに通す**（redirect すると Next.js のクライアントが扱えずエラー画面になる。token が無ければ api の 401 で `apiClient` がサインイン画面に送る）。そのため、**api を呼ばずに状態を変えたり機密を返したりする Server Action を作らない**。サインインせずに開ける画面・Route Handler は `PUBLIC_PATHS` に足す（公開のパスで token を更新するのはサインイン画面だけ）
-- **`apiClient` は api の 401 で `/api/auth/signout`（cookie を消してサインイン画面へ送る）に redirect する。** redirect は例外なので、**api の呼び出しを try/catch で囲むときは catch の先頭で `unstable_rethrow(error)` する**（入れないと、セッション切れが「保存に失敗しました」などの表示に化ける）。ブラウザの `fetch` から呼ばれる Route Handler は `apiClient.get(path, { onUnauthorized: "throw" })` で 401 を `ApiClientError` として受け、401 を返す（見本はライセンスの検出の `app/api/content-sources/license/route.ts`）
+- **`apiClient` は api の 401 で `/api/auth/signout`（cookie を消してサインイン画面へ送る）に redirect する。** redirect は例外なので、**api の呼び出しを try/catch で囲むときは catch の先頭で `unstable_rethrow(error)` する**（入れないと、セッション切れが「保存に失敗しました」などの表示に化ける）。ブラウザの `fetch` から呼ばれる Route Handler は `apiClient.get(path, { onUnauthorized: "throw" })` で 401 を `ApiClientError` として受け、401 を返す（見本はライセンスの検出の `app/api/sources/license/route.ts`）
 - サインイン後の戻り先は `src/libs/safe-redirect.ts` の `resolveSafeRedirectPath` を必ず通す（外のサイトに飛ばさない）
 - ログアウトは `src/features/auth/auth.actions.ts` の `logoutAction`（ヘッダーのユーザーメニューの「ログアウト」）
 - 認証の処理（proxy の refresh・Google の callback・ログアウト）の失敗は、`console.error` に HTTP の status と `src/libs/error-name.ts` の `getErrorName`（エラーの名前）だけを出す。token・code・cookie・email を含みうる message や応答の中身は出さない
@@ -101,8 +101,8 @@ admin は DB を直接触らず、必ず Express API を経由する。tech-engl
 | パス | 画面 | 実装 |
 | --- | --- | --- |
 | `/url-import` | URL から追加（ページを確認して本文候補として保存） | `app/(dashboard)/url-import/page.tsx` + `components/features/url-import/UrlImportForm.tsx` + `app/(dashboard)/url-import/actions.ts`（Server Action。確認と保存）。API は `features/url-import/url-import.api.ts`、ラベルは `url-import.labels.ts`（[url-import](../../docs/spec/url-import/README.md)） |
-| `/content-sources` | ソース一覧 | `app/(dashboard)/content-sources/page.tsx` + `components/features/content-source/SourceTable.tsx` |
-| `/content-sources/new`・`/content-sources/[id]` | ソースの登録・編集 | `SourceForm.tsx` + `app/(dashboard)/content-sources/actions.ts`（Server Action）+ `app/api/content-sources/license/route.ts`（ライセンス検出の中継）。技術タグの選択は `TagPicker`（選んだ id を hidden の `tag_ids` で送る） |
+| `/sources` | ソース一覧 | `app/(dashboard)/sources/page.tsx` + `components/features/source/SourceTable.tsx` |
+| `/sources/new`・`/sources/[id]` | ソースの登録・編集 | `SourceForm.tsx` + `app/(dashboard)/sources/actions.ts`（Server Action）+ `app/api/sources/license/route.ts`（ライセンス検出の中継）。技術タグの選択は `TagPicker`（選んだ id を hidden の `tag_ids` で送る） |
 | `/tags` | タグ | `app/(dashboard)/tags/page.tsx` + `components/features/tag/TagTable.tsx`（追加・編集は `TagFormModal`、削除の確認は `TagDeleteModal`）+ `app/(dashboard)/tags/actions.ts`（Server Action）。色付きのタグは `TagChip`（色 → クラスの対応表はここだけに置く） |
 | `/passages` | 問題一覧（`?status=` で状態を切り替え） | `app/(dashboard)/passages/page.tsx` + `components/features/passage/PassageTable.tsx` |
 | `/passages/[id]` | 問題の確認・修正 | `PassageReview.tsx`（タブは `QuestionsTab` / `TranslationsTab` / `GlossaryTab` / `BodyTab` / `BasicsTab`、プレビューは `PassagePreview`、読み上げの音声は `PassageAudioCard`）+ `app/(dashboard)/passages/[id]/actions.ts`（Server Action）。フォームの状態と変換は `features/passage/passage.form.ts`、ラベルは `passage.labels.ts` |

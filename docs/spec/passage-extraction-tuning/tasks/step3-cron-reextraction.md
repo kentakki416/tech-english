@@ -11,7 +11,7 @@
 | `apps/cron/src/lib/document/const.ts`・`index.ts` | `EXTRACTION_VERSION` |
 | `apps/cron/src/const/collection.ts` | 却下の理由 2 つ |
 | `apps/cron/src/repository/source-document-repository.ts`・`drizzle/` | `markFetched` で `extraction_version` を書く、`findWithCollectedPassages` |
-| `apps/cron/src/repository/content-source-repository.ts`・`drizzle/` | `markCollected` で commit SHA と抽出の版を一緒に書く |
+| `apps/cron/src/repository/source-repository.ts`・`drizzle/` | `markCollected` で commit SHA と抽出の版を一緒に書く |
 | `apps/cron/src/repository/passage-repository.ts`・`drizzle/` | `findGeneratedOrGeneratingTitles`・`rejectCollected` |
 | `apps/cron/src/service/collection/types.ts` | `CollectionRepo.passageRepository` の `Pick` に `"findGeneratedOrGeneratingTitles"`・`"rejectCollected"` を足し、JSDoc を「収集は本文候補の挿入と、見出しの確認、`collected` の却下だけを使う」に直す |
 | `apps/cron/src/service/collection/replace-passage-candidates.ts`・`reject-out-of-target-passages.ts`・`index.ts` | 本文候補の保存と前の切り分けの却下、対象から外れた文書の却下（GitHub とサイトで共有）。`index.ts` の `export *` にファイル名順で足す |
@@ -79,7 +79,7 @@ export type MarkFetchedInput = {
 
 - interface の JSDoc に「`collected` の本文候補を持つ文書」と書く。サイトは対象パス外のページの行が多いので、全行を読まずに本文候補のある文書だけを読む
 
-`content-source-repository.ts`（`lastCollectedCommitSha` を置き換える）：
+`source-repository.ts`（`lastCollectedCommitSha` を置き換える）：
 
 ```ts
 export type MarkCollectedInput = {
@@ -91,9 +91,9 @@ export type MarkCollectedInput = {
 ```ts
   public async markCollected(id: number, input: MarkCollectedInput): Promise<boolean> {
     const commit = input.lastCollectedCommit
-    const isTarget = eq(contentSources.id, id)
+    const isTarget = eq(sources.id, id)
     const result = await this._db
-      .update(contentSources)
+      .update(sources)
       .set({
         lastCollectedAt: input.lastCollectedAt,
         ...(commit === undefined
@@ -105,8 +105,8 @@ export type MarkCollectedInput = {
         : and(
           isTarget,
           commit.expectedSha === null
-            ? isNull(contentSources.lastCollectedCommitSha)
-            : eq(contentSources.lastCollectedCommitSha, commit.expectedSha),
+            ? isNull(sources.lastCollectedCommitSha)
+            : eq(sources.lastCollectedCommitSha, commit.expectedSha),
         ))
     return (result.rowCount ?? 0) > 0
   }
@@ -160,7 +160,7 @@ export type MarkCollectedInput = {
 ```ts
   const commitSha = await deps.githubContentClient.getLatestCommitSha(source.repository, source.branch)
   if (commitSha === source.lastCollectedCommitSha && source.lastCollectedExtractionVersion === EXTRACTION_VERSION) {
-    await repo.contentSourceRepository.markCollected(source.id, { lastCollectedAt: now })
+    await repo.sourceRepository.markCollected(source.id, { lastCollectedAt: now })
     return { createdPassageCount: 0, fetchedDocumentCount: 0, status: "up_to_date" }
   }
 
@@ -378,7 +378,7 @@ const isGonePage = (document: SourceDocument): boolean =>
 `test/repository/drizzle/`：
 
 - `source-document-repository.test.ts`：`markFetched` が `extractionVersion` を書く。`findWithCollectedPassages` の SQL（`source_id` と、`status = 'collected'` の本文候補の `exists`）
-- `content-source-repository.test.ts`：`lastCollectedCommit` を渡すと `last_collected_commit_sha` と `last_collected_extraction_version` を同じ UPDATE で書き、WHERE に期待する commit SHA が入る。渡さなければ `last_collected_at` だけ
+- `source-repository.test.ts`：`lastCollectedCommit` を渡すと `last_collected_commit_sha` と `last_collected_extraction_version` を同じ UPDATE で書き、WHERE に期待する commit SHA が入る。渡さなければ `last_collected_at` だけ
 - `passage-repository.test.ts`：
   - `findGeneratedOrGeneratingTitles` の SQL（`source_document_id` と、`status in (draft, generating, published)` か `status = rejected` かつ `generated_at is not null`）と、見出しの配列を返すこと
   - `rejectCollected` の UPDATE の SQL（`source_document_id in (...)`・`status = 'collected'`・`content_hash not in`）と値。`keepContentHashes` が空なら `not in` を付けない。`sourceDocumentIds` が空なら UPDATE せずに 0。件数を返す
@@ -437,6 +437,6 @@ docker exec -i tech-english-postgres psql -U postgres -d "tech-english_dev" -c \
   "SELECT p.id, d.path, p.status, p.reject_reason, p.title FROM passages p JOIN source_documents d ON d.id = p.source_document_id WHERE d.source_id = <id> ORDER BY p.id"
 ```
 
-3. 上限なしで収集して `completed` になり、`content_sources` に commit SHA と版が記録されること。もう一度実行すると `up_to_date` になること
+3. 上限なしで収集して `completed` になり、`sources` に commit SHA と版が記録されること。もう一度実行すると `up_to_date` になること
 4. 作った本文候補を数件 admin のプレビューで開き、`<YouWillLearn>`・`<Recap>` の一覧が無いこと、続きの捨てられた段落が「.」で終わっていることを見る
 5. admin の「却下」に、2 つの理由で却下した本文候補が理由つきで出ること

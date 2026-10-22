@@ -42,8 +42,8 @@ function ErrorMessage({ failure }: { failure: UrlImportFailure }) {
   return (
     <div className="rounded-xl border border-error-500 bg-error-50 p-4 text-sm dark:border-error-500/30 dark:bg-error-500/15" role="alert">
       <p className="font-medium text-gray-800 dark:text-white/90">{failure.message}</p>
-      {failure.errorCode === "source_not_found" && <Link className={errorLinkClass} href="/content-sources/new">ソースを登録する</Link>}
-      {failure.errorCode === "out_of_target_path" && <Link className={errorLinkClass} href="/content-sources">ソースの一覧を開く</Link>}
+      {failure.errorCode === "source_not_found" && <Link className={errorLinkClass} href="/sources/new">ソースを登録する</Link>}
+      {failure.errorCode === "out_of_target_path" && <Link className={errorLinkClass} href="/sources">ソースの一覧を開く</Link>}
     </div>
   )
 }

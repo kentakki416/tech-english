@@ -6,7 +6,7 @@
 
 - テーブルとしての依存は既存の `users` だけ。ただしマイグレーションのスナップショットを直列に保つため、実装の順番（取り決めの 5.6）どおり次の step のマイグレーションを取り込んでから `db:generate` する
   - [github-auth step1-db-user-timezone](../../github-auth/tasks/step1-db-user-timezone.md)
-  - [content-collection step1-db-content-sources](../../content-collection/tasks/step1-db-content-sources.md)
+  - [content-collection step1-db-sources](../../content-collection/tasks/step1-db-sources.md)
   - [question-generation step1-db-questions](../../question-generation/tasks/step1-db-questions.md)
 - 列の定義と制約の理由は README の [必要な DB 設計](../README.md#必要な-db-設計) と [曜日の表現](../README.md#曜日の表現)
 

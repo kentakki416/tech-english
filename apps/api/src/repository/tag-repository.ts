@@ -21,7 +21,7 @@ export type TagSaveResult = { kind: "duplicate" } | { kind: "saved"; tag: Tag }
 export interface TagRepository {
   create(input: TagInput): Promise<TagSaveResult>
   /**
-   * 消せたら true、無ければ false。紐付いた content_source_tags は CASCADE で消える
+   * 消せたら true、無ければ false。紐付いた source_tags は CASCADE で消える
    */
   delete(id: number): Promise<boolean>
   /**

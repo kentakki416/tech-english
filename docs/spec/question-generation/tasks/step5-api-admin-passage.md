@@ -5,7 +5,7 @@ admin 向けの問題の API（一覧・詳細・保存・公開・却下・却�
 ## 前提
 
 - [step4-api-admin-auth](./step4-api-admin-auth.md)：`admin-router.ts`、`X-Admin-Token`
-- [step1-db-questions](./step1-db-questions.md)、[content-collection step1-db-content-sources](../../content-collection/tasks/step1-db-content-sources.md)
+- [step1-db-questions](./step1-db-questions.md)、[content-collection step1-db-sources](../../content-collection/tasks/step1-db-sources.md)
 - [reading-practice step1-db-reading-attempts](../../reading-practice/tasks/step1-db-reading-attempts.md)：挑戦の有無を `reading_attempts` で数える。`attempt_word_lookups.glossary_entry_id` が `ON DELETE SET NULL` であること（でないと、調べられた語句を用語集から消す保存が FK 違反で 500 になる）
 - API の一覧と制約は README の [必要な API](../README.md#必要な-api)・[公開済みの問題を直すとき](../README.md#公開済みの問題を直すとき)、公開の条件は [出力の検証と後処理](../README.md#出力の検証と後処理)
 - `PassageRepository` は reading-practice step2 と共有する。先にあればメソッドを足し、無ければ作る
@@ -84,7 +84,7 @@ export interface PassageRepository {
 ```
 
 - **並び順**：draft は `needs_attention DESC, updated_at ASC, id ASC`、それ以外は `updated_at DESC, id DESC`。cursor はその並びのキーセット（draft なら `(na < c.na) OR (na = c.na AND (updated_at, id) > (c.updatedAt, c.id))`）
-- `attempt_count` / `question_count` は `reading_attempts` / `questions` を数えるサブクエリ。挑戦は **状態を問わず** 数える（挑戦中のユーザーも設問 ID に回答を送るため）。ソースは `source_documents` → `content_sources` を join
+- `attempt_count` / `question_count` は `reading_attempts` / `questions` を数えるサブクエリ。挑戦は **状態を問わず** 数える（挑戦中のユーザーも設問 ID に回答を送るため）。ソースは `source_documents` → `sources` を join
 - `countByStatus` は絞り込みを無視した全体の件数（無い状態は 0 で埋める）
 - `updateDraftContent`：① passages をガード付き（`status = 'draft'`）で更新、0 行なら false ② 用語集：リクエストに無い id を削除、既存を id で更新（`passage_id` も条件に入れる）、新規を insert して index → id の配列を作る ③ 設問：リクエストに無い id を削除、残す行の `order_index` を一時的に `-(order_index + 1)` へ退避してから最終値で更新（`(passage_id, order_index)` の unique 違反を避ける）、新規を insert。`target_glossary_entry_id` は ② の配列から引く
 - `restoreRejected`：1 トランザクションで ① `status = 'rejected'` の行を `FOR UPDATE` でロック（無ければ null。`resetForRegeneration` も同じ行をロックするので、設問の有無の確認と書き込みの間に設問が消されない）② 設問が 1 つでもあれば `status = 'draft'`・`reject_reason = null` だけを書く（設問・用語集・和訳・要確認・`reviewed_at` は残す）③ 無ければ（LLM が不向きと判定したもの）`resetForRegeneration` と同じ値で `collected` に戻す（用語集が残っていれば消す。`generation_attempt_count = 0`）

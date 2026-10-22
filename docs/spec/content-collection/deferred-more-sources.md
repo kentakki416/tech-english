@@ -31,7 +31,7 @@
 
 ### 既存仕様との差分（着手時のチェックリスト）
 
-- [ ] `content_sources` に描画方式の列を足す
+- [ ] `sources` に描画方式の列を足す
 - [ ] 描画用のタスクとイメージを cron とは別に作る（[minimal-deploy](../minimal-deploy/README.md) の ECS タスク定義のメモリを見積もる）
 - [ ] 描画にかかる時間を考慮して `COLLECT_MAX_DOCUMENTS_PER_SOURCE` を別に持つ
 
@@ -50,8 +50,8 @@
 
 ### 既存仕様との差分（着手時のチェックリスト）
 
-- [ ] `ALLOWED_LICENSES` に許諾による利用を表す値を追加し、許諾の記録の列を `content_sources` に足す
-- [ ] `content_sources` にフィードの URL を足し、URL の発見の手段に加える
+- [ ] `ALLOWED_LICENSES` に許諾による利用を表す値を追加し、許諾の記録の列を `sources` に足す
+- [ ] `sources` にフィードの URL を足し、URL の発見の手段に加える
 - [ ] `SOURCE_KINDS` に `blog` を足し、問題一覧の絞り込みに出す（reading-practice）
 - [ ] ソース単位の一括非公開の API と画面
 

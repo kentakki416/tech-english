@@ -4,7 +4,7 @@ Markdown / HTML を mdast → `PassageBlock[]` にし、本文候補に切り分
 
 ## 前提
 
-- [step1-db-content-sources](./step1-db-content-sources.md)（`@repo/domain` の `PassageBlock`）
+- [step1-db-sources](./step1-db-sources.md)（`@repo/domain` の `PassageBlock`）
 - [question-generation step1-db-questions](../../question-generation/tasks/step1-db-questions.md)（実装の順番。コードの依存は step1 だけ）
 - step2・step3 とは独立に進められる
 

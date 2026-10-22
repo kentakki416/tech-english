@@ -7,20 +7,20 @@ import { cardClass } from "./_components/ui"
 const SCREENS: { description: string, href: string, spec: string, states: { href: string, label: string }[], title: string }[] = [
   {
     description: "登録済みのソース、取得方法、ライセンス、収集の状況",
-    href: "/mock/content-sources",
+    href: "/mock/sources",
     spec: "content-collection",
-    states: [{ href: "/mock/content-sources?state=empty", label: "ソースが 0 件" }],
+    states: [{ href: "/mock/sources?state=empty", label: "ソースが 0 件" }],
     title: "ソース一覧",
   },
   {
     description: "取得方法（GitHub / サイト）で入力欄が切り替わる登録・編集フォーム",
-    href: "/mock/content-sources/new",
+    href: "/mock/sources/new",
     spec: "content-collection",
     states: [
-      { href: "/mock/content-sources/new?state=website", label: "新規（サイト）" },
-      { href: "/mock/content-sources/1", label: "編集（GitHub）" },
-      { href: "/mock/content-sources/7", label: "編集（サイト）" },
-      { href: "/mock/content-sources/6", label: "編集（未収集のサイト）" },
+      { href: "/mock/sources/new?state=website", label: "新規（サイト）" },
+      { href: "/mock/sources/1", label: "編集（GitHub）" },
+      { href: "/mock/sources/7", label: "編集（サイト）" },
+      { href: "/mock/sources/6", label: "編集（未収集のサイト）" },
     ],
     title: "ソースの登録・編集",
   },

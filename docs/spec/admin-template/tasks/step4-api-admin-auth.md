@@ -98,7 +98,7 @@ export { normalizeEmail } from "./rules/email"
 export type { Admin } from "./types/admin"
 ```
 
-- `rules/content-source` の次に `rules/email`、`types/admin-stats` の前に `types/admin` を置く
+- `rules/source` の次に `rules/email`、`types/admin-stats` の前に `types/admin` を置く
 - 実装では、`Admin.email` が小文字にそろえた値であること、`normalizeEmail` を admins の照合と登録の両方で使うことを定義の側に書く
 
 ### `packages/db`
@@ -211,7 +211,7 @@ RUN pnpm turbo run build --filter=@repo/data-warehouse^... --filter=@repo/db^...
 
 ### `packages/schema`
 
-`api-schema/admin/auth.ts` と `api-schema/admin/me.ts` を新設し、`api-schema/index.ts` に `export * from "./admin/auth"`（`./admin/content-source` の前）と `export * from "./admin/me"`（`./admin/content-source` の後）を足す。`packages/schema/CLAUDE.md` のコメントのルール（エンドポイントの区切りとスキーマの説明）と、各スキーマに `z.infer` の型を並べる決まりに従う。
+`api-schema/admin/auth.ts` と `api-schema/admin/me.ts` を新設し、`api-schema/index.ts` に `export * from "./admin/auth"`（`./admin/source` の前）と `export * from "./admin/me"`（`./admin/source` の後）を足す。`packages/schema/CLAUDE.md` のコメントのルール（エンドポイントの区切りとスキーマの説明）と、各スキーマに `z.infer` の型を並べる決まりに従う。
 
 ```typescript
 import { z } from "zod"
@@ -737,7 +737,7 @@ export class AdminAuthRefreshController {
 `routes/admin-router.ts`：
 
 - `router.use(adminAuthMiddleware)` を外す。認証は `mountAdminApi` で mount の中に置く
-- `AdminRouterControllers` に `auth` と `me` を足す。既存の `contentSource` / `passage` / `stats` / `tag` / `user` のネストとルートはそのまま。キーは `auth`・`contentSource`・`me`・`passage`・`stats`・`tag`・`user` の順に並べる
+- `AdminRouterControllers` に `auth` と `me` を足す。既存の `source` / `passage` / `stats` / `tag` / `user` のネストとルートはそのまま。キーは `auth`・`source`・`me`・`passage`・`stats`・`tag`・`user` の順に並べる
 
 ```typescript
 type AdminRouterControllers = {
@@ -805,12 +805,12 @@ mountAdminApi(
       logout: adminAuthLogoutController,
       refresh: adminAuthRefreshController,
     },
-    contentSource: {
-      create: adminContentSourceCreateController,
-      detail: adminContentSourceDetailController,
-      detectLicense: adminContentSourceDetectLicenseController,
-      list: adminContentSourceListController,
-      update: adminContentSourceUpdateController,
+    source: {
+      create: adminSourceCreateController,
+      detail: adminSourceDetailController,
+      detectLicense: adminSourceDetectLicenseController,
+      list: adminSourceListController,
+      update: adminSourceUpdateController,
     },
     me: { get: adminMeGetController },
     passage: {
@@ -1087,7 +1087,7 @@ step5 を main に入れた後、deploy の前に環境ごとに次を行う（`
 
 ### 既存の admin のテストの書き換え
 
-`test/controller/admin/` の 22 ファイル（content-source 5・passage 11・stats 1・tag 4・user 1）を、同じ形で書き換える。
+`test/controller/admin/` の 22 ファイル（source 5・passage 11・stats 1・tag 4・user 1）を、同じ形で書き換える。
 
 ```typescript
 const app = createTestApp()

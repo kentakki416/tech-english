@@ -4,7 +4,7 @@
 
 ## 前提
 
-- [content-collection step1-db-content-sources](../../content-collection/tasks/step1-db-content-sources.md)：`passages`（全列）、`const/passage.ts`（`PASSAGE_DIFFICULTIES` ほか）、`types/passage.ts`（`Passage` / `PassageBlock`）、`@repo/db` の dependencies への `@repo/domain` 追加
+- [content-collection step1-db-sources](../../content-collection/tasks/step1-db-sources.md)：`passages`（全列）、`const/passage.ts`（`PASSAGE_DIFFICULTIES` ほか）、`types/passage.ts`（`Passage` / `PassageBlock`）、`@repo/db` の dependencies への `@repo/domain` 追加
 - 列の定義・制約の理由は README の [必要な DB 設計](../README.md#必要な-db-設計)、計算式は [難易度と制限時間](../README.md#難易度と制限時間)
 
 ## 対応内容

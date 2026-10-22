@@ -2,7 +2,6 @@ import {
   attemptAnswers,
   attemptWordLookups,
   authAccounts,
-  contentSources,
   eq,
   inArray,
   passageGlossaryEntries,
@@ -11,6 +10,7 @@ import {
   readingAttempts,
   reminderSettings,
   sourceDocuments,
+  sources,
   userGoals,
   vocabularyCards,
   vocabularyReviews,
@@ -35,11 +35,11 @@ type UserOwnedTable = {
 
 /**
  * 挑戦が参照する問題（passages）を、ソース・取得文書・用語集の項目・設問ごと作る。
- * ユーザーごとに別の問題を作る（content_sources.repository と passages.content_hash が unique なので userId を含める）
+ * ユーザーごとに別の問題を作る（sources.repository と passages.content_hash が unique なので userId を含める）
  */
 const insertPassageWithQuestion = async (userId: number): Promise<number> => {
   const [source] = await testDb
-    .insert(contentSources)
+    .insert(sources)
     .values({
       branch: "main",
       fetchType: "github_repository",

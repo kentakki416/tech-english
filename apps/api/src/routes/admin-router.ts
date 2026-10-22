@@ -5,11 +5,6 @@ import { AdminAuthDevLoginController } from "../controller/admin/auth/dev-login"
 import { AdminAuthGoogleController } from "../controller/admin/auth/google"
 import { AdminAuthLogoutController } from "../controller/admin/auth/logout"
 import { AdminAuthRefreshController } from "../controller/admin/auth/refresh"
-import { AdminContentSourceCreateController } from "../controller/admin/content-source/create"
-import { AdminContentSourceDetailController } from "../controller/admin/content-source/detail"
-import { AdminContentSourceDetectLicenseController } from "../controller/admin/content-source/detect-license"
-import { AdminContentSourceListController } from "../controller/admin/content-source/list"
-import { AdminContentSourceUpdateController } from "../controller/admin/content-source/update"
 import { AdminMeGetController } from "../controller/admin/me/get"
 import { AdminPassageDetailController } from "../controller/admin/passage/detail"
 import { AdminPassageListController } from "../controller/admin/passage/list"
@@ -22,6 +17,11 @@ import { AdminPassageRestoreController } from "../controller/admin/passage/resto
 import { AdminPassageRetryAudioController } from "../controller/admin/passage/retry-audio"
 import { AdminPassageUnpublishController } from "../controller/admin/passage/unpublish"
 import { AdminPassageUpdateController } from "../controller/admin/passage/update"
+import { AdminSourceCreateController } from "../controller/admin/source/create"
+import { AdminSourceDetailController } from "../controller/admin/source/detail"
+import { AdminSourceDetectLicenseController } from "../controller/admin/source/detect-license"
+import { AdminSourceListController } from "../controller/admin/source/list"
+import { AdminSourceUpdateController } from "../controller/admin/source/update"
 import { AdminStatsOverviewController } from "../controller/admin/stats/overview"
 import { AdminPassageStatsDetailController } from "../controller/admin/stats/passage-detail"
 import { AdminPassageStatsListController } from "../controller/admin/stats/passage-list"
@@ -47,12 +47,12 @@ type AdminRouterControllers = {
     logout?: AdminAuthLogoutController
     refresh?: AdminAuthRefreshController
   }
-  contentSource?: {
-    create?: AdminContentSourceCreateController
-    detail?: AdminContentSourceDetailController
-    detectLicense?: AdminContentSourceDetectLicenseController
-    list?: AdminContentSourceListController
-    update?: AdminContentSourceUpdateController
+  source?: {
+    create?: AdminSourceCreateController
+    detail?: AdminSourceDetailController
+    detectLicense?: AdminSourceDetectLicenseController
+    list?: AdminSourceListController
+    update?: AdminSourceUpdateController
   }
   me?: {
     get?: AdminMeGetController
@@ -146,46 +146,46 @@ export const adminRouter = (controllers: AdminRouterControllers): Router => {
     router.get("/me", async (req, res) => controller.execute(req, res))
   }
 
-  const contentSource = controllers.contentSource ?? {}
+  const source = controllers.source ?? {}
 
   /**
-   * GET /api/admin/content-source
+   * GET /api/admin/source
    */
-  if (contentSource.list) {
-    const controller = contentSource.list
-    router.get("/content-source", async (req, res) => controller.execute(req, res))
+  if (source.list) {
+    const controller = source.list
+    router.get("/source", async (req, res) => controller.execute(req, res))
   }
 
   /**
-   * GET /api/admin/content-source/license は /:id より先に登録する（"license" が :id に一致して 400 になるため）
+   * GET /api/admin/source/license は /:id より先に登録する（"license" が :id に一致して 400 になるため）
    */
-  if (contentSource.detectLicense) {
-    const controller = contentSource.detectLicense
-    router.get("/content-source/license", async (req, res) => controller.execute(req, res))
+  if (source.detectLicense) {
+    const controller = source.detectLicense
+    router.get("/source/license", async (req, res) => controller.execute(req, res))
   }
 
   /**
-   * GET /api/admin/content-source/:id
+   * GET /api/admin/source/:id
    */
-  if (contentSource.detail) {
-    const controller = contentSource.detail
-    router.get("/content-source/:id", async (req, res) => controller.execute(req, res))
+  if (source.detail) {
+    const controller = source.detail
+    router.get("/source/:id", async (req, res) => controller.execute(req, res))
   }
 
   /**
-   * POST /api/admin/content-source
+   * POST /api/admin/source
    */
-  if (contentSource.create) {
-    const controller = contentSource.create
-    router.post("/content-source", async (req, res) => controller.execute(req, res))
+  if (source.create) {
+    const controller = source.create
+    router.post("/source", async (req, res) => controller.execute(req, res))
   }
 
   /**
-   * PUT /api/admin/content-source/:id
+   * PUT /api/admin/source/:id
    */
-  if (contentSource.update) {
-    const controller = contentSource.update
-    router.put("/content-source/:id", async (req, res) => controller.execute(req, res))
+  if (source.update) {
+    const controller = source.update
+    router.put("/source/:id", async (req, res) => controller.execute(req, res))
   }
 
   const passage = controllers.passage ?? {}

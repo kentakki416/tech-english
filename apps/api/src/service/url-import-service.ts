@@ -12,8 +12,8 @@ import { logger } from "@repo/logger"
 
 import type { FetchedPage, IPageFetcher } from "../client/page-fetcher"
 import type {
-  ContentSourceRepository,
   ImportPassage,
+  SourceRepository,
   TransactionRunner,
   UrlImportPageCacheKey,
   UrlImportPageCacheRepository,
@@ -21,7 +21,7 @@ import type {
 } from "../repository"
 
 type UrlImportRepo = {
-  contentSourceRepository: Pick<ContentSourceRepository, "findAll">
+  sourceRepository: Pick<SourceRepository, "findAll">
   urlImportPageCacheRepository: UrlImportPageCacheRepository
   urlImportRepository: UrlImportRepository
 }
@@ -127,7 +127,7 @@ const findSameContentPassage = (
  */
 const findImportSource = async (url: string, repo: UrlImportRepo): Promise<Result<WebsiteSource>> => {
   const origin = new URL(url).origin
-  const sources = await repo.contentSourceRepository.findAll()
+  const sources = await repo.sourceRepository.findAll()
   const websiteSource = sources.find((source) => source.fetchType === "website" && source.siteUrl === origin)
   if (websiteSource?.fetchType === "website") return ok(websiteSource)
   const isGitHubSourceSite = sources.some((source) =>

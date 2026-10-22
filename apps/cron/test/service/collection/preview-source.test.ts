@@ -24,7 +24,7 @@ const SITE = "https://example.dev"
  * Repository の書き込みメソッドが 1 つも呼ばれていないこと
  */
 const expectNoWrites = (repo: ReturnType<typeof createFakeRepo>): void => {
-  expect(repo.contentSourceRepository.markCollected).not.toHaveBeenCalled()
+  expect(repo.sourceRepository.markCollected).not.toHaveBeenCalled()
   expect(repo.passageRepository.insertIgnoringDuplicates).not.toHaveBeenCalled()
   expect(repo.sourceDocumentRepository.markFetched).not.toHaveBeenCalled()
   expect(repo.sourceDocumentRepository.markResponse).not.toHaveBeenCalled()
@@ -161,7 +161,7 @@ describe("previewSource", () => {
       const repo = createFakeRepo({ source: null })
 
       await expect(previewSource({ maxDocuments: 5, sourceId: 9 }, repo, createDeps(createFakeGitHubClient())))
-        .rejects.toThrow("Content source not found: id=9")
+        .rejects.toThrow("Source not found: id=9")
     })
 
     it("website で取得先の制限に掛かったら BlockedUrlError をそのまま throw する", async () => {

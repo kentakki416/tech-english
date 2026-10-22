@@ -34,7 +34,7 @@ export type AdminPassageListQuery = {
 }
 
 /**
- * 問題のソース（content_sources）の表示に使う列
+ * 問題のソース（sources）の表示に使う列
  */
 export type AdminPassageSource = { id: number; name: string }
 

@@ -217,9 +217,9 @@ admin に 1 つ足す。
 
 ```mermaid
 erDiagram
-    content_sources ||--o{ source_documents : has
+    sources ||--o{ source_documents : has
     source_documents ||--o{ passages : "切り分けて作る"
-    content_sources {
+    sources {
         int id PK
         text fetch_type "website のソースだけ受け付ける"
         text site_url

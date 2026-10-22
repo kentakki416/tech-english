@@ -9,12 +9,12 @@
 | ファイル | 内容 |
 | --- | --- |
 | `packages/db/src/drizzle/schema/source-document.ts` | `extractionVersion` |
-| `packages/db/src/drizzle/schema/content-source.ts` | `lastCollectedExtractionVersion` |
+| `packages/db/src/drizzle/schema/source.ts` | `lastCollectedExtractionVersion` |
 | `packages/db/drizzle/migrations/` | `db:generate` で作るマイグレーション |
 | `packages/domain/src/types/source-document.ts` | `SourceDocument.extractionVersion` |
-| `packages/domain/src/types/content-source.ts` | `GitHubRepositorySource.lastCollectedExtractionVersion` |
-| `apps/api/src/repository/drizzle/content-source-repository.ts` | `_toDomain` |
-| `apps/cron/src/repository/drizzle/content-source-repository.ts` | `_toDomain` |
+| `packages/domain/src/types/source.ts` | `GitHubRepositorySource.lastCollectedExtractionVersion` |
+| `apps/api/src/repository/drizzle/source-repository.ts` | `_toDomain` |
+| `apps/cron/src/repository/drizzle/source-repository.ts` | `_toDomain` |
 | `apps/cron/src/repository/drizzle/source-document-repository.ts` | `_toDomain` |
 | api・cron のテストの fixture | 新しい項目（`null`）を足す |
 | `docs/spec/content-collection/README.md` | 「必要な DB 設計」の表と ER 図に 2 つの列 |
@@ -27,7 +27,7 @@
     extractionVersion: text("extraction_version"),
 ```
 
-`content-source.ts`（`lastCollectedCommitSha` の後ろ）：
+`source.ts`（`lastCollectedCommitSha` の後ろ）：
 
 ```ts
     lastCollectedExtractionVersion: text("last_collected_extraction_version"),
@@ -45,6 +45,8 @@ pnpm --filter @repo/db db:generate --name add_extraction_versions
 ALTER TABLE "content_sources" ADD COLUMN "last_collected_extraction_version" text;
 ALTER TABLE "source_documents" ADD COLUMN "extraction_version" text;
 ```
+
+> 適用済みの migration の SQL なので、当時のテーブル名のまま載せている。`content_sources` / `content_source_tags` は `20261022021004_rename_content_sources_to_sources` で `sources` / `source_tags` に名前を変えた
 
 ### ドメインの型
 
@@ -64,7 +66,7 @@ ALTER TABLE "source_documents" ADD COLUMN "extraction_version" text;
 
 ### 読み込み
 
-api と cron の `content-source-repository.ts` の `_toDomain`（GitHub の分岐）：
+api と cron の `source-repository.ts` の `_toDomain`（GitHub の分岐）：
 
 ```ts
         lastCollectedCommitSha: row.lastCollectedCommitSha,
@@ -78,14 +80,14 @@ cron の `source-document-repository.ts` の `_toDomain`：
       extractionVersion: row.extractionVersion,
 ```
 
-- admin のレスポンス（`content-source-mapper.ts`）には出さない（管理者が見る値ではない）
+- admin のレスポンス（`source-mapper.ts`）には出さない（管理者が見る値ではない）
 - api の `update` は `lastCollectedExtractionVersion` を変えない（取得範囲を変えたときは今までどおり `lastCollectedCommitSha` だけを `null` にする）
 
 ### fixture
 
 型に足した項目が必須になるので、`GitHubRepositorySource` と `SourceDocument` を組み立てているテストの fixture に `null` を足す（`tsc` が場所を教える）。
 
-- `apps/api/test/service/content-source-service/fixtures.ts`・`apps/api/test/repository/content-source-repository.test.ts` など
+- `apps/api/test/service/source-service/fixtures.ts`・`apps/api/test/repository/source-repository.test.ts` など
 - `apps/cron/test/service/collection/helpers.ts`・`apps/cron/test/repository/drizzle/*.test.ts` など
 
 ## 動作確認

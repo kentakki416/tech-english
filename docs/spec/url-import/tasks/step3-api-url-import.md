@@ -129,7 +129,7 @@ export const createUrlImportResponseSchema = z.object({
 export const urlImportErrorCodeSchema = z.enum(URL_IMPORT_ERROR_CODES)
 ```
 
-- スキーマの規約（`packages/schema/CLAUDE.md`）どおり、エンドポイントごとにセクションの区切りと JSDoc を書く。`urlImportUrlSchema` は 2 つのリクエストで同じ制約なのでファイルの中で共有する。`allowedLicenseSchema` は `content-source.ts` のものを使う
+- スキーマの規約（`packages/schema/CLAUDE.md`）どおり、エンドポイントごとにセクションの区切りと JSDoc を書く。`urlImportUrlSchema` は 2 つのリクエストで同じ制約なのでファイルの中で共有する。`allowedLicenseSchema` は `source.ts` のものを使う
 - `excerpt` は塊の最初の見出しでないブロックの先頭 160 文字
 - `passages` は今回優先した `collected`（新しく作ったものと、同じ内容で既にあったもの）。`is_new` は今回作ったか
 - `urlImportErrorCodeSchema` は admin が 400 の `details[0].code` を読むために出す
@@ -238,7 +238,7 @@ export interface UrlImportRepository {
 
 ```ts
 type UrlImportRepo = {
-  contentSourceRepository: Pick<ContentSourceRepository, "findAll">
+  sourceRepository: Pick<SourceRepository, "findAll">
   urlImportRepository: UrlImportRepository
 }
 

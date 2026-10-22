@@ -11,9 +11,9 @@ import { env } from "../env"
 import { formatDryRun } from "../lib/format-dry-run"
 import { parseCollectArgs } from "../lib/parse-collect-args"
 import {
-  DrizzleContentSourceRepository,
   DrizzlePassageRepository,
   DrizzleSourceDocumentRepository,
+  DrizzleSourceRepository,
 } from "../repository/drizzle"
 import { runTask } from "../run-task"
 import * as service from "../service"
@@ -34,9 +34,9 @@ runTask("collect-passages", async ({ db }) => {
   }
 
   const repo = {
-    contentSourceRepository: new DrizzleContentSourceRepository(db),
     passageRepository: new DrizzlePassageRepository(db),
     sourceDocumentRepository: new DrizzleSourceDocumentRepository(db),
+    sourceRepository: new DrizzleSourceRepository(db),
   }
   const userAgent = buildCollectorUserAgent(env.COLLECT_WEB_CONTACT_URL)
   const deps = {

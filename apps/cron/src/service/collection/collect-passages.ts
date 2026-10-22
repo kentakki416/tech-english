@@ -1,4 +1,4 @@
-import type { ContentSource } from "@repo/domain"
+import type { Source } from "@repo/domain"
 import { logger } from "@repo/logger"
 
 import { GitHubRateLimitError } from "../../client/github"
@@ -37,12 +37,12 @@ export type CollectPassagesResult = {
 /**
  * --source-id の指定があればそのソースだけ（無い・無効なら throw）、無ければ有効な全ソースを古い順に
  */
-const findTargetSources = async (sourceId: number | null, repo: CollectionRepo): Promise<ContentSource[]> => {
-  if (sourceId === null) return repo.contentSourceRepository.findEnabled()
-  const source = await repo.contentSourceRepository.findById(sourceId)
-  if (!source) throw new Error(`Content source not found: id=${sourceId}`)
+const findTargetSources = async (sourceId: number | null, repo: CollectionRepo): Promise<Source[]> => {
+  if (sourceId === null) return repo.sourceRepository.findEnabled()
+  const source = await repo.sourceRepository.findById(sourceId)
+  if (!source) throw new Error(`Source not found: id=${sourceId}`)
   if (!source.isEnabled) {
-    throw new Error(`Content source is disabled: id=${sourceId} (disabled sources can only be previewed with --dry-run)`)
+    throw new Error(`Source is disabled: id=${sourceId} (disabled sources can only be previewed with --dry-run)`)
   }
   return [source]
 }

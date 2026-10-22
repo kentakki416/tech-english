@@ -359,7 +359,7 @@ export const collectWebsiteSource = async (
    * findEnabled は last_collected_at の古い順なので、次回の実行で先に処理される）
    */
   if (status === "completed" || status === "limit_reached") {
-    await repo.contentSourceRepository.markCollected(source.id, { lastCollectedAt: now })
+    await repo.sourceRepository.markCollected(source.id, { lastCollectedAt: now })
   }
   return { ...progress, status }
 }

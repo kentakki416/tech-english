@@ -8,7 +8,6 @@ export {
 export { ADMIN_USER_SORTS } from "./const/admin-user"
 export { ATTEMPT_EXPIRY_SECONDS, ATTEMPT_STATUSES, WORD_LOOKUP_SOURCES } from "./const/attempt"
 export { AUDIO_STATUSES } from "./const/audio"
-export { ALLOWED_LICENSES, SOURCE_FETCH_TYPES, SOURCE_KINDS } from "./const/content-source"
 export { GOAL_METRICS, GOAL_TEXT_MAX_LENGTH } from "./const/goal"
 export { MAX_SERIAL_ID } from "./const/id"
 export { MEMBERSHIP_TIERS } from "./const/membership-tier"
@@ -29,6 +28,7 @@ export {
   QUESTION_CHOICE_COUNT,
   QUESTION_TYPES,
 } from "./const/question"
+export { ALLOWED_LICENSES, SOURCE_FETCH_TYPES, SOURCE_KINDS } from "./const/source"
 export { TAG_COLORS } from "./const/tag"
 export { URL_IMPORT_CHUNK_STATUSES, URL_IMPORT_ERROR_CODES } from "./const/url-import"
 export {
@@ -41,7 +41,6 @@ export {
 export { findMisleadingChoiceIndexes, isQuestionNeedingReview } from "./rules/admin-stats"
 export { isAttemptStatus, isWordLookupSource } from "./rules/attempt"
 export { isAudioStatus } from "./rules/audio"
-export { isAllowedLicense, isSourceFetchType, isSourceKind } from "./rules/content-source"
 export { normalizeEmail } from "./rules/email"
 export { isGoalMetric } from "./rules/goal"
 export {
@@ -56,6 +55,7 @@ export { canShareMemo } from "./rules/memo"
 export { calculateQuestionCount, calculateTimeLimitSeconds, isPassageDifficulty, isPassageStatus } from "./rules/passage"
 export { findSurfaceRange, findSurfaceRanges, hasQuote, isSurfaceAt, numberHeadings, numberParagraphs } from "./rules/passage-text"
 export { isQuestionType } from "./rules/question"
+export { isAllowedLicense, isSourceFetchType, isSourceKind } from "./rules/source"
 export { isTagColor, selectTagColor } from "./rules/tag"
 export { isVocabularyCardDue, isVocabularyGrade, normalizeVocabularyLemma, scheduleVocabularyReview } from "./rules/vocabulary"
 export type { Admin } from "./types/admin"
@@ -71,14 +71,6 @@ export type {
 } from "./types/attempt"
 export type { AudioStatus, AudioWordTiming, PassageAudio, PassageAudioManifest, PassageAudioPart, WordAudio } from "./types/audio"
 export type { AuthAccount, AuthAccountWithUser } from "./types/auth-account"
-export type {
-  AllowedLicense,
-  ContentSource,
-  GitHubRepositorySource,
-  SourceFetchType,
-  SourceKind,
-  WebsiteSource,
-} from "./types/content-source"
 export type { CalendarLevel, GoalMetric, StreakSummary, UserGoal, WeekRange } from "./types/goal"
 export type { MembershipTier } from "./types/membership-tier"
 export type { Memo } from "./types/memo"
@@ -86,6 +78,14 @@ export type { ChunkRejectReason, Passage, PassageBlock, PassageBlockType, Passag
 export type { PassageSegmentKind } from "./types/passage-segment"
 export type { GlossaryEntry, Question, QuestionType } from "./types/question"
 export type { ReminderSetting } from "./types/reminder"
+export type {
+  AllowedLicense,
+  GitHubRepositorySource,
+  Source,
+  SourceFetchType,
+  SourceKind,
+  WebsiteSource,
+} from "./types/source"
 export type { SourceDocument } from "./types/source-document"
 export type { Tag, TagColor } from "./types/tag"
 export type { UrlImportChunkStatus, UrlImportErrorCode } from "./types/url-import"

@@ -1,4 +1,4 @@
-import { contentSources, eq, passageGlossaryEntries, passages, questions, sourceDocuments, sql } from "@repo/db"
+import { eq, passageGlossaryEntries, passages, questions, sourceDocuments, sources, sql } from "@repo/db"
 
 import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb } from "../controller/setup"
 
@@ -29,7 +29,7 @@ const buildViolationMatcher = (code: string, constraint: string) => ({
  */
 const insertPassage = async () => {
   const [source] = await testDb
-    .insert(contentSources)
+    .insert(sources)
     .values({
       branch: "main",
       fetchType: "github_repository",

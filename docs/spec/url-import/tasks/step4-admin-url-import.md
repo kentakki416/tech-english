@@ -20,7 +20,7 @@ admin に「URL から追加」の画面を足す。仕様は [README](../README
 
 ### api の呼び出し（`url-import.api.ts`）
 
-`content-source.api.ts` と同じ形で、`previewUrlImportResponseSchema`・`createUrlImportResponseSchema` で応答を検証する。
+`source.api.ts` と同じ形で、`previewUrlImportResponseSchema`・`createUrlImportResponseSchema` で応答を検証する。
 
 ```ts
 export const urlImportApi = {

@@ -356,7 +356,7 @@ export interface AdminStatsRepository {
 - 学習したユーザーは `reading_attempts`（提出済み・期間内）と `vocabulary_reviews`（`created_at` が期間内）の `user_id` を `UNION` してから数える
 - 推移は `generate_series(fromDate::date, toDate::date, '1 day' | '1 week')` に、日本時間の日（`date_trunc('day' | 'week', …)`）で束ねた集計を left join する。週の `date_trunc('week')` は月曜始まりなので、週ごとのときは Service が `fromDate`・`toDate` をその週の月曜（`@repo/domain` の `getWeekRange(date).start`）にそろえてから渡す（そろえないと系列の日付と束ねた週がずれ、すべて 0 になる）
 - 期間の比較は Drizzle の `gte` / `lt`（列の型で UTC に直して送る）を使う。生の `sql` に `Date` を埋め込むときは `toISOString()` を渡す（`Date` のままだと Node のタイムゾーンのずれが入る）
-- 問題ごとの成績は、期間内の提出を `passage_id` で束ねた CTE を `passages`（`source_documents` → `content_sources` でソース名）に left join し、`WHERE p.status = 'published' OR a.solved_attempts > 0`。並べ替えは `sort` を列の対応表（`Record<AdminPassageStatsSort, SQL>`）で SQL に直し、`NULLS LAST`・同じ値は `p.id` の順。`total` は同じ条件の `count(*) OVER ()` で一緒に取る。ページの範囲外（行が 0 件）のときは、件数だけ別の `count(*)` で数え直す
+- 問題ごとの成績は、期間内の提出を `passage_id` で束ねた CTE を `passages`（`source_documents` → `sources` でソース名）に left join し、`WHERE p.status = 'published' OR a.solved_attempts > 0`。並べ替えは `sort` を列の対応表（`Record<AdminPassageStatsSort, SQL>`）で SQL に直し、`NULLS LAST`・同じ値は `p.id` の順。`total` は同じ条件の `count(*) OVER ()` で一緒に取る。ページの範囲外（行が 0 件）のときは、件数だけ別の `count(*)` で数え直す
 - 比率の並べ替え（`correct_rate` など）は SQL の中で `correct_count::float / NULLIF(question_count, 0)` を計算して並べる
 - `q` は `ILIKE` の `%`・`_`・`\` をエスケープしてから `%q%` にする（`src/repository/drizzle/like-pattern.ts` の `buildContainsLikePattern`。admin-users の一覧と共有。SQL は `ESCAPE '\'`）
 - 問題の分析は、その問題の期間内の提出済みの挑戦の `attempt_answers` を `question_id`・`selected_choice_index` で束ね、`questions` に left join する（解かれていない設問も返す）。`choiceCounts` は `choices` の長さの配列に詰め直す

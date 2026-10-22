@@ -1,4 +1,4 @@
-import { contentSources, contentSourceTags, tags } from "@repo/db"
+import { sources, sourceTags, tags } from "@repo/db"
 
 import { testDb } from "../../setup"
 
@@ -17,7 +17,7 @@ export const insertTag = async (overrides: Partial<TagInsert> = {}) => {
 
 export const insertSource = async (repository: string) => {
   const [row] = await testDb
-    .insert(contentSources)
+    .insert(sources)
     .values({
       branch: "main",
       excludeGlobs: [],
@@ -35,6 +35,6 @@ export const insertSource = async (repository: string) => {
   return row
 }
 
-export const attachTag = async (contentSourceId: number, tagId: number) => {
-  await testDb.insert(contentSourceTags).values({ contentSourceId, tagId })
+export const attachTag = async (sourceId: number, tagId: number) => {
+  await testDb.insert(sourceTags).values({ sourceId, tagId })
 }

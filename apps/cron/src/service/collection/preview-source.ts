@@ -186,8 +186,8 @@ export const previewSource = async (
   repo: CollectionRepo,
   deps: CollectionDeps,
 ): Promise<SourcePreview> => {
-  const source = await repo.contentSourceRepository.findById(input.sourceId)
-  if (!source) throw new Error(`Content source not found: id=${input.sourceId}`)
+  const source = await repo.sourceRepository.findById(input.sourceId)
+  if (!source) throw new Error(`Source not found: id=${input.sourceId}`)
   return source.fetchType === "website"
     ? previewWebsiteSource(input, source, deps)
     : previewGitHubSource(input, source, deps)

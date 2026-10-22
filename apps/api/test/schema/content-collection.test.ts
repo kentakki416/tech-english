@@ -1,14 +1,14 @@
-import { contentSources, eq, passages, sourceDocuments, sql } from "@repo/db"
+import { eq, passages, sourceDocuments, sources, sql } from "@repo/db"
 import type { PassageBlock } from "@repo/domain"
 
 import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb } from "../controller/setup"
 
 /**
- * content_sources / source_documents / passages の制約を実 DB で確かめる（docs/spec/content-collection/tasks/step1-db-content-sources.md）。
+ * sources / source_documents / passages の制約を実 DB で確かめる（docs/spec/content-collection/tasks/step1-db-sources.md）。
  * 定数に無い値は Drizzle の型で弾かれるので、sql の生 insert で入れる
  */
 
-type ContentSourceInsert = typeof contentSources.$inferInsert
+type SourceInsert = typeof sources.$inferInsert
 type PassageInsert = typeof passages.$inferInsert
 
 /**
@@ -35,7 +35,7 @@ const GITHUB_SOURCE = {
   licenseUrl: "https://github.com/reactjs/react.dev/blob/main/LICENSE-DOCS.md",
   name: "React 公式ドキュメント",
   repository: "reactjs/react.dev",
-} satisfies ContentSourceInsert
+} satisfies SourceInsert
 
 const WEBSITE_SOURCE = {
   fetchType: "website",
@@ -46,7 +46,7 @@ const WEBSITE_SOURCE = {
   name: "Go 公式ドキュメント",
   sitemapUrl: "https://go.dev/sitemap.xml",
   siteUrl: "https://go.dev",
-} satisfies ContentSourceInsert
+} satisfies SourceInsert
 
 const BLOCKS: PassageBlock[] = [
   { text: "Effects", type: "heading" },
@@ -55,8 +55,8 @@ const BLOCKS: PassageBlock[] = [
   { text: "A plain code block", type: "code" },
 ]
 
-const insertSource = async (values: ContentSourceInsert) => {
-  const [row] = await testDb.insert(contentSources).values(values).returning()
+const insertSource = async (values: SourceInsert) => {
+  const [row] = await testDb.insert(sources).values(values).returning()
   return row
 }
 
@@ -90,7 +90,7 @@ const insertPassage = async (sourceDocumentId: number, overrides: Partial<Passag
  */
 const insertRawSource = async (columns: { fetchType: string; kind: string; licenseSpdx: string }) =>
   testDb.execute(sql`
-    INSERT INTO content_sources (name, kind, fetch_type, include_globs, license_spdx, license_url, repository, branch, updated_at)
+    INSERT INTO sources (name, kind, fetch_type, include_globs, license_spdx, license_url, repository, branch, updated_at)
     VALUES ('Raw', ${columns.kind}, ${columns.fetchType}, '["docs/**"]', ${columns.licenseSpdx}, 'https://example.com/LICENSE', 'example/raw', 'main', now())
   `)
 
@@ -113,7 +113,7 @@ afterAll(async () => {
   await disconnectTestRedis()
 })
 
-describe("content_sources", () => {
+describe("sources", () => {
   describe("正常系", () => {
     it("github_repository を repository と branch つきで insert でき、jsonb と is_enabled に既定値が入る", async () => {
       const row = await insertSource(GITHUB_SOURCE)
@@ -148,14 +148,14 @@ describe("content_sources", () => {
       await insertSource(WEBSITE_SOURCE)
       await insertSource({ ...WEBSITE_SOURCE, sitemapUrl: "https://docs.python.org/sitemap.xml", siteUrl: "https://docs.python.org" })
 
-      expect(await testDb.$count(contentSources)).toBe(2)
+      expect(await testDb.$count(sources)).toBe(2)
     })
 
     it("github_repository を 2 件入れても site_url が NULL 同士なので unique に掛からない", async () => {
       await insertSource(GITHUB_SOURCE)
       await insertSource({ ...GITHUB_SOURCE, repository: "rust-lang/book" })
 
-      expect(await testDb.$count(contentSources)).toBe(2)
+      expect(await testDb.$count(sources)).toBe(2)
     })
   })
 
@@ -165,27 +165,27 @@ describe("content_sources", () => {
       ["branch", { branch: null }],
     ])("github_repository で %s が NULL なら失敗する", async (_column, overrides) => {
       await expect(insertSource({ ...GITHUB_SOURCE, ...overrides })).rejects.toMatchObject(
-        buildViolationMatcher(CHECK_VIOLATION, "content_sources_github_repository_check"),
+        buildViolationMatcher(CHECK_VIOLATION, "sources_github_repository_check"),
       )
-      expect(await testDb.$count(contentSources)).toBe(0)
+      expect(await testDb.$count(sources)).toBe(0)
     })
 
     it("website で site_url が NULL なら失敗する", async () => {
       await expect(insertSource({ ...WEBSITE_SOURCE, siteUrl: null })).rejects.toMatchObject(
-        buildViolationMatcher(CHECK_VIOLATION, "content_sources_website_check"),
+        buildViolationMatcher(CHECK_VIOLATION, "sources_website_check"),
       )
     })
 
     it("website で sitemap_url と start_url が両方 NULL なら失敗する", async () => {
       await expect(insertSource({ ...WEBSITE_SOURCE, sitemapUrl: null, startUrl: null })).rejects.toMatchObject(
-        buildViolationMatcher(CHECK_VIOLATION, "content_sources_website_check"),
+        buildViolationMatcher(CHECK_VIOLATION, "sources_website_check"),
       )
     })
 
     it.each([
-      ["license_spdx が許可リストに無い（CC-BY-SA-4.0）", { fetchType: "github_repository", kind: "docs", licenseSpdx: "CC-BY-SA-4.0" }, "content_sources_license_spdx_check"],
-      ["kind が定数に無い", { fetchType: "github_repository", kind: "blog", licenseSpdx: "MIT" }, "content_sources_kind_check"],
-      ["fetch_type が定数に無い", { fetchType: "rss", kind: "docs", licenseSpdx: "MIT" }, "content_sources_fetch_type_check"],
+      ["license_spdx が許可リストに無い（CC-BY-SA-4.0）", { fetchType: "github_repository", kind: "docs", licenseSpdx: "CC-BY-SA-4.0" }, "sources_license_spdx_check"],
+      ["kind が定数に無い", { fetchType: "github_repository", kind: "blog", licenseSpdx: "MIT" }, "sources_kind_check"],
+      ["fetch_type が定数に無い", { fetchType: "rss", kind: "docs", licenseSpdx: "MIT" }, "sources_fetch_type_check"],
     ])("%s と失敗する", async (_label, columns, constraint) => {
       await expect(insertRawSource(columns)).rejects.toMatchObject(buildViolationMatcher(CHECK_VIOLATION, constraint))
     })
@@ -194,7 +194,7 @@ describe("content_sources", () => {
       await insertSource(GITHUB_SOURCE)
 
       await expect(insertSource({ ...GITHUB_SOURCE, name: "別名" })).rejects.toMatchObject(
-        buildViolationMatcher(UNIQUE_VIOLATION, "content_sources_repository_key"),
+        buildViolationMatcher(UNIQUE_VIOLATION, "sources_repository_key"),
       )
     })
 
@@ -202,7 +202,7 @@ describe("content_sources", () => {
       await insertSource(WEBSITE_SOURCE)
 
       await expect(insertSource({ ...WEBSITE_SOURCE, name: "別名" })).rejects.toMatchObject(
-        buildViolationMatcher(UNIQUE_VIOLATION, "content_sources_site_url_key"),
+        buildViolationMatcher(UNIQUE_VIOLATION, "sources_site_url_key"),
       )
     })
 
@@ -210,10 +210,10 @@ describe("content_sources", () => {
       const source = await insertSource(GITHUB_SOURCE)
       await insertSourceDocument(source.id)
 
-      await expect(testDb.delete(contentSources).where(eq(contentSources.id, source.id))).rejects.toMatchObject(
+      await expect(testDb.delete(sources).where(eq(sources.id, source.id))).rejects.toMatchObject(
         buildViolationMatcher(FOREIGN_KEY_VIOLATION, "source_documents_source_id_fkey"),
       )
-      expect(await testDb.$count(contentSources)).toBe(1)
+      expect(await testDb.$count(sources)).toBe(1)
     })
   })
 })

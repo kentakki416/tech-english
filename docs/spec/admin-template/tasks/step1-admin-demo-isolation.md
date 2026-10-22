@@ -90,7 +90,7 @@ export const mainNavSection: NavSection = {
   items: [
     { icon: <GridIcon />, name: "ダッシュボード", path: "/" },
     { icon: <DocsIcon />, name: "問題", path: "/passages" },
-    { icon: <FolderIcon />, name: "ソース", path: "/content-sources" },
+    { icon: <FolderIcon />, name: "ソース", path: "/sources" },
     { icon: <ListIcon />, name: "タグ", path: "/tags" },
     { icon: <UserCircleIcon />, name: "ユーザー", path: "/users" },
   ],
@@ -293,10 +293,10 @@ pnpm --filter admin build
 | 確認 | 期待 |
 | --- | --- |
 | サイドバー | 「メニュー」にダッシュボード・問題・ソース・タグ・ユーザー、「デモ」に今までのデモの項目 |
-| `/content-sources/new`・`/passages/1`・`/users/1`・`/analytics/passages/1` | それぞれ「ソース」「問題」「ユーザー」「ダッシュボード」が選択中（今と同じ） |
+| `/sources/new`・`/passages/1`・`/users/1`・`/analytics/passages/1` | それぞれ「ソース」「問題」「ユーザー」「ダッシュボード」が選択中（今と同じ） |
 | `/demo/charts/bar` | 「デモ」の「Charts」が開き、「Bar Chart」が選択中 |
 | デモの全ページ（`/demo/ecommerce`・`/demo/calendar`・`/demo/charts/*`・`/demo/forms/elements`・`/demo/tables/basic`・`/demo/ui/*`・`/demo/profile`・`/demo/blank`・`/demo/signup`） | 移す前と同じ見た目（画像の切れ・CSS の崩れが無い）。console にエラーが無い |
-| 土台の全ページ（`/`・`/passages`・`/content-sources`・`/tags`・`/users`・`/mock`） | 移す前と同じ見た目。ダッシュボードのグラフ（ApexCharts）のツールチップと凡例の見た目が変わらない |
+| 土台の全ページ（`/`・`/passages`・`/sources`・`/tags`・`/users`・`/mock`） | 移す前と同じ見た目。ダッシュボードのグラフ（ApexCharts）のツールチップと凡例の見た目が変わらない |
 | 旧 URL（`/calendar`・`/ui/alerts` など） | 404 |
 | ダークモード | デモの全ページが移す前と同じ |
 
