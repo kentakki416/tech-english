@@ -43,7 +43,7 @@ const convertApiErrorToFormState = (error: unknown, fallbackMessage: string, rev
     revalidatePaths.forEach((path) => revalidatePath(path))
     return { errors: { tag_ids: [MISSING_TAG_MESSAGE] } }
   }
-  console.error("Content source request failed", error)
+  console.error("Source request failed", error)
   return { message: fallbackMessage }
 }
 

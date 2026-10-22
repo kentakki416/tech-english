@@ -31,8 +31,10 @@ pnpm --filter api db:generate --name drop_content_sources_tags
 スキーマ（step3 で列の定義を外した）と、最新の migration の snapshot（列がある）の差分から生成される。生成された `migration.sql` を目で確認する。次の 1 文だけであること：
 
 ```sql
-ALTER TABLE "sources" DROP COLUMN "tags";
+ALTER TABLE "content_sources" DROP COLUMN "tags";
 ```
+
+> 適用済みの migration の SQL なので、当時のテーブル名のまま載せている。`content_sources` / `content_source_tags` は `20261022021004_rename_content_sources_to_sources` で `sources` / `source_tags` に名前を変えた
 
 ほかの差分（別の機能のテーブルの変更など）が混ざっていたら、その機能の migration が漏れているので、この PR では生成し直さずに原因を確かめる。
 

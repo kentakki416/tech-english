@@ -299,7 +299,7 @@ export class DrizzleAdminStatsRepository implements AdminStatsRepository {
   }
 
   /**
-   * 期間内の提出を問題ごとに束ねた集計（s）を、問題（p）とソース（cs）に left join する SELECT。condition で行を絞る
+   * 期間内の提出を問題ごとに束ねた集計（s）を、問題（p）とソース（src）に left join する SELECT。condition で行を絞る
    */
   private _buildPassageStatsSelect(range: StatsTimeRange, condition: SQL): SQL {
     return sql`
@@ -310,13 +310,13 @@ export class DrizzleAdminStatsRepository implements AdminStatsRepository {
          GROUP BY ra.passage_id
       )
       SELECT p.id, p.title, p.status, p.difficulty, p.published_at::text AS published_at, p.time_limit_seconds,
-             cs.id AS source_id, cs.name AS source_name,
+             src.id AS source_id, src.name AS source_name,
              s.solved_attempts, s.solved_users, s.correct_count, s.question_count, s.elapsed_seconds_sum,
              s.overtime_attempts, s.translated_attempts, s.translated_question_attempts, s.looked_up_attempts, s.listened_attempts,
              count(*) OVER () AS total
         FROM passages p
         JOIN source_documents sd ON sd.id = p.source_document_id
-        JOIN sources cs ON cs.id = sd.source_id
+        JOIN sources src ON src.id = sd.source_id
         LEFT JOIN s ON s.passage_id = p.id
        WHERE ${condition}
     `

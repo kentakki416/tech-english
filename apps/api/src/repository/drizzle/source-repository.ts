@@ -107,7 +107,7 @@ const attachTags = async (
 const replaceSourceTags = async (tx: DrizzleTransaction, sourceId: number, tagIds: number[]): Promise<void> => {
   await tx.delete(sourceTags).where(eq(sourceTags.sourceId, sourceId))
   if (tagIds.length === 0) return
-  await tx.insert(sourceTags).values(tagIds.map((tagId) => ({ sourceId: sourceId, tagId })))
+  await tx.insert(sourceTags).values(tagIds.map((tagId) => ({ sourceId, tagId })))
 }
 
 /**
@@ -231,7 +231,7 @@ export class DrizzleSourceRepository implements SourceRepository {
           })
           .where(and(eq(sources.id, id), eq(sources.fetchType, input.fetchType)))
           .returning()
-        if (!updated) throw new Error(`Content source not found: id=${id}, fetchType=${input.fetchType}`)
+        if (!updated) throw new Error(`Source not found: id=${id}, fetchType=${input.fetchType}`)
         if (options.shouldResetDocumentCache) {
           await tx
             .update(sourceDocuments)

@@ -161,7 +161,7 @@ describe("previewSource", () => {
       const repo = createFakeRepo({ source: null })
 
       await expect(previewSource({ maxDocuments: 5, sourceId: 9 }, repo, createDeps(createFakeGitHubClient())))
-        .rejects.toThrow("Content source not found: id=9")
+        .rejects.toThrow("Source not found: id=9")
     })
 
     it("website で取得先の制限に掛かったら BlockedUrlError をそのまま throw する", async () => {

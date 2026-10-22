@@ -433,7 +433,7 @@ const ensureSourceTags = async (tx: DrizzleTransaction, sourceId: number): Promi
     .where(inArray(sql`lower(${tags.name})`, SOURCE_TAGS.map((tag) => tag.name.toLowerCase())))
   await tx
     .insert(sourceTags)
-    .values(rows.map((row) => ({ sourceId: sourceId, tagId: row.id })))
+    .values(rows.map((row) => ({ sourceId, tagId: row.id })))
     .onConflictDoNothing()
 }
 

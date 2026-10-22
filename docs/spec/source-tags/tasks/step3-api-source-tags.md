@@ -479,7 +479,7 @@ deploy workflow は **migration をアプリのデプロイより先に流す**�
 
 - `packages/db/src/drizzle/schema/source.ts` から `tags` の定義を消す。**migration は作らない**（`db:generate` を流さない）。DB には列が残り、`sources` への insert には DB の既定値の `'[]'` が入る（`NOT NULL DEFAULT '[]'::jsonb`）
 - DB の列を消す migration は、step6 で `db:generate` するだけで出る（スキーマと最新の snapshot の差分になるため）
-- **この step から step6 までの間に、ほかの機能で `db:generate` を流さない。** 流すと `ALTER TABLE "sources" DROP COLUMN "tags";` がその migration に混ざる。混ざったら、その migration.sql から DROP の行を消す（snapshot には列が無いままなので、step6 の `db:generate` では出なくなる。そのときは step6 で DROP の migration を手で作る）
+- **この step から step6 までの間に、ほかの機能で `db:generate` を流さない。** 流すと `ALTER TABLE "content_sources" DROP COLUMN "tags";`（当時のテーブル名）がその migration に混ざる。混ざったら、その migration.sql から DROP の行を消す（snapshot には列が無いままなので、step6 の `db:generate` では出なくなる。そのときは step6 で DROP の migration を手で作る）
 - CI はスキーマと migration の一致を検査していない（`test.yml` / `lint.yml` に `drizzle-kit check` は無い）ので、この間も CI は落ちない
 - step1 の移行は、step1 の migration を流した時点の `sources.tags` を写す。移行から新しい api のデプロイまでの間に、古い admin でソースのタグを変えると写らない（管理者が 1 人なので、デプロイ中に編集しない運用で避ける）
 

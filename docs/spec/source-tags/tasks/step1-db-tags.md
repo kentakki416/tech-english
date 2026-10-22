@@ -227,7 +227,7 @@ pnpm --filter api db:generate --name add_tags   # packages/db/drizzle/migrations
 --> statement-breakpoint
 -- source-tags: 既存のタグの移行（ここから）
 /*
- * sources.tags（jsonb の文字列の配列）の名前を、前後の空白を除いて大文字・小文字を区別せずに 1 つにまとめ、tags に入れる。
+ * content_sources.tags（jsonb の文字列の配列）の名前を、前後の空白を除いて大文字・小文字を区別せずに 1 つにまとめ、tags に入れる。
  * - 書き方は id が最小のソース（同じソースの中では配列の先の方）のものを採る
  * - 空文字・空白だけの名前は移さない
  * - 色は lower(name) の順に、TAG_COLORS を先頭から順番に割り当てる
@@ -237,9 +237,9 @@ pnpm --filter api db:generate --name add_tags   # packages/db/drizzle/migrations
  * 適用済みの migration は直さないので、あとで TAG_COLORS を変えてもこの配列は変えない
  */
 WITH "source_tag_names" AS (
-  SELECT "sources"."id" AS "source_id", btrim("tag"."name") AS "name", "tag"."position"
-  FROM "sources"
-  CROSS JOIN LATERAL jsonb_array_elements_text("sources"."tags") WITH ORDINALITY AS "tag"("name", "position")
+  SELECT "content_sources"."id" AS "source_id", btrim("tag"."name") AS "name", "tag"."position"
+  FROM "content_sources"
+  CROSS JOIN LATERAL jsonb_array_elements_text("content_sources"."tags") WITH ORDINALITY AS "tag"("name", "position")
   WHERE btrim("tag"."name") <> ''
 ),
 "canonical_names" AS (
@@ -260,14 +260,16 @@ FROM "canonical_names";
 /*
  * ソースとタグの紐付け。同じソースに大文字・小文字だけが違う名前が 2 つあっても 1 つの紐付けにする（DISTINCT）
  */
-INSERT INTO "source_tags" ("source_id", "tag_id")
-SELECT DISTINCT "sources"."id", "tags"."id"
-FROM "sources"
-CROSS JOIN LATERAL jsonb_array_elements_text("sources"."tags") AS "tag"("name")
+INSERT INTO "content_source_tags" ("content_source_id", "tag_id")
+SELECT DISTINCT "content_sources"."id", "tags"."id"
+FROM "content_sources"
+CROSS JOIN LATERAL jsonb_array_elements_text("content_sources"."tags") AS "tag"("name")
 INNER JOIN "tags" ON lower("tags"."name") = lower(btrim("tag"."name"))
 WHERE btrim("tag"."name") <> '';
 -- source-tags: 既存のタグの移行（ここまで）
 ```
+
+> 適用済みの migration の SQL なので、当時のテーブル名のまま載せている。`content_sources` / `content_source_tags` は `20261022021004_rename_content_sources_to_sources` で `sources` / `source_tags` に名前を変えた
 
 - 既存のタグは今の api-schema（`trim`・1〜30 文字）と admin のフォーム（カンマで分ける）を通っているので、`tags_name_check` には掛からない。もし掛かれば migration 全体がロールバックされ、デプロイが止まる（黙って捨てない）
 - `created_at`・`updated_at` は `now() AT TIME ZONE 'UTC'` を明示する。日時の列は `timestamp`（タイムゾーン無し）を UTC として扱うが、セッションを UTC に固定しているのはアプリの client（`packages/db/src/drizzle/client.ts`）だけで、drizzle-kit migrate のセッションは固定していない。`created_at` の default の `now()` や素の `now()` に任せると、ローカル（docker-compose は `TZ=Asia/Tokyo`）では 9 時間ずれて入る。`updated_at` はもともと DB の default を持たない（`columns.ts`）

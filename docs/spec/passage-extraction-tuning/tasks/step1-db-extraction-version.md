@@ -42,9 +42,11 @@ pnpm --filter @repo/db db:generate --name add_extraction_versions
 生成された SQL が次の 2 文だけであることを確かめる。
 
 ```sql
-ALTER TABLE "sources" ADD COLUMN "last_collected_extraction_version" text;
+ALTER TABLE "content_sources" ADD COLUMN "last_collected_extraction_version" text;
 ALTER TABLE "source_documents" ADD COLUMN "extraction_version" text;
 ```
+
+> 適用済みの migration の SQL なので、当時のテーブル名のまま載せている。`content_sources` / `content_source_tags` は `20261022021004_rename_content_sources_to_sources` で `sources` / `source_tags` に名前を変えた
 
 ### ドメインの型
 

@@ -33,6 +33,6 @@ export const insertTags = async (names: string[]): Promise<TagRow[]> => {
 export const insertSourceTags = async (sourceId: number, names: string[]): Promise<TagRow[]> => {
   const rows = await insertTags(names)
   if (rows.length === 0) return []
-  await testDb.insert(sourceTags).values(rows.map((row) => ({ sourceId: sourceId, tagId: row.id })))
+  await testDb.insert(sourceTags).values(rows.map((row) => ({ sourceId, tagId: row.id })))
   return rows
 }

@@ -40,9 +40,9 @@ export type CollectPassagesResult = {
 const findTargetSources = async (sourceId: number | null, repo: CollectionRepo): Promise<Source[]> => {
   if (sourceId === null) return repo.sourceRepository.findEnabled()
   const source = await repo.sourceRepository.findById(sourceId)
-  if (!source) throw new Error(`Content source not found: id=${sourceId}`)
+  if (!source) throw new Error(`Source not found: id=${sourceId}`)
   if (!source.isEnabled) {
-    throw new Error(`Content source is disabled: id=${sourceId} (disabled sources can only be previewed with --dry-run)`)
+    throw new Error(`Source is disabled: id=${sourceId} (disabled sources can only be previewed with --dry-run)`)
   }
   return [source]
 }

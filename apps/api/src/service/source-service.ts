@@ -30,7 +30,7 @@ type GitHubRepositoryInput = Extract<SourceInput, { fetchType: "github_repositor
 
 type WebsiteInput = Extract<SourceInput, { fetchType: "website" }>
 
-const DUPLICATE_SOURCE_MESSAGE = "Content source already registered"
+const DUPLICATE_SOURCE_MESSAGE = "Source already registered"
 
 const TAG_NOT_FOUND_MESSAGE = "Tag not found"
 
@@ -144,8 +144,8 @@ export const getSourceById = async (
 ): Promise<Result<{ failedPages: FailedPage[]; passageCounts: PassageCounts; source: SourceWithTags }>> => {
   const source = await repo.sourceRepository.findById(id)
   if (!source) {
-    logger.debug("SourceService: Content source not found", { id })
-    return err(notFoundError("Content source not found"))
+    logger.debug("SourceService: Source not found", { id })
+    return err(notFoundError("Source not found"))
   }
   const [passageCountRows, failedPages] = await Promise.all([
     repo.sourceRepository.countPassagesBySource(id),
@@ -170,7 +170,7 @@ export const createSource = async (
     return err(buildTagNotFoundError(`Tag not found: id=${missingTagIds.join(", ")}`))
   }
   if (await findDuplicateSource(input, repo)) {
-    logger.debug("SourceService: Content source already registered", { fetchType: input.fetchType })
+    logger.debug("SourceService: Source already registered", { fetchType: input.fetchType })
     return err(conflictError(DUPLICATE_SOURCE_MESSAGE))
   }
   /**
@@ -183,7 +183,7 @@ export const createSource = async (
    * 事前の検査の後に同じ取得元が登録された（同時のリクエスト）。unique 制約で弾かれたので 409 にする
    */
   if (result.kind === "duplicate") {
-    logger.debug("SourceService: Content source registered concurrently", { fetchType: input.fetchType })
+    logger.debug("SourceService: Source registered concurrently", { fetchType: input.fetchType })
     return err(conflictError(DUPLICATE_SOURCE_MESSAGE))
   }
   /**
@@ -193,7 +193,7 @@ export const createSource = async (
     logger.debug("SourceService: Tag deleted during the request", { fetchType: input.fetchType })
     return err(buildTagNotFoundError("Tag was deleted during the request"))
   }
-  logger.info("SourceService: Content source created", { fetchType: result.source.fetchType, id: result.source.id })
+  logger.info("SourceService: Source created", { fetchType: result.source.fetchType, id: result.source.id })
   return ok(result.source)
 }
 
@@ -208,8 +208,8 @@ export const updateSource = async (
 ): Promise<Result<SourceWithTags>> => {
   const existing = await repo.sourceRepository.findById(id)
   if (!existing) {
-    logger.debug("SourceService: Content source not found for update", { id })
-    return err(notFoundError("Content source not found"))
+    logger.debug("SourceService: Source not found for update", { id })
+    return err(notFoundError("Source not found"))
   }
   if (existing.fetchType !== input.fetchType) return err(badRequestError("fetch_type cannot be changed"))
 
@@ -228,13 +228,13 @@ export const updateSource = async (
    * ライセンスの変更は許す（誤登録の訂正は過去の問題の出典にも反映されるのが正しい）
    */
   if (hasOriginChanged(existing, input) && await repo.sourceRepository.hasSourceDocuments(id)) {
-    logger.debug("SourceService: Origin of a collected content source cannot be changed", { id })
+    logger.debug("SourceService: Origin of a collected source cannot be changed", { id })
     return err(badRequestError("repository / site_url cannot be changed after documents are collected"))
   }
 
   const duplicate = await findDuplicateSource(input, repo)
   if (duplicate && duplicate.id !== id) {
-    logger.debug("SourceService: Content source already registered", { fetchType: input.fetchType, id })
+    logger.debug("SourceService: Source already registered", { fetchType: input.fetchType, id })
     return err(conflictError(DUPLICATE_SOURCE_MESSAGE))
   }
 
@@ -254,14 +254,14 @@ export const updateSource = async (
     && hasExtractionChanged(existing, input)
   const result = await repo.sourceRepository.update(id, input, { shouldResetCollectedCommit, shouldResetDocumentCache })
   if (result.kind === "duplicate") {
-    logger.debug("SourceService: Content source registered concurrently", { fetchType: input.fetchType, id })
+    logger.debug("SourceService: Source registered concurrently", { fetchType: input.fetchType, id })
     return err(conflictError(DUPLICATE_SOURCE_MESSAGE))
   }
   if (result.kind === "missing_tags") {
     logger.debug("SourceService: Tag deleted during the request", { id })
     return err(buildTagNotFoundError("Tag was deleted during the request"))
   }
-  logger.info("SourceService: Content source updated", { id, shouldResetCollectedCommit, shouldResetDocumentCache })
+  logger.info("SourceService: Source updated", { id, shouldResetCollectedCommit, shouldResetDocumentCache })
   return ok(result.source)
 }
 
