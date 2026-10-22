@@ -17,9 +17,9 @@ cron の `collect:passages` を GitHub のソースだけにし、サイトの�
 | `apps/cron/src/const/collection.ts` | `MAX_CONSECUTIVE_NETWORK_ERRORS`・`COLLECT_RUN_INTERVAL_MS`・`GONE_HTTP_STATUSES` を消す |
 | `apps/cron/src/env.ts` | `COLLECT_WEB_REQUEST_INTERVAL_MS`・`COLLECT_WEB_REFETCH_DAYS` を消す |
 | `apps/cron/src/task/collect-passages.ts` | `WebPageClient` と `refetchDays` を消す |
-| `apps/cron/src/repository/source-repository.ts`・`drizzle/source-repository.ts` | `findEnabled` を GitHub のソースだけにする |
+| `apps/cron/src/repository/source-repository.ts`・`drizzle/source-repository.ts` | `findEnabledGitHubSources` を GitHub のソースだけにする |
 | `apps/cron/src/repository/source-document-repository.ts`・`drizzle/source-document-repository.ts` | `findFetchQueue`・`markResponse`・`upsertDiscovered`・`DiscoveredDocumentInput` を消し、`MarkFetchedInput` から `etag`・`httpStatus`・`lastModified` を外す |
-| `apps/cron/src/service/collection/collect-github-source.ts` | `markFetched` に渡す `etag`・`httpStatus`・`lastModified` を消す |
+| `apps/cron/src/service/collection/collect-github-source.ts` | `markFetched` に渡す `etag`・`httpStatus`・`lastModified` を消す。終わり方の `Exclude<SourceCollectionStatus, ...>` から `crawl_delay_too_long`・`throttled` を消す（無い値の `Exclude` でも tsc は通るので気付けない） |
 | `apps/cron/test/**` | 下の「テスト」 |
 | `packages/content-extractor/src/parse-sitemap.ts` | 削除 |
 | `packages/content-extractor/src/web/web-page-client.ts` | `fetchSitemapUrls`・`_fetchSitemap`・`_selectChildSitemapUrls`・`SitemapUrl` を消す |
@@ -33,16 +33,16 @@ cron の `collect:passages` を GitHub のソースだけにし、サイトの�
 
 ### Repository
 
-`findEnabled` は SQL で GitHub のソースだけを取り、戻り値を `GitHubRepositorySource[]` にする。`findById` は今のまま `Source` を返す（`--source-id` にサイトのソースを指定されたことを service が見分けるため）。
+`findEnabledGitHubSources` は SQL で GitHub のソースだけを取り、戻り値を `GitHubRepositorySource[]` にする。`findById` は今のまま `Source` を返す（`--source-id` にサイトのソースを指定されたことを service が見分けるため）。
 
 ```ts
-  findEnabled(): Promise<GitHubRepositorySource[]>
+  findEnabledGitHubSources(): Promise<GitHubRepositorySource[]>
 ```
 
 - interface の JSDoc：「is_enabled = true の GitHub のソースを last_collected_at の古い順（未収集が先）で返す。サイトのソースは収集しないので返さない」
 
 ```ts
-  public async findEnabled(): Promise<GitHubRepositorySource[]> {
+  public async findEnabledGitHubSources(): Promise<GitHubRepositorySource[]> {
     const rows = await this._db
       .select()
       .from(sources)
@@ -93,7 +93,7 @@ export type CollectPassagesInput = {
 }
 
 const findTargetSources = async (sourceId: number | null, repo: CollectionRepo): Promise<GitHubRepositorySource[]> => {
-  if (sourceId === null) return repo.sourceRepository.findEnabled()
+  if (sourceId === null) return repo.sourceRepository.findEnabledGitHubSources()
   const source = await repo.sourceRepository.findById(sourceId)
   if (!source) throw new Error(`Source not found: id=${sourceId}`)
   if (source.fetchType === "website") throw new Error(`Website sources are not collected: id=${sourceId}`)
@@ -192,7 +192,7 @@ cron のサイトの収集でしか使っていなかったものを消す。api
 | `test/service/collection/preview-source.test.ts` | サイトのテストを消し、「サイトのソースは throw する」を足す |
 | `test/service/collection/helpers.ts` | `buildHtmlPage`・`buildOkPage`・`createFakeWebPageClient`・クロールの Repository の偽物・`createDeps` の webPageClient を消す。`buildWebsiteSource` は上の 2 つの throw のテストで使うので残す |
 | `test/repository/drizzle/source-document-repository.test.ts` | `findFetchQueue`・`upsertDiscovered`・`markResponse` のテストを消し、`markFetched` の期待値から 3 つの列を外す |
-| `test/repository/drizzle/source-repository.test.ts` | `findEnabled` の `where` の期待値を `and(eq(sources.isEnabled, true), eq(sources.fetchType, "github_repository"))` にする |
+| `test/repository/drizzle/source-repository.test.ts` | `findEnabledGitHubSources` の `where` の期待値を `and(eq(sources.isEnabled, true), eq(sources.fetchType, "github_repository"))` にする |
 | `test/lib/format-dry-run.test.ts` | `not_fetched` のテストを消す |
 | `test/service/collection/collect-github-source.test.ts` | `markFetched` の期待値から 3 つの列を外す |
 
@@ -218,6 +218,8 @@ cron のサイトの収集でしか使っていなかったものを消す。api
 | `docs/spec/content-collection/README.md` | 冒頭（取得元は GitHub だけ。サイトはローカルの URL から追加だけ、と `../github-only-collection/README.md` へのリンク）、「実行の仕組み」（試し実行のサイトの記述・外部クライアントの `WebPageClient`・フローの `web`）、「サイトのクロール」（節を消し、やめたことと `../github-only-collection/deferred-website-collection.md` へのリンクだけにする）、「取得先の制限」（cron の記述を消し、URL から追加の api で使うことにする）、「調整できる箇所」の CSS セレクタの行と `EXTRACTION_VERSION` の「サイトは取り直しの順番が来たときに」、「実行の上限と失敗時の扱い」の `COLLECT_WEB_*` の 2 行とサイトの 429 / 503・404 / 410・`last_collected_at` の行、「フロー図」の website の分岐、「実装ステップ」の step6 に「github-only-collection でやめた」と添える |
 | `docs/spec/passage-extraction-tuning/README.md` | サイトの取り直しでの切り分け直し（取得済みの文書への反映・抽出の版）と、404 / 410 のページの却下の記述を、「サイトの収集は github-only-collection でやめた」と書き換える（`../github-only-collection/README.md` へのリンク） |
 | `docs/spec/question-generation/tasks/step7-infra-cron-schedules.md` | cron の env の `COLLECT_WEB_REQUEST_INTERVAL_MS`・`COLLECT_WEB_REFETCH_DAYS` を消す（`COLLECT_WEB_CONTACT_URL` は残す） |
+| `docs/spec/url-import/README.md` | 「本文候補の扱い」の「取り込んだページは、収集でも取得済みとして扱う（次の取り直しは `COLLECT_WEB_REFETCH_DAYS` 日後）」を、「cron の収集はサイトを取りに行かない。取り込んだページを新しくしたいときは、もう一度 URL から追加で取り込む」にする |
+| `apps/cron/README.md`・`packages/content-extractor/README.md`・ルートの `CLAUDE.md`・`apps/api/CLAUDE.md` | cron がサイトを収集する・`WebPageClient` を使う、という記述（`@repo/content-extractor` のサイトの取得は api の URL から追加だけが使う） |
 | `docs/spec/README.md` | content-collection の概要を「GitHub リポジトリの Markdown を cron で収集し…」にする |
 
 - 適用済みの step の手順書（`content-collection/tasks/step6-cron-collect-website.md` など）は当時の実装の記録なので書き換えない。先頭に「github-only-collection でサイトの収集をやめた」と 1 行だけ足す
@@ -234,7 +236,7 @@ pnpm --filter api exec tsc --noEmit
 pnpm lint:fix
 ```
 
-- [ ] `rg -n "website|WebPageClient|sitemap|COLLECT_WEB_RE" apps/cron/src` で、サイトのソースを throw するところ（`collect-passages.ts`・`preview-source.ts`）と `findEnabled` の型の絞り込み以外に出ない
+- [ ] `rg -n "website|WebPageClient|sitemap|COLLECT_WEB_RE" apps/cron/src` で、サイトのソースを throw するところ（`collect-passages.ts`・`preview-source.ts`）・`findEnabledGitHubSources` の型の絞り込み・Repository の `_toDomain`（`source-repository.ts` のサイトの分岐と `source-document-repository.ts` の `sitemapLastmod`。列と一緒に step5 で消す）以外に出ない
 - [ ] ローカルで GitHub のソースの収集が今までどおり動く
 
 ```bash

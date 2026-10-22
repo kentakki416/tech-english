@@ -35,7 +35,7 @@
 - [ ] `sources_website_check` に sitemap・開始ページの条件を戻す
 - [ ] cron の `collectWebsiteSource`・Repository のクロールのメソッド（`findFetchQueue`・`upsertDiscovered`・`markResponse`）・`createWebPageClient` の DI・終わり方（`throttled`・`crawl_delay_too_long`）・env の `COLLECT_WEB_REQUEST_INTERVAL_MS` と `COLLECT_WEB_REFETCH_DAYS` を戻す（step1）
 - [ ] `@repo/content-extractor` の、収集だけが使っていた機能を戻す。sitemap の解析・ページのリンク・クロールのページの選び方（step1）と、条件付きリクエスト（step5）
-- [ ] cron の `findEnabled` の取得方法の絞り込みと、`--source-id` のサイトのソースの throw を外す
+- [ ] cron の `findEnabledGitHubSources` の取得方法の絞り込みと、`--source-id` のサイトのソースの throw を外す
 - [ ] api の「サイトのソースはローカルだけ」と「URL から追加はローカルだけ」を外す。サイトのソースの `is_enabled` を受け取る
 - [ ] DB の `sources_website_disabled_check` を外す（サイトのソースを有効にできるようにする）
 - [ ] admin のサイトのフォーム（ページの見つけ方・収集のスイッチ・試し実行）、ソース一覧の「取得失敗」の列と「無効のサイトのソースがあります」の案内を戻す

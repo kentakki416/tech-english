@@ -5,7 +5,7 @@
 - ライセンスに「個人の学習用」（`LicenseRef-personal-use`）を足す。ドメインの定数・型と、ライセンスの CHECK 制約を直す
 - サイトのソースは常に無効にする。今有効のサイトのソースを無効にしてから、CHECK 制約で守る
 
-api・admin で選べるようにするのは step3・step4。仕様と理由は README の[個人の学習用のライセンス](../README.md#個人の学習用のライセンス)・[持ち方](../README.md#個人の学習用のライセンスの持ち方)・[サイトのソース（ローカルだけ）](../README.md#サイトのソースローカルだけ)。
+api・admin で選べるようにするのは step3・step4。**step2 と step3 は同じ PR に入れる**（step2 でソースのライセンスの型を広げると、api の response のスキーマ〈step3〉を直すまで api の型チェックが通らないため）。仕様と理由は README の[個人の学習用のライセンス](../README.md#個人の学習用のライセンス)・[持ち方](../README.md#個人の学習用のライセンスの持ち方)・[サイトのソース（ローカルだけ）](../README.md#サイトのソースローカルだけ)。
 
 ## 対応内容
 
@@ -14,13 +14,17 @@ api・admin で選べるようにするのは step3・step4。仕様と理由は
 | ファイル | 内容 |
 | --- | --- |
 | `packages/domain/src/const/source.ts` | `PERSONAL_USE_LICENSE`・`SOURCE_LICENSES` |
-| `packages/domain/src/types/source.ts` | `PersonalUseLicense`・`SourceLicense`。`licenseSpdx` を取得方法ごとの型に移す |
-| `packages/domain/src/rules/source.ts` | `isSourceLicense` |
-| `packages/domain/src/index.ts` | 足した定数・型・関数の export |
-| `packages/domain/test/rules/source.test.ts` | `isSourceLicense` のテスト |
+| `packages/domain/src/types/source.ts` | `SourceLicense`。`licenseSpdx` を取得方法ごとの型に移す |
+| `packages/domain/src/index.ts` | 足した定数・型の export |
+| `packages/domain/test/rules/source.test.ts` | `isAllowedLicense` の異常系に個人の学習用を足す |
 | `packages/db/src/drizzle/schema/source.ts` | `license_spdx` の enum と CHECK 制約、サイトのソースを無効に限る CHECK 制約 |
 | `packages/db/drizzle/migrations/` | `db:generate` で作るマイグレーションに、サイトのソースを無効にする UPDATE を書き足す |
 | `apps/api/src/repository/drizzle/source-repository.ts`・`apps/cron/src/repository/drizzle/source-repository.ts` | `_toDomain` の GitHub の分岐でライセンスを確かめる |
+| `apps/api/src/repository/drizzle/passage-repository.ts` | `convertPassageSourceRowToDomain` も同じく、`licenseSpdx` を共通の項目から取得方法の分岐に移し、GitHub の分岐で確かめる |
+| `apps/api/src/repository/source-repository.ts` | `SourceInput` の `licenseSpdx` を取得方法ごとの `Pick` に移す |
+| `apps/api/test/schema/content-collection.test.ts` | 2 つの CHECK を実 DB で確かめるテスト |
+| `apps/api/test/fixture/passage.ts`・`apps/api/test/repository/source-repository.test.ts` | DB に直接入れるサイトのソースを無効にする（下の「テストの fixture」） |
+| `docs/spec/content-collection/README.md` | 「必要な DB 設計」の制約の一覧に 2 つの CHECK と、`license_spdx` が `SOURCE_LICENSES`（個人の学習用はサイトだけ）であること |
 
 ### 定数
 
@@ -39,10 +43,10 @@ export const SOURCE_LICENSES = [...ALLOWED_LICENSES, PERSONAL_USE_LICENSE] as co
 ### 型
 
 ```ts
-export type PersonalUseLicense = typeof PERSONAL_USE_LICENSE
-
 export type SourceLicense = (typeof SOURCE_LICENSES)[number]
 ```
+
+- 判定の関数（`isSourceLicense`）と個人の学習用だけの型は作らない。GitHub の分岐は `isAllowedLicense`、api-schema は `sourceLicenseSchema` で確かめるので、呼ぶところが無い
 
 `SourceBase` から `licenseSpdx` を外し、取得方法ごとに持たせる。
 
@@ -69,30 +73,7 @@ export type WebsiteSource = SourceBase & {
 
 - 既存の項目・JSDoc はそのまま。上は `licenseSpdx` を足す位置だけを示している（`WebsiteSource` の `sitemapUrl`・`startUrl` は step5 で消すので、ここでは残す）
 
-### 判定の関数
-
-```ts
-export const isSourceLicense = (value: string): value is SourceLicense =>
-  (SOURCE_LICENSES as readonly string[]).includes(value)
-```
-
-テスト（`isAllowedLicense` の describe の後ろ）：
-
-```ts
-describe("isSourceLicense", () => {
-  describe("正常系", () => {
-    it.each(SOURCE_LICENSES)("%s はソースのライセンスである", (value) => {
-      expect(isSourceLicense(value)).toBe(true)
-    })
-  })
-
-  describe("異常系", () => {
-    it.each(["", "LicenseRef-permission", "licenseref-personal-use", "GPL-3.0-only"])("%j はソースのライセンスではない", (value) => {
-      expect(isSourceLicense(value)).toBe(false)
-    })
-  })
-})
-```
+### テスト（domain）
 
 `isAllowedLicense` の異常系に `PERSONAL_USE_LICENSE` を足す（個人の学習用は許可リストに入らない）。
 
@@ -116,7 +97,6 @@ describe("isSourceLicense", () => {
 
 - `sources_personal_use_license_check` は `sources_license_spdx_check` の直後に置く。JSDoc：個人の学習用はサイトのソースだけ（GitHub のソースは公開してよいライセンスに限る）
 - `sources_website_disabled_check` は `sources_website_check` の直後に置く。JSDoc：サイトのソースは収集しないので有効にしない（URL から追加は有効・無効を見ない）
-- `isEnabled` の JSDoc に「サイトのソースは常に false」を足す
 - import の `ALLOWED_LICENSES` は `PERSONAL_USE_LICENSE`・`SOURCE_LICENSES` に置き換える
 
 ```bash
@@ -193,7 +173,43 @@ DB の行の `licenseSpdx` は `SourceLicense` になるので、GitHub の分�
 ```
 
 - `isAllowedLicense` は `@repo/domain` から import する
-- ほかに型エラーが出るところ（`AllowedLicense` を受け取っている関数・テストの fixture）は `tsc` が教える。サイトのソースを受け取るところは `SourceLicense` にする
+- api の `passage-repository.ts` の `convertPassageSourceRowToDomain`（出典に使うソースの列）も同じ形で、`licenseSpdx` を分岐の中に移して GitHub の分岐で確かめる
+- api の `controller/admin/source/list.ts`・`source-mapper.ts`・`url-import/preview.ts` の型エラーは、response のスキーマが許可リストのままのため。step3 の api-schema（`sourceLicenseSchema`）で直す
+
+### DB の制約のテスト
+
+`apps/api/test/schema/content-collection.test.ts` の `sources` に足す（既存の CHECK と同じく、実 DB に入れて制約名まで確かめる）。
+
+```ts
+    it("website は license_spdx に LicenseRef-personal-use を入れられる", async () => {
+      const row = await insertSource({ ...WEBSITE_SOURCE, licenseSpdx: "LicenseRef-personal-use" })
+
+      expect(row.licenseSpdx).toBe("LicenseRef-personal-use")
+    })
+```
+
+```ts
+    it("github_repository に LicenseRef-personal-use を入れると失敗する", async () => {
+      await expect(insertSource({ ...GITHUB_SOURCE, licenseSpdx: "LicenseRef-personal-use" })).rejects.toMatchObject(
+        buildViolationMatcher(CHECK_VIOLATION, "sources_personal_use_license_check"),
+      )
+    })
+
+    it("website を有効にすると失敗する", async () => {
+      await expect(insertSource({ ...WEBSITE_SOURCE, isEnabled: true })).rejects.toMatchObject(
+        buildViolationMatcher(CHECK_VIOLATION, "sources_website_disabled_check"),
+      )
+    })
+```
+
+- `GITHUB_SOURCE` は今のテストの GitHub のソースの定数の名前に合わせる
+
+### テストの fixture
+
+api のテストには、Repository を通さずに DB に直接サイトのソースを入れるものがある。`sources_website_disabled_check` に掛からないよう無効にする。
+
+- `apps/api/test/fixture/passage.ts` の `buildWebsiteSourceValues` に `isEnabled: false` を足す（`insertPassageSource` の既定は `isEnabled: true`）
+- `apps/api/test/repository/source-repository.test.ts` の「website の update は渡した列を書く」の入力の `isEnabled: true` を `false` にする（Repository は値をそのまま書くので、有効にすると CHECK で失敗する）
 
 ## 動作確認
 
@@ -201,12 +217,12 @@ DB の行の `licenseSpdx` は `SourceLicense` になるので、GitHub の分�
 pnpm --filter @repo/domain build && pnpm --filter @repo/db build
 pnpm --filter @repo/domain test
 pnpm --filter api db:migrate
-pnpm --filter api test      # test DB に migration が流れる。vitest を直接叩かない（dev DB が消える）
 pnpm --filter cron test
-pnpm --filter api exec tsc --noEmit
 pnpm --filter cron exec tsc --noEmit
 pnpm lint:fix
 ```
+
+api の型チェックとテスト（`pnpm --filter api exec tsc --noEmit`・`pnpm --filter api test`）は、step3 まで入れてから流す。
 
 - [ ] 生成された migration が上の 4 文と、手で足した UPDATE（制約を足す文より前）だけ
 - [ ] dev DB で、GitHub のソースに個人の学習用を入れると CHECK で止まり、サイトのソースには入る。サイトのソースを有効にすると CHECK で止まる

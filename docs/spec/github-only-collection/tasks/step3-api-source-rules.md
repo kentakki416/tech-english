@@ -17,6 +17,7 @@ api のソースの登録・更新に、この spec の規則を入れる。
 | ファイル | 内容 |
 | --- | --- |
 | `packages/schema/src/api-schema/admin/source.ts` | ライセンスのスキーマ、`license_url` の検証、サイトの更新の `is_enabled`、検出のレスポンスの `license_url` |
+| `packages/schema/src/api-schema/admin/url-import.ts` | 確認のレスポンスの `source.license_spdx` を `sourceLicenseSchema` にする（個人の学習用のサイトのページを確認できるように） |
 | `apps/api/src/client/github-license.ts` | `html_url` も返す |
 | `apps/api/src/service/source-service.ts` | サイトのソースを受け付けるかの判定、サイトは常に無効、検出の `licenseUrl` |
 | `apps/api/src/controller/admin/source/create.ts`・`update.ts` | 判定の値をコンストラクタで受け取って service に渡す |
@@ -110,6 +111,7 @@ const isRepositoryFileUrl = (url: string, repository: string): boolean => {
 
 - `sourceBaseSchema` の `license_spdx` を外し、`sourceSchema` の GitHub に `allowedLicenseSchema`、サイトに `sourceLicenseSchema` を持たせる
 - ソース一覧の `license_spdx` は `sourceLicenseSchema` にする
+- URL から追加の確認のレスポンス（`url-import.ts`）の `source.license_spdx` も `sourceLicenseSchema` にする。許可リストのままだと、個人の学習用のサイトのページを確認したときにレスポンスのスキーマの検証で 500 になる
 - 検出のレスポンスに `license_url` を足す
 
 ```ts
@@ -248,6 +250,8 @@ export class AdminSourceCreateController {
 - `SourceWritePolicy` は `service/source-service.ts` から型で import する
 - Controller の JSDoc の「website は無効の状態で作る」は「website はローカルでだけ受け付ける」にする
 
+`source-mapper.ts` の `convertSourceRequestToInput` と `convertSourceToResponse` は、`license_spdx` / `licenseSpdx` を共通の `base` から取得方法の分岐の中に移す（GitHub は許可リスト、サイトは個人の学習用も含む型にするため）。
+
 mapper のサイトの `isEnabled`：
 
 ```ts
@@ -314,6 +318,8 @@ const adminUrlImportPreviewController = isLocalEnvironment
 | `test/service/source-service/detectRepositoryLicense.test.ts` | `licenseUrl` |
 | `test/controller/admin/source/create.test.ts`・`update.test.ts` | production の設定（`isWebsiteSourceAllowed: false`）でサイトは 400、`license_url` がリポジトリの外なら 400（`details` の `path` が `["license_url"]`）、サイトの `LicenseRef-personal-use` は 201 / 200 で GitHub は 400 |
 | `test/controller/admin/source/detect-license.test.ts` | `license_url` |
+| `test/controller/admin/source/update.test.ts` | サイトを `is_enabled: true` で更新するテストは、`is_enabled` を捨てて無効のまま保存することのテストにする |
+| `test/controller/admin/url-import/preview.test.ts` | 個人の学習用のサイトのソースのページを確認すると 200 で `source.license_spdx` が `LicenseRef-personal-use` |
 | `test/controller/admin/source/fixtures.ts` ほか | GitHub のソースの `license_url` をリポジトリのファイルの URL にする（テストが教える） |
 
 `admin-source-schema.test.ts` に足すテスト：
@@ -372,7 +378,7 @@ describe("createSourceRequestSchema の license_spdx", () => {
 | ファイル | 直すところ |
 | --- | --- |
 | `apps/api/CLAUDE.md` | 「Admin API 設計方針」の URL から追加とソースの登録（サイトはローカルだけ・GitHub の `license_url`）、「サイトのページの取得（@repo/content-extractor）」に URL から追加はローカルだけ |
-| `docs/spec/content-collection/README.md` | 「使える英文の条件」（ライセンスがリポジトリの中にあり文章に掛かっていること）、「ソースの登録」（取得方法の `website` はローカルだけ・個人の学習用・`license_url` の条件・有効 / 無効はサイトでは常に無効）、「ソース登録時の確認」（GitHub の検出は `license_url` も初期値に入れる・サイトはローカルだけ）、「必要な API」の登録・更新・検出の行、許可リストの表の下の注記（「react.dev はコードが MIT、ドキュメントが CC-BY-4.0」は今のリポジトリと違う〈`LICENSE-DOCS.md` だけで、GitHub の検出も CC-BY-4.0〉ので、例を外して「コードとドキュメントでライセンスが分かれているリポジトリでは、ドキュメントに掛かっているライセンスと、それが書かれたリポジトリの中のファイルを登録する」にする） |
+| `docs/spec/content-collection/README.md` | 「必要な DB 設計」の `sources.is_enabled`（サイトは常に false）、「使える英文の条件」（ライセンスがリポジトリの中にあり文章に掛かっていること）、「ソースの登録」（取得方法の `website` はローカルだけ・個人の学習用・`license_url` の条件・有効 / 無効はサイトでは常に無効）、「ソース登録時の確認」（GitHub の検出は `license_url` も初期値に入れる・サイトはローカルだけ）、「必要な API」の登録・更新・検出の行、許可リストの表の下の注記（「react.dev はコードが MIT、ドキュメントが CC-BY-4.0」は今のリポジトリと違う〈`LICENSE-DOCS.md` だけで、GitHub の検出も CC-BY-4.0〉ので、例を外して「コードとドキュメントでライセンスが分かれているリポジトリでは、ドキュメントに掛かっているライセンスと、それが書かれたリポジトリの中のファイルを登録する」にする） |
 | `docs/spec/url-import/README.md` | 冒頭・「受け付ける URL」（ローカルだけ。サイトのソースはローカルにしかない。個人の学習用のサイトも取り込める）、「必要な API」（production では 404）、「必要な画面」（ローカルだけ） |
 
 ## 動作確認
