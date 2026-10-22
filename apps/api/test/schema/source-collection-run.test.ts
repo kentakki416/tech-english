@@ -152,8 +152,8 @@ describe("source_collection_runs", () => {
 
       await expect(
         testDb.execute(sql`
-          INSERT INTO source_collection_runs (source_id, status, updated_at)
-          VALUES (${source.id}, 'cancelled', now())
+          INSERT INTO source_collection_runs (source_id, status, finished_at, updated_at)
+          VALUES (${source.id}, 'cancelled', now(), now())
         `),
       ).rejects.toMatchObject(buildViolationMatcher(CHECK_VIOLATION, "source_collection_runs_status_check"))
     })
