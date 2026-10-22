@@ -55,12 +55,12 @@
 
 以下をすべて満たす英文だけを使う。
 
-1. **管理者が登録したソースの文書** であること
-   - GitHub の公開リポジトリにある Markdown ファイル（`.md` / `.mdx`）
-   - 公式ドキュメントのサイトの HTML ページ（プロダクトの開発元が公開しているもの）
-2. その文書に適用されるライセンスが **許可リスト** にある
-3. サイトの場合は、**利用規約でクロールや転載が禁止されておらず、`robots.txt` でも許可されている**
+1. **管理者が登録した GitHub のソースの文書** であること（GitHub の公開リポジトリにある Markdown ファイル〈`.md` / `.mdx`〉）
+2. **リポジトリの中にライセンスの記載があり**（`LICENSE` などのファイル、または README の記載）、**そのライセンスが文章（ドキュメント）に掛かっている**。コードだけに掛かるライセンスのリポジトリは使わない
+3. そのライセンスが **許可リスト** にある
 4. 本文候補の条件（[後述](#本文候補の条件)）を満たす
+
+サイトの HTML ページは、ローカルの URL から追加（[url-import](../url-import/README.md)）でだけ取り込む。ローカルでは、ライセンスの記載が無いサイトも「個人の学習用」（`LicenseRef-personal-use`）として取り込める（[github-only-collection](../github-only-collection/README.md#個人の学習用のライセンス)）。
 
 許可リスト（`ALLOWED_LICENSES`、SPDX 識別子）：
 
@@ -82,7 +82,7 @@
 | 技術ブログ | 多くは全文転載の許可が無い |
 | Issue / Pull Request / Discussion のコメント | リポジトリのライセンスの対象外で、GitHub 利用規約上も GitHub の外での複製は許可されていない |
 
-> - ドキュメントのライセンスがコードと別に定められているリポジトリがある（例：react.dev はコードが MIT、ドキュメントが CC-BY-4.0）。ソースには **ドキュメントに適用されるライセンス** を登録する
+> - コードとドキュメントでライセンスが分かれているリポジトリでは、**ドキュメントに掛かっているライセンス** と、それが書かれたリポジトリの中のファイルを登録する
 > - サイトのフッターに「Except as otherwise noted（特記の無い限り）CC-BY-4.0」と書かれている場合、ページによっては別のライセンスのことがある。そうしたページを含むパスは対象パスから外す
 
 ### ソースの登録
@@ -95,13 +95,13 @@
 | --- | --- | --- | --- |
 | 表示名 | ✅ | `Go 公式ドキュメント` | 問題一覧・出典表示に出る |
 | 種別 | ✅ | `docs` | `github`（README / RFC などリポジトリそのものの文書）か `docs`（公式ドキュメント）。問題一覧の絞り込みに使う |
-| 取得方法 | ✅ | `website` | `github_repository`（GitHub の Markdown）か `website`（サイトのクロール） |
+| 取得方法 | ✅ | `github_repository` | `github_repository`（GitHub の Markdown）か `website`（サイトのページ。ローカルの URL から追加だけが使い、収集しない） |
 | 対象パス | ✅ | `/doc/**` | glob。複数指定可。GitHub はリポジトリ内のファイルパス、サイトは URL のパスに対して判定する |
 | 除外パス | | `/doc/devel/**` | glob。複数指定可 |
-| ライセンス | ✅ | `CC-BY-4.0` | 許可リストから選ぶ |
-| ライセンスの記載がある URL | ✅ | LICENSE ファイル、またはライセンスが書かれたページ | 出典表示に出す |
+| ライセンス | ✅ | `CC-BY-4.0` | 許可リストから選ぶ。`website` は「個人の学習用」（`LicenseRef-personal-use`）も選べる |
+| ライセンスの記載がある URL | ✅ | `https://github.com/reactjs/react.dev/blob/main/LICENSE-DOCS.md` | 出典表示に出す。`github_repository` はそのリポジトリのファイルの URL（`https://github.com/{owner}/{repo}/blob/...`）に限る。`website` はライセンス、または著作権・利用規約のページ |
 | 技術タグ | | `go`, `backend` | admin の「タグ」で登録したタグから選ぶ（[source-tags](../source-tags/README.md)）。問題一覧の絞り込みに使う |
-| 有効 / 無効 | ✅ | 有効 | 無効にすると次回から収集しない。既に公開済みの問題は残る |
+| 有効 / 無効 | ✅ | 有効 | 無効にすると次回から収集しない。既に公開済みの問題は残る。`website` は常に無効 |
 
 **取得方法が `github_repository` のときの項目**
 
@@ -350,10 +350,14 @@ flowchart LR
 
 | 取得方法 | 確認の仕方 |
 | --- | --- |
-| `github_repository` | リポジトリを入力すると、api が `GET /repos/{owner}/{repo}/license` で GitHub が検出したライセンスを **初期値として表示する**。最終的には管理者が選ぶ（ドキュメントのライセンスが別ファイルで定められている場合、GitHub の検出結果はコードのライセンスになるため） |
-| `website` | 自動では判定できないため、管理者が **フッター等のライセンスの記載・利用規約・`robots.txt`** を確認し、ライセンスの記載がある URL を登録する。登録後に試し実行で本文が正しく取れているかを確かめてから有効にする（**サイトのソースは無効の状態で登録する**） |
+| `github_repository` | リポジトリを入力すると、api が `GET /repos/{owner}/{repo}/license` で GitHub が検出したライセンスと、そのライセンスのファイルの URL を **初期値として表示する**。最終的には管理者が選ぶ（GitHub の検出はリポジトリのルートのファイルを見るので、コードのライセンスのことがある）。ライセンスが文章に掛かっているかは管理者が確かめる |
+| `website` | ローカルだけ。自動では判定できないため、管理者が **フッター等のライセンスの記載・`robots.txt`** を確認し、ライセンスの記載がある URL を登録する。ライセンスの記載が無ければ「個人の学習用」を選ぶ。**サイトのソースは常に無効**（収集しない） |
 
-api は許可リストに無いライセンスでの登録を 400 で拒否する。
+api は次の登録・更新を 400 で拒否する。
+
+- 許可リストに無いライセンス（サイトのソースは、それに加えて `LicenseRef-personal-use` を許す）
+- GitHub のソースで、「ライセンスの記載がある URL」がそのリポジトリのファイルの URL（`https://github.com/{owner}/{repo}/blob/{ブランチなど}/{パス}`）でないもの
+- production（dev / min / prd）でのサイトのソース
 
 ### MVP 対象外（将来検討）
 
@@ -483,9 +487,9 @@ admin 向け。アクセス制御は [question-generation](../question-generatio
 | --- | --- | --- |
 | GET | `/api/admin/source` | ソース一覧（状態別の本文候補件数つき） |
 | GET | `/api/admin/source/:id` | ソース詳細 |
-| POST | `/api/admin/source` | ソースの登録。取得方法ごとの必須項目を Zod の discriminated union で検証する。許可リスト外のライセンスは 400。`website` は無効の状態で作る |
-| PUT | `/api/admin/source/:id` | ソースの更新（有効 / 無効の切り替えを含む）。取得方法は変更できない。文書を取得したソースの取得元（`repository` / `site_url`）の変更は 400。本文の CSS セレクタ・除外する CSS セレクタを変えると、そのソースの `source_documents` の `etag` / `last_modified` / `content_hash` を消す |
-| GET | `/api/admin/source/license?repository=owner/name` | GitHub が検出したライセンスを返す（`github_repository` の登録フォームの初期値用） |
+| POST | `/api/admin/source` | ソースの登録。取得方法ごとの必須項目を Zod の discriminated union で検証する。許可リスト外のライセンスと、リポジトリのファイルでない GitHub の `license_url` は 400。`website` は production では 400、ローカルでは無効の状態で作る |
+| PUT | `/api/admin/source/:id` | ソースの更新（GitHub は有効 / 無効の切り替えを含む。`website` は `is_enabled` を受け取らず、production では 400）。取得方法は変更できない。文書を取得したソースの取得元（`repository` / `site_url`）の変更は 400。本文の CSS セレクタ・除外する CSS セレクタを変えると、そのソースの `source_documents` の `etag` / `last_modified` / `content_hash` を消す |
+| GET | `/api/admin/source/license?repository=owner/name` | GitHub が検出したライセンスと、そのライセンスのファイルの URL を返す（`github_repository` の登録フォームの初期値用） |
 
 cron タスク：
 
@@ -512,9 +516,9 @@ erDiagram
         text fetch_type "github_repository / website"
         jsonb include_globs "string[]"
         jsonb exclude_globs "string[]"
-        text license_spdx "ALLOWED_LICENSES"
+        text license_spdx "ALLOWED_LICENSES、website は LicenseRef-personal-use も"
         text license_url
-        boolean is_enabled
+        boolean is_enabled "website は常に false"
         timestamp last_collected_at "nullable"
         text repository "GitHub のみ。owner/name"
         text branch "GitHub のみ"
@@ -553,7 +557,9 @@ erDiagram
 
 制約：
 
-- `sources.kind` は `SOURCE_KINDS`、`fetch_type` は `SOURCE_FETCH_TYPES`、`license_spdx` は `ALLOWED_LICENSES` から CHECK 制約を作る（`@repo/domain` が正本）
+- `sources.kind` は `SOURCE_KINDS`、`fetch_type` は `SOURCE_FETCH_TYPES`、`license_spdx` は `SOURCE_LICENSES`（`ALLOWED_LICENSES` と個人の学習用の `LicenseRef-personal-use`）から CHECK 制約を作る（`@repo/domain` が正本）
+- CHECK：`license_spdx = 'LicenseRef-personal-use'` はサイトのソースだけ（`sources_personal_use_license_check`）
+- CHECK：サイトのソースは `is_enabled = false`（`sources_website_disabled_check`。収集しないため）
 - CHECK：`fetch_type = 'github_repository'` なら `repository` と `branch` が NOT NULL
 - CHECK：`fetch_type = 'website'` なら `site_url` が NOT NULL、かつ `sitemap_url` と `start_url` の少なくとも一方が NOT NULL
 - `sources.repository` と `sources.site_url` はそれぞれ unique（NULL は重複可）

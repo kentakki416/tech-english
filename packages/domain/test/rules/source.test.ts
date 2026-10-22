@@ -1,4 +1,4 @@
-import { ALLOWED_LICENSES, SOURCE_FETCH_TYPES, SOURCE_KINDS } from "../../src/const/source"
+import { ALLOWED_LICENSES, PERSONAL_USE_LICENSE, SOURCE_FETCH_TYPES, SOURCE_KINDS } from "../../src/const/source"
 import { isAllowedLicense, isSourceFetchType, isSourceKind } from "../../src/rules/source"
 
 describe("isSourceKind", () => {
@@ -39,9 +39,9 @@ describe("isAllowedLicense", () => {
   describe("異常系", () => {
     /**
      * ShareAlike・コピーレフト・NonCommercial は許可しない（content-collection README の許可リスト）。
-     * SPDX 識別子は大文字小文字まで一致させる
+     * SPDX 識別子は大文字小文字まで一致させる。個人の学習用は公開してよいライセンスではない
      */
-    it.each(["", "CC-BY-SA-4.0", "GPL-3.0", "CC-BY-NC-4.0", "mit", "Apache 2.0"])("%j は許可リストに無い", (value) => {
+    it.each(["", "CC-BY-SA-4.0", "GPL-3.0", "CC-BY-NC-4.0", "mit", "Apache 2.0", PERSONAL_USE_LICENSE])("%j は許可リストに無い", (value) => {
       expect(isAllowedLicense(value)).toBe(false)
     })
   })

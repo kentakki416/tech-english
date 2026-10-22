@@ -12,6 +12,8 @@ import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb } from "
  * 外部 SaaS（GitHub）だけを fake にする
  */
 const mockDetectLicense = vi.fn<IGitHubLicenseClient["detectLicense"]>()
+
+const LICENSE_FILE_URL = "https://github.com/reactjs/react.dev/blob/main/LICENSE-DOCS.md"
 const fakeGitHubLicenseClient: IGitHubLicenseClient = { detectLicense: mockDetectLicense }
 
 const app = createTestApp()
@@ -44,11 +46,12 @@ afterAll(async () => {
 describe("GET /api/admin/source/license", () => {
   describe("正常系", () => {
     it.each([
-      ["MIT", { is_allowed: true, license_spdx: "MIT" }],
-      ["GPL-3.0", { is_allowed: false, license_spdx: "GPL-3.0" }],
-      [null, { is_allowed: false, license_spdx: null }],
-    ])("GitHub が %s を返すと 200 で検出結果を返す", async (licenseSpdx, expected) => {
-      mockDetectLicense.mockResolvedValue(licenseSpdx)
+      ["MIT", { licenseSpdx: "MIT", licenseUrl: LICENSE_FILE_URL }, { is_allowed: true, license_spdx: "MIT", license_url: LICENSE_FILE_URL }],
+      ["GPL-3.0", { licenseSpdx: "GPL-3.0", licenseUrl: LICENSE_FILE_URL }, { is_allowed: false, license_spdx: "GPL-3.0", license_url: LICENSE_FILE_URL }],
+      ["判定できないライセンス", { licenseSpdx: null, licenseUrl: LICENSE_FILE_URL }, { is_allowed: false, license_spdx: null, license_url: LICENSE_FILE_URL }],
+      ["ライセンスのファイルが無い", null, { is_allowed: false, license_spdx: null, license_url: null }],
+    ])("GitHub が %s を返すと 200 で検出結果を返す", async (_label, detected, expected) => {
+      mockDetectLicense.mockResolvedValue(detected)
 
       const res = await request(app)
         .get("/api/admin/source/license")

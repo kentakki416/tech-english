@@ -14,7 +14,7 @@ import {
   sql,
   tags,
 } from "@repo/db"
-import type { Source, Tag } from "@repo/domain"
+import { isAllowedLicense, type Source, type Tag } from "@repo/domain"
 
 import type {
   FailedPage,
@@ -259,14 +259,14 @@ export class DrizzleSourceRepository implements SourceRepository {
       isEnabled: row.isEnabled,
       kind: row.kind,
       lastCollectedAt: row.lastCollectedAt,
-      licenseSpdx: row.licenseSpdx,
       licenseUrl: row.licenseUrl,
       name: row.name,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     }
     if (row.fetchType === "github_repository") {
-      if (row.repository === null || row.branch === null) {
+      const licenseSpdx = row.licenseSpdx
+      if (row.repository === null || row.branch === null || !isAllowedLicense(licenseSpdx)) {
         throw new Error(`Invalid github_repository source: id=${row.id}`)
       }
       return {
@@ -275,6 +275,7 @@ export class DrizzleSourceRepository implements SourceRepository {
         fetchType: row.fetchType,
         lastCollectedCommitSha: row.lastCollectedCommitSha,
         lastCollectedExtractionVersion: row.lastCollectedExtractionVersion,
+        licenseSpdx,
         publicUrlStripPrefix: row.publicUrlStripPrefix,
         publicUrlTemplate: row.publicUrlTemplate,
         repository: row.repository,
@@ -286,6 +287,7 @@ export class DrizzleSourceRepository implements SourceRepository {
       contentSelector: row.contentSelector,
       excludeSelectors: row.excludeSelectors,
       fetchType: row.fetchType,
+      licenseSpdx: row.licenseSpdx,
       sitemapUrl: row.sitemapUrl,
       siteUrl: row.siteUrl,
       startUrl: row.startUrl,

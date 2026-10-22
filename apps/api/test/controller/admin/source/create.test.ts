@@ -18,9 +18,19 @@ const tagRepository = new DrizzleTagRepository(testDb)
 const app = createTestApp()
 
 mountAdminApi(app, adminRouter({
-  source: { create: new AdminSourceCreateController(sourceRepository, tagRepository) },
+  source: { create: new AdminSourceCreateController(sourceRepository, tagRepository, { isWebsiteSourceAllowed: true }) },
 }))
 attachUnhandledExceptionHandler(app)
+
+/**
+ * production と同じく、サイトのソースを受け付けない設定の app
+ */
+const productionApp = createTestApp()
+
+mountAdminApi(productionApp, adminRouter({
+  source: { create: new AdminSourceCreateController(sourceRepository, tagRepository, { isWebsiteSourceAllowed: false }) },
+}))
+attachUnhandledExceptionHandler(productionApp)
 
 let adminToken: string
 
@@ -135,6 +145,25 @@ describe("POST /api/admin/source", () => {
       })
     })
 
+    it("website は license_spdx に LicenseRef-personal-use を選べる", async () => {
+      const res = await request(app)
+        .post("/api/admin/source")
+        .set("Authorization", `Bearer ${adminToken}`)
+        .send({ ...WEBSITE_REQUEST, license_spdx: "LicenseRef-personal-use" })
+
+      expect(res.status).toBe(201)
+      expect(res.body.license_spdx).toBe("LicenseRef-personal-use")
+    })
+
+    it("production の設定でも github は 201 を返す", async () => {
+      const res = await request(productionApp)
+        .post("/api/admin/source")
+        .set("Authorization", `Bearer ${adminToken}`)
+        .send(GITHUB_REQUEST)
+
+      expect(res.status).toBe(201)
+    })
+
     it("github の repository は小文字にそろえて保存する", async () => {
       const res = await request(app)
         .post("/api/admin/source")
@@ -167,6 +196,9 @@ describe("POST /api/admin/source", () => {
       ["github で public_url_template に {path} が無い", { ...GITHUB_REQUEST, public_url_template: "https://react.dev/" }],
       ["許可リスト外のライセンス（CC-BY-SA-4.0）", { ...GITHUB_REQUEST, license_spdx: "CC-BY-SA-4.0" }],
       ["license_url が http(s) でない", { ...GITHUB_REQUEST, license_url: "javascript:alert(1)" }],
+      ["github で license_url がリポジトリの外", { ...GITHUB_REQUEST, license_url: "https://creativecommons.org/licenses/by/4.0/" }],
+      ["github で license_url が別のリポジトリのファイル", { ...GITHUB_REQUEST, license_url: "https://github.com/facebook/react/blob/main/LICENSE" }],
+      ["github で license_spdx が LicenseRef-personal-use", { ...GITHUB_REQUEST, license_spdx: "LicenseRef-personal-use" }],
       ["fetch_type が無い", { ...GITHUB_REQUEST, fetch_type: undefined }],
       ["website で sitemap_url と start_url が両方 null", { ...WEBSITE_REQUEST, sitemap_url: null, start_url: null }],
       ["website で site_url が http", { ...WEBSITE_REQUEST, site_url: "http://go.dev" }],
@@ -187,6 +219,16 @@ describe("POST /api/admin/source", () => {
 
       expect(res.status).toBe(400)
       expect(res.body).toEqual({ error: expect.any(String), status_code: 400 })
+      expect(await testDb.$count(sources)).toBe(0)
+    })
+
+    it("production の設定では website を 400 にし、DB に保存しない", async () => {
+      const res = await request(productionApp)
+        .post("/api/admin/source")
+        .set("Authorization", `Bearer ${adminToken}`)
+        .send(WEBSITE_REQUEST)
+
+      expect(res.status).toBe(400)
       expect(await testDb.$count(sources)).toBe(0)
     })
 

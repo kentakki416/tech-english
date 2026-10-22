@@ -29,6 +29,13 @@ export const createMockSourceRepository = () => ({
 })
 
 /**
+ * ローカル（サイトのソースを受け付ける）と production（受け付けない）の設定
+ */
+export const LOCAL_POLICY = { isWebsiteSourceAllowed: true }
+
+export const PRODUCTION_POLICY = { isWebsiteSourceAllowed: false }
+
+/**
  * service はタグの存在の確認にしか使わないので findByIds だけ
  */
 export const createMockTagRepository = () => ({

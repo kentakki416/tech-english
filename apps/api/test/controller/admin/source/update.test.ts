@@ -25,9 +25,19 @@ const tagRepository = new DrizzleTagRepository(testDb)
 const app = createTestApp()
 
 mountAdminApi(app, adminRouter({
-  source: { update: new AdminSourceUpdateController(sourceRepository, tagRepository) },
+  source: { update: new AdminSourceUpdateController(sourceRepository, tagRepository, { isWebsiteSourceAllowed: true }) },
 }))
 attachUnhandledExceptionHandler(app)
+
+/**
+ * production と同じく、サイトのソースを受け付けない設定の app
+ */
+const productionApp = createTestApp()
+
+mountAdminApi(productionApp, adminRouter({
+  source: { update: new AdminSourceUpdateController(sourceRepository, tagRepository, { isWebsiteSourceAllowed: false }) },
+}))
+attachUnhandledExceptionHandler(productionApp)
 
 let adminToken: string
 
@@ -82,7 +92,7 @@ afterAll(async () => {
 
 describe("PUT /api/admin/source/:id", () => {
   describe("正常系", () => {
-    it("website の内容と is_enabled とタグを更新して 200 を返す", async () => {
+    it("website の内容とタグを更新して 200 を返し、is_enabled: true を送っても無効のまま", async () => {
       const website = await insertWebsiteSource()
       const [go, backend] = await insertTags(["go", "backend"])
       const body = {
@@ -105,6 +115,7 @@ describe("PUT /api/admin/source/:id", () => {
       expect(res.body).toEqual({
         ...omitTagIds(body),
         id: website.id,
+        is_enabled: false,
         last_collected_at: null,
         tags: [
           { id: backend.id, color: backend.color, name: "backend" },
@@ -116,7 +127,7 @@ describe("PUT /api/admin/source/:id", () => {
       expect(await selectSource(website.id)).toMatchObject({
         contentSelector: null,
         excludeSelectors: [],
-        isEnabled: true,
+        isEnabled: false,
         name: "Go Docs",
         sitemapUrl: null,
         startUrl: "https://go.dev/doc/",
@@ -239,6 +250,19 @@ describe("PUT /api/admin/source/:id", () => {
       expect(res.status).toBe(200)
       expect(await selectSource(github.id)).toMatchObject({ licenseSpdx: "MIT", repository: "reactjs/react.dev" })
     })
+
+    it("website は license_spdx を LicenseRef-personal-use に変えられる", async () => {
+      const website = await insertWebsiteSource()
+
+      const res = await request(app)
+        .put(`/api/admin/source/${website.id}`)
+        .set("Authorization", `Bearer ${adminToken}`)
+        .send({ ...WEBSITE_REQUEST, license_spdx: "LicenseRef-personal-use" })
+
+      expect(res.status).toBe(200)
+      expect(res.body.license_spdx).toBe("LicenseRef-personal-use")
+      expect(await selectSource(website.id)).toMatchObject({ licenseSpdx: "LicenseRef-personal-use" })
+    })
   })
 
   describe("異常系", () => {
@@ -292,15 +316,40 @@ describe("PUT /api/admin/source/:id", () => {
       expect(await selectSourceTagIds(github.id)).toEqual([react.id])
     })
 
-    it("website で is_enabled が無ければ 400 を返す", async () => {
+    it("production の設定では website を 400 にし、DB は変わらない", async () => {
       const website = await insertWebsiteSource()
 
-      const res = await request(app)
+      const res = await request(productionApp)
         .put(`/api/admin/source/${website.id}`)
         .set("Authorization", `Bearer ${adminToken}`)
-        .send(WEBSITE_REQUEST)
+        .send({ ...WEBSITE_REQUEST, name: "Go Docs" })
 
       expect(res.status).toBe(400)
+      expect(await selectSource(website.id)).toMatchObject({ name: website.name })
+    })
+
+    it("github の license_url がリポジトリの外なら 400 を返し、DB は変わらない", async () => {
+      const github = await insertGitHubSource()
+
+      const res = await request(app)
+        .put(`/api/admin/source/${github.id}`)
+        .set("Authorization", `Bearer ${adminToken}`)
+        .send({ ...GITHUB_REQUEST, license_url: "https://creativecommons.org/licenses/by/4.0/" })
+
+      expect(res.status).toBe(400)
+      expect(await selectSource(github.id)).toMatchObject({ licenseUrl: github.licenseUrl })
+    })
+
+    it("github の license_spdx を LicenseRef-personal-use にすると 400 を返し、DB は変わらない", async () => {
+      const github = await insertGitHubSource()
+
+      const res = await request(app)
+        .put(`/api/admin/source/${github.id}`)
+        .set("Authorization", `Bearer ${adminToken}`)
+        .send({ ...GITHUB_REQUEST, license_spdx: "LicenseRef-personal-use" })
+
+      expect(res.status).toBe(400)
+      expect(await selectSource(github.id)).toMatchObject({ licenseSpdx: github.licenseSpdx })
     })
 
     it("存在しない id なら 404 を返す", async () => {
@@ -329,7 +378,7 @@ describe("PUT /api/admin/source/:id", () => {
       const res = await request(app)
         .put(`/api/admin/source/${github.id}`)
         .set("Authorization", `Bearer ${adminToken}`)
-        .send({ ...GITHUB_REQUEST, repository: "vercel/next.js" })
+        .send({ ...GITHUB_REQUEST, license_url: "https://github.com/vercel/next.js/blob/canary/license.md", repository: "vercel/next.js" })
 
       expect(res.status).toBe(409)
       expect(res.body).toEqual({ error: expect.any(String), status_code: 409 })
@@ -340,7 +389,10 @@ describe("PUT /api/admin/source/:id", () => {
       ["github の repository", async () => {
         const github = await insertGitHubSource()
         await insertSourceDocument(github.id, "src/content/learn/a.md")
-        return { body: { ...GITHUB_REQUEST, repository: "reactjs/react.dev-fork" }, id: github.id }
+        return {
+          body: { ...GITHUB_REQUEST, license_url: "https://github.com/reactjs/react.dev-fork/blob/main/LICENSE-DOCS.md", repository: "reactjs/react.dev-fork" },
+          id: github.id,
+        }
       }],
       ["website の site_url", async () => {
         const website = await insertWebsiteSource()

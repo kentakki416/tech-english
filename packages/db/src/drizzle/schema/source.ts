@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm"
 import { boolean, check, jsonb, pgTable, serial, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core"
 
-import { ALLOWED_LICENSES, SOURCE_FETCH_TYPES, SOURCE_KINDS } from "@repo/domain"
+import { PERSONAL_USE_LICENSE, SOURCE_FETCH_TYPES, SOURCE_KINDS, SOURCE_LICENSES } from "@repo/domain"
 
 import { timestamps } from "./columns"
 import { joinSqlValues } from "./sql-values"
@@ -42,7 +42,7 @@ export const sources = pgTable(
      * GitHub のみ。last_collected_commit_sha を記録したときの抽出の版（cron の EXTRACTION_VERSION）
      */
     lastCollectedExtractionVersion: text("last_collected_extraction_version"),
-    licenseSpdx: text("license_spdx", { enum: ALLOWED_LICENSES }).notNull(),
+    licenseSpdx: text("license_spdx", { enum: SOURCE_LICENSES }).notNull(),
     licenseUrl: text("license_url").notNull(),
     name: text("name").notNull(),
     /**
@@ -74,7 +74,14 @@ export const sources = pgTable(
   (table) => [
     check("sources_kind_check", sql`${table.kind} IN (${joinSqlValues(SOURCE_KINDS)})`),
     check("sources_fetch_type_check", sql`${table.fetchType} IN (${joinSqlValues(SOURCE_FETCH_TYPES)})`),
-    check("sources_license_spdx_check", sql`${table.licenseSpdx} IN (${joinSqlValues(ALLOWED_LICENSES)})`),
+    check("sources_license_spdx_check", sql`${table.licenseSpdx} IN (${joinSqlValues(SOURCE_LICENSES)})`),
+    /**
+     * 個人の学習用はサイトのソースだけ（GitHub のソースは公開してよいライセンスに限る）
+     */
+    check(
+      "sources_personal_use_license_check",
+      sql`${table.fetchType} = 'website' OR ${table.licenseSpdx} <> ${PERSONAL_USE_LICENSE}`,
+    ),
     check(
       "sources_github_repository_check",
       sql`${table.fetchType} <> 'github_repository' OR (${table.repository} IS NOT NULL AND ${table.branch} IS NOT NULL)`,
@@ -83,6 +90,10 @@ export const sources = pgTable(
       "sources_website_check",
       sql`${table.fetchType} <> 'website' OR (${table.siteUrl} IS NOT NULL AND (${table.sitemapUrl} IS NOT NULL OR ${table.startUrl} IS NOT NULL))`,
     ),
+    /**
+     * サイトのソースは収集しないので有効にしない（URL から追加は有効・無効を見ない）
+     */
+    check("sources_website_disabled_check", sql`${table.fetchType} <> 'website' OR ${table.isEnabled} = false`),
     /**
      * NULL 同士は重複しないので、取得方法が違うソースの NULL は unique に掛からない
      */

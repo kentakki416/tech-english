@@ -261,7 +261,7 @@ describe("SourceRepository", () => {
         excludeGlobs: [],
         excludeSelectors: [],
         includeGlobs: ["/doc/tutorial/**"],
-        isEnabled: true,
+        isEnabled: false,
         sitemapUrl: null,
         startUrl: "https://go.dev/doc/",
       }

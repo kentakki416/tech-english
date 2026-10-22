@@ -28,7 +28,7 @@ export {
   QUESTION_CHOICE_COUNT,
   QUESTION_TYPES,
 } from "./const/question"
-export { ALLOWED_LICENSES, SOURCE_FETCH_TYPES, SOURCE_KINDS } from "./const/source"
+export { ALLOWED_LICENSES, PERSONAL_USE_LICENSE, SOURCE_FETCH_TYPES, SOURCE_KINDS, SOURCE_LICENSES } from "./const/source"
 export { TAG_COLORS } from "./const/tag"
 export { URL_IMPORT_CHUNK_STATUSES, URL_IMPORT_ERROR_CODES } from "./const/url-import"
 export {
@@ -84,6 +84,7 @@ export type {
   Source,
   SourceFetchType,
   SourceKind,
+  SourceLicense,
   WebsiteSource,
 } from "./types/source"
 export type { SourceDocument } from "./types/source-document"

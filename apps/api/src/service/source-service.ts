@@ -32,12 +32,25 @@ type WebsiteInput = Extract<SourceInput, { fetchType: "website" }>
 
 const DUPLICATE_SOURCE_MESSAGE = "Source already registered"
 
+const WEBSITE_SOURCE_UNAVAILABLE_MESSAGE = "Website sources are only available locally"
+
 const TAG_NOT_FOUND_MESSAGE = "Tag not found"
 
 /**
  * 存在しないタグの id の詳細の code（既存の details の code と同じく `{対象}_not_found` の snake_case）
  */
 const TAG_NOT_FOUND_CODE = "tag_not_found"
+
+/**
+ * 登録・更新で、取得方法ごとに受け付けるかの設定。サイトのソースはローカル（NODE_ENV !== "production"）でだけ受け付ける。
+ * env を service で読まず index.ts が値を渡す（テストで切り替えるため）
+ */
+export type SourceWritePolicy = {
+  isWebsiteSourceAllowed: boolean
+}
+
+const disableWebsiteSource = (input: SourceInput): SourceInput =>
+  input.fetchType === "website" ? { ...input, isEnabled: false } : input
 
 /**
  * 本文候補の状態ごとの件数
@@ -160,7 +173,12 @@ export const getSourceById = async (
 export const createSource = async (
   input: SourceInput,
   repo: SourceWriteRepo,
+  policy: SourceWritePolicy,
 ): Promise<Result<SourceWithTags>> => {
+  if (input.fetchType === "website" && !policy.isWebsiteSourceAllowed) {
+    logger.debug("SourceService: Website source is not available", { fetchType: input.fetchType })
+    return err(badRequestError(WEBSITE_SOURCE_UNAVAILABLE_MESSAGE))
+  }
   /**
    * 入力の誤りなので、重複（409）より先に確かめる
    */
@@ -173,12 +191,7 @@ export const createSource = async (
     logger.debug("SourceService: Source already registered", { fetchType: input.fetchType })
     return err(conflictError(DUPLICATE_SOURCE_MESSAGE))
   }
-  /**
-   * サイトは試し実行で本文を確かめてから有効にするため、無効で作る
-   */
-  const result = await repo.sourceRepository.create(
-    input.fetchType === "website" ? { ...input, isEnabled: false } : input,
-  )
+  const result = await repo.sourceRepository.create(disableWebsiteSource(input))
   /**
    * 事前の検査の後に同じ取得元が登録された（同時のリクエスト）。unique 制約で弾かれたので 409 にする
    */
@@ -198,14 +211,19 @@ export const createSource = async (
 }
 
 /**
- * ソースを更新する（有効 / 無効の切り替えを含む）。取得方法は変えられない。
+ * ソースを更新する（GitHub は有効 / 無効の切り替えを含む）。取得方法は変えられない。
  * 取得した文書があるソースは取得元（repository / site_url）も変えられない（変えたいときは別のソースとして登録する）
  */
 export const updateSource = async (
   id: number,
   input: SourceInput,
   repo: SourceWriteRepo,
+  policy: SourceWritePolicy,
 ): Promise<Result<SourceWithTags>> => {
+  if (input.fetchType === "website" && !policy.isWebsiteSourceAllowed) {
+    logger.debug("SourceService: Website source is not available", { id })
+    return err(badRequestError(WEBSITE_SOURCE_UNAVAILABLE_MESSAGE))
+  }
   const existing = await repo.sourceRepository.findById(id)
   if (!existing) {
     logger.debug("SourceService: Source not found for update", { id })
@@ -252,7 +270,7 @@ export const updateSource = async (
   const shouldResetDocumentCache = existing.fetchType === "website"
     && input.fetchType === "website"
     && hasExtractionChanged(existing, input)
-  const result = await repo.sourceRepository.update(id, input, { shouldResetCollectedCommit, shouldResetDocumentCache })
+  const result = await repo.sourceRepository.update(id, disableWebsiteSource(input), { shouldResetCollectedCommit, shouldResetDocumentCache })
   if (result.kind === "duplicate") {
     logger.debug("SourceService: Source registered concurrently", { fetchType: input.fetchType, id })
     return err(conflictError(DUPLICATE_SOURCE_MESSAGE))
@@ -271,7 +289,12 @@ export const updateSource = async (
 export const detectRepositoryLicense = async (
   repository: string,
   deps: { githubLicenseClient: IGitHubLicenseClient },
-): Promise<Result<{ isAllowed: boolean; licenseSpdx: string | null }>> => {
-  const licenseSpdx = await deps.githubLicenseClient.detectLicense(repository)
-  return ok({ isAllowed: licenseSpdx !== null && isAllowedLicense(licenseSpdx), licenseSpdx })
+): Promise<Result<{ isAllowed: boolean; licenseSpdx: string | null; licenseUrl: string | null }>> => {
+  const detected = await deps.githubLicenseClient.detectLicense(repository)
+  const licenseSpdx = detected?.licenseSpdx ?? null
+  return ok({
+    isAllowed: licenseSpdx !== null && isAllowedLicense(licenseSpdx),
+    licenseSpdx,
+    licenseUrl: detected?.licenseUrl ?? null,
+  })
 }

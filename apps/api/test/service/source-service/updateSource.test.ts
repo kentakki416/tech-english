@@ -8,6 +8,8 @@ import {
   buildWebsiteSource,
   createMockSourceRepository,
   createMockTagRepository,
+  LOCAL_POLICY,
+  PRODUCTION_POLICY,
 } from "./fixtures"
 
 const sourceRepository = createMockSourceRepository()
@@ -35,7 +37,7 @@ describe("updateSource", () => {
       sourceRepository.findById.mockResolvedValue(existing)
       sourceRepository.update.mockResolvedValue({ kind: "saved", source: updated })
 
-      const result = await updateSource(1, input, { sourceRepository, tagRepository })
+      const result = await updateSource(1, input, { sourceRepository, tagRepository }, LOCAL_POLICY)
 
       expect(result).toEqual({ ok: true, value: updated })
       expect(sourceRepository.update).toHaveBeenCalledWith(1, input, {
@@ -50,7 +52,7 @@ describe("updateSource", () => {
       sourceRepository.findById.mockResolvedValue(existing)
       sourceRepository.update.mockResolvedValue({ kind: "saved", source: buildGitHubSource({ ...input, id: 1 }) })
 
-      const result = await updateSource(1, input, { sourceRepository, tagRepository })
+      const result = await updateSource(1, input, { sourceRepository, tagRepository }, LOCAL_POLICY)
 
       expect(result.ok).toBe(true)
       expect(sourceRepository.update).toHaveBeenCalledWith(1, input, {
@@ -59,16 +61,16 @@ describe("updateSource", () => {
       })
     })
 
-    it("website は対象パスを変えても収集の状態を戻さずに update し、isEnabled をそのまま渡す", async () => {
+    it("website は対象パスを変えても収集の状態を戻さずに update し、isEnabled: true を渡しても isEnabled: false にする", async () => {
       const existing = buildWebsiteSource({ id: 2 })
       const input = buildWebsiteInput({ includeGlobs: ["/blog/**"], isEnabled: true })
       sourceRepository.findById.mockResolvedValue(existing)
-      sourceRepository.update.mockResolvedValue({ kind: "saved", source: buildWebsiteSource({ ...input, id: 2 }) })
+      sourceRepository.update.mockResolvedValue({ kind: "saved", source: buildWebsiteSource({ ...input, id: 2, isEnabled: false }) })
 
-      const result = await updateSource(2, input, { sourceRepository, tagRepository })
+      const result = await updateSource(2, input, { sourceRepository, tagRepository }, LOCAL_POLICY)
 
       expect(result.ok).toBe(true)
-      expect(sourceRepository.update).toHaveBeenCalledWith(2, input, {
+      expect(sourceRepository.update).toHaveBeenCalledWith(2, { ...input, isEnabled: false }, {
         shouldResetCollectedCommit: false,
         shouldResetDocumentCache: false,
       })
@@ -85,7 +87,7 @@ describe("updateSource", () => {
       sourceRepository.findById.mockResolvedValue(existing)
       sourceRepository.update.mockResolvedValue({ kind: "saved", source: buildWebsiteSource({ ...input, id: 2 }) })
 
-      const result = await updateSource(2, input, { sourceRepository, tagRepository })
+      const result = await updateSource(2, input, { sourceRepository, tagRepository }, LOCAL_POLICY)
 
       expect(result.ok).toBe(true)
       expect(sourceRepository.update).toHaveBeenCalledWith(2, input, {
@@ -101,7 +103,7 @@ describe("updateSource", () => {
       sourceRepository.hasSourceDocuments.mockResolvedValue(true)
       sourceRepository.update.mockResolvedValue({ kind: "saved", source: buildGitHubSource({ ...input, id: 1 }) })
 
-      const result = await updateSource(1, input, { sourceRepository, tagRepository })
+      const result = await updateSource(1, input, { sourceRepository, tagRepository }, LOCAL_POLICY)
 
       expect(result.ok).toBe(true)
       expect(sourceRepository.update).toHaveBeenCalledTimes(1)
@@ -114,7 +116,7 @@ describe("updateSource", () => {
       sourceRepository.hasSourceDocuments.mockResolvedValue(true)
       sourceRepository.update.mockResolvedValue({ kind: "saved", source: buildGitHubSource({ ...input, id: 1 }) })
 
-      const result = await updateSource(1, input, { sourceRepository, tagRepository })
+      const result = await updateSource(1, input, { sourceRepository, tagRepository }, LOCAL_POLICY)
 
       expect(result.ok).toBe(true)
       expect(sourceRepository.update).toHaveBeenCalledTimes(1)
@@ -127,7 +129,7 @@ describe("updateSource", () => {
       sourceRepository.findById.mockResolvedValue(existing)
       sourceRepository.update.mockResolvedValue({ kind: "saved", source: existing })
 
-      const result = await updateSource(1, input, { sourceRepository, tagRepository })
+      const result = await updateSource(1, input, { sourceRepository, tagRepository }, LOCAL_POLICY)
 
       expect(result.ok).toBe(true)
       expect(sourceRepository.hasSourceDocuments).toHaveBeenCalledWith(1)
@@ -141,7 +143,7 @@ describe("updateSource", () => {
       sourceRepository.findByRepository.mockResolvedValue(existing)
       sourceRepository.update.mockResolvedValue({ kind: "saved", source: buildGitHubSource({ ...input, id: 1 }) })
 
-      const result = await updateSource(1, input, { sourceRepository, tagRepository })
+      const result = await updateSource(1, input, { sourceRepository, tagRepository }, LOCAL_POLICY)
 
       expect(result.ok).toBe(true)
       expect(sourceRepository.findByRepository).toHaveBeenCalledWith("reactjs/react.dev")
@@ -155,7 +157,7 @@ describe("updateSource", () => {
       sourceRepository.findBySiteUrl.mockResolvedValue(existing)
       sourceRepository.update.mockResolvedValue({ kind: "saved", source: buildWebsiteSource({ ...input, id: 2 }) })
 
-      const result = await updateSource(2, input, { sourceRepository, tagRepository })
+      const result = await updateSource(2, input, { sourceRepository, tagRepository }, LOCAL_POLICY)
 
       expect(result.ok).toBe(true)
       expect(sourceRepository.update).toHaveBeenCalledTimes(1)
@@ -169,7 +171,7 @@ describe("updateSource", () => {
       sourceRepository.findById.mockResolvedValue(existing)
       sourceRepository.update.mockResolvedValue({ kind: "saved", source: updated })
 
-      const result = await updateSource(1, input, { sourceRepository, tagRepository })
+      const result = await updateSource(1, input, { sourceRepository, tagRepository }, LOCAL_POLICY)
 
       expect(result).toEqual({ ok: true, value: updated })
       expect(tagRepository.findByIds).toHaveBeenCalledWith([2, 3])
@@ -185,19 +187,41 @@ describe("updateSource", () => {
       sourceRepository.findById.mockResolvedValue(existing)
       sourceRepository.update.mockResolvedValue({ kind: "saved", source: buildGitHubSource({ id: 1 }) })
 
-      const result = await updateSource(1, input, { sourceRepository, tagRepository })
+      const result = await updateSource(1, input, { sourceRepository, tagRepository }, LOCAL_POLICY)
 
       expect(result.ok).toBe(true)
       expect(tagRepository.findByIds).not.toHaveBeenCalled()
       expect(sourceRepository.update).toHaveBeenCalledWith(1, input, expect.any(Object))
     })
+
+    it("production の設定でも github は update できる", async () => {
+      const existing = buildGitHubSource({ id: 1 })
+      sourceRepository.findById.mockResolvedValue(existing)
+      sourceRepository.update.mockResolvedValue({ kind: "saved", source: existing })
+
+      const result = await updateSource(1, buildGitHubInput(), { sourceRepository, tagRepository }, PRODUCTION_POLICY)
+
+      expect(result.ok).toBe(true)
+    })
   })
 
   describe("異常系", () => {
+    it("production の設定（isWebsiteSourceAllowed: false）では website を 400 BAD_REQUEST にし、ソースを読まない", async () => {
+      const result = await updateSource(2, buildWebsiteInput(), { sourceRepository, tagRepository }, PRODUCTION_POLICY)
+
+      expect(result.ok).toBe(false)
+      if (!result.ok) {
+        expect(result.error.statusCode).toBe(400)
+        expect(result.error.type).toBe("BAD_REQUEST")
+      }
+      expect(sourceRepository.findById).not.toHaveBeenCalled()
+      expect(sourceRepository.update).not.toHaveBeenCalled()
+    })
+
     it("存在しない id なら 404 NOT_FOUND を返し、update を呼ばない", async () => {
       sourceRepository.findById.mockResolvedValue(null)
 
-      const result = await updateSource(999, buildGitHubInput(), { sourceRepository, tagRepository })
+      const result = await updateSource(999, buildGitHubInput(), { sourceRepository, tagRepository }, LOCAL_POLICY)
 
       expect(result.ok).toBe(false)
       if (!result.ok) {
@@ -213,7 +237,7 @@ describe("updateSource", () => {
     ])("取得方法を変える（%s）と 400 BAD_REQUEST を返し、update を呼ばない", async (_label, existing, input) => {
       sourceRepository.findById.mockResolvedValue(existing)
 
-      const result = await updateSource(1, input, { sourceRepository, tagRepository })
+      const result = await updateSource(1, input, { sourceRepository, tagRepository }, LOCAL_POLICY)
 
       expect(result.ok).toBe(false)
       if (!result.ok) {
@@ -230,7 +254,7 @@ describe("updateSource", () => {
       sourceRepository.findById.mockResolvedValue(existing)
       sourceRepository.hasSourceDocuments.mockResolvedValue(true)
 
-      const result = await updateSource(1, input, { sourceRepository, tagRepository })
+      const result = await updateSource(1, input, { sourceRepository, tagRepository }, LOCAL_POLICY)
 
       expect(result.ok).toBe(false)
       if (!result.ok) {
@@ -245,7 +269,7 @@ describe("updateSource", () => {
       sourceRepository.findById.mockResolvedValue(buildGitHubSource({ id: 1 }))
       sourceRepository.findByRepository.mockResolvedValue(buildGitHubSource({ id: 3, repository: "vercel/next.js" }))
 
-      const result = await updateSource(1, buildGitHubInput({ repository: "vercel/next.js" }), { sourceRepository, tagRepository })
+      const result = await updateSource(1, buildGitHubInput({ repository: "vercel/next.js" }), { sourceRepository, tagRepository }, LOCAL_POLICY)
 
       expect(result.ok).toBe(false)
       if (!result.ok) {
@@ -263,6 +287,7 @@ describe("updateSource", () => {
         2,
         buildWebsiteInput({ sitemapUrl: null, siteUrl: "https://docs.python.org", startUrl: "https://docs.python.org/3/" }),
         { sourceRepository, tagRepository },
+        LOCAL_POLICY,
       )
 
       expect(result.ok).toBe(false)
@@ -277,7 +302,7 @@ describe("updateSource", () => {
       sourceRepository.findById.mockResolvedValue(buildGitHubSource({ id: 1 }))
       sourceRepository.update.mockResolvedValue({ kind: "duplicate" })
 
-      const result = await updateSource(1, buildGitHubInput({ repository: "vercel/next.js" }), { sourceRepository, tagRepository })
+      const result = await updateSource(1, buildGitHubInput({ repository: "vercel/next.js" }), { sourceRepository, tagRepository }, LOCAL_POLICY)
 
       expect(result.ok).toBe(false)
       if (!result.ok) {
@@ -291,7 +316,7 @@ describe("updateSource", () => {
       sourceRepository.findById.mockResolvedValue(buildGitHubSource({ id: 1 }))
       tagRepository.findByIds.mockResolvedValue([buildTag({ id: 1 })])
 
-      const result = await updateSource(1, buildGitHubInput({ tagIds: [1, 99] }), { sourceRepository, tagRepository })
+      const result = await updateSource(1, buildGitHubInput({ tagIds: [1, 99] }), { sourceRepository, tagRepository }, LOCAL_POLICY)
 
       expect(result.ok).toBe(false)
       if (!result.ok) {
@@ -307,7 +332,7 @@ describe("updateSource", () => {
       tagRepository.findByIds.mockResolvedValue([buildTag({ id: 1 })])
       sourceRepository.update.mockResolvedValue({ kind: "missing_tags" })
 
-      const result = await updateSource(1, buildGitHubInput({ tagIds: [1] }), { sourceRepository, tagRepository })
+      const result = await updateSource(1, buildGitHubInput({ tagIds: [1] }), { sourceRepository, tagRepository }, LOCAL_POLICY)
 
       expect(result.ok).toBe(false)
       if (!result.ok) {
@@ -321,7 +346,7 @@ describe("updateSource", () => {
     it("取得方法の変更（400）は tag の確認より先に返す（details を付けず、findByIds を呼ばない）", async () => {
       sourceRepository.findById.mockResolvedValue(buildGitHubSource({ id: 1 }))
 
-      const result = await updateSource(1, buildWebsiteInput({ tagIds: [99] }), { sourceRepository, tagRepository })
+      const result = await updateSource(1, buildWebsiteInput({ tagIds: [99] }), { sourceRepository, tagRepository }, LOCAL_POLICY)
 
       expect(result.ok).toBe(false)
       if (!result.ok) {
@@ -341,6 +366,7 @@ describe("updateSource", () => {
         1,
         buildGitHubInput({ repository: "vercel/next.js", tagIds: [99] }),
         { sourceRepository, tagRepository },
+        LOCAL_POLICY,
       )
 
       expect(result.ok).toBe(false)

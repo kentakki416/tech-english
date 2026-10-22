@@ -105,6 +105,16 @@ describe("POST /api/admin/url-import/preview", () => {
       expect(await testDb.$count(sourceDocuments)).toBe(1)
     })
 
+    it("個人の学習用のサイトのソースのページも 200 で確認でき、source.license_spdx が LicenseRef-personal-use", async () => {
+      await insertWebsiteSource({ licenseSpdx: "LicenseRef-personal-use" })
+      mockFetchAndExtractPage.mockResolvedValue({ kind: "ok", page: buildFetchedPage() })
+
+      const res = await request(app).post("/api/admin/url-import/preview").set("Authorization", `Bearer ${adminToken}`).send({ url: PAGE_URL })
+
+      expect(res.status).toBe(200)
+      expect(res.body.source.license_spdx).toBe("LicenseRef-personal-use")
+    })
+
     it("同じ URL を続けて確認すると、2 回目はサイトに取りに行かない", async () => {
       await insertWebsiteSource()
       mockFetchAndExtractPage.mockResolvedValue({ kind: "ok", page: buildFetchedPage() })

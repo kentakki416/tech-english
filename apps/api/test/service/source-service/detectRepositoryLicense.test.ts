@@ -4,6 +4,8 @@ import { detectRepositoryLicense } from "../../../src/service/source-service"
 const mockDetectLicense = vi.fn<IGitHubLicenseClient["detectLicense"]>()
 const githubLicenseClient: IGitHubLicenseClient = { detectLicense: mockDetectLicense }
 
+const LICENSE_FILE_URL = "https://github.com/owner/name/blob/main/LICENSE"
+
 describe("detectRepositoryLicense", () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -15,21 +17,29 @@ describe("detectRepositoryLicense", () => {
       ["CC-BY-4.0", true],
       ["GPL-3.0", false],
       ["CC-BY-SA-4.0", false],
-    ])("%s は isAllowed: %s を返す", async (licenseSpdx, isAllowed) => {
-      mockDetectLicense.mockResolvedValue(licenseSpdx)
+    ])("%s は isAllowed: %s とライセンスのファイルの URL を返す", async (licenseSpdx, isAllowed) => {
+      mockDetectLicense.mockResolvedValue({ licenseSpdx, licenseUrl: LICENSE_FILE_URL })
 
       const result = await detectRepositoryLicense("owner/name", { githubLicenseClient })
 
-      expect(result).toEqual({ ok: true, value: { isAllowed, licenseSpdx } })
+      expect(result).toEqual({ ok: true, value: { isAllowed, licenseSpdx, licenseUrl: LICENSE_FILE_URL } })
       expect(mockDetectLicense).toHaveBeenCalledWith("owner/name")
     })
 
-    it("検出できなかった（null）なら licenseSpdx: null・isAllowed: false を返す", async () => {
+    it("ライセンスを判定できなかった（licenseSpdx: null）ときも、ライセンスのファイルの URL は返す", async () => {
+      mockDetectLicense.mockResolvedValue({ licenseSpdx: null, licenseUrl: LICENSE_FILE_URL })
+
+      const result = await detectRepositoryLicense("owner/name", { githubLicenseClient })
+
+      expect(result).toEqual({ ok: true, value: { isAllowed: false, licenseSpdx: null, licenseUrl: LICENSE_FILE_URL } })
+    })
+
+    it("ライセンスのファイルが無い（null）なら licenseSpdx・licenseUrl とも null で isAllowed: false を返す", async () => {
       mockDetectLicense.mockResolvedValue(null)
 
       const result = await detectRepositoryLicense("owner/name", { githubLicenseClient })
 
-      expect(result).toEqual({ ok: true, value: { isAllowed: false, licenseSpdx: null } })
+      expect(result).toEqual({ ok: true, value: { isAllowed: false, licenseSpdx: null, licenseUrl: null } })
     })
   })
 

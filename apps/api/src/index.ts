@@ -304,13 +304,20 @@ const adminAuthRefreshController = new AdminAuthRefreshController(adminRepositor
 const adminMeGetController = new AdminMeGetController(adminRepository)
 
 /**
+ * dev / min / prd はどれも NODE_ENV=production で動くので、ローカルだけが true（サイトのソースと URL から追加はローカルだけ）
+ */
+const isLocalEnvironment = env.NODE_ENV !== "production"
+
+const sourceWritePolicy = { isWebsiteSourceAllowed: isLocalEnvironment }
+
+/**
  * Admin のソース管理 Controller のインスタンス化
  */
-const adminSourceCreateController = new AdminSourceCreateController(sourceRepository, tagRepository)
+const adminSourceCreateController = new AdminSourceCreateController(sourceRepository, tagRepository, sourceWritePolicy)
 const adminSourceDetailController = new AdminSourceDetailController(sourceRepository)
 const adminSourceDetectLicenseController = new AdminSourceDetectLicenseController(gitHubLicenseClient)
 const adminSourceListController = new AdminSourceListController(sourceRepository)
-const adminSourceUpdateController = new AdminSourceUpdateController(sourceRepository, tagRepository)
+const adminSourceUpdateController = new AdminSourceUpdateController(sourceRepository, tagRepository, sourceWritePolicy)
 
 /**
  * Admin の問題の確認・公開 Controller のインスタンス化
@@ -332,21 +339,25 @@ const adminTagListController = new AdminTagListController(tagRepository)
 const adminTagUpdateController = new AdminTagUpdateController(tagRepository)
 
 /**
- * Admin の URL の取り込み（url-import）Controller のインスタンス化
+ * Admin の URL の取り込み（url-import）Controller のインスタンス化。ローカルでだけ生成する（router は渡されたものだけを登録するので、production では 404）
  */
-const adminUrlImportCreateController = new AdminUrlImportCreateController(
-  sourceRepository,
-  urlImportRepository,
-  urlImportPageCacheRepository,
-  transactionRunner,
-  pageFetcher,
-)
-const adminUrlImportPreviewController = new AdminUrlImportPreviewController(
-  sourceRepository,
-  urlImportRepository,
-  urlImportPageCacheRepository,
-  pageFetcher,
-)
+const adminUrlImportCreateController = isLocalEnvironment
+  ? new AdminUrlImportCreateController(
+    sourceRepository,
+    urlImportRepository,
+    urlImportPageCacheRepository,
+    transactionRunner,
+    pageFetcher,
+  )
+  : undefined
+const adminUrlImportPreviewController = isLocalEnvironment
+  ? new AdminUrlImportPreviewController(
+    sourceRepository,
+    urlImportRepository,
+    urlImportPageCacheRepository,
+    pageFetcher,
+  )
+  : undefined
 
 /**
  * admin のダッシュボード（admin-dashboard）と、ユーザー管理（admin-users。マイページと同じ Repository を使う）の Controller のインスタンス化

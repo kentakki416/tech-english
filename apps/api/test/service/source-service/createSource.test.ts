@@ -8,6 +8,8 @@ import {
   buildWebsiteSource,
   createMockSourceRepository,
   createMockTagRepository,
+  LOCAL_POLICY,
+  PRODUCTION_POLICY,
 } from "./fixtures"
 
 const sourceRepository = createMockSourceRepository()
@@ -26,7 +28,7 @@ describe("createSource", () => {
       const created = buildGitHubSource()
       sourceRepository.create.mockResolvedValue({ kind: "saved", source: created })
 
-      const result = await createSource(input, { sourceRepository, tagRepository })
+      const result = await createSource(input, { sourceRepository, tagRepository }, LOCAL_POLICY)
 
       expect(result).toEqual({ ok: true, value: created })
       expect(sourceRepository.findByRepository).toHaveBeenCalledWith("reactjs/react.dev")
@@ -38,7 +40,7 @@ describe("createSource", () => {
       const created = buildWebsiteSource()
       sourceRepository.create.mockResolvedValue({ kind: "saved", source: created })
 
-      const result = await createSource(input, { sourceRepository, tagRepository })
+      const result = await createSource(input, { sourceRepository, tagRepository }, LOCAL_POLICY)
 
       expect(result).toEqual({ ok: true, value: created })
       expect(sourceRepository.findBySiteUrl).toHaveBeenCalledWith("https://go.dev")
@@ -51,7 +53,7 @@ describe("createSource", () => {
       const created = buildGitHubSource({ tags: [buildTag({ id: 2, name: "frontend" }), buildTag({ id: 1 })] })
       sourceRepository.create.mockResolvedValue({ kind: "saved", source: created })
 
-      const result = await createSource(input, { sourceRepository, tagRepository })
+      const result = await createSource(input, { sourceRepository, tagRepository }, LOCAL_POLICY)
 
       expect(result).toEqual({ ok: true, value: created })
       expect(tagRepository.findByIds).toHaveBeenCalledWith([1, 2])
@@ -63,19 +65,39 @@ describe("createSource", () => {
       const created = buildGitHubSource()
       sourceRepository.create.mockResolvedValue({ kind: "saved", source: created })
 
-      const result = await createSource(input, { sourceRepository, tagRepository })
+      const result = await createSource(input, { sourceRepository, tagRepository }, LOCAL_POLICY)
 
       expect(result).toEqual({ ok: true, value: created })
       expect(tagRepository.findByIds).not.toHaveBeenCalled()
       expect(sourceRepository.create).toHaveBeenCalledWith(input)
     })
+
+    it("production の設定でも github は create できる", async () => {
+      const created = buildGitHubSource()
+      sourceRepository.create.mockResolvedValue({ kind: "saved", source: created })
+
+      const result = await createSource(buildGitHubInput(), { sourceRepository, tagRepository }, PRODUCTION_POLICY)
+
+      expect(result).toEqual({ ok: true, value: created })
+    })
   })
 
   describe("異常系", () => {
+    it("production の設定（isWebsiteSourceAllowed: false）では website を 400 BAD_REQUEST にし、create を呼ばない", async () => {
+      const result = await createSource(buildWebsiteInput(), { sourceRepository, tagRepository }, PRODUCTION_POLICY)
+
+      expect(result.ok).toBe(false)
+      if (!result.ok) {
+        expect(result.error.statusCode).toBe(400)
+        expect(result.error.type).toBe("BAD_REQUEST")
+      }
+      expect(sourceRepository.create).not.toHaveBeenCalled()
+    })
+
     it("登録済みの repository なら 409 CONFLICT を返し、create を呼ばない", async () => {
       sourceRepository.findByRepository.mockResolvedValue(buildGitHubSource())
 
-      const result = await createSource(buildGitHubInput(), { sourceRepository, tagRepository })
+      const result = await createSource(buildGitHubInput(), { sourceRepository, tagRepository }, LOCAL_POLICY)
 
       expect(result.ok).toBe(false)
       if (!result.ok) {
@@ -88,7 +110,7 @@ describe("createSource", () => {
     it("登録済みの site_url なら 409 CONFLICT を返し、create を呼ばない", async () => {
       sourceRepository.findBySiteUrl.mockResolvedValue(buildWebsiteSource())
 
-      const result = await createSource(buildWebsiteInput(), { sourceRepository, tagRepository })
+      const result = await createSource(buildWebsiteInput(), { sourceRepository, tagRepository }, LOCAL_POLICY)
 
       expect(result.ok).toBe(false)
       if (!result.ok) {
@@ -104,7 +126,7 @@ describe("createSource", () => {
     ])("事前の検査の後に同じ取得元が登録され create が duplicate を返したら（%s）409 CONFLICT を返す", async (_label, input) => {
       sourceRepository.create.mockResolvedValue({ kind: "duplicate" })
 
-      const result = await createSource(input, { sourceRepository, tagRepository })
+      const result = await createSource(input, { sourceRepository, tagRepository }, LOCAL_POLICY)
 
       expect(result.ok).toBe(false)
       if (!result.ok) {
@@ -117,7 +139,7 @@ describe("createSource", () => {
     it("存在しない tag の id があれば 400 BAD_REQUEST と tag_ids の details を返し、create を呼ばない", async () => {
       tagRepository.findByIds.mockResolvedValue([buildTag({ id: 1 })])
 
-      const result = await createSource(buildGitHubInput({ tagIds: [1, 99, 100] }), { sourceRepository, tagRepository })
+      const result = await createSource(buildGitHubInput({ tagIds: [1, 99, 100] }), { sourceRepository, tagRepository }, LOCAL_POLICY)
 
       expect(result.ok).toBe(false)
       if (!result.ok) {
@@ -132,7 +154,7 @@ describe("createSource", () => {
       tagRepository.findByIds.mockResolvedValue([])
       sourceRepository.findByRepository.mockResolvedValue(buildGitHubSource())
 
-      const result = await createSource(buildGitHubInput({ tagIds: [99] }), { sourceRepository, tagRepository })
+      const result = await createSource(buildGitHubInput({ tagIds: [99] }), { sourceRepository, tagRepository }, LOCAL_POLICY)
 
       expect(result.ok).toBe(false)
       if (!result.ok) {
@@ -146,7 +168,7 @@ describe("createSource", () => {
       tagRepository.findByIds.mockResolvedValue([buildTag({ id: 1 })])
       sourceRepository.create.mockResolvedValue({ kind: "missing_tags" })
 
-      const result = await createSource(buildGitHubInput({ tagIds: [1] }), { sourceRepository, tagRepository })
+      const result = await createSource(buildGitHubInput({ tagIds: [1] }), { sourceRepository, tagRepository }, LOCAL_POLICY)
 
       expect(result.ok).toBe(false)
       if (!result.ok) {

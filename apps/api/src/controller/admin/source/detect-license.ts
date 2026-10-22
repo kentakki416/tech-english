@@ -30,6 +30,7 @@ export class AdminSourceDetectLicenseController {
     const response = parseResponse(detectSourceLicenseResponseSchema, {
       is_allowed: result.value.isAllowed,
       license_spdx: result.value.licenseSpdx,
+      license_url: result.value.licenseUrl,
     })
     return res.status(200).json(response)
   }

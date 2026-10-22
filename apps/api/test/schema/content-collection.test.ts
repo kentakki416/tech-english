@@ -144,6 +144,12 @@ describe("sources", () => {
       expect(row).toMatchObject(values)
     })
 
+    it("website は license_spdx に LicenseRef-personal-use を入れられる", async () => {
+      const row = await insertSource({ ...WEBSITE_SOURCE, licenseSpdx: "LicenseRef-personal-use" })
+
+      expect(row.licenseSpdx).toBe("LicenseRef-personal-use")
+    })
+
     it("website を 2 件入れても repository が NULL 同士なので unique に掛からない", async () => {
       await insertSource(WEBSITE_SOURCE)
       await insertSource({ ...WEBSITE_SOURCE, sitemapUrl: "https://docs.python.org/sitemap.xml", siteUrl: "https://docs.python.org" })
@@ -173,6 +179,18 @@ describe("sources", () => {
     it("website で site_url が NULL なら失敗する", async () => {
       await expect(insertSource({ ...WEBSITE_SOURCE, siteUrl: null })).rejects.toMatchObject(
         buildViolationMatcher(CHECK_VIOLATION, "sources_website_check"),
+      )
+    })
+
+    it("github_repository に LicenseRef-personal-use を入れると失敗する", async () => {
+      await expect(insertSource({ ...GITHUB_SOURCE, licenseSpdx: "LicenseRef-personal-use" })).rejects.toMatchObject(
+        buildViolationMatcher(CHECK_VIOLATION, "sources_personal_use_license_check"),
+      )
+    })
+
+    it("website を有効にすると失敗する", async () => {
+      await expect(insertSource({ ...WEBSITE_SOURCE, isEnabled: true })).rejects.toMatchObject(
+        buildViolationMatcher(CHECK_VIOLATION, "sources_website_disabled_check"),
       )
     })
 

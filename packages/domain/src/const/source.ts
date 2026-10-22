@@ -10,12 +10,12 @@ export const SOURCE_KINDS = ["docs", "github"] as const
  * ソースの取得方法
  *
  * - github_repository: GitHub リポジトリの Markdown
- * - website: 公式ドキュメントのサイト（HTML）のクロール
+ * - website: サイトのページ（ローカルの URL から追加だけが使う。収集はしない）
  */
 export const SOURCE_FETCH_TYPES = ["github_repository", "website"] as const
 
 /**
- * 登録を許可するライセンス（SPDX 識別子）。
+ * 公開してよいライセンス（SPDX 識別子）。
  * 本文を載せるだけでなく和訳・設問という派生物を作って公開し、将来の有料化も見込むため、複製・改変・商用利用をすべて許すものだけを入れる。
  * ShareAlike（CC-BY-SA-*）・コピーレフト（GPL-*）は派生物にも同じライセンスを課すため、NonCommercial（CC-BY-NC-*）は商用利用を禁じるため、
  * NoDerivatives（CC-BY-ND-*）は和訳を作れないため入れない
@@ -70,3 +70,14 @@ export const ALLOWED_LICENSES = [
    */
   "Unlicense",
 ] as const
+
+/**
+ * ライセンスの記載が無いサイトを、自分で読むためだけに取り込むときの値。ローカルのサイトのソースだけが使う（著作権法の私的使用の範囲にとどめるため、
+ * デプロイした環境には入れない）。`LicenseRef-` は SPDX で独自のライセンスを表す書き方
+ */
+export const PERSONAL_USE_LICENSE = "LicenseRef-personal-use"
+
+/**
+ * ソースに入れられるライセンス。DB の CHECK 制約はここから作る
+ */
+export const SOURCE_LICENSES = [...ALLOWED_LICENSES, PERSONAL_USE_LICENSE] as const

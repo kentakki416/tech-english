@@ -1,14 +1,27 @@
 import { z } from "zod"
 
 /**
+ * GitHub が見つけたリポジトリのライセンス
+ */
+export type DetectedLicense = {
+  /**
+   * GitHub が判定したライセンスの SPDX 識別子。判定できなければ null（NOASSERTION。ファイルはあっても種類が分からない・複数ある）
+   */
+  licenseSpdx: string | null
+  /**
+   * ライセンスのファイルの URL（https://github.com/{owner}/{repo}/blob/{default branch}/{path}）。GitHub が返さなければ null
+   */
+  licenseUrl: string | null
+}
+
+/**
  * GitHub のライセンス検出クライアントのインターフェース
  */
 export interface IGitHubLicenseClient {
   /**
-   * GitHub が検出したライセンスの SPDX 識別子。
-   * 検出できなければ null（ライセンスファイルが無い・リポジトリが無い・NOASSERTION）。通信障害や rate limit は throw
+   * ライセンスのファイルが無い・リポジトリが無い（非公開を含む）なら null。通信障害や rate limit は throw
    */
-  detectLicense(repository: string): Promise<string | null>
+  detectLicense(repository: string): Promise<DetectedLicense | null>
 }
 
 const GITHUB_API_BASE_URL = "https://api.github.com"
@@ -24,6 +37,7 @@ const REQUEST_TIMEOUT_MS = 10_000
  * 外部 API のレスポンスは無検証キャストせず Zod で検証する（利用しないフィールドは無視）
  */
 const githubLicenseResponseSchema = z.object({
+  html_url: z.string().nullable(),
   license: z.object({ spdx_id: z.string().nullable() }).nullable(),
 })
 
@@ -38,7 +52,7 @@ export class GitHubLicenseClient implements IGitHubLicenseClient {
     this._token = token
   }
 
-  public async detectLicense(repository: string): Promise<string | null> {
+  public async detectLicense(repository: string): Promise<DetectedLicense | null> {
     const [owner, name] = repository.split("/").map(encodeURIComponent)
     const response = await fetch(`${GITHUB_API_BASE_URL}/repos/${owner}/${name}/license`, {
       headers: {
@@ -56,7 +70,8 @@ export class GitHubLicenseClient implements IGitHubLicenseClient {
     if (response.status === 404) return null
     if (!response.ok) throw new Error(`GitHub license request failed: ${response.status}`)
 
-    const spdxId = githubLicenseResponseSchema.parse(await response.json()).license?.spdx_id ?? null
-    return spdxId === NO_ASSERTION_SPDX_ID ? null : spdxId
+    const body = githubLicenseResponseSchema.parse(await response.json())
+    const spdxId = body.license?.spdx_id ?? null
+    return { licenseSpdx: spdxId === NO_ASSERTION_SPDX_ID ? null : spdxId, licenseUrl: body.html_url }
   }
 }
