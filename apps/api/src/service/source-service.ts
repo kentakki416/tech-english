@@ -1,9 +1,9 @@
 import {
+  checkSourceCollectability,
   type GitHubRepositorySource,
   isAllowedLicense,
   PASSAGE_STATUSES,
   type PassageStatus,
-  findSourceNotCollectableReason,
   type Source,
   type SourceCollectionRun,
   type SourceNotCollectableReason,
@@ -176,17 +176,18 @@ export const getSourceById = async (
   repo: SourceCollectionRepo,
   deps: { now: Date },
 ): Promise<Result<{ latestCollectionRun: SourceCollectionRun | null; passageCounts: PassageCounts; source: SourceWithTags }>> => {
-  const source = await repo.sourceRepository.findById(id)
+  /**
+   * 詳細は admin しか呼ばず数が少ないので、すべて primary から読む。収集中の読み直しで、記録（完了）と件数・最終収集が
+   * read replica の遅れで食い違わないようにするため（片付けの UPDATE の直後と、依頼の直後の読み直しも同じ）
+   */
+  const source = await repo.sourceRepository.findById(id, { fromPrimary: true })
   if (!source) {
     logger.debug("SourceService: Source not found", { id })
     return err(notFoundError("Source not found"))
   }
   await failTimedOutCollectionRuns(id, deps.now, repo)
-  /**
-   * 片付けの UPDATE の直後と、依頼の直後の読み直しで、read replica の遅れ（queued が見えない）を見ないよう primary から読む
-   */
   const [passageCountRows, latestCollectionRun] = await Promise.all([
-    repo.sourceRepository.countPassagesBySource(id),
+    repo.sourceRepository.countPassagesBySource(id, { fromPrimary: true }),
     repo.sourceCollectionRunRepository.findLatestBySourceId(id, { fromPrimary: true }),
   ])
   return ok({ latestCollectionRun, passageCounts: buildPassageCounts(passageCountRows, id), source })
@@ -335,11 +336,10 @@ export const requestSourceCollection = async (
   repo: SourceCollectionRepo,
   deps: { collectSourceQueue: JobQueue<CollectSourceJobData>; now: Date },
 ): Promise<Result<SourceCollectionRun>> => {
-  const source = await repo.sourceRepository.findById(sourceId)
-  const notCollectableReason = findSourceNotCollectableReason(source)
-  if (notCollectableReason !== null) {
-    logger.debug("SourceService: Source is not collectable", { notCollectableReason, sourceId })
-    return err(buildSourceNotCollectableError(notCollectableReason))
+  const collectability = checkSourceCollectability(await repo.sourceRepository.findById(sourceId))
+  if (!collectability.isCollectable) {
+    logger.debug("SourceService: Source is not collectable", { reason: collectability.reason, sourceId })
+    return err(buildSourceNotCollectableError(collectability.reason))
   }
 
   await failTimedOutCollectionRuns(sourceId, deps.now, repo)
@@ -356,11 +356,7 @@ export const requestSourceCollection = async (
   try {
     await deps.collectSourceQueue.enqueue({ runId: created.run.id }, { jobId: buildCollectSourceJobId(created.run.id) })
   } catch (error) {
-    await repo.sourceCollectionRunRepository.markFailed({
-      error: SOURCE_COLLECTION_ENQUEUE_FAILED_ERROR,
-      id: created.run.id,
-      now: deps.now,
-    })
+    await repo.sourceCollectionRunRepository.markQueuedAsFailed({ error: SOURCE_COLLECTION_ENQUEUE_FAILED_ERROR, id: created.run.id })
     throw error
   }
   logger.info("SourceService: Source collection requested", { runId: created.run.id, sourceId })

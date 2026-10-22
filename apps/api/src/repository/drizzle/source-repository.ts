@@ -15,6 +15,7 @@ import {
 } from "@repo/db"
 import { isAllowedLicense, type Source, type Tag } from "@repo/domain"
 
+import type { ReadOptions } from "../read-options"
 import type {
   PassageCountRow,
   SourceInput,
@@ -66,7 +67,7 @@ const buildColumnValues = (input: SourceInput) => {
  * ソースごとのタグ（lower(name) → id の順）。1 回のクエリで全ソース分を取る（一覧で N+1 にしない）
  */
 const findTagsBySourceIds = async (
-  db: DrizzleClient | DrizzleTransaction,
+  db: DrizzleClient["$primary"] | DrizzleTransaction,
   sourceIds: number[],
 ): Promise<Map<number, Tag[]>> => {
   const tagsBySourceId = new Map<number, Tag[]>(sourceIds.map((sourceId) => [sourceId, []]))
@@ -85,7 +86,7 @@ const findTagsBySourceIds = async (
  * ソースにタグを付けて返す
  */
 const attachTags = async (
-  db: DrizzleClient | DrizzleTransaction,
+  db: DrizzleClient["$primary"] | DrizzleTransaction,
   sourcesWithoutTags: Source[],
 ): Promise<SourceWithTags[]> => {
   const tagsBySourceId = await findTagsBySourceIds(db, sourcesWithoutTags.map((source) => source.id))
@@ -124,8 +125,8 @@ export class DrizzleSourceRepository implements SourceRepository {
     this._db = db
   }
 
-  public async countPassagesBySource(sourceId?: number): Promise<PassageCountRow[]> {
-    return this._db
+  public async countPassagesBySource(sourceId?: number, options?: ReadOptions): Promise<PassageCountRow[]> {
+    return this._resolveReader(options)
       .select({ count: count(), sourceId: sourceDocuments.sourceId, status: passages.status })
       .from(passages)
       .innerJoin(sourceDocuments, eq(passages.sourceDocumentId, sourceDocuments.id))
@@ -155,10 +156,11 @@ export class DrizzleSourceRepository implements SourceRepository {
     return attachTags(this._db, rows.map((row) => this._toDomain(row)))
   }
 
-  public async findById(id: number): Promise<SourceWithTags | null> {
-    const [row] = await this._db.select().from(sources).where(eq(sources.id, id))
+  public async findById(id: number, options?: ReadOptions): Promise<SourceWithTags | null> {
+    const reader = this._resolveReader(options)
+    const [row] = await reader.select().from(sources).where(eq(sources.id, id))
     if (!row) return null
-    const [source] = await attachTags(this._db, [this._toDomain(row)])
+    const [source] = await attachTags(reader, [this._toDomain(row)])
     return source
   }
 
@@ -208,6 +210,13 @@ export class DrizzleSourceRepository implements SourceRepository {
     } catch (error) {
       return convertWriteErrorToResult(error)
     }
+  }
+
+  /**
+   * 読み取りに使う接続。fromPrimary なら read replica を通さずに primary から読む
+   */
+  private _resolveReader(options?: ReadOptions): DrizzleClient["$primary"] {
+    return options?.fromPrimary ? this._db.$primary : this._db
   }
 
   /**

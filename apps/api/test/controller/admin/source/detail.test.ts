@@ -6,6 +6,7 @@ import { AdminSourceDetailController } from "../../../../src/controller/admin/so
 import { DrizzleSourceCollectionRunRepository } from "../../../../src/repository/drizzle/source-collection-run-repository"
 import { DrizzleSourceRepository } from "../../../../src/repository/drizzle/source-repository"
 import { adminRouter, mountAdminApi } from "../../../../src/routes/admin-router"
+import { insertSourceCollectionRun } from "../../../fixture/source-collection-run"
 import { insertSourceTags } from "../../../fixture/source-tag"
 import { attachUnhandledExceptionHandler, createTestAdmin, createTestApp } from "../../helper"
 import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb } from "../../setup"
@@ -112,18 +113,15 @@ describe("GET /api/admin/source/:id", () => {
 
     it("最後の収集の記録（最新の 1 件）を返す", async () => {
       const github = await insertGitHubSource()
-      await testDb.insert(sourceCollectionRuns).values({ finishedAt: new Date("2026-10-21T03:00:00.000Z"), sourceId: github.id, status: "failed" })
-      const [latest] = await testDb
-        .insert(sourceCollectionRuns)
-        .values({
-          createdPassageCount: 12,
-          fetchedDocumentCount: 5,
-          finishedAt: new Date("2026-10-22T03:05:00.000Z"),
-          sourceId: github.id,
-          startedAt: new Date("2026-10-22T03:01:00.000Z"),
-          status: "completed",
-        })
-        .returning()
+      await insertSourceCollectionRun({ sourceId: github.id, status: "failed" })
+      const latest = await insertSourceCollectionRun({
+        createdPassageCount: 12,
+        fetchedDocumentCount: 5,
+        finishedAt: new Date("2026-10-22T03:05:00.000Z"),
+        sourceId: github.id,
+        startedAt: new Date("2026-10-22T03:01:00.000Z"),
+        status: "completed",
+      })
 
       const res = await request(app)
         .get(`/api/admin/source/${github.id}`)
@@ -144,10 +142,7 @@ describe("GET /api/admin/source/:id", () => {
 
     it("30 分より前から running のままの記録は failed にしてから返す", async () => {
       const github = await insertGitHubSource()
-      const [run] = await testDb
-        .insert(sourceCollectionRuns)
-        .values({ sourceId: github.id, startedAt: new Date(Date.now() - 31 * 60_000), status: "running" })
-        .returning()
+      const run = await insertSourceCollectionRun({ sourceId: github.id, startedAt: new Date(Date.now() - 31 * 60_000), status: "running" })
 
       const res = await request(app)
         .get(`/api/admin/source/${github.id}`)
