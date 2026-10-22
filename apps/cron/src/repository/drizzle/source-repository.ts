@@ -1,5 +1,5 @@
 import { and, asc, DrizzleClient, eq, isNull, sources, sql } from "@repo/db"
-import type { Source } from "@repo/domain"
+import type { GitHubRepositorySource, Source } from "@repo/domain"
 
 import type { MarkCollectedInput, SourceRepository } from "../source-repository"
 
@@ -23,13 +23,15 @@ export class DrizzleSourceRepository implements SourceRepository {
     return row ? this._toDomain(row) : null
   }
 
-  public async findEnabled(): Promise<Source[]> {
+  public async findEnabled(): Promise<GitHubRepositorySource[]> {
     const rows = await this._db
       .select()
       .from(sources)
-      .where(eq(sources.isEnabled, true))
+      .where(and(eq(sources.isEnabled, true), eq(sources.fetchType, "github_repository")))
       .orderBy(sql`${sources.lastCollectedAt} ASC NULLS FIRST`, asc(sources.id))
-    return rows.map((row) => this._toDomain(row))
+    return rows
+      .map((row) => this._toDomain(row))
+      .filter((source): source is GitHubRepositorySource => source.fetchType === "github_repository")
   }
 
   /**

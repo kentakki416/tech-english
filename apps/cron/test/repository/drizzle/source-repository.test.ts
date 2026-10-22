@@ -61,7 +61,7 @@ describe("DrizzleSourceRepository", () => {
 
   describe("findEnabled", () => {
     describe("正常系", () => {
-      it("is_enabled のソースを last_collected_at の古い順（NULL が先）で返す", async () => {
+      it("is_enabled の GitHub のソースを last_collected_at の古い順（NULL が先）で返す", async () => {
         const fake = createFakeDb([buildRow()])
 
         const enabledSources = await new DrizzleSourceRepository(fake.db).findEnabled()
@@ -86,7 +86,9 @@ describe("DrizzleSourceRepository", () => {
           createdAt: CREATED_AT,
           updatedAt: CREATED_AT,
         }])
-        expect(fake.selectWhere).toHaveBeenCalledWith(eq(sources.isEnabled, true))
+        expect(fake.selectWhere).toHaveBeenCalledWith(
+          and(eq(sources.isEnabled, true), eq(sources.fetchType, "github_repository")),
+        )
         expect(fake.orderBy).toHaveBeenCalledWith(
           sql`${sources.lastCollectedAt} ASC NULLS FIRST`,
           asc(sources.id),

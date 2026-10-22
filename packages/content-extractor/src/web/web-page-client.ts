@@ -5,16 +5,7 @@ import { Agent, type Dispatcher, fetch as undiciFetch, type Response } from "und
 
 import { logger } from "@repo/logger"
 
-import {
-  CRAWLER_NAME,
-  MAX_CHILD_SITEMAPS,
-  MAX_CRAWL_DELAY_SECONDS,
-  MAX_HTML_BYTES,
-  MAX_REDIRECTS,
-  MAX_SITEMAP_BYTES,
-  WEB_REQUEST_TIMEOUT_MS,
-} from "../const"
-import { type ParsedSitemap, parseSitemap } from "../parse-sitemap"
+import { CRAWLER_NAME, MAX_CRAWL_DELAY_SECONDS, MAX_HTML_BYTES, MAX_REDIRECTS, WEB_REQUEST_TIMEOUT_MS } from "../const"
 
 import { BlockedUrlError, CrawlDelayTooLongError, WebDeadlineExceededError, WebSourceThrottledError } from "./errors"
 import { createSafeLookup, isBlockedIpLiteral } from "./safe-lookup"
@@ -46,14 +37,6 @@ export type FetchPageResult =
   | { kind: "skipped"; reason: FetchPageSkipReason; status: number | null }
 
 /**
- * sitemap に載っていたページの URL（正規化していない `<loc>` のまま）
- */
-export type SitemapUrl = {
-  lastmod: Date | null
-  url: string
-}
-
-/**
  * 1 つのサイト（オリジン）を礼儀正しく取得するクライアントのインターフェース
  */
 export interface IWebPageClient {
@@ -61,10 +44,6 @@ export interface IWebPageClient {
    * 429 / 503 は WebSourceThrottledError、取得先の制限に掛かった URL は BlockedUrlError、期限（deadlineAt）を過ぎたら WebDeadlineExceededError を throw する
    */
   fetchPage(url: string, conditional: ConditionalRequest): Promise<FetchPageResult>
-  /**
-   * sitemap index なら同じオリジンの子の sitemap を読んで、ページの URL をまとめて返す
-   */
-  fetchSitemapUrls(sitemapUrl: string): Promise<SitemapUrl[]>
   /**
    * robots.txt で許可されている URL か。loadRobots の前は false
    */
@@ -128,8 +107,6 @@ const HTML_ACCEPT = "text/html,application/xhtml+xml;q=0.9,*/*;q=0.1"
 
 const ROBOTS_ACCEPT = "text/plain,*/*;q=0.1"
 
-const SITEMAP_ACCEPT = "application/xml,text/xml;q=0.9,*/*;q=0.1"
-
 /**
  * robots.txt のサイズの上限（Google と同じ 500 KiB）
  */
@@ -138,8 +115,6 @@ const MAX_ROBOTS_TXT_BYTES = 500 * 1024
 const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308])
 
 const THROTTLED_STATUSES = new Set([429, 503])
-
-const EMPTY_SITEMAP: ParsedSitemap = { sitemaps: [], urls: [] }
 
 const sleepWithTimer = async (ms: number): Promise<void> => {
   await delay(ms)
@@ -301,24 +276,6 @@ export class WebPageClient implements IWebPageClient {
     }
   }
 
-  public async fetchSitemapUrls(sitemapUrl: string): Promise<SitemapUrl[]> {
-    const sitemap = await this._fetchSitemap(sitemapUrl)
-    if (sitemap.sitemaps.length === 0) {
-      return sitemap.urls.map((entry) => ({ lastmod: entry.lastmod, url: entry.loc }))
-    }
-
-    const childUrls = this._selectChildSitemapUrls(sitemap.sitemaps.map((entry) => entry.loc), sitemapUrl)
-    const urls: SitemapUrl[] = []
-    for (const childUrl of childUrls) {
-      const child = await this._fetchSitemap(childUrl)
-      if (child.sitemaps.length > 0) {
-        logger.warn("nested sitemap index is not supported; skipped", { url: childUrl })
-      }
-      urls.push(...child.urls.map((entry) => ({ lastmod: entry.lastmod, url: entry.loc })))
-    }
-    return urls
-  }
-
   public isAllowedByRobots(url: string): boolean {
     return this._robots?.isAllowed(url, CRAWLER_NAME) === true
   }
@@ -378,40 +335,6 @@ export class WebPageClient implements IWebPageClient {
   }
 
   /**
-   * sitemap を 1 つ取得して読む。`.gz`・取得できない・大きすぎる sitemap は warn を出して空にする（ページの取得は続ける）
-   */
-  private async _fetchSitemap(url: string): Promise<ParsedSitemap> {
-    this._assertAllowedUrl(url)
-    if (new URL(url).pathname.toLowerCase().endsWith(".gz")) {
-      logger.warn("gzipped sitemap is not supported; skipped", { url })
-      return EMPTY_SITEMAP
-    }
-    const result = await this._requestFollowingRedirects(url, { accept: SITEMAP_ACCEPT, checkRobots: false, conditional: null })
-    if (result.kind !== "response") {
-      logger.warn("failed to fetch sitemap; skipped", { ...result, url })
-      return EMPTY_SITEMAP
-    }
-    const { response } = result
-    await this._throwIfThrottled(response, url)
-    if (!response.ok) {
-      await discardBody(response)
-      logger.warn("failed to fetch sitemap; skipped", { status: response.status, url })
-      return EMPTY_SITEMAP
-    }
-    if (isDeclaredTooLarge(response, MAX_SITEMAP_BYTES)) {
-      await discardBody(response)
-      logger.warn("failed to read sitemap; skipped", { kind: "too_large", url })
-      return EMPTY_SITEMAP
-    }
-    const body = await readBodyWithLimit(response, MAX_SITEMAP_BYTES)
-    if (body.kind !== "ok") {
-      logger.warn("failed to read sitemap; skipped", { ...body, url })
-      return EMPTY_SITEMAP
-    }
-    return parseSitemap(new TextDecoder("utf-8").decode(body.bytes))
-  }
-
-  /**
    * URL を検査し、リダイレクトを同じオリジンの中で最大 MAX_REDIRECTS 回たどる。
    * 最初の URL が制限に掛かれば BlockedUrlError を throw し、リダイレクト先が掛かれば redirect_not_allowed で止める
    */
@@ -452,34 +375,6 @@ export class WebPageClient implements IWebPageClient {
     } catch {
       return null
     }
-  }
-
-  /**
-   * sitemap index の子のうち、https かつ同じオリジンのものを先頭から MAX_CHILD_SITEMAPS 個
-   */
-  private _selectChildSitemapUrls(locs: string[], indexUrl: string): string[] {
-    const sameOriginUrls = locs.filter((loc) => {
-      try {
-        const url = new URL(loc)
-        return url.protocol === "https:" && url.origin === this._origin
-      } catch {
-        return false
-      }
-    })
-    if (sameOriginUrls.length < locs.length) {
-      logger.warn("child sitemaps outside the site are skipped", {
-        skippedCount: locs.length - sameOriginUrls.length,
-        url: indexUrl,
-      })
-    }
-    if (sameOriginUrls.length > MAX_CHILD_SITEMAPS) {
-      logger.warn("too many child sitemaps; only the first ones are fetched", {
-        childSitemapCount: sameOriginUrls.length,
-        maxChildSitemaps: MAX_CHILD_SITEMAPS,
-        url: indexUrl,
-      })
-    }
-    return sameOriginUrls.slice(0, MAX_CHILD_SITEMAPS)
   }
 
   /**

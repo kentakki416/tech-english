@@ -2,17 +2,14 @@
 
 問題の本文になる英文を、管理者が登録した取得元（ソース）から定期的に集める。集めた英文は 200〜600 語の「本文候補」に切り分け、問題生成（[question-generation](../question-generation/README.md)）に渡す。
 
-取得元は次の 2 種類で、どちらも **ライセンスが明確なもの** に限る。
+取得元は **GitHub リポジトリの Markdown** だけで、**ライセンスが明確なもの** に限る（README、RFC、`docs/` ディレクトリ、GitHub 上に Markdown のソースがある公式ドキュメント（react.dev、Kubernetes、Rust Book など））。
 
-- **GitHub リポジトリの Markdown**：README、RFC、`docs/` ディレクトリ、GitHub 上に Markdown のソースがある公式ドキュメント（react.dev、Kubernetes、Rust Book など）
-- **公式ドキュメントのサイト（HTML）**：プロダクトの開発元が公開しているドキュメントのサイトを直接クロールする（Go、Python、Google Cloud など）
-
-GitHub に Markdown のソースがあるドキュメントは GitHub から取る方が確実（構造が崩れず、変更をコミット単位で追える）なので、サイトのクロールは **GitHub にソースが無いドキュメント** に使う。
+公式ドキュメントのサイト（HTML）のクロールは [github-only-collection](../github-only-collection/README.md) でやめた。サイトのソースはローカルにだけ残し、URL から追加（[url-import](../url-import/README.md)）で 1 ページずつ取り込むのに使う。
 
 このドキュメントは **仕様（What）** と **設計（How）** を分けて記述する：
 
 - **仕様**：使える英文の条件、ソースの登録、本文候補の条件、出典表示
-- **設計**：GitHub API での取得、サイトのクロール、取得先の制限、本文の抽出と切り分け、実行の制限
+- **設計**：GitHub API での取得、サイトの取得（URL から追加）、取得先の制限、本文の抽出と切り分け、実行の制限
 
 ## 関連 spec
 
@@ -32,7 +29,7 @@ GitHub に Markdown のソースがあるドキュメントは GitHub から取�
 - [設計](#設計)
   - [実行の仕組み](#実行の仕組み)
   - [GitHub API での取得と差分検出](#github-api-での取得と差分検出)
-  - [サイトのクロール](#サイトのクロール)
+  - [サイトの取得（URL から追加）](#サイトの取得url-から追加)
   - [取得先の制限（SSRF 対策）](#取得先の制限ssrf-対策)
   - [本文の抽出と解析](#本文の抽出と解析)
   - [本文候補への切り分け](#本文候補への切り分け)
@@ -124,7 +121,7 @@ GitHub に Markdown のソースがあるドキュメントは GitHub から取�
 | 本文の CSS セレクタ | | `main article` | 本文が入っている要素。未設定なら自動で本文を推定する |
 | 除外する CSS セレクタ | | `.feedback`, `nav.toc` | 本文の中から取り除く要素（「このページは役に立ちましたか？」など） |
 
-本文の CSS セレクタ・除外する CSS セレクタを変えると、そのソースの取得済みのページの `ETag` / `Last-Modified` / 本文のハッシュを消す。各ページは取り直しの順番が来たとき（取得から `COLLECT_WEB_REFETCH_DAYS` 日たったとき）に、304 や同じハッシュで止まらずに新しいセレクタで抽出して切り分け直す。取得した日時は消さないので、直近に取ったページはすぐには取り直さない。
+本文の CSS セレクタ・除外する CSS セレクタを変えると、URL から追加は次の確認・保存でページを取り直し、新しいセレクタで抽出する（取得したページの使い回しのキーにソースの更新日時が入るため）。
 
 **取得元（リポジトリ / サイトの URL）は、文書を 1 件でも取得したソースでは変えられない。** 過去の問題の出典は、ソースの今の取得元と、問題に記録したパス（GitHub はコミットも）を組み合わせて作るため、取得元を変えると過去の問題の出典が別のリポジトリ・サイトを指して 404 になる。取得元を変えたいときは別のソースとして登録する。ライセンスとライセンスの記載がある URL は変えられる（誤登録の訂正は過去の問題の出典にも反映されるのが正しい、という扱い）。
 
@@ -190,16 +187,16 @@ GitHub に Markdown のソースがあるドキュメントは GitHub から取�
 | --- | --- |
 | 起動 | EventBridge Scheduler で 1 日 1 回（`generate:questions` の 1 時間前） |
 | ローカル実行 | `pnpm collect:passages`（全ソース）、`pnpm collect:passages --source-id=3`（1 ソースだけ） |
-| 試し実行 | `pnpm collect:passages --source-id=3 --dry-run`：文書を最大 5 件取得し、抽出した本文と切り分けの結果を表示する。**DB には書かない**。サイトのソースを登録した直後に、CSS セレクタが正しいかを確かめるのに使う |
-| 外部クライアント | `src/client/github/`（`GitHubContentClient`）、`@repo/content-extractor` の `WebPageClient`（`robots.txt`・間隔・取得先の制限を持つ。api の URL からの取り込みと共有）。どちらも env を直接読まずコンストラクタ DI |
+| 試し実行 | `pnpm collect:passages --source-id=3 --dry-run`：文書を最大 5 件取得し、抽出した本文と切り分けの結果を表示する。**DB には書かない**。ソースを登録した直後に、対象パスと本文の抽出を確かめるのに使う |
+| 外部クライアント | `src/client/github/`（`GitHubContentClient`）。env を直接読まずコンストラクタ DI |
 | GitHub の認証 | `GITHUB_CONTENT_TOKEN`（公開リポジトリの読み取りだけを許可した fine-grained token）。認証すると rate limit が 60 → 5,000 req/h になる |
 
-取得方法ごとの違いは **文書を取ってくるところまで** に閉じ込め、本文の抽出以降（mdast → `PassageBlock[]` → 切り分け → 保存）は共通にする。
+取得元ごとの違いは **文書を取ってくるところまで** に閉じ込め、本文の抽出以降（mdast → `PassageBlock[]` → 切り分け → 保存）は共通にする。サイトの HTML は、api の URL から追加で同じ処理に流す。
 
 ```mermaid
 flowchart LR
-    gh["GitHub の Markdown<br/>GitHubContentClient"]
-    web["サイトの HTML<br/>WebPageClient"]
+    gh["GitHub の Markdown<br/>cron の GitHubContentClient"]
+    web["サイトの HTML<br/>api の URL から追加（ローカルだけ）"]
     md["remark で mdast に"]
     html["本文の要素を取り出し<br/>rehype で mdast に"]
     blocks["mdast → PassageBlock[]"]
@@ -226,39 +223,27 @@ flowchart LR
 
 `trees` API は巨大なリポジトリで結果が切り詰められる（`truncated: true`）ことがある。その場合は対象パスの最上位ディレクトリごとに trees を取り直す。
 
-### サイトのクロール
+### サイトの取得（URL から追加）
 
-**`source_documents` をクロールの待ち行列として使う。** 見つけた URL を「未取得」の行として入れておき、毎回の実行では「未取得 → 取得から日がたったもの」の順に上限件数まで取得する。
-
-| 手順 | 内容 |
-| --- | --- |
-| URL を見つける（sitemap） | 毎回 sitemap（sitemap index も可）を読み、対象パスに合う URL を `source_documents` に upsert する。`<lastmod>` が前回の取得より新しければ取得待ちにする |
-| URL を見つける（リンク） | 初回は開始ページを未取得の行として入れる。ページを取得して **200 が返ったら、ページ内のリンクのうち同じオリジン・対象パスに合うものを未取得の行として入れる** |
-| 取得する順番 | `fetched_at IS NULL` を先に、次に `fetched_at` が `COLLECT_WEB_REFETCH_DAYS`（既定 7 日）より古いものを古い順に。取得できなかったページ（ネットワークエラー・429 / 503）も `fetched_at` に試した時刻を入れて待ち行列から外し、`COLLECT_WEB_REFETCH_DAYS` 日後に取り直す（入れないと次回も同じページが先頭に来て、取得できないページが残りのページを塞ぐため） |
-| 条件付きリクエスト | 前回の `ETag` / `Last-Modified` を `If-None-Match` / `If-Modified-Since` で送り、304 なら本文を取らずに `fetched_at` だけ更新する。切り分けたときの抽出の版（`extraction_version`）が今と違うページは送らない |
-| 内容の比較 | 200 でも、抽出した本文のハッシュ（`source_documents.content_hash`）が前回と同じなら切り分けをしない（`ETag` を返さないサイト向け）。抽出の版が今と違うページは、ハッシュが同じでも切り分け直す。本文の抽出に失敗したページ（不正な CSS セレクタなど）は `ETag` / `Last-Modified` / ハッシュを保存しない（保存すると、セレクタを直してもページが変わるまで 304 で止まるため） |
-
-毎回の実行では取得の前に、`collected` の本文候補を持つページのうち、対象パス・除外パスに合わなくなったものと 404 / 410 を返したものの `collected` を却下する。
-
-304 のページからはリンクを読めないが、ページが変わっていなければリンクも変わっていないので、初回の取得で見つけた URL がすでに行として入っている。したがって 2 回目以降も取りこぼしは出ない。
+**cron はサイトをクロールしない**（[github-only-collection](../github-only-collection/README.md)。戻すときの設計は [deferred-website-collection](../github-only-collection/deferred-website-collection.md)）。サイトのページは、ローカルの api の URL から追加（[url-import](../url-import/README.md)）で 1 ページずつ取得する。取得は `@repo/content-extractor` の `WebPageClient` で行う。
 
 URL の正規化：クエリ文字列とフラグメント（`#...`）を除く。`.pdf` / `.zip` / 画像などのファイルは対象にしない。
 
-リダイレクトされたページは、行き先の URL のパスでも対象パス・除外パスと拡張子を確かめ、外れたら本文候補を作らない（ページ内のリンクの発見には使う）。除外パスへリダイレクトされたページの本文を、元のパスの出典で保存しないため。
+リダイレクトされたページは、行き先の URL のパスでも対象パス・除外パスと拡張子を確かめ、外れたら本文候補を作らない。除外パスへリダイレクトされたページの本文を、元のパスの出典で保存しないため。
 
-**礼儀正しいクロール**：
+**礼儀正しい取得**：
 
 | 項目 | 値 |
 | --- | --- |
-| `robots.txt` | 実行ごとに取得して守る。禁止されている URL は取得しない。`Crawl-delay` があればそれに従う。ただし 30 秒を超える `Crawl-delay` のサイトは、従うと処理が長時間止まるので今回の実行では打ち切る（失敗にしない） |
-| リクエストの間隔 | 同じホストに `COLLECT_WEB_REQUEST_INTERVAL_MS`（既定 1,000ms）以上空ける。並列にしない |
+| `robots.txt` | 取得の前に読んで守る。禁止されている URL は取得しない。`Crawl-delay` があればそれに従う（上限は api の URL から追加で 10 秒。超えるサイトは取得しない） |
+| リクエストの間隔 | 同じホストに 1,000ms 以上空ける。並列にしない |
 | `User-Agent` | `TechEnglishBot/1.0 (+{サービスのトップの URL})`。サイトの管理者がどのサービスのボットか分かるようにする。止めたいときは robots.txt で `TechEnglishBot` を指定してもらう（守る）。ボットの説明ページは作らない |
 | タイムアウト | 1 リクエスト 10 秒 |
 | 受け取るもの | `Content-Type` が `text/html` で、2MB 以下のものだけ |
 
 ### 取得先の制限（SSRF 対策）
 
-cron は AWS の VPC 内で動くため、登録された URL を経由して内部のエンドポイント（EC2 / ECS のメタデータ `169.254.169.254` など）に到達されないようにする。ソースを登録できるのは管理者だけだが、多層で防ぐ。
+サイトのページを取得する api（URL から追加）が、登録された URL を経由して内部のエンドポイント（EC2 / ECS のメタデータ `169.254.169.254` など）に到達しないようにする。URL から追加はローカルだけで、ソースを登録できるのは管理者だけだが、多層で防ぐ（`WebPageClient` が持つ）。
 
 - `https` のみ
 - 取得してよいのは **ソースに登録したサイトの URL と同じオリジン** だけ。リダイレクトも最大 3 回まで、同じオリジンの中だけ追う
@@ -290,7 +275,7 @@ cron は AWS の VPC 内で動くため、登録された URL を経由して内
 | `mdxJsxFlowElement`（`.md` の HTML ブロックのコンポーネントを含む） | 文章を包むコンポーネント（許可リスト）はタグを除いて中身を変換する。それ以外は中身ごと捨てる |
 | `table` / `image` / `html` / `yaml`（frontmatter） | 捨てる |
 
-**JavaScript で本文を描画するサイトには対応しない**（ヘッドレスブラウザを cron に載せない）。取得した HTML に本文が入っていないサイトは、試し実行で英単語数がほぼ 0 になるので登録時に分かる（[deferred](./deferred-more-sources.md#javascript-で描画するサイト)）。
+**JavaScript で本文を描画するサイトには対応しない**（ヘッドレスブラウザを載せない）。取得した HTML に本文が入っていないサイトは、URL から追加の確認で英単語数がほぼ 0 になるので分かる（[deferred](./deferred-more-sources.md#javascript-で描画するサイト)）。
 
 ### 本文候補への切り分け
 
@@ -330,7 +315,7 @@ flowchart LR
 | 変えたいこと | 変える場所 | 効く範囲 |
 | --- | --- | --- |
 | ソースのどの文書を対象にするか（章の概要ページを外す など） | admin のソースの「対象パス」「除外パス」 | そのソースの次回の収集から。除外した文書から作った未生成（`collected`）の本文候補は次の収集で却下する（下書き・公開済みは残る） |
-| サイトのページのどこを本文にするか | admin のソースの「本文の CSS セレクタ」「除外する CSS セレクタ」 | 取り直しの順番が来たページ（取得から `COLLECT_WEB_REFETCH_DAYS` 日たったもの）から、新しいセレクタで抽出し直す（[ソースの登録](#ソースの登録)） |
+| サイトのページのどこを本文にするか | admin のソースの「本文の CSS セレクタ」「除外する CSS セレクタ」 | 次に URL から追加でそのページを確認・保存したときから（ソースを変えると、取得したページの使い回しも取り直す） |
 | MDX / JSX のコンポーネントの中身を本文に残すか | `const.ts` の `PROSE_COMPONENT_NAMES`（ここに無いコンポーネントは中身ごと捨てる） | 全ソース（下の注意） |
 | 長さ・コードの割合・英語・文章の判定のしきい値 | `const.ts` の `PASSAGE_MIN_WORDS` / `PASSAGE_MAX_WORDS` / `MAX_CODE_LINE_RATIO` / `MIN_ENGLISH_LETTER_RATIO` / `MIN_PROSE_WORD_RATIO` / `MIN_PROSE_LIST_ITEM_WORDS` | 全ソース（下の注意） |
 | 区切る見出しの深さ | `const.ts` の `SECTION_HEADING_MAX_DEPTH` | 全ソース（下の注意） |
@@ -339,7 +324,7 @@ flowchart LR
 | mdast のノードをどのブロックにするか | `convert-mdast-to-blocks.ts` | 全ソース（下の注意） |
 | LLM が題材に向かないとする基準 | `apps/cron/src/prompt/generate-questions.ts` の「Suitability」（変えたら `PROMPT_VERSION` を上げる。[question-generation](../question-generation/README.md)） | 次の `generate:questions` から、`collected` の本文候補に |
 
-- **`src/document` の変更のうち、ブロック・切り分け・本文候補の条件が変わるものは、`const.ts` の `EXTRACTION_VERSION` を上げる。** 上げると取得済みの文書も切り分け直す（GitHub は次の収集で、サイトは取り直しの順番が来たときに条件付きリクエストを送らずに）。前の切り分けの `collected` は却下する（[passage-extraction-tuning](../passage-extraction-tuning/README.md#抽出の版)）。上げないと、GitHub は blob SHA が同じファイルを取り直さず、サイトは 200 でも抽出したブロックのハッシュが前回と同じなら切り分け直さないので、取得済みの文書には効かない
+- **`src/document` の変更のうち、ブロック・切り分け・本文候補の条件が変わるものは、`const.ts` の `EXTRACTION_VERSION` を上げる。** 上げると取得済みの文書も次の収集で切り分け直す（URL から追加で取り込んだサイトのページは、取り込み直したときに）。前の切り分けの `collected` は却下する（[passage-extraction-tuning](../passage-extraction-tuning/README.md#抽出の版)）。上げないと、blob SHA が同じファイルを取り直さないので、取得済みの文書には効かない
 - 変えたら `pnpm --filter @repo/content-extractor build` で build し直す（cron は build した `dist` を読むので、build しないと試し実行も古い規則のまま）
 - 変えた結果は `pnpm collect:passages --source-id={id} --dry-run` で確かめる（DB には書かない）。対象の文書を最大 5 件取得し、塊ごとに本文候補か、捨てた理由（`too_short` / `too_long` / `too_much_code` / `not_english` / `not_prose`）を出す
 
@@ -348,24 +333,17 @@ flowchart LR
 本文の正規化テキスト（空白の連続を 1 つにし、小文字化したもの）の SHA-256 を `passages.content_hash` に入れ、**unique 制約** をかける。
 
 - 同じ内容の再取り込み（ファイルの別の箇所が変わって blob SHA だけ変わった場合など）を DB 側で弾く
-- 複数のリポジトリにコピーされた同じ README や、GitHub とサイトの両方に登録してしまった同じドキュメントも 1 つにまとまる
+- 複数のリポジトリにコピーされた同じ README や、GitHub の収集と URL から追加の両方で取り込んだ同じページも 1 つにまとまる
 
 ### 実行の上限と失敗時の扱い
 
 | env | 既定 | 説明 |
 | --- | --- | --- |
-| `COLLECT_MAX_DOCUMENTS_PER_SOURCE` | `100` | 1 回の実行で 1 ソースから取得する文書数の上限（GitHub はファイル、サイトはページ）。超えた分は次回に回す。ソースごとに上限を持つのは、大きなソース 1 つで実行時間を使い切らないため |
+| `COLLECT_MAX_DOCUMENTS_PER_SOURCE` | `100` | 1 回の実行で 1 ソースから取得する文書数の上限（ファイルの数）。超えた分は次回に回す。ソースごとに上限を持つのは、大きなソース 1 つで実行時間を使い切らないため |
 | `COLLECT_MAX_PASSAGES_PER_RUN` | `200` | 1 回の実行で作る本文候補の上限。生成側の処理量（LLM の費用）を超えて溜め込まないため |
-| `COLLECT_WEB_REQUEST_INTERVAL_MS` | `1000` | 同じホストへのリクエストの間隔 |
-| `COLLECT_WEB_REFETCH_DAYS` | `7` | サイトのページを取り直す間隔 |
 
-サイト 1 つあたり 100 ページ × 1 秒で 2〜3 分。ソースが 10 個でも 30 分程度に収まる。
-
-- 1 ソースの失敗（リポジトリ削除、rate limit、サイトの障害など）は、そのソースだけスキップしてログに出し、他のソースは続ける。タスク全体は最後に 1 件でも失敗があれば exit code 1 で終える（ECS のタスクの終了コードとログに失敗を残すため。EventBridge Scheduler は RunTask の成否しか見ないので、exit code での通知〈ECS の Task State Change → SNS など〉は MVP では持たない）
+- 1 ソースの失敗（リポジトリ削除、GitHub の障害など）は、そのソースだけスキップしてログに出し、他のソースは続ける。タスク全体は最後に 1 件でも失敗があれば exit code 1 で終える（ECS のタスクの終了コードとログに失敗を残すため。EventBridge Scheduler は RunTask の成否しか見ないので、exit code での通知〈ECS の Task State Change → SNS など〉は MVP では持たない）
 - GitHub の rate limit の残り（`x-ratelimit-remaining`）が 100 を切ったら、そのソースの処理を打ち切って次回に回す
-- サイトが 429 / 503 を返したら、そのソースの処理をその回の実行では打ち切り、次回の実行（約 24 時間後）で再開する（失敗にはしない）。`Retry-After` は待たない。`Retry-After` が次回の実行より先を指していたら warn に出す
-- ページの 404 / 410 は `http_status` に記録し、そのページは取り直しの対象から外す（sitemap やリンクで再び見つかったら対象に戻す）
-- サイトの `last_collected_at`（最終収集）は、取得待ちのページを最後まで処理したとき（上限で打ち切ったときを含む）だけ進める。429 / 503・`Crawl-delay` が長すぎる・シグナルで中断されたときは進めない（最終収集の表示が実際より新しくならないように。収集はソースを `last_collected_at` の古い順に処理するので、次回の実行で先に処理される）
 - 冪等：何度実行しても、`content_hash` の unique 制約と `source_documents` の upsert により結果は変わらない
 
 ### ソース登録時の確認
@@ -590,38 +568,19 @@ sequenceDiagram
     participant Cron as cron（収集）
     participant DB as Postgres
     participant GH as GitHub API
-    participant Site as 公式ドキュメントのサイト
 
     Sch->>Cron: 1 日 1 回起動
-    Cron->>DB: 有効なソースを取得
+    Cron->>DB: 有効な GitHub のソースを取得
     loop ソースごと
-        alt github_repository
-            Cron->>GH: 最新コミット SHA
-            opt 前回から変更あり
-                Cron->>GH: ファイルツリー（blob SHA つき）
-                loop 新規・変更されたファイル（上限まで）
-                    Cron->>GH: ファイル本文
-                    Cron->>Cron: Markdown → 本文候補
-                    Cron->>DB: passages / source_documents を保存
-                end
-                Cron->>DB: 全件処理できたら last_collected_commit_sha を更新
+        Cron->>GH: 最新コミット SHA
+        opt 前回から変更あり
+            Cron->>GH: ファイルツリー（blob SHA つき）
+            loop 新規・変更されたファイル（上限まで）
+                Cron->>GH: ファイル本文
+                Cron->>Cron: Markdown → 本文候補
+                Cron->>DB: passages / source_documents を保存
             end
-        else website
-            Cron->>Site: robots.txt
-            opt sitemap あり
-                Cron->>Site: sitemap.xml
-                Cron->>DB: 対象パスの URL を source_documents に upsert
-            end
-            Cron->>DB: 取得待ちの URL を上限件数まで
-            loop URL ごと（間隔 1 秒以上）
-                Cron->>Site: 条件付き GET
-                alt 304
-                    Cron->>DB: fetched_at だけ更新
-                else 200
-                    Cron->>Cron: 本文を抽出 → 本文候補
-                    Cron->>DB: passages を保存 / リンク先を未取得として追加
-                end
-            end
+            Cron->>DB: 全件処理できたら last_collected_commit_sha を更新
         end
     end
 ```
@@ -637,4 +596,4 @@ sequenceDiagram
 | [step3-admin-source](./tasks/step3-admin-source.md) | admin のソース一覧・登録画面 |
 | [step4-cron-document-parser](./tasks/step4-cron-document-parser.md) | Markdown / HTML → mdast → `PassageBlock[]` の変換と本文候補への切り分け（純関数 + fixture を使ったテスト） |
 | [step5-cron-collect-github](./tasks/step5-cron-collect-github.md) | `GitHubContentClient`、blob SHA での差分検出、`collect:passages` タスクの骨格と試し実行 |
-| [step6-cron-collect-website](./tasks/step6-cron-collect-website.md) | `WebPageClient`（`robots.txt`・間隔・取得先の制限・条件付きリクエスト）、sitemap とリンクからの URL 発見、待ち行列での取得 |
+| [step6-cron-collect-website](./tasks/step6-cron-collect-website.md) | `WebPageClient`（`robots.txt`・間隔・取得先の制限・条件付きリクエスト）、sitemap とリンクからの URL 発見、待ち行列での取得（[github-only-collection](../github-only-collection/README.md) でサイトの収集はやめた） |

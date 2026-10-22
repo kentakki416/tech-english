@@ -34,8 +34,8 @@
 | `DATABASE_URL`・`NODE_ENV` | secret（既存） | ― |
 | `GITHUB_CONTENT_TOKEN` | secret（追加） | env.ts は optional だが、未設定だと 60 req/h で rate limit の打ち切りにすぐ掛かる |
 | `ANTHROPIC_API_KEY` | secret（追加） | generate が起動時に必須として検査する |
-| `COLLECT_WEB_CONTACT_URL` | `environment`（追加） | 収集の `User-Agent` に入れるサービスの URL（content-collection step6）。secret ではない。env.ts では任意なので、無くても全タスクが起動する |
-| `COLLECT_MAX_DOCUMENTS_PER_SOURCE`・`COLLECT_MAX_PASSAGES_PER_RUN`・`COLLECT_WEB_REQUEST_INTERVAL_MS`・`COLLECT_WEB_REFETCH_DAYS`・`GENERATION_MODEL`・`VERIFICATION_MODEL`・`GENERATE_MAX_PASSAGES_PER_RUN`・`GENERATE_MAX_PENDING_DRAFTS` | 渡さない | env.ts に既定値がある。変えるときは `module "ecs_cron"` の `environment` に足す |
+| `COLLECT_WEB_CONTACT_URL` | `environment`（追加） | 収集（GitHub API）の `User-Agent` に入れるサービスの URL（content-collection step6）。secret ではない。env.ts では任意なので、無くても全タスクが起動する |
+| `COLLECT_MAX_DOCUMENTS_PER_SOURCE`・`COLLECT_MAX_PASSAGES_PER_RUN`・`GENERATION_MODEL`・`VERIFICATION_MODEL`・`GENERATE_MAX_PASSAGES_PER_RUN`・`GENERATE_MAX_PENDING_DRAFTS` | 渡さない | env.ts に既定値がある。変えるときは `module "ecs_cron"` の `environment` に足す |
 
 **`secret_keys` に足したキーが Secrets Manager に無いと、ECS はタスクの起動自体に失敗する（`ResourceInitializationError`）。cleanup も同じ task definition なので一緒に止まる。** そのため [7. 適用の順番](#7-適用の順番) の通り、seed を apply より先に行う。
 

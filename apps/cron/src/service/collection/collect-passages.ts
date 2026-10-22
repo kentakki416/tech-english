@@ -1,10 +1,9 @@
-import type { Source } from "@repo/domain"
+import type { GitHubRepositorySource } from "@repo/domain"
 import { logger } from "@repo/logger"
 
 import { GitHubRateLimitError } from "../../client/github"
 
 import { collectGitHubSource } from "./collect-github-source"
-import { collectWebsiteSource } from "./collect-website-source"
 import type { CollectionDeps, CollectionRepo, SourceCollectionResult } from "./types"
 
 export type CollectPassagesInput = {
@@ -16,11 +15,7 @@ export type CollectPassagesInput = {
   maxPassagesPerRun: number
   now: Date
   /**
-   * サイトのページを取り直す間隔（日）
-   */
-  refetchDays: number
-  /**
-   * null は有効な全ソース
+   * null は有効な GitHub の全ソース
    */
   sourceId: number | null
 }
@@ -35,12 +30,13 @@ export type CollectPassagesResult = {
 }
 
 /**
- * --source-id の指定があればそのソースだけ（無い・無効なら throw）、無ければ有効な全ソースを古い順に
+ * --source-id の指定があればそのソースだけ（無い・サイト・無効なら throw）、無ければ有効な GitHub のソースを古い順に
  */
-const findTargetSources = async (sourceId: number | null, repo: CollectionRepo): Promise<Source[]> => {
+const findTargetSources = async (sourceId: number | null, repo: CollectionRepo): Promise<GitHubRepositorySource[]> => {
   if (sourceId === null) return repo.sourceRepository.findEnabled()
   const source = await repo.sourceRepository.findById(sourceId)
   if (!source) throw new Error(`Source not found: id=${sourceId}`)
+  if (source.fetchType === "website") throw new Error(`Website sources are not collected: id=${sourceId}`)
   if (!source.isEnabled) {
     throw new Error(`Source is disabled: id=${sourceId} (disabled sources can only be previewed with --dry-run)`)
   }
@@ -52,9 +48,7 @@ const findTargetSources = async (sourceId: number | null, repo: CollectionRepo):
  *
  * - 本文候補の上限（maxPassagesPerRun）の残りを各ソースに渡し、残りが無くなったら以降のソースは処理しない（失敗ではない）
  * - 1 ソースの失敗はログに出して failedSourceIds に入れ、次のソースへ進む
- * - GitHub の rate limit（例外・rate_limited のどちらも）は失敗にせず、以降の GitHub のソースを飛ばす（rate limit は token 単位のため）。
- *   サイトのソースには影響させない
- * - サイトの 429 / 503（throttled）と、robots.txt の Crawl-delay が上限を超えるサイト（crawl_delay_too_long）は失敗にしない
+ * - GitHub の rate limit（例外・rate_limited のどちらも）は失敗にせず、以降のソースを飛ばす（rate limit は token 単位のため）
  */
 export const collectPassages = async (
   input: CollectPassagesInput,
@@ -73,35 +67,23 @@ export const collectPassages = async (
       logger.info("passage limit per run reached; remaining sources are skipped", { sourceId: source.id })
       break
     }
-    if (source.fetchType === "github_repository" && isGitHubRateLimited) {
+    if (isGitHubRateLimited) {
       logger.warn("GitHub rate limit is low; skipped", { sourceId: source.id })
       continue
     }
 
     try {
-      const result = source.fetchType === "website"
-        ? await collectWebsiteSource(
-          {
-            maxDocuments: input.maxDocumentsPerSource,
-            maxPassages: remainingPassages,
-            now: input.now,
-            refetchDays: input.refetchDays,
-            source,
-          },
-          repo,
-          deps,
-        )
-        : await collectGitHubSource(
-          {
-            maxDocuments: input.maxDocumentsPerSource,
-            maxPassages: remainingPassages,
-            minRateLimitRemaining: input.githubMinRateLimitRemaining,
-            now: input.now,
-            source,
-          },
-          repo,
-          deps,
-        )
+      const result = await collectGitHubSource(
+        {
+          maxDocuments: input.maxDocumentsPerSource,
+          maxPassages: remainingPassages,
+          minRateLimitRemaining: input.githubMinRateLimitRemaining,
+          now: input.now,
+          source,
+        },
+        repo,
+        deps,
+      )
       logger.info("source collected", { ...result, sourceId: source.id })
       results.push({ ...result, sourceId: source.id })
       createdPassageCount += result.createdPassageCount

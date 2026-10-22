@@ -1,13 +1,11 @@
 import type { ExtractedDocument, PassageChunk } from "@repo/content-extractor"
 
 /**
- * 試し実行で取得した 1 文書の結果。抽出が throw した文書（壊れた MDX など）は failed、
- * サイトのページを取得できなかった・取得しなかった（HTTP エラー・robots.txt・text/html でないなど）ものは not_fetched
+ * 試し実行で取得した 1 文書の結果。抽出が throw した文書（壊れた MDX など）は failed
  */
 export type DocumentPreview =
   | { document: ExtractedDocument; path: string; status: "extracted" }
   | { errorMessage: string; path: string; status: "failed" }
-  | { path: string; reason: string; status: "not_fetched" }
 
 /**
  * 1 ソースの試し実行の結果
@@ -15,7 +13,7 @@ export type DocumentPreview =
 export type SourcePreview = {
   documents: DocumentPreview[]
   /**
-   * 取得元の表示（GitHub は `owner/name @ コミットの SHA の先頭 7 文字`、サイトはサイトの URL と sitemap か開始ページ）
+   * 取得元の表示（`owner/name @ コミットの SHA の先頭 7 文字`）
    */
   fetchedFrom: string
   /**
@@ -25,8 +23,7 @@ export type SourcePreview = {
   sourceId: number
   sourceName: string
   /**
-   * 対象の文書の件数（取得したのはこのうち先頭の documents.length 件）。
-   * サイトを開始ページからたどった場合は、たどった範囲で見つけた対象パスのページの件数
+   * 対象の文書の件数（取得したのはこのうち先頭の documents.length 件）
    */
   targetDocumentCount: number
 }
@@ -52,7 +49,6 @@ const formatChunk = (chunk: PassageChunk): string[] => {
 
 const formatDocument = (preview: DocumentPreview): string[] => {
   if (preview.status === "failed") return [`■ ${preview.path}`, `  [抽出に失敗] ${preview.errorMessage}`]
-  if (preview.status === "not_fetched") return [`■ ${preview.path}`, `  [取得できず] ${preview.reason}`]
   const { candidates, chunks, title, wordCount } = preview.document
   return [
     `■ ${preview.path}`,

@@ -113,7 +113,7 @@ npx dotenvx set KEY "value" -f apps/api/.env.local
 
 ## サイトのページの取得（`@repo/content-extractor`）
 
-admin の URL の取り込み（`POST /api/admin/url-import`・`/preview`。[url-import](../../docs/spec/url-import/README.md)）は、cron の収集と同じ `@repo/content-extractor` でページを取得・抽出する（取得先の制限・robots.txt・本文の抽出を cron と同じにする）。
+admin の URL の取り込み（`POST /api/admin/url-import`・`/preview`。[url-import](../../docs/spec/url-import/README.md)）は、`@repo/content-extractor` でページを取得・抽出する（本文の抽出の規則は cron の収集と同じ。cron はサイトを収集しない）。
 
 - パッケージは `src/client/page-fetcher.ts` の中で、使うときに `import()` で読む。jsdom などが重く、ほかの API のコールドスタートを遅くしないため。service・Repository は型だけを import する
 - パッケージは CommonJS で、ESM だけで配布されている unified などを Node の `require(esm)` で読むので、**Node 20.19 以上**が要る（Docker は `node:20-slim`）。vitest と tsx はこの経路を通らないので、Node のバージョンを変えるときはビルドした dist で読めることを確かめる（[step3 の動作確認](../../docs/spec/url-import/tasks/step3-api-url-import.md#動作確認)）

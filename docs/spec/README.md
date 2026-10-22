@@ -16,7 +16,7 @@
 |---|---|---|---|
 | product-overview | 実装中 | エンジニア向け英語長文読解サービスの全体像。用語、機能の分割、MVP の範囲（web + mobile）、アプリ間の役割分担。個々の機能 spec の索引。残りは各機能のインフラ（AWS の設定の後） | [./product-overview/README.md](./product-overview/README.md) |
 | github-auth | 完了 | GitHub ログインとアカウント削除（web / mobile）。mobile は web の callback のサブパスを経由して app に戻し、PKCE で保護する。削除は `users` の物理削除 + cascade | [./github-auth/README.md](./github-auth/README.md) |
-| content-collection | 完了 | 管理者が登録した、ライセンスが明確な GitHub リポジトリの Markdown と公式ドキュメントのサイト（HTML）を cron で収集し、200〜600 語の本文候補に切り分ける | [./content-collection/README.md](./content-collection/README.md) |
+| content-collection | 完了 | 管理者が登録した、ライセンスが明確な GitHub リポジトリの Markdown を cron で収集し、200〜600 語の本文候補に切り分ける（サイトのクロールは github-only-collection でやめた） | [./content-collection/README.md](./content-collection/README.md) |
 | question-generation | 実装中 | Claude API で 4 択の設問・解説・段落の和訳・用語集を生成し、管理者が admin で確認・修正してから公開する。問題データの正本。残りは step7（cron のスケジュール。AWS の設定の後） | [./question-generation/README.md](./question-generation/README.md) |
 | reading-practice | 完了 | 問題を解く・採点・解説。制限時間（超過しても続行可）、段落の和訳と単語タップのアシスト、ダークテーマの解答画面 | [./reading-practice/README.md](./reading-practice/README.md) |
 | learning-record | 完了 | マイページ。GitHub の草のような学習カレンダー、連続学習日数、週の目標と進捗、学習履歴 | [./learning-record/README.md](./learning-record/README.md) |

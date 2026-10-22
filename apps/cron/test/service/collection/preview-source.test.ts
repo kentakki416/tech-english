@@ -1,24 +1,17 @@
-import { BlockedUrlError } from "@repo/content-extractor"
-
 import { previewSource } from "../../../src/service/collection"
 
 import {
   BROKEN_MDX,
   buildBlob,
   buildGitHubSource,
-  buildHtmlPage,
   buildMarkdown,
-  buildOkPage,
   buildSourceDocument,
   buildWebsiteSource,
   COMMIT_SHA,
   createDeps,
   createFakeGitHubClient,
   createFakeRepo,
-  createFakeWebPageClient,
 } from "./helpers"
-
-const SITE = "https://example.dev"
 
 /**
  * Repository の書き込みメソッドが 1 つも呼ばれていないこと
@@ -27,9 +20,7 @@ const expectNoWrites = (repo: ReturnType<typeof createFakeRepo>): void => {
   expect(repo.sourceRepository.markCollected).not.toHaveBeenCalled()
   expect(repo.passageRepository.insertIgnoringDuplicates).not.toHaveBeenCalled()
   expect(repo.sourceDocumentRepository.markFetched).not.toHaveBeenCalled()
-  expect(repo.sourceDocumentRepository.markResponse).not.toHaveBeenCalled()
   expect(repo.sourceDocumentRepository.upsertByPath).not.toHaveBeenCalled()
-  expect(repo.sourceDocumentRepository.upsertDiscovered).not.toHaveBeenCalled()
 }
 
 const PATHS = ["docs/a.md", "docs/b.mdx", "docs/c.md", "docs/d.md", "docs/e.md", "docs/f.md"]
@@ -68,92 +59,6 @@ describe("previewSource", () => {
       ])
       expectNoWrites(repo)
     })
-
-    it("website（sitemap あり）は取得してよい URL の先頭 5 件を条件付きにせず取得して抽出し、DB に書かない", async () => {
-      const targetPaths = ["/doc/a", "/doc/b", "/doc/c", "/doc/d", "/doc/e", "/doc/f"]
-      const client = createFakeWebPageClient({
-        pages: {
-          [`${SITE}/doc/a`]: buildOkPage(`${SITE}/doc/a`, buildHtmlPage({ sectionTitles: ["Alpha"], title: "A" })),
-          [`${SITE}/doc/b`]: { kind: "http_error", status: 404 },
-          [`${SITE}/doc/c`]: { kind: "skipped", reason: "not_html", status: 200 },
-          [`${SITE}/doc/d`]: { errorMessage: "timeout", kind: "network_error" },
-          [`${SITE}/doc/e`]: buildOkPage(`${SITE}/doc/e`, buildHtmlPage({ sectionTitles: ["Echo"], title: "E" })),
-        },
-        sitemapUrls: [
-          { lastmod: null, url: `${SITE}/blog/post` },
-          ...targetPaths.map((path) => ({ lastmod: null, url: `${SITE}${path}` })),
-        ],
-      })
-      const source = buildWebsiteSource({
-        contentSelector: "main",
-        id: 7,
-        isEnabled: false,
-        name: "Example site",
-        siteUrl: SITE,
-        sitemapUrl: `${SITE}/sitemap.xml`,
-      })
-      const repo = createFakeRepo({ source })
-      const deps = createDeps(createFakeGitHubClient(), client)
-
-      const preview = await previewSource({ maxDocuments: 5, sourceId: 7 }, repo, deps)
-
-      expect(deps.createWebPageClient).toHaveBeenCalledWith(SITE)
-      expect(client.loadRobots).toHaveBeenCalledTimes(1)
-      expect(client.fetchPage.mock.calls).toEqual(
-        targetPaths.slice(0, 5).map((path) => [`${SITE}${path}`, { etag: null, lastModified: null }]),
-      )
-      expect(preview).toMatchObject({
-        fetchedFrom: `${SITE}（sitemap: ${SITE}/sitemap.xml）`,
-        isComplete: true,
-        sourceId: 7,
-        sourceName: "Example site",
-        targetDocumentCount: 6,
-      })
-      expect(preview.documents).toEqual([
-        expect.objectContaining({ path: "/doc/a", status: "extracted" }),
-        { path: "/doc/b", reason: "HTTP 404", status: "not_fetched" },
-        { path: "/doc/c", reason: "not_html（HTTP 200）", status: "not_fetched" },
-        { path: "/doc/d", reason: "ネットワークエラー（timeout）", status: "not_fetched" },
-        expect.objectContaining({ path: "/doc/e", status: "extracted" }),
-      ])
-      expectNoWrites(repo)
-    })
-
-    it("website（sitemap なし）は開始ページからリンクを幅優先でたどり、取得するページは開始ページを含めて 5 件以下", async () => {
-      const client = createFakeWebPageClient({
-        pages: {
-          [`${SITE}/start/`]: buildOkPage(`${SITE}/start/`, buildHtmlPage({
-            links: ["/doc/a", "/blog/post", "/doc/b", "/doc/a#top"],
-            sectionTitles: ["Welcome"],
-          })),
-          [`${SITE}/doc/a`]: buildOkPage(`${SITE}/doc/a`, buildHtmlPage({ links: ["/doc/c", "/doc/d"], sectionTitles: ["Alpha"] })),
-          [`${SITE}/doc/b`]: buildOkPage(`${SITE}/doc/b`, buildHtmlPage({ links: ["/doc/e", "/doc/f"], sectionTitles: ["Bravo"] })),
-          [`${SITE}/doc/c`]: buildOkPage(`${SITE}/doc/c`, buildHtmlPage({ sectionTitles: ["Charlie"] })),
-          [`${SITE}/doc/d`]: buildOkPage(`${SITE}/doc/d`, buildHtmlPage({ sectionTitles: ["Delta"] })),
-        },
-      })
-      const source = buildWebsiteSource({ contentSelector: "main", id: 8, siteUrl: SITE, sitemapUrl: null, startUrl: `${SITE}/start/` })
-      const repo = createFakeRepo({ source })
-
-      const preview = await previewSource({ maxDocuments: 5, sourceId: 8 }, repo, createDeps(createFakeGitHubClient(), client))
-
-      expect(client.fetchPage.mock.calls.map(([url]) => url)).toEqual([
-        `${SITE}/start/`,
-        `${SITE}/doc/a`,
-        `${SITE}/doc/b`,
-        `${SITE}/doc/c`,
-        `${SITE}/doc/d`,
-      ])
-      expect(preview.documents.map(({ path, status }) => ({ path, status }))).toEqual([
-        { path: "/doc/a", status: "extracted" },
-        { path: "/doc/b", status: "extracted" },
-        { path: "/doc/c", status: "extracted" },
-        { path: "/doc/d", status: "extracted" },
-      ])
-      expect(preview.fetchedFrom).toBe(`${SITE}（開始ページ ${SITE}/start/ からリンクをたどる）`)
-      expect(preview.targetDocumentCount).toBe(6)
-      expectNoWrites(repo)
-    })
   })
 
   describe("異常系", () => {
@@ -164,15 +69,13 @@ describe("previewSource", () => {
         .rejects.toThrow("Source not found: id=9")
     })
 
-    it("website で取得先の制限に掛かったら BlockedUrlError をそのまま throw する", async () => {
+    it("サイトのソースは無効でも取得せずに throw する", async () => {
       const githubClient = createFakeGitHubClient()
-      const client = createFakeWebPageClient({ loadRobotsError: new BlockedUrlError("localhost") })
-      const repo = createFakeRepo({ source: buildWebsiteSource({ id: 2, siteUrl: "https://localhost" }) })
+      const repo = createFakeRepo({ source: buildWebsiteSource({ id: 2, isEnabled: false }) })
 
-      await expect(previewSource({ maxDocuments: 5, sourceId: 2 }, repo, createDeps(githubClient, client)))
-        .rejects.toBeInstanceOf(BlockedUrlError)
+      await expect(previewSource({ maxDocuments: 5, sourceId: 2 }, repo, createDeps(githubClient)))
+        .rejects.toThrow("Website sources are not collected: id=2")
       expect(githubClient.getLatestCommitSha).not.toHaveBeenCalled()
-      expect(client.fetchPage).not.toHaveBeenCalled()
     })
   })
 })

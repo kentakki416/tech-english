@@ -1,4 +1,4 @@
-import { buildCollectorUserAgent, WebPageClient } from "@repo/content-extractor"
+import { buildCollectorUserAgent } from "@repo/content-extractor"
 import { logger } from "@repo/logger"
 
 import { GitHubContentClient } from "../client/github"
@@ -20,9 +20,9 @@ import * as service from "../service"
 
 /**
  *
- * admin側で登録した有効なソースから英文を抽出し、問題にできる条件を満たす本文候補（passages, status = collected）を作成する。
+ * admin で登録した有効な GitHub のソースから英文を抽出し、問題にできる条件を満たす本文候補（passages, status = collected）を作成する。
  *
- *   pnpm collect:passages                          # 有効な全ソース
+ *   pnpm collect:passages                          # 有効な GitHub の全ソース
  *   pnpm collect:passages --source-id=3            # 1 ソースだけ
  *   pnpm collect:passages --source-id=3 --dry-run  # 最大 5 件を取得して抽出結果を表示する（DB に書かない）
  *
@@ -40,11 +40,6 @@ runTask("collect-passages", async ({ db }) => {
   }
   const userAgent = buildCollectorUserAgent(env.COLLECT_WEB_CONTACT_URL)
   const deps = {
-    createWebPageClient: (origin: string) => new WebPageClient({
-      allowedOrigin: origin,
-      requestIntervalMs: env.COLLECT_WEB_REQUEST_INTERVAL_MS,
-      userAgent,
-    }),
     githubContentClient: new GitHubContentClient({ token: env.GITHUB_CONTENT_TOKEN, userAgent }),
   }
 
@@ -61,7 +56,6 @@ runTask("collect-passages", async ({ db }) => {
   logger.info("collect-passages started", {
     maxDocumentsPerSource: env.COLLECT_MAX_DOCUMENTS_PER_SOURCE,
     maxPassagesPerRun: env.COLLECT_MAX_PASSAGES_PER_RUN,
-    refetchDays: env.COLLECT_WEB_REFETCH_DAYS,
     sourceId: args.sourceId,
   })
   const result = await service.collection.collectPassages(
@@ -72,7 +66,6 @@ runTask("collect-passages", async ({ db }) => {
       maxDocumentsPerSource: env.COLLECT_MAX_DOCUMENTS_PER_SOURCE,
       maxPassagesPerRun: env.COLLECT_MAX_PASSAGES_PER_RUN,
       now: new Date(),
-      refetchDays: env.COLLECT_WEB_REFETCH_DAYS,
       sourceId: args.sourceId,
     },
     repo,

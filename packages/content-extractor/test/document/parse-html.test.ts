@@ -31,24 +31,6 @@ describe("parseHtml", () => {
       ])
     })
 
-    it("links はページ全体の a[href] を絶対 URL にし、mailto: / javascript: を含まず、重複を除く", () => {
-      const { links } = parseHtml(readFixture("go-doc.html"), {
-        contentSelector: "main article",
-        excludeSelectors: [],
-        url: GO_DOC_URL,
-      })
-
-      expect(links).toEqual([
-        "https://go.example.dev/",
-        "https://go.example.dev/doc/",
-        "https://go.example.dev/doc/tidy#packages",
-        "https://go.example.dev/doc/modules",
-        "https://style.example.org/guide",
-        "https://go.example.dev/blog/tidy",
-        "https://go.example.dev/privacy",
-      ])
-    })
-
     it("article-no-selector.html：セレクタが無ければ Readability で本文だけを取り出し、language-* のコードを lang つきにする", () => {
       const { root, title } = parseHtml(readFixture("article-no-selector.html"), {
         contentSelector: null,
@@ -94,14 +76,13 @@ describe("parseHtml", () => {
     })
 
     it("js-rendered.html：本文が空なら空の mdast になり、script は実行されない", () => {
-      const { links, root, title } = parseHtml(readFixture("js-rendered.html"), {
+      const { root, title } = parseHtml(readFixture("js-rendered.html"), {
         contentSelector: null,
         excludeSelectors: [],
         url: "https://app.example.dev/docs",
       })
 
       expect(title).toBe("Dashboard Docs")
-      expect(links).toEqual([])
       expect(convertMdastToBlocks(root)).toEqual([])
     })
 
@@ -132,15 +113,14 @@ describe("parseHtml", () => {
   })
 
   describe("異常系", () => {
-    it("本文のセレクタに合う要素が無ければ空の mdast になる（links は取れる）", () => {
-      const { links, root } = parseHtml(readFixture("go-doc.html"), {
+    it("本文のセレクタに合う要素が無ければ空の mdast になる", () => {
+      const { root } = parseHtml(readFixture("go-doc.html"), {
         contentSelector: "#does-not-exist",
         excludeSelectors: [],
         url: GO_DOC_URL,
       })
 
       expect(root.children).toEqual([])
-      expect(links.length).toBeGreaterThan(0)
     })
 
     it("不正な本文のセレクタは throw する", () => {

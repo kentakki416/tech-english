@@ -7,6 +7,5 @@ export type {
   FetchPageResult,
   FetchPageSkipReason,
   IWebPageClient,
-  SitemapUrl,
   WebPageClientOptions,
 } from "./web-page-client"

@@ -31,16 +31,6 @@ export const WEB_REQUEST_TIMEOUT_MS = 10_000
 export const MAX_HTML_BYTES = 2 * 1024 * 1024
 
 /**
- * sitemap のサイズの上限（バイト）
- */
-export const MAX_SITEMAP_BYTES = 10 * 1024 * 1024
-
-/**
- * sitemap index から取得する子の sitemap の数の上限
- */
-export const MAX_CHILD_SITEMAPS = 50
-
-/**
  * たどるリダイレクトの回数の上限（同じオリジンの中だけ）
  */
 export const MAX_REDIRECTS = 3

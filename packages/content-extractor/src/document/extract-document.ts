@@ -26,10 +26,6 @@ export type ExtractedDocument = {
    * 文書全体のブロックのハッシュ。source_documents.content_hash に入れる
    */
   contentHash: string
-  /**
-   * HTML のみ。ページ内の a[href] を絶対 URL にしたもの（リンクの発見用）。Markdown は []
-   */
-  links: string[]
   title: string
   wordCount: number
 }
@@ -42,7 +38,7 @@ const parseDocument = (input: ExtractDocumentInput): ReturnType<typeof parseHtml
       url: input.url,
     })
   }
-  return { ...parseMarkdown(input.content, { isMdx: input.format === "mdx" }), links: [] }
+  return parseMarkdown(input.content, { isMdx: input.format === "mdx" })
 }
 
 /**
@@ -52,7 +48,7 @@ const parseDocument = (input: ExtractDocumentInput): ReturnType<typeof parseHtml
  * 壊れた MDX・不正な CSS セレクタは throw するので、呼び出し元が文書単位の失敗として扱う
  */
 export const extractDocument = (input: ExtractDocumentInput): ExtractedDocument => {
-  const { links, root, title: parsedTitle } = parseDocument(input)
+  const { root, title: parsedTitle } = parseDocument(input)
   const title = parsedTitle ?? input.fallbackTitle
   const blocks = convertMdastToBlocks(root)
   const chunks = splitIntoChunks(blocks, title)
@@ -60,7 +56,6 @@ export const extractDocument = (input: ExtractDocumentInput): ExtractedDocument 
     candidates: chunks.filter((chunk) => chunk.rejectReasons.length === 0),
     chunks,
     contentHash: calculateContentHash(blocks),
-    links,
     title,
     wordCount: countEnglishWords(blocks),
   }

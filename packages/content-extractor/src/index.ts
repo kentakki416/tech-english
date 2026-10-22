@@ -4,12 +4,5 @@ export type { ExtractedDocument, PassageChunk } from "./document"
 export { findGlobBaseDirectories, isTargetPath } from "./path-filter"
 export { normalizePageUrl } from "./url"
 export { BlockedUrlError, CrawlDelayTooLongError, WebDeadlineExceededError, WebPageClient, WebSourceThrottledError } from "./web"
-export type { FetchPageResult, IWebPageClient, SitemapUrl } from "./web"
-export {
-  buildPageUrl,
-  extractWebPage,
-  findFetchablePagePath,
-  findStartPagePath,
-  isPassageTargetUrl,
-  selectFetchablePagePaths,
-} from "./website-pages"
+export type { FetchPageResult, IWebPageClient } from "./web"
+export { extractWebPage, isPassageTargetUrl } from "./website-pages"

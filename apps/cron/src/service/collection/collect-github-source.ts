@@ -95,11 +95,8 @@ const collectFile = async (
     blobSha: file.sha,
     commitSha,
     contentHash: extracted?.contentHash ?? null,
-    etag: null,
     extractionVersion: EXTRACTION_VERSION,
     fetchedAt: now,
-    httpStatus: null,
-    lastModified: null,
     title,
   })
   return createdPassageCount

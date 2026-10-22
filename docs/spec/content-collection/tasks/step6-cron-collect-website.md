@@ -1,5 +1,7 @@
 # step6-cron-collect-website
 
+> [github-only-collection](../../github-only-collection/README.md) でサイトの収集をやめた。この手順書は当時の実装の記録として残している
+
 `WebPageClient`（`robots.txt`・間隔・取得先の制限・条件付きリクエスト）と、sitemap とリンクからの URL の発見、`source_documents` を待ち行列にした取得を作り、`collect:passages` で `website` のソースを収集できるようにする。仕様は [README のサイトのクロール](../README.md#サイトのクロール)・[取得先の制限（SSRF 対策）](../README.md#取得先の制限ssrf-対策)・[実行の上限と失敗時の扱い](../README.md#実行の上限と失敗時の扱い)。
 
 ## 前提

@@ -76,7 +76,7 @@ admin で URL を 1 つ入れると、そのページを取得して本文を抽
 - ページはソースの文書（`source_documents`）として記録し、本文候補の出典は収集と同じ形（ソースのサイト + パス、取得日）で出す
 - 本文候補の条件・切り分け・抽出の版は収集と同じ（[content-collection](../content-collection/README.md#本文候補の条件)）
 - 収集で取得済みのページを取り込んだときは、切り分け直したときと同じにする。同じ見出しの問題がある塊は作らず、その文書の未生成の本文候補のうち新しい切り分けに無いものは却下する（[passage-extraction-tuning](../passage-extraction-tuning/README.md#前の切り分けで作った本文候補)）
-- 取り込んだページは、収集でも取得済みとして扱う（次の取り直しは `COLLECT_WEB_REFETCH_DAYS` 日後）
+- cron の収集はサイトを取りに行かない（[github-only-collection](../github-only-collection/README.md)）。取り込んだページを新しくしたいときは、もう一度 URL から追加で取り込む
 
 ### 問題の生成
 
