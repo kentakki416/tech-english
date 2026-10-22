@@ -516,9 +516,9 @@ erDiagram
         text fetch_type "github_repository / website"
         jsonb include_globs "string[]"
         jsonb exclude_globs "string[]"
-        text license_spdx "ALLOWED_LICENSES"
+        text license_spdx "ALLOWED_LICENSES、website は LicenseRef-personal-use も"
         text license_url
-        boolean is_enabled
+        boolean is_enabled "website は常に false"
         timestamp last_collected_at "nullable"
         text repository "GitHub のみ。owner/name"
         text branch "GitHub のみ"

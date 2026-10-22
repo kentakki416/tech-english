@@ -9,9 +9,9 @@ export type DetectedLicense = {
    */
   licenseSpdx: string | null
   /**
-   * ライセンスのファイルの URL（https://github.com/{owner}/{repo}/blob/{default branch}/{path}）
+   * ライセンスのファイルの URL（https://github.com/{owner}/{repo}/blob/{default branch}/{path}）。GitHub が返さなければ null
    */
-  licenseUrl: string
+  licenseUrl: string | null
 }
 
 /**
@@ -37,7 +37,7 @@ const REQUEST_TIMEOUT_MS = 10_000
  * 外部 API のレスポンスは無検証キャストせず Zod で検証する（利用しないフィールドは無視）
  */
 const githubLicenseResponseSchema = z.object({
-  html_url: z.string(),
+  html_url: z.string().nullable(),
   license: z.object({ spdx_id: z.string().nullable() }).nullable(),
 })
 

@@ -193,6 +193,16 @@ describe("updateSource", () => {
       expect(tagRepository.findByIds).not.toHaveBeenCalled()
       expect(sourceRepository.update).toHaveBeenCalledWith(1, input, expect.any(Object))
     })
+
+    it("production の設定でも github は update できる", async () => {
+      const existing = buildGitHubSource({ id: 1 })
+      sourceRepository.findById.mockResolvedValue(existing)
+      sourceRepository.update.mockResolvedValue({ kind: "saved", source: existing })
+
+      const result = await updateSource(1, buildGitHubInput(), { sourceRepository, tagRepository }, PRODUCTION_POLICY)
+
+      expect(result.ok).toBe(true)
+    })
   })
 
   describe("異常系", () => {
@@ -206,16 +216,6 @@ describe("updateSource", () => {
       }
       expect(sourceRepository.findById).not.toHaveBeenCalled()
       expect(sourceRepository.update).not.toHaveBeenCalled()
-    })
-
-    it("production の設定でも github は update できる", async () => {
-      const existing = buildGitHubSource({ id: 1 })
-      sourceRepository.findById.mockResolvedValue(existing)
-      sourceRepository.update.mockResolvedValue({ kind: "saved", source: existing })
-
-      const result = await updateSource(1, buildGitHubInput(), { sourceRepository, tagRepository }, PRODUCTION_POLICY)
-
-      expect(result.ok).toBe(true)
     })
 
     it("存在しない id なら 404 NOT_FOUND を返し、update を呼ばない", async () => {

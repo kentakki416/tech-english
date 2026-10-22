@@ -10,7 +10,7 @@ export const SOURCE_KINDS = ["docs", "github"] as const
  * ソースの取得方法
  *
  * - github_repository: GitHub リポジトリの Markdown
- * - website: 公式ドキュメントのサイト（HTML）のクロール
+ * - website: サイトのページ（ローカルの URL から追加だけが使う。収集はしない）
  */
 export const SOURCE_FETCH_TYPES = ["github_repository", "website"] as const
 
