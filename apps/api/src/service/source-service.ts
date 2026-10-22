@@ -4,13 +4,17 @@ import {
   PASSAGE_STATUSES,
   type PassageStatus,
   type Source,
+  SOURCE_COLLECTION_RUN_TIMEOUT_MINUTES,
+  type SourceCollectionRun,
 } from "@repo/domain"
 import { badRequestError, conflictError, err, notFoundError, ok, Result } from "@repo/errors"
 import { logger } from "@repo/logger"
+import { buildCollectSourceJobId, type CollectSourceJobData, type JobQueue } from "@repo/queue"
 
 import type { IGitHubLicenseClient } from "../client/github-license"
 import {
   PassageCountRow,
+  SourceCollectionRunRepository,
   SourceInput,
   SourceRepository,
   SourceWithTags,
@@ -18,6 +22,11 @@ import {
 } from "../repository"
 
 type SourceRepo = { sourceRepository: SourceRepository }
+
+/**
+ * 収集の実行の記録も読み書きする Repository（詳細・今すぐ収集の依頼）
+ */
+type SourceCollectionRepo = SourceRepo & { sourceCollectionRunRepository: SourceCollectionRunRepository }
 
 /**
  * 登録・更新で使う Repository。タグは存在の確認にだけ使う
@@ -31,6 +40,19 @@ const DUPLICATE_SOURCE_MESSAGE = "Source already registered"
 const WEBSITE_SOURCE_UNAVAILABLE_MESSAGE = "Website sources are only available locally"
 
 const TAG_NOT_FOUND_MESSAGE = "Tag not found"
+
+const WEBSITE_SOURCE_NOT_COLLECTED_MESSAGE = "Website sources are not collected"
+
+const DISABLED_SOURCE_NOT_COLLECTED_MESSAGE = "Disabled sources are not collected"
+
+const SOURCE_COLLECTION_RUNNING_MESSAGE = "Source collection is already running"
+
+/**
+ * failed にした記録の理由。admin がそのまま出すので日本語にする
+ */
+const SOURCE_COLLECTION_TIMED_OUT_ERROR = `${SOURCE_COLLECTION_RUN_TIMEOUT_MINUTES} 分を過ぎても終わらなかった`
+
+const SOURCE_COLLECTION_ENQUEUE_FAILED_ERROR = "収集を始められなかった（Queue に積めなかった）"
 
 /**
  * 存在しないタグの id の詳細の code（既存の details の code と同じく `{対象}_not_found` の snake_case）
@@ -135,19 +157,38 @@ export const getSources = async (
 }
 
 /**
- * ソース詳細（状態別の本文候補件数つき）
+ * 収集中のまま時間切れ（SOURCE_COLLECTION_RUN_TIMEOUT_MINUTES）を過ぎた記録を failed にする。
+ * worker が止まって記録が収集中のまま残っても、次に詳細を読む・依頼するときに片付けて、もう一度依頼できるようにする
+ */
+const failTimedOutCollectionRuns = async (sourceId: number, now: Date, repo: SourceCollectionRepo): Promise<void> => {
+  const count = await repo.sourceCollectionRunRepository.failTimedOut({
+    error: SOURCE_COLLECTION_TIMED_OUT_ERROR,
+    now,
+    sourceId,
+    startedBefore: new Date(now.getTime() - SOURCE_COLLECTION_RUN_TIMEOUT_MINUTES * 60_000),
+  })
+  if (count > 0) logger.warn("SourceService: Timed out source collection runs were failed", { count, sourceId })
+}
+
+/**
+ * ソース詳細（状態別の本文候補件数と、最後の収集の記録つき）
  */
 export const getSourceById = async (
   id: number,
-  repo: SourceRepo,
-): Promise<Result<{ passageCounts: PassageCounts; source: SourceWithTags }>> => {
+  repo: SourceCollectionRepo,
+  deps: { now: Date },
+): Promise<Result<{ latestCollectionRun: SourceCollectionRun | null; passageCounts: PassageCounts; source: SourceWithTags }>> => {
   const source = await repo.sourceRepository.findById(id)
   if (!source) {
     logger.debug("SourceService: Source not found", { id })
     return err(notFoundError("Source not found"))
   }
-  const passageCountRows = await repo.sourceRepository.countPassagesBySource(id)
-  return ok({ passageCounts: buildPassageCounts(passageCountRows, id), source })
+  await failTimedOutCollectionRuns(id, deps.now, repo)
+  const [passageCountRows, latestCollectionRun] = await Promise.all([
+    repo.sourceRepository.countPassagesBySource(id),
+    repo.sourceCollectionRunRepository.findLatestBySourceId(id),
+  ])
+  return ok({ latestCollectionRun, passageCounts: buildPassageCounts(passageCountRows, id), source })
 }
 
 /**
@@ -273,4 +314,51 @@ export const detectRepositoryLicense = async (
     licenseSpdx,
     licenseUrl: detected?.licenseUrl ?? null,
   })
+}
+
+/**
+ * 今すぐ収集を依頼する。queued の記録を作ってから Queue に積み、worker が収集する。
+ * 有効な GitHub のソースだけを受け付け、同じソースの収集中に依頼されたら 409（部分 unique index で判定する）
+ */
+export const requestSourceCollection = async (
+  sourceId: number,
+  repo: SourceCollectionRepo,
+  deps: { collectSourceQueue: JobQueue<CollectSourceJobData>; now: Date },
+): Promise<Result<SourceCollectionRun>> => {
+  const source = await repo.sourceRepository.findById(sourceId)
+  if (!source) {
+    logger.debug("SourceService: Source not found", { sourceId })
+    return err(notFoundError("Source not found"))
+  }
+  if (source.fetchType === "website") {
+    logger.debug("SourceService: Website source is not collected", { sourceId })
+    return err(badRequestError(WEBSITE_SOURCE_NOT_COLLECTED_MESSAGE))
+  }
+  if (!source.isEnabled) {
+    logger.debug("SourceService: Disabled source is not collected", { sourceId })
+    return err(badRequestError(DISABLED_SOURCE_NOT_COLLECTED_MESSAGE))
+  }
+
+  await failTimedOutCollectionRuns(sourceId, deps.now, repo)
+  const created = await repo.sourceCollectionRunRepository.create(sourceId)
+  if (created.kind === "active_exists") {
+    logger.debug("SourceService: Source collection is already running", { sourceId })
+    return err(conflictError(SOURCE_COLLECTION_RUNNING_MESSAGE))
+  }
+
+  /**
+   * 積めなかった記録を queued のまま残すと、時間切れまで同じソースを依頼できなくなるので、failed にしてから throw し直す
+   */
+  try {
+    await deps.collectSourceQueue.enqueue({ runId: created.run.id }, { jobId: buildCollectSourceJobId(created.run.id) })
+  } catch (error) {
+    await repo.sourceCollectionRunRepository.markFailed({
+      error: SOURCE_COLLECTION_ENQUEUE_FAILED_ERROR,
+      id: created.run.id,
+      now: deps.now,
+    })
+    throw error
+  }
+  logger.info("SourceService: Source collection requested", { runId: created.run.id, sourceId })
+  return ok(created.run)
 }

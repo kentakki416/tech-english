@@ -1,4 +1,5 @@
-import type { CreateSourceRequest, SourceResponse, UpdateSourceRequest } from "@repo/api-schema"
+import type { CreateSourceRequest, SourceCollectionRunResponse, SourceResponse, UpdateSourceRequest } from "@repo/api-schema"
+import type { SourceCollectionRun } from "@repo/domain"
 
 import type { SourceInput, SourceWithTags } from "../../../repository"
 import { convertTagToResponse } from "../tag/tag-mapper"
@@ -78,3 +79,17 @@ export const convertSourceToResponse = (source: SourceWithTags): SourceResponse 
     site_url: source.siteUrl,
   }
 }
+
+/**
+ * 収集の実行の記録（domain）→ レスポンス（snake_case）
+ */
+export const convertSourceCollectionRunToResponse = (run: SourceCollectionRun): SourceCollectionRunResponse => ({
+  id: run.id,
+  created_passage_count: run.createdPassageCount,
+  error: run.error,
+  fetched_document_count: run.fetchedDocumentCount,
+  finished_at: run.finishedAt?.toISOString() ?? null,
+  started_at: run.startedAt?.toISOString() ?? null,
+  status: run.status,
+  created_at: run.createdAt.toISOString(),
+})

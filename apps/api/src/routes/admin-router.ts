@@ -17,6 +17,7 @@ import { AdminPassageRestoreController } from "../controller/admin/passage/resto
 import { AdminPassageRetryAudioController } from "../controller/admin/passage/retry-audio"
 import { AdminPassageUnpublishController } from "../controller/admin/passage/unpublish"
 import { AdminPassageUpdateController } from "../controller/admin/passage/update"
+import { AdminSourceCollectController } from "../controller/admin/source/collect"
 import { AdminSourceCreateController } from "../controller/admin/source/create"
 import { AdminSourceDetailController } from "../controller/admin/source/detail"
 import { AdminSourceDetectLicenseController } from "../controller/admin/source/detect-license"
@@ -48,6 +49,7 @@ type AdminRouterControllers = {
     refresh?: AdminAuthRefreshController
   }
   source?: {
+    collect?: AdminSourceCollectController
     create?: AdminSourceCreateController
     detail?: AdminSourceDetailController
     detectLicense?: AdminSourceDetectLicenseController
@@ -186,6 +188,14 @@ export const adminRouter = (controllers: AdminRouterControllers): Router => {
   if (source.update) {
     const controller = source.update
     router.put("/source/:id", async (req, res) => controller.execute(req, res))
+  }
+
+  /**
+   * POST /api/admin/source/:id/collection-runs（SOURCE_COLLECTION_TYPE=none なら Controller が無く、ルートを登録しない）
+   */
+  if (source.collect) {
+    const controller = source.collect
+    router.post("/source/:id/collection-runs", async (req, res) => controller.execute(req, res))
   }
 
   const passage = controllers.passage ?? {}

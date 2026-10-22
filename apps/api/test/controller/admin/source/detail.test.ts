@@ -1,6 +1,9 @@
 import request from "supertest"
 
+import { eq, sourceCollectionRuns } from "@repo/db"
+
 import { AdminSourceDetailController } from "../../../../src/controller/admin/source/detail"
+import { DrizzleSourceCollectionRunRepository } from "../../../../src/repository/drizzle/source-collection-run-repository"
 import { DrizzleSourceRepository } from "../../../../src/repository/drizzle/source-repository"
 import { adminRouter, mountAdminApi } from "../../../../src/routes/admin-router"
 import { insertSourceTags } from "../../../fixture/source-tag"
@@ -10,11 +13,12 @@ import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb } from "
 import { insertGitHubSource, insertPassages, insertSourceDocument, insertWebsiteSource } from "./fixtures"
 
 const sourceRepository = new DrizzleSourceRepository(testDb)
+const sourceCollectionRunRepository = new DrizzleSourceCollectionRunRepository(testDb)
 
 const app = createTestApp()
 
 mountAdminApi(app, adminRouter({
-  source: { detail: new AdminSourceDetailController(sourceRepository) },
+  source: { detail: new AdminSourceDetailController(sourceRepository, sourceCollectionRunRepository) },
 }))
 attachUnhandledExceptionHandler(app)
 
@@ -46,6 +50,7 @@ describe("GET /api/admin/source/:id", () => {
 
       expect(res.status).toBe(200)
       expect(res.body).toEqual({
+        latest_collection_run: null,
         passage_counts: { collected: 0, draft: 2, failed: 1, generating: 0, published: 0, rejected: 0 },
         source: {
           id: github.id,
@@ -82,6 +87,7 @@ describe("GET /api/admin/source/:id", () => {
 
       expect(res.status).toBe(200)
       expect(res.body).toEqual({
+        latest_collection_run: null,
         passage_counts: { collected: 0, draft: 0, failed: 0, generating: 0, published: 0, rejected: 0 },
         source: {
           id: website.id,
@@ -102,6 +108,55 @@ describe("GET /api/admin/source/:id", () => {
           updated_at: expect.any(String),
         },
       })
+    })
+
+    it("最後の収集の記録（最新の 1 件）を返す", async () => {
+      const github = await insertGitHubSource()
+      await testDb.insert(sourceCollectionRuns).values({ sourceId: github.id, status: "failed" })
+      const [latest] = await testDb
+        .insert(sourceCollectionRuns)
+        .values({
+          createdPassageCount: 12,
+          fetchedDocumentCount: 5,
+          finishedAt: new Date("2026-10-22T03:05:00.000Z"),
+          sourceId: github.id,
+          startedAt: new Date("2026-10-22T03:01:00.000Z"),
+          status: "completed",
+        })
+        .returning()
+
+      const res = await request(app)
+        .get(`/api/admin/source/${github.id}`)
+        .set("Authorization", `Bearer ${adminToken}`)
+
+      expect(res.status).toBe(200)
+      expect(res.body.latest_collection_run).toEqual({
+        id: latest.id,
+        created_passage_count: 12,
+        error: null,
+        fetched_document_count: 5,
+        finished_at: "2026-10-22T03:05:00.000Z",
+        started_at: "2026-10-22T03:01:00.000Z",
+        status: "completed",
+        created_at: expect.any(String),
+      })
+    })
+
+    it("30 分より前から running のままの記録は failed にしてから返す", async () => {
+      const github = await insertGitHubSource()
+      const [run] = await testDb
+        .insert(sourceCollectionRuns)
+        .values({ sourceId: github.id, startedAt: new Date(Date.now() - 31 * 60_000), status: "running" })
+        .returning()
+
+      const res = await request(app)
+        .get(`/api/admin/source/${github.id}`)
+        .set("Authorization", `Bearer ${adminToken}`)
+
+      expect(res.status).toBe(200)
+      expect(res.body.latest_collection_run).toMatchObject({ error: expect.any(String), id: run.id, status: "failed" })
+      const [row] = await testDb.select().from(sourceCollectionRuns).where(eq(sourceCollectionRuns.id, run.id))
+      expect(row).toMatchObject({ finishedAt: expect.any(Date), status: "failed" })
     })
   })
 

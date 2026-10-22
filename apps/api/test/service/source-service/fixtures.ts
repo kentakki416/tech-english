@@ -1,6 +1,8 @@
-import type { Tag } from "@repo/domain"
+import type { SourceCollectionRun, Tag } from "@repo/domain"
+import type { CollectSourceJobData, JobQueue } from "@repo/queue"
 
 import type {
+  SourceCollectionRunRepository,
   SourceInput,
   SourceRepository,
   SourceWithTags,
@@ -24,6 +26,32 @@ export const createMockSourceRepository = () => ({
   findBySiteUrl: vi.fn<SourceRepository["findBySiteUrl"]>(),
   hasSourceDocuments: vi.fn<SourceRepository["hasSourceDocuments"]>(),
   update: vi.fn<SourceRepository["update"]>(),
+})
+
+export const createMockSourceCollectionRunRepository = () => ({
+  create: vi.fn<SourceCollectionRunRepository["create"]>(),
+  failTimedOut: vi.fn<SourceCollectionRunRepository["failTimedOut"]>(),
+  findLatestBySourceId: vi.fn<SourceCollectionRunRepository["findLatestBySourceId"]>(),
+  markFailed: vi.fn<SourceCollectionRunRepository["markFailed"]>(),
+})
+
+export const createMockCollectSourceQueue = () => ({
+  close: vi.fn<JobQueue<CollectSourceJobData>["close"]>(),
+  enqueue: vi.fn<JobQueue<CollectSourceJobData>["enqueue"]>(),
+})
+
+export const buildSourceCollectionRun = (overrides: Partial<SourceCollectionRun> = {}): SourceCollectionRun => ({
+  id: 10,
+  createdPassageCount: null,
+  error: null,
+  fetchedDocumentCount: null,
+  finishedAt: null,
+  sourceId: 1,
+  startedAt: null,
+  status: "queued",
+  createdAt: new Date("2026-10-22T03:00:00.000Z"),
+  updatedAt: new Date("2026-10-22T03:00:00.000Z"),
+  ...overrides,
 })
 
 /**

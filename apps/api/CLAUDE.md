@@ -85,6 +85,7 @@ admin（`apps/admin`）のサーバー側だけが呼ぶ API。一般ユーザ�
 - admin の refresh / logout は一般ユーザーの `service.auth.refreshTokens` / `service.auth.logout` に admin 用の Repository・検証関数・発行関数を渡す。`refreshTokens` は持ち主を `tokenOwnerRepository` で確かめるので、admin は `adminRepository` を渡す（`admins` から消された admin の refresh token は 401）
 - ユーザー管理（`/api/admin/user/*`）はマイページの Service を使い回す。マイページの Service はユーザーが居ないと 401 を返すので、admin の Service（`admin-user-service.ts`）が先に存在を確かめて 404 にする
 - **ソースの登録・更新**（[github-only-collection](../../docs/spec/github-only-collection/README.md)）：GitHub の `license_url` はそのリポジトリのファイルの URL でなければ 400（api-schema の `validateSourceInput`）。サイトのソースはローカルでだけ受け付け（`SourceWritePolicy` を `src/index.ts` が `NODE_ENV` から作って Controller に渡す）、常に無効で保存する
+- **今すぐ収集**（[manual-collection](../../docs/spec/manual-collection/README.md)）：`POST /api/admin/source/:id/collection-runs` は収集の実行の記録（`source_collection_runs`）を `queued` で作ってから `collect-source` の Queue に積み、202 を返す（収集は worker）。同じソースの収集中は部分 unique index の違反で 409。30 分を過ぎても収集中のままの記録は、詳細を読む・依頼するときに `failed` にする。worker の無い環境は `SOURCE_COLLECTION_TYPE=none` で Controller を作らない（404）
 - スキーマは `@repo/api-schema` の `admin/` に集約。既存と同一なら re-export し、Admin 固有のレスポンスが必要になった時点で新規定義する
 - **admin の登録**: `pnpm --filter @repo/db admin:create --email <email>`。dev / min / prd は GitHub Actions の「Admin Create」（`docs/deploy/prd.md`）。ローカルは seed で `admin@dev.local` が入り、`POST /api/admin/auth/dev-login` でログインできる（dev-login は `@dev.local` の admin しか受け付けない）
 

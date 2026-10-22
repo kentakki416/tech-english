@@ -7,7 +7,7 @@ import helmet from "helmet"
 import { createDrizzleClient } from "@repo/db"
 import { type EventTracker, NoopEventTracker, QueueEventTracker } from "@repo/events"
 import { logger } from "@repo/logger"
-import { BullMQJobQueue, TRACK_EVENT_QUEUE_NAME } from "@repo/queue"
+import { BullMQJobQueue, COLLECT_SOURCE_QUEUE_NAME, type CollectSourceJobData, TRACK_EVENT_QUEUE_NAME } from "@repo/queue"
 import { createRedisClient } from "@repo/redis"
 
 import { GitHubLicenseClient } from "./client/github-license"
@@ -30,6 +30,7 @@ import { AdminPassageRestoreController } from "./controller/admin/passage/restor
 import { AdminPassageRetryAudioController } from "./controller/admin/passage/retry-audio"
 import { AdminPassageUnpublishController } from "./controller/admin/passage/unpublish"
 import { AdminPassageUpdateController } from "./controller/admin/passage/update"
+import { AdminSourceCollectController } from "./controller/admin/source/collect"
 import { AdminSourceCreateController } from "./controller/admin/source/create"
 import { AdminSourceDetailController } from "./controller/admin/source/detail"
 import { AdminSourceDetectLicenseController } from "./controller/admin/source/detect-license"
@@ -101,6 +102,7 @@ import {
   DrizzlePassageRepository,
   DrizzleReadingAttemptRepository,
   DrizzleReminderSettingRepository,
+  DrizzleSourceCollectionRunRepository,
   DrizzleSourceRepository,
   DrizzleTagRepository,
   DrizzleTransactionRunner,
@@ -145,6 +147,7 @@ const authAccountRepository = new DrizzleAuthAccountRepository(db)
 const transactionRunner = new DrizzleTransactionRunner(db)
 const memoRepository = new DrizzleMemoRepository(db)
 const sourceRepository = new DrizzleSourceRepository(db)
+const sourceCollectionRunRepository = new DrizzleSourceCollectionRunRepository(db)
 const tagRepository = new DrizzleTagRepository(db)
 /**
  * reading-practice のユーザー向け API と共有する
@@ -314,10 +317,21 @@ const sourceWritePolicy = { isWebsiteSourceAllowed: isLocalEnvironment }
  * Admin のソース管理 Controller のインスタンス化
  */
 const adminSourceCreateController = new AdminSourceCreateController(sourceRepository, tagRepository, sourceWritePolicy)
-const adminSourceDetailController = new AdminSourceDetailController(sourceRepository)
+const adminSourceDetailController = new AdminSourceDetailController(sourceRepository, sourceCollectionRunRepository)
 const adminSourceDetectLicenseController = new AdminSourceDetectLicenseController(gitHubLicenseClient)
 const adminSourceListController = new AdminSourceListController(sourceRepository)
 const adminSourceUpdateController = new AdminSourceUpdateController(sourceRepository, tagRepository, sourceWritePolicy)
+
+/**
+ * 今すぐ収集は worker が収集するので、worker を動かさない環境（SOURCE_COLLECTION_TYPE=none）では Controller を作らない（ルートが無く 404）
+ */
+const adminSourceCollectController = env.SOURCE_COLLECTION_TYPE === "queue"
+  ? new AdminSourceCollectController(
+    sourceRepository,
+    sourceCollectionRunRepository,
+    new BullMQJobQueue<CollectSourceJobData>(redis, COLLECT_SOURCE_QUEUE_NAME),
+  )
+  : undefined
 
 /**
  * Admin の問題の確認・公開 Controller のインスタンス化
@@ -494,6 +508,7 @@ mountAdminApi(
       refresh: adminAuthRefreshController,
     },
     source: {
+      collect: adminSourceCollectController,
       create: adminSourceCreateController,
       detail: adminSourceDetailController,
       detectLicense: adminSourceDetectLicenseController,
