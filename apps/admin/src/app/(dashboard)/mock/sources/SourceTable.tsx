@@ -86,9 +86,6 @@ const FILTERS: FilterConfig<SourceRow>[] = [
   },
 ]
 
-/**
- * サイトのソースは収集しない（常に無効）ので、有効・無効ではなく「収集しない」と出す
- */
 const buildStatusLabel = (source: AdminSource): string => {
   if (source.fetchType === "website") return "収集しない"
   return source.isEnabled ? "有効" : "無効"
