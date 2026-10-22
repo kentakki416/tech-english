@@ -117,7 +117,7 @@
 
 ### 収集（cron）
 
-- Repository の `findEnabled` を、SQL で GitHub のソースだけに絞る。戻り値も `GitHubRepositorySource[]` にして、以降の処理から取得方法の分岐をなくす
+- Repository の `findEnabledGitHubSources` を、SQL で GitHub のソースだけに絞る。戻り値も `GitHubRepositorySource[]` にして、以降の処理から取得方法の分岐をなくす
 - `--source-id` で指定したソースがサイトなら throw する（タスクは exit 1）。無効のソースと同じ扱い
 - 消すもの：`collectWebsiteSource`・試し実行のサイトの分岐・`createWebPageClient` の DI・サイトだけの終わり方（`throttled`・`crawl_delay_too_long`）・Repository のクロールのメソッド・env の `COLLECT_WEB_REQUEST_INTERVAL_MS` と `COLLECT_WEB_REFETCH_DAYS`
 - `COLLECT_WEB_CONTACT_URL` は GitHub API の User-Agent にも使うので残す（名前は変えない。api の URL から追加も同じ名前の env を読む）

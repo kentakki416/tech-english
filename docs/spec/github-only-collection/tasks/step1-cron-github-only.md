@@ -17,7 +17,7 @@ cron の `collect:passages` を GitHub のソースだけにし、サイトの�
 | `apps/cron/src/const/collection.ts` | `MAX_CONSECUTIVE_NETWORK_ERRORS`・`COLLECT_RUN_INTERVAL_MS`・`GONE_HTTP_STATUSES` を消す |
 | `apps/cron/src/env.ts` | `COLLECT_WEB_REQUEST_INTERVAL_MS`・`COLLECT_WEB_REFETCH_DAYS` を消す |
 | `apps/cron/src/task/collect-passages.ts` | `WebPageClient` と `refetchDays` を消す |
-| `apps/cron/src/repository/source-repository.ts`・`drizzle/source-repository.ts` | `findEnabled` を GitHub のソースだけにする |
+| `apps/cron/src/repository/source-repository.ts`・`drizzle/source-repository.ts` | `findEnabledGitHubSources` を GitHub のソースだけにする |
 | `apps/cron/src/repository/source-document-repository.ts`・`drizzle/source-document-repository.ts` | `findFetchQueue`・`markResponse`・`upsertDiscovered`・`DiscoveredDocumentInput` を消し、`MarkFetchedInput` から `etag`・`httpStatus`・`lastModified` を外す |
 | `apps/cron/src/service/collection/collect-github-source.ts` | `markFetched` に渡す `etag`・`httpStatus`・`lastModified` を消す。終わり方の `Exclude<SourceCollectionStatus, ...>` から `crawl_delay_too_long`・`throttled` を消す（無い値の `Exclude` でも tsc は通るので気付けない） |
 | `apps/cron/test/**` | 下の「テスト」 |
@@ -33,16 +33,16 @@ cron の `collect:passages` を GitHub のソースだけにし、サイトの�
 
 ### Repository
 
-`findEnabled` は SQL で GitHub のソースだけを取り、戻り値を `GitHubRepositorySource[]` にする。`findById` は今のまま `Source` を返す（`--source-id` にサイトのソースを指定されたことを service が見分けるため）。
+`findEnabledGitHubSources` は SQL で GitHub のソースだけを取り、戻り値を `GitHubRepositorySource[]` にする。`findById` は今のまま `Source` を返す（`--source-id` にサイトのソースを指定されたことを service が見分けるため）。
 
 ```ts
-  findEnabled(): Promise<GitHubRepositorySource[]>
+  findEnabledGitHubSources(): Promise<GitHubRepositorySource[]>
 ```
 
 - interface の JSDoc：「is_enabled = true の GitHub のソースを last_collected_at の古い順（未収集が先）で返す。サイトのソースは収集しないので返さない」
 
 ```ts
-  public async findEnabled(): Promise<GitHubRepositorySource[]> {
+  public async findEnabledGitHubSources(): Promise<GitHubRepositorySource[]> {
     const rows = await this._db
       .select()
       .from(sources)
@@ -93,7 +93,7 @@ export type CollectPassagesInput = {
 }
 
 const findTargetSources = async (sourceId: number | null, repo: CollectionRepo): Promise<GitHubRepositorySource[]> => {
-  if (sourceId === null) return repo.sourceRepository.findEnabled()
+  if (sourceId === null) return repo.sourceRepository.findEnabledGitHubSources()
   const source = await repo.sourceRepository.findById(sourceId)
   if (!source) throw new Error(`Source not found: id=${sourceId}`)
   if (source.fetchType === "website") throw new Error(`Website sources are not collected: id=${sourceId}`)
@@ -192,7 +192,7 @@ cron のサイトの収集でしか使っていなかったものを消す。api
 | `test/service/collection/preview-source.test.ts` | サイトのテストを消し、「サイトのソースは throw する」を足す |
 | `test/service/collection/helpers.ts` | `buildHtmlPage`・`buildOkPage`・`createFakeWebPageClient`・クロールの Repository の偽物・`createDeps` の webPageClient を消す。`buildWebsiteSource` は上の 2 つの throw のテストで使うので残す |
 | `test/repository/drizzle/source-document-repository.test.ts` | `findFetchQueue`・`upsertDiscovered`・`markResponse` のテストを消し、`markFetched` の期待値から 3 つの列を外す |
-| `test/repository/drizzle/source-repository.test.ts` | `findEnabled` の `where` の期待値を `and(eq(sources.isEnabled, true), eq(sources.fetchType, "github_repository"))` にする |
+| `test/repository/drizzle/source-repository.test.ts` | `findEnabledGitHubSources` の `where` の期待値を `and(eq(sources.isEnabled, true), eq(sources.fetchType, "github_repository"))` にする |
 | `test/lib/format-dry-run.test.ts` | `not_fetched` のテストを消す |
 | `test/service/collection/collect-github-source.test.ts` | `markFetched` の期待値から 3 つの列を外す |
 
@@ -236,7 +236,7 @@ pnpm --filter api exec tsc --noEmit
 pnpm lint:fix
 ```
 
-- [ ] `rg -n "website|WebPageClient|sitemap|COLLECT_WEB_RE" apps/cron/src` で、サイトのソースを throw するところ（`collect-passages.ts`・`preview-source.ts`）・`findEnabled` の型の絞り込み・Repository の `_toDomain`（`source-repository.ts` のサイトの分岐と `source-document-repository.ts` の `sitemapLastmod`。列と一緒に step5 で消す）以外に出ない
+- [ ] `rg -n "website|WebPageClient|sitemap|COLLECT_WEB_RE" apps/cron/src` で、サイトのソースを throw するところ（`collect-passages.ts`・`preview-source.ts`）・`findEnabledGitHubSources` の型の絞り込み・Repository の `_toDomain`（`source-repository.ts` のサイトの分岐と `source-document-repository.ts` の `sitemapLastmod`。列と一緒に step5 で消す）以外に出ない
 - [ ] ローカルで GitHub のソースの収集が今までどおり動く
 
 ```bash
