@@ -13,6 +13,7 @@ import {
 import { TagPicker } from "@/components/features/source/TagPicker"
 import Badge from "@/components/ui/badge/Badge"
 import { formatDateTime } from "@/libs/date"
+import { isLocalEnvironment } from "@/libs/environment"
 import {
   cardBodyClass,
   cardClass,
@@ -42,10 +43,17 @@ type LicenseDetection =
 
 const FETCH_TYPE_OPTIONS: { description: string, key: FetchType, label: string }[] = [
   { description: "README・RFC・docs ディレクトリ、GitHub に Markdown のソースがある公式ドキュメント", key: "github_repository", label: "GitHub リポジトリ" },
-  { description: "GitHub にソースが無い公式ドキュメントのサイトを直接クロールする", key: "website", label: "公式ドキュメントのサイト" },
+  { description: "ローカルだけ。URL から追加でページを取り込むためのサイト（収集はしない）", key: "website", label: "サイト（URL から追加）" },
 ]
 
-const LICENSE_NOTE = "ドキュメントのライセンスが別のファイルで定められていることがあります（例：react.dev はコードが MIT、ドキュメントが CC-BY-4.0）。下のライセンス欄で、ドキュメントに適用されるものを選んでください。"
+/**
+ * サイトのソースはローカルでだけ登録できる
+ */
+const AVAILABLE_FETCH_TYPE_OPTIONS = FETCH_TYPE_OPTIONS.filter((option) => isLocalEnvironment || option.key !== "website")
+
+const LICENSE_NOTE = "コードとドキュメントでライセンスが分かれているリポジトリでは、GitHub の検出はコードのライセンスのことがあります。ドキュメントの文章に掛かっているライセンスと、それが書かれたリポジトリの中のファイルを選んでください。"
+
+const PERSONAL_USE_LICENSE_LABEL = "個人の学習用（ライセンスなし）"
 
 const errorHintClass = "mt-1.5 text-xs text-error-500"
 
@@ -104,17 +112,21 @@ function LicenseDetectionMessage({ detection }: { detection: LicenseDetection })
   if (detection.status === "failed") return <p className={errorHintClass}>{detection.message}</p>
   if (detection.status !== "detected") return null
 
-  const { is_allowed: isAllowed, license_spdx: licenseSpdx } = detection.result
+  const { is_allowed: isAllowed, license_spdx: licenseSpdx, license_url: licenseUrl } = detection.result
+  const licenseFileName = licenseUrl?.split("/").at(-1) ?? null
   return (
     <p className="mt-2 rounded-lg bg-gray-50 px-3 py-2 text-theme-xs text-gray-600 dark:bg-white/5 dark:text-gray-300">
       {licenseSpdx === null ? (
-        <span className="font-medium">ライセンスを検出できませんでした</span>
+        <span className="font-medium">
+          {licenseFileName === null ? "ライセンスのファイルが見つかりませんでした" : "ライセンスの種類を判定できませんでした"}
+        </span>
       ) : (
         <>
           GitHub が検出したライセンス：<span className="font-medium">{licenseSpdx}</span>
           {!isAllowed && <span className="font-medium text-error-600 dark:text-error-500">（許可リストにないため登録できません）</span>}
         </>
       )}
+      {licenseFileName !== null && <>（ライセンスのファイル：<span className="font-mono">{licenseFileName}</span>）</>}
       。{LICENSE_NOTE}
     </p>
   )
@@ -123,16 +135,18 @@ function LicenseDetectionMessage({ detection }: { detection: LicenseDetection })
 /**
  * ソースの登録・編集フォーム。detail が null なら登録、あれば編集（取得方法は変更不可）
  *
- * allowedLicenses はライセンス欄の選択肢（@repo/api-schema の許可リスト）。
+ * allowedLicenses はライセンス欄の選択肢（@repo/api-schema の許可リスト）、personalUseLicense はサイトのソースだけが選べる個人の学習用の値。
  * Client Component で Zod のスキーマを import すると bundle に入るため、Server Component から渡す
  */
 export function SourceForm({
   allowedLicenses,
   detail,
+  personalUseLicense,
   tags,
 }: {
   allowedLicenses: readonly string[]
   detail: GetSourceResponse | null
+  personalUseLicense: string
   tags: GetTagListResponse["tags"]
 }) {
   const source = detail?.source ?? null
@@ -147,10 +161,11 @@ export function SourceForm({
   const [discovery, setDiscovery] = useState<Discovery>(websiteSource?.sitemap_url ? "sitemap" : "start")
   const [licenseDetection, setLicenseDetection] = useState<LicenseDetection>({ status: "idle" })
   const [licenseSpdx, setLicenseSpdx] = useState<string>(source?.license_spdx ?? "")
+  const [licenseUrl, setLicenseUrl] = useState<string>(source?.license_url ?? "")
   const [isEnabled, setIsEnabled] = useState(source?.is_enabled ?? true)
   const repositoryRef = useRef<HTMLInputElement>(null)
   const isWebsite = fetchType === "website"
-  const isNewWebsite = !isEdit && isWebsite
+  const licenseOptions = isWebsite ? [...allowedLicenses, personalUseLicense] : allowedLicenses
 
   const getFieldError = (key: string): string | undefined => state.errors?.[key]?.[0]
   const hasFieldErrors = Object.values(state.errors ?? {}).some((messages) => (messages?.length ?? 0) > 0)
@@ -166,7 +181,8 @@ export function SourceForm({
   }
 
   /**
-   * GitHub が検出したライセンスを Route Handler 経由で取る。許可リストにあり、ライセンス欄が未選択ならその値を選ぶ
+   * GitHub が検出したライセンスを Route Handler 経由で取る。許可リストにあり、ライセンス欄が未選択ならその値を選ぶ。
+   * ライセンスのファイルの URL も、URL の欄が空ならその値を入れる
    */
   const detectLicense = async () => {
     const repository = repositoryRef.current?.value.trim() ?? ""
@@ -200,6 +216,10 @@ export function SourceForm({
       if (result.is_allowed && detectedLicense !== null) {
         setLicenseSpdx((current) => (current === "" ? detectedLicense : current))
       }
+      const detectedLicenseUrl = result.license_url
+      if (detectedLicenseUrl !== null) {
+        setLicenseUrl((current) => (current === "" ? detectedLicenseUrl : current))
+      }
     } catch {
       setLicenseDetection({ message: "ライセンスを検出できませんでした。時間をおいて再度お試しください。", status: "failed" })
     }
@@ -209,7 +229,7 @@ export function SourceForm({
     <div className="grid gap-6 xl:grid-cols-3">
       <form className="space-y-6 xl:col-span-2" noValidate onSubmit={handleSubmit}>
         <input name="fetch_type" type="hidden" value={fetchType} />
-        <input name="is_enabled" type="hidden" value={String(isEnabled)} />
+        {!isWebsite && <input name="is_enabled" type="hidden" value={String(isEnabled)} />}
 
         {state.message && (
           <div className="rounded-xl border border-error-500 bg-error-50 p-4 text-sm dark:border-error-500/30 dark:bg-error-500/15" role="alert">
@@ -235,7 +255,7 @@ export function SourceForm({
           </Field>
           <Field hint={isEdit ? "取得方法は登録後に変更できません。" : undefined} label="取得方法">
             <div className="grid gap-3 sm:grid-cols-2">
-              {FETCH_TYPE_OPTIONS.map((option) => (
+              {AVAILABLE_FETCH_TYPE_OPTIONS.map((option) => (
                 <button
                   key={option.key}
                   disabled={isEdit}
@@ -247,7 +267,7 @@ export function SourceForm({
                   } ${isEdit && fetchType !== option.key ? "opacity-40" : ""}`}
                   onClick={() => {
                     setFetchType(option.key)
-                    setIsEnabled(option.key === "github_repository")
+                    if (option.key === "github_repository" && licenseSpdx === personalUseLicense) setLicenseSpdx("")
                   }}
                   type="button"
                 >
@@ -352,12 +372,17 @@ export function SourceForm({
           </Section>
         )}
 
-        <Section desc="許可リストにあるライセンスだけを登録できます。CC-BY-SA・GPL・NonCommercial・ライセンスの記載が無いものは登録できません。" title="ライセンス">
+        <Section
+          desc={isWebsite
+            ? "ライセンスの記載が無いサイトは「個人の学習用」を選びます（ローカルでだけ使えます）。"
+            : "リポジトリの中にライセンスの記載があり、それが文章に掛かっているリポジトリだけを登録できます。許可リストにあるライセンスだけを選べます（CC-BY-SA・GPL・NonCommercial は選べません）。"}
+          title="ライセンス"
+        >
           {isWebsite && (
             <div className="rounded-xl border border-warning-500 bg-warning-50 p-4 text-sm dark:border-warning-500/30 dark:bg-warning-500/15">
-              <p className="font-medium text-gray-800 dark:text-white/90">サイトのライセンスは自動で判定できません</p>
+              <p className="font-medium text-gray-800 dark:text-white/90">サイトのソースはローカルでだけ使います</p>
               <p className="mt-1 text-gray-500 dark:text-gray-400">
-                フッターなどのライセンスの記載、利用規約（クロールと転載が禁止されていないか）、robots.txt を確認してから登録してください。
+                収集はせず、URL から追加で取り込むページのソースになります。ライセンスの記載があればそのライセンスを、無ければ「個人の学習用」を選んでください。
               </p>
             </div>
           )}
@@ -365,37 +390,43 @@ export function SourceForm({
             <Field error={getFieldError("license_spdx")} htmlFor="license" label="ライセンス">
               <select className={selectClass} id="license" name="license_spdx" onChange={(event) => setLicenseSpdx(event.target.value)} value={licenseSpdx}>
                 <option disabled value="">選択してください</option>
-                {allowedLicenses.map((license) => <option key={license} value={license}>{license}</option>)}
+                {licenseOptions.map((license) => (
+                  <option key={license} value={license}>{license === personalUseLicense ? PERSONAL_USE_LICENSE_LABEL : license}</option>
+                ))}
               </select>
             </Field>
-            <Field error={getFieldError("license_url")} hint="出典表示に出します。" htmlFor="license-url" label="ライセンスの記載がある URL">
-              <input className={`${inputClass} font-mono`} defaultValue={source?.license_url} id="license-url" name="license_url" placeholder="https://..." />
+            <Field
+              error={getFieldError("license_url")}
+              hint={isWebsite
+                ? "サイトのライセンス、または著作権・利用規約のページ。出典表示に出します。"
+                : "リポジトリの中のライセンスのファイルの URL（https://github.com/{owner}/{repo}/blob/…）。出典表示に出します。"}
+              htmlFor="license-url"
+              label="ライセンスの記載がある URL"
+            >
+              <input className={`${inputClass} font-mono`} id="license-url" name="license_url" onChange={(event) => setLicenseUrl(event.target.value)} placeholder="https://..." value={licenseUrl} />
             </Field>
           </div>
         </Section>
 
-        <Section title="収集">
-          <div className="flex items-start justify-between gap-6">
-            <div>
-              <p className="text-sm font-medium text-gray-800 dark:text-white/90">このソースを収集する</p>
-              <p className="mt-1 text-theme-xs text-gray-500 dark:text-gray-400">
-                {isNewWebsite
-                  ? "サイトのソースは無効の状態で登録されます。試し実行で本文が正しく取れることを確認してから有効にしてください。"
-                  : "無効にすると次回から収集しません。公開済みの問題は残ります。"}
-              </p>
+        {!isWebsite && (
+          <Section title="収集">
+            <div className="flex items-start justify-between gap-6">
+              <div>
+                <p className="text-sm font-medium text-gray-800 dark:text-white/90">このソースを収集する</p>
+                <p className="mt-1 text-theme-xs text-gray-500 dark:text-gray-400">無効にすると次回から収集しません。公開済みの問題は残ります。</p>
+              </div>
+              <button
+                aria-pressed={isEnabled}
+                className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${isEnabled ? "bg-brand-500" : "bg-gray-200 dark:bg-white/10"}`}
+                onClick={() => setIsEnabled((value) => !value)}
+                type="button"
+              >
+                <span className="sr-only">このソースを収集する</span>
+                <span className={`absolute top-0.5 left-0.5 size-5 rounded-full bg-white shadow-theme-sm transition-transform ${isEnabled ? "translate-x-5" : ""}`} />
+              </button>
             </div>
-            <button
-              disabled={isNewWebsite}
-              aria-pressed={isEnabled}
-              className={`relative h-6 w-11 shrink-0 rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${isEnabled ? "bg-brand-500" : "bg-gray-200 dark:bg-white/10"}`}
-              onClick={() => setIsEnabled((value) => !value)}
-              type="button"
-            >
-              <span className="sr-only">このソースを収集する</span>
-              <span className={`absolute top-0.5 left-0.5 size-5 rounded-full bg-white shadow-theme-sm transition-transform ${isEnabled ? "translate-x-5" : ""}`} />
-            </button>
-          </div>
-        </Section>
+          </Section>
+        )}
 
         <div className="flex flex-wrap items-center justify-end gap-3">
           {hasFieldErrors && <p className="mr-auto text-sm text-error-500" role="alert">入力内容を確認してください。各欄の下に理由を表示しています。</p>}
@@ -412,10 +443,12 @@ export function SourceForm({
                 <h3 className={titleClass}>収集の状況</h3>
               </div>
               <dl className={`${cardBodyClass} space-y-4 text-sm`}>
-                <div className="flex justify-between gap-4">
-                  <dt className="text-gray-500 dark:text-gray-400">最終収集</dt>
-                  <dd className="text-gray-800 dark:text-white/90">{source.last_collected_at ? formatDateTime(source.last_collected_at) : "未収集"}</dd>
-                </div>
+                {githubSource && (
+                  <div className="flex justify-between gap-4">
+                    <dt className="text-gray-500 dark:text-gray-400">最終収集</dt>
+                    <dd className="text-gray-800 dark:text-white/90">{githubSource.last_collected_at ? formatDateTime(githubSource.last_collected_at) : "未収集"}</dd>
+                  </div>
+                )}
                 {githubSource?.last_collected_commit_sha && (
                   <div className="flex justify-between gap-4">
                     <dt className="text-gray-500 dark:text-gray-400">取り込んだコミット</dt>
@@ -452,17 +485,19 @@ export function SourceForm({
                 )}
               </dl>
             </section>
-            <section className={cardClass}>
-              <div className="px-6 py-5">
-                <h3 className={titleClass}>試し実行</h3>
-                <p className={descClass}>DB に書かずに、最大 5 件の文書の抽出結果と切り分けを表示します。サイトの CSS セレクタを調整するときに使います。</p>
-              </div>
-              <div className={cardBodyClass}>
-                <pre className="rounded-lg bg-gray-900 px-4 py-3 font-mono text-theme-xs break-all whitespace-pre-wrap text-gray-100 dark:bg-black/40">
-                  pnpm collect:passages --source-id={source.id} --dry-run
-                </pre>
-              </div>
-            </section>
+            {githubSource && (
+              <section className={cardClass}>
+                <div className="px-6 py-5">
+                  <h3 className={titleClass}>試し実行</h3>
+                  <p className={descClass}>DB に書かずに、最大 5 件の文書の抽出結果と切り分けを表示します。</p>
+                </div>
+                <div className={cardBodyClass}>
+                  <pre className="rounded-lg bg-gray-900 px-4 py-3 font-mono text-theme-xs break-all whitespace-pre-wrap text-gray-100 dark:bg-black/40">
+                    pnpm collect:passages --source-id={githubSource.id} --dry-run
+                  </pre>
+                </div>
+              </section>
+            )}
           </>
         ) : (
           <section className={cardClass}>
@@ -470,12 +505,20 @@ export function SourceForm({
               <h3 className={titleClass}>登録の前に確認すること</h3>
             </div>
             <ul className={`${cardBodyClass} list-disc space-y-2 pl-10 text-sm text-gray-600 dark:text-gray-300`}>
-              <li>ドキュメントに適用されるライセンスが許可リストにある</li>
-              <li>ライセンスの記載がある URL を控えた</li>
-              {isWebsite && <li>利用規約でクロールと転載が禁止されていない</li>}
-              {isWebsite && <li>robots.txt で対象パスが許可されている</li>}
-              {isWebsite && <li>本文が JavaScript で描画されていない（取得した HTML に本文がある）</li>}
-              {!isWebsite && <li>GitHub に Markdown のソースがあるドキュメントは、サイトではなくこちらで登録する</li>}
+              {isWebsite ? (
+                <>
+                  <li>ローカルでだけ使う（自分で読むためのページ）</li>
+                  <li>robots.txt で対象パスが許可されている</li>
+                  <li>本文が JavaScript で描画されていない（取得した HTML に本文がある）</li>
+                </>
+              ) : (
+                <>
+                  <li>リポジトリの中にライセンスの記載がある</li>
+                  <li>そのライセンスがドキュメントの文章に掛かっている（コードだけのライセンスではない）</li>
+                  <li>ライセンスが許可リストにある</li>
+                  <li>GitHub に Markdown のソースがあるドキュメントは、こちらで登録する</li>
+                </>
+              )}
             </ul>
           </section>
         )}

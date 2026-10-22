@@ -186,7 +186,7 @@ export function UrlImportForm() {
   return (
     <div className="space-y-6">
       <ComponentCard
-        desc="登録済みの公式ドキュメントのサイトのソースの、対象パスに合うページの URL を入れます。入れたページの 1 つだけを取り込みます。"
+        desc="登録済みのサイトのソースの、対象パスに合うページの URL を入れます。入れたページの 1 つだけを取り込みます。"
         title="URL から追加"
       >
         <div>

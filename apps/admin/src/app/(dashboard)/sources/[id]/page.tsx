@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import { notFound, unstable_rethrow } from "next/navigation"
 
-import { allowedLicenseSchema, getSourcePathParamSchema } from "@repo/api-schema"
+import { allowedLicenseSchema, personalUseLicenseSchema, getSourcePathParamSchema } from "@repo/api-schema"
 
 import { SourceForm } from "@/components/features/source/SourceForm"
 import PageBreadcrumb from "@/components/layout/PageBreadCrumb"
@@ -44,7 +44,12 @@ export default async function EditSourcePage({ params }: Props) {
   return (
     <>
       <PageBreadcrumb pageTitle={`ソースの編集：${detail.source.name}`} />
-      <SourceForm allowedLicenses={allowedLicenseSchema.options} detail={detail} tags={tags} />
+      <SourceForm
+        allowedLicenses={allowedLicenseSchema.options}
+        detail={detail}
+        personalUseLicense={personalUseLicenseSchema.value}
+        tags={tags}
+      />
     </>
   )
 }
