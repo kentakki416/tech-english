@@ -15,6 +15,7 @@ import ComponentCard from "@/components/layout/ComponentCard"
 import Badge from "@/components/ui/badge/Badge"
 import { tableHeadCellClass } from "@/components/ui/table/LinkTableParts"
 import { PASSAGE_STATUS_LABELS } from "@/features/passage/passage.labels"
+import { formatLicenseLabel } from "@/features/source/source.labels"
 import {
   CHUNK_REJECT_REASON_LABELS,
   isImportableChunk,
@@ -64,7 +65,7 @@ function PreviewResult({ isPending, isSaving, preview, saveFailure, url, onSubmi
           <dt className="text-gray-500 dark:text-gray-400">ソース</dt>
           <dd className="mt-1 font-medium text-gray-800 dark:text-white/90">
             {preview.source.name}
-            <span className="ml-2 text-theme-xs font-normal text-gray-500 dark:text-gray-400">{preview.source.license_spdx}</span>
+            <span className="ml-2 text-theme-xs font-normal text-gray-500 dark:text-gray-400">{formatLicenseLabel(preview.source.license_spdx)}</span>
           </dd>
         </div>
         <div>

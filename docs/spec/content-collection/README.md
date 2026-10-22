@@ -419,7 +419,7 @@ api は次の登録・更新を 400 で拒否する。
 ```
 
 - 表は Basic Tables と同じ `DataTable`。検索はソース名・リポジトリ・URL、Filter は取得方法（GitHub / サイト）と状態（有効 / 無効 / 収集しない）。ソースは数十件程度の想定なのでページ送りは付けない
-- 列：ソース（表示名と、等幅の取得元）、取得方法（GitHub は `dark`、サイトは `info` のバッジ。下に種別「公式ドキュメント / GitHub の文書」）、ライセンス、状態（有効は `success`、無効は `light`、サイトは `light` の「収集しない」）、最終収集（未収集なら「未収集」）、本文候補（収集済み・下書き・公開・却下の件数）、編集
+- 列：ソース（表示名と、等幅の取得元）、取得方法（GitHub は `dark`、サイトは `info` のバッジ。下に種別「公式ドキュメント / GitHub の文書」）、ライセンス、状態（有効は `success`、無効は `light`、サイトは `light` の「収集しない」）、最終収集（未収集なら「未収集」。サイトは「―」）、本文候補（収集済み・下書き・公開・却下の件数）、編集
 - ソース名と「編集」で編集画面へ。「ソースを登録」で登録画面へ
 - ソースが 0 件のときは表の下に「まだソースがありません」と、GitHub のリポジトリを登録すると翌日の収集から本文候補が作られることを書く
 
@@ -513,9 +513,9 @@ erDiagram
         text fetch_type "github_repository / website"
         jsonb include_globs "string[]"
         jsonb exclude_globs "string[]"
-        text license_spdx "ALLOWED_LICENSES"
+        text license_spdx "ALLOWED_LICENSES、website は LicenseRef-personal-use も"
         text license_url
-        boolean is_enabled
+        boolean is_enabled "website は常に false"
         timestamp last_collected_at "nullable"
         text repository "GitHub のみ。owner/name"
         text branch "GitHub のみ"

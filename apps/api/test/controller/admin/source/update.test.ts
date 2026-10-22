@@ -224,6 +224,19 @@ describe("PUT /api/admin/source/:id", () => {
       expect(res.status).toBe(200)
       expect(await selectSource(github.id)).toMatchObject({ licenseSpdx: "MIT", repository: "reactjs/react.dev" })
     })
+
+    it("website は license_spdx を LicenseRef-personal-use に変えられる", async () => {
+      const website = await insertWebsiteSource()
+
+      const res = await request(app)
+        .put(`/api/admin/source/${website.id}`)
+        .set("Authorization", `Bearer ${adminToken}`)
+        .send({ ...WEBSITE_REQUEST, license_spdx: "LicenseRef-personal-use" })
+
+      expect(res.status).toBe(200)
+      expect(res.body.license_spdx).toBe("LicenseRef-personal-use")
+      expect(await selectSource(website.id)).toMatchObject({ licenseSpdx: "LicenseRef-personal-use" })
+    })
   })
 
   describe("異常系", () => {
@@ -299,6 +312,18 @@ describe("PUT /api/admin/source/:id", () => {
 
       expect(res.status).toBe(400)
       expect(await selectSource(github.id)).toMatchObject({ licenseUrl: github.licenseUrl })
+    })
+
+    it("github の license_spdx を LicenseRef-personal-use にすると 400 を返し、DB は変わらない", async () => {
+      const github = await insertGitHubSource()
+
+      const res = await request(app)
+        .put(`/api/admin/source/${github.id}`)
+        .set("Authorization", `Bearer ${adminToken}`)
+        .send({ ...GITHUB_REQUEST, license_spdx: "LicenseRef-personal-use" })
+
+      expect(res.status).toBe(400)
+      expect(await selectSource(github.id)).toMatchObject({ licenseSpdx: github.licenseSpdx })
     })
 
     it("存在しない id なら 404 を返す", async () => {

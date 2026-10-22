@@ -48,7 +48,7 @@ const convertApiErrorToFormState = (error: unknown, fallbackMessage: string, rev
 }
 
 /**
- * ソース登録の Server Action。成功したら、試し実行のコマンド（id 入り）を見せるため編集画面へ遷移する
+ * ソース登録の Server Action。成功したら、GitHub のソースの試し実行のコマンド（id 入り）を見せるため編集画面へ遷移する
  */
 export const createSourceAction = async (
   _prev: SourceFormState,

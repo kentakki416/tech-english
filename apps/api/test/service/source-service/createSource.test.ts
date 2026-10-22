@@ -71,6 +71,15 @@ describe("createSource", () => {
       expect(tagRepository.findByIds).not.toHaveBeenCalled()
       expect(sourceRepository.create).toHaveBeenCalledWith(input)
     })
+
+    it("production の設定でも github は create できる", async () => {
+      const created = buildGitHubSource()
+      sourceRepository.create.mockResolvedValue({ kind: "saved", source: created })
+
+      const result = await createSource(buildGitHubInput(), { sourceRepository, tagRepository }, PRODUCTION_POLICY)
+
+      expect(result).toEqual({ ok: true, value: created })
+    })
   })
 
   describe("異常系", () => {
@@ -83,15 +92,6 @@ describe("createSource", () => {
         expect(result.error.type).toBe("BAD_REQUEST")
       }
       expect(sourceRepository.create).not.toHaveBeenCalled()
-    })
-
-    it("production の設定でも github は create できる", async () => {
-      const created = buildGitHubSource()
-      sourceRepository.create.mockResolvedValue({ kind: "saved", source: created })
-
-      const result = await createSource(buildGitHubInput(), { sourceRepository, tagRepository }, PRODUCTION_POLICY)
-
-      expect(result).toEqual({ ok: true, value: created })
     })
 
     it("登録済みの repository なら 409 CONFLICT を返し、create を呼ばない", async () => {
