@@ -92,8 +92,8 @@ admin（`apps/admin`）のサーバー側だけが呼ぶ API。一般ユーザ�
 `src/env.ts` に Zod スキーマをインラインで定義し、import 時に `safeParse` → 失敗なら `process.exit(1)`。値は `.env.local` に置き dotenvx で暗号化して git にコミットする（復号鍵は root の `.env.keys`）。
 
 ```bash
-# 値の追加・変更は手書きせず dotenvx を使う
-pnpm exec dotenvx set KEY "value" -f .env.local
+# 値の追加・変更は手書きせず dotenvx を使う。プロジェクトルートで実行する（理由はルートの README.md の「env は dotenvx で管理する」）
+npx dotenvx set KEY "value" -f apps/api/.env.local
 ```
 
 `JWT_ADMIN_ACCESS_SECRET` / `JWT_ADMIN_REFRESH_SECRET`（必須・32 文字以上）は admin の JWT の鍵。`openssl rand -hex 32` などで作る。**JWT の鍵 4 つ（`JWT_ACCESS_SECRET` / `JWT_REFRESH_SECRET` / `JWT_ADMIN_ACCESS_SECRET` / `JWT_ADMIN_REFRESH_SECRET`）は別の値にする**（同じ値があれば `src/env.ts` が起動を止める）。

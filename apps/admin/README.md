@@ -43,11 +43,11 @@ Next.js 16 (App Router) を使用した管理画面アプリケーション
 
 1. **Google Cloud で OAuth クライアントを用意する**
 
-   種類が「ウェブ アプリケーション」の OAuth クライアントを作り、「承認済みのリダイレクト URI」に `http://localhost:3030/api/auth/callback/google` を足す。admin は `NEXT_PUBLIC_APP_URL` の origin からこの URI を作り、Google は完全一致で照合する（各環境の値は [`CLAUDE.md` の「認証」](CLAUDE.md#認証)）。
+   コミット済みの `.env.local` に入っているクライアントを使うなら、その「承認済みのリダイレクト URI」に `http://localhost:3030/api/auth/callback/google` があるかを確かめ、無ければ足す。この場合は手順 2 を飛ばす。そのクライアントを Google Cloud で触れないときは、種類が「ウェブ アプリケーション」の OAuth クライアントを作って同じ URI を足し、手順 2 で値を差し替える。
 
-   OAuth 同意画面がテスト中なら、サインインに使うアカウントをテストユーザーに足す。
+   admin は `NEXT_PUBLIC_APP_URL` の origin からこの URI を作り、Google は完全一致で照合する（各環境の値は [`CLAUDE.md` の「認証」](CLAUDE.md#認証)）。OAuth 同意画面がテスト中なら、サインインに使うアカウントをテストユーザーに足す。
 
-2. **client ID と client secret を `.env.local` に入れる**
+2. **自分のクライアントに差し替えるときは、client ID と client secret を `.env.local` に入れる**
 
    admin と api に、同じクライアントの値を入れる。client secret は api だけが持つ。
 
@@ -57,7 +57,7 @@ Next.js 16 (App Router) を使用した管理画面アプリケーション
    | `apps/api/.env.local` | `GOOGLE_CLIENT_ID`・`GOOGLE_CLIENT_SECRET` |
 
    ```bash
-   # プロジェクトルートで実行する（apps/* に cd してから実行すると .env.keys のシンボリックリンクが壊れる）
+   # プロジェクトルートで実行する（理由はルートの README.md の「env は dotenvx で管理する」）
    npx dotenvx set GOOGLE_CLIENT_ID "<client ID>" -f apps/admin/.env.local
    npx dotenvx set GOOGLE_CLIENT_ID "<client ID>" -f apps/api/.env.local
    npx dotenvx set GOOGLE_CLIENT_SECRET "<client secret>" -f apps/api/.env.local
@@ -86,6 +86,8 @@ Next.js 16 (App Router) を使用した管理画面アプリケーション
 | Google の画面に `access_denied` が出て先に進めない | OAuth 同意画面がテスト中で、そのアカウントがテストユーザーに入っていない |
 | サインイン画面に「このアカウントには管理画面の権限がありません」が出る | 選んだアカウントの email が `admins` に無い（手順 3）。または Google でその email が確認されていない |
 | サインイン画面に「サインインに失敗しました」が出る | api が code を token に交換できなかった。api が起動しているか、api の `GOOGLE_CLIENT_ID`・`GOOGLE_CLIENT_SECRET` が admin と同じクライアントのものかを確かめる |
+| サインイン画面に「Google アカウントへのアクセスが拒否されました」が出る | Google の画面でキャンセルした。「Google でサインイン」からやり直す |
+| サインイン画面に「セッションが切れました」が出る | `NEXT_PUBLIC_APP_URL` と違うホスト（`127.0.0.1` など）で開いた。または Google の画面で 5 分以上経った（state の cookie が切れる）。`http://localhost:3030/signin` から開き直す |
 
 ## アーキテクチャ
 
