@@ -141,16 +141,21 @@ worker を動かしていない環境（minimal の構成で worker を作らな
 
 **新しいテーブル `source_collection_runs` に、収集の 1 回ごとの状態と結果を残す。**
 
-- 状態の値は `@repo/domain` の `SOURCE_COLLECTION_RUN_STATUSES`（`queued`・`running`・`completed`・`limit_reached`・`rate_limited`・`up_to_date`・`failed`）を正本にし、DB の CHECK と api-schema の enum をここから作る。終わり方の 4 つは `SOURCE_COLLECTION_RESULT_STATUSES` とし、worker の `SourceCollectionStatus` もこれを使う
+- 状態の値は `@repo/domain` の `SOURCE_COLLECTION_RUN_STATUSES`（`queued`・`running`・`completed`・`limit_reached`・`rate_limited`・`up_to_date`・`failed`）を正本にし、DB の CHECK と api-schema の enum をここから作る。終わり方の 4 つは `SOURCE_COLLECTION_RESULT_STATUSES`、収集中の 2 つは `ACTIVE_SOURCE_COLLECTION_RUN_STATUSES` とし、worker の `SourceCollectionStatus`・admin の「収集中か」の判定もこれを使う
+- `running` の `started_at`（書き込みのトークン・時間切れの判定に使う）と、終わった記録の `finished_at` は CHECK で必須にする（`passage_audios_generating_columns_check` と同じ）
 - **同じソースの収集は 1 つだけ**：`(source_id) WHERE status IN ('queued', 'running')` の部分 unique index で DB が保証する。api は INSERT の unique 違反を 409 にする（先に SELECT して確かめる形だと、2 人が同時に押したときに両方通る）
 - 記録は消さない（1 回押すと 1 行で、数が少ない）。画面に出すのは最新の 1 件だけ
 - Queue（BullMQ）のジョブの状態は使わない。Queue の抽象（`JobQueue<T>`）は enqueue しか持たず、状態を読むと BullMQ に依存する（SQS などに差し替えられなくなる）。ジョブは完了から 1 時間で Redis から消えるので、結果を後から見られない
 - Repository は api（作る・最新を読む・時間切れを片付ける）と worker（実行中にする・結果を書く）で操作が違うので、app ごとに持つ（今の規約どおり）
-- **比べた案**：`sources` に `collection_status` などの列を足す。1 ソース 1 行で済むが、ソースの更新（admin の保存）と worker の書き込みが同じ行を取り合い、`updated_at`（URL から追加のキャッシュのキー）も収集のたびに変わってしまう
+- **比べた案**：`sources` に `collection_status` などの列を足す。1 ソース 1 行で済むが、1 回ごとの結果（件数・失敗の理由）を残せず、同じソースの収集を 1 つに限る制約も「収集中の行は 1 つ」という部分 unique index で書けない（条件付きの UPDATE で取り合うことになる）
 
 ### 終わらなかった実行の片付け
 
-**`queued` / `running` のまま 30 分（`SOURCE_COLLECTION_RUN_TIMEOUT_MINUTES`）を過ぎた記録は、api が次に読むとき（編集画面を開く・ボタンを押す）に `failed`（「30 分を過ぎても終わらなかった」）にする。**
+**`queued` / `running` のまま 30 分（api の `SOURCE_COLLECTION_RUN_TIMEOUT_MINUTES`）を過ぎた記録は、api が次に読むとき（編集画面を開く・ボタンを押す）に `failed`（「30 分を過ぎても終わらなかった」）にする。**
+
+- `queued` は依頼した時刻（`created_at`）、`running` は worker が始めた時刻（`started_at`）から数える。worker の `collect-source` は 1 つずつ処理するので、`queued` の 30 分には別のソースの順番待ちの時間も入る（ソースは数十件で、1 件の収集は数分なので、30 分の順番待ちは起きにくい）
+- 分数を使うのは api だけなので、api の `src/const/` に置く（cron の `STALE_GENERATING_MINUTES` などと同じく、使う app の側に置く）
+- 詳細の GET の中で UPDATE するので、収集中は 3 秒ごとの読み直しのたびに条件付きの UPDATE が 1 回走る（`source_id` で絞るので軽い）
 
 - worker が止まった（deploy の SIGKILL・Fargate Spot の中断）・Redis からジョブが消えた、などで記録が `queued` / `running` のまま残ると、ボタンを二度と押せなくなるため
 - 30 分は、1 回の上限（100 文書）を GitHub API で取って抽出する時間に十分な余裕を持たせた値（`generate:questions` の回収と同じ長さ）

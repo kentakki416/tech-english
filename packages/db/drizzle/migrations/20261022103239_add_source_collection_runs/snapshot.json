@@ -1,7 +1,7 @@
 {
   "version": "8",
   "dialect": "postgres",
-  "id": "3e8ec90d-00f6-4088-bede-e95104bf498d",
+  "id": "12a9338a-0b8e-47df-8c11-1b76d04352c9",
   "prevIds": [
     "0afd7299-d838-4432-8043-d5f5e35003e9"
   ],
@@ -3803,7 +3803,7 @@
       "with": "",
       "method": "btree",
       "concurrently": false,
-      "name": "source_collection_runs_active_source_id_key",
+      "name": "source_collection_runs_source_id_active_key",
       "entityType": "indexes",
       "schema": "public",
       "table": "source_collection_runs"
@@ -4985,6 +4985,20 @@
     {
       "value": "\"status\" IN ('queued', 'running', 'completed', 'limit_reached', 'rate_limited', 'up_to_date', 'failed')",
       "name": "source_collection_runs_status_check",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "source_collection_runs"
+    },
+    {
+      "value": "\"status\" <> 'running' OR \"started_at\" IS NOT NULL",
+      "name": "source_collection_runs_running_columns_check",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "source_collection_runs"
+    },
+    {
+      "value": "\"status\" IN ('queued', 'running') OR \"finished_at\" IS NOT NULL",
+      "name": "source_collection_runs_finished_columns_check",
       "entityType": "checks",
       "schema": "public",
       "table": "source_collection_runs"

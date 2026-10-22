@@ -39,8 +39,21 @@ const insertGitHubSource = async (repository: string) => {
   return row
 }
 
+const RUN_TIME = new Date("2026-10-22T03:00:00.000Z")
+
+/**
+ * 状態に合わせて、CHECK が求める時刻（running の started_at・終わった記録の finished_at）を入れる
+ */
 const insertRun = async (sourceId: number, status: SourceCollectionRunStatusValue) => {
-  const [row] = await testDb.insert(sourceCollectionRuns).values({ sourceId, status }).returning()
+  const [row] = await testDb
+    .insert(sourceCollectionRuns)
+    .values({
+      finishedAt: status === "queued" || status === "running" ? null : RUN_TIME,
+      sourceId,
+      startedAt: status === "queued" ? null : RUN_TIME,
+      status,
+    })
+    .returning()
   return row
 }
 
@@ -111,9 +124,28 @@ describe("source_collection_runs", () => {
       await insertRun(source.id, existingStatus)
 
       await expect(insertRun(source.id, status)).rejects.toMatchObject(
-        buildViolationMatcher(UNIQUE_VIOLATION, "source_collection_runs_active_source_id_key"),
+        buildViolationMatcher(UNIQUE_VIOLATION, "source_collection_runs_source_id_active_key"),
       )
     })
+
+    it("running で started_at が無ければ失敗する", async () => {
+      const source = await insertGitHubSource("example/docs")
+
+      await expect(testDb.insert(sourceCollectionRuns).values({ sourceId: source.id, status: "running" })).rejects.toMatchObject(
+        buildViolationMatcher(CHECK_VIOLATION, "source_collection_runs_running_columns_check"),
+      )
+    })
+
+    it.each(["completed", "failed", "limit_reached", "rate_limited", "up_to_date"] as const)(
+      "%s で finished_at が無ければ失敗する",
+      async (status) => {
+        const source = await insertGitHubSource("example/docs")
+
+        await expect(testDb.insert(sourceCollectionRuns).values({ sourceId: source.id, status })).rejects.toMatchObject(
+          buildViolationMatcher(CHECK_VIOLATION, "source_collection_runs_finished_columns_check"),
+        )
+      },
+    )
 
     it("status が値の集合の外なら失敗する", async () => {
       const source = await insertGitHubSource("example/docs")

@@ -38,7 +38,7 @@ cron で消すもの：
 ```ts
 export class SourceNotCollectableError extends Error {
   constructor(
-    public readonly reason: "disabled" | "not_found" | "website",
+    public readonly reason: SourceNotCollectableReason,
     sourceId: number,
   ) {
     super(`Source is not collectable: id=${sourceId} reason=${reason}`)
@@ -60,9 +60,10 @@ export type CollectSourceByIdInput = {
 
 const findCollectableSource = async (sourceId: number, repo: CollectionRepo): Promise<GitHubRepositorySource> => {
   const source = await repo.sourceRepository.findById(sourceId)
-  if (!source) throw new SourceNotCollectableError("not_found", sourceId)
-  if (source.fetchType === "website") throw new SourceNotCollectableError("website", sourceId)
-  if (!source.isEnabled) throw new SourceNotCollectableError("disabled", sourceId)
+  const notCollectableReason = findSourceNotCollectableReason(source)
+  if (notCollectableReason !== null || source?.fetchType !== "github_repository") {
+    throw new SourceNotCollectableError(notCollectableReason ?? "website", sourceId)
+  }
   return source
 }
 
@@ -86,6 +87,7 @@ export const collectSourceById = async (
 }
 ```
 
+- 収集できるかの判定は api と同じ `@repo/domain` の `findSourceNotCollectableReason`（step2）を使う。`fetchType` の 2 つ目の条件は型を `GitHubRepositorySource` に絞るためだけのもの（判定は同じ関数が済ませている）
 - `collectGitHubSource` のログ（`GitHub source files listed` など）は今のまま
 
 `src/const/collection.ts` に足す（cron の task の三項演算子を移す）：
@@ -129,15 +131,15 @@ export type CollectionRuntime = {
 export const createCollectionRuntimeLoader = (input: { contactUrl: string | undefined; db: DrizzleClient; token: string | undefined }) => {
   let runtime: Promise<CollectionRuntime> | null = null
   return (): Promise<CollectionRuntime> => {
-    runtime ??= Promise.all([import("../service/collection"), import("../client/github"), import("@repo/content-extractor")])
-      .then(([collection, github, contentExtractor]) => {
+    runtime ??= Promise.all([import("../service/collection"), import("@repo/content-extractor")])
+      .then(([collection, contentExtractor]) => {
         const repo = {
           passageRepository: new DrizzlePassageRepository(input.db),
           sourceDocumentRepository: new DrizzleSourceDocumentRepository(input.db),
           sourceRepository: new DrizzleSourceRepository(input.db),
         }
         const deps = {
-          githubContentClient: new github.GitHubContentClient({
+          githubContentClient: new GitHubContentClient({
             token: input.token,
             userAgent: contentExtractor.buildCollectorUserAgent(input.contactUrl),
           }),
@@ -149,9 +151,9 @@ export const createCollectionRuntimeLoader = (input: { contactUrl: string | unde
 }
 ```
 
-- 何度呼んでも 1 回しか読まない（GitHub の client が持つ rate limit の残りを、ジョブをまたいで使うため）。この挙動を JSDoc に 1 行で書く
-- `@repo/content-extractor` を値として import するファイル（`service/collection/*`・`client/github/*`）は、`runtime/collection.ts` の `import()` からしか読まれないようにする。`jobs/`・`workers/`・`src/index.ts` からは型だけを import する（`import type`）
-- Repository の drizzle の実装は軽いので通常の import でよい
+- 何度呼んでも `import()` は 1 回だけ（2 回目からは同じ Promise を返す）。この挙動を JSDoc に 1 行で書く
+- `@repo/content-extractor` を値として import するファイル（`service/collection/*`）は、`runtime/collection.ts` の `import()` からしか読まれないようにする。`jobs/`・`workers/`・`src/index.ts` からは型だけを import する（`import type`）
+- `client/github/*` は `@repo/content-extractor` を import していない（zod と `./errors` だけ）ので通常の import でよい。Repository の drizzle の実装も通常の import
 
 ### ジョブのハンドラ
 
@@ -205,15 +207,17 @@ const runCollection = async (claim: SourceCollectionRunClaim, deps: CollectSourc
 | ほか | `failed`：収集に失敗した: {message}。`logger.error` も出す |
 
 - 収集の失敗は記録に書いて正常に終える（BullMQ のリトライに回さない）。`claim`・`finish` の DB の失敗だけが throw され、BullMQ のリトライ（3 回）になる
-- `instanceof` で見分ける例外のクラスは `client/github/errors.ts`・`service/collection/errors.ts` にあり、どちらも `@repo/content-extractor` を読まないので、`jobs/` から通常の import で使う（`client/github/index.ts`・`service/collection/index.ts` を経由すると jsdom まで読むので、ファイルを直接 import する）
+- `instanceof` で見分ける例外のクラスは `client/github/errors.ts`・`service/collection/errors.ts` にあり、どちらも `@repo/content-extractor` を読まないので、`jobs/` から通常の import で使う（`service/collection/index.ts` を経由すると jsdom まで読むので、`service/collection/errors.ts` は直接 import する）
 - `selectGitHubMinRateLimitRemaining` も `const/collection.ts`（`@repo/content-extractor` を読まない）なので通常の import でよい
 
 ### Worker の結線・起動・env
 
 - `src/workers/collect-source-worker.ts`：`startBullMQWorker(redis, { concurrency: 1, processor: collectSource(...), queueName: COLLECT_SOURCE_QUEUE_NAME })`
 - `src/index.ts`：`createCollectionRuntimeLoader({ contactUrl: env.COLLECT_WEB_CONTACT_URL, db, token: env.GITHUB_CONTENT_TOKEN })` を作って `consumers` に足す。`GITHUB_CONTENT_TOKEN` が無ければ起動時に warn（今の cron と同じ文）。`queues` のログにも足す
-- `src/env.ts`：cron の 4 つ（`GITHUB_CONTENT_TOKEN`・`COLLECT_MAX_DOCUMENTS_PER_SOURCE`（既定 100）・`COLLECT_MAX_PASSAGES_PER_RUN`（既定 200）・`COLLECT_WEB_CONTACT_URL`）を、定義と JSDoc ごと移す
-- graceful shutdown は今のまま（`JobConsumer.close()` が実行中の収集を待つ。ECS の停止の猶予を過ぎて殺されたら、BullMQ の stalled で次の worker が同じジョブを取り直し、`claim` が `running` を取り直して続きから収集する）
+- `src/env.ts`：cron の 4 つ（`GITHUB_CONTENT_TOKEN`・`COLLECT_MAX_DOCUMENTS_PER_SOURCE`（既定 100）・`COLLECT_MAX_PASSAGES_PER_RUN`（既定 200）・`COLLECT_WEB_CONTACT_URL`）を、定義と JSDoc ごと移す。`COLLECT_MAX_PASSAGES_PER_RUN` は「1 回の収集（1 ソース）で作る本文候補の上限」に説明を直す（全ソースのループが無くなり、実行全体の上限ではなくなる）
+- `GITHUB_CONTENT_TOKEN` の値：`apps/cron/.env.local` の暗号化した行（`GITHUB_CONTENT_TOKEN="encrypted:..."`）を `apps/worker/.env.local` に移す。2 つのファイルは同じ dotenvx の鍵（`DOTENV_PUBLIC_KEY_LOCAL` が同じ）なので、暗号文のまま移せる（復号しない）。`COLLECT_*` は既定値のまま使っているので移すものは無い
+- AWS：cron の `secret_keys` にも `GITHUB_CONTENT_TOKEN` は入っていなかった（認証なしで動く想定）。worker も今は足さない（Secrets Manager に値が無いキーを `secret_keys` に入れると、ECS のタスクが起動に失敗する）。`scripts/deploy/seed-secrets.sh` のコメントの「cron の collect:passages が使う」を worker に直す
+- graceful shutdown は今のまま（`JobConsumer.close()` が実行中の収集を待つ）。収集は数分かかるので ECS の停止の猶予（`stop_timeout`、既定 30 秒）を超えうる。超えて殺されたら、BullMQ の stalled で次の worker が同じジョブを取り直し、`claim` が `running` を取り直して続きから収集する（収集は冪等）。`apps/worker/CLAUDE.md` の「1 ジョブの最大処理時間が stop_timeout を超えないよう設計する」の例外として、この理由を書く
 
 ### ドキュメント
 
