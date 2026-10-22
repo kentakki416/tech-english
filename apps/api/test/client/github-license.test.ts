@@ -77,6 +77,12 @@ describe("GitHubLicenseClient.detectLicense", () => {
 
       expect(await new GitHubLicenseClient(undefined).detectLicense("reactjs/react.dev")).toEqual({ licenseSpdx: null, licenseUrl: HTML_URL })
     })
+
+    it("html_url が null なら licenseUrl を null にする", async () => {
+      stubFetch(createJsonResponse({ html_url: null, license: { spdx_id: "MIT" } }))
+
+      expect(await new GitHubLicenseClient(undefined).detectLicense("reactjs/react.dev")).toEqual({ licenseSpdx: "MIT", licenseUrl: null })
+    })
   })
 
   describe("異常系", () => {
