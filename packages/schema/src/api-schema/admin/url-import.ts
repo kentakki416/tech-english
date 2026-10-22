@@ -3,7 +3,7 @@ import { z } from "zod"
 import { CHUNK_REJECT_REASONS, URL_IMPORT_CHUNK_STATUSES, URL_IMPORT_ERROR_CODES } from "@repo/domain"
 
 import { adminPassageStatusSchema } from "./passage"
-import { allowedLicenseSchema } from "./source"
+import { sourceLicenseSchema } from "./source"
 
 // ========================================================
 // 共通: 取り込むページの URL
@@ -60,7 +60,7 @@ export const previewUrlImportResponseSchema = z.object({
   }),
   source: z.object({
     id: z.number().int().positive(),
-    license_spdx: allowedLicenseSchema,
+    license_spdx: sourceLicenseSchema,
     name: z.string(),
   }),
 })

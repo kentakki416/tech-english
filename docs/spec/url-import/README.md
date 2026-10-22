@@ -1,6 +1,6 @@
 # URL から本文候補を作る
 
-admin で URL を 1 つ入れると、そのページを取得して本文を抽出し、本文候補（`collected`）として保存する。保存した本文候補は、次の問題の生成（`generate:questions`）でほかの本文候補より先に生成する（issue #76）。
+admin で URL を 1 つ入れると、そのページを取得して本文を抽出し、本文候補（`collected`）として保存する。保存した本文候補は、次の問題の生成（`generate:questions`）でほかの本文候補より先に生成する（issue #76）。**ローカルだけの機能**で、dev / min / prd では使えない（[github-only-collection](../github-only-collection/README.md#url-から追加ローカルだけ)）。
 
 今は、ソースを登録して有効にし、cron の収集（`collect:passages`）が sitemap か開始ページからリンクをたどって取得するのを待つ必要がある。「このページを題材にしたい」と思ったページを、すぐ本文候補にできるようにする。
 
@@ -42,7 +42,7 @@ admin で URL を 1 つ入れると、そのページを取得して本文を抽
 
 ### 受け付ける URL
 
-**登録済みの公式ドキュメントのサイト（取得方法が `website`）のソースの、対象パスに合うページの URL だけを受け付ける。** ライセンスはそのソースのものを使う（収集と同じく、許可リストのライセンスのソースからしか取得しない）。
+**登録済みのサイト（取得方法が `website`）のソースの、対象パスに合うページの URL だけを受け付ける。** ライセンスはそのソースのものを使う。サイトのソースはローカルにしか無く、ライセンスは許可リストのものか、ライセンスの記載が無いサイトの「個人の学習用」（`LicenseRef-personal-use`。自分で読むためだけ）。
 
 - `https` で、ソースのサイトの URL と同じオリジン、対象パスに合い除外パスに合わない、ページの拡張子（`.pdf` などは対象外）であること
 - ソースの有効・無効は問わない（有効・無効は cron の収集の対象かどうかで、取り込みは管理者が URL を選んで行うため）
@@ -204,6 +204,7 @@ admin に 1 つ足す。
 | POST | `/api/admin/url-import` | URL のページを取得して抽出し、本文候補として保存する。作った本文候補の件数と、優先した本文候補を返す |
 
 - どちらもほかの admin の API と同じく admin の認証が要る
+- ローカル（`NODE_ENV !== "production"`）でだけ登録する。production では Controller を作らないので 404
 - 取り込めないときは 400 で、`details[0].code` に理由（`source_not_found`・`out_of_target_path`・`robots_disallowed` など。一覧は [step3](./tasks/step3-api-url-import.md#ドメインの定数) の `URL_IMPORT_ERROR_CODES`）を入れる。admin は code で文言を分ける
 - リクエスト・レスポンスの形は [step3](./tasks/step3-api-url-import.md)
 

@@ -1,4 +1,4 @@
-import type { ALLOWED_LICENSES, SOURCE_FETCH_TYPES, SOURCE_KINDS } from "../const/source"
+import type { ALLOWED_LICENSES, SOURCE_FETCH_TYPES, SOURCE_KINDS, SOURCE_LICENSES } from "../const/source"
 
 /**
  * ソースの種別
@@ -11,9 +11,14 @@ export type SourceKind = (typeof SOURCE_KINDS)[number]
 export type SourceFetchType = (typeof SOURCE_FETCH_TYPES)[number]
 
 /**
- * 登録を許可するライセンス（SPDX 識別子）
+ * 公開してよいライセンス（SPDX 識別子）
  */
 export type AllowedLicense = (typeof ALLOWED_LICENSES)[number]
+
+/**
+ * ソースに入れられるライセンス。個人の学習用はサイトのソースだけ
+ */
+export type SourceLicense = (typeof SOURCE_LICENSES)[number]
 
 /**
  * 取得方法によらない共通の項目
@@ -31,7 +36,6 @@ type SourceBase = {
   isEnabled: boolean
   kind: SourceKind
   lastCollectedAt: Date | null
-  licenseSpdx: AllowedLicense
   /**
    * ライセンスの記載がある URL
    */
@@ -58,6 +62,7 @@ export type GitHubRepositorySource = SourceBase & {
    * lastCollectedCommitSha を記録したときの抽出の版（cron の EXTRACTION_VERSION）
    */
   lastCollectedExtractionVersion: string | null
+  licenseSpdx: AllowedLicense
   /**
    * 公開ページの URL を作るときにファイルパスから取り除くプレフィックス
    */
@@ -73,7 +78,7 @@ export type GitHubRepositorySource = SourceBase & {
 }
 
 /**
- * 公式ドキュメントのサイトをクロールして取得するソース
+ * サイトのページを取得するソース（ローカルの URL から追加だけが使う。収集はしない）
  */
 export type WebsiteSource = SourceBase & {
   /**
@@ -85,6 +90,7 @@ export type WebsiteSource = SourceBase & {
    */
   excludeSelectors: string[]
   fetchType: "website"
+  licenseSpdx: SourceLicense
   sitemapUrl: string | null
   /**
    * オリジン（https://go.dev）

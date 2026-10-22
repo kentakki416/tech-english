@@ -14,7 +14,7 @@ export const isSourceFetchType = (value: string): value is SourceFetchType =>
   (SOURCE_FETCH_TYPES as readonly string[]).includes(value)
 
 /**
- * 登録を許可するライセンスかどうか
+ * 公開してよいライセンスかどうか
  */
 export const isAllowedLicense = (value: string): value is AllowedLicense =>
   (ALLOWED_LICENSES as readonly string[]).includes(value)

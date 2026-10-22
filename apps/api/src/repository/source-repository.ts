@@ -2,7 +2,7 @@ import type { GitHubRepositorySource, PassageStatus, Source, Tag, WebsiteSource 
 
 type SourceInputBase = Pick<
   Source,
-  "excludeGlobs" | "includeGlobs" | "isEnabled" | "kind" | "licenseSpdx" | "licenseUrl" | "name"
+  "excludeGlobs" | "includeGlobs" | "isEnabled" | "kind" | "licenseUrl" | "name"
 > & {
   /**
    * 付けるタグの id（重複なし。存在するかは service が確かめる）
@@ -19,8 +19,8 @@ export type SourceWithTags = Source & { tags: Tag[] }
  * ソースの登録・更新時の入力。取得方法（fetchType）ごとに書く列が違う
  */
 export type SourceInput =
-  | (SourceInputBase & Pick<GitHubRepositorySource, "branch" | "fetchType" | "publicUrlStripPrefix" | "publicUrlTemplate" | "repository">)
-  | (SourceInputBase & Pick<WebsiteSource, "contentSelector" | "excludeSelectors" | "fetchType" | "sitemapUrl" | "siteUrl" | "startUrl">)
+  | (SourceInputBase & Pick<GitHubRepositorySource, "branch" | "fetchType" | "licenseSpdx" | "publicUrlStripPrefix" | "publicUrlTemplate" | "repository">)
+  | (SourceInputBase & Pick<WebsiteSource, "contentSelector" | "excludeSelectors" | "fetchType" | "licenseSpdx" | "sitemapUrl" | "siteUrl" | "startUrl">)
 
 /**
  * 取得に失敗したページ（source_documents.http_status >= 400）

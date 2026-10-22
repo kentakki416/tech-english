@@ -141,6 +141,7 @@ export const buildWebsiteSourceValues = (overrides: PassageSourceOverrides = {})
   branch: null,
   fetchType: "website",
   includeGlobs: ["/doc/**"],
+  isEnabled: false,
   kind: "docs",
   licenseSpdx: "BSD-3-Clause",
   licenseUrl: "https://go.dev/LICENSE",

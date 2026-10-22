@@ -84,6 +84,7 @@ admin（`apps/admin`）のサーバー側だけが呼ぶ API。一般ユーザ�
 - Controller は `src/controller/admin/{resource}/{action}.ts`。Service は `src/service/{source,admin-passage,admin-stats,admin-user,url-import}-service.ts` と、認証の `admin-auth-service.ts`（Google・dev ログイン）・`admin-service.ts`（`GET /api/admin/me`）。ユーザー向けと同じ Repository を使う（ダッシュボードの集計だけは admin 専用の `AdminStatsRepository`。生の SQL で Postgres をその場で集計する。[admin-dashboard](../../docs/spec/admin-dashboard/README.md)）
 - admin の refresh / logout は一般ユーザーの `service.auth.refreshTokens` / `service.auth.logout` に admin 用の Repository・検証関数・発行関数を渡す。`refreshTokens` は持ち主を `tokenOwnerRepository` で確かめるので、admin は `adminRepository` を渡す（`admins` から消された admin の refresh token は 401）
 - ユーザー管理（`/api/admin/user/*`）はマイページの Service を使い回す。マイページの Service はユーザーが居ないと 401 を返すので、admin の Service（`admin-user-service.ts`）が先に存在を確かめて 404 にする
+- **ソースの登録・更新**（[github-only-collection](../../docs/spec/github-only-collection/README.md)）：GitHub の `license_url` はそのリポジトリのファイルの URL でなければ 400（api-schema の `validateSourceInput`）。サイトのソースはローカルでだけ受け付け（`SourceWritePolicy` を `src/index.ts` が `NODE_ENV` から作って Controller に渡す）、常に無効で保存する
 - スキーマは `@repo/api-schema` の `admin/` に集約。既存と同一なら re-export し、Admin 固有のレスポンスが必要になった時点で新規定義する
 - **admin の登録**: `pnpm --filter @repo/db admin:create --email <email>`。dev / min / prd は GitHub Actions の「Admin Create」（`docs/deploy/prd.md`）。ローカルは seed で `admin@dev.local` が入り、`POST /api/admin/auth/dev-login` でログインできる（dev-login は `@dev.local` の admin しか受け付けない）
 
@@ -113,7 +114,7 @@ npx dotenvx set KEY "value" -f apps/api/.env.local
 
 ## サイトのページの取得（`@repo/content-extractor`）
 
-admin の URL の取り込み（`POST /api/admin/url-import`・`/preview`。[url-import](../../docs/spec/url-import/README.md)）は、`@repo/content-extractor` でページを取得・抽出する（本文の抽出の規則は cron の収集と同じ。cron はサイトを収集しない）。
+admin の URL の取り込み（`POST /api/admin/url-import`・`/preview`。[url-import](../../docs/spec/url-import/README.md)）は **ローカルだけ**（`src/index.ts` は production で Controller を作らないので、ルートが登録されず 404）。`@repo/content-extractor` でページを取得・抽出する（本文の抽出の規則は cron の収集と同じ。cron はサイトを収集しない）。
 
 - パッケージは `src/client/page-fetcher.ts` の中で、使うときに `import()` で読む。jsdom などが重く、ほかの API のコールドスタートを遅くしないため。service・Repository は型だけを import する
 - パッケージは CommonJS で、ESM だけで配布されている unified などを Node の `require(esm)` で読むので、**Node 20.19 以上**が要る（Docker は `node:20-slim`）。vitest と tsx はこの経路を通らないので、Node のバージョンを変えるときはビルドした dist で読めることを確かめる（[step3 の動作確認](../../docs/spec/url-import/tasks/step3-api-url-import.md#動作確認)）

@@ -23,7 +23,7 @@ import {
   sql,
   tags,
 } from "@repo/db"
-import { type GlossaryEntry, type Passage, PASSAGE_STATUSES, type PassageStatus, type Question } from "@repo/domain"
+import { type GlossaryEntry, isAllowedLicense, type Passage, PASSAGE_STATUSES, type PassageStatus, type Question } from "@repo/domain"
 
 import type {
   AdminPassageDetail,
@@ -236,24 +236,27 @@ const convertPassageOverviewRowToDomain = (row: PassageOverviewRow): PassageOver
 const convertPassageSourceRowToDomain = (row: PassageSourceRow): PassageSource => {
   const base = {
     kind: row.kind,
-    licenseSpdx: row.licenseSpdx,
     licenseUrl: row.licenseUrl,
     name: row.name,
     tags: row.tags,
   }
   if (row.fetchType === "github_repository") {
-    if (row.repository === null || row.branch === null) throw new Error(`Invalid github_repository source: name=${row.name}`)
+    const licenseSpdx = row.licenseSpdx
+    if (row.repository === null || row.branch === null || !isAllowedLicense(licenseSpdx)) {
+      throw new Error(`Invalid github_repository source: name=${row.name}`)
+    }
     return {
       ...base,
       branch: row.branch,
       fetchType: row.fetchType,
+      licenseSpdx,
       publicUrlStripPrefix: row.publicUrlStripPrefix,
       publicUrlTemplate: row.publicUrlTemplate,
       repository: row.repository,
     }
   }
   if (row.siteUrl === null) throw new Error(`Invalid website source: name=${row.name}`)
-  return { ...base, fetchType: row.fetchType, siteUrl: row.siteUrl }
+  return { ...base, fetchType: row.fetchType, licenseSpdx: row.licenseSpdx, siteUrl: row.siteUrl }
 }
 
 /**
