@@ -4,7 +4,7 @@
  *
  * 使い方:
  * - ローカル: pnpm --filter @repo/db admin:create --email someone@example.com
- * - 本番: GitHub Actions の「Admin Create」（.github/workflows/admin-create.yml）が、最後に deploy した migration イメージで流す
+ * - dev / min / prd: GitHub Actions の「Admin Create」（.github/workflows/admin-create.yml）が、最後に deploy した migration イメージで流す
  *
  * 成功しても失敗しても、出力に email を出さない。本番の出力は CloudWatch Logs と Actions のログに残る
  * （email は Actions の入力として既に残るので、コマンドの出力にまで重ねない）

@@ -85,15 +85,15 @@ admin（`apps/admin`）のサーバー側だけが呼ぶ API。一般ユーザ�
 - admin の refresh / logout は一般ユーザーの `service.auth.refreshTokens` / `service.auth.logout` に admin 用の Repository・検証関数・発行関数を渡す。`refreshTokens` は持ち主を `tokenOwnerRepository` で確かめるので、admin は `adminRepository` を渡す（`admins` から消された admin の refresh token は 401）
 - ユーザー管理（`/api/admin/user/*`）はマイページの Service を使い回す。マイページの Service はユーザーが居ないと 401 を返すので、admin の Service（`admin-user-service.ts`）が先に存在を確かめて 404 にする
 - スキーマは `@repo/api-schema` の `admin/` に集約。既存と同一なら re-export し、Admin 固有のレスポンスが必要になった時点で新規定義する
-- **admin の登録**: `pnpm --filter @repo/db admin:create --email <email>`。本番は GitHub Actions の「Admin Create」（`docs/deploy/prd.md`）。ローカルは seed で `admin@dev.local` が入り、`POST /api/admin/auth/dev-login` でログインできる（dev-login は `@dev.local` の admin しか受け付けない）
+- **admin の登録**: `pnpm --filter @repo/db admin:create --email <email>`。dev / min / prd は GitHub Actions の「Admin Create」（`docs/deploy/prd.md`）。ローカルは seed で `admin@dev.local` が入り、`POST /api/admin/auth/dev-login` でログインできる（dev-login は `@dev.local` の admin しか受け付けない）
 
 ## 環境変数
 
 `src/env.ts` に Zod スキーマをインラインで定義し、import 時に `safeParse` → 失敗なら `process.exit(1)`。値は `.env.local` に置き dotenvx で暗号化して git にコミットする（復号鍵は root の `.env.keys`）。
 
 ```bash
-# 値の追加・変更は手書きせず dotenvx を使う
-pnpm exec dotenvx set KEY "value" -f .env.local
+# 値の追加・変更は手書きせず dotenvx を使う。プロジェクトルートで実行する（理由はルートの README.md の「env は dotenvx で管理する」）
+npx dotenvx set KEY "value" -f apps/api/.env.local
 ```
 
 `JWT_ADMIN_ACCESS_SECRET` / `JWT_ADMIN_REFRESH_SECRET`（必須・32 文字以上）は admin の JWT の鍵。`openssl rand -hex 32` などで作る。**JWT の鍵 4 つ（`JWT_ACCESS_SECRET` / `JWT_REFRESH_SECRET` / `JWT_ADMIN_ACCESS_SECRET` / `JWT_ADMIN_REFRESH_SECRET`）は別の値にする**（同じ値があれば `src/env.ts` が起動を止める）。

@@ -6,6 +6,8 @@ Next.js 16 (App Router) を使用した管理画面アプリケーション
 
 - [概要](#概要)
   - [技術スタック](#技術スタック)
+- [ローカルで Google でサインインする](#ローカルで-google-でサインインする)
+  - [うまくいかないとき](#うまくいかないとき)
 - [アーキテクチャ](#アーキテクチャ)
   - [Route Group の構成](#route-group-の構成)
   - [ディレクトリ構成](#ディレクトリ構成)
@@ -32,6 +34,60 @@ Next.js 16 (App Router) を使用した管理画面アプリケーション
 - Tailwind CSS v4
 - ApexCharts（チャート。ダッシュボードとデモが使う）
 - FullCalendar（カレンダー。デモだけが使う）
+
+## ローカルで Google でサインインする
+
+サインインできるのは、`admins` テーブルに email を登録した Google アカウントだけ。画面を見るだけなら Google の設定は要らない。サインイン画面の「dev admin でログイン」で、seed の `admin@dev.local` として入れる。
+
+前提として、Postgres を起動して migration を流しておく（[`docs/setup/api.md`](../../docs/setup/api.md) の 4・5）。
+
+1. **Google Cloud で OAuth クライアントを用意する**
+
+   コミット済みの `.env.local` に入っているクライアントを使うなら、その「承認済みのリダイレクト URI」に `http://localhost:3030/api/auth/callback/google` があるかを確かめ、無ければ足す。この場合は手順 2 を飛ばす。そのクライアントを Google Cloud で触れないときは、種類が「ウェブ アプリケーション」の OAuth クライアントを作って同じ URI を足し、手順 2 で値を差し替える。
+
+   admin は `NEXT_PUBLIC_APP_URL` の origin からこの URI を作り、Google は完全一致で照合する（各環境の値は [`CLAUDE.md` の「認証」](CLAUDE.md#認証)）。OAuth 同意画面がテスト中なら、サインインに使うアカウントをテストユーザーに足す。
+
+2. **自分のクライアントに差し替えるときは、client ID と client secret を `.env.local` に入れる**
+
+   admin と api に、同じクライアントの値を入れる。client secret は api だけが持つ。
+
+   | ファイル | キー |
+   | --- | --- |
+   | `apps/admin/.env.local` | `GOOGLE_CLIENT_ID` |
+   | `apps/api/.env.local` | `GOOGLE_CLIENT_ID`・`GOOGLE_CLIENT_SECRET` |
+
+   ```bash
+   # プロジェクトルートで実行する（理由はルートの README.md の「env は dotenvx で管理する」）
+   npx dotenvx set GOOGLE_CLIENT_ID "<client ID>" -f apps/admin/.env.local
+   npx dotenvx set GOOGLE_CLIENT_ID "<client ID>" -f apps/api/.env.local
+   npx dotenvx set GOOGLE_CLIENT_SECRET "<client secret>" -f apps/api/.env.local
+   ```
+
+   env は起動したときにしか読まないので、`pnpm dev` を起動し直す。`.env.local` は暗号化してコミットしている、チームで共有のファイル。自分用のクライアントに差し替えたときは、チームで使うと決めるまでコミットしない。
+
+3. **サインインする Google アカウントを `admins` に登録する**
+
+   ```bash
+   pnpm --filter @repo/db admin:create --email <Google アカウントの email>
+   ```
+
+   `DATABASE_URL` を渡さなければ、ローカルの dev DB（`localhost:5433` の `tech-english_dev`）に登録する。登録済みなら何もしない。dev / min / prd では GitHub Actions の「Admin Create」で登録する（[`docs/deploy/prd.md`](../../docs/deploy/prd.md#admin-を登録する)）。
+
+4. **サインインする**
+
+   `http://localhost:3030/signin` の「Google でサインイン」を押し、手順 3 で登録したアカウントを選ぶ。
+
+### うまくいかないとき
+
+| 症状 | 原因 |
+| --- | --- |
+| Google の画面に `redirect_uri_mismatch` が出る | 手順 1 の redirect URI が登録されていない。または `NEXT_PUBLIC_APP_URL` の origin と一致していない |
+| Google の画面に `invalid_client` が出る | `apps/admin/.env.local` の `GOOGLE_CLIENT_ID` が間違っている。または env を変えた後に起動し直していない |
+| Google の画面に `access_denied` が出て先に進めない | OAuth 同意画面がテスト中で、そのアカウントがテストユーザーに入っていない |
+| サインイン画面に「このアカウントには管理画面の権限がありません」が出る | 選んだアカウントの email が `admins` に無い（手順 3）。または Google でその email が確認されていない |
+| サインイン画面に「サインインに失敗しました」が出る | callback に `code`・`state` が届かなかった。または api の呼び出しか応答の処理に失敗した（api が止まっている、api の `GOOGLE_CLIENT_ID`・`GOOGLE_CLIENT_SECRET` が admin と別のクライアントのもの など）。callback の URL、api が起動しているか、api の OAuth の設定を確かめる |
+| サインイン画面に「Google アカウントへのアクセスが拒否されました」が出る | Google の画面でキャンセルした。「Google でサインイン」からやり直す |
+| サインイン画面に「セッションが切れました」が出る | `NEXT_PUBLIC_APP_URL` と違うホスト（`127.0.0.1` など）で開いた。または Google の画面で 5 分以上経った（state の cookie が切れる）。`http://localhost:3030/signin` から開き直す |
 
 ## アーキテクチャ
 
