@@ -3,22 +3,22 @@
 import { useRouter } from "next/navigation"
 import { useEffect, useState, useTransition } from "react"
 
-import type { GetSourceResponse } from "@repo/api-schema"
-
 import { requestSourceCollectionAction } from "@/app/(dashboard)/sources/actions"
 import Badge from "@/components/ui/badge/Badge"
-import { SOURCE_COLLECTION_RUN_STATUS_LABELS, type SourceCollectionRunStatus } from "@/features/source/source.labels"
+import {
+  SOURCE_COLLECTION_REQUEST_FAILURE_MESSAGES,
+  SOURCE_COLLECTION_RUN_STATUS_LABELS,
+  type SourceCollectionRequestFailureReason,
+  type SourceCollectionRun,
+  type SourceCollectionRunStatus,
+} from "@/features/source/source.labels"
 import { formatDateTime } from "@/libs/date"
 import { cardBodyClass, cardClass, descClass, primaryButtonClass, titleClass } from "@/libs/ui-classes"
-
-type SourceCollectionRun = NonNullable<GetSourceResponse["latest_collection_run"]>
 
 /**
  * 収集中の画面を読み直す間隔。収集は数秒〜数分なので、押した後に結果へ切り替わるのを待てる長さにする
  */
 const COLLECTION_RUN_REFRESH_INTERVAL_MS = 3_000
-
-const DISABLED_SOURCE_HINT = "無効のソースは収集しません。有効にして保存してから押してください。"
 
 const describeCollectionRun = (run: SourceCollectionRun): string => {
   const finishedAt = run.finished_at ? formatDateTime(run.finished_at) : ""
@@ -51,7 +51,7 @@ export function SourceCollectionCard({ activeStatuses, isEnabled, run, sourceId 
   sourceId: number
 }) {
   const router = useRouter()
-  const [message, setMessage] = useState<string | null>(null)
+  const [failureReason, setFailureReason] = useState<SourceCollectionRequestFailureReason | null>(null)
   const [isPending, startTransition] = useTransition()
   const isActive = run !== null && activeStatuses.includes(run.status)
 
@@ -61,12 +61,21 @@ export function SourceCollectionCard({ activeStatuses, isEnabled, run, sourceId 
     return () => clearInterval(timer)
   }, [isActive, router])
 
+  /**
+   * 依頼が通らなかった理由の文言。読み直しで状態が変わった後に合わなくなるものは出さない
+   * （running は収集が終わったら消す。disabled は無効の案内と同じ文なので出さない）
+   */
+  const failureMessage = failureReason === null
+    || (failureReason === "running" && !isActive)
+    || failureReason === "disabled"
+    ? null
+    : SOURCE_COLLECTION_REQUEST_FAILURE_MESSAGES[failureReason]
+
   const requestCollection = () => {
-    setMessage(null)
+    setFailureReason(null)
     startTransition(async () => {
-      const result = await requestSourceCollectionAction(sourceId)
-        .catch(() => ({ message: "収集を始められませんでした。時間をおいてもう一度押してください。" }))
-      setMessage(result.message ?? null)
+      const result = await requestSourceCollectionAction(sourceId).catch(() => ({ ok: false as const, reason: "failed" as const }))
+      setFailureReason(result.ok ? null : result.reason)
     })
   }
 
@@ -93,8 +102,8 @@ export function SourceCollectionCard({ activeStatuses, isEnabled, run, sourceId 
         <button className={`${primaryButtonClass} w-full`} disabled={!isEnabled || isActive || isPending} type="button" onClick={requestCollection}>
           {isActive ? "収集中…" : "今すぐ収集"}
         </button>
-        {!isEnabled && <p className="text-theme-xs text-gray-500 dark:text-gray-400">{DISABLED_SOURCE_HINT}</p>}
-        {message && <p className="text-theme-xs text-error-500" role="alert">{message}</p>}
+        {!isEnabled && <p className="text-theme-xs text-gray-500 dark:text-gray-400">{SOURCE_COLLECTION_REQUEST_FAILURE_MESSAGES.disabled}</p>}
+        {failureMessage && <p className="text-theme-xs text-error-500" role="alert">{failureMessage}</p>}
       </div>
     </section>
   )

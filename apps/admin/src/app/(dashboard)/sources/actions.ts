@@ -5,10 +5,16 @@ import "server-only"
 import { revalidatePath } from "next/cache"
 import { redirect, unstable_rethrow } from "next/navigation"
 
-import { createSourceRequestSchema, errorResponseSchema, updateSourceRequestSchema } from "@repo/api-schema"
+import {
+  createSourceCollectionRunPathParamSchema,
+  createSourceRequestSchema,
+  errorResponseSchema,
+  updateSourceRequestSchema,
+} from "@repo/api-schema"
 
 import { sourceApi } from "@/features/source/source.api"
 import { convertFormDataToSourceRequest } from "@/features/source/source.form"
+import type { SourceCollectionRequestFailureReason } from "@/features/source/source.labels"
 import { ApiClientError } from "@/libs/api-client"
 
 /**
@@ -100,37 +106,37 @@ export const updateSourceAction = async (
   redirect("/sources")
 }
 
-/**
- * 今すぐ収集の依頼の結果。message は依頼できなかったときの文言
- */
-export type SourceCollectionRequestState = {
-  message?: string
-}
+export type SourceCollectionRequestResult = { ok: false, reason: SourceCollectionRequestFailureReason } | { ok: true }
 
 /**
- * 今すぐ収集の依頼が失敗したときの文言。404 はソースが無いときにも返るが、編集画面を開けている（ソースがある）ので、
+ * API の失敗を、依頼が通らなかった理由にする。404 はソースが無いときにも返るが、編集画面を開けている（ソースがある）ので、
  * この環境に今すぐ収集のルートが無い（api の SOURCE_COLLECTION_TYPE=none）とみなす
  */
-const buildCollectionRequestErrorMessage = (status: number): string => {
-  if (status === 409) return "ほかの収集が実行中です。終わるまで待ってください。"
-  if (status === 400) return "無効のソースは収集しません。有効にして保存してから押してください。"
-  if (status === 404) return "この環境では今すぐ収集を使えません（worker がありません）。"
-  return "収集を始められませんでした。時間をおいてもう一度押してください。"
+const convertCollectionRequestErrorToReason = (error: ApiClientError): SourceCollectionRequestFailureReason => {
+  if (error.status === 409) return "running"
+  if (error.status === 400) return "disabled"
+  if (error.status === 404) return "unavailable"
+  return "failed"
 }
 
 /**
  * 今すぐ収集の依頼の Server Action。収集は worker が裏で行うので、依頼が通ったら編集画面を読み直して「収集中」を出す。
- * 失敗したときも読み直す（409 は別の管理者が先に押したので、最新の記録が収集中で返り、画面が収集中と読み直しに切り替わる）
+ * 通らなかったときも読み直す（409 は別の管理者が先に押したので、最新の記録が収集中で返り、画面が収集中と読み直しに切り替わる）。
+ * 引数はブラウザから届くので、API と同じスキーマで検証してからパスに使う
  */
-export const requestSourceCollectionAction = async (sourceId: number): Promise<SourceCollectionRequestState> => {
+export const requestSourceCollectionAction = async (sourceId: number): Promise<SourceCollectionRequestResult> => {
+  const params = createSourceCollectionRunPathParamSchema.safeParse({ id: sourceId })
+  if (!params.success) return { ok: false, reason: "failed" }
+  const { id } = params.data
+
   try {
-    await sourceApi.requestCollection(sourceId)
+    await sourceApi.requestCollection(id)
   } catch (error) {
     unstable_rethrow(error)
     if (!(error instanceof ApiClientError)) throw error
-    revalidatePath(`/sources/${sourceId}`)
-    return { message: buildCollectionRequestErrorMessage(error.status) }
+    revalidatePath(`/sources/${id}`)
+    return { ok: false, reason: convertCollectionRequestErrorToReason(error) }
   }
-  revalidatePath(`/sources/${sourceId}`)
-  return {}
+  revalidatePath(`/sources/${id}`)
+  return { ok: true }
 }
