@@ -18,7 +18,7 @@ export type FetchPageSkipReason = "not_html" | "redirect_not_allowed" | "robots_
 export type FetchPageResult =
   | { body: string; finalUrl: string; kind: "ok"; status: number }
   /**
-   * 404 / 410 と、429 / 503 以外の 4xx・5xx
+   * 429 / 503 以外の 4xx・5xx と、リダイレクトでない 3xx（304 など）・Location の無いリダイレクト
    */
   | { kind: "http_error"; status: number }
   /**

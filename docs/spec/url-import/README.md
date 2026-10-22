@@ -110,8 +110,8 @@ admin で URL を 1 つ入れると、そのページを取得して本文を抽
 | 移すもの（cron から） | 内容 |
 | --- | --- |
 | `lib/document/*` | 本文の抽出・切り分け・本文候補の条件・抽出の版（`EXTRACTION_VERSION`） |
-| `client/web/*` | `WebPageClient`（robots.txt・リクエストの間隔・取得先の制限〈SSRF 対策〉・条件付きリクエスト・sitemap）とエラー |
-| `lib/url.ts`・`lib/parse-sitemap.ts`・`lib/path-filter.ts` | URL の正規化、sitemap の解析、対象パス・除外パスの判定 |
+| `client/web/*` | `WebPageClient`（robots.txt・リクエストの間隔・取得先の制限〈SSRF 対策〉）とエラー |
+| `lib/url.ts`・`lib/path-filter.ts` | URL の正規化、対象パス・除外パスの判定 |
 | `service/collection/website-pages.ts` | 取得してよいページの判定、ページの本文の抽出（`extractWebPage`） |
 | `const/collection.ts` のうち取得の定数 | User-Agent・タイムアウト・HTML の上限・リダイレクトの上限・Crawl-delay の上限など |
 

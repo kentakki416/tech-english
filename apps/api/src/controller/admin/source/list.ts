@@ -9,7 +9,7 @@ import * as service from "../../../service"
 import { convertTagToResponse } from "../tag/tag-mapper"
 
 /**
- * admin のソース一覧取得API（状態別の本文候補件数と取得失敗のページ数つき）
+ * admin のソース一覧取得API（状態別の本文候補件数つき）
  */
 export class AdminSourceListController {
   constructor(private _sourceRepository: SourceRepository) {}

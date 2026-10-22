@@ -10,7 +10,7 @@ import * as service from "../../../service"
 import { convertSourceToResponse } from "./source-mapper"
 
 /**
- * admin のソース詳細取得API（状態別の本文候補件数と取得失敗のページつき）
+ * admin のソース詳細取得API（状態別の本文候補件数つき）
  */
 export class AdminSourceDetailController {
   constructor(private _sourceRepository: SourceRepository) {}

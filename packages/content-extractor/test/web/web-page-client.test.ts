@@ -92,6 +92,16 @@ describe("WebPageClient", () => {
       expect(await harness.client.fetchPage(`${ORIGIN}/doc/a`)).toEqual({ kind: "http_error", status })
     })
 
+    it.each([
+      ["304", () => new Response(null, { status: 304 })],
+      ["Location の無い 302", () => new Response(null, { status: 302 })],
+    ])("%s は http_error", async (_label, route) => {
+      const harness = createHarness({ [`${ORIGIN}/doc/a`]: route })
+      await harness.client.loadRobots()
+
+      expect(await harness.client.fetchPage(`${ORIGIN}/doc/a`)).toMatchObject({ kind: "http_error" })
+    })
+
     it("Content-Type が text/html でなければ not_html", async () => {
       const harness = createHarness({
         [`${ORIGIN}/doc/a`]: () => new Response("%PDF-1.7", { headers: { "content-type": "application/pdf" } }),
