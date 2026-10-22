@@ -364,7 +364,7 @@ api は次の登録・更新を 400 で拒否する。
 - **JavaScript で本文を描画するサイト**（ヘッドレスブラウザが必要）
 - **許諾を得た技術ブログ**
 - **ShareAlike ライセンス**（MDN など）
-- **管理画面からの収集の即時実行・抽出のプレビュー**（MVP は cron の手動実行と試し実行で代替。URL の 1 ページの取り込みは [url-import](../url-import/README.md) で行う）
+- **管理画面からの収集の即時実行・抽出のプレビュー**（MVP は cron の手動実行と試し実行で代替。URL の 1 ページの取り込みは [url-import](../url-import/README.md)、1 ソースの今すぐ収集は [manual-collection](../manual-collection/README.md) で行う）
 
 ---
 
