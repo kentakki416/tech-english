@@ -94,7 +94,7 @@
 | ユーザー | 個人の目標 | ✅ | [learning-record](../learning-record/README.md) |
 | ユーザー | リマインダー | ✅（mobile のみ） | [study-reminder](../study-reminder/README.md) |
 | 問題作成 | 英文の収集（GitHub の Markdown） | ✅ | [content-collection](../content-collection/README.md) |
-| 問題作成 | 英文の収集（公式ドキュメントのサイト） | ✅ | [content-collection](../content-collection/README.md#サイトのクロール) |
+| 問題作成 | 英文の収集（公式ドキュメントのサイト） | やめた（ローカルの URL から追加だけ） | [github-only-collection](../github-only-collection/README.md) |
 | 問題作成 | 4 択問題の生成（LLM）と管理者承認 | ✅ | [question-generation](../question-generation/README.md) |
 | 学習 | 長文読解（制限時間・採点・解説・時間の記録） | ✅ | [reading-practice](../reading-practice/README.md) |
 | 学習 | アシスト（段落の和訳・単語の意味） | ✅ | [reading-practice](../reading-practice/README.md) |
@@ -220,7 +220,7 @@ flowchart LR
 | `generate:audio` | ECS RunTask | EventBridge Scheduler で 1 時間ごと（公開された問題の読み上げの音声を作る） |
 | リマインダー | **サーバー処理なし**（mobile 端末内のローカル通知） | ― |
 
-外部サービスとして **GitHub API**（収集、ログイン）・**Claude API**（生成）・**Amazon Polly**（読み上げの音声）を新たに使い、cron から **公式ドキュメントのサイト** にも HTTP でアクセスする。いずれも外向きの通信なので、minimal（public subnet + public IP）でも prd（NAT Gateway）でも追加のネットワーク設定は要らない。
+外部サービスとして **GitHub API**（収集、ログイン）・**Claude API**（生成）・**Amazon Polly**（読み上げの音声）を新たに使う（サイトのページの取得はローカルの URL から追加だけで、デプロイした環境からは行わない）。いずれも外向きの通信なので、minimal（public subnet + public IP）でも prd（NAT Gateway）でも追加のネットワーク設定は要らない。
 
 ### ドメイン定数の置き場所
 

@@ -59,12 +59,12 @@ describe("DrizzleSourceRepository", () => {
     vi.clearAllMocks()
   })
 
-  describe("findEnabled", () => {
+  describe("findEnabledGitHubSources", () => {
     describe("正常系", () => {
       it("is_enabled の GitHub のソースを last_collected_at の古い順（NULL が先）で返す", async () => {
         const fake = createFakeDb([buildRow()])
 
-        const enabledSources = await new DrizzleSourceRepository(fake.db).findEnabled()
+        const enabledSources = await new DrizzleSourceRepository(fake.db).findEnabledGitHubSources()
 
         expect(enabledSources).toEqual([{
           id: 1,

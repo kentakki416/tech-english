@@ -9,12 +9,12 @@ import type { UrlImportErrorCode, WebsiteSource } from "@repo/domain"
 const URL_IMPORT_FETCH_DEADLINE_MS = 15_000
 
 /**
- * robots.txt の Crawl-delay の上限。収集の上限（30 秒）だと、1 回待つだけで取得の期限を過ぎる
+ * robots.txt の Crawl-delay の上限。`@repo/content-extractor` の既定の上限（30 秒）だと、1 回待つだけで取得の期限を過ぎる
  */
 const URL_IMPORT_MAX_CRAWL_DELAY_SECONDS = 10
 
 /**
- * 同じサイトへのリクエストの間隔（収集の既定と同じ）
+ * 同じサイトへのリクエストの間隔（content-collection の「サイトの取得」の礼儀正しい取得の間隔）
  */
 const URL_IMPORT_REQUEST_INTERVAL_MS = 1000
 
@@ -108,7 +108,7 @@ const fetchPageOrFailure = async (
 }
 
 /**
- * `@repo/content-extractor` で、サイトのソースの 1 ページを収集と同じ規則（取得先の制限・robots.txt・抽出）で取得して抽出する。
+ * `@repo/content-extractor` で、サイトのソースの 1 ページを取得して抽出する（取得先の制限・robots.txt・本文の抽出は `@repo/content-extractor` の規則）。
  * 取得は始めてから URL_IMPORT_FETCH_DEADLINE_MS で打ち切る
  */
 export class PageFetcher implements IPageFetcher {

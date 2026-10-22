@@ -15,8 +15,8 @@ export const buildCollectorUserAgent = (contactUrl: string | undefined): string 
 export const CRAWLER_NAME = "TechEnglishBot"
 
 /**
- * robots.txt の Crawl-delay（秒）の上限（この値ちょうどは従う）。これを超える値を返すサイトは、そのソースを今回の実行では打ち切る（失敗にはしない）。
- * 極端に大きい値（3600 など）にそのまま従うと、1 ソースの処理が何時間も止まるため
+ * robots.txt の Crawl-delay（秒）の既定の上限（この値ちょうどは従う）。これを超える値を返すサイトは、loadRobots が CrawlDelayTooLongError を throw する。
+ * 極端に大きい値（3600 など）にそのまま従うと、取得が何時間も止まるため（api の URL から追加は maxCrawlDelaySeconds でさらに縮める）
  */
 export const MAX_CRAWL_DELAY_SECONDS = 30
 

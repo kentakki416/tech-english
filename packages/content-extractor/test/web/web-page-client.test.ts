@@ -299,6 +299,18 @@ describe("WebPageClient", () => {
       expect(harness.requestedUrls()).toEqual([ROBOTS_URL])
     })
 
+    it.each([429, 503])("%s は Retry-After つきの WebSourceThrottledError", async (status) => {
+      const harness = createHarness({
+        [`${ORIGIN}/doc/a`]: () => createHtmlResponse("busy", { "retry-after": "120" }, status),
+      })
+      await harness.client.loadRobots()
+
+      const promise = harness.client.fetchPage(`${ORIGIN}/doc/a`, NO_CONDITIONAL)
+
+      await expect(promise).rejects.toBeInstanceOf(WebSourceThrottledError)
+      await expect(promise).rejects.toMatchObject({ retryAfter: "120", status, url: `${ORIGIN}/doc/a` })
+    })
+
     it("タイムアウト・接続エラーは network_error", async () => {
       const harness = createHarness({
         [`${ORIGIN}/doc/a`]: () => {

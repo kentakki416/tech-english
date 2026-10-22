@@ -163,7 +163,7 @@ export const createFakeRepo = (options: {
   return {
     sourceRepository: {
       findById: vi.fn(async (_id: number) => options.source ?? null),
-      findEnabled: vi.fn(async () => options.enabledSources ?? []),
+      findEnabledGitHubSources: vi.fn(async () => options.enabledSources ?? []),
       markCollected: vi.fn(async (_id: number, _input: MarkCollectedInput) => true),
     },
     passageRepository: {

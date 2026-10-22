@@ -23,7 +23,7 @@ export class DrizzleSourceRepository implements SourceRepository {
     return row ? this._toDomain(row) : null
   }
 
-  public async findEnabled(): Promise<GitHubRepositorySource[]> {
+  public async findEnabledGitHubSources(): Promise<GitHubRepositorySource[]> {
     const rows = await this._db
       .select()
       .from(sources)

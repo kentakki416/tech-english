@@ -33,7 +33,7 @@ export type CollectPassagesResult = {
  * --source-id の指定があればそのソースだけ（無い・サイト・無効なら throw）、無ければ有効な GitHub のソースを古い順に
  */
 const findTargetSources = async (sourceId: number | null, repo: CollectionRepo): Promise<GitHubRepositorySource[]> => {
-  if (sourceId === null) return repo.sourceRepository.findEnabled()
+  if (sourceId === null) return repo.sourceRepository.findEnabledGitHubSources()
   const source = await repo.sourceRepository.findById(sourceId)
   if (!source) throw new Error(`Source not found: id=${sourceId}`)
   if (source.fetchType === "website") throw new Error(`Website sources are not collected: id=${sourceId}`)

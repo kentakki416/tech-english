@@ -21,7 +21,7 @@ const removeElements = (root: ParentNode, selectors: string[]): void => {
 }
 
 /**
- * CSS セレクタで本文の要素を取り出す。要素が無ければ null（本文 0 語になり、試し実行で気付ける）
+ * CSS セレクタで本文の要素を取り出す。要素が無ければ null（本文 0 語になり、URL から追加の確認で気付ける）
  */
 const selectContentHtml = (document: Document, contentSelector: string, excludeSelectors: string[]): string | null => {
   const content = document.querySelector(contentSelector)

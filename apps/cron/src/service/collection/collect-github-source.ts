@@ -35,7 +35,7 @@ const findStopStatus = (
   progress: { createdPassageCount: number; fetchedDocumentCount: number },
   input: CollectGitHubSourceInput,
   deps: CollectionDeps,
-): Exclude<SourceCollectionStatus, "completed" | "crawl_delay_too_long" | "throttled" | "up_to_date"> | null => {
+): Exclude<SourceCollectionStatus, "completed" | "up_to_date"> | null => {
   if (progress.fetchedDocumentCount >= input.maxDocuments || progress.createdPassageCount >= input.maxPassages) {
     return "limit_reached"
   }

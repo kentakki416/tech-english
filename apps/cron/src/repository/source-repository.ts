@@ -22,10 +22,9 @@ export type MarkCollectedInput = {
 export interface SourceRepository {
   findById(id: number): Promise<Source | null>
   /**
-   * is_enabled = true の GitHub のソースを last_collected_at の古い順（未収集が先）で返す。
-   * 本文候補の上限で後ろのソースが毎回あふれないように。サイトのソースは収集しないので返さない
+   * last_collected_at の古い順（未収集が先）。本文候補の上限で後ろのソースが毎回あふれないように
    */
-  findEnabled(): Promise<GitHubRepositorySource[]>
+  findEnabledGitHubSources(): Promise<GitHubRepositorySource[]>
   /**
    * 収集を終えた時刻を記録する。行を更新できたら true
    */
