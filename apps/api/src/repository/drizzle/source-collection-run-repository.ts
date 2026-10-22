@@ -1,6 +1,7 @@
 import { and, desc, DrizzleClient, eq, lt, or, sourceCollectionRuns } from "@repo/db"
 import type { SourceCollectionRun } from "@repo/domain"
 
+import type { ReadOptions } from "../reading-attempt-repository"
 import type { CreateSourceCollectionRunResult, SourceCollectionRunRepository } from "../source-collection-run-repository"
 
 import { isUniqueViolation } from "./pg-error"
@@ -33,7 +34,7 @@ export class DrizzleSourceCollectionRunRepository implements SourceCollectionRun
     }
   }
 
-  public async failTimedOut(input: { error: string; now: Date; sourceId: number; startedBefore: Date }): Promise<number> {
+  public async failTimedOut(input: { error: string; now: Date; sourceId: number; staleBefore: Date }): Promise<number> {
     const rows = await this._db
       .update(sourceCollectionRuns)
       .set({ error: input.error, finishedAt: input.now, status: "failed" })
@@ -41,8 +42,8 @@ export class DrizzleSourceCollectionRunRepository implements SourceCollectionRun
         and(
           eq(sourceCollectionRuns.sourceId, input.sourceId),
           or(
-            and(eq(sourceCollectionRuns.status, "queued"), lt(sourceCollectionRuns.createdAt, input.startedBefore)),
-            and(eq(sourceCollectionRuns.status, "running"), lt(sourceCollectionRuns.startedAt, input.startedBefore)),
+            and(eq(sourceCollectionRuns.status, "queued"), lt(sourceCollectionRuns.createdAt, input.staleBefore)),
+            and(eq(sourceCollectionRuns.status, "running"), lt(sourceCollectionRuns.startedAt, input.staleBefore)),
           ),
         ),
       )
@@ -50,8 +51,9 @@ export class DrizzleSourceCollectionRunRepository implements SourceCollectionRun
     return rows.length
   }
 
-  public async findLatestBySourceId(sourceId: number): Promise<SourceCollectionRun | null> {
-    const [row] = await this._db
+  public async findLatestBySourceId(sourceId: number, options?: ReadOptions): Promise<SourceCollectionRun | null> {
+    const reader = options?.fromPrimary ? this._db.$primary : this._db
+    const [row] = await reader
       .select()
       .from(sourceCollectionRuns)
       .where(eq(sourceCollectionRuns.sourceId, sourceId))

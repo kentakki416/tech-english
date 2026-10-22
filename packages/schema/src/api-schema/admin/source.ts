@@ -1,6 +1,7 @@
 import { z } from "zod"
 
 import {
+  ACTIVE_SOURCE_COLLECTION_RUN_STATUSES,
   ALLOWED_LICENSES,
   MAX_SERIAL_ID,
   PASSAGE_STATUSES,
@@ -239,6 +240,11 @@ export const sourceCollectionRunSchema = z.object({
 })
 
 export type SourceCollectionRunResponse = z.infer<typeof sourceCollectionRunSchema>
+
+/**
+ * 収集中（queued / running）の状態。admin が「収集中か」を判定するのに使う（admin は @repo/domain を import できない）
+ */
+export const activeSourceCollectionRunStatusSchema = z.enum(ACTIVE_SOURCE_COLLECTION_RUN_STATUSES)
 
 // ========================================================
 // GET /api/admin/source - ソース一覧

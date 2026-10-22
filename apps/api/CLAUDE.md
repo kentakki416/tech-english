@@ -55,10 +55,11 @@ pnpm db:seed:sample-passages # 開発用のサンプル問題（公開 1・下�
 - 原因が複数ある 400 は `badRequestError(message, details)` で `ApiErrorDetail[]`（`{ code, message, path }`）を付ける。`sendError` がレスポンスの `details` に含める（admin の問題の公開の条件の検査など。テストは `code` と `path` を検証し、`message` は検証しない）
 - 想定外の throw / スキーマ違反は `src/middleware/unhandled-exception-handler.ts` が処理する（リクエストスキーマ違反 → 400 + `warn`、レスポンススキーマ違反とその他 → 500 + `error`）
 
-try/catch を許容するのは次の 2 つだけ。
+try/catch を許容するのは次の 3 つだけ。
 
 - **副次処理の意図的な握りつぶし**: 通知送信の失敗などメイン処理を成功扱いにしたい場合。`logger.warn` してから続行する
 - **エラーを値に変換する必要がある場合**: `health-service` が個別のサービスチェック失敗を `status: "error"` に集約して必ず両方の status を返す、など
+- **後始末をしてから throw し直す場合**: 外部への送信に失敗したときに、先に書いた状態を残さないため（`requestSourceCollection` が Queue に積めなかった収集の記録を `failed` にしてから throw する）。catch では後始末だけをして、エラーは必ず throw し直す
 
 ## テスト戦略
 

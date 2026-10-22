@@ -3,15 +3,17 @@ import {
   isAllowedLicense,
   PASSAGE_STATUSES,
   type PassageStatus,
+  findSourceNotCollectableReason,
   type Source,
-  SOURCE_COLLECTION_RUN_TIMEOUT_MINUTES,
   type SourceCollectionRun,
+  type SourceNotCollectableReason,
 } from "@repo/domain"
 import { badRequestError, conflictError, err, notFoundError, ok, Result } from "@repo/errors"
 import { logger } from "@repo/logger"
 import { buildCollectSourceJobId, type CollectSourceJobData, type JobQueue } from "@repo/queue"
 
 import type { IGitHubLicenseClient } from "../client/github-license"
+import { SOURCE_COLLECTION_RUN_TIMEOUT_MINUTES } from "../const"
 import {
   PassageCountRow,
   SourceCollectionRunRepository,
@@ -40,10 +42,6 @@ const DUPLICATE_SOURCE_MESSAGE = "Source already registered"
 const WEBSITE_SOURCE_UNAVAILABLE_MESSAGE = "Website sources are only available locally"
 
 const TAG_NOT_FOUND_MESSAGE = "Tag not found"
-
-const WEBSITE_SOURCE_NOT_COLLECTED_MESSAGE = "Website sources are not collected"
-
-const DISABLED_SOURCE_NOT_COLLECTED_MESSAGE = "Disabled sources are not collected"
 
 const SOURCE_COLLECTION_RUNNING_MESSAGE = "Source collection is already running"
 
@@ -165,7 +163,7 @@ const failTimedOutCollectionRuns = async (sourceId: number, now: Date, repo: Sou
     error: SOURCE_COLLECTION_TIMED_OUT_ERROR,
     now,
     sourceId,
-    startedBefore: new Date(now.getTime() - SOURCE_COLLECTION_RUN_TIMEOUT_MINUTES * 60_000),
+    staleBefore: new Date(now.getTime() - SOURCE_COLLECTION_RUN_TIMEOUT_MINUTES * 60_000),
   })
   if (count > 0) logger.warn("SourceService: Timed out source collection runs were failed", { count, sourceId })
 }
@@ -184,9 +182,12 @@ export const getSourceById = async (
     return err(notFoundError("Source not found"))
   }
   await failTimedOutCollectionRuns(id, deps.now, repo)
+  /**
+   * 片付けの UPDATE の直後と、依頼の直後の読み直しで、read replica の遅れ（queued が見えない）を見ないよう primary から読む
+   */
   const [passageCountRows, latestCollectionRun] = await Promise.all([
     repo.sourceRepository.countPassagesBySource(id),
-    repo.sourceCollectionRunRepository.findLatestBySourceId(id),
+    repo.sourceCollectionRunRepository.findLatestBySourceId(id, { fromPrimary: true }),
   ])
   return ok({ latestCollectionRun, passageCounts: buildPassageCounts(passageCountRows, id), source })
 }
@@ -317,6 +318,15 @@ export const detectRepositoryLicense = async (
 }
 
 /**
+ * 収集できないソースの理由を、api のエラーにする（ソースが無いときだけ 404）
+ */
+const buildSourceNotCollectableError = (reason: SourceNotCollectableReason) => {
+  if (reason === "not_found") return notFoundError("Source not found")
+  if (reason === "website") return badRequestError("Website sources are not collected")
+  return badRequestError("Disabled sources are not collected")
+}
+
+/**
  * 今すぐ収集を依頼する。queued の記録を作ってから Queue に積み、worker が収集する。
  * 有効な GitHub のソースだけを受け付け、同じソースの収集中に依頼されたら 409（部分 unique index で判定する）
  */
@@ -326,17 +336,10 @@ export const requestSourceCollection = async (
   deps: { collectSourceQueue: JobQueue<CollectSourceJobData>; now: Date },
 ): Promise<Result<SourceCollectionRun>> => {
   const source = await repo.sourceRepository.findById(sourceId)
-  if (!source) {
-    logger.debug("SourceService: Source not found", { sourceId })
-    return err(notFoundError("Source not found"))
-  }
-  if (source.fetchType === "website") {
-    logger.debug("SourceService: Website source is not collected", { sourceId })
-    return err(badRequestError(WEBSITE_SOURCE_NOT_COLLECTED_MESSAGE))
-  }
-  if (!source.isEnabled) {
-    logger.debug("SourceService: Disabled source is not collected", { sourceId })
-    return err(badRequestError(DISABLED_SOURCE_NOT_COLLECTED_MESSAGE))
+  const notCollectableReason = findSourceNotCollectableReason(source)
+  if (notCollectableReason !== null) {
+    logger.debug("SourceService: Source is not collectable", { notCollectableReason, sourceId })
+    return err(buildSourceNotCollectableError(notCollectableReason))
   }
 
   await failTimedOutCollectionRuns(sourceId, deps.now, repo)
@@ -348,6 +351,7 @@ export const requestSourceCollection = async (
 
   /**
    * 積めなかった記録を queued のまま残すと、時間切れまで同じソースを依頼できなくなるので、failed にしてから throw し直す
+   * （apps/api/CLAUDE.md の try/catch の許容の「後始末をしてから throw し直す」）
    */
   try {
     await deps.collectSourceQueue.enqueue({ runId: created.run.id }, { jobId: buildCollectSourceJobId(created.run.id) })

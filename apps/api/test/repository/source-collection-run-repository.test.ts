@@ -8,7 +8,7 @@ const sourceCollectionRunRepository = new DrizzleSourceCollectionRunRepository(t
 type SourceCollectionRunInsert = typeof sourceCollectionRuns.$inferInsert
 
 const NOW = new Date("2026-10-22T04:00:00.000Z")
-const STARTED_BEFORE = new Date("2026-10-22T03:30:00.000Z")
+const STALE_BEFORE = new Date("2026-10-22T03:30:00.000Z")
 
 const insertGitHubSource = async (repository = "example/docs") => {
   const [row] = await testDb
@@ -27,8 +27,21 @@ const insertGitHubSource = async (repository = "example/docs") => {
   return row
 }
 
+const RUN_TIME = new Date("2026-10-22T03:00:00.000Z")
+
+/**
+ * CHECK が求める時刻（running の started_at・終わった記録の finished_at）を、渡されなければ入れる
+ */
 const insertRun = async (values: SourceCollectionRunInsert) => {
-  const [row] = await testDb.insert(sourceCollectionRuns).values(values).returning()
+  const isActive = values.status === "queued" || values.status === "running"
+  const [row] = await testDb
+    .insert(sourceCollectionRuns)
+    .values({
+      finishedAt: isActive ? null : RUN_TIME,
+      startedAt: values.status === "queued" ? null : RUN_TIME,
+      ...values,
+    })
+    .returning()
   return row
 }
 
@@ -99,15 +112,15 @@ describe("DrizzleSourceCollectionRunRepository", () => {
 
   describe("failTimedOut", () => {
     describe("正常系", () => {
-      it("queued は依頼した時刻、running は始めた時刻が startedBefore より前なら failed にし、境界ちょうどは残す", async () => {
+      it("queued は依頼した時刻、running は始めた時刻が staleBefore より前なら failed にし、境界ちょうどは残す", async () => {
         const source = await insertGitHubSource()
-        const oldQueued = await insertRun({ createdAt: new Date(STARTED_BEFORE.getTime() - 1), sourceId: source.id, status: "queued" })
+        const oldQueued = await insertRun({ createdAt: new Date(STALE_BEFORE.getTime() - 1), sourceId: source.id, status: "queued" })
 
         const count = await sourceCollectionRunRepository.failTimedOut({
           error: "30 分を過ぎても終わらなかった",
           now: NOW,
           sourceId: source.id,
-          startedBefore: STARTED_BEFORE,
+          staleBefore: STALE_BEFORE,
         })
 
         expect(count).toBe(1)
@@ -119,8 +132,8 @@ describe("DrizzleSourceCollectionRunRepository", () => {
       })
 
       it.each([
-        ["queued で依頼した時刻がちょうど startedBefore", { createdAt: STARTED_BEFORE, status: "queued" }],
-        ["running で始めた時刻がちょうど startedBefore", { createdAt: new Date("2026-10-22T03:00:00.000Z"), startedAt: STARTED_BEFORE, status: "running" }],
+        ["queued で依頼した時刻がちょうど staleBefore", { createdAt: STALE_BEFORE, status: "queued" }],
+        ["running で始めた時刻がちょうど staleBefore", { createdAt: new Date("2026-10-22T03:00:00.000Z"), startedAt: STALE_BEFORE, status: "running" }],
         ["completed（どれだけ古くても）", { createdAt: new Date("2026-10-01T00:00:00.000Z"), status: "completed" }],
       ] as const)("%s なら変えない", async (_label, values) => {
         const source = await insertGitHubSource()
@@ -130,7 +143,7 @@ describe("DrizzleSourceCollectionRunRepository", () => {
           error: "30 分を過ぎても終わらなかった",
           now: NOW,
           sourceId: source.id,
-          startedBefore: STARTED_BEFORE,
+          staleBefore: STALE_BEFORE,
         })
 
         expect(count).toBe(0)
@@ -142,15 +155,15 @@ describe("DrizzleSourceCollectionRunRepository", () => {
         const run = await insertRun({
           createdAt: new Date("2026-10-22T03:00:00.000Z"),
           sourceId: source.id,
-          startedAt: new Date(STARTED_BEFORE.getTime() + 1),
+          startedAt: new Date(STALE_BEFORE.getTime() + 1),
           status: "running",
         })
-        const input = { error: "30 分を過ぎても終わらなかった", now: NOW, sourceId: source.id, startedBefore: STARTED_BEFORE }
+        const input = { error: "30 分を過ぎても終わらなかった", now: NOW, sourceId: source.id, staleBefore: STALE_BEFORE }
 
         expect(await sourceCollectionRunRepository.failTimedOut(input)).toBe(0)
 
         await testDb.update(sourceCollectionRuns)
-          .set({ startedAt: new Date(STARTED_BEFORE.getTime() - 1) })
+          .set({ startedAt: new Date(STALE_BEFORE.getTime() - 1) })
           .where(eq(sourceCollectionRuns.id, run.id))
         expect(await sourceCollectionRunRepository.failTimedOut(input)).toBe(1)
         expect(await selectRun(run.id)).toMatchObject({ status: "failed" })
@@ -165,7 +178,7 @@ describe("DrizzleSourceCollectionRunRepository", () => {
           error: "30 分を過ぎても終わらなかった",
           now: NOW,
           sourceId: source.id,
-          startedBefore: STARTED_BEFORE,
+          staleBefore: STALE_BEFORE,
         })
 
         expect(await selectRun(otherRun.id)).toMatchObject({ status: "queued" })

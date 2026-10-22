@@ -74,7 +74,7 @@ describe("POST /api/admin/source/:id/collection-runs", () => {
 
     it("前の収集が終わっていれば、もう一度依頼できる", async () => {
       const github = await insertGitHubSource()
-      await testDb.insert(sourceCollectionRuns).values({ sourceId: github.id, status: "completed" })
+      await testDb.insert(sourceCollectionRuns).values({ finishedAt: new Date(), sourceId: github.id, startedAt: new Date(), status: "completed" })
 
       const res = await request(app)
         .post(`/api/admin/source/${github.id}/collection-runs`)

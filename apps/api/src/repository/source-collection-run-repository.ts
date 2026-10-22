@@ -1,5 +1,7 @@
 import type { SourceCollectionRun } from "@repo/domain"
 
+import type { ReadOptions } from "./reading-attempt-repository"
+
 /**
  * 記録を作った結果。active_exists はそのソースの収集が queued / running で残っている（部分 unique index に違反した）
  */
@@ -16,13 +18,13 @@ export interface SourceCollectionRunRepository {
    */
   create(sourceId: number): Promise<CreateSourceCollectionRunResult>
   /**
-   * そのソースの収集中の記録のうち、queued は依頼した時刻・running は始めた時刻が startedBefore より前のものを failed にし、件数を返す
+   * そのソースの収集中の記録のうち、queued は依頼した時刻・running は始めた時刻が staleBefore より前のものを failed にし、件数を返す
    */
-  failTimedOut(input: { error: string; now: Date; sourceId: number; startedBefore: Date }): Promise<number>
+  failTimedOut(input: { error: string; now: Date; sourceId: number; staleBefore: Date }): Promise<number>
   /**
    * そのソースの最新の記録（id の降順で 1 件）
    */
-  findLatestBySourceId(sourceId: number): Promise<SourceCollectionRun | null>
+  findLatestBySourceId(sourceId: number, options?: ReadOptions): Promise<SourceCollectionRun | null>
   /**
    * queued のままの記録を failed にする（Queue に積めなかったとき）
    */

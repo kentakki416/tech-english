@@ -112,7 +112,7 @@ describe("GET /api/admin/source/:id", () => {
 
     it("最後の収集の記録（最新の 1 件）を返す", async () => {
       const github = await insertGitHubSource()
-      await testDb.insert(sourceCollectionRuns).values({ sourceId: github.id, status: "failed" })
+      await testDb.insert(sourceCollectionRuns).values({ finishedAt: new Date("2026-10-21T03:00:00.000Z"), sourceId: github.id, status: "failed" })
       const [latest] = await testDb
         .insert(sourceCollectionRuns)
         .values({

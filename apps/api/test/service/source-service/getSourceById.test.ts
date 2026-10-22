@@ -41,7 +41,7 @@ describe("getSourceById", () => {
         },
       })
       expect(sourceRepository.countPassagesBySource).toHaveBeenCalledWith(2)
-      expect(sourceCollectionRunRepository.findLatestBySourceId).toHaveBeenCalledWith(2)
+      expect(sourceCollectionRunRepository.findLatestBySourceId).toHaveBeenCalledWith(2, { fromPrimary: true })
     })
 
     it("記録を読む前に、30 分より前から収集中の記録を failed にする", async () => {
@@ -54,7 +54,7 @@ describe("getSourceById", () => {
         error: expect.any(String),
         now: NOW,
         sourceId: 2,
-        startedBefore: new Date("2026-10-22T03:30:00.000Z"),
+        staleBefore: new Date("2026-10-22T03:30:00.000Z"),
       })
       expect(sourceCollectionRunRepository.failTimedOut.mock.invocationCallOrder[0])
         .toBeLessThan(sourceCollectionRunRepository.findLatestBySourceId.mock.invocationCallOrder[0])

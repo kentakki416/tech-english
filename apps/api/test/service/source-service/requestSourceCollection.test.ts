@@ -49,7 +49,7 @@ describe("requestSourceCollection", () => {
         error: expect.any(String),
         now: NOW,
         sourceId: 1,
-        startedBefore: new Date("2026-10-22T03:30:00.000Z"),
+        staleBefore: new Date("2026-10-22T03:30:00.000Z"),
       })
       expect(sourceCollectionRunRepository.failTimedOut.mock.invocationCallOrder[0])
         .toBeLessThan(sourceCollectionRunRepository.create.mock.invocationCallOrder[0])
