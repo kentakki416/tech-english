@@ -85,7 +85,7 @@ Next.js 16 (App Router) を使用した管理画面アプリケーション
 | Google の画面に `invalid_client` が出る | `apps/admin/.env.local` の `GOOGLE_CLIENT_ID` が間違っている。または env を変えた後に起動し直していない |
 | Google の画面に `access_denied` が出て先に進めない | OAuth 同意画面がテスト中で、そのアカウントがテストユーザーに入っていない |
 | サインイン画面に「このアカウントには管理画面の権限がありません」が出る | 選んだアカウントの email が `admins` に無い（手順 3）。または Google でその email が確認されていない |
-| サインイン画面に「サインインに失敗しました」が出る | api が code を token に交換できなかった。api が起動しているか、api の `GOOGLE_CLIENT_ID`・`GOOGLE_CLIENT_SECRET` が admin と同じクライアントのものかを確かめる |
+| サインイン画面に「サインインに失敗しました」が出る | callback に `code`・`state` が届かなかった。または api の呼び出しか応答の処理に失敗した（api が止まっている、api の `GOOGLE_CLIENT_ID`・`GOOGLE_CLIENT_SECRET` が admin と別のクライアントのもの など）。callback の URL、api が起動しているか、api の OAuth の設定を確かめる |
 | サインイン画面に「Google アカウントへのアクセスが拒否されました」が出る | Google の画面でキャンセルした。「Google でサインイン」からやり直す |
 | サインイン画面に「セッションが切れました」が出る | `NEXT_PUBLIC_APP_URL` と違うホスト（`127.0.0.1` など）で開いた。または Google の画面で 5 分以上経った（state の cookie が切れる）。`http://localhost:3030/signin` から開き直す |
 
