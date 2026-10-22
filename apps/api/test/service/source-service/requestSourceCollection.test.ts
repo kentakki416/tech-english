@@ -36,7 +36,7 @@ describe("requestSourceCollection", () => {
       expect(result).toEqual({ ok: true, value: run })
       expect(sourceCollectionRunRepository.create).toHaveBeenCalledWith(1)
       expect(collectSourceQueue.enqueue).toHaveBeenCalledWith({ runId: 10 }, { jobId: "collect-source-run-10" })
-      expect(sourceCollectionRunRepository.markFailed).not.toHaveBeenCalled()
+      expect(sourceCollectionRunRepository.markQueuedAsFailed).not.toHaveBeenCalled()
     })
 
     it("記録を作る前に、30 分より前から収集中の記録を failed にする", async () => {
@@ -97,7 +97,7 @@ describe("requestSourceCollection", () => {
 
       await expect(callRequestSourceCollection(1)).rejects.toBe(queueError)
 
-      expect(sourceCollectionRunRepository.markFailed).toHaveBeenCalledWith({ error: expect.any(String), id: 10, now: NOW })
+      expect(sourceCollectionRunRepository.markQueuedAsFailed).toHaveBeenCalledWith({ error: expect.any(String), id: 10 })
     })
   })
 })

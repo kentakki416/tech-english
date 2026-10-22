@@ -1,6 +1,6 @@
 import type { SourceCollectionRun } from "@repo/domain"
 
-import type { ReadOptions } from "./reading-attempt-repository"
+import type { ReadOptions } from "./read-options"
 
 /**
  * 記録を作った結果。active_exists はそのソースの収集が queued / running で残っている（部分 unique index に違反した）
@@ -26,7 +26,7 @@ export interface SourceCollectionRunRepository {
    */
   findLatestBySourceId(sourceId: number, options?: ReadOptions): Promise<SourceCollectionRun | null>
   /**
-   * queued のままの記録を failed にする（Queue に積めなかったとき）
+   * queued のままの記録を failed にする（Queue に積めなかったとき）。終わった時刻は DB の今の時刻（依頼の時刻より前にならないように）
    */
-  markFailed(input: { error: string; id: number; now: Date }): Promise<void>
+  markQueuedAsFailed(input: { error: string; id: number }): Promise<void>
 }

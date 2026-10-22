@@ -1,7 +1,7 @@
-import { and, desc, DrizzleClient, eq, lt, or, sourceCollectionRuns } from "@repo/db"
+import { and, desc, DrizzleClient, eq, lt, or, sourceCollectionRuns, sql } from "@repo/db"
 import type { SourceCollectionRun } from "@repo/domain"
 
-import type { ReadOptions } from "../reading-attempt-repository"
+import type { ReadOptions } from "../read-options"
 import type { CreateSourceCollectionRunResult, SourceCollectionRunRepository } from "../source-collection-run-repository"
 
 import { isUniqueViolation } from "./pg-error"
@@ -62,10 +62,10 @@ export class DrizzleSourceCollectionRunRepository implements SourceCollectionRun
     return row ? this._toDomain(row) : null
   }
 
-  public async markFailed(input: { error: string; id: number; now: Date }): Promise<void> {
+  public async markQueuedAsFailed(input: { error: string; id: number }): Promise<void> {
     await this._db
       .update(sourceCollectionRuns)
-      .set({ error: input.error, finishedAt: input.now, status: "failed" })
+      .set({ error: input.error, finishedAt: sql`now()`, status: "failed" })
       .where(and(eq(sourceCollectionRuns.id, input.id), eq(sourceCollectionRuns.status, "queued")))
   }
 

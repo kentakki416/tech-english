@@ -1,5 +1,5 @@
 import { ALLOWED_LICENSES, PERSONAL_USE_LICENSE, SOURCE_FETCH_TYPES, SOURCE_KINDS } from "../../src/const/source"
-import { findSourceNotCollectableReason, isAllowedLicense, isSourceFetchType, isSourceKind } from "../../src/rules/source"
+import { checkSourceCollectability, isAllowedLicense, isSourceFetchType, isSourceKind } from "../../src/rules/source"
 import type { GitHubRepositorySource, WebsiteSource } from "../../src/types/source"
 
 const GITHUB_SOURCE: GitHubRepositorySource = {
@@ -87,10 +87,10 @@ describe("isAllowedLicense", () => {
   })
 })
 
-describe("findSourceNotCollectableReason", () => {
+describe("checkSourceCollectability", () => {
   describe("正常系", () => {
-    it("有効な GitHub のソースは収集できる（null）", () => {
-      expect(findSourceNotCollectableReason(GITHUB_SOURCE)).toBeNull()
+    it("有効な GitHub のソースは収集でき、そのソースを返す", () => {
+      expect(checkSourceCollectability(GITHUB_SOURCE)).toEqual({ isCollectable: true, source: GITHUB_SOURCE })
     })
   })
 
@@ -100,7 +100,7 @@ describe("findSourceNotCollectableReason", () => {
       ["サイトのソース", "website", WEBSITE_SOURCE],
       ["無効の GitHub のソース", "disabled", { ...GITHUB_SOURCE, isEnabled: false }],
     ] as const)("%s は %s", (_label, reason, source) => {
-      expect(findSourceNotCollectableReason(source)).toBe(reason)
+      expect(checkSourceCollectability(source)).toEqual({ isCollectable: false, reason })
     })
   })
 })

@@ -16,13 +16,13 @@ import {
 } from "@repo/db"
 import type { AttemptAnswer, AttemptWordLookup, ReadingAttempt } from "@repo/domain"
 
+import type { ReadOptions } from "../read-options"
 import type {
   CreateReadingAttemptInput,
   InsertAttemptAnswerInput,
   InsertAttemptWordLookupInput,
   PassageAttemptSummary,
   ReadingAttemptRepository,
-  ReadOptions,
   SubmitReadingAttemptInput,
   WordLookupWithMeaning,
 } from "../reading-attempt-repository"

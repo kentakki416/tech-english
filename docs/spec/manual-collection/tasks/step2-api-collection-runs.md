@@ -40,15 +40,15 @@ export const buildCollectSourceJobId = (runId: number): string => `collect-sourc
 `packages/domain/src/rules/source.ts`：
 
 ```ts
-export const findSourceNotCollectableReason = (source: Source | null): SourceNotCollectableReason | null => {
-  if (source === null) return "not_found"
-  if (source.fetchType === "website") return "website"
-  if (!source.isEnabled) return "disabled"
-  return null
+export const checkSourceCollectability = (source: Source | null): SourceCollectability => {
+  if (source === null) return { isCollectable: false, reason: "not_found" }
+  if (source.fetchType === "website") return { isCollectable: false, reason: "website" }
+  if (!source.isEnabled) return { isCollectable: false, reason: "disabled" }
+  return { isCollectable: true, source }
 }
 ```
 
-- `SourceNotCollectableReason = "disabled" | "not_found" | "website"`（`types/source.ts`）
+- `SourceNotCollectableReason = "disabled" | "not_found" | "website"`、`SourceCollectability = { isCollectable: true; source: GitHubRepositorySource } | { isCollectable: false; reason: SourceNotCollectableReason }`（`types/source.ts`）。収集できるときは GitHub のソースに絞った値を返すので、使う側で `fetchType` を確かめ直さなくてよい
 - api は `not_found` を 404、ほかを 400 にする。worker（step3）は収集を始める前に同じ関数で確かめ、理由を記録の `error` にする。条件を足すとき（例：ライセンス）に 2 か所がずれないよう、1 か所に置く
 
 ### スキーマ
@@ -112,14 +112,15 @@ export interface SourceCollectionRunRepository {
   create(sourceId: number): Promise<CreateSourceCollectionRunResult>
   failTimedOut(input: { error: string; now: Date; sourceId: number; staleBefore: Date }): Promise<number>
   findLatestBySourceId(sourceId: number, options?: ReadOptions): Promise<SourceCollectionRun | null>
-  markFailed(input: { error: string; id: number; now: Date }): Promise<void>
+  markQueuedAsFailed(input: { error: string; id: number }): Promise<void>
 }
 ```
 
 - `create`：`status = 'queued'` で INSERT する。unique 違反（`isUniqueViolation`）は `active_exists` にする（このテーブルの unique は主キーと部分 unique index だけ。`pg-error.ts` の JSDoc の一覧に足す）
 - `failTimedOut`：そのソースの `queued` は `created_at`、`running` は `started_at` が `staleBefore` より前のものを `status = 'failed'`・`error`・`finished_at = now` にする
 - `findLatestBySourceId`：`id` の降順で 1 件。`{ fromPrimary: true }` なら `this._db.$primary` から読む（`apps/api/CLAUDE.md` の read replica の規約）
-- `markFailed`：`WHERE id = ? AND status = 'queued'`（Queue に積めなかったとき）
+- `markQueuedAsFailed`：`WHERE id = ? AND status = 'queued'`（Queue に積めなかったとき）。`finished_at` は DB の `now()`（依頼の時刻〈`created_at`〉より前にならないように）
+- `ReadOptions` は `src/repository/read-options.ts` に移し、挑戦の Repository と共有する
 
 ### Service
 
@@ -141,9 +142,8 @@ export const requestSourceCollection = async (
   repo: SourceCollectionRepo,
   deps: { collectSourceQueue: JobQueue<CollectSourceJobData>; now: Date },
 ): Promise<Result<SourceCollectionRun>> => {
-  const source = await repo.sourceRepository.findById(sourceId)
-  const notCollectableReason = findSourceNotCollectableReason(source)
-  if (notCollectableReason !== null) return err(buildSourceNotCollectableError(notCollectableReason))
+  const collectability = checkSourceCollectability(await repo.sourceRepository.findById(sourceId))
+  if (!collectability.isCollectable) return err(buildSourceNotCollectableError(collectability.reason))
 
   await failTimedOutCollectionRuns(sourceId, deps.now, repo)
   const created = await repo.sourceCollectionRunRepository.create(sourceId)
@@ -152,7 +152,7 @@ export const requestSourceCollection = async (
   try {
     await deps.collectSourceQueue.enqueue({ runId: created.run.id }, { jobId: buildCollectSourceJobId(created.run.id) })
   } catch (error) {
-    await repo.sourceCollectionRunRepository.markFailed({ error: SOURCE_COLLECTION_ENQUEUE_FAILED_ERROR, id: created.run.id, now: deps.now })
+    await repo.sourceCollectionRunRepository.markQueuedAsFailed({ error: SOURCE_COLLECTION_ENQUEUE_FAILED_ERROR, id: created.run.id })
     throw error
   }
   return ok(created.run)
@@ -161,7 +161,7 @@ export const requestSourceCollection = async (
 
 - `SOURCE_COLLECTION_TIMED_OUT_ERROR` は `` `${SOURCE_COLLECTION_RUN_TIMEOUT_MINUTES} 分を過ぎても終わらなかった` ``（admin がそのまま出すので日本語）
 - `buildSourceNotCollectableError`：`not_found` は `notFoundError`、`website`・`disabled` は `badRequestError`（英語のメッセージ。admin は status で文言を出し分ける）
-- `getSourceById(id, repo, deps: { now })`：ソースを読んだ後に `failTimedOutCollectionRuns` を待ってから、件数と `findLatestBySourceId(id, { fromPrimary: true })` を `Promise.all` で読み、戻り値に `latestCollectionRun` を足す（片付けの UPDATE の直後と、依頼の直後の読み直しで replica の遅れを見ないため）
+- `getSourceById(id, repo, deps: { now })`：ソースを読んだ後に `failTimedOutCollectionRuns` を待ってから、件数と `findLatestBySourceId(id, { fromPrimary: true })` を `Promise.all` で読み（ソースと件数も `findById`・`countPassagesBySource` に足した `ReadOptions` で primary から読む）、戻り値に `latestCollectionRun` を足す（片付けの UPDATE の直後と、依頼の直後の読み直しで replica の遅れを見ないため）
 - enqueue の try/catch は、`apps/api/CLAUDE.md` の try/catch の許容に 3 つ目として「後始末をしてから throw し直す（外部への送信に失敗したときに、先に書いた状態を残さない）」を足し、それに当たる。理由（積めなかった記録を `queued` のまま残すと、時間切れまで同じソースを依頼できない）を JSDoc に書く
 
 ### Controller・ルート・DI
@@ -226,9 +226,9 @@ pnpm --filter api exec tsc --noEmit
 
 | ファイル | ケース |
 | --- | --- |
-| `packages/domain/test/rules/source.test.ts` | `findSourceNotCollectableReason`：null・サイト・無効・有効な GitHub |
-| `test/repository/source-collection-run-repository.test.ts`（実 DB） | `create` が `queued` で作る、収集中があれば `active_exists`、別のソースなら作れる。`failTimedOut` が境界（`staleBefore` ちょうど・1ms 前）で分け、`queued` は `created_at`・`running` は `started_at` で判定し、終わった記録・別のソースには触らない。`findLatestBySourceId` が最新の 1 件。`markFailed` は `queued` のときだけ |
-| `test/service/source-service/requestSourceCollection.test.ts` | 404・サイトは 400・無効は 400・収集中は 409（enqueue しない）、成功は enqueue に `{ runId }` と jobId、enqueue が throw したら `markFailed` して throw、時間切れの片付けを `create` より先に呼ぶ |
+| `packages/domain/test/rules/source.test.ts` | `checkSourceCollectability`：null・サイト・無効・有効な GitHub |
+| `test/repository/source-collection-run-repository.test.ts`（実 DB） | `create` が `queued` で作る、収集中があれば `active_exists`、別のソースなら作れる。`failTimedOut` が境界（`staleBefore` ちょうど・1ms 前）で分け、`queued` は `created_at`・`running` は `started_at` で判定し、終わった記録・別のソースには触らない。`findLatestBySourceId` が最新の 1 件。`markQueuedAsFailed` は `queued` のときだけ |
+| `test/service/source-service/requestSourceCollection.test.ts` | 404・サイトは 400・無効は 400・収集中は 409（enqueue しない）、成功は enqueue に `{ runId }` と jobId、enqueue が throw したら `markQueuedAsFailed` して throw、時間切れの片付けを `create` より先に呼ぶ |
 | `test/service/source-service/getSourceById.test.ts` | `latestCollectionRun` を返す、時間切れの片付けを読む前に呼ぶ、primary から読む |
 | `test/controller/admin/source/collect.test.ts`（実 DB・Queue は偽物） | 202 と `collection_run`（`status: "queued"`）、DB に 1 行、偽物の Queue に 1 件。終わった記録があれば依頼できる、30 分を過ぎた `queued` を片付けて依頼できる。409（収集中）・400（サイト・無効・`:id` が数値でない）・404・401 |
 | `test/controller/admin/source/detail.test.ts` | `latest_collection_run` が null・最新の記録・30 分を過ぎた `running` が `failed` で返る |
