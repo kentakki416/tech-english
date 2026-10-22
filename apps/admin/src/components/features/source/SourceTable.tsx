@@ -7,6 +7,7 @@ import type { GetSourceListResponse } from "@repo/api-schema"
 import { TagChip } from "@/components/features/tag/TagChip"
 import Badge from "@/components/ui/badge/Badge"
 import { type Column, DataTable, type FilterConfig } from "@/components/ui/table"
+import { formatLicenseLabel } from "@/features/source/source.labels"
 import { formatDateTime } from "@/libs/date"
 
 type SourceListItem = GetSourceListResponse["sources"][number]
@@ -54,7 +55,11 @@ const COLUMNS: Column<SourceRow>[] = [
       </div>
     ),
   },
-  { className: "px-5 py-4 text-theme-sm whitespace-nowrap text-gray-500 dark:text-gray-400", header: "ライセンス", key: "license_spdx" },
+  {
+    className: "px-5 py-4 text-theme-sm whitespace-nowrap text-gray-500 dark:text-gray-400",
+    header: "ライセンス",
+    render: (row) => formatLicenseLabel(row.license_spdx),
+  },
   {
     className: "px-5 py-4 text-theme-sm whitespace-nowrap",
     header: "状態",

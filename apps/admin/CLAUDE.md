@@ -94,6 +94,7 @@ admin は DB を直接触らず、必ず Express API を経由する。tech-engl
 | `src/libs/format-stats.ts` | ダッシュボード・ユーザー管理の数字の表示（比率 `72%`・件数 `1,284`・時間 `5:12 / 6:00`・値が無いときの `―`） |
 | `src/components/ui/table/LinkTableParts.tsx` | 並べ替え・絞り込み・ページ送りを URL のクエリで行う表の部品（`SortableHeaderCell`・`TableSearchForm`〈`next/form`〉・`PaginationLinks`）。ダッシュボードとユーザー一覧で使う（画面内で並べ替える表はテンプレートの `DataTable`） |
 | `src/components/ui/tooltip/Tooltip.tsx` | マウスを乗せる・フォーカスすると出る説明の吹き出し（`@floating-ui/react`。TailAdmin のデモと同じ 4 種類）。説明を出すときは `title` 属性ではなく Tooltip を使う。押せないボタン（`disabled`）はマウスのイベントが届かないので `tabIndex={0}` の `span` で包み、`span` に Tooltip を付ける。Server Component で使うときは、Tooltip と子を client component に切り出す（`components/features/user/LoginMethodColumnLabel.tsx`。理由はそのファイル） |
+| `src/libs/environment.ts` | `isLocalEnvironment`：ローカル（`next dev`）だけ true。client component からも読める。ローカルだけの機能（URL から追加・サイトのソース）はこれで分ける |
 | `src/libs/search-params.ts` | URL のクエリを API のクエリのスキーマの項目で読む（不正なら既定値）・絞り込みの文字を API の上限で切り詰める。`features/*/*.params.ts`（`server-only`）から使う |
 
 接続済みの画面：
@@ -101,7 +102,7 @@ admin は DB を直接触らず、必ず Express API を経由する。tech-engl
 | パス | 画面 | 実装 |
 | --- | --- | --- |
 | `/url-import` | URL から追加（ページを確認して本文候補として保存）。**ローカルだけ**（`src/libs/environment.ts` の `isLocalEnvironment`。production ではメニューに出さず、画面は `notFound()`） | `app/(dashboard)/url-import/page.tsx` + `components/features/url-import/UrlImportForm.tsx` + `app/(dashboard)/url-import/actions.ts`（Server Action。確認と保存）。API は `features/url-import/url-import.api.ts`、ラベルは `url-import.labels.ts`（[url-import](../../docs/spec/url-import/README.md)） |
-| `/sources` | ソース一覧 | `app/(dashboard)/sources/page.tsx` + `components/features/source/SourceTable.tsx` |
+| `/sources` | ソース一覧 | `app/(dashboard)/sources/page.tsx` + `components/features/source/SourceTable.tsx`。ライセンスの表示名（個人の学習用）は `features/source/source.labels.ts` |
 | `/sources/new`・`/sources/[id]` | ソースの登録・編集（取得方法の「サイト」はローカルだけ。サイトは常に無効で、ライセンスに個人の学習用を選べる） | `SourceForm.tsx` + `app/(dashboard)/sources/actions.ts`（Server Action）+ `app/api/sources/license/route.ts`（ライセンス検出の中継）。技術タグの選択は `TagPicker`（選んだ id を hidden の `tag_ids` で送る） |
 | `/tags` | タグ | `app/(dashboard)/tags/page.tsx` + `components/features/tag/TagTable.tsx`（追加・編集は `TagFormModal`、削除の確認は `TagDeleteModal`）+ `app/(dashboard)/tags/actions.ts`（Server Action）。色付きのタグは `TagChip`（色 → クラスの対応表はここだけに置く） |
 | `/passages` | 問題一覧（`?status=` で状態を切り替え） | `app/(dashboard)/passages/page.tsx` + `components/features/passage/PassageTable.tsx` |

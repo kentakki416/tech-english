@@ -12,6 +12,7 @@ import {
 } from "@/app/(dashboard)/sources/actions"
 import { TagPicker } from "@/components/features/source/TagPicker"
 import Badge from "@/components/ui/badge/Badge"
+import { formatLicenseLabel } from "@/features/source/source.labels"
 import { formatDateTime } from "@/libs/date"
 import { isLocalEnvironment } from "@/libs/environment"
 import {
@@ -52,8 +53,6 @@ const FETCH_TYPE_OPTIONS: { description: string, key: FetchType, label: string }
 const AVAILABLE_FETCH_TYPE_OPTIONS = FETCH_TYPE_OPTIONS.filter((option) => isLocalEnvironment || option.key !== "website")
 
 const LICENSE_NOTE = "コードとドキュメントでライセンスが分かれているリポジトリでは、GitHub の検出はコードのライセンスのことがあります。ドキュメントの文章に掛かっているライセンスと、それが書かれたリポジトリの中のファイルを選んでください。"
-
-const PERSONAL_USE_LICENSE_LABEL = "個人の学習用（ライセンスなし）"
 
 const errorHintClass = "mt-1.5 text-xs text-error-500"
 
@@ -118,7 +117,7 @@ function LicenseDetectionMessage({ detection }: { detection: LicenseDetection })
     <p className="mt-2 rounded-lg bg-gray-50 px-3 py-2 text-theme-xs text-gray-600 dark:bg-white/5 dark:text-gray-300">
       {licenseSpdx === null ? (
         <span className="font-medium">
-          {licenseFileName === null ? "ライセンスのファイルが見つかりませんでした" : "ライセンスの種類を判定できませんでした"}
+          {licenseFileName === null ? "ライセンスのファイルが見つかりませんでした（リポジトリ名の誤り・非公開のリポジトリでも同じ表示です）" : "ライセンスの種類を判定できませんでした"}
         </span>
       ) : (
         <>
@@ -391,7 +390,7 @@ export function SourceForm({
               <select className={selectClass} id="license" name="license_spdx" onChange={(event) => setLicenseSpdx(event.target.value)} value={licenseSpdx}>
                 <option disabled value="">選択してください</option>
                 {licenseOptions.map((license) => (
-                  <option key={license} value={license}>{license === personalUseLicense ? PERSONAL_USE_LICENSE_LABEL : license}</option>
+                  <option key={license} value={license}>{formatLicenseLabel(license)}</option>
                 ))}
               </select>
             </Field>
