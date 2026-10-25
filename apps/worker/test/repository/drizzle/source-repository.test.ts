@@ -1,4 +1,4 @@
-import { and, asc, DrizzleClient, eq, isNull, sources, sql } from "@repo/db"
+import { and, DrizzleClient, eq, isNull, sources } from "@repo/db"
 
 import { DrizzleSourceRepository } from "../../../src/repository/drizzle"
 
@@ -55,44 +55,6 @@ const createFakeDb = (rows: SourceRow[], updatedCount = 1) => {
 describe("DrizzleSourceRepository", () => {
   beforeEach(() => {
     vi.clearAllMocks()
-  })
-
-  describe("findEnabledGitHubSources", () => {
-    describe("正常系", () => {
-      it("is_enabled の GitHub のソースを last_collected_at の古い順（NULL が先）で返す", async () => {
-        const fake = createFakeDb([buildRow()])
-
-        const enabledSources = await new DrizzleSourceRepository(fake.db).findEnabledGitHubSources()
-
-        expect(enabledSources).toEqual([{
-          id: 1,
-          branch: "main",
-          excludeGlobs: [],
-          fetchType: "github_repository",
-          includeGlobs: ["docs/**"],
-          isEnabled: true,
-          kind: "docs",
-          lastCollectedAt: null,
-          lastCollectedCommitSha: "commit-sha",
-          lastCollectedExtractionVersion: "2026-10-20.1",
-          licenseSpdx: "MIT",
-          licenseUrl: "https://github.com/owner/repo/blob/main/LICENSE",
-          name: "Example docs",
-          publicUrlStripPrefix: null,
-          publicUrlTemplate: null,
-          repository: "owner/repo",
-          createdAt: CREATED_AT,
-          updatedAt: CREATED_AT,
-        }])
-        expect(fake.selectWhere).toHaveBeenCalledWith(
-          and(eq(sources.isEnabled, true), eq(sources.fetchType, "github_repository")),
-        )
-        expect(fake.orderBy).toHaveBeenCalledWith(
-          sql`${sources.lastCollectedAt} ASC NULLS FIRST`,
-          asc(sources.id),
-        )
-      })
-    })
   })
 
   describe("findById", () => {

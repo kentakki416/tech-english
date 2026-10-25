@@ -179,21 +179,19 @@
 
 ### 実行の仕組み
 
-`apps/cron` のタスク `collect:passages` として実装する（run-once。[apps/cron/CLAUDE.md](../../../apps/cron/CLAUDE.md) の構成に従う）。
+`apps/worker` のジョブ `collect-source` として実装する。admin のソースの編集画面の「今すぐ収集」で、api が Queue に積んだ 1 ソースを収集する（[manual-collection](../manual-collection/README.md)。cron の毎日の収集 `collect:passages` と試し実行はやめた）。
 
 | 項目 | 内容 |
 | --- | --- |
-| 起動 | EventBridge Scheduler で 1 日 1 回（`generate:questions` の 1 時間前） |
-| ローカル実行 | `pnpm collect:passages`（全ソース）、`pnpm collect:passages --source-id=3`（1 ソースだけ） |
-| 試し実行 | `pnpm collect:passages --source-id=3 --dry-run`：文書を最大 5 件取得し、抽出した本文と切り分けの結果を表示する。**DB には書かない**。ソースを登録した直後に、対象パスと本文の抽出を確かめるのに使う |
-| 外部クライアント | `src/client/github/`（`GitHubContentClient`）。env を直接読まずコンストラクタ DI |
+| 起動 | admin の「今すぐ収集」（api の `POST /api/admin/source/:id/collection-runs` → `collect-source` の Queue → worker） |
+| 外部クライアント | `apps/worker/src/client/github/`（`GitHubContentClient`）。env を直接読まずコンストラクタ DI |
 | GitHub の認証 | `GITHUB_CONTENT_TOKEN`（公開リポジトリの読み取りだけを許可した fine-grained token）。認証すると rate limit が 60 → 5,000 req/h になる |
 
 取得元ごとの違いは **文書を取ってくるところまで** に閉じ込め、本文の抽出以降（mdast → `PassageBlock[]` → 切り分け → 保存）は共通にする。サイトの HTML は、api の URL から追加で同じ処理に流す。
 
 ```mermaid
 flowchart LR
-    gh["GitHub の Markdown<br/>cron の GitHubContentClient"]
+    gh["GitHub の Markdown<br/>worker の GitHubContentClient"]
     web["サイトの HTML<br/>api の URL から追加（ローカルだけ）"]
     md["remark で mdast に"]
     html["本文の要素を取り出し<br/>rehype で mdast に"]
@@ -223,7 +221,7 @@ flowchart LR
 
 ### サイトの取得（URL から追加）
 
-**cron はサイトをクロールしない**（[github-only-collection](../github-only-collection/README.md)。戻すときの設計は [deferred-website-collection](../github-only-collection/deferred-website-collection.md)）。サイトのページは、ローカルの api の URL から追加（[url-import](../url-import/README.md)）で 1 ページずつ取得する。取得は `@repo/content-extractor` の `WebPageClient` で行う。
+**収集はサイトをクロールしない**（[github-only-collection](../github-only-collection/README.md)。戻すときの設計は [deferred-website-collection](../github-only-collection/deferred-website-collection.md)）。サイトのページは、ローカルの api の URL から追加（[url-import](../url-import/README.md)）で 1 ページずつ取得する。取得は `@repo/content-extractor` の `WebPageClient` で行う。
 
 URL の正規化：クエリ文字列とフラグメント（`#...`）を除く。`.pdf` / `.zip` / 画像などのファイルは対象にしない。
 
@@ -292,7 +290,7 @@ URL の正規化：クエリ文字列とフラグメント（`#...`）を除く�
 
 ### 調整できる箇所
 
-本文候補の出来を変えたいときに触る場所。抽出・切り分け・判定は LLM を使わず、`packages/content-extractor/src/document/`（`@repo/content-extractor`。cron の収集と api の URL からの取り込みで共有）の純関数で決まる（下の表の `const.ts` などはこのディレクトリのファイル）。
+本文候補の出来を変えたいときに触る場所。抽出・切り分け・判定は LLM を使わず、`packages/content-extractor/src/document/`（`@repo/content-extractor`。worker の収集と api の URL からの取り込みで共有）の純関数で決まる（下の表の `const.ts` などはこのディレクトリのファイル）。
 
 ```mermaid
 flowchart LR
@@ -323,8 +321,8 @@ flowchart LR
 | LLM が題材に向かないとする基準 | `apps/cron/src/prompt/generate-questions.ts` の「Suitability」（変えたら `PROMPT_VERSION` を上げる。[question-generation](../question-generation/README.md)） | 次の `generate:questions` から、`collected` の本文候補に |
 
 - **`src/document` の変更のうち、ブロック・切り分け・本文候補の条件が変わるものは、`const.ts` の `EXTRACTION_VERSION` を上げる。** 上げると取得済みの文書も次の収集で切り分け直す（URL から追加で取り込んだサイトのページは、取り込み直したときに）。前の切り分けの `collected` は却下する（[passage-extraction-tuning](../passage-extraction-tuning/README.md#抽出の版)）。上げないと、blob SHA が同じファイルを取り直さないので、取得済みの文書には効かない
-- 変えたら `pnpm --filter @repo/content-extractor build` で build し直す（cron は build した `dist` を読むので、build しないと試し実行も古い規則のまま）
-- 変えた結果は `pnpm collect:passages --source-id={id} --dry-run` で確かめる（DB には書かない）。対象の文書を最大 5 件取得し、塊ごとに本文候補か、捨てた理由（`too_short` / `too_long` / `too_much_code` / `not_english` / `not_prose`）を出す
+- 変えたら `pnpm --filter @repo/content-extractor build` で build し直し、worker を起動し直す（worker は build した `dist` を読むので、build しないと古い規則のまま）
+- 変えた結果は、ローカルの admin でそのソースの「今すぐ収集」を押して、作られた本文候補（admin の問題の一覧の「収集済み」）で確かめる。`EXTRACTION_VERSION` を上げていれば、取得済みの文書も切り分け直す
 
 ### 重複の排除
 
@@ -364,7 +362,7 @@ api は次の登録・更新を 400 で拒否する。
 - **JavaScript で本文を描画するサイト**（ヘッドレスブラウザが必要）
 - **許諾を得た技術ブログ**
 - **ShareAlike ライセンス**（MDN など）
-- **管理画面からの収集の即時実行・抽出のプレビュー**（MVP は cron の手動実行と試し実行で代替。URL の 1 ページの取り込みは [url-import](../url-import/README.md)、1 ソースの今すぐ収集は [manual-collection](../manual-collection/README.md) で行う）
+- **管理画面からの収集の即時実行・抽出のプレビュー**（1 ソースの今すぐ収集は [manual-collection](../manual-collection/README.md)、URL の 1 ページの取り込みは [url-import](../url-import/README.md) で行う。抽出のプレビューは対象外のまま）
 
 ---
 
@@ -474,7 +472,7 @@ api は次の登録・更新を 400 で拒否する。
 | --- | --- |
 | 新規 | 「登録の前に確認すること」：GitHub ではリポジトリの中にライセンスの記載がある・そのライセンスが文章に掛かっている・許可リストにある・「GitHub に Markdown のソースがあるドキュメントはこちらで登録する」。サイトではローカルでだけ使う・robots.txt・JavaScript で描画していないこと |
 | 編集 | 「収集の状況」：最終収集（GitHub だけ）、取り込んだコミット（GitHub）、本文候補の件数のバッジ（収集済み `light`・下書き `primary`・公開 `success`・却下 `error`） |
-| 編集 | 「試し実行」（GitHub だけ）：`pnpm collect:passages --source-id={id} --dry-run` を黒地の等幅で表示し、DB に書かずに最大 5 件の抽出結果を表示することを説明する |
+| 編集 | 「今すぐ収集」（GitHub だけ）：ボタンと、最後の収集の状態・結果（[manual-collection](../manual-collection/README.md#収集の状態)） |
 
 ## 必要な API
 
@@ -488,11 +486,11 @@ admin 向け。アクセス制御は [question-generation](../question-generatio
 | PUT | `/api/admin/source/:id` | ソースの更新（GitHub は有効 / 無効の切り替えを含む。`website` は `is_enabled` を受け取らず、production では 400）。取得方法は変更できない。文書を取得したソースの取得元（`repository` / `site_url`）の変更は 400 |
 | GET | `/api/admin/source/license?repository=owner/name` | GitHub が検出したライセンスと、そのライセンスのファイルの URL を返す（`github_repository` の登録フォームの初期値用） |
 
-cron タスク：
+worker のジョブ：
 
-| タスク | 説明 |
+| Queue | 説明 |
 | --- | --- |
-| `collect:passages` | 有効なソースから本文候補を集める。`--source-id` で 1 ソースに絞る、`--dry-run` で DB に書かずに結果を表示する |
+| `collect-source` | admin の今すぐ収集で、1 ソースから本文候補を集める（[manual-collection](../manual-collection/README.md)） |
 
 ## 必要な DB 設計
 
@@ -560,24 +558,22 @@ erDiagram
 
 ```mermaid
 sequenceDiagram
-    participant Sch as EventBridge
-    participant Cron as cron（収集）
+    participant Q as Queue（admin の今すぐ収集）
+    participant W as worker（collect-source）
     participant DB as Postgres
     participant GH as GitHub API
 
-    Sch->>Cron: 1 日 1 回起動
-    Cron->>DB: 有効な GitHub のソースを取得
-    loop ソースごと
-        Cron->>GH: 最新コミット SHA
-        opt 前回から変更あり
-            Cron->>GH: ファイルツリー（blob SHA つき）
-            loop 新規・変更されたファイル（上限まで）
-                Cron->>GH: ファイル本文
-                Cron->>Cron: Markdown → 本文候補
-                Cron->>DB: passages / source_documents を保存
-            end
-            Cron->>DB: 全件処理できたら last_collected_commit_sha を更新
+    Q->>W: 1 ソースの収集
+    W->>DB: ソースを取得（有効な GitHub のソースか確かめる）
+    W->>GH: 最新コミット SHA
+    opt 前回から変更あり
+        W->>GH: ファイルツリー（blob SHA つき）
+        loop 新規・変更されたファイル（上限まで）
+            W->>GH: ファイル本文
+            W->>W: Markdown → 本文候補
+            W->>DB: passages / source_documents を保存
         end
+        W->>DB: 全件処理できたら last_collected_commit_sha を更新
     end
 ```
 
@@ -591,5 +587,5 @@ sequenceDiagram
 | [step2-api-admin-source](./tasks/step2-api-admin-source.md) | ソースの CRUD（取得方法ごとの検証）と検出ライセンス取得の API |
 | [step3-admin-source](./tasks/step3-admin-source.md) | admin のソース一覧・登録画面 |
 | [step4-cron-document-parser](./tasks/step4-cron-document-parser.md) | Markdown / HTML → mdast → `PassageBlock[]` の変換と本文候補への切り分け（純関数 + fixture を使ったテスト） |
-| [step5-cron-collect-github](./tasks/step5-cron-collect-github.md) | `GitHubContentClient`、blob SHA での差分検出、`collect:passages` タスクの骨格と試し実行 |
+| [step5-cron-collect-github](./tasks/step5-cron-collect-github.md) | `GitHubContentClient`、blob SHA での差分検出、`collect:passages` タスクの骨格と試し実行（[manual-collection](../manual-collection/README.md) で cron のタスクをやめ、worker に移した） |
 | [step6-cron-collect-website](./tasks/step6-cron-collect-website.md) | `WebPageClient`（`robots.txt`・間隔・取得先の制限・条件付きリクエスト）、sitemap とリンクからの URL 発見、待ち行列での取得（[github-only-collection](../github-only-collection/README.md) でサイトの収集はやめた） |

@@ -14,6 +14,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@repo/content-extractor": "workspace:^",
     "@repo/data-warehouse": "workspace:^",
     "@repo/db": "workspace:^",
     "@repo/domain": "workspace:^",

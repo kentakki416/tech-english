@@ -308,27 +308,27 @@ erDiagram
 
 ```mermaid
 sequenceDiagram
-    participant Cron as collect:passages
+    participant Worker as worker の collect-source
     participant GH as GitHub API
     participant DB as DB
 
-    Cron->>GH: 最新コミットの SHA
+    Worker->>GH: 最新コミットの SHA
     alt SHA と抽出の版が前回と同じ
-        Cron->>DB: last_collected_at だけ更新（up_to_date）
+        Worker->>DB: last_collected_at だけ更新（up_to_date）
     else どちらかが違う
-        Cron->>GH: ファイルの一覧（trees）
-        Cron->>DB: 一覧に無い文書（除外・消えたファイル）の collected を rejected に
-        Cron->>DB: source_documents（blob SHA・抽出の版）
-        Cron->>Cron: blob SHA か抽出の版が違うファイルを選ぶ
+        Worker->>GH: ファイルの一覧（trees）
+        Worker->>DB: 一覧に無い文書（除外・消えたファイル）の collected を rejected に
+        Worker->>DB: source_documents（blob SHA・抽出の版）
+        Worker->>Worker: blob SHA か抽出の版が違うファイルを選ぶ
         loop 選んだファイル（上限まで）
-            Cron->>GH: ファイルの本文
-            Cron->>Cron: 抽出・切り分け（今の EXTRACTION_VERSION）
-            Cron->>DB: その文書の生成中・生成した本文候補の見出し
-            Cron->>DB: 同じ見出しの塊を除いて本文候補を挿入（同じ content_hash は飛ばす）
-            Cron->>DB: その文書の collected で挿入した塊に無いものを rejected に
-            Cron->>DB: blob SHA・抽出の版を記録
+            Worker->>GH: ファイルの本文
+            Worker->>Worker: 抽出・切り分け（今の EXTRACTION_VERSION）
+            Worker->>DB: その文書の生成中・生成した本文候補の見出し
+            Worker->>DB: 同じ見出しの塊を除いて本文候補を挿入（同じ content_hash は飛ばす）
+            Worker->>DB: その文書の collected で挿入した塊に無いものを rejected に
+            Worker->>DB: blob SHA・抽出の版を記録
         end
-        Cron->>DB: 全件処理できたら commit SHA と抽出の版を記録
+        Worker->>DB: 全件処理できたら commit SHA と抽出の版を記録
     end
 ```
 

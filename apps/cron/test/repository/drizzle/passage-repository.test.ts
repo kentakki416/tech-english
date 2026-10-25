@@ -1,18 +1,7 @@
 import { createDrizzleClient, DrizzleClient, passageGlossaryEntries, passages, questions } from "@repo/db"
 
-import type { CreatePassageInput, DraftContent, PassageClaim } from "../../../src/repository"
+import type { DraftContent, PassageClaim } from "../../../src/repository"
 import { DrizzlePassageRepository } from "../../../src/repository/drizzle"
-
-const buildInput = (contentHash: string): CreatePassageInput => ({
-  blocks: [{ text: "Refs let you remember values.", type: "paragraph" }],
-  contentHash,
-  sourceCommitSha: "commit-sha",
-  sourceDocumentId: 10,
-  sourcePath: "docs/a.md",
-  sourceRetrievedAt: new Date("2026-10-10T03:00:00.000Z"),
-  title: "Refs",
-  wordCount: 250,
-})
 
 const NOW = new Date("2026-10-13T03:00:00.000Z")
 
@@ -61,17 +50,6 @@ const buildDraftContent = (overrides: Partial<DraftContent> = {}): DraftContent 
   timeLimitSeconds: 300,
   ...overrides,
 })
-
-/**
- * `db.insert(table).values(rows).onConflictDoNothing(options).returning(selection)` だけを持つ DrizzleClient の偽物
- */
-const createFakeDb = (returning: (_selection: unknown) => Promise<{ id: number }[]>) => {
-  const returningMock = vi.fn(returning)
-  const onConflictDoNothing = vi.fn((_options: unknown) => ({ returning: returningMock }))
-  const values = vi.fn((_rows: unknown) => ({ onConflictDoNothing }))
-  const insert = vi.fn((_table: unknown) => ({ values }))
-  return { db: { insert } as unknown as DrizzleClient, insert, onConflictDoNothing, returning: returningMock, values }
-}
 
 /**
  * 記録した条件を SQL の文字列にする。接続しない（Pool は最初のクエリまで接続しない）実物の client の toSQL を使う
@@ -169,43 +147,6 @@ describe("DrizzlePassageRepository", () => {
     await renderClient.$disconnect()
   })
 
-  describe("insertIgnoringDuplicates", () => {
-    describe("正常系", () => {
-      it("content_hash の重複を ON CONFLICT DO NOTHING で飛ばし、挿入できた件数を返す", async () => {
-        const fake = createFakeDb(async () => [{ id: 1 }])
-        const inputs = [buildInput("hash-1"), buildInput("hash-2")]
-
-        const count = await new DrizzlePassageRepository(fake.db).insertIgnoringDuplicates(inputs)
-
-        expect(count).toBe(1)
-        expect(fake.insert).toHaveBeenCalledWith(passages)
-        expect(fake.values).toHaveBeenCalledWith(inputs)
-        expect(fake.onConflictDoNothing).toHaveBeenCalledWith({ target: passages.contentHash })
-        expect(fake.returning).toHaveBeenCalledWith({ id: passages.id })
-      })
-
-      it("空配列ならクエリを投げずに 0 を返す", async () => {
-        const fake = createFakeDb(async () => [])
-
-        const count = await new DrizzlePassageRepository(fake.db).insertIgnoringDuplicates([])
-
-        expect(count).toBe(0)
-        expect(fake.insert).not.toHaveBeenCalled()
-      })
-    })
-
-    describe("異常系", () => {
-      it("Drizzle が throw した場合、そのまま伝搬する", async () => {
-        const fake = createFakeDb(async () => {
-          throw new Error("db connection failed")
-        })
-
-        await expect(new DrizzlePassageRepository(fake.db).insertIgnoringDuplicates([buildInput("hash-1")]))
-          .rejects.toThrow("db connection failed")
-      })
-    })
-  })
-
   describe("claimNextCollected", () => {
     describe("正常系", () => {
       it("collected のうち生成を優先したもの（generation_prioritized_at の古い順）→ 古いものの順で 1 行を FOR UPDATE SKIP LOCKED で選び、同じ UPDATE 文で generating にする", async () => {
@@ -268,29 +209,6 @@ describe("DrizzlePassageRepository", () => {
 
         expect(count).toBe(12)
         expect(fake.from).toHaveBeenCalledWith(passages)
-      })
-    })
-  })
-
-  describe("findGeneratedOrGeneratingTitles", () => {
-    describe("正常系", () => {
-      it("文書の本文候補のうち、生成中・下書き・公開済みと、生成した後に却下したものの見出しを重複を除いて返す", async () => {
-        const where = vi.fn(async (_condition: unknown) => [{ title: "Refs" }, { title: "Effects" }])
-        const from = vi.fn((_table: unknown) => ({ where }))
-        const selectDistinct = vi.fn((_selection: unknown) => ({ from }))
-        const db = { selectDistinct } as unknown as DrizzleClient
-
-        const titles = await new DrizzlePassageRepository(db).findGeneratedOrGeneratingTitles(10)
-
-        expect(titles).toEqual(["Refs", "Effects"])
-        expect(from).toHaveBeenCalledWith(passages)
-        const [condition] = where.mock.calls[0] as [never]
-        const query = renderClient.select().from(passages).where(condition).toSQL()
-        expect(normalizeParams(query.sql)).toContain([
-          "where ((\"passages\".\"source_document_id\" = $?) and (((\"passages\".\"status\" in ($?, $?, $?))",
-          " or (((\"passages\".\"status\" = $?) and ((\"passages\".\"generated_at\" is not null)))))))",
-        ].join(""))
-        expect(query.params).toEqual([10, "draft", "generating", "published", "rejected"])
       })
     })
   })
@@ -367,57 +285,6 @@ describe("DrizzlePassageRepository", () => {
 
         expect(await repository.recordGenerationFailure(CLAIM, { error: "e", maxAttempts: 3 })).toBe("collected")
         expect(await staleRepository.recordGenerationFailure(CLAIM, { error: "e", maxAttempts: 3 })).toBeNull()
-      })
-    })
-  })
-
-  describe("rejectCollected", () => {
-    describe("正常系", () => {
-      it("文書の collected のうち content_hash が keepContentHashes に無いものを、理由つきで rejected にして件数を返す", async () => {
-        const fake = createFakeUpdateDb([{ id: 1 }, { id: 2 }])
-
-        const rejectedCount = await new DrizzlePassageRepository(fake.db).rejectCollected({
-          keepContentHashes: ["hash-a", "hash-b"],
-          reason: "切り分け直した",
-          sourceDocumentIds: [10],
-        })
-
-        expect(rejectedCount).toBe(2)
-        expect(fake.set).toHaveBeenCalledWith({ rejectReason: "切り分け直した", status: "rejected" })
-        const { params, sql } = renderUpdate(fake)
-        expect(sql).toContain([
-          "where ((\"passages\".\"source_document_id\" in ($?)) and (\"passages\".\"status\" = $?)",
-          " and (\"passages\".\"content_hash\" not in ($?, $?)))",
-        ].join(""))
-        expect(params.slice(-4)).toEqual([10, "collected", "hash-a", "hash-b"])
-      })
-
-      it("keepContentHashes が空なら not in を付けず、文書の collected をすべて rejected にする", async () => {
-        const fake = createFakeUpdateDb([{ id: 1 }])
-
-        await new DrizzlePassageRepository(fake.db).rejectCollected({
-          keepContentHashes: [],
-          reason: "対象外",
-          sourceDocumentIds: [10, 11],
-        })
-
-        const { params, sql } = renderUpdate(fake)
-        expect(sql).toContain("where ((\"passages\".\"source_document_id\" in ($?, $?)) and (\"passages\".\"status\" = $?))")
-        expect(sql).not.toContain("not in")
-        expect(params.slice(-3)).toEqual([10, 11, "collected"])
-      })
-
-      it("sourceDocumentIds が空なら UPDATE せずに 0 を返す", async () => {
-        const fake = createFakeUpdateDb([])
-
-        const rejectedCount = await new DrizzlePassageRepository(fake.db).rejectCollected({
-          keepContentHashes: [],
-          reason: "対象外",
-          sourceDocumentIds: [],
-        })
-
-        expect(rejectedCount).toBe(0)
-        expect(fake.update).not.toHaveBeenCalled()
       })
     })
   })

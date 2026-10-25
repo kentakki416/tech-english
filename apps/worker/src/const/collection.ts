@@ -9,9 +9,10 @@ export const GITHUB_MIN_RATE_LIMIT_REMAINING = 100
 export const GITHUB_UNAUTHENTICATED_MIN_RATE_LIMIT_REMAINING = 10
 
 /**
- * 試し実行（--dry-run）で取得する文書数
+ * GitHub の token の有無で、打ち切りの閾値を選ぶ
  */
-export const DRY_RUN_MAX_DOCUMENTS = 5
+export const selectGitHubMinRateLimitRemaining = (token: string | undefined): number =>
+  token ? GITHUB_MIN_RATE_LIMIT_REMAINING : GITHUB_UNAUTHENTICATED_MIN_RATE_LIMIT_REMAINING
 
 /**
  * 取得する Markdown ファイルのサイズの上限（バイト）。これより大きいファイルは対象にしない

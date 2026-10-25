@@ -6,7 +6,6 @@
   "scripts": {
     "build": "tsc --project tsconfig.build.json",
     "cleanup:old-memos": "dotenvx run -f .env.local -- tsx src/task/cleanup-old-memos.ts",
-    "collect:passages": "dotenvx run -f .env.local -- tsx src/task/collect-passages.ts",
     "dev": "dotenvx run -f .env.local -- tsx watch src/index.ts",
     "generate:audio": "dotenvx run -f .env.local -- tsx src/task/generate-audio.ts",
     "generate:questions": "dotenvx run -f .env.local -- tsx src/task/generate-questions.ts",
@@ -21,7 +20,6 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.133.0",
     "@aws-sdk/client-polly": "^3.1075.0",
-    "@repo/content-extractor": "workspace:^",
     "@repo/db": "workspace:^",
     "@repo/domain": "workspace:^",
     "@repo/errors": "workspace:^",

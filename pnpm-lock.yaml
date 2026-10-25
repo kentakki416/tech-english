@@ -250,9 +250,6 @@ importers:
       '@aws-sdk/client-polly':
         specifier: ^3.1075.0
         version: 3.1149.0
-      '@repo/content-extractor':
-        specifier: workspace:^
-        version: link:../../packages/content-extractor
       '@repo/db':
         specifier: workspace:^
         version: link:../../packages/db
@@ -547,6 +544,9 @@ importers:
 
   apps/worker:
     dependencies:
+      '@repo/content-extractor':
+        specifier: workspace:^
+        version: link:../../packages/content-extractor
       '@repo/data-warehouse':
         specifier: workspace:^
         version: link:../../packages/data-warehouse

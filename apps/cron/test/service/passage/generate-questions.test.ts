@@ -70,14 +70,11 @@ const createFakeRepo = (options: {
   const passageRepository = {
     claimNextCollected: vi.fn<PassageRepository["claimNextCollected"]>(async () => collectedQueue.shift() ?? null),
     countByStatus: vi.fn<PassageRepository["countByStatus"]>(async () => options.draftCount ?? 0),
-    findGeneratedOrGeneratingTitles: vi.fn<PassageRepository["findGeneratedOrGeneratingTitles"]>(async () => []),
     findStatusById: vi.fn<PassageRepository["findStatusById"]>(async () => options.status ?? null),
-    insertIgnoringDuplicates: vi.fn<PassageRepository["insertIgnoringDuplicates"]>(async () => 0),
     markRejectedByLlm: vi.fn<PassageRepository["markRejectedByLlm"]>(async () => true),
     recordGenerationFailure: vi.fn<PassageRepository["recordGenerationFailure"]>(
       async () => (options.failureStatus === undefined ? "collected" : options.failureStatus),
     ),
-    rejectCollected: vi.fn<PassageRepository["rejectCollected"]>(async () => 0),
     releaseClaim: vi.fn<PassageRepository["releaseClaim"]>(async () => undefined),
     releaseStaleGenerating: vi.fn<PassageRepository["releaseStaleGenerating"]>(async () => 0),
     saveDraft: vi.fn<PassageRepository["saveDraft"]>(async () => options.isSaved ?? true),

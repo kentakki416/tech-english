@@ -1,4 +1,4 @@
-import type { GitHubRepositorySource, Source } from "@repo/domain"
+import type { Source } from "@repo/domain"
 
 /**
  * 収集を終えたときに記録する値
@@ -16,15 +16,11 @@ export type MarkCollectedInput = {
 }
 
 /**
- * cron 側（collect-passages）で必要なソースの操作。
+ * worker の収集で必要なソースの操作。
  * apps/api 側の SourceRepository（管理画面の CRUD）とは操作のセットが違うので分けている
  */
 export interface SourceRepository {
   findById(id: number): Promise<Source | null>
-  /**
-   * last_collected_at の古い順（未収集が先）。本文候補の上限で後ろのソースが毎回あふれないように
-   */
-  findEnabledGitHubSources(): Promise<GitHubRepositorySource[]>
   /**
    * 収集を終えた時刻を記録する。行を更新できたら true
    */

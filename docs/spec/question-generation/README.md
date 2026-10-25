@@ -221,7 +221,7 @@ type PassageBlock = {
 
 | 項目 | 内容 |
 | --- | --- |
-| 起動 | EventBridge Scheduler で 1 日 1 回（`collect:passages` の 1 時間後） |
+| 起動 | EventBridge Scheduler で 1 日 1 回 |
 | ローカル実行 | `pnpm generate:questions`、`pnpm generate:questions --passage-id=42`（1 件だけ） |
 | 外部 API クライアント | `src/client/anthropic/`（`@anthropic-ai/sdk` を包む。コンストラクタ DI） |
 

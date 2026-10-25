@@ -173,22 +173,23 @@ flowchart LR
 | `apps/mobile` | ユーザー向け mobile。web と同じ機能に加えてリマインダー（端末内の通知予約） |
 | `apps/admin` | ソースの登録、生成された問題の確認・修正・公開、利用状況と問題の成績のダッシュボード、ユーザーの一覧と学習の状況（見るだけ） |
 | `apps/api` | すべての読み書きの窓口。web / mobile / admin は DB を直接触らない（既存方針） |
-| `apps/cron` | 英文の収集（`collect:passages`）と問題の生成（`generate:questions`）。どちらも run-once のタスク |
-| `apps/worker` | **本サービスでは使わない。** 長時間の処理はすべて cron に寄せる |
+| `apps/cron` | 問題の生成（`generate:questions`）などの run-once のタスク |
+| `apps/worker` | 英文の収集（`collect-source`）。admin の「今すぐ収集」で api が Queue に積んだ 1 ソース分を裏で収集する（[manual-collection](../manual-collection/README.md)） |
 
-収集と生成を worker ではなく cron に置く理由：
+生成を worker ではなく cron に置く理由：
 
-- どちらも「1 日 1 回まとめて処理すればよい」バッチで、ユーザー操作を起点にリアルタイムで動かす必要がない
+- 「1 日 1 回まとめて処理すればよい」バッチで、ユーザー操作を起点にリアルタイムで動かす必要がない
 - [minimal-deploy](../minimal-deploy/README.md) は worker を作らない構成（`enable_worker = false`、月 ~$7）を既定にしている。cron は ECS RunTask で動いた秒数しか課金されないため、この構成のまま運用できる
 - LLM の呼び出しは 1 件数十秒かかりうるため、api（Lambda）の中で同期実行しない
+
+収集は、管理者がソースを登録・直した直後にその場で結果を見たいので、admin の操作から worker で動かす。worker の無い構成では収集できない（[manual-collection](../manual-collection/README.md)）。
 
 ### データの流れ
 
 ```mermaid
 flowchart LR
     gh[("GitHub<br/>公開リポジトリ")]
-    site[("公式ドキュメントの<br/>サイト")]
-    collect["cron<br/>collect:passages"]
+    collect["worker<br/>collect-source"]
     gen["cron<br/>generate:questions"]
     llm[("Claude API")]
     pg[("Postgres")]
@@ -196,8 +197,9 @@ flowchart LR
     api["api"]
     client["web / mobile"]
 
+    admin -->|"今すぐ収集"| api
+    api -->|"Queue"| collect
     gh -->|"Markdown を取得"| collect
-    site -->|"HTML を取得"| collect
     collect -->|"passages<br/>status=collected"| pg
     pg --> gen
     gen <-->|"設問・和訳・単語訳を生成"| llm
@@ -215,8 +217,8 @@ flowchart LR
 | 処理 | 配置 | 起動 |
 | --- | --- | --- |
 | api | Lambda（minimal）/ ECS（prd） | HTTP リクエスト |
-| `collect:passages` | ECS RunTask | EventBridge Scheduler で 1 日 1 回 |
-| `generate:questions` | ECS RunTask | EventBridge Scheduler で 1 日 1 回（`collect:passages` の後） |
+| `collect-source` | ECS service（worker） | admin の今すぐ収集（api が Queue に積む） |
+| `generate:questions` | ECS RunTask | EventBridge Scheduler で 1 日 1 回 |
 | `generate:audio` | ECS RunTask | EventBridge Scheduler で 1 時間ごと（公開された問題の読み上げの音声を作る） |
 | リマインダー | **サーバー処理なし**（mobile 端末内のローカル通知） | ― |
 
