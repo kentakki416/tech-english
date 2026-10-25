@@ -29,6 +29,11 @@ export {
   QUESTION_TYPES,
 } from "./const/question"
 export { ALLOWED_LICENSES, PERSONAL_USE_LICENSE, SOURCE_FETCH_TYPES, SOURCE_KINDS, SOURCE_LICENSES } from "./const/source"
+export {
+  ACTIVE_SOURCE_COLLECTION_RUN_STATUSES,
+  SOURCE_COLLECTION_RESULT_STATUSES,
+  SOURCE_COLLECTION_RUN_STATUSES,
+} from "./const/source-collection-run"
 export { TAG_COLORS } from "./const/tag"
 export { URL_IMPORT_CHUNK_STATUSES, URL_IMPORT_ERROR_CODES } from "./const/url-import"
 export {
@@ -87,6 +92,7 @@ export type {
   SourceLicense,
   WebsiteSource,
 } from "./types/source"
+export type { SourceCollectionResultStatus, SourceCollectionRun, SourceCollectionRunStatus } from "./types/source-collection-run"
 export type { SourceDocument } from "./types/source-document"
 export type { Tag, TagColor } from "./types/tag"
 export type { UrlImportChunkStatus, UrlImportErrorCode } from "./types/url-import"
