@@ -55,10 +55,11 @@ pnpm db:seed:sample-passages # 開発用のサンプル問題（公開 1・下�
 - 原因が複数ある 400 は `badRequestError(message, details)` で `ApiErrorDetail[]`（`{ code, message, path }`）を付ける。`sendError` がレスポンスの `details` に含める（admin の問題の公開の条件の検査など。テストは `code` と `path` を検証し、`message` は検証しない）
 - 想定外の throw / スキーマ違反は `src/middleware/unhandled-exception-handler.ts` が処理する（リクエストスキーマ違反 → 400 + `warn`、レスポンススキーマ違反とその他 → 500 + `error`）
 
-try/catch を許容するのは次の 2 つだけ。
+try/catch を許容するのは次の 3 つだけ。
 
 - **副次処理の意図的な握りつぶし**: 通知送信の失敗などメイン処理を成功扱いにしたい場合。`logger.warn` してから続行する
 - **エラーを値に変換する必要がある場合**: `health-service` が個別のサービスチェック失敗を `status: "error"` に集約して必ず両方の status を返す、など
+- **後始末をしてから throw し直す場合**: 外部への送信に失敗したときに、先に書いた状態を残さないため（`requestSourceCollection` が Queue に積めなかった収集の記録を `failed` にしてから throw する）。catch では後始末だけをして、エラーは必ず throw し直す
 
 ## テスト戦略
 
@@ -85,6 +86,7 @@ admin（`apps/admin`）のサーバー側だけが呼ぶ API。一般ユーザ�
 - admin の refresh / logout は一般ユーザーの `service.auth.refreshTokens` / `service.auth.logout` に admin 用の Repository・検証関数・発行関数を渡す。`refreshTokens` は持ち主を `tokenOwnerRepository` で確かめるので、admin は `adminRepository` を渡す（`admins` から消された admin の refresh token は 401）
 - ユーザー管理（`/api/admin/user/*`）はマイページの Service を使い回す。マイページの Service はユーザーが居ないと 401 を返すので、admin の Service（`admin-user-service.ts`）が先に存在を確かめて 404 にする
 - **ソースの登録・更新**（[github-only-collection](../../docs/spec/github-only-collection/README.md)）：GitHub の `license_url` はそのリポジトリのファイルの URL でなければ 400（api-schema の `validateSourceInput`）。サイトのソースはローカルでだけ受け付け（`SourceWritePolicy` を `src/index.ts` が `NODE_ENV` から作って Controller に渡す）、常に無効で保存する
+- **今すぐ収集**（[manual-collection](../../docs/spec/manual-collection/README.md)）：`POST /api/admin/source/:id/collection-runs` は収集の実行の記録（`source_collection_runs`）を `queued` で作ってから `collect-source` の Queue に積み、202 を返す（収集は worker）。同じソースの収集中は部分 unique index の違反で 409。30 分を過ぎても収集中のままの記録は、詳細を読む・依頼するときに `failed` にする。worker の無い環境は `SOURCE_COLLECTION_TYPE=none` で Controller を作らない（404）
 - スキーマは `@repo/api-schema` の `admin/` に集約。既存と同一なら re-export し、Admin 固有のレスポンスが必要になった時点で新規定義する
 - **admin の登録**: `pnpm --filter @repo/db admin:create --email <email>`。dev / min / prd は GitHub Actions の「Admin Create」（`docs/deploy/prd.md`）。ローカルは seed で `admin@dev.local` が入り、`POST /api/admin/auth/dev-login` でログインできる（dev-login は `@dev.local` の admin しか受け付けない）
 

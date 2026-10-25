@@ -16,7 +16,7 @@ name: Deploy to AWS min
 # worker の ECS Service を terraform apply で作る前) に一度だけ使う。
 #
 # worker を作るかどうかの正本は Terraform の enable_worker (env/min/variables.tf) だけ。
-# detect が Service の有無を見て、api の EVENT_TRACKER_TYPE (queue / none) と worker の build / deploy を切り替える。
+# detect が Service の有無を見て、api の EVENT_TRACKER_TYPE・SOURCE_COLLECTION_TYPE (queue / none) と worker の build / deploy を切り替える。
 # ClickHouse も同じく、正本は Terraform の enable_data_warehouse だけ。detect-dwh が接続情報の secret の有無を見て
 # migrate-dwh を切り替える (設計: docs/spec/clickhouse-migration/README.md)。
 #
@@ -396,20 +396,24 @@ jobs:
         run: |
           set -euo pipefail
 
-          # worker が無ければイベントを捨てる (処理されないジョブを Upstash に溜めないため)
+          # worker が無ければイベントを捨て、今すぐ収集のルートを作らない (処理されないジョブを Upstash に溜めないため)
           if [ "${WORKER_ENABLED}" = "true" ]; then
             EVENT_TRACKER_TYPE=queue
+            SOURCE_COLLECTION_TYPE=queue
           else
             EVENT_TRACKER_TYPE=none
+            SOURCE_COLLECTION_TYPE=none
           fi
           echo "EVENT_TRACKER_TYPE=${EVENT_TRACKER_TYPE}"
+          echo "SOURCE_COLLECTION_TYPE=${SOURCE_COLLECTION_TYPE}"
 
           # minimal で実装を切り替える固定値
-          FIXED_ENV_JSON=$(jq -n --arg tracker "${EVENT_TRACKER_TYPE}" '{
+          FIXED_ENV_JSON=$(jq -n --arg tracker "${EVENT_TRACKER_TYPE}" --arg collection "${SOURCE_COLLECTION_TYPE}" '{
             AWS_LWA_PORT: "8080",
             AWS_LWA_READINESS_CHECK_PATH: "/api/health",
             EVENT_TRACKER_TYPE: $tracker,
-            FLUSH_EVENTS_BEFORE_RESPONSE: "true"
+            FLUSH_EVENTS_BEFORE_RESPONSE: "true",
+            SOURCE_COLLECTION_TYPE: $collection
           }')
 
           # 1. secret のうち、この関数が使うキーだけを取り出し、固定値と合成する
@@ -453,6 +457,7 @@ jobs:
             echo "### ${FUNCTION}: version ${PREVIOUS} → ${VERSION}"
             echo ""
             echo "- EVENT_TRACKER_TYPE: \`${EVENT_TRACKER_TYPE}\`"
+            echo "- SOURCE_COLLECTION_TYPE: \`${SOURCE_COLLECTION_TYPE}\`"
             echo "- 切り戻し: \`aws lambda update-alias --function-name ${FUNCTION} --name live --function-version ${PREVIOUS}\`"
           } >> "$GITHUB_STEP_SUMMARY"
 

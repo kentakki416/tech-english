@@ -50,6 +50,12 @@ const apiEnvSchema = z.object({
   EVENT_TRACKER_TYPE: z.enum(["none", "queue"]).default("queue"),
 
   /**
+   * admin の今すぐ収集の送り先。queue は Queue に enqueue し、apps/worker が収集する。
+   * none は今すぐ収集のルートを作らない（worker を動かさない環境。minimal 構成で worker を作らない場合）
+   */
+  SOURCE_COLLECTION_TYPE: z.enum(["none", "queue"]).default("queue"),
+
+  /**
    * レスポンスを返す前にイベント送出の完了を待つか。
    * レスポンス後に実行環境が凍結される Lambda（minimal 構成）でだけ true にする。
    */

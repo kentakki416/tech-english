@@ -54,3 +54,12 @@ export const LOG_EXCLUDE_PATHS = [
   "/api/health",
   "/api/health/ready",
 ] as const
+
+/**
+ * 収集中（queued / running）のまま、この分数を過ぎた収集の記録は終わらなかったとみなして failed にする
+ * （docs/spec/manual-collection/README.md「終わらなかった実行の片付け」）。
+ * worker が止まって記録が収集中のまま残ると、そのソースを二度と収集できなくなるため。
+ * 1 回の上限（100 文書）を GitHub API で取って抽出する時間に十分な余裕を持たせた（cron の generate:questions の回収と同じ長さ）。
+ * queued は依頼した時刻（created_at）、running は worker が始めた時刻（started_at）から数える
+ */
+export const SOURCE_COLLECTION_RUN_TIMEOUT_MINUTES = 30

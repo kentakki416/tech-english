@@ -60,7 +60,7 @@ export { canShareMemo } from "./rules/memo"
 export { calculateQuestionCount, calculateTimeLimitSeconds, isPassageDifficulty, isPassageStatus } from "./rules/passage"
 export { findSurfaceRange, findSurfaceRanges, hasQuote, isSurfaceAt, numberHeadings, numberParagraphs } from "./rules/passage-text"
 export { isQuestionType } from "./rules/question"
-export { isAllowedLicense, isSourceFetchType, isSourceKind } from "./rules/source"
+export { checkSourceCollectability, isAllowedLicense, isSourceFetchType, isSourceKind } from "./rules/source"
 export { isTagColor, selectTagColor } from "./rules/tag"
 export { isVocabularyCardDue, isVocabularyGrade, normalizeVocabularyLemma, scheduleVocabularyReview } from "./rules/vocabulary"
 export type { Admin } from "./types/admin"
@@ -89,7 +89,9 @@ export type {
   Source,
   SourceFetchType,
   SourceKind,
+  SourceCollectability,
   SourceLicense,
+  SourceNotCollectableReason,
   WebsiteSource,
 } from "./types/source"
 export type { SourceCollectionResultStatus, SourceCollectionRun, SourceCollectionRunStatus } from "./types/source-collection-run"

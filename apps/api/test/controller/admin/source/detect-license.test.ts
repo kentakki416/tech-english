@@ -3,6 +3,7 @@ import request from "supertest"
 import type { IGitHubLicenseClient } from "../../../../src/client/github-license"
 import { AdminSourceDetailController } from "../../../../src/controller/admin/source/detail"
 import { AdminSourceDetectLicenseController } from "../../../../src/controller/admin/source/detect-license"
+import { DrizzleSourceCollectionRunRepository } from "../../../../src/repository/drizzle/source-collection-run-repository"
 import { DrizzleSourceRepository } from "../../../../src/repository/drizzle/source-repository"
 import { adminRouter, mountAdminApi } from "../../../../src/routes/admin-router"
 import { attachUnhandledExceptionHandler, createTestAdmin, createTestApp } from "../../helper"
@@ -23,7 +24,7 @@ const app = createTestApp()
  */
 mountAdminApi(app, adminRouter({
   source: {
-    detail: new AdminSourceDetailController(new DrizzleSourceRepository(testDb)),
+    detail: new AdminSourceDetailController(new DrizzleSourceRepository(testDb), new DrizzleSourceCollectionRunRepository(testDb)),
     detectLicense: new AdminSourceDetectLicenseController(fakeGitHubLicenseClient),
   },
 }))

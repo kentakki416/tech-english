@@ -101,3 +101,15 @@ export type WebsiteSource = SourceBase & {
  * 英文の取得元。取得方法（fetchType）ごとに必須の項目が違う
  */
 export type Source = GitHubRepositorySource | WebsiteSource
+
+/**
+ * 収集できないソースの理由。not_found はソースが無い、website はサイトのソース（収集しない）、disabled は無効のソース
+ */
+export type SourceNotCollectableReason = "disabled" | "not_found" | "website"
+
+/**
+ * ソースを収集できるか。収集できるなら GitHub のソースに絞った値を、できなければ理由を持つ
+ */
+export type SourceCollectability =
+  | { isCollectable: true; source: GitHubRepositorySource }
+  | { isCollectable: false; reason: SourceNotCollectableReason }

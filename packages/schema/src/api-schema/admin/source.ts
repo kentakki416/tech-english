@@ -1,10 +1,12 @@
 import { z } from "zod"
 
 import {
+  ACTIVE_SOURCE_COLLECTION_RUN_STATUSES,
   ALLOWED_LICENSES,
   MAX_SERIAL_ID,
   PASSAGE_STATUSES,
   PERSONAL_USE_LICENSE,
+  SOURCE_COLLECTION_RUN_STATUSES,
   SOURCE_FETCH_TYPES,
   SOURCE_KINDS,
   SOURCE_LICENSES,
@@ -223,6 +225,27 @@ export const passageCountsSchema = z.object(
 
 export type PassageCountsResponse = z.infer<typeof passageCountsSchema>
 
+/**
+ * 収集（今すぐ収集）の 1 回の記録。件数は終わったときだけ、error は failed のときだけ入る
+ */
+export const sourceCollectionRunSchema = z.object({
+  id: z.number().int(),
+  created_passage_count: z.number().int().nullable(),
+  error: z.string().nullable(),
+  fetched_document_count: z.number().int().nullable(),
+  finished_at: z.string().nullable(),
+  started_at: z.string().nullable(),
+  status: z.enum(SOURCE_COLLECTION_RUN_STATUSES),
+  created_at: z.string(),
+})
+
+export type SourceCollectionRunResponse = z.infer<typeof sourceCollectionRunSchema>
+
+/**
+ * 収集中（queued / running）の状態。admin が「収集中か」を判定するのに使う（admin は @repo/domain を import できない）
+ */
+export const activeSourceCollectionRunStatusSchema = z.enum(ACTIVE_SOURCE_COLLECTION_RUN_STATUSES)
+
 // ========================================================
 // GET /api/admin/source - ソース一覧
 // ========================================================
@@ -262,9 +285,10 @@ export const getSourcePathParamSchema = z.object({
 })
 
 /**
- * ソース詳細のレスポンススキーマ
+ * ソース詳細のレスポンススキーマ。latest_collection_run は最後の収集の記録（一度も収集していなければ null）
  */
 export const getSourceResponseSchema = z.object({
+  latest_collection_run: sourceCollectionRunSchema.nullable(),
   passage_counts: passageCountsSchema,
   source: sourceSchema,
 })
@@ -341,3 +365,24 @@ export const detectSourceLicenseResponseSchema = z.object({
 
 export type DetectSourceLicenseQueryString = z.infer<typeof detectSourceLicenseQueryStringSchema>
 export type DetectSourceLicenseResponse = z.infer<typeof detectSourceLicenseResponseSchema>
+
+// ========================================================
+// POST /api/admin/source/:id/collection-runs - 今すぐ収集の依頼
+// ========================================================
+
+/**
+ * 今すぐ収集の依頼のパスパラメータスキーマ
+ */
+export const createSourceCollectionRunPathParamSchema = z.object({
+  id: z.coerce.number().int().positive().max(MAX_SERIAL_ID),
+})
+
+/**
+ * 今すぐ収集の依頼のレスポンススキーマ（作った queued の記録）
+ */
+export const createSourceCollectionRunResponseSchema = z.object({
+  collection_run: sourceCollectionRunSchema,
+})
+
+export type CreateSourceCollectionRunPathParam = z.infer<typeof createSourceCollectionRunPathParamSchema>
+export type CreateSourceCollectionRunResponse = z.infer<typeof createSourceCollectionRunResponseSchema>

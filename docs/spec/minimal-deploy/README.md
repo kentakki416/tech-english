@@ -154,6 +154,7 @@ flowchart LR
 | 変数 | 対象 | 既定値（= prd / dev） | minimal | 説明 |
 | --- | --- | --- | --- | --- |
 | `EVENT_TRACKER_TYPE` | api | `queue` | worker あり: `queue` / なし: `none` | 行動イベントの送出先。`none` はイベントを捨てる（[後述](#worker-を作るかどうかの切り替え)） |
+| `SOURCE_COLLECTION_TYPE` | api | `queue` | worker あり: `queue` / なし: `none` | admin の今すぐ収集の送り先。`none` は今すぐ収集のルートを作らない（[manual-collection](../manual-collection/README.md)） |
 | `FLUSH_EVENTS_BEFORE_RESPONSE` | api | `false` | `true` | レスポンスを返す前にイベント送出の完了を待つ（[後述](#lambda-の凍結とイベント送出)） |
 | `REDIS_URL` | api / worker | 現状どおり | Upstash の URL | refresh token と BullMQ の接続先 |
 | `AWS_LWA_*` | api（Lambda のみ） | - | [後述](#api-を-lambda-で動かす) | Lambda Web Adapter の設定。アプリは読まない |
@@ -203,11 +204,12 @@ worker（バックグラウンドジョブ）を最初から使うプロダク�
 | --- | --- | --- |
 | worker の ECS Service | 作らない | Fargate Spot で 1 タスク |
 | api の `EVENT_TRACKER_TYPE` | `none`（行動イベントを捨てる） | `queue` |
+| api の `SOURCE_COLLECTION_TYPE` | `none`（今すぐ収集を使えない。ソースを収集できない） | `queue` |
 | Upstash のプラン | Pay as You Go（~$0） | Fixed（$10） |
 | 月額 | ~$7 | ~$24 |
 
 - **worker が無いのに api がイベントを Queue に入れると、処理されないジョブが Upstash に溜まり続ける。** そこで api に `EVENT_TRACKER_TYPE`（`queue` / `none`。既定は現在の挙動の `queue`）を足し、`none` ではイベントを捨てる。worker の `DATA_WAREHOUSE_TYPE=none` と同じく、記録しないことを env で明示的に選ぶ
-- **設定の正本は `enable_worker` だけにする。** deploy workflow は worker の ECS Service があるかを見て、api の `EVENT_TRACKER_TYPE` と worker のデプロイを切り替える。workflow 側に同じ設定を持たないので、2 か所の設定がずれない
+- **設定の正本は `enable_worker` だけにする。** deploy workflow は worker の ECS Service があるかを見て、api の `EVENT_TRACKER_TYPE`・`SOURCE_COLLECTION_TYPE` と worker のデプロイを切り替える。workflow 側に同じ設定を持たないので、2 か所の設定がずれない
 - Upstash のプランは Terraform の管理外なので、切り替えるときに手動で変える（手順は step4）
 - `none` の間は `POST /api/events`（クライアントからのイベント送信）も成功を返して捨てる
 - prd / dev には入れない（互換性の約束どおり変えない。prd / dev は今までどおり worker を常に作る）
