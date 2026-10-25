@@ -15,6 +15,7 @@ import {
 import { sourceApi } from "@/features/source/source.api"
 import { convertFormDataToSourceRequest } from "@/features/source/source.form"
 import type { SourceCollectionRequestFailureReason } from "@/features/source/source.labels"
+import { SOURCE_CREATE_PATHS } from "@/features/source/source.paths"
 import { ApiClientError } from "@/libs/api-client"
 
 /**
@@ -68,7 +69,7 @@ export const createSourceAction = async (
     id = (await sourceApi.create(parsed.data)).id
   } catch (error) {
     unstable_rethrow(error)
-    return convertApiErrorToFormState(error, "登録に失敗しました。時間をおいて再度お試しください。", ["/sources/new"])
+    return convertApiErrorToFormState(error, "登録に失敗しました。時間をおいて再度お試しください。", Object.values(SOURCE_CREATE_PATHS))
   }
 
   revalidatePath("/sources")

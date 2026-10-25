@@ -1,4 +1,4 @@
-import type { GetSourceResponse } from "@repo/api-schema"
+import type { GetSourceResponse, SourceSuggestionErrorCode } from "@repo/api-schema"
 
 import type { BadgeColor } from "@/components/ui/badge/Badge"
 
@@ -10,6 +10,24 @@ import type { BadgeColor } from "@/components/ui/badge/Badge"
 type SourceLicense = GetSourceResponse["source"]["license_spdx"]
 
 const PERSONAL_USE_LICENSE: Extract<SourceLicense, "LicenseRef-personal-use"> = "LicenseRef-personal-use"
+
+type SourceFetchType = GetSourceResponse["source"]["fetch_type"]
+
+/**
+ * 取得方法の表示名（編集の取得方法のカードに出す）
+ */
+export const SOURCE_FETCH_TYPE_LABELS: Record<SourceFetchType, string> = {
+  github_repository: "GitHub リポジトリ",
+  website: "サイト（URL から追加）",
+}
+
+/**
+ * 一覧と登録の画面の上の [GitHub] [サイト] のボタンの文字
+ */
+export const SOURCE_FETCH_TYPE_TAB_LABELS: Record<SourceFetchType, string> = {
+  github_repository: "GitHub",
+  website: "サイト",
+}
 
 /**
  * ライセンスの表示名。個人の学習用だけ日本語の名前にし、ほかは SPDX 識別子のまま出す
@@ -45,4 +63,20 @@ export const SOURCE_COLLECTION_REQUEST_FAILURE_MESSAGES: Record<SourceCollection
   failed: "収集を始められませんでした。時間をおいてもう一度押してください。",
   running: "ほかの収集が実行中です。終わるまで待ってください。",
   unavailable: "この環境では今すぐ収集を使えません（worker がありません）。",
+}
+
+/**
+ * 登録の URL を読み込めなかった理由。api の 400 の理由（SourceSuggestionErrorCode）に、URL の形の誤り（invalid_url）・
+ * サインインの期限切れ（unauthorized）・そのほか（failed）を足したもの
+ */
+export type SourceSuggestionFailureReason = SourceSuggestionErrorCode | "failed" | "invalid_url" | "unauthorized"
+
+export const SOURCE_SUGGESTION_FAILURE_MESSAGES: Record<SourceSuggestionFailureReason, string> = {
+  failed: "読み込めませんでした。時間をおいて再度お試しください。",
+  github_url: "GitHub のリポジトリは GitHub の画面で登録してください。",
+  invalid_url: "URL の形が正しくありません。",
+  not_repository_url: "GitHub はリポジトリの URL（https://github.com/{owner}/{repo}）を入れてください。",
+  repository_not_found: "リポジトリが見つかりませんでした（非公開のリポジトリも同じ表示です）。",
+  unauthorized: "サインインの期限が切れました。ページを開き直してサインインしてください。",
+  website_unavailable: "サイトのソースはローカルでだけ登録できます。",
 }

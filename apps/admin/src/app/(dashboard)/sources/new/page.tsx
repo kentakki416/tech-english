@@ -1,35 +1,10 @@
-import type { Metadata } from "next"
-import { connection } from "next/server"
+import { redirect } from "next/navigation"
 
-import { allowedLicenseSchema, personalUseLicenseSchema } from "@repo/api-schema"
-
-import { SourceForm } from "@/components/features/source/SourceForm"
-import PageBreadcrumb from "@/components/layout/PageBreadCrumb"
-import { tagApi } from "@/features/tag/tag.api"
-
-export const metadata: Metadata = {
-  title: "ソースの登録",
-}
+import { SOURCE_CREATE_PATHS } from "@/features/source/source.paths"
 
 /**
- * ソースの登録。初期の取得方法は GitHub
+ * ブックマークなどの /sources/new は GitHub の登録の画面に送る
  */
-export default async function NewSourcePage() {
-  /**
-   * タグの一覧をリクエストごとに API から取る（build 時に静的生成させない）
-   */
-  await connection()
-  const { tags } = await tagApi.getList()
-
-  return (
-    <>
-      <PageBreadcrumb pageTitle="ソースの登録" />
-      <SourceForm
-        allowedLicenses={allowedLicenseSchema.options}
-        detail={null}
-        personalUseLicense={personalUseLicenseSchema.value}
-        tags={tags}
-      />
-    </>
-  )
+export default function NewSourcePage() {
+  redirect(SOURCE_CREATE_PATHS.github_repository)
 }

@@ -16,6 +16,7 @@ import Badge from "@/components/ui/badge/Badge"
 import { tableHeadCellClass } from "@/components/ui/table/LinkTableParts"
 import { PASSAGE_STATUS_LABELS } from "@/features/passage/passage.labels"
 import { formatLicenseLabel } from "@/features/source/source.labels"
+import { SOURCE_CREATE_PATHS } from "@/features/source/source.paths"
 import {
   CHUNK_REJECT_REASON_LABELS,
   isImportableChunk,
@@ -43,7 +44,7 @@ function ErrorMessage({ failure }: { failure: UrlImportFailure }) {
   return (
     <div className="rounded-xl border border-error-500 bg-error-50 p-4 text-sm dark:border-error-500/30 dark:bg-error-500/15" role="alert">
       <p className="font-medium text-gray-800 dark:text-white/90">{failure.message}</p>
-      {failure.errorCode === "source_not_found" && <Link className={errorLinkClass} href="/sources/new">ソースを登録する</Link>}
+      {failure.errorCode === "source_not_found" && <Link className={errorLinkClass} href={SOURCE_CREATE_PATHS.website}>ソースを登録する</Link>}
       {failure.errorCode === "out_of_target_path" && <Link className={errorLinkClass} href="/sources">ソースの一覧を開く</Link>}
     </div>
   )
