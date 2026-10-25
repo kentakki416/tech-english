@@ -1,4 +1,4 @@
-import type { ALLOWED_LICENSES, SOURCE_FETCH_TYPES, SOURCE_KINDS, SOURCE_LICENSES } from "../const/source"
+import type { ALLOWED_LICENSES, SOURCE_FETCH_TYPES, SOURCE_KINDS, SOURCE_LICENSES, SOURCE_SUGGESTION_ERROR_CODES } from "../const/source"
 
 /**
  * ソースの種別
@@ -101,6 +101,11 @@ export type WebsiteSource = SourceBase & {
  * 英文の取得元。取得方法（fetchType）ごとに必須の項目が違う
  */
 export type Source = GitHubRepositorySource | WebsiteSource
+
+/**
+ * URL からソースの登録の初期値を作れない理由
+ */
+export type SourceSuggestionErrorCode = (typeof SOURCE_SUGGESTION_ERROR_CODES)[number]
 
 /**
  * 収集できないソースの理由。not_found はソースが無い、website はサイトのソース（収集しない）、disabled は無効のソース

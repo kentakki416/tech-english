@@ -42,7 +42,7 @@
 | `DATABASE_URL` | `terraform output` + RDS の AWS 管理パスワード | **自動構築** |
 | `REDIS_HOST` | `terraform output` (step5 で activate) | **自動構築** |
 | `GITHUB_OAUTH_CLIENT_ID` / `GITHUB_OAUTH_CLIENT_SECRET` | 環境変数 | **要 export** |
-| `GITHUB_LICENSE_TOKEN` | 環境変数 | 任意（admin のライセンス検出 API が GitHub を呼ぶときの token。未設定でも 60 req/h で動く） |
+| `GITHUB_LICENSE_TOKEN` | 環境変数 | 任意（admin のソース登録で GitHub〈リポジトリの default branch・ライセンスの検出〉を呼ぶときの token。未設定でも 60 req/h で動く） |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | 環境変数 | **要 export** |
 | `LIVEKIT_HOST` / `LIVEKIT_API_KEY` / `LIVEKIT_API_SECRET` / `LIVEKIT_WEBHOOK_SECRET` | 環境変数 | **要 export** |
 | `FRONTEND_URL` | 環境変数 | **要 export** |

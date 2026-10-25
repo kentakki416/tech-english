@@ -10,6 +10,7 @@ import {
   SOURCE_FETCH_TYPES,
   SOURCE_KINDS,
   SOURCE_LICENSES,
+  SOURCE_SUGGESTION_ERROR_CODES,
 } from "@repo/domain"
 
 import { tagSchema } from "./tag"
@@ -43,7 +44,7 @@ const isWebUrl = (value: string): boolean => {
  * GitHub はリポジトリ名の大文字・小文字を区別しないので、小文字にそろえて保存・検索する
  * （`reactjs/react.dev` と `ReactJS/react.dev` を別のソースとして登録できないようにするため）
  */
-const githubRepositorySchema = z
+export const githubRepositorySchema = z
   .string()
   .regex(/^[A-Za-z0-9][A-Za-z0-9-]{0,38}\/(?!\.{1,2}$)[A-Za-z0-9._-]{1,100}$/)
   .transform((value) => value.toLowerCase())
@@ -386,3 +387,45 @@ export const createSourceCollectionRunResponseSchema = z.object({
 
 export type CreateSourceCollectionRunPathParam = z.infer<typeof createSourceCollectionRunPathParamSchema>
 export type CreateSourceCollectionRunResponse = z.infer<typeof createSourceCollectionRunResponseSchema>
+
+// ========================================================
+// GET /api/admin/source/suggestion?url=... - URL からの登録の初期値
+// ========================================================
+
+/**
+ * URL からの登録の初期値のクエリ文字列スキーマ
+ */
+export const suggestSourceQueryStringSchema = z.object({
+  url: z.string().trim().max(2048).url().refine((value) => isWebUrl(value), { message: "Must be an http(s) URL" }),
+})
+
+/**
+ * URL から初期値を作れない理由（400 の details[0].code）。admin が文言を分けるために読む
+ */
+export const sourceSuggestionErrorCodeSchema = z.enum(SOURCE_SUGGESTION_ERROR_CODES)
+
+/**
+ * URL からの登録の初期値のレスポンススキーマ。GitHub は検出したライセンス（許可リストかどうかを含む）を、
+ * サイトは自動で判定できないので個人の学習用とサイトのトップを返す
+ */
+export const suggestSourceResponseSchema = z.discriminatedUnion("fetch_type", [
+  z.object({
+    branch: z.string(),
+    default_branch: z.string(),
+    detected_license: detectSourceLicenseResponseSchema,
+    fetch_type: z.literal("github_repository"),
+    include_globs: z.array(z.string()),
+    repository: z.string(),
+  }),
+  z.object({
+    fetch_type: z.literal("website"),
+    include_globs: z.array(z.string()),
+    license_spdx: personalUseLicenseSchema,
+    license_url: z.string(),
+    site_url: z.string(),
+  }),
+])
+
+export type SourceSuggestionErrorCode = z.infer<typeof sourceSuggestionErrorCodeSchema>
+export type SuggestSourceQueryString = z.infer<typeof suggestSourceQueryStringSchema>
+export type SuggestSourceResponse = z.infer<typeof suggestSourceResponseSchema>

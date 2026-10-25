@@ -1,6 +1,6 @@
 import request from "supertest"
 
-import type { IGitHubLicenseClient } from "../../../../src/client/github-license"
+import type { IGitHubRepositoryClient } from "../../../../src/client/github-repository"
 import { AdminSourceDetailController } from "../../../../src/controller/admin/source/detail"
 import { AdminSourceDetectLicenseController } from "../../../../src/controller/admin/source/detect-license"
 import { DrizzleSourceCollectionRunRepository } from "../../../../src/repository/drizzle/source-collection-run-repository"
@@ -12,10 +12,10 @@ import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb } from "
 /**
  * 外部 SaaS（GitHub）だけを fake にする
  */
-const mockDetectLicense = vi.fn<IGitHubLicenseClient["detectLicense"]>()
+const mockDetectLicense = vi.fn<IGitHubRepositoryClient["detectLicense"]>()
 
 const LICENSE_FILE_URL = "https://github.com/reactjs/react.dev/blob/main/LICENSE-DOCS.md"
-const fakeGitHubLicenseClient: IGitHubLicenseClient = { detectLicense: mockDetectLicense }
+const fakeGitHubRepositoryClient: IGitHubRepositoryClient = { detectLicense: mockDetectLicense, findRepository: vi.fn() }
 
 const app = createTestApp()
 
@@ -25,7 +25,7 @@ const app = createTestApp()
 mountAdminApi(app, adminRouter({
   source: {
     detail: new AdminSourceDetailController(new DrizzleSourceRepository(testDb), new DrizzleSourceCollectionRunRepository(testDb)),
-    detectLicense: new AdminSourceDetectLicenseController(fakeGitHubLicenseClient),
+    detectLicense: new AdminSourceDetectLicenseController(fakeGitHubRepositoryClient),
   },
 }))
 attachUnhandledExceptionHandler(app)
@@ -61,7 +61,7 @@ describe("GET /api/admin/source/license", () => {
 
       expect(res.status).toBe(200)
       expect(res.body).toEqual(expected)
-      expect(mockDetectLicense).toHaveBeenCalledWith("reactjs/react.dev")
+      expect(mockDetectLicense).toHaveBeenCalledWith("reactjs/react.dev", null)
     })
   })
 

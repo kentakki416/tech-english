@@ -81,3 +81,12 @@ export const PERSONAL_USE_LICENSE = "LicenseRef-personal-use"
  * ソースに入れられるライセンス。DB の CHECK 制約はここから作る
  */
 export const SOURCE_LICENSES = [...ALLOWED_LICENSES, PERSONAL_USE_LICENSE] as const
+
+/**
+ * URL からソースの登録の初期値を作れない理由（400 の details[0].code）
+ *
+ * - not_repository_url: github.com の URL だが、owner / repo が無い・形が違う
+ * - repository_not_found: GitHub にリポジトリが無い（非公開を含む）
+ * - website_unavailable: ローカル以外で github.com 以外の URL（サイトのソースはローカルだけ）
+ */
+export const SOURCE_SUGGESTION_ERROR_CODES = ["not_repository_url", "repository_not_found", "website_unavailable"] as const

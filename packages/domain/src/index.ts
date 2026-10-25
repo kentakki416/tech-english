@@ -28,7 +28,14 @@ export {
   QUESTION_CHOICE_COUNT,
   QUESTION_TYPES,
 } from "./const/question"
-export { ALLOWED_LICENSES, PERSONAL_USE_LICENSE, SOURCE_FETCH_TYPES, SOURCE_KINDS, SOURCE_LICENSES } from "./const/source"
+export {
+  ALLOWED_LICENSES,
+  PERSONAL_USE_LICENSE,
+  SOURCE_FETCH_TYPES,
+  SOURCE_KINDS,
+  SOURCE_LICENSES,
+  SOURCE_SUGGESTION_ERROR_CODES,
+} from "./const/source"
 export {
   ACTIVE_SOURCE_COLLECTION_RUN_STATUSES,
   SOURCE_COLLECTION_RESULT_STATUSES,
@@ -92,6 +99,7 @@ export type {
   SourceCollectability,
   SourceLicense,
   SourceNotCollectableReason,
+  SourceSuggestionErrorCode,
   WebsiteSource,
 } from "./types/source"
 export type { SourceCollectionResultStatus, SourceCollectionRun, SourceCollectionRunStatus } from "./types/source-collection-run"
