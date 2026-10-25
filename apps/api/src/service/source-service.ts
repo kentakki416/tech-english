@@ -7,6 +7,7 @@ import {
   PERSONAL_USE_LICENSE,
   type Source,
   type SourceCollectionRun,
+  type SourceFetchType,
   type SourceNotCollectableReason,
   type SourceSuggestionErrorCode,
 } from "@repo/domain"
@@ -357,35 +358,35 @@ export const detectRepositoryLicense = async (
   ok(buildRepositoryLicense(await deps.githubRepositoryClient.detectLicense(repository, null)))
 
 /**
- * URL から、ソースの登録のフォームの初期値を作る。登録の検証は createSource が行うので、
- * ここでは許可リストのライセンスかどうかを返すだけで拒否しない
+ * サイトのライセンスは自動で判定できないので、ローカルの用途（個人の学習用）にそろえる
  */
-export const suggestSourceFromUrl = async (
+const suggestWebsiteSource = (url: string, policy: SourceWritePolicy): Result<SourceSuggestion> => {
+  if (!policy.isWebsiteSourceAllowed) {
+    logger.debug("SourceService: Website source is not available")
+    return err(buildSourceSuggestionError("website_unavailable"))
+  }
+  const sourceUrl = parseSourceUrl(url)
+  if (sourceUrl?.fetchType !== "website") {
+    logger.debug("SourceService: GitHub URL is given for a website source")
+    return err(buildSourceSuggestionError("github_url"))
+  }
+  return ok({
+    fetchType: "website",
+    includeGlobs: [buildWebsiteIncludeGlob(sourceUrl.path)],
+    licenseSpdx: PERSONAL_USE_LICENSE,
+    licenseUrl: sourceUrl.siteUrl,
+    siteUrl: sourceUrl.siteUrl,
+  })
+}
+
+const suggestGitHubRepositorySource = async (
   url: string,
   deps: { githubRepositoryClient: IGitHubRepositoryClient },
-  policy: SourceWritePolicy,
 ): Promise<Result<SourceSuggestion>> => {
   const sourceUrl = parseSourceUrl(url)
-  if (sourceUrl === null) {
+  if (sourceUrl?.fetchType !== "github_repository") {
     logger.debug("SourceService: URL is not a GitHub repository URL")
     return err(buildSourceSuggestionError("not_repository_url"))
-  }
-
-  if (sourceUrl.fetchType === "website") {
-    if (!policy.isWebsiteSourceAllowed) {
-      logger.debug("SourceService: Website source is not available")
-      return err(buildSourceSuggestionError("website_unavailable"))
-    }
-    /**
-     * サイトのライセンスは自動で判定できないので、ローカルの用途（個人の学習用）にそろえる
-     */
-    return ok({
-      fetchType: "website",
-      includeGlobs: [buildWebsiteIncludeGlob(sourceUrl.path)],
-      licenseSpdx: PERSONAL_USE_LICENSE,
-      licenseUrl: sourceUrl.siteUrl,
-      siteUrl: sourceUrl.siteUrl,
-    })
   }
 
   const githubRepository = await deps.githubRepositoryClient.findRepository(sourceUrl.repository)
@@ -413,6 +414,19 @@ export const suggestSourceFromUrl = async (
     repository,
   })
 }
+
+/**
+ * 登録の画面の取得方法と URL から、ソースの登録のフォームの初期値を作る。登録の検証は createSource が行うので、
+ * ここでは許可リストのライセンスかどうかを返すだけで拒否しない
+ */
+export const suggestSourceFromUrl = async (
+  input: { fetchType: SourceFetchType; url: string },
+  deps: { githubRepositoryClient: IGitHubRepositoryClient },
+  policy: SourceWritePolicy,
+): Promise<Result<SourceSuggestion>> =>
+  input.fetchType === "website"
+    ? suggestWebsiteSource(input.url, policy)
+    : suggestGitHubRepositorySource(input.url, deps)
 
 /**
  * 収集できないソースの理由を、api のエラーにする（ソースが無いときだけ 404）

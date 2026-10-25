@@ -3,6 +3,7 @@ import { z } from "zod"
 import {
   ACTIVE_SOURCE_COLLECTION_RUN_STATUSES,
   ALLOWED_LICENSES,
+  GITHUB_REPOSITORY_PATTERN,
   MAX_SERIAL_ID,
   PASSAGE_STATUSES,
   PERSONAL_USE_LICENSE,
@@ -40,14 +41,18 @@ const isWebUrl = (value: string): boolean => {
 }
 
 /**
- * GitHub のリポジトリ（owner/name）。owner は英数字とハイフン（39 文字まで）、name は英数字と . _ -（"." と ".." は不可）。
- * GitHub はリポジトリ名の大文字・小文字を区別しないので、小文字にそろえて保存・検索する
+ * GitHub のリポジトリ（owner/name）。GitHub はリポジトリ名の大文字・小文字を区別しないので、小文字にそろえて保存・検索する
  * （`reactjs/react.dev` と `ReactJS/react.dev` を別のソースとして登録できないようにするため）
  */
-export const githubRepositorySchema = z
+const githubRepositorySchema = z
   .string()
-  .regex(/^[A-Za-z0-9][A-Za-z0-9-]{0,38}\/(?!\.{1,2}$)[A-Za-z0-9._-]{1,100}$/)
+  .regex(GITHUB_REPOSITORY_PATTERN)
   .transform((value) => value.toLowerCase())
+
+/**
+ * ソースの取得方法。admin も一覧のクエリ（?fetch_type=）の解釈に使う（admin は @repo/domain を import できない）
+ */
+export const sourceFetchTypeSchema = z.enum(SOURCE_FETCH_TYPES)
 
 /**
  * http / https の URL
@@ -258,7 +263,7 @@ export const getSourceListResponseSchema = z.object({
   sources: z.array(
     z.object({
       id: z.number().int(),
-      fetch_type: z.enum(SOURCE_FETCH_TYPES),
+      fetch_type: sourceFetchTypeSchema,
       is_enabled: z.boolean(),
       kind: z.enum(SOURCE_KINDS),
       last_collected_at: z.string().nullable(),
@@ -389,13 +394,14 @@ export type CreateSourceCollectionRunPathParam = z.infer<typeof createSourceColl
 export type CreateSourceCollectionRunResponse = z.infer<typeof createSourceCollectionRunResponseSchema>
 
 // ========================================================
-// GET /api/admin/source/suggestion?url=... - URL からの登録の初期値
+// GET /api/admin/source/suggestion?fetch_type=...&url=... - URL からの登録の初期値
 // ========================================================
 
 /**
- * URL からの登録の初期値のクエリ文字列スキーマ
+ * URL からの登録の初期値のクエリ文字列スキーマ。fetch_type は登録の画面の取得方法
  */
 export const suggestSourceQueryStringSchema = z.object({
+  fetch_type: sourceFetchTypeSchema,
   url: z.string().trim().max(2048).url().refine((value) => isWebUrl(value), { message: "Must be an http(s) URL" }),
 })
 

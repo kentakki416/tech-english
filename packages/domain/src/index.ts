@@ -30,6 +30,7 @@ export {
 } from "./const/question"
 export {
   ALLOWED_LICENSES,
+  GITHUB_REPOSITORY_PATTERN,
   PERSONAL_USE_LICENSE,
   SOURCE_FETCH_TYPES,
   SOURCE_KINDS,

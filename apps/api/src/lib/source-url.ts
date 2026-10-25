@@ -1,4 +1,4 @@
-import { githubRepositorySchema } from "@repo/api-schema"
+import { GITHUB_REPOSITORY_PATTERN } from "@repo/domain"
 
 /**
  * GitHub の URL が指すもの。tree はディレクトリ、blob はファイル、それ以外（トップ・/issues など）はリポジトリのトップ
@@ -40,7 +40,7 @@ const findGitHubUrlTarget = (kind: string | undefined, refAndPath: string[]): Gi
 }
 
 /**
- * github.com の URL だがリポジトリ（owner/repo）が無い・形が違うなら null。
+ * github.com の URL だがリポジトリ（owner/repo）が無い・形が違うなら null。リポジトリは小文字にそろえる（登録と同じ）。
  * http は https にそろえ（サイトのソースは https だけ）、? と # 以降は見ない
  */
 export const parseSourceUrl = (url: string): SourceUrl | null => {
@@ -51,11 +51,11 @@ export const parseSourceUrl = (url: string): SourceUrl | null => {
 
   const [owner, name, kind, ...rest] = splitPathSegments(parsed.pathname)
   if (owner === undefined || name === undefined) return null
-  const repository = githubRepositorySchema.safeParse(`${owner}/${name.replace(GIT_SUFFIX_PATTERN, "")}`)
-  if (!repository.success) return null
+  const repository = `${owner}/${name.replace(GIT_SUFFIX_PATTERN, "")}`
+  if (!GITHUB_REPOSITORY_PATTERN.test(repository)) return null
 
   const target = findGitHubUrlTarget(kind, rest)
-  return { fetchType: "github_repository", refAndPath: target === "root" ? [] : rest, repository: repository.data, target }
+  return { fetchType: "github_repository", refAndPath: target === "root" ? [] : rest, repository: repository.toLowerCase(), target }
 }
 
 /**

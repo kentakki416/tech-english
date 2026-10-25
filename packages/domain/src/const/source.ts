@@ -83,10 +83,16 @@ export const PERSONAL_USE_LICENSE = "LicenseRef-personal-use"
 export const SOURCE_LICENSES = [...ALLOWED_LICENSES, PERSONAL_USE_LICENSE] as const
 
 /**
+ * GitHub のリポジトリ名（owner/name）の形。owner は英数字とハイフン（39 文字まで）、name は英数字と . _ -（"." と ".." は不可）
+ */
+export const GITHUB_REPOSITORY_PATTERN = /^[A-Za-z0-9][A-Za-z0-9-]{0,38}\/(?!\.{1,2}$)[A-Za-z0-9._-]{1,100}$/
+
+/**
  * URL からソースの登録の初期値を作れない理由（400 の details[0].code）
  *
- * - not_repository_url: github.com の URL だが、owner / repo が無い・形が違う
- * - repository_not_found: GitHub にリポジトリが無い（非公開を含む）
- * - website_unavailable: ローカル以外で github.com 以外の URL（サイトのソースはローカルだけ）
+ * - github_url: サイトの登録で github.com の URL（GitHub の登録の画面で登録する）
+ * - not_repository_url: GitHub の登録で、github.com 以外の URL・owner / repo が無い・形が違う
+ * - repository_not_found: GitHub の登録で、GitHub にリポジトリが無い（非公開を含む）
+ * - website_unavailable: ローカル以外でサイトの登録（サイトのソースはローカルだけ）
  */
-export const SOURCE_SUGGESTION_ERROR_CODES = ["not_repository_url", "repository_not_found", "website_unavailable"] as const
+export const SOURCE_SUGGESTION_ERROR_CODES = ["github_url", "not_repository_url", "repository_not_found", "website_unavailable"] as const

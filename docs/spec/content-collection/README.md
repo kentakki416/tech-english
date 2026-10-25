@@ -484,7 +484,7 @@ admin 向け。アクセス制御は [question-generation](../question-generatio
 | GET | `/api/admin/source/:id` | ソース詳細 |
 | POST | `/api/admin/source` | ソースの登録。取得方法ごとの必須項目を Zod の discriminated union で検証する。許可リスト外のライセンスと、リポジトリのファイルでない GitHub の `license_url` は 400。`website` は production では 400、ローカルでは無効の状態で作る |
 | PUT | `/api/admin/source/:id` | ソースの更新（GitHub は有効 / 無効の切り替えを含む。`website` は `is_enabled` を受け取らず、production では 400）。取得方法は変更できない。文書を取得したソースの取得元（`repository` / `site_url`）の変更は 400 |
-| GET | `/api/admin/source/suggestion?url=...` | URL から登録の初期値（取得方法・取得元・ブランチ・対象パス・検出したライセンス）を返す（[source-registration-by-url](../source-registration-by-url/README.md)） |
+| GET | `/api/admin/source/suggestion?fetch_type=...&url=...` | 登録の画面の取得方法と URL から、登録の初期値（取得元・ブランチ・対象パス・検出したライセンス）を返す（[source-registration-by-url](../source-registration-by-url/README.md)） |
 | GET | `/api/admin/source/license?repository=owner/name` | GitHub が検出したライセンスと、そのライセンスのファイルの URL を返す（`github_repository` の編集フォームの「ライセンスを検出」用） |
 
 worker のジョブ：

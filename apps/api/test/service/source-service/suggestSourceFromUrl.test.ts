@@ -11,6 +11,11 @@ const LICENSE_FILE_URL = "https://github.com/reactjs/react.dev/blob/main/LICENSE
 
 const LEARN_URL = "https://github.com/reactjs/react.dev/tree/main/src/content/learn"
 
+const RELEASE_BRANCH_URL = "https://github.com/reactjs/react.dev/tree/release/v2/docs"
+
+const suggestGitHub = async (url: string) =>
+  suggestSourceFromUrl({ fetchType: "github_repository", url }, { githubRepositoryClient }, PRODUCTION_POLICY)
+
 const expectSuggestionError = (result: Awaited<ReturnType<typeof suggestSourceFromUrl>>, code: string) => {
   expect(result.ok).toBe(false)
   if (!result.ok) {
@@ -28,8 +33,8 @@ describe("suggestSourceFromUrl", () => {
   })
 
   describe("正常系", () => {
-    it("ディレクトリの URL は、ブランチ・対象パス・検出したライセンスを返す", async () => {
-      const result = await suggestSourceFromUrl(LEARN_URL, { githubRepositoryClient }, PRODUCTION_POLICY)
+    it("GitHub のディレクトリの URL は、ブランチ・対象パス・検出したライセンスを返す", async () => {
+      const result = await suggestGitHub(LEARN_URL)
 
       expect(result).toEqual({
         ok: true,
@@ -47,10 +52,10 @@ describe("suggestSourceFromUrl", () => {
       expect(mockDetectLicense).toHaveBeenCalledWith("reactjs/react.dev", "main")
     })
 
-    it("トップの URL は、ブランチを default branch・対象パスをリポジトリ全体にする", async () => {
+    it("GitHub のトップの URL は、ブランチを default branch・対象パスをリポジトリ全体にする", async () => {
       mockFindRepository.mockResolvedValue({ defaultBranch: "master", fullName: "rust-lang/rfcs" })
 
-      const result = await suggestSourceFromUrl("https://github.com/rust-lang/rfcs", { githubRepositoryClient }, PRODUCTION_POLICY)
+      const result = await suggestGitHub("https://github.com/rust-lang/rfcs")
 
       expect(result).toMatchObject({ ok: true, value: { branch: "master", defaultBranch: "master", includeGlobs: ["**"], repository: "rust-lang/rfcs" } })
       expect(mockDetectLicense).toHaveBeenCalledWith("rust-lang/rfcs", "master")
@@ -59,7 +64,7 @@ describe("suggestSourceFromUrl", () => {
     it("改名・大文字の違うリポジトリは、GitHub の full_name を小文字にした名前を返し、その名前でライセンスを見る", async () => {
       mockFindRepository.mockResolvedValue({ defaultBranch: "main", fullName: "ReactJS/React.dev" })
 
-      const result = await suggestSourceFromUrl("https://github.com/facebook/react.dev", { githubRepositoryClient }, PRODUCTION_POLICY)
+      const result = await suggestGitHub("https://github.com/facebook/react.dev")
 
       expect(result).toMatchObject({ ok: true, value: { repository: "reactjs/react.dev" } })
       expect(mockFindRepository).toHaveBeenCalledWith("facebook/react.dev")
@@ -71,10 +76,10 @@ describe("suggestSourceFromUrl", () => {
       ["許可リスト外のライセンス", { licenseSpdx: "GPL-3.0", licenseUrl: LICENSE_FILE_URL }, { isAllowed: false, licenseSpdx: "GPL-3.0", licenseUrl: LICENSE_FILE_URL }],
       ["判定できないライセンス", { licenseSpdx: null, licenseUrl: LICENSE_FILE_URL }, { isAllowed: false, licenseSpdx: null, licenseUrl: LICENSE_FILE_URL }],
       ["ライセンスのファイルが無い", null, { isAllowed: false, licenseSpdx: null, licenseUrl: null }],
-    ])("%s は detectedLicense にそのまま入る", async (_label, detected, expected) => {
+    ])("default branch の %s は detectedLicense にそのまま入り、見直さない", async (_label, detected, expected) => {
       mockDetectLicense.mockResolvedValue(detected)
 
-      const result = await suggestSourceFromUrl(LEARN_URL, { githubRepositoryClient }, PRODUCTION_POLICY)
+      const result = await suggestGitHub(LEARN_URL)
 
       expect(result).toMatchObject({ ok: true, value: { detectedLicense: expected } })
       expect(mockDetectLicense).toHaveBeenCalledTimes(1)
@@ -83,7 +88,7 @@ describe("suggestSourceFromUrl", () => {
     it("default branch でないブランチでライセンスが見つからなければ、default branch のライセンスを見直す", async () => {
       mockDetectLicense.mockResolvedValueOnce(null).mockResolvedValueOnce({ licenseSpdx: "MIT", licenseUrl: LICENSE_FILE_URL })
 
-      const result = await suggestSourceFromUrl("https://github.com/reactjs/react.dev/tree/release/v2/docs", { githubRepositoryClient }, PRODUCTION_POLICY)
+      const result = await suggestGitHub(RELEASE_BRANCH_URL)
 
       expect(result).toMatchObject({
         ok: true,
@@ -99,15 +104,24 @@ describe("suggestSourceFromUrl", () => {
       expect(mockDetectLicense).toHaveBeenNthCalledWith(2, "reactjs/react.dev", null)
     })
 
+    it("default branch でないブランチで、default branch にもライセンスが無ければ、ファイルが無いときの値を返す", async () => {
+      mockDetectLicense.mockResolvedValue(null)
+
+      const result = await suggestGitHub(RELEASE_BRANCH_URL)
+
+      expect(result).toMatchObject({ ok: true, value: { detectedLicense: { isAllowed: false, licenseSpdx: null, licenseUrl: null } } })
+      expect(mockDetectLicense).toHaveBeenCalledTimes(2)
+    })
+
     it("default branch でないブランチでライセンスが見つかれば、見直さない", async () => {
-      const result = await suggestSourceFromUrl("https://github.com/reactjs/react.dev/tree/canary/src", { githubRepositoryClient }, PRODUCTION_POLICY)
+      const result = await suggestGitHub("https://github.com/reactjs/react.dev/tree/canary/src")
 
       expect(result).toMatchObject({ ok: true, value: { branch: "canary", detectedLicense: { isAllowed: true } } })
       expect(mockDetectLicense).toHaveBeenCalledTimes(1)
     })
 
     it("サイトの URL は、ローカルならサイトの URL・対象パス・個人の学習用を返し、GitHub を呼ばない", async () => {
-      const result = await suggestSourceFromUrl("http://go.dev/doc/", { githubRepositoryClient }, LOCAL_POLICY)
+      const result = await suggestSourceFromUrl({ fetchType: "website", url: "http://go.dev/doc/" }, { githubRepositoryClient }, LOCAL_POLICY)
 
       expect(result).toEqual({
         ok: true,
@@ -125,42 +139,43 @@ describe("suggestSourceFromUrl", () => {
   })
 
   describe("異常系", () => {
-    it("github.com の URL にリポジトリが無ければ not_repository_url の 400 を返し、GitHub を呼ばない", async () => {
-      const result = await suggestSourceFromUrl("https://github.com/reactjs", { githubRepositoryClient }, PRODUCTION_POLICY)
+    it.each([
+      ["リポジトリが無い github.com の URL", "https://github.com/reactjs"],
+      ["サイトの URL", "https://go.dev/doc/"],
+    ])("GitHub で %s なら not_repository_url の 400 を返し、GitHub を呼ばない", async (_label, url) => {
+      const result = await suggestGitHub(url)
 
       expectSuggestionError(result, "not_repository_url")
       expect(mockFindRepository).not.toHaveBeenCalled()
     })
 
-    it("ローカル以外でサイトの URL なら website_unavailable の 400 を返す", async () => {
-      const result = await suggestSourceFromUrl("https://go.dev/doc/", { githubRepositoryClient }, PRODUCTION_POLICY)
-
-      expectSuggestionError(result, "website_unavailable")
-      expect(mockFindRepository).not.toHaveBeenCalled()
-    })
-
-    it("リポジトリが無ければ repository_not_found の 400 を返し、ライセンスを見ない", async () => {
+    it("GitHub でリポジトリが無ければ repository_not_found の 400 を返し、ライセンスを見ない", async () => {
       mockFindRepository.mockResolvedValue(null)
 
-      const result = await suggestSourceFromUrl(LEARN_URL, { githubRepositoryClient }, PRODUCTION_POLICY)
+      const result = await suggestGitHub(LEARN_URL)
 
       expectSuggestionError(result, "repository_not_found")
       expect(mockDetectLicense).not.toHaveBeenCalled()
     })
 
-    it("default branch でライセンスが見つからなければ、見直さずにファイルが無いときの値を返す", async () => {
-      mockDetectLicense.mockResolvedValue(null)
+    it("サイトで github.com の URL なら github_url の 400 を返し、GitHub を呼ばない", async () => {
+      const result = await suggestSourceFromUrl({ fetchType: "website", url: LEARN_URL }, { githubRepositoryClient }, LOCAL_POLICY)
 
-      const result = await suggestSourceFromUrl(LEARN_URL, { githubRepositoryClient }, PRODUCTION_POLICY)
+      expectSuggestionError(result, "github_url")
+      expect(mockFindRepository).not.toHaveBeenCalled()
+    })
 
-      expect(result).toMatchObject({ ok: true, value: { detectedLicense: { isAllowed: false, licenseSpdx: null, licenseUrl: null } } })
-      expect(mockDetectLicense).toHaveBeenCalledTimes(1)
+    it("サイトでローカル以外なら website_unavailable の 400 を返し、GitHub を呼ばない", async () => {
+      const result = await suggestSourceFromUrl({ fetchType: "website", url: "https://github.com/reactjs/react.dev" }, { githubRepositoryClient }, PRODUCTION_POLICY)
+
+      expectSuggestionError(result, "website_unavailable")
+      expect(mockFindRepository).not.toHaveBeenCalled()
     })
 
     it("GitHub の呼び出しが失敗したら例外が伝播する", async () => {
       mockFindRepository.mockRejectedValue(new Error("GitHub repository request failed: 403"))
 
-      await expect(suggestSourceFromUrl(LEARN_URL, { githubRepositoryClient }, PRODUCTION_POLICY)).rejects.toThrow()
+      await expect(suggestGitHub(LEARN_URL)).rejects.toThrow()
     })
   })
 })

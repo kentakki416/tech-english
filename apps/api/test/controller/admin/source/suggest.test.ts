@@ -64,8 +64,8 @@ afterAll(async () => {
 
 describe("GET /api/admin/source/suggestion", () => {
   describe("正常系", () => {
-    it("GitHub のディレクトリの URL なら 200 でリポジトリ・ブランチ・対象パス・検出したライセンスを返す", async () => {
-      const res = await requestSuggestion({ url: LEARN_URL })
+    it("GitHub でディレクトリの URL なら 200 でリポジトリ・ブランチ・対象パス・検出したライセンスを返す", async () => {
+      const res = await requestSuggestion({ fetch_type: "github_repository", url: LEARN_URL })
 
       expect(res.status).toBe(200)
       expect(res.body).toEqual({
@@ -78,8 +78,8 @@ describe("GET /api/admin/source/suggestion", () => {
       })
     })
 
-    it("ローカルでサイトの URL なら 200 でサイトの URL・対象パス・個人の学習用を返す", async () => {
-      const res = await requestSuggestion({ url: "https://go.dev/doc/" })
+    it("ローカルのサイトでサイトの URL なら 200 でサイトの URL・対象パス・個人の学習用を返す", async () => {
+      const res = await requestSuggestion({ fetch_type: "website", url: "https://go.dev/doc/" })
 
       expect(res.status).toBe(200)
       expect(res.body).toEqual({
@@ -95,9 +95,11 @@ describe("GET /api/admin/source/suggestion", () => {
 
   describe("異常系", () => {
     it.each([
-      ["url が無い", {}],
-      ["URL でない", { url: "react.dev" }],
-      ["http / https でない", { url: "ftp://github.com/reactjs/react.dev" }],
+      ["fetch_type が無い", { url: LEARN_URL }],
+      ["fetch_type の値が違う", { fetch_type: "gitlab", url: LEARN_URL }],
+      ["url が無い", { fetch_type: "github_repository" }],
+      ["URL でない", { fetch_type: "github_repository", url: "react.dev" }],
+      ["http / https でない", { fetch_type: "github_repository", url: "ftp://github.com/reactjs/react.dev" }],
     ])("%s なら 400 を返し、GitHub を呼ばない", async (_label, query) => {
       const res = await requestSuggestion(query)
 
@@ -106,8 +108,8 @@ describe("GET /api/admin/source/suggestion", () => {
       expect(mockFindRepository).not.toHaveBeenCalled()
     })
 
-    it("github.com の URL にリポジトリが無ければ 400 と not_repository_url を返す", async () => {
-      const res = await requestSuggestion({ url: "https://github.com/reactjs" })
+    it("GitHub で github.com の URL にリポジトリが無ければ 400 と not_repository_url を返す", async () => {
+      const res = await requestSuggestion({ fetch_type: "github_repository", url: "https://github.com/reactjs" })
 
       expect(res.status).toBe(400)
       expect(res.body).toEqual({
@@ -117,19 +119,27 @@ describe("GET /api/admin/source/suggestion", () => {
       })
     })
 
-    it("GitHub にリポジトリが無ければ 400 と repository_not_found を返す", async () => {
+    it("GitHub でリポジトリが無ければ 400 と repository_not_found を返す", async () => {
       mockFindRepository.mockResolvedValue(null)
 
-      const res = await requestSuggestion({ url: LEARN_URL })
+      const res = await requestSuggestion({ fetch_type: "github_repository", url: LEARN_URL })
 
       expect(res.status).toBe(400)
       expect(res.body.details).toEqual([{ code: "repository_not_found", message: expect.any(String), path: ["url"] }])
     })
 
-    it("ローカル以外でサイトの URL なら 400 と website_unavailable を返す", async () => {
+    it("サイトで github.com の URL なら 400 と github_url を返し、GitHub を呼ばない", async () => {
+      const res = await requestSuggestion({ fetch_type: "website", url: LEARN_URL })
+
+      expect(res.status).toBe(400)
+      expect(res.body.details).toEqual([{ code: "github_url", message: expect.any(String), path: ["url"] }])
+      expect(mockFindRepository).not.toHaveBeenCalled()
+    })
+
+    it("ローカル以外でサイトなら 400 と website_unavailable を返す", async () => {
       policy.isWebsiteSourceAllowed = false
 
-      const res = await requestSuggestion({ url: "https://go.dev/doc/" })
+      const res = await requestSuggestion({ fetch_type: "website", url: "https://go.dev/doc/" })
 
       expect(res.status).toBe(400)
       expect(res.body.details).toEqual([{ code: "website_unavailable", message: expect.any(String), path: ["url"] }])
@@ -138,7 +148,7 @@ describe("GET /api/admin/source/suggestion", () => {
     it("GitHub の呼び出しが失敗したら 500 を返す", async () => {
       mockFindRepository.mockRejectedValue(new Error("GitHub repository request failed: 403"))
 
-      const res = await requestSuggestion({ url: LEARN_URL })
+      const res = await requestSuggestion({ fetch_type: "github_repository", url: LEARN_URL })
 
       expect(res.status).toBe(500)
     })
@@ -146,7 +156,7 @@ describe("GET /api/admin/source/suggestion", () => {
     it("Authorization が無ければ 401 を返し、GitHub を呼ばない", async () => {
       const res = await request(app)
         .get("/api/admin/source/suggestion")
-        .query({ url: LEARN_URL })
+        .query({ fetch_type: "github_repository", url: LEARN_URL })
 
       expect(res.status).toBe(401)
       expect(mockFindRepository).not.toHaveBeenCalled()

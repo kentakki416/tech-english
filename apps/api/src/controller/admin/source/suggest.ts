@@ -11,7 +11,7 @@ import type { SourceWritePolicy } from "../../../service/source-service"
 import { convertSourceSuggestionToResponse } from "./source-mapper"
 
 /**
- * admin の URL からのソースの登録の初期値API（登録のフォームの「読み込む」用）。website はローカルでだけ返す
+ * admin の URL からのソースの登録の初期値API（GitHub・サイトの登録のフォームの「読み込む」用）。website はローカルでだけ返す
  */
 export class AdminSourceSuggestController {
   constructor(
@@ -20,10 +20,10 @@ export class AdminSourceSuggestController {
   ) {}
 
   public async execute(req: Request, res: Response) {
-    const { url } = parseRequest(suggestSourceQueryStringSchema, req.query)
+    const { fetch_type: fetchType, url } = parseRequest(suggestSourceQueryStringSchema, req.query)
 
     const result = await service.source.suggestSourceFromUrl(
-      url,
+      { fetchType, url },
       { githubRepositoryClient: this._githubRepositoryClient },
       this._policy,
     )
