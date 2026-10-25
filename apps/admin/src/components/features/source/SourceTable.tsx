@@ -137,13 +137,15 @@ const convertSourceToRow = (source: SourceListItem): SourceRow => ({
 })
 
 /**
- * ソース一覧の表（1 つの取得方法のソース）。Basic Tables と同じ DataTable（検索・Filter つき、ページ送りなし）
+ * ソース一覧の表（1 つの取得方法のソース）。Basic Tables と同じ DataTable（検索・Filter つき、ページ送りなし）。
+ * [GitHub] [サイト] はクエリだけが変わる遷移でこの部品が作り直されないので、取得方法を key にして検索の文字と Filter を消す
  */
 export function SourceTable({ fetchType, sources }: { fetchType: SourceFetchType, sources: SourceListItem[] }) {
   const rows = sources.map(convertSourceToRow)
 
   return (
     <DataTable
+      key={fetchType}
       columns={COLUMNS[fetchType]}
       data={rows}
       emptyMessage={

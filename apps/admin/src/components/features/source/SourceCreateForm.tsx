@@ -18,6 +18,7 @@ import {
 import { SourceSuggestionSummary } from "@/components/features/source/SourceSuggestionSummary"
 import { TagPicker } from "@/components/features/source/TagPicker"
 import { SOURCE_SUGGESTION_FAILURE_MESSAGES, type SourceSuggestionFailureReason } from "@/features/source/source.labels"
+import { SOURCE_LIST_PATHS } from "@/features/source/source.paths"
 import {
   cardBodyClass,
   cardClass,
@@ -39,23 +40,6 @@ type LoadedSuggestion = { suggestion: SuggestSourceResponse, url: string }
 type SuggestionResult =
   | { ok: false, reason: SourceSuggestionFailureReason }
   | { ok: true, suggestion: SuggestSourceResponse }
-
-/**
- * 「詳細」の中の欄のキー（リクエストのフィールド名）。入力エラーがあれば「詳細」を開く
- */
-const DETAIL_FIELD_KEYS = [
-  "branch",
-  "content_selector",
-  "exclude_globs",
-  "exclude_selectors",
-  "include_globs",
-  "kind",
-  "license_spdx",
-  "license_url",
-  "public_url_strip_prefix",
-  "public_url_template",
-  "tag_ids",
-]
 
 const detailGroupTitleClass = "text-sm font-medium text-gray-800 dark:text-white/90"
 
@@ -83,8 +67,14 @@ const CHECKLISTS: Record<SourceFetchType, string[]> = {
   ],
 }
 
+/**
+ * 「詳細」の外の欄は表示名だけなので、表示名以外の欄の入力エラーは「詳細」の中にある
+ */
 const hasDetailFieldErrors = (state: SourceFormState): boolean =>
-  DETAIL_FIELD_KEYS.some((key) => (state.errors?.[key]?.length ?? 0) > 0)
+  Object.entries(state.errors ?? {}).some(([key, messages]) => key !== "name" && (messages?.length ?? 0) > 0)
+
+const isSourceSuggestionFailureReason = (value: unknown): value is SourceSuggestionFailureReason =>
+  typeof value === "string" && Object.hasOwn(SOURCE_SUGGESTION_FAILURE_MESSAGES, value)
 
 /**
  * ライセンスを自動で決められたか（許可リストのライセンスで、そのファイルの URL がある）。サイトは常に決まる
@@ -102,9 +92,12 @@ const buildInitialLicense = (suggestion: SuggestSourceResponse): { licenseSpdx: 
   return { licenseSpdx: isAllowed && licenseSpdx !== null ? licenseSpdx : "", licenseUrl: licenseUrl ?? "" }
 }
 
+/**
+ * Route Handler の失敗のボディの理由。読めない・知らない値なら failed
+ */
 const readFailureReason = async (res: Response): Promise<SourceSuggestionFailureReason> => {
-  const body = (await res.json().catch(() => null)) as { reason?: SourceSuggestionFailureReason } | null
-  return body?.reason ?? "failed"
+  const body = (await res.json().catch(() => null)) as { reason?: unknown } | null
+  return isSourceSuggestionFailureReason(body?.reason) ? body.reason : "failed"
 }
 
 /**
@@ -154,6 +147,7 @@ export function SourceCreateForm({
   const [loadStatus, setLoadStatus] = useState<LoadStatus>({ status: "idle" })
   const [loaded, setLoaded] = useState<LoadedSuggestion | null>(null)
   const [revision, setRevision] = useState(0)
+  const [submission, setSubmission] = useState<{ revision: number, stateAtSubmit: SourceFormState } | null>(null)
   const [isDetailsOpen, setIsDetailsOpen] = useState(false)
   const [isEnabled, setIsEnabled] = useState(true)
   const [licenseSpdx, setLicenseSpdx] = useState("")
@@ -171,12 +165,17 @@ export function SourceCreateForm({
   const isLoadedUrl = loaded !== null && loaded.url === url.trim()
   const licenseOptions = fetchType === "website" ? [...allowedLicenses, personalUseLicense] : allowedLicenses
   const urlFieldTexts = URL_FIELD_TEXTS[fetchType]
-  const getFieldError = (key: string): string | undefined => state.errors?.[key]?.[0]
-  const hasFieldErrors = Object.values(state.errors ?? {}).some((messages) => (messages?.length ?? 0) > 0)
+  /**
+   * 登録の結果（入力エラー・重複など）は、いま読み込んでいる内容で送った結果だけを出す。
+   * 読み込み直したら前の結果は合わず、送り直している間の state は前の送信の結果のままなので、どちらも出さない
+   */
+  const formState: SourceFormState = submission?.revision === revision && state !== submission.stateAtSubmit ? state : {}
+  const getFieldError = (key: string): string | undefined => formState.errors?.[key]?.[0]
+  const hasFieldErrors = Object.values(formState.errors ?? {}).some((messages) => (messages?.length ?? 0) > 0)
 
   /**
    * 読み込みに失敗しても前に読み込んだ内容は消さない（URL の欄が違うので、そのままでは登録できない）。
-   * 読み込み直すと、取得元の欄は key を変えて作り直し、ライセンスの欄は読み込んだ値に置き換える
+   * 読み込み直すと、取得元の欄は key を変えて作り直し、ライセンスの欄は読み込んだ値に置き換える。開いている「詳細」は閉じない
    */
   const loadSuggestion = async () => {
     const target = url.trim()
@@ -197,7 +196,7 @@ export function SourceCreateForm({
       setRevision((value) => value + 1)
       setLicenseSpdx(initialLicense.licenseSpdx)
       setLicenseUrl(initialLicense.licenseUrl)
-      setIsDetailsOpen(!isLicenseResolved(result.suggestion))
+      setIsDetailsOpen((isOpen) => isOpen || !isLicenseResolved(result.suggestion))
       setLoadStatus({ status: "idle" })
     } catch {
       setLoadStatus({ message: SOURCE_SUGGESTION_FAILURE_MESSAGES.failed, status: "failed" })
@@ -220,6 +219,7 @@ export function SourceCreateForm({
     event.preventDefault()
     if (!isLoadedUrl) return
     const formData = new FormData(event.currentTarget)
+    setSubmission({ revision, stateAtSubmit: state })
     startTransition(() => formAction(formData))
   }
 
@@ -230,9 +230,9 @@ export function SourceCreateForm({
         {suggestion && <SuggestionHiddenField suggestion={suggestion} />}
         {fetchType === "github_repository" && <input name="is_enabled" type="hidden" value={String(isEnabled)} />}
 
-        {state.message && (
+        {formState.message && (
           <div className="rounded-xl border border-error-500 bg-error-50 p-4 text-sm dark:border-error-500/30 dark:bg-error-500/15" role="alert">
-            <p className="font-medium text-gray-800 dark:text-white/90">{state.message}</p>
+            <p className="font-medium text-gray-800 dark:text-white/90">{formState.message}</p>
           </div>
         )}
 
@@ -325,7 +325,7 @@ export function SourceCreateForm({
         <div className="flex flex-wrap items-center justify-end gap-3">
           {hasFieldErrors && <p className="mr-auto text-sm text-error-500" role="alert">入力内容を確認してください。各欄の下に理由を表示しています。</p>}
           {!hasFieldErrors && !isLoadedUrl && <p className="mr-auto text-sm text-gray-500 dark:text-gray-400">URL を読み込んでください。</p>}
-          <Link className={outlineButtonClass} href="/sources">キャンセル</Link>
+          <Link className={outlineButtonClass} href={SOURCE_LIST_PATHS[fetchType]}>キャンセル</Link>
           <button className={primaryButtonClass} disabled={!isLoadedUrl || isPending} type="submit">登録する</button>
         </div>
       </form>

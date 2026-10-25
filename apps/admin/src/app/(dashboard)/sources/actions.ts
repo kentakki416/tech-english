@@ -15,7 +15,7 @@ import {
 import { sourceApi } from "@/features/source/source.api"
 import { convertFormDataToSourceRequest } from "@/features/source/source.form"
 import type { SourceCollectionRequestFailureReason } from "@/features/source/source.labels"
-import { SOURCE_CREATE_PATHS } from "@/features/source/source.paths"
+import { SOURCE_CREATE_PATHS, SOURCE_LIST_PATHS } from "@/features/source/source.paths"
 import { ApiClientError } from "@/libs/api-client"
 
 /**
@@ -80,7 +80,7 @@ export const createSourceAction = async (
 }
 
 /**
- * ソース更新の Server Action（有効 / 無効の切り替えを含む）。成功したら一覧へ遷移する
+ * ソース更新の Server Action（有効 / 無効の切り替えを含む）。成功したらそのソースの取得方法の一覧へ遷移する
  */
 export const updateSourceAction = async (
   id: number,
@@ -104,7 +104,7 @@ export const updateSourceAction = async (
 
   revalidatePath("/sources")
   revalidatePath(`/sources/${id}`)
-  redirect("/sources")
+  redirect(SOURCE_LIST_PATHS[parsed.data.fetch_type])
 }
 
 export type SourceCollectionRequestResult = { ok: false, reason: SourceCollectionRequestFailureReason } | { ok: true }

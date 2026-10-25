@@ -21,6 +21,7 @@ import {
 import { TagPicker } from "@/components/features/source/TagPicker"
 import Badge from "@/components/ui/badge/Badge"
 import { SOURCE_FETCH_TYPE_LABELS, type SourceCollectionRunStatus } from "@/features/source/source.labels"
+import { SOURCE_LIST_PATHS } from "@/features/source/source.paths"
 import { formatDateTime } from "@/libs/date"
 import { isLocalEnvironment } from "@/libs/environment"
 import {
@@ -283,7 +284,7 @@ export function SourceEditForm({
 
         <div className="flex flex-wrap items-center justify-end gap-3">
           {hasFieldErrors && <p className="mr-auto text-sm text-error-500" role="alert">入力内容を確認してください。各欄の下に理由を表示しています。</p>}
-          <Link className={outlineButtonClass} href="/sources">キャンセル</Link>
+          <Link className={outlineButtonClass} href={SOURCE_LIST_PATHS[source.fetch_type]}>キャンセル</Link>
           <button className={primaryButtonClass} disabled={isPending} type="submit">保存する</button>
         </div>
       </form>

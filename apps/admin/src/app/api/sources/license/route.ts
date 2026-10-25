@@ -8,7 +8,7 @@ import { sourceApi } from "@/features/source/source.api"
 import { ApiClientError } from "@/libs/api-client"
 
 /**
- * GitHub が検出したリポジトリのライセンス（ソースの登録フォームの「ライセンスを検出」用）。
+ * GitHub が検出したリポジトリのライセンス（ソースの編集フォームの「ライセンスを検出」用）。
  * GET 相当なので Server Action ではなく Route Handler にする。ブラウザから api を直接呼ばないための中継
  */
 export const GET = async (request: NextRequest) => {

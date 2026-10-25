@@ -10,7 +10,7 @@ type SourceFetchType = GetSourceResponse["source"]["fetch_type"]
 /**
  * サイトのソースはローカルだけなので、ローカル以外では [サイト] を出さない
  */
-const FETCH_TYPES = (["github_repository", "website"] as const).filter((fetchType) => isLocalEnvironment || fetchType !== "website")
+const AVAILABLE_FETCH_TYPES = (["github_repository", "website"] as const).filter((fetchType) => isLocalEnvironment || fetchType !== "website")
 
 /**
  * ソースの一覧・登録の画面の [GitHub] [サイト] の切り替え。ダッシュボードの期間の切り替え（PeriodTabs）と同じ見た目のリンクで、押すと hrefs の画面へ移る
@@ -26,7 +26,7 @@ export function SourceFetchTypeTabs({
 }) {
   return (
     <nav aria-label="取得方法" className="inline-flex items-center gap-0.5 rounded-lg bg-gray-100 p-0.5 dark:bg-gray-900">
-      {FETCH_TYPES.map((fetchType) => (
+      {AVAILABLE_FETCH_TYPES.map((fetchType) => (
         <Link
           key={fetchType}
           aria-current={fetchType === current ? "page" : undefined}
