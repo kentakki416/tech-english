@@ -21,6 +21,8 @@
 | 401 | `{ "reason": "unauthorized" }` | サインインの期限切れ（redirect しない。フォームの入力を消さないため） |
 | 502 | `{ "reason": "failed" }` | GitHub の rate limit・障害など |
 
+セッションが切れて refresh もできないときは、Route Handler に届く前に `src/proxy.ts` が `{ "error": "Unauthorized" }` の 401 を返す（ボディに `reason` が無い）。フォームは 401 を status で見分け、それ以外でボディの `reason` が読めなければ `failed` にする。
+
 ## 処理フロー
 
 ```mermaid
@@ -76,7 +78,7 @@ suggest: async (url: string): Promise<SuggestSourceResponse> => {
 ### `src/features/source/source.labels.ts`
 
 ```ts
-export type SourceSuggestionFailureReason = SuggestSourceErrorCode | "failed" | "invalid_url" | "unauthorized"
+export type SourceSuggestionFailureReason = SourceSuggestionErrorCode | "failed" | "invalid_url" | "unauthorized"
 
 export const SOURCE_SUGGESTION_FAILURE_MESSAGES: Record<SourceSuggestionFailureReason, string> = {
   failed: "読み込めませんでした。時間をおいて再度お試しください。",
@@ -88,7 +90,18 @@ export const SOURCE_SUGGESTION_FAILURE_MESSAGES: Record<SourceSuggestionFailureR
 }
 ```
 
-`SuggestSourceErrorCode` は `@repo/api-schema` から `import type` する（このファイルは Client Component からも読むので、スキーマの値は import しない）。
+取得方法の表示名も、編集フォームの取得方法のカード（今の `FETCH_TYPE_OPTIONS` の `label`）と読み込んだ内容の両方で使うので、ここに置く。
+
+```ts
+type SourceFetchType = GetSourceResponse["source"]["fetch_type"]
+
+export const SOURCE_FETCH_TYPE_LABELS: Record<SourceFetchType, string> = {
+  github_repository: "GitHub リポジトリ",
+  website: "サイト（URL から追加）",
+}
+```
+
+`SourceSuggestionErrorCode` は `@repo/api-schema` から `import type` する（このファイルは Client Component からも読むので、スキーマの値は import しない）。
 
 ### `src/app/api/sources/suggestion/route.ts`
 
@@ -97,7 +110,7 @@ import "server-only"
 
 import { type NextRequest, NextResponse } from "next/server"
 
-import { errorResponseSchema, suggestSourceErrorCodeSchema, suggestSourceQueryStringSchema } from "@repo/api-schema"
+import { errorResponseSchema, sourceSuggestionErrorCodeSchema, suggestSourceQueryStringSchema } from "@repo/api-schema"
 
 import { sourceApi } from "@/features/source/source.api"
 import type { SourceSuggestionFailureReason } from "@/features/source/source.labels"
@@ -105,7 +118,7 @@ import { ApiClientError } from "@/libs/api-client"
 
 const convertApiErrorToFailureReason = (error: ApiClientError): SourceSuggestionFailureReason => {
   const body = errorResponseSchema.safeParse(error.body)
-  const code = suggestSourceErrorCodeSchema.safeParse(body.success ? body.data.details?.[0]?.code : undefined)
+  const code = sourceSuggestionErrorCodeSchema.safeParse(body.success ? body.data.details?.[0]?.code : undefined)
   return code.success ? code.data : "invalid_url"
 }
 
@@ -145,7 +158,7 @@ JSDoc は `app/api/sources/license/route.ts` と同じ内容（GET なので Rou
 
 ### `src/components/features/source/SourceEditForm.tsx`（`SourceForm.tsx` を改名）
 
-- `detail` を必須にし、登録の分岐（`createSourceAction`・取得方法の切り替えのボタン・「登録の前に確認すること」）を消す。取得方法は今の編集と同じく、押せない表示だけ残す
+- `detail` を必須にし、登録の分岐（`createSourceAction`・取得方法の切り替えのボタン・「登録の前に確認すること」）を消す。取得方法は今の編集と同じく、押せない表示だけ残す。`FETCH_TYPE_OPTIONS` の `label` は `SOURCE_FETCH_TYPE_LABELS` から取る
 - 切り出した部品を使う。見た目と挙動は今の編集画面のまま
 - `/sources/[id]/page.tsx` の import を直す
 
@@ -212,9 +225,15 @@ const buildInitialLicense = (suggestion: SuggestSourceResponse): { licenseSpdx: 
   return { licenseSpdx: isAllowed && licenseSpdx !== null ? licenseSpdx : "", licenseUrl: licenseUrl ?? "" }
 }
 
+const readFailureReason = async (res: Response): Promise<SourceSuggestionFailureReason> => {
+  const body = (await res.json().catch(() => null)) as { reason?: SourceSuggestionFailureReason } | null
+  return body?.reason ?? "failed"
+}
+
 const fetchSourceSuggestion = async (url: string): Promise<SuggestionResult> => {
   const res = await fetch(`/api/sources/suggestion?url=${encodeURIComponent(url)}`)
-  if (!res.ok) return { ok: false, reason: ((await res.json()) as { reason: SourceSuggestionFailureReason }).reason }
+  if (res.status === 401) return { ok: false, reason: "unauthorized" }
+  if (!res.ok) return { ok: false, reason: await readFailureReason(res) }
   return { ok: true, suggestion: (await res.json()) as SuggestSourceResponse }
 }
 
@@ -288,7 +307,7 @@ export function SourceCreateForm({
   const handleUrlKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key !== "Enter") return
     event.preventDefault()
-    void loadSuggestion()
+    if (loadStatus.status !== "loading") void loadSuggestion()
   }
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -407,7 +426,7 @@ export function SourceCreateForm({
 ```
 
 - 入力エラーの全体の文言（「入力内容を確認してください。各欄の下に理由を表示しています。」）は今の `SourceForm` と同じく足す
-- JSDoc：`SourceCreateForm` に「読み込んだ値は初期値で、登録の検証は Server Action と api が行う」、`loadSuggestion` に「読み込みに失敗しても前に読み込んだ内容は消さない（URL が違うので登録はできない）」、描画中の `prevState` の比較に「入力エラーが「詳細」の欄にあれば開く。useActionState の state が変わったときだけ判定する」を書く
+- JSDoc：`fetchSourceSuggestion` に「401 は proxy（セッション切れで refresh もできない）が Route Handler より先に返すことがあり、そのボディには `reason` が無いので status で見分ける」、`SourceCreateForm` に「読み込んだ値は初期値で、登録の検証は Server Action と api が行う」、`loadSuggestion` に「読み込みに失敗しても前に読み込んだ内容は消さない（URL が違うので登録はできない）」、描画中の `prevState` の比較に「入力エラーが「詳細」の欄にあれば開く。useActionState の state が変わったときだけ判定する」を書く
 
 ### `src/components/features/source/SourceSuggestionSummary.tsx`
 
@@ -415,8 +434,8 @@ export function SourceCreateForm({
 
 | 項目 | GitHub | サイト |
 | --- | --- | --- |
-| 取得方法 | GitHub リポジトリ | サイト（URL から追加） |
-| 取得元 | `{repository}`（ブランチ `{branch}`） | `{site_url}` |
+| 取得方法 | `SOURCE_FETCH_TYPE_LABELS` の値 | 同左 |
+| 取得元 | `{repository}`（ブランチ `{branch}`）。`branch` が `default_branch` と違えば、その下に「default branch（`{default_branch}`）ではありません。違っていれば詳細で直してください」 | `{site_url}` |
 | 対象パス | `include_globs` を `, ` でつなぐ | 同左 |
 | ライセンス | 下の表 | 個人の学習用（ライセンスなし） |
 | ライセンスの記載がある URL | `license_url` のリンク（無ければ「―」） | `license_url` のリンク |
@@ -439,9 +458,12 @@ GitHub のときは、その下に `LICENSE_NOTE`（今の画面の注意）を�
 ### ドキュメント
 
 - `apps/admin/CLAUDE.md` の接続済みの画面の `/sources/new`・`/sources/[id]` の行：登録は `SourceCreateForm`（表示名と URL を読み込み、`app/api/sources/suggestion/route.ts` 経由で api の `/api/admin/source/suggestion` を呼ぶ。読めない理由の文言は `source.labels.ts`）、編集は `SourceEditForm`、欄の部品は `SourceFormParts.tsx`
-- `docs/spec/content-collection/README.md` の「ソース登録時の確認」の表を書き換える
-  - `github_repository`：URL を読み込むと、api が GitHub の default branch と、検出したライセンス・ライセンスのファイルの URL を取り、許可リストのライセンスなら自動で入れる。ドキュメントの文章に掛かっているかは管理者が画面で確かめ、違えば「詳細」で選び直す（リンク：`../source-registration-by-url/README.md`）
-  - `website`：URL を読み込むと「個人の学習用」とサイトのトップを入れる。許可リストのライセンスのサイトは「詳細」で選び直す。ほかは今のまま
+- `docs/spec/content-collection/README.md` の登録の画面の説明を書き換える。登録は source-registration-by-url（表示名と URL を読み込む。リンク：`../source-registration-by-url/README.md`）、編集は今のまま、とする
+  - 「ソース登録時の確認」の表の `github_repository`：URL を読み込むと、api が GitHub の default branch と、検出したライセンス・ライセンスのファイルの URL を取り、許可リストのライセンスなら自動で入れる。ドキュメントの文章に掛かっているかは管理者が画面で確かめ、違えば「詳細」で選び直す
+  - 同じ表の `website`：URL を読み込むと「個人の学習用」とサイトのトップを入れる。許可リストのライセンスのサイトは「詳細」で選び直す。ほかは今のまま
+  - 「必要な画面」の「ソースの登録・編集」の行：「GitHub はリポジトリを入力すると検出されたライセンス…を初期値に入れる」を、登録は表示名と URL を読み込む、編集は今のまま（リポジトリを入力して「ライセンスを検出」）に直す
+  - 「UI 設計 > ソースの登録・編集」：図と「フォーム（左）」の表は編集の画面の説明として残し、登録の画面は source-registration-by-url の形（表示名と URL・読み込んだ内容・「詳細」）に変わったことを、図の上の説明に足す。右の「登録の前に確認すること」の中身も新しいものに直す
+- `docs/spec/github-only-collection/README.md` の「個人の学習用のライセンス」の「「ライセンスの記載がある URL」は必須のまま。サイトの著作権や利用規約のページを入れる」を「必須のまま。登録で URL を読み込むと既定はサイトのトップになり、著作権・利用規約のページがあれば「詳細」で直す」に直す
 - `docs/spec/README.md` の source-registration-by-url を「完了」にする
 
 ## 動作確認
@@ -460,6 +482,8 @@ dev admin でサインインし（`/signin` の「dev admin でログイン」�
 | URL の欄で Enter | 読み込む（フォームは送信されない） |
 | `https://github.com/reactjs` | 「GitHub はリポジトリの URL…」 |
 | 存在しないリポジトリ（`https://github.com/tech-english-not-found/none`） | 「リポジトリが見つかりませんでした…」 |
+| default branch でないブランチの URL（`https://github.com/reactjs/react.dev/tree/tech-english-not-found/src`） | 取得元の下に「default branch（`main`）ではありません…」が出る。ライセンスは default branch のものが入る |
+| admin の cookie（`admin_access_token`・`admin_refresh_token`）を消してから「読み込む」 | 「サインインの期限が切れました…」が出て、表示名と URL の入力は残る |
 | 許可リストに無いライセンスのリポジトリ（GPL など） | ライセンスの表示が「許可リストに無いライセンスです…」になり、「詳細」が開いて、ライセンスが未選択 |
 | 「詳細」で対象パスを空にして「登録する」 | 「詳細」が開いたまま、対象パスの下にエラー |
 | `https://go.dev/doc/` | サイト・`https://go.dev`・対象パス `/doc/**`・個人の学習用。「登録の前に確認すること」がサイトの内容になる |

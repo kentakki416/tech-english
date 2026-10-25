@@ -21,6 +21,7 @@
 ```json
 {
   "branch": "main",
+  "default_branch": "main",
   "detected_license": { "is_allowed": true, "license_spdx": "CC-BY-4.0", "license_url": "https://github.com/reactjs/react.dev/blob/main/LICENSE-DOCS.md" },
   "fetch_type": "github_repository",
   "include_globs": ["src/content/learn/**"],
@@ -64,7 +65,9 @@ flowchart TD
     R -- null --> N3[400 repository_not_found]
     R -- 取れた --> S[splitBranchAndPath]
     S --> L["detectLicense(full_name, branch)"]
-    L --> GS[200 リポジトリ・ブランチ・対象パス・検出したライセンス]
+    L -- 見つかった / branch が default branch --> GS[200 リポジトリ・ブランチ・default branch・対象パス・検出したライセンス]
+    L -- null で branch が default branch でない --> LD["detectLicense(full_name, null)"]
+    LD --> GS
 ```
 
 ## 処理サマリー
@@ -73,13 +76,14 @@ flowchart TD
 2. `parseSourceUrl` が URL を GitHub（リポジトリ・`tree` / `blob` 以降の区切り・トップかディレクトリかファイルか）とサイト（https のオリジン・パス）に分ける
 3. サイトは、ローカルなら対象パス・個人の学習用・ライセンスの記載がある URL（オリジン）を返す
 4. GitHub は `findRepository` で default branch と正式な名前を取り、`splitBranchAndPath` でブランチとパスに分ける
-5. `detectLicense(正式な名前, ブランチ)` の結果を、今の「ライセンスを検出」と同じ規則（`buildRepositoryLicense`）で許可リストかどうかに直して返す
+5. `detectLicense(正式な名前, ブランチ)` でライセンスを取る。null で、ブランチが default branch でなければ `detectLicense(正式な名前, null)`（default branch）を見直す
+6. 結果を、今の「ライセンスを検出」と同じ規則（`buildRepositoryLicense`）で許可リストかどうかに直し、default branch と一緒に返す
 
 ## 設計方針
 
 理由は README の「## 設計」に書いた。ここでは置き場所だけまとめる。
 
-- 読み込めない理由の値の集合は `@repo/domain` の `SOURCE_SUGGESTION_ERROR_CODES`、api-schema はそこから `suggestSourceErrorCodeSchema` を作る（`URL_IMPORT_ERROR_CODES` と同じ形）
+- 読み込めない理由の値の集合は `@repo/domain` の `SOURCE_SUGGESTION_ERROR_CODES`（型は `SourceSuggestionErrorCode`）、api-schema はそこから `sourceSuggestionErrorCodeSchema`（型は同じ名前の `SourceSuggestionErrorCode`）を作る（`URL_IMPORT_ERROR_CODES`・`urlImportErrorCodeSchema`・`UrlImportErrorCode` と同じ形）
 - URL の解釈は `apps/api/src/lib/source-url.ts`。リポジトリの形の検査は登録と同じ `githubRepositorySchema`（api-schema から export する）を使う
 - GitHub の client は `client/github-license.ts` を `client/github-repository.ts`（`GitHubRepositoryClient`）に改める。env の `GITHUB_LICENSE_TOKEN` はそのまま
 - サイトを受け付けるかは今の `SourceWritePolicy`（`isWebsiteSourceAllowed`）を使い回す
@@ -115,11 +119,12 @@ export const suggestSourceQueryStringSchema = z.object({
   url: z.string().trim().max(2048).url().refine((value) => isWebUrl(value), { message: "Must be an http(s) URL" }),
 })
 
-export const suggestSourceErrorCodeSchema = z.enum(SOURCE_SUGGESTION_ERROR_CODES)
+export const sourceSuggestionErrorCodeSchema = z.enum(SOURCE_SUGGESTION_ERROR_CODES)
 
 export const suggestSourceResponseSchema = z.discriminatedUnion("fetch_type", [
   z.object({
     branch: z.string(),
+    default_branch: z.string(),
     detected_license: detectSourceLicenseResponseSchema,
     fetch_type: z.literal("github_repository"),
     include_globs: z.array(z.string()),
@@ -134,7 +139,7 @@ export const suggestSourceResponseSchema = z.discriminatedUnion("fetch_type", [
   }),
 ])
 
-export type SuggestSourceErrorCode = z.infer<typeof suggestSourceErrorCodeSchema>
+export type SourceSuggestionErrorCode = z.infer<typeof sourceSuggestionErrorCodeSchema>
 export type SuggestSourceQueryString = z.infer<typeof suggestSourceQueryStringSchema>
 export type SuggestSourceResponse = z.infer<typeof suggestSourceResponseSchema>
 ```
@@ -302,6 +307,7 @@ type RepositoryLicense = { isAllowed: boolean; licenseSpdx: string | null; licen
 export type SourceSuggestion =
   | {
       branch: string
+      defaultBranch: string
       detectedLicense: RepositoryLicense
       fetchType: "github_repository"
       includeGlobs: string[]
@@ -367,10 +373,15 @@ export const suggestSourceFromUrl = async (
   }
 
   const repository = githubRepository.fullName.toLowerCase()
-  const { branch, path } = splitBranchAndPath(sourceUrl.refAndPath, githubRepository.defaultBranch)
-  const detected = await deps.githubRepositoryClient.detectLicense(repository, branch)
+  const { defaultBranch } = githubRepository
+  const { branch, path } = splitBranchAndPath(sourceUrl.refAndPath, defaultBranch)
+  const detectedOnBranch = await deps.githubRepositoryClient.detectLicense(repository, branch)
+  const detected = detectedOnBranch === null && branch !== defaultBranch
+    ? await deps.githubRepositoryClient.detectLicense(repository, null)
+    : detectedOnBranch
   return ok({
     branch,
+    defaultBranch,
     detectedLicense: buildRepositoryLicense(detected),
     fetchType: "github_repository",
     includeGlobs: [buildGitHubIncludeGlob(sourceUrl.target, path)],
@@ -381,7 +392,7 @@ export const suggestSourceFromUrl = async (
 
 - `detectRepositoryLicense` の deps のキーが `githubLicenseClient` から `githubRepositoryClient` に変わるので、`AdminSourceDetectLicenseController` も合わせる
 - `PERSONAL_USE_LICENSE`・`SourceSuggestionErrorCode` は `@repo/domain` から import する
-- JSDoc：`suggestSourceFromUrl` に「登録のフォームの初期値。登録の検証は `createSource` が行うので、ここでは許可リストのライセンスかどうかを返すだけで拒否しない」、サイトのライセンスの初期値に「サイトは自動で判定できないので、ローカルの用途（個人の学習用）にそろえる」を書く
+- JSDoc：`suggestSourceFromUrl` に「登録のフォームの初期値。登録の検証は `createSource` が行うので、ここでは許可リストのライセンスかどうかを返すだけで拒否しない」、サイトのライセンスの初期値に「サイトは自動で判定できないので、ローカルの用途（個人の学習用）にそろえる」、default branch の見直しに「GitHub は無いブランチの `?ref=` にも 404 を返すので、ブランチの区切りを取り違えたときにライセンスを見失わないよう default branch を見直す」を書く
 
 ### apps/api: Controller（`src/controller/admin/source/suggest.ts`）
 
@@ -438,6 +449,7 @@ export const convertSourceSuggestionToResponse = (suggestion: SourceSuggestion):
   }
   return {
     branch: suggestion.branch,
+    default_branch: suggestion.defaultBranch,
     detected_license: {
       is_allowed: suggestion.detectedLicense.isAllowed,
       license_spdx: suggestion.detectedLicense.licenseSpdx,
@@ -475,7 +487,7 @@ const adminSourceSuggestController = new AdminSourceSuggestController(gitHubRepo
 ### ドキュメント
 
 - `apps/api/src/env.ts` の `GITHUB_LICENSE_TOKEN` の JSDoc：「admin のソース登録で GitHub（リポジトリの default branch・ライセンスの検出）を呼ぶときの token。名前は各環境の secret に合わせて変えない」
-- `apps/api/CLAUDE.md` の `GITHUB_LICENSE_TOKEN` の説明と、`scripts/README.md` の `GITHUB_LICENSE_TOKEN` の行を同じ内容にする
+- `apps/api/CLAUDE.md` の `GITHUB_LICENSE_TOKEN` の説明、`scripts/README.md` の `GITHUB_LICENSE_TOKEN` の行、`scripts/deploy/seed-secrets.sh` の先頭のコメント（`GITHUB_LICENSE_TOKEN` の行）を同じ内容にする
 - `docs/spec/content-collection/README.md` の「必要な API」の表に `GET /api/admin/source/suggestion?url=...`（URL から登録の初期値を返す。リンクは `../source-registration-by-url/README.md`）を足し、`/license` の行の説明を「編集フォームの「ライセンスを検出」用」に直す
 
 ## 動作確認
@@ -575,7 +587,10 @@ describe("buildWebsiteIncludeGlob", () => {
 client の偽物（`findRepository`・`detectLicense` を `vi.fn()`）で確かめる。結果は `Result` の構造で比べ、文言は比べない。
 
 - 正常系
-  - ディレクトリの URL：`findRepository` が `{ defaultBranch: "main", fullName: "reactjs/react.dev" }` なら、`branch: "main"`・`includeGlobs: ["src/content/learn/**"]`・`repository: "reactjs/react.dev"` を返し、`detectLicense` を `("reactjs/react.dev", "main")` で呼ぶ
+  - ディレクトリの URL：`findRepository` が `{ defaultBranch: "main", fullName: "reactjs/react.dev" }` なら、`branch: "main"`・`defaultBranch: "main"`・`includeGlobs: ["src/content/learn/**"]`・`repository: "reactjs/react.dev"` を返し、`detectLicense` を `("reactjs/react.dev", "main")` で 1 回だけ呼ぶ
+  - default branch でないブランチでライセンスが見つからない：`detectLicense` が 1 回目（`ref: "release"`）は null、2 回目（`ref: null`）は MIT なら、MIT を返す（呼び出しは 2 回）
+  - default branch でライセンスが見つからない：`detectLicense` は 1 回だけで、`detectedLicense` はファイルが無いときの値
+  - default branch でないブランチでライセンスが見つかる：`detectLicense` は 1 回だけ
   - トップの URL：ブランチは default branch、`includeGlobs: ["**"]`
   - 改名・大文字：`fullName` が `"ReactJS/React.dev"` なら `repository` は `"reactjs/react.dev"`
   - ライセンスの検出の 4 通り（許可リスト・許可リスト外・判定できない・ファイルが無い）が `detectedLicense` にそのまま入る（`isAllowed` は今の `detectRepositoryLicense` と同じ）
@@ -605,9 +620,10 @@ client の偽物（`findRepository`・`detectLicense` を `vi.fn()`）で確か�
 
 ### 手元での確認
 
-dev の api を起動した状態で、admin の access token（verify-web-page skill の手順で発行）を付けて実際の GitHub に問い合わせる。
+dev の api を起動した状態で、admin の dev ログイン（`POST /api/admin/auth/dev-login`。seed の `admin@dev.local`）で access token を取り、実際の GitHub に問い合わせる。
 
 ```bash
+ADMIN_TOKEN=$(curl -s -X POST http://localhost:8080/api/admin/auth/dev-login -H 'Content-Type: application/json' -d '{"email":"admin@dev.local"}' | node -p 'JSON.parse(require("fs").readFileSync(0, "utf8")).access_token')
 curl -s -H "Authorization: Bearer $ADMIN_TOKEN" \
   "http://localhost:8080/api/admin/source/suggestion?url=$(node -p 'encodeURIComponent(process.argv[1])' 'https://github.com/reactjs/react.dev/tree/main/src/content/learn')"
 ```

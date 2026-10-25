@@ -64,7 +64,8 @@ admin のソースの登録を、表示名と URL を入れて「読み込む」
 | ファイル | `https://github.com/rust-lang/rfcs/blob/master/README.md` | `rust-lang/rfcs` | `master` | `README.md` |
 
 - 収集するのは今と同じく `.md` / `.mdx` だけなので、対象パスに拡張子は付けない
-- リポジトリは GitHub での正式な名前（大文字・小文字・改名後の名前）にそろえる
+- リポジトリは改名後の名前（GitHub の `full_name`）にそろえ、今と同じく小文字で保存する
+- ブランチが default branch でないとき（URL で別のブランチ・タグ・コミットを指したとき）は、読み込んだ内容に「default branch（`main`）ではありません」と出す。ブランチの区切りを取り違えたとき（下の「URL の解釈」）や、コミットの permalink の URL で固定のコミットを登録しかけたときに気付けるようにするため
 - URL の末尾の `/`・`.git`・`?` 以降・`#` 以降は見ない。`http://` と `www.github.com` も受け付ける
 - `tree` / `blob` の無い URL（`/issues`・`/wiki` など）は、リポジトリのトップとして扱う
 
@@ -85,9 +86,11 @@ admin のソースの登録を、表示名と URL を入れて「読み込む」
 | 収集する（GitHub だけ） | 有効 |
 | 除外パス・公開ページの URL 規則・技術タグ・本文の CSS セレクタ | 空 |
 
+- 種別は URL から判断しない（react.dev のようにリポジトリでもドキュメントのことがあり、URL の形では決まらない）。README・RFC などリポジトリそのものの文書（[content-collection](../content-collection/README.md#ソースの登録) の登録例の Rust RFCs など）は、「詳細」で「GitHub の文書」に直す
+
 ### ライセンスの自動の取得
 
-**GitHub のリポジトリ**：読み込んだときに GitHub が検出したライセンスを取り、結果に応じて入れる。URL でブランチを指定したときは、そのブランチのライセンスを見る。
+**GitHub のリポジトリ**：読み込んだときに GitHub が検出したライセンスを取り、結果に応じて入れる。URL でブランチを指定したときは、そのブランチのライセンスを見る。そのブランチでライセンスのファイルが見つからなければ、default branch のライセンスを見る（ブランチの区切りを取り違えたときも、ライセンスは自動で入るようにするため）。
 
 | GitHub の検出の結果 | ライセンス | ライセンスの記載がある URL | 登録 |
 | --- | --- | --- | --- |
@@ -99,7 +102,10 @@ admin のソースの登録を、表示名と URL を入れて「読み込む」
 - 読み込んだ内容と一緒に、今の画面にもある注意（コードとドキュメントでライセンスが分かれているリポジトリでは、GitHub の検出はコードのライセンスのことがある）を出す。ドキュメントの文章に掛かっているライセンスかを確かめるのは今と同じく管理者で、違えば「詳細」で選び直す
 - 許可リストに無いライセンスのリポジトリでも、ドキュメントだけ許可リストのライセンスのことがある。その場合は「詳細」でライセンスとそのファイルの URL を入れれば登録できる（今と同じ）
 
-**サイト**：ライセンスは自動では判定できないので、「個人の学習用」と、ライセンスの記載がある URL にサイトのトップ（`https://go.dev`）を入れる。サイトのソースはローカルで自分で読むためだけのもの（[github-only-collection](../github-only-collection/README.md#個人の学習用のライセンス)）なので、それより広く使えるライセンスを自動で選ばない。許可リストのライセンスのサイトは、「詳細」で選び直してもよい。
+**サイト**：ライセンスは自動では判定できないので、「個人の学習用」と、ライセンスの記載がある URL にサイトのトップ（`https://go.dev`）を入れる。サイトのソースはローカルで自分で読むためだけのもの（[github-only-collection](../github-only-collection/README.md#個人の学習用のライセンス)）なので、それより広く使えるライセンスを自動で選ばない。
+
+- 入力を表示名と URL だけにするため、github-only-collection の「ライセンスの記載がある URL にはサイトの著作権や利用規約のページを入れる」を「既定はサイトのトップ。著作権・利用規約のページがあれば「詳細」で直す」に改める（[step2](./tasks/step2-admin-source-create-form.md) で github-only-collection も書き換える）。出典表示のリンクがトップになるのはローカルだけ
+- 許可リストのライセンスのサイトは、「詳細」でライセンスを選び直し、ライセンスの記載がある URL もそのライセンスのページに直す
 
 ### 読み込めないとき
 
@@ -128,8 +134,9 @@ admin のソースの登録を、表示名と URL を入れて「読み込む」
 
 URL の読み込みは、api の新しいエンドポイント `GET /api/admin/source/suggestion?url=...` が行い、登録のフォームの初期値（取得方法・取得元・ブランチ・対象パス・ライセンスの検出の結果）を返す。admin はブラウザから Route Handler（`GET /api/sources/suggestion`）経由で呼ぶ（今の「ライセンスを検出」と同じ）。
 
-- **api で行う理由**：default branch とライセンスは GitHub の API から取る。GitHub の token（`GITHUB_LICENSE_TOKEN`）を持つのは api で、admin は api しか呼ばない（[admin の CLAUDE.md](../../apps/admin/CLAUDE.md#api-接続の下地)）。URL の解釈も、GitHub の結果と合わせないと決まらない（ブランチと対象パスの区切り）ので、同じ場所に置く
-- **Server Action にしない理由**：状態を変えない GET で、ブラウザの `fetch` から呼んでフォームの入力を保ったまま結果を受けたい。今の「ライセンスを検出」の Route Handler と同じ形にする
+- **api で行う理由**：default branch とライセンスは GitHub の API から取る。GitHub の token（`GITHUB_LICENSE_TOKEN`）を持つのは api で、admin は api しか呼ばない（[admin の CLAUDE.md](../../../apps/admin/CLAUDE.md#api-接続の下地)）。URL の解釈も、GitHub の結果と合わせないと決まらない（ブランチと対象パスの区切り）ので、同じ場所に置く
+- **Server Action にしない理由**：Server Action から api を呼ぶと、サインインの期限が切れていたとき（api の 401）に `apiClient` がサインイン画面に redirect し、入力中の表示名と URL が消える。Route Handler なら `apiClient.get(path, { onUnauthorized: "throw" })` で 401 を受けて 401 を返し、フォームは入力を残したまま「サインインの期限が切れました」を出せる。admin の CLAUDE.md が「ブラウザの `fetch` から呼ばれる Route Handler」の見本にしている「ライセンスを検出」（`app/api/sources/license/route.ts`）と同じ形にする（「画面を開いた後に続きを読む」Server Action〈ユーザーの詳細の「さらに読み込む」〉は、入力中のフォームが無いので redirect されても失うものが無い）
+- proxy（`src/proxy.ts`）がセッション切れで先に返す 401 は、ボディが Route Handler の形（`{ reason }`）でない。フォームは status で 401 を見分け、ボディの `reason` が読めないときは「読み込めませんでした」にする
 - **読み込めない理由は 400 の `details[0].code`** で返す（`not_repository_url`・`repository_not_found`・`website_unavailable`）。admin が文言を分けるために読む。値の集合は `@repo/domain` の `SOURCE_SUGGESTION_ERROR_CODES` に置く（URL から追加の `URL_IMPORT_ERROR_CODES` と同じ形）。リポジトリが無いのも 404 ではなく 400 にする（URL から追加の `source_not_found` と同じく、入力した URL の誤りとして扱う）
 - GitHub の rate limit・障害は throw して 500 にし、admin の Route Handler が 502 にする（今のライセンスの検出と同じ）
 
@@ -139,20 +146,22 @@ URL の解釈は api の `lib/source-url.ts` の純粋関数にする（api し�
 
 - `github.com`（と `www.github.com`）なら GitHub、それ以外はサイト。`http:` は `https:` として扱う
 - GitHub はパスを `/{owner}/{repo}/{tree|blob}/{ブランチとパス}` に分ける。owner / repo が登録のスキーマ（`githubRepositorySchema`）の形に合わなければ `not_repository_url`
-- **ブランチとパスの区切り**：ブランチ名は `/` を含められる（`release/v2`）ので、URL だけでは `tree/release/v2/docs` のブランチが `release` か `release/v2` か決まらない。default branch で始まればそれをブランチにし、そうでなければ最初の区切り（`release`）までをブランチにする。ブランチの候補ごとに GitHub に問い合わせれば正確に決まるが、ドキュメントの URL のほとんどは default branch（`main` / `master`）で、間違えても「詳細」で直せるため、呼び出しを増やさない
+- **ブランチとパスの区切り**：ブランチ名は `/` を含められる（`release/v2`）ので、URL だけでは `tree/release/v2/docs` のブランチが `release` か `release/v2` か決まらない。default branch で始まればそれをブランチにし、そうでなければ最初の区切り（`release`）までをブランチにする。ブランチの候補ごとに GitHub に問い合わせれば正確に決まるが、ドキュメントの URL のほとんどは default branch（`main` / `master`）で、間違えても「詳細」で直せるため、呼び出しを増やさない。取り違えたときに困るのは、ブランチ・対象パスが違うことと、無いブランチのライセンスが見つからないこと。前者は default branch でないことを画面に出して気付けるようにし、後者は default branch のライセンスを見直して自動で入れる（下の「GitHub の呼び出し」）
 - 対象パスは、ディレクトリなら `{パス}/**`、ファイルならそのパス、トップなら `**`。`{パス}/**` は picomatch でディレクトリ自身にも一致する。拡張子は収集（worker の `listGitHubTargetFiles`）が `.md` / `.mdx` に絞るので付けない
 - `**`（リポジトリ全体）は glob の固定部分が無いので、trees API が切り詰められる巨大なリポジトリでは収集が `isComplete: false` になる（[manual-collection](../manual-collection/README.md)・worker の `listGitHubTargetFiles`）。そうしたリポジトリはディレクトリの URL で登録する。登録の画面では止めない
 
 ### GitHub の呼び出し
 
-1 回の読み込みで GitHub の API を 2 回呼ぶ。
+1 回の読み込みで GitHub の API を 2 回（default branch でないブランチでライセンスが見つからなければ 3 回）呼ぶ。
 
 | 呼び出し | 使う値 | 404 のとき |
 | --- | --- | --- |
-| `GET /repos/{owner}/{repo}` | `default_branch`（ブランチの既定と、ブランチとパスの区切り）・`full_name`（正式な名前） | `repository_not_found` |
-| `GET /repos/{owner}/{repo}/license?ref={ブランチ}` | 検出したライセンスと、ライセンスのファイルの URL（今の「ライセンスを検出」と同じ） | ライセンスのファイルが無い |
+| `GET /repos/{owner}/{repo}` | `default_branch`（ブランチの既定と、ブランチとパスの区切り）・`full_name`（改名後の名前） | `repository_not_found` |
+| `GET /repos/{owner}/{repo}/license?ref={ブランチ}` | 検出したライセンスと、ライセンスのファイルの URL（今の「ライセンスを検出」と同じ） | ブランチが default branch なら、ライセンスのファイルが無い。そうでなければ次の呼び出しへ |
+| `GET /repos/{owner}/{repo}/license`（ブランチが default branch でなく、上が 404 のときだけ） | 同上（default branch のもの） | ライセンスのファイルが無い |
 
-- token が無いと 60 回 / 時なので、読み込みは 30 回 / 時まで。登録の頻度なら足りる（今のライセンスの検出と同じ token を使う）
+- GitHub は無いブランチの `?ref=` にも 404 を返すので、ブランチの区切りを取り違えると、ライセンスのファイルがあっても見つからない。そのときに default branch を見直す。default branch のライセンスのファイルの URL（`blob/{default branch}/...`）も、登録の検証（そのリポジトリのファイルの URL か）を通る
+- token が無いと 60 回 / 時なので、読み込みは 20〜30 回 / 時まで。登録の頻度なら足りる（今のライセンスの検出と同じ token を使う）
 - client は今の `GitHubLicenseClient`（`client/github-license.ts`）を `GitHubRepositoryClient`（`client/github-repository.ts`）に改め、`findRepository` を足し、`detectLicense` に `ref` を足す。ライセンスだけを扱う client ではなくなるため名前を変える。env の `GITHUB_LICENSE_TOKEN` は名前を変えない（各環境の secret の登録〈`scripts/README.md`〉を変えずに済ませるため）
 - 許可リストかどうかの判定は今の `detectRepositoryLicense`（service）を使い回す
 
@@ -169,7 +178,7 @@ URL の解釈は api の `lib/source-url.ts` の純粋関数にする（api し�
 - 取得方法・リポジトリ・サイトの URL は、読み込みの結果を hidden の欄で送る（「詳細」でも直せない）
 - 読み込み直したら、取得元の欄は `key` を読み込みのたびに変えて作り直し、ライセンスの欄は state を置き換える。除外パス・公開ページの URL 規則も作り直すのは、別の取得元を読み込んだのなら前の値は合わないため。表示名・種別・技術タグは作り直す欄の外に置いて残す
 - 「登録する」は、読み込んだ URL と今の URL の欄が同じときだけ押せる
-- 送信は今と同じく `onSubmit` から `startTransition(() => formAction(formData))`（入力エラーのときに値を消さないため。[admin の CLAUDE.md](../../apps/admin/CLAUDE.md#api-接続の下地)）。入力エラーが「詳細」の欄にあるときは「詳細」を開く
+- 送信は今と同じく `onSubmit` から `startTransition(() => formAction(formData))`（入力エラーのときに値を消さないため。[admin の CLAUDE.md](../../../apps/admin/CLAUDE.md#api-接続の下地)）。入力エラーが「詳細」の欄にあるときは「詳細」を開く
 
 ### MVP 対象外（将来検討）
 
@@ -180,6 +189,7 @@ URL の解釈は api の `lib/source-url.ts` の純粋関数にする（api し�
 - ブランチ名に `/` を含む URL の正確な区切り（ブランチの候補ごとに GitHub に問い合わせる）
 - ドキュメント用のライセンスのファイル（`LICENSE-DOCS.md` など）を対象パスやルートから探して、GitHub の検出より先に使う
 - 表示名をリポジトリ名・ページのタイトルから自動で入れる
+- glob の特殊文字（`(` `)` `[` `]` `{` `}` `*` `?` `!`）を含むパスの URL（`docs/(group)/`・`/wiki/Foo_(bar)` など）。そのまま `{パス}/**` にすると picomatch で一致せず、収集は 0 件で終わる。エスケープすると `findGlobBaseDirectories` の固定部分に `\` が残るので、worker の対象ファイルの列挙と合わせて直す必要がある。今は「詳細」で対象パスを直す
 
 ---
 
@@ -196,7 +206,7 @@ URL の解釈は api の `lib/source-url.ts` の純粋関数にする（api し�
 
 | メソッド | パス | 説明 |
 | --- | --- | --- |
-| GET | `/api/admin/source/suggestion?url=...` | 新規。URL から登録の初期値（取得方法・取得元・ブランチ・対象パス・ライセンスの検出の結果）を返す。読み込めない理由は 400 の `details[0].code` |
+| GET | `/api/admin/source/suggestion?url=...` | 新規。URL から登録の初期値（取得方法・取得元・ブランチ・default branch・対象パス・ライセンスの検出の結果）を返す。読み込めない理由は 400 の `details[0].code` |
 | POST | `/api/admin/source` | 変えない（登録） |
 | GET | `/api/admin/source/license?repository=...` | 変えない（編集画面の「ライセンスを検出」） |
 | GET（admin の Route Handler） | `/api/sources/suggestion?url=...` | 新規。ブラウザから api の `/api/admin/source/suggestion` を呼ぶための中継 |
@@ -225,7 +235,11 @@ sequenceDiagram
         GH-->>API: default_branch・full_name（無ければ 404 → repository_not_found）
         API->>GH: GET /repos/{owner}/{repo}/license?ref={ブランチ}
         GH-->>API: ライセンスとファイルの URL（無ければ 404）
-        API-->>R: 200 リポジトリ・ブランチ・対象パス・検出したライセンス
+        opt ブランチが default branch でなく 404
+            API->>GH: GET /repos/{owner}/{repo}/license
+            GH-->>API: default branch のライセンス（無ければ 404）
+        end
+        API-->>R: 200 リポジトリ・ブランチ・default branch・対象パス・検出したライセンス
     else それ以外（ローカル）
         API-->>R: 200 サイトの URL・対象パス・個人の学習用
     else 読み込めない
