@@ -26,7 +26,7 @@ export default async function MockSourcesPage({ searchParams }: { searchParams: 
     <>
       <PageBreadcrumb pageTitle="ソース" />
       <div className="space-y-6">
-        <ComponentCard desc="英文の取得元。有効な GitHub のソースだけを毎日の収集（collect:passages）が取り込みます。" title="ソース一覧">
+        <ComponentCard desc="英文の取得元。GitHub のソースの編集画面の「今すぐ収集」で本文候補を取り込みます。" title="ソース一覧">
           <div className="flex justify-end">
             <Link className={primaryButtonClass} href="/mock/sources/new">ソースを登録</Link>
           </div>

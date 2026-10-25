@@ -5,10 +5,16 @@ import "server-only"
 import { revalidatePath } from "next/cache"
 import { redirect, unstable_rethrow } from "next/navigation"
 
-import { createSourceRequestSchema, errorResponseSchema, updateSourceRequestSchema } from "@repo/api-schema"
+import {
+  createSourceCollectionRunPathParamSchema,
+  createSourceRequestSchema,
+  errorResponseSchema,
+  updateSourceRequestSchema,
+} from "@repo/api-schema"
 
 import { sourceApi } from "@/features/source/source.api"
 import { convertFormDataToSourceRequest } from "@/features/source/source.form"
+import type { SourceCollectionRequestFailureReason } from "@/features/source/source.labels"
 import { ApiClientError } from "@/libs/api-client"
 
 /**
@@ -48,7 +54,7 @@ const convertApiErrorToFormState = (error: unknown, fallbackMessage: string, rev
 }
 
 /**
- * ソース登録の Server Action。成功したら、GitHub のソースの試し実行のコマンド（id 入り）を見せるため編集画面へ遷移する
+ * ソース登録の Server Action。成功したら、今すぐ収集を押せるよう編集画面へ遷移する
  */
 export const createSourceAction = async (
   _prev: SourceFormState,
@@ -98,4 +104,39 @@ export const updateSourceAction = async (
   revalidatePath("/sources")
   revalidatePath(`/sources/${id}`)
   redirect("/sources")
+}
+
+export type SourceCollectionRequestResult = { ok: false, reason: SourceCollectionRequestFailureReason } | { ok: true }
+
+/**
+ * API の失敗を、依頼が通らなかった理由にする。404 はソースが無いときにも返るが、編集画面を開けている（ソースがある）ので、
+ * この環境に今すぐ収集のルートが無い（api の SOURCE_COLLECTION_TYPE=none）とみなす
+ */
+const convertCollectionRequestErrorToReason = (error: ApiClientError): SourceCollectionRequestFailureReason => {
+  if (error.status === 409) return "running"
+  if (error.status === 400) return "disabled"
+  if (error.status === 404) return "unavailable"
+  return "failed"
+}
+
+/**
+ * 今すぐ収集の依頼の Server Action。収集は worker が裏で行うので、依頼が通ったら編集画面を読み直して「収集中」を出す。
+ * 通らなかったときも読み直す（409 は別の管理者が先に押したので、最新の記録が収集中で返り、画面が収集中と読み直しに切り替わる）。
+ * 引数はブラウザから届くので、API と同じスキーマで検証してからパスに使う
+ */
+export const requestSourceCollectionAction = async (sourceId: number): Promise<SourceCollectionRequestResult> => {
+  const params = createSourceCollectionRunPathParamSchema.safeParse({ id: sourceId })
+  if (!params.success) return { ok: false, reason: "failed" }
+  const { id } = params.data
+
+  try {
+    await sourceApi.requestCollection(id)
+  } catch (error) {
+    unstable_rethrow(error)
+    if (!(error instanceof ApiClientError)) throw error
+    revalidatePath(`/sources/${id}`)
+    return { ok: false, reason: convertCollectionRequestErrorToReason(error) }
+  }
+  revalidatePath(`/sources/${id}`)
+  return { ok: true }
 }

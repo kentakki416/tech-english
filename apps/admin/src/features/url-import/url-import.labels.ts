@@ -1,13 +1,13 @@
 import type { PreviewUrlImportResponse } from "@repo/api-schema"
 
+import type { BadgeColor } from "@/components/ui/badge/Badge"
+
 /**
  * URL の取り込みの表示ラベル。Client Component からも使うので `server-only` を付けない。
  * 値の集合は `@repo/api-schema` の型で網羅を検査する（Zod のスキーマは bundle に入れないため import しない）
  */
 
 type UrlImportChunk = PreviewUrlImportResponse["chunks"][number]
-
-type BadgeColor = "dark" | "error" | "info" | "light" | "primary" | "success" | "warning"
 
 export const URL_IMPORT_CHUNK_STATUS_LABELS: Record<UrlImportChunk["status"], { color: BadgeColor, label: string }> = {
   duplicated: { color: "light", label: "同じ内容の本文候補がある" },

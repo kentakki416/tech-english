@@ -10,9 +10,10 @@ import {
   type SourceFormState,
   updateSourceAction,
 } from "@/app/(dashboard)/sources/actions"
+import { SourceCollectionCard } from "@/components/features/source/SourceCollectionCard"
 import { TagPicker } from "@/components/features/source/TagPicker"
 import Badge from "@/components/ui/badge/Badge"
-import { formatLicenseLabel } from "@/features/source/source.labels"
+import { formatLicenseLabel, type SourceCollectionRunStatus } from "@/features/source/source.labels"
 import { formatDateTime } from "@/libs/date"
 import { isLocalEnvironment } from "@/libs/environment"
 import {
@@ -132,15 +133,18 @@ function LicenseDetectionMessage({ detection }: { detection: LicenseDetection })
 /**
  * ソースの登録・編集フォーム。detail が null なら登録、あれば編集（取得方法は変更不可）
  *
- * allowedLicenses はライセンス欄の選択肢（@repo/api-schema の許可リスト）、personalUseLicense はサイトのソースだけが選べる個人の学習用の値。
+ * allowedLicenses はライセンス欄の選択肢（@repo/api-schema の許可リスト）、personalUseLicense はサイトのソースだけが選べる個人の学習用の値、
+ * activeCollectionRunStatuses は収集中の状態の値（編集のときだけ使う）。
  * Client Component で Zod のスキーマを import すると bundle に入るため、Server Component から渡す
  */
 export function SourceForm({
+  activeCollectionRunStatuses = [],
   allowedLicenses,
   detail,
   personalUseLicense,
   tags,
 }: {
+  activeCollectionRunStatuses?: readonly SourceCollectionRunStatus[]
   allowedLicenses: readonly string[]
   detail: GetSourceResponse | null
   personalUseLicense: string
@@ -389,7 +393,7 @@ export function SourceForm({
             <div className="flex items-start justify-between gap-6">
               <div>
                 <p className="text-sm font-medium text-gray-800 dark:text-white/90">このソースを収集する</p>
-                <p className="mt-1 text-theme-xs text-gray-500 dark:text-gray-400">無効にすると次回から収集しません。公開済みの問題は残ります。</p>
+                <p className="mt-1 text-theme-xs text-gray-500 dark:text-gray-400">無効にすると「今すぐ収集」を押せなくなります。公開済みの問題は残ります。</p>
               </div>
               <button
                 aria-pressed={isEnabled}
@@ -443,17 +447,12 @@ export function SourceForm({
               </dl>
             </section>
             {githubSource && (
-              <section className={cardClass}>
-                <div className="px-6 py-5">
-                  <h3 className={titleClass}>試し実行</h3>
-                  <p className={descClass}>DB に書かずに、最大 5 件の文書の抽出結果と切り分けを表示します。</p>
-                </div>
-                <div className={cardBodyClass}>
-                  <pre className="rounded-lg bg-gray-900 px-4 py-3 font-mono text-theme-xs break-all whitespace-pre-wrap text-gray-100 dark:bg-black/40">
-                    pnpm collect:passages --source-id={githubSource.id} --dry-run
-                  </pre>
-                </div>
-              </section>
+              <SourceCollectionCard
+                activeStatuses={activeCollectionRunStatuses}
+                isEnabled={githubSource.is_enabled}
+                run={detail.latest_collection_run}
+                sourceId={githubSource.id}
+              />
             )}
           </>
         ) : (

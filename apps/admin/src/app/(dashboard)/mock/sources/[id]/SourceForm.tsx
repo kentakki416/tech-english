@@ -210,7 +210,7 @@ export function SourceForm({ initialFetchType, source }: { initialFetchType: Adm
             <div className="flex items-start justify-between gap-6">
               <div>
                 <p className="text-sm font-medium text-gray-800 dark:text-white/90">このソースを収集する</p>
-                <p className="mt-1 text-theme-xs text-gray-500 dark:text-gray-400">無効にすると次回から収集しません。公開済みの問題は残ります。</p>
+                <p className="mt-1 text-theme-xs text-gray-500 dark:text-gray-400">無効にすると「今すぐ収集」を押せなくなります。公開済みの問題は残ります。</p>
               </div>
               <button
                 aria-pressed={isEnabled}
@@ -265,13 +265,18 @@ export function SourceForm({ initialFetchType, source }: { initialFetchType: Adm
             {!isWebsite && (
               <section className={cardClass}>
                 <div className="px-6 py-5">
-                  <h3 className={titleClass}>試し実行</h3>
-                  <p className={descClass}>DB に書かずに、最大 5 件の文書の抽出結果と切り分けを表示します。</p>
+                  <h3 className={titleClass}>今すぐ収集</h3>
+                  <p className={descClass}>このソースの GitHub のリポジトリから、変わったファイルを取り込んで本文候補を作ります。問題は作りません。</p>
                 </div>
-                <div className={cardBodyClass}>
-                  <pre className="rounded-lg bg-gray-900 px-4 py-3 font-mono text-theme-xs break-all whitespace-pre-wrap text-gray-100 dark:bg-black/40">
-                    pnpm collect:passages --source-id={source.id} --dry-run
-                  </pre>
+                <div className={`${cardBodyClass} space-y-4 text-sm`}>
+                  <div>
+                    <p className="text-gray-500 dark:text-gray-400">最後の収集</p>
+                    <div className="mt-2 space-y-1">
+                      <Badge color="success" size="sm">完了</Badge>
+                      <p className="text-theme-xs text-gray-600 dark:text-gray-300">文書 5 件を取得、本文候補 12 件を作成（2026-10-22 13:05）</p>
+                    </div>
+                  </div>
+                  <button className={`${primaryButtonClass} w-full`} type="button">今すぐ収集</button>
                 </div>
               </section>
             )}

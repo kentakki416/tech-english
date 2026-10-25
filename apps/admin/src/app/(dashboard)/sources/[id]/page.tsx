@@ -1,7 +1,12 @@
 import type { Metadata } from "next"
 import { notFound, unstable_rethrow } from "next/navigation"
 
-import { allowedLicenseSchema, getSourcePathParamSchema, personalUseLicenseSchema } from "@repo/api-schema"
+import {
+  activeSourceCollectionRunStatusSchema,
+  allowedLicenseSchema,
+  getSourcePathParamSchema,
+  personalUseLicenseSchema,
+} from "@repo/api-schema"
 
 import { SourceForm } from "@/components/features/source/SourceForm"
 import PageBreadcrumb from "@/components/layout/PageBreadCrumb"
@@ -35,7 +40,7 @@ const loadSource = async (id: string) => {
 }
 
 /**
- * ソースの編集。右に収集の状況と、GitHub のソースは試し実行のコマンドを出す
+ * ソースの編集。右に収集の状況と、GitHub のソースは今すぐ収集を出す
  */
 export default async function EditSourcePage({ params }: Props) {
   const { id } = await params
@@ -45,6 +50,7 @@ export default async function EditSourcePage({ params }: Props) {
     <>
       <PageBreadcrumb pageTitle={`ソースの編集：${detail.source.name}`} />
       <SourceForm
+        activeCollectionRunStatuses={activeSourceCollectionRunStatusSchema.options}
         allowedLicenses={allowedLicenseSchema.options}
         detail={detail}
         personalUseLicense={personalUseLicenseSchema.value}

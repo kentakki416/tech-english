@@ -109,7 +109,7 @@ export function SourceTable({ sources }: { sources: AdminSource[] }) {
         <div>
           <p className="text-base font-medium text-gray-800 dark:text-white/90">まだソースがありません</p>
           <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-            GitHub のリポジトリを登録すると、翌日の収集から本文候補が作られます。
+            GitHub のリポジトリを登録し、編集画面の「今すぐ収集」で本文候補を作ります。
           </p>
         </div>
       }
