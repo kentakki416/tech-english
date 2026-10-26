@@ -4,16 +4,20 @@ import {
   isAllowedLicense,
   PASSAGE_STATUSES,
   type PassageStatus,
+  PERSONAL_USE_LICENSE,
   type Source,
   type SourceCollectionRun,
+  type SourceFetchType,
   type SourceNotCollectableReason,
+  type SourceSuggestionErrorCode,
 } from "@repo/domain"
 import { badRequestError, conflictError, err, notFoundError, ok, Result } from "@repo/errors"
 import { logger } from "@repo/logger"
 import { buildCollectSourceJobId, type CollectSourceJobData, type JobQueue } from "@repo/queue"
 
-import type { IGitHubLicenseClient } from "../client/github-license"
+import type { DetectedLicense, IGitHubRepositoryClient } from "../client/github-repository"
 import { SOURCE_COLLECTION_RUN_TIMEOUT_MINUTES } from "../const"
+import { buildGitHubIncludeGlob, buildWebsiteIncludeGlob, parseSourceUrl, splitBranchAndPath } from "../lib/source-url"
 import {
   PassageCountRow,
   SourceCollectionRunRepository,
@@ -305,18 +309,124 @@ export const updateSource = async (
 /**
  * GitHub が検出したリポジトリのライセンスと、それが許可リストにあるか
  */
-export const detectRepositoryLicense = async (
-  repository: string,
-  deps: { githubLicenseClient: IGitHubLicenseClient },
-): Promise<Result<{ isAllowed: boolean; licenseSpdx: string | null; licenseUrl: string | null }>> => {
-  const detected = await deps.githubLicenseClient.detectLicense(repository)
+type RepositoryLicense = { isAllowed: boolean; licenseSpdx: string | null; licenseUrl: string | null }
+
+/**
+ * URL からのソースの登録の初期値
+ */
+export type SourceSuggestion =
+  | {
+    branch: string
+    defaultBranch: string
+    detectedLicense: RepositoryLicense
+    fetchType: "github_repository"
+    includeGlobs: string[]
+    repository: string
+  }
+  | {
+    fetchType: "website"
+    includeGlobs: string[]
+    licenseSpdx: typeof PERSONAL_USE_LICENSE
+    licenseUrl: string
+    siteUrl: string
+  }
+
+const SOURCE_SUGGESTION_ERROR_MESSAGE = "Cannot suggest a source from the URL"
+
+/**
+ * URL から初期値を作れない理由の 400。admin は details[0].code で文言を分ける
+ */
+const buildSourceSuggestionError = (code: SourceSuggestionErrorCode) =>
+  badRequestError(SOURCE_SUGGESTION_ERROR_MESSAGE, [{ code, message: code, path: ["url"] }])
+
+const buildRepositoryLicense = (detected: DetectedLicense | null): RepositoryLicense => {
   const licenseSpdx = detected?.licenseSpdx ?? null
-  return ok({
+  return {
     isAllowed: licenseSpdx !== null && isAllowedLicense(licenseSpdx),
     licenseSpdx,
     licenseUrl: detected?.licenseUrl ?? null,
+  }
+}
+
+/**
+ * default branch の、GitHub が検出したリポジトリのライセンスと、それが許可リストにあるか
+ */
+export const detectRepositoryLicense = async (
+  repository: string,
+  deps: { githubRepositoryClient: IGitHubRepositoryClient },
+): Promise<Result<RepositoryLicense>> =>
+  ok(buildRepositoryLicense(await deps.githubRepositoryClient.detectLicense(repository, null)))
+
+/**
+ * サイトのライセンスは自動で判定できないので、ローカルの用途（個人の学習用）にそろえる
+ */
+const suggestWebsiteSource = (url: string, policy: SourceWritePolicy): Result<SourceSuggestion> => {
+  if (!policy.isWebsiteSourceAllowed) {
+    logger.debug("SourceService: Website source is not available")
+    return err(buildSourceSuggestionError("website_unavailable"))
+  }
+  const sourceUrl = parseSourceUrl(url)
+  if (sourceUrl?.fetchType !== "website") {
+    logger.debug("SourceService: GitHub URL is given for a website source")
+    return err(buildSourceSuggestionError("github_url"))
+  }
+  return ok({
+    fetchType: "website",
+    includeGlobs: [buildWebsiteIncludeGlob(sourceUrl.path)],
+    licenseSpdx: PERSONAL_USE_LICENSE,
+    licenseUrl: sourceUrl.siteUrl,
+    siteUrl: sourceUrl.siteUrl,
   })
 }
+
+const suggestGitHubRepositorySource = async (
+  url: string,
+  deps: { githubRepositoryClient: IGitHubRepositoryClient },
+): Promise<Result<SourceSuggestion>> => {
+  const sourceUrl = parseSourceUrl(url)
+  if (sourceUrl?.fetchType !== "github_repository") {
+    logger.debug("SourceService: URL is not a GitHub repository URL")
+    return err(buildSourceSuggestionError("not_repository_url"))
+  }
+
+  const githubRepository = await deps.githubRepositoryClient.findRepository(sourceUrl.repository)
+  if (githubRepository === null) {
+    logger.debug("SourceService: GitHub repository not found", { repository: sourceUrl.repository })
+    return err(buildSourceSuggestionError("repository_not_found"))
+  }
+
+  const repository = githubRepository.fullName.toLowerCase()
+  const { defaultBranch } = githubRepository
+  const { branch, path } = splitBranchAndPath(sourceUrl.refAndPath, defaultBranch)
+  /**
+   * GitHub は無いブランチの ?ref= にも 404 を返すので、ブランチの区切りを取り違えたときにライセンスを見失わないよう default branch を見直す
+   */
+  const detectedOnBranch = await deps.githubRepositoryClient.detectLicense(repository, branch)
+  const detected = detectedOnBranch === null && branch !== defaultBranch
+    ? await deps.githubRepositoryClient.detectLicense(repository, null)
+    : detectedOnBranch
+  return ok({
+    branch,
+    defaultBranch,
+    detectedLicense: buildRepositoryLicense(detected),
+    fetchType: "github_repository",
+    includeGlobs: [buildGitHubIncludeGlob(sourceUrl.target, path)],
+    repository,
+  })
+}
+
+/**
+ * 登録の画面の取得方法と URL から、ソースの登録のフォームの初期値を作る。登録の検証は createSource が行うので、
+ * ここでは許可リストのライセンスかどうかを返すだけで拒否しない
+ */
+export const suggestSourceFromUrl = async (
+  input: { fetchType: SourceFetchType; url: string },
+  deps: { githubRepositoryClient: IGitHubRepositoryClient },
+  policy: SourceWritePolicy,
+): Promise<Result<SourceSuggestion>> =>
+  input.fetchType === "website"
+    ? suggestWebsiteSource(input.url, policy)
+    : suggestGitHubRepositorySource(input.url, deps)
 
 /**
  * 収集できないソースの理由を、api のエラーにする（ソースが無いときだけ 404）

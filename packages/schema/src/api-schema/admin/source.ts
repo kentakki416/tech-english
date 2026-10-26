@@ -3,6 +3,7 @@ import { z } from "zod"
 import {
   ACTIVE_SOURCE_COLLECTION_RUN_STATUSES,
   ALLOWED_LICENSES,
+  GITHUB_REPOSITORY_PATTERN,
   MAX_SERIAL_ID,
   PASSAGE_STATUSES,
   PERSONAL_USE_LICENSE,
@@ -10,6 +11,7 @@ import {
   SOURCE_FETCH_TYPES,
   SOURCE_KINDS,
   SOURCE_LICENSES,
+  SOURCE_SUGGESTION_ERROR_CODES,
 } from "@repo/domain"
 
 import { tagSchema } from "./tag"
@@ -39,14 +41,18 @@ const isWebUrl = (value: string): boolean => {
 }
 
 /**
- * GitHub のリポジトリ（owner/name）。owner は英数字とハイフン（39 文字まで）、name は英数字と . _ -（"." と ".." は不可）。
- * GitHub はリポジトリ名の大文字・小文字を区別しないので、小文字にそろえて保存・検索する
+ * GitHub のリポジトリ（owner/name）。GitHub はリポジトリ名の大文字・小文字を区別しないので、小文字にそろえて保存・検索する
  * （`reactjs/react.dev` と `ReactJS/react.dev` を別のソースとして登録できないようにするため）
  */
 const githubRepositorySchema = z
   .string()
-  .regex(/^[A-Za-z0-9][A-Za-z0-9-]{0,38}\/(?!\.{1,2}$)[A-Za-z0-9._-]{1,100}$/)
+  .regex(GITHUB_REPOSITORY_PATTERN)
   .transform((value) => value.toLowerCase())
+
+/**
+ * ソースの取得方法。admin も一覧のクエリ（?fetch_type=）の解釈に使う（admin は @repo/domain を import できない）
+ */
+export const sourceFetchTypeSchema = z.enum(SOURCE_FETCH_TYPES)
 
 /**
  * http / https の URL
@@ -257,7 +263,7 @@ export const getSourceListResponseSchema = z.object({
   sources: z.array(
     z.object({
       id: z.number().int(),
-      fetch_type: z.enum(SOURCE_FETCH_TYPES),
+      fetch_type: sourceFetchTypeSchema,
       is_enabled: z.boolean(),
       kind: z.enum(SOURCE_KINDS),
       last_collected_at: z.string().nullable(),
@@ -386,3 +392,46 @@ export const createSourceCollectionRunResponseSchema = z.object({
 
 export type CreateSourceCollectionRunPathParam = z.infer<typeof createSourceCollectionRunPathParamSchema>
 export type CreateSourceCollectionRunResponse = z.infer<typeof createSourceCollectionRunResponseSchema>
+
+// ========================================================
+// GET /api/admin/source/suggestion?fetch_type=...&url=... - URL からの登録の初期値
+// ========================================================
+
+/**
+ * URL からの登録の初期値のクエリ文字列スキーマ。fetch_type は登録の画面の取得方法
+ */
+export const suggestSourceQueryStringSchema = z.object({
+  fetch_type: sourceFetchTypeSchema,
+  url: z.string().trim().max(2048).url().refine((value) => isWebUrl(value), { message: "Must be an http(s) URL" }),
+})
+
+/**
+ * URL から初期値を作れない理由（400 の details[0].code）。admin が文言を分けるために読む
+ */
+export const sourceSuggestionErrorCodeSchema = z.enum(SOURCE_SUGGESTION_ERROR_CODES)
+
+/**
+ * URL からの登録の初期値のレスポンススキーマ。GitHub は検出したライセンス（許可リストかどうかを含む）を、
+ * サイトは自動で判定できないので個人の学習用とサイトのトップを返す
+ */
+export const suggestSourceResponseSchema = z.discriminatedUnion("fetch_type", [
+  z.object({
+    branch: z.string(),
+    default_branch: z.string(),
+    detected_license: detectSourceLicenseResponseSchema,
+    fetch_type: z.literal("github_repository"),
+    include_globs: z.array(z.string()),
+    repository: z.string(),
+  }),
+  z.object({
+    fetch_type: z.literal("website"),
+    include_globs: z.array(z.string()),
+    license_spdx: personalUseLicenseSchema,
+    license_url: z.string(),
+    site_url: z.string(),
+  }),
+])
+
+export type SourceSuggestionErrorCode = z.infer<typeof sourceSuggestionErrorCodeSchema>
+export type SuggestSourceQueryString = z.infer<typeof suggestSourceQueryStringSchema>
+export type SuggestSourceResponse = z.infer<typeof suggestSourceResponseSchema>

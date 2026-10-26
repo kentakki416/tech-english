@@ -22,6 +22,7 @@ import { AdminSourceCreateController } from "../controller/admin/source/create"
 import { AdminSourceDetailController } from "../controller/admin/source/detail"
 import { AdminSourceDetectLicenseController } from "../controller/admin/source/detect-license"
 import { AdminSourceListController } from "../controller/admin/source/list"
+import { AdminSourceSuggestController } from "../controller/admin/source/suggest"
 import { AdminSourceUpdateController } from "../controller/admin/source/update"
 import { AdminStatsOverviewController } from "../controller/admin/stats/overview"
 import { AdminPassageStatsDetailController } from "../controller/admin/stats/passage-detail"
@@ -54,6 +55,7 @@ type AdminRouterControllers = {
     detail?: AdminSourceDetailController
     detectLicense?: AdminSourceDetectLicenseController
     list?: AdminSourceListController
+    suggest?: AdminSourceSuggestController
     update?: AdminSourceUpdateController
   }
   me?: {
@@ -164,6 +166,14 @@ export const adminRouter = (controllers: AdminRouterControllers): Router => {
   if (source.detectLicense) {
     const controller = source.detectLicense
     router.get("/source/license", async (req, res) => controller.execute(req, res))
+  }
+
+  /**
+   * GET /api/admin/source/suggestion も /:id より先に登録する（理由は /license と同じ）
+   */
+  if (source.suggest) {
+    const controller = source.suggest
+    router.get("/source/suggestion", async (req, res) => controller.execute(req, res))
   }
 
   /**

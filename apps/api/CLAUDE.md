@@ -86,6 +86,7 @@ admin（`apps/admin`）のサーバー側だけが呼ぶ API。一般ユーザ�
 - admin の refresh / logout は一般ユーザーの `service.auth.refreshTokens` / `service.auth.logout` に admin 用の Repository・検証関数・発行関数を渡す。`refreshTokens` は持ち主を `tokenOwnerRepository` で確かめるので、admin は `adminRepository` を渡す（`admins` から消された admin の refresh token は 401）
 - ユーザー管理（`/api/admin/user/*`）はマイページの Service を使い回す。マイページの Service はユーザーが居ないと 401 を返すので、admin の Service（`admin-user-service.ts`）が先に存在を確かめて 404 にする
 - **ソースの登録・更新**（[github-only-collection](../../docs/spec/github-only-collection/README.md)）：GitHub の `license_url` はそのリポジトリのファイルの URL でなければ 400（api-schema の `validateSourceInput`）。サイトのソースはローカルでだけ受け付け（`SourceWritePolicy` を `src/index.ts` が `NODE_ENV` から作って Controller に渡す）、常に無効で保存する
+- **URL からの登録の初期値**（[source-registration-by-url](../../docs/spec/source-registration-by-url/README.md)）：`GET /api/admin/source/suggestion?fetch_type=&url=` は登録の画面（GitHub / サイト）の取得方法で、URL を `src/lib/source-url.ts` で解釈する。GitHub は `GitHubRepositoryClient`（`src/client/github-repository.ts`）で default branch とライセンスを取って、登録のフォームの初期値を返す。登録の検証はしない（`POST /api/admin/source` が行う）。読めない理由は 400 の `details[0].code`（`SOURCE_SUGGESTION_ERROR_CODES`。サイトの画面の GitHub の URL は `github_url`）
 - **今すぐ収集**（[manual-collection](../../docs/spec/manual-collection/README.md)）：`POST /api/admin/source/:id/collection-runs` は収集の実行の記録（`source_collection_runs`）を `queued` で作ってから `collect-source` の Queue に積み、202 を返す（収集は worker）。同じソースの収集中は部分 unique index の違反で 409。30 分を過ぎても収集中のままの記録は、詳細を読む・依頼するときに `failed` にする。worker の無い環境は `SOURCE_COLLECTION_TYPE=none` で Controller を作らない（404）
 - スキーマは `@repo/api-schema` の `admin/` に集約。既存と同一なら re-export し、Admin 固有のレスポンスが必要になった時点で新規定義する
 - **admin の登録**: `pnpm --filter @repo/db admin:create --email <email>`。dev / min / prd は GitHub Actions の「Admin Create」（`docs/deploy/prd.md`）。ローカルは seed で `admin@dev.local` が入り、`POST /api/admin/auth/dev-login` でログインできる（dev-login は `@dev.local` の admin しか受け付けない）
@@ -101,7 +102,7 @@ npx dotenvx set KEY "value" -f apps/api/.env.local
 
 `JWT_ADMIN_ACCESS_SECRET` / `JWT_ADMIN_REFRESH_SECRET`（必須・32 文字以上）は admin の JWT の鍵。`openssl rand -hex 32` などで作る。**JWT の鍵 4 つ（`JWT_ACCESS_SECRET` / `JWT_REFRESH_SECRET` / `JWT_ADMIN_ACCESS_SECRET` / `JWT_ADMIN_REFRESH_SECRET`）は別の値にする**（同じ値があれば `src/env.ts` が起動を止める）。
 
-`GITHUB_LICENSE_TOKEN`（任意）は admin のソース登録で GitHub のライセンスを検出するときに使う。未設定でも動くが、GitHub の rate limit（60 回 / 時）が低くなる。
+`GITHUB_LICENSE_TOKEN`（任意）は admin のソース登録で GitHub（リポジトリの default branch・ライセンスの検出）を呼ぶときに使う。未設定でも動くが、GitHub の rate limit（60 回 / 時）が低くなる。名前は各環境の secret の登録（`scripts/deploy/seed-secrets.sh`）に合わせて変えない。
 
 `COLLECT_WEB_CONTACT_URL`（任意）は admin の URL の取り込みでサイトに送る User-Agent に入れるサービスのトップの URL（`TechEnglishBot/1.0 (+{url})`）。未設定なら `FRONTEND_URL`（web のトップ）を使うので、ふつうは設定しなくてよい。
 

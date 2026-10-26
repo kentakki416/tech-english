@@ -1,7 +1,14 @@
-import type { CreateSourceRequest, SourceCollectionRunResponse, SourceResponse, UpdateSourceRequest } from "@repo/api-schema"
+import type {
+  CreateSourceRequest,
+  SourceCollectionRunResponse,
+  SourceResponse,
+  SuggestSourceResponse,
+  UpdateSourceRequest,
+} from "@repo/api-schema"
 import type { SourceCollectionRun } from "@repo/domain"
 
 import type { SourceInput, SourceWithTags } from "../../../repository"
+import type { SourceSuggestion } from "../../../service/source-service"
 import { convertTagToResponse } from "../tag/tag-mapper"
 
 /**
@@ -93,3 +100,30 @@ export const convertSourceCollectionRunToResponse = (run: SourceCollectionRun): 
   status: run.status,
   created_at: run.createdAt.toISOString(),
 })
+
+/**
+ * URL からの登録の初期値（camelCase）→ レスポンス（snake_case）
+ */
+export const convertSourceSuggestionToResponse = (suggestion: SourceSuggestion): SuggestSourceResponse => {
+  if (suggestion.fetchType === "website") {
+    return {
+      fetch_type: "website",
+      include_globs: suggestion.includeGlobs,
+      license_spdx: suggestion.licenseSpdx,
+      license_url: suggestion.licenseUrl,
+      site_url: suggestion.siteUrl,
+    }
+  }
+  return {
+    branch: suggestion.branch,
+    default_branch: suggestion.defaultBranch,
+    detected_license: {
+      is_allowed: suggestion.detectedLicense.isAllowed,
+      license_spdx: suggestion.detectedLicense.licenseSpdx,
+      license_url: suggestion.detectedLicense.licenseUrl,
+    },
+    fetch_type: "github_repository",
+    include_globs: suggestion.includeGlobs,
+    repository: suggestion.repository,
+  }
+}

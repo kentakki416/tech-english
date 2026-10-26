@@ -10,8 +10,8 @@ import { logger } from "@repo/logger"
 import { BullMQJobQueue, COLLECT_SOURCE_QUEUE_NAME, type CollectSourceJobData, TRACK_EVENT_QUEUE_NAME } from "@repo/queue"
 import { createRedisClient } from "@repo/redis"
 
-import { GitHubLicenseClient } from "./client/github-license"
 import { GitHubOAuthClient } from "./client/github-oauth"
+import { GitHubRepositoryClient } from "./client/github-repository"
 import { GoogleOAuthClient } from "./client/google-oauth"
 import { PageFetcher } from "./client/page-fetcher"
 import { AdminAuthDevLoginController } from "./controller/admin/auth/dev-login"
@@ -35,6 +35,7 @@ import { AdminSourceCreateController } from "./controller/admin/source/create"
 import { AdminSourceDetailController } from "./controller/admin/source/detail"
 import { AdminSourceDetectLicenseController } from "./controller/admin/source/detect-license"
 import { AdminSourceListController } from "./controller/admin/source/list"
+import { AdminSourceSuggestController } from "./controller/admin/source/suggest"
 import { AdminSourceUpdateController } from "./controller/admin/source/update"
 import { AdminStatsOverviewController } from "./controller/admin/stats/overview"
 import { AdminPassageStatsDetailController } from "./controller/admin/stats/passage-detail"
@@ -199,7 +200,7 @@ const refreshTokenRepository = new IoRedisRefreshTokenRepository(redis)
  */
 const gitHubOAuthClient = new GitHubOAuthClient(env.GITHUB_OAUTH_CLIENT_ID, env.GITHUB_OAUTH_CLIENT_SECRET)
 const googleOAuthClient = new GoogleOAuthClient(env.GOOGLE_CLIENT_ID, env.GOOGLE_CLIENT_SECRET)
-const gitHubLicenseClient = new GitHubLicenseClient(env.GITHUB_LICENSE_TOKEN)
+const gitHubRepositoryClient = new GitHubRepositoryClient(env.GITHUB_LICENSE_TOKEN)
 /**
  * 連絡先の URL は、未設定なら web のトップ（どの環境でも設定してある FRONTEND_URL）にする。api の実行環境に env を足さずに済ませるため
  */
@@ -318,8 +319,9 @@ const sourceWritePolicy = { isWebsiteSourceAllowed: isLocalEnvironment }
  */
 const adminSourceCreateController = new AdminSourceCreateController(sourceRepository, tagRepository, sourceWritePolicy)
 const adminSourceDetailController = new AdminSourceDetailController(sourceRepository, sourceCollectionRunRepository)
-const adminSourceDetectLicenseController = new AdminSourceDetectLicenseController(gitHubLicenseClient)
+const adminSourceDetectLicenseController = new AdminSourceDetectLicenseController(gitHubRepositoryClient)
 const adminSourceListController = new AdminSourceListController(sourceRepository)
+const adminSourceSuggestController = new AdminSourceSuggestController(gitHubRepositoryClient, sourceWritePolicy)
 const adminSourceUpdateController = new AdminSourceUpdateController(sourceRepository, tagRepository, sourceWritePolicy)
 
 /**
@@ -513,6 +515,7 @@ mountAdminApi(
       detail: adminSourceDetailController,
       detectLicense: adminSourceDetectLicenseController,
       list: adminSourceListController,
+      suggest: adminSourceSuggestController,
       update: adminSourceUpdateController,
     },
     me: { get: adminMeGetController },
