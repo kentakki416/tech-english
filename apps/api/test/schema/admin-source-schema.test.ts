@@ -1,6 +1,5 @@
 import {
   createSourceRequestSchema,
-  detectSourceLicenseQueryStringSchema,
   passageCountsSchema,
   updateSourceRequestSchema,
 } from "@repo/api-schema"
@@ -40,19 +39,49 @@ const WEBSITE_REQUEST = {
 }
 
 /**
+ * 編集（PUT）のリクエスト。登録のリクエストから、編集で変えられない項目を除いたもの
+ */
+const GITHUB_UPDATE_REQUEST = {
+  exclude_globs: [],
+  fetch_type: "github_repository",
+  include_globs: ["src/content/learn/**/*.md"],
+  is_enabled: true,
+  name: "React 公式ドキュメント",
+  public_url_strip_prefix: null,
+  public_url_template: null,
+  tag_ids: [],
+}
+
+const WEBSITE_UPDATE_REQUEST = {
+  content_selector: null,
+  exclude_globs: [],
+  exclude_selectors: [],
+  fetch_type: "website",
+  include_globs: ["/doc/**"],
+  license_spdx: "CC-BY-4.0",
+  license_url: "https://go.dev/copyright",
+  name: "Go 公式ドキュメント",
+  tag_ids: [],
+}
+
+/**
  * 1〜count の連番
  */
 const buildSequence = (count: number): number[] => Array.from({ length: count }, (_, index) => index + 1)
 
 describe("admin source schema", () => {
   describe("正常系", () => {
-    it.each([
-      ["登録", createSourceRequestSchema],
-      ["更新", updateSourceRequestSchema],
-    ])("%sのリクエストの repository を小文字にそろえる", (_label, schema) => {
-      const parsed = schema.parse({ ...GITHUB_REQUEST, repository: "ReactJS/React.dev" })
+    it("登録のリクエストの repository を小文字にそろえる", () => {
+      const parsed = createSourceRequestSchema.parse({ ...GITHUB_REQUEST, repository: "ReactJS/React.dev" })
 
       expect(parsed).toMatchObject({ repository: "reactjs/react.dev" })
+    })
+
+    it.each([
+      ["github", GITHUB_REQUEST, GITHUB_UPDATE_REQUEST],
+      ["website", WEBSITE_REQUEST, WEBSITE_UPDATE_REQUEST],
+    ])("更新のリクエストは %s の編集で変えられない項目（取得元・種別・GitHub のライセンス）を捨てる", (_label, createRequest, updateRequest) => {
+      expect(updateSourceRequestSchema.parse(createRequest)).toEqual(updateRequest)
     })
 
     it.each([
@@ -62,7 +91,7 @@ describe("admin source schema", () => {
       ["DB の integer の上限ちょうど（境界値）", [2147483647]],
     ])("登録・更新のリクエストの tag_ids は%sなら通る", (_label, tagIds) => {
       expect(createSourceRequestSchema.parse({ ...GITHUB_REQUEST, tag_ids: tagIds })).toMatchObject({ tag_ids: tagIds })
-      expect(updateSourceRequestSchema.parse({ ...GITHUB_REQUEST, tag_ids: tagIds })).toMatchObject({ tag_ids: tagIds })
+      expect(updateSourceRequestSchema.parse({ ...GITHUB_UPDATE_REQUEST, tag_ids: tagIds })).toMatchObject({ tag_ids: tagIds })
     })
 
     it.each([
@@ -72,24 +101,20 @@ describe("admin source schema", () => {
       ["/ を含むブランチ", "https://github.com/reactjs/react.dev/blob/feature/docs/LICENSE"],
     ])("github の license_url が%sの URL なら通る", (_label, licenseUrl) => {
       expect(createSourceRequestSchema.safeParse({ ...GITHUB_REQUEST, license_url: licenseUrl }).success).toBe(true)
-      expect(updateSourceRequestSchema.safeParse({ ...GITHUB_REQUEST, license_url: licenseUrl }).success).toBe(true)
     })
 
-    it("website は license_spdx に LicenseRef-personal-use を選べる", () => {
+    it("website は登録・更新とも license_spdx に LicenseRef-personal-use を選べる", () => {
       expect(createSourceRequestSchema.safeParse({ ...WEBSITE_REQUEST, license_spdx: "LicenseRef-personal-use" }).success).toBe(true)
+      expect(updateSourceRequestSchema.safeParse({ ...WEBSITE_UPDATE_REQUEST, license_spdx: "LicenseRef-personal-use" }).success).toBe(true)
     })
 
     it.each([
-      ["登録", createSourceRequestSchema],
-      ["更新", updateSourceRequestSchema],
-    ])("%sのリクエストの website の is_enabled は捨てる", (_label, schema) => {
-      const parsed = schema.parse({ ...WEBSITE_REQUEST, is_enabled: true })
+      ["登録", createSourceRequestSchema, WEBSITE_REQUEST],
+      ["更新", updateSourceRequestSchema, WEBSITE_UPDATE_REQUEST],
+    ])("%sのリクエストの website の is_enabled は捨てる", (_label, schema, body) => {
+      const parsed = schema.parse({ ...body, is_enabled: true })
 
       expect(parsed).not.toHaveProperty("is_enabled")
-    })
-
-    it("検出ライセンス取得のクエリの repository を小文字にそろえる", () => {
-      expect(detectSourceLicenseQueryStringSchema.parse({ repository: "Rust-Lang/Book" })).toEqual({ repository: "rust-lang/book" })
     })
 
     it("passageCountsSchema は本文候補のすべての状態をキーに持つ", () => {
@@ -119,6 +144,17 @@ describe("admin source schema", () => {
     })
 
     it.each([
+      ["github の対象パスが / で始まる", { ...GITHUB_UPDATE_REQUEST, include_globs: ["/src/**"] }, ["include_globs", 0]],
+      ["github の除外パスが / で始まる", { ...GITHUB_UPDATE_REQUEST, exclude_globs: ["/src/blog/**"] }, ["exclude_globs", 0]],
+      ["website の対象パスが / で始まらない", { ...WEBSITE_UPDATE_REQUEST, include_globs: ["doc/**"] }, ["include_globs", 0]],
+    ])("更新のリクエストの%sと、その glob のエラーになる", (_label, body, path) => {
+      const result = updateSourceRequestSchema.safeParse(body)
+
+      expect(result.success).toBe(false)
+      expect(result.error?.issues.map((issue) => issue.path)).toContainEqual(path)
+    })
+
+    it.each([
       ["リポジトリの外のページ", "https://creativecommons.org/licenses/by/4.0/"],
       ["別のリポジトリのファイル", "https://github.com/facebook/react/blob/main/LICENSE"],
       ["リポジトリのトップ", "https://github.com/reactjs/react.dev"],
@@ -137,8 +173,8 @@ describe("admin source schema", () => {
       expect(createSourceRequestSchema.safeParse({ ...GITHUB_REQUEST, license_spdx: "LicenseRef-personal-use" }).success).toBe(false)
     })
 
-    it("小文字にする前に形式を検証する（owner だけは失敗する）", () => {
-      expect(detectSourceLicenseQueryStringSchema.safeParse({ repository: "ReactJS" }).success).toBe(false)
+    it("repository は小文字にする前に形式を検証する（owner だけは失敗する）", () => {
+      expect(createSourceRequestSchema.safeParse({ ...GITHUB_REQUEST, repository: "ReactJS" }).success).toBe(false)
     })
   })
 })

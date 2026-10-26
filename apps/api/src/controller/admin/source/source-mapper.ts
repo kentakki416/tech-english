@@ -7,16 +7,14 @@ import type {
 } from "@repo/api-schema"
 import type { SourceCollectionRun } from "@repo/domain"
 
-import type { SourceInput, SourceWithTags } from "../../../repository"
+import type { SourceCreateInput, SourceUpdateInput, SourceWithTags } from "../../../repository"
 import type { SourceSuggestion } from "../../../service/source-service"
 import { convertTagToResponse } from "../tag/tag-mapper"
 
 /**
- * 登録・更新のリクエスト（snake_case）→ Repository の入力（camelCase）
+ * 登録のリクエスト（snake_case）→ Repository の入力（camelCase）
  */
-export const convertSourceRequestToInput = (
-  request: CreateSourceRequest | UpdateSourceRequest,
-): SourceInput => {
+export const convertCreateSourceRequestToInput = (request: CreateSourceRequest): SourceCreateInput => {
   const base = {
     excludeGlobs: request.exclude_globs,
     includeGlobs: request.include_globs,
@@ -45,6 +43,35 @@ export const convertSourceRequestToInput = (
     isEnabled: false,
     licenseSpdx: request.license_spdx,
     siteUrl: request.site_url,
+  }
+}
+
+/**
+ * 編集のリクエスト（snake_case）→ Repository の編集の入力（camelCase）
+ */
+export const convertUpdateSourceRequestToInput = (request: UpdateSourceRequest): SourceUpdateInput => {
+  const base = {
+    excludeGlobs: request.exclude_globs,
+    includeGlobs: request.include_globs,
+    name: request.name,
+    tagIds: request.tag_ids,
+  }
+  if (request.fetch_type === "github_repository") {
+    return {
+      ...base,
+      fetchType: request.fetch_type,
+      isEnabled: request.is_enabled,
+      publicUrlStripPrefix: request.public_url_strip_prefix,
+      publicUrlTemplate: request.public_url_template,
+    }
+  }
+  return {
+    ...base,
+    contentSelector: request.content_selector,
+    excludeSelectors: request.exclude_selectors,
+    fetchType: request.fetch_type,
+    licenseSpdx: request.license_spdx,
+    licenseUrl: request.license_url,
   }
 }
 

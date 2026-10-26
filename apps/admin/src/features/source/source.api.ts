@@ -6,8 +6,6 @@ import {
   createSourceCollectionRunResponseSchema,
   type CreateSourceResponse,
   createSourceResponseSchema,
-  type DetectSourceLicenseResponse,
-  detectSourceLicenseResponseSchema,
   type GetSourceListResponse,
   getSourceListResponseSchema,
   type GetSourceResponse,
@@ -31,11 +29,6 @@ export const sourceApi = {
   create: async (input: CreateSourceRequest): Promise<CreateSourceResponse> => {
     const raw = await apiClient.post<unknown>(BASE_PATH, input)
     return createSourceResponseSchema.parse(raw)
-  },
-
-  detectLicense: async (repository: string): Promise<DetectSourceLicenseResponse> => {
-    const raw = await apiClient.get<unknown>(`${BASE_PATH}/license?repository=${encodeURIComponent(repository)}`, { onUnauthorized: "throw" })
-    return detectSourceLicenseResponseSchema.parse(raw)
   },
 
   getDetail: async (id: number): Promise<GetSourceResponse> => {

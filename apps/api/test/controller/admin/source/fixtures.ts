@@ -39,6 +39,32 @@ export const WEBSITE_REQUEST = {
 }
 
 /**
+ * 編集（PUT）のリクエスト。登録のリクエストから、編集で変えられない項目（取得元・種別・GitHub のライセンス）を除いたもの
+ */
+export const GITHUB_UPDATE_REQUEST = {
+  exclude_globs: ["src/content/blog/**"],
+  fetch_type: "github_repository",
+  include_globs: ["src/content/learn/**/*.md"],
+  is_enabled: true,
+  name: "React 公式ドキュメント",
+  public_url_strip_prefix: "src/content/",
+  public_url_template: "https://react.dev/{path}",
+  tag_ids: [],
+}
+
+export const WEBSITE_UPDATE_REQUEST = {
+  content_selector: "main article",
+  exclude_globs: ["/doc/devel/**"],
+  exclude_selectors: [".feedback"],
+  fetch_type: "website",
+  include_globs: ["/doc/**"],
+  license_spdx: "CC-BY-4.0",
+  license_url: "https://go.dev/copyright",
+  name: "Go 公式ドキュメント",
+  tag_ids: [],
+}
+
+/**
  * リクエストのうちレスポンスにそのまま返る項目（tag_ids はレスポンスでは tags になるので外す）
  */
 export const omitTagIds = <Body extends { tag_ids: number[] }>({ tag_ids: tagIds, ...fields }: Body) => fields

@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { type FormEvent, type KeyboardEvent, startTransition, useActionState, useState } from "react"
+import { type FormEvent, Fragment, type KeyboardEvent, startTransition, useActionState, useState } from "react"
 
 import type { GetSourceResponse, GetTagListResponse, SuggestSourceResponse } from "@repo/api-schema"
 
@@ -9,6 +9,7 @@ import { createSourceAction, type SourceFormState } from "@/app/(dashboard)/sour
 import {
   CollectionToggle,
   Field,
+  GitHubBranchField,
   GitHubTargetFields,
   LicenseFields,
   Section,
@@ -281,17 +282,18 @@ export function SourceCreateForm({
               <div className="space-y-5">
                 <h4 className={detailGroupTitleClass}>取得元</h4>
                 {suggestion.fetch_type === "github_repository" ? (
-                  <GitHubTargetFields
-                    key={revision}
-                    defaults={{
-                      branch: suggestion.branch,
-                      excludeGlobs: [],
-                      includeGlobs: suggestion.include_globs,
-                      publicUrlStripPrefix: null,
-                      publicUrlTemplate: null,
-                    }}
-                    getFieldError={getFieldError}
-                  />
+                  <Fragment key={revision}>
+                    <GitHubBranchField defaultBranch={suggestion.branch} error={getFieldError("branch")} />
+                    <GitHubTargetFields
+                      defaults={{
+                        excludeGlobs: [],
+                        includeGlobs: suggestion.include_globs,
+                        publicUrlStripPrefix: null,
+                        publicUrlTemplate: null,
+                      }}
+                      getFieldError={getFieldError}
+                    />
+                  </Fragment>
                 ) : (
                   <WebsiteTargetFields
                     key={revision}

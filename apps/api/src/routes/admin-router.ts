@@ -20,7 +20,6 @@ import { AdminPassageUpdateController } from "../controller/admin/passage/update
 import { AdminSourceCollectController } from "../controller/admin/source/collect"
 import { AdminSourceCreateController } from "../controller/admin/source/create"
 import { AdminSourceDetailController } from "../controller/admin/source/detail"
-import { AdminSourceDetectLicenseController } from "../controller/admin/source/detect-license"
 import { AdminSourceListController } from "../controller/admin/source/list"
 import { AdminSourceSuggestController } from "../controller/admin/source/suggest"
 import { AdminSourceUpdateController } from "../controller/admin/source/update"
@@ -53,7 +52,6 @@ type AdminRouterControllers = {
     collect?: AdminSourceCollectController
     create?: AdminSourceCreateController
     detail?: AdminSourceDetailController
-    detectLicense?: AdminSourceDetectLicenseController
     list?: AdminSourceListController
     suggest?: AdminSourceSuggestController
     update?: AdminSourceUpdateController
@@ -161,15 +159,7 @@ export const adminRouter = (controllers: AdminRouterControllers): Router => {
   }
 
   /**
-   * GET /api/admin/source/license は /:id より先に登録する（"license" が :id に一致して 400 になるため）
-   */
-  if (source.detectLicense) {
-    const controller = source.detectLicense
-    router.get("/source/license", async (req, res) => controller.execute(req, res))
-  }
-
-  /**
-   * GET /api/admin/source/suggestion も /:id より先に登録する（理由は /license と同じ）
+   * GET /api/admin/source/suggestion は /:id より先に登録する（"suggestion" が :id に一致して 400 になるため）
    */
   if (source.suggest) {
     const controller = source.suggest

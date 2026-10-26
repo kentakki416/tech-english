@@ -13,12 +13,22 @@ const PERSONAL_USE_LICENSE: Extract<SourceLicense, "LicenseRef-personal-use"> = 
 
 type SourceFetchType = GetSourceResponse["source"]["fetch_type"]
 
+type SourceKind = GetSourceResponse["source"]["kind"]
+
 /**
- * 取得方法の表示名（編集の取得方法のカードに出す）
+ * 取得方法の表示名
  */
 export const SOURCE_FETCH_TYPE_LABELS: Record<SourceFetchType, string> = {
   github_repository: "GitHub リポジトリ",
   website: "サイト（URL から追加）",
+}
+
+/**
+ * 種別の表示名
+ */
+export const SOURCE_KIND_LABELS: Record<SourceKind, string> = {
+  docs: "公式ドキュメント",
+  github: "GitHub の文書",
 }
 
 /**

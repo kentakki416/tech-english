@@ -7,7 +7,7 @@ import type { GetSourceListResponse } from "@repo/api-schema"
 import { TagChip } from "@/components/features/tag/TagChip"
 import Badge from "@/components/ui/badge/Badge"
 import { type Column, DataTable, type FilterConfig } from "@/components/ui/table"
-import { formatLicenseLabel } from "@/features/source/source.labels"
+import { formatLicenseLabel, SOURCE_KIND_LABELS } from "@/features/source/source.labels"
 import { formatDateTime } from "@/libs/date"
 
 type SourceListItem = GetSourceListResponse["sources"][number]
@@ -50,7 +50,7 @@ const SOURCE_COLUMN: Column<SourceRow> = {
 const KIND_COLUMN: Column<SourceRow> = {
   className: "px-5 py-4 text-theme-sm whitespace-nowrap text-gray-500 dark:text-gray-400",
   header: "種別",
-  render: (row) => (row.kind === "docs" ? "公式ドキュメント" : "GitHub の文書"),
+  render: (row) => SOURCE_KIND_LABELS[row.kind],
 }
 
 const LICENSE_COLUMN: Column<SourceRow> = {

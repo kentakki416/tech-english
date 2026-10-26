@@ -3,14 +3,17 @@ import type { CollectSourceJobData, JobQueue } from "@repo/queue"
 
 import type {
   SourceCollectionRunRepository,
-  SourceInput,
+  SourceCreateInput,
   SourceRepository,
+  SourceUpdateInput,
   SourceWithTags,
   TagRepository,
 } from "../../../src/repository"
 
-type GitHubRepositoryInput = Extract<SourceInput, { fetchType: "github_repository" }>
-type WebsiteInput = Extract<SourceInput, { fetchType: "website" }>
+type GitHubRepositoryInput = Extract<SourceCreateInput, { fetchType: "github_repository" }>
+type WebsiteInput = Extract<SourceCreateInput, { fetchType: "website" }>
+type GitHubRepositoryUpdateInput = Extract<SourceUpdateInput, { fetchType: "github_repository" }>
+type WebsiteUpdateInput = Extract<SourceUpdateInput, { fetchType: "website" }>
 type GitHubRepositorySourceWithTags = Extract<SourceWithTags, { fetchType: "github_repository" }>
 type WebsiteSourceWithTags = Extract<SourceWithTags, { fetchType: "website" }>
 
@@ -24,7 +27,6 @@ export const createMockSourceRepository = () => ({
   findById: vi.fn<SourceRepository["findById"]>(),
   findByRepository: vi.fn<SourceRepository["findByRepository"]>(),
   findBySiteUrl: vi.fn<SourceRepository["findBySiteUrl"]>(),
-  hasSourceDocuments: vi.fn<SourceRepository["hasSourceDocuments"]>(),
   update: vi.fn<SourceRepository["update"]>(),
 })
 
@@ -106,6 +108,34 @@ export const buildWebsiteInput = (overrides: Partial<WebsiteInput> = {}): Websit
   licenseUrl: "https://go.dev/copyright",
   name: "Go 公式ドキュメント",
   siteUrl: "https://go.dev",
+  tagIds: [],
+  ...overrides,
+})
+
+/**
+ * buildGitHubInput・buildWebsiteInput のうち、編集で変えられる項目
+ */
+export const buildGitHubUpdateInput = (overrides: Partial<GitHubRepositoryUpdateInput> = {}): GitHubRepositoryUpdateInput => ({
+  excludeGlobs: [],
+  fetchType: "github_repository",
+  includeGlobs: ["src/content/learn/**/*.md"],
+  isEnabled: true,
+  name: "React 公式ドキュメント",
+  publicUrlStripPrefix: "src/content/",
+  publicUrlTemplate: "https://react.dev/{path}",
+  tagIds: [],
+  ...overrides,
+})
+
+export const buildWebsiteUpdateInput = (overrides: Partial<WebsiteUpdateInput> = {}): WebsiteUpdateInput => ({
+  contentSelector: "main article",
+  excludeGlobs: ["/doc/devel/**"],
+  excludeSelectors: [".feedback"],
+  fetchType: "website",
+  includeGlobs: ["/doc/**"],
+  licenseSpdx: "CC-BY-4.0",
+  licenseUrl: "https://go.dev/copyright",
+  name: "Go 公式ドキュメント",
   tagIds: [],
   ...overrides,
 })

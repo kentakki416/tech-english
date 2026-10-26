@@ -68,8 +68,8 @@
 | `awsdocs/aws-lambda-developer-guide` | `LICENSE`（MIT-0） | 掛かっていない（README によるとサンプルコードのライセンス。ガイドの本文はリポジトリに無い） | しない |
 | `mdn/content` | `LICENSE.md`（本文は CC-BY-SA-2.5） | 掛かっている | しない（許可リストに無い） |
 
-- 「ライセンスを検出」を押すと、GitHub が見つけたライセンスのファイルの URL を「ライセンスの記載がある URL」の初期値に入れる（空のときだけ。ライセンスと同じ扱い）
-- 今ある GitHub のソースで URL がリポジトリの外を指すものは、次に編集して保存するときに直す（ローカルの seed の「開発用サンプル」が当たる）
+- 「ライセンスを検出」を押すと、GitHub が見つけたライセンスのファイルの URL を「ライセンスの記載がある URL」の初期値に入れる（空のときだけ。ライセンスと同じ扱い）。[source-registration-by-url](../source-registration-by-url/README.md) で「ライセンスを検出」はやめ、登録の URL の読み込みが入れる
+- 今ある GitHub のソースで URL がリポジトリの外を指すもの（ローカルの seed の「開発用サンプル」が当たる）は、[source-registration-by-url](../source-registration-by-url/README.md#編集の画面) で GitHub のライセンスを編集で変えられなくなったので、画面からは直せない。直すときは DB を直接書き換える
 
 ### サイトのソース（ローカルだけ）
 
@@ -125,7 +125,7 @@
 
 ### ライセンスの記載がある URL の検証
 
-**api-schema の取得方法ごとの検証（`validateSourceInput`）で、GitHub のソースの `license_url` がそのリポジトリのファイルの URL かを確かめる。** admin のフォームは同じスキーマで入力エラーを出すので、画面にもそのまま出る。
+**api-schema の取得方法ごとの検証（`validateCreateSourceInput`）で、GitHub のソースの `license_url` がそのリポジトリのファイルの URL かを確かめる。** admin のフォームは同じスキーマで入力エラーを出すので、画面にもそのまま出る。
 
 - 条件：ホストが `github.com`、パスの 1・2 番目がリポジトリの `owner` と `name`（大文字・小文字を区別しない。GitHub が区別しないため）、3 番目が `blob`、その後にブランチなどとファイルのパスがある
 - ブランチ・タグ・コミットは問わない。ソースのブランチと違う参照を指してもよい

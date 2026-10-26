@@ -18,10 +18,12 @@ import { isAllowedLicense, type Source, type Tag } from "@repo/domain"
 import type { ReadOptions } from "../read-options"
 import type {
   PassageCountRow,
-  SourceInput,
+  SourceCreateInput,
   SourceRepository,
-  SourceSaveResult,
+  SourceCreateResult,
+  SourceUpdateInput,
   SourceUpdateOptions,
+  SourceUpdateResult,
   SourceWithTags,
 } from "../source-repository"
 
@@ -34,9 +36,9 @@ import { convertTagRowToDomain } from "./tag-row"
 type SourceRow = typeof sources.$inferSelect
 
 /**
- * 入力から、取得方法ごとの列と共通の列の値を作る（fetch_type は含めない）
+ * 登録の入力から、取得方法ごとの列と共通の列の値を作る（fetch_type は含めない）
  */
-const buildColumnValues = (input: SourceInput) => {
+const buildCreateColumnValues = (input: SourceCreateInput) => {
   const common = {
     excludeGlobs: input.excludeGlobs,
     includeGlobs: input.includeGlobs,
@@ -60,6 +62,32 @@ const buildColumnValues = (input: SourceInput) => {
     contentSelector: input.contentSelector,
     excludeSelectors: input.excludeSelectors,
     siteUrl: input.siteUrl,
+  }
+}
+
+/**
+ * 編集の入力から、書く列の値を作る（fetch_type は含めない）
+ */
+const buildUpdateColumnValues = (input: SourceUpdateInput) => {
+  const common = {
+    excludeGlobs: input.excludeGlobs,
+    includeGlobs: input.includeGlobs,
+    name: input.name,
+  }
+  if (input.fetchType === "github_repository") {
+    return {
+      ...common,
+      isEnabled: input.isEnabled,
+      publicUrlStripPrefix: input.publicUrlStripPrefix,
+      publicUrlTemplate: input.publicUrlTemplate,
+    }
+  }
+  return {
+    ...common,
+    contentSelector: input.contentSelector,
+    excludeSelectors: input.excludeSelectors,
+    licenseSpdx: input.licenseSpdx,
+    licenseUrl: input.licenseUrl,
   }
 }
 
@@ -103,13 +131,13 @@ const replaceSourceTags = async (tx: DrizzleTransaction, sourceId: number, tagId
 }
 
 /**
- * create / update の書き込みの失敗を結果に変換する。どちらでもなければ throw し直す。
+ * create の書き込みの失敗を結果に変換する。どちらでもなければ throw し直す。
  * - unique 制約違反は重複の登録（duplicate）とみなせる。sources の unique 制約は主キーと repository / site_url だけで、
  *   source_tags はこのソースの分を消してから入れ直す（tag_ids の重複は api-schema が弾く）ため
  * - 外部キー制約違反はタグが消された（missing_tags）とみなせる。sources は外部キーを持たず、
  *   source_tags の source_id は同じトランザクションで作った・確かめた行を指すので、違反するのは tag_id だけのため
  */
-const convertWriteErrorToResult = (error: unknown): SourceSaveResult => {
+const convertWriteErrorToResult = (error: unknown): SourceCreateResult => {
   if (isUniqueViolation(error)) return { kind: "duplicate" }
   if (isForeignKeyViolation(error)) return { kind: "missing_tags" }
   throw error
@@ -134,12 +162,12 @@ export class DrizzleSourceRepository implements SourceRepository {
       .groupBy(sourceDocuments.sourceId, passages.status)
   }
 
-  public async create(input: SourceInput): Promise<SourceSaveResult> {
+  public async create(input: SourceCreateInput): Promise<SourceCreateResult> {
     try {
       const source = await this._db.transaction(async (tx) => {
         const [row] = await tx
           .insert(sources)
-          .values({ ...buildColumnValues(input), fetchType: input.fetchType })
+          .values({ ...buildCreateColumnValues(input), fetchType: input.fetchType })
           .returning()
         await replaceSourceTags(tx, row.id, input.tagIds)
         const [created] = await attachTags(tx, [this._toDomain(row)])
@@ -174,29 +202,20 @@ export class DrizzleSourceRepository implements SourceRepository {
     return row ? this._toDomain(row) : null
   }
 
-  public async hasSourceDocuments(sourceId: number): Promise<boolean> {
-    const rows = await this._db
-      .select({ id: sourceDocuments.id })
-      .from(sourceDocuments)
-      .where(eq(sourceDocuments.sourceId, sourceId))
-      .limit(1)
-    return rows.length > 0
-  }
-
   /**
    * 対象が無いときは throw する
    */
   public async update(
     id: number,
-    input: SourceInput,
+    input: SourceUpdateInput,
     options: SourceUpdateOptions,
-  ): Promise<SourceSaveResult> {
+  ): Promise<SourceUpdateResult> {
     try {
       const source = await this._db.transaction(async (tx) => {
         const [updated] = await tx
           .update(sources)
           .set({
-            ...buildColumnValues(input),
+            ...buildUpdateColumnValues(input),
             ...(options.shouldResetCollectedCommit ? { lastCollectedCommitSha: null } : {}),
           })
           .where(and(eq(sources.id, id), eq(sources.fetchType, input.fetchType)))
@@ -208,7 +227,11 @@ export class DrizzleSourceRepository implements SourceRepository {
       })
       return { kind: "saved", source }
     } catch (error) {
-      return convertWriteErrorToResult(error)
+      /**
+       * 外部キー制約違反はタグが消された（理由は convertWriteErrorToResult と同じ）
+       */
+      if (isForeignKeyViolation(error)) return { kind: "missing_tags" }
+      throw error
     }
   }
 

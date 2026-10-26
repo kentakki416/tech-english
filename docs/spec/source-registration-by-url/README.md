@@ -1,6 +1,6 @@
 # 表示名と URL だけでのソース登録
 
-admin のソースの登録を、GitHub とサイトで画面を分け、表示名と URL を入れて「読み込む」を押し、出てきた内容を見て「登録する」を押すだけにする。どちらの画面かは画面の上のボタン（[GitHub] [サイト]）で切り替え、ソース一覧も同じボタンで GitHub とサイトに分ける。リポジトリ・ブランチ・対象パス・ライセンスとライセンスの記載がある URL は、URL と GitHub から自動で決める。自動で決めた値を直したいとき・自動で決められなかったときだけ「詳細」を開く。
+admin のソースの登録を、GitHub とサイトで画面を分け、表示名と URL を入れて「読み込む」を押し、出てきた内容を見て「登録する」を押すだけにする。どちらの画面かは画面の上のボタン（[GitHub] [サイト]）で切り替え、ソース一覧も同じボタンで GitHub とサイトに分ける。リポジトリ・ブランチ・対象パス・ライセンスとライセンスの記載がある URL は、URL と GitHub から自動で決める。自動で決めた値を直したいとき・自動で決められなかったときだけ「詳細」を開く。登録で決まる値（取得方法・取得元・種別・GitHub のライセンス）は、編集の画面では変えられず、読み取り専用で出す。
 
 今は 1 つのソースを登録するのに、取得方法・種別を選び、リポジトリ・ブランチ・対象パス・ライセンス・ライセンスの記載がある URL を手で埋め、ライセンスは「ライセンスを検出」を押してから選ぶ。取得方法は最初に画面で選び、残りは URL と GitHub の情報から決まるので、入力を表示名と URL の 2 つにする。
 
@@ -25,6 +25,7 @@ admin のソースの登録を、GitHub とサイトで画面を分け、表示�
   - [URL から決める値](#url-から決める値)
   - [ライセンスの自動の取得](#ライセンスの自動の取得)
   - [読み込めないとき](#読み込めないとき)
+  - [編集の画面](#編集の画面)
   - [変えないもの](#変えないもの)
 - [設計](#設計)
   - [URL の読み込みは api で行う](#url-の読み込みは-api-で行う)
@@ -33,6 +34,7 @@ admin のソースの登録を、GitHub とサイトで画面を分け、表示�
   - [登録は今の API のまま](#登録は今の-api-のまま)
   - [画面の分け方](#画面の分け方)
   - [登録のフォーム](#登録のフォーム)
+  - [編集は変えられる項目だけを受ける](#編集は変えられる項目だけを受ける)
   - [MVP 対象外（将来検討）](#mvp-対象外将来検討)
 - [必要な画面](#必要な画面)
 - [必要な API](#必要な-api)
@@ -141,9 +143,30 @@ admin のソースの登録を、GitHub とサイトで画面を分け、表示�
 
 - すでに登録済みのリポジトリ・サイトは、今と同じく「登録する」を押したときに「同じリポジトリ・サイトがすでに登録されています」を出す
 
+### 編集の画面
+
+登録で決まる値は、編集の画面（`/sources/[id]`）では変えられない。欄にせず、右の「収集の状況」に読み取り専用で出す。
+
+| 項目 | GitHub | サイト（ローカルだけ） |
+| --- | --- | --- |
+| 表示名・技術タグ | 直せる | 直せる |
+| 対象パス・除外パス | 直せる | 直せる |
+| 公開ページの URL 規則・取り除くプレフィックス | 直せる | ― |
+| 本文の CSS セレクタ・除外する CSS セレクタ | ― | 直せる |
+| 収集する（有効 / 無効） | 直せる | ―（常に無効） |
+| ライセンス・ライセンスの記載がある URL | 「収集の状況」に出す（ライセンスの名前を、その URL へのリンクで） | 直せる |
+| 取得方法・種別 | 「収集の状況」に出す | 「収集の状況」に出す |
+| 取得元 | リポジトリ（GitHub へのリンク）とブランチを「収集の状況」に出す | サイトの URL（サイトへのリンク）を「収集の状況」に出す |
+
+- 取得元・ブランチ・GitHub のライセンスは、URL と GitHub から決めた値なので変えない。取得元を変えたいときは、今と同じく別のソースとして登録する
+- ソースを消す機能は無く、同じリポジトリ・サイトは 2 つ登録できない。登録で収集の範囲を誤ったとき（CHANGELOG・翻訳の md まで入る など）に直せるよう、対象パス・除外パスは編集でも直せる
+- サイトのライセンスは自動で判定できず、管理者がサイトの規約を見て選ぶ値なので、編集でも直せる
+- 種別は登録の「詳細」で選び、編集では変えない
+- 編集の画面の「ライセンスを検出」はやめる（リポジトリの欄が無くなるため）
+- 「キャンセル」と「保存する」の後は、そのソースの取得方法の一覧に戻る
+
 ### 変えないもの
 
-- 編集画面（`/sources/[id]`）。今と同じく全項目を並べたフォームで、リポジトリの欄と「ライセンスを検出」も残す（戻り先の一覧だけ、そのソースの取得方法のものにする）
 - ソースの項目・登録の検証・登録の API（[content-collection](../content-collection/README.md#ソースの登録)）
 - サイトのソースはローカルでだけ登録できる
 
@@ -153,14 +176,14 @@ admin のソースの登録を、GitHub とサイトで画面を分け、表示�
 
 ### URL の読み込みは api で行う
 
-URL の読み込みは、api の新しいエンドポイント `GET /api/admin/source/suggestion?fetch_type=...&url=...` が行い、登録のフォームの初期値（取得元・ブランチ・default branch・対象パス・ライセンスの検出の結果）を返す。admin はブラウザから Route Handler（`GET /api/sources/suggestion`）経由で呼ぶ（今の「ライセンスを検出」と同じ）。
+URL の読み込みは、api の新しいエンドポイント `GET /api/admin/source/suggestion?fetch_type=...&url=...` が行い、登録のフォームの初期値（取得元・ブランチ・default branch・対象パス・ライセンスの検出の結果）を返す。admin はブラウザから Route Handler（`GET /api/sources/suggestion`）経由で呼ぶ（ブラウザから api を直接呼ばないため）。
 
 - **api で行う理由**：default branch とライセンスは GitHub の API から取る。GitHub の token（`GITHUB_LICENSE_TOKEN`）を持つのは api で、admin は api しか呼ばない（[admin の CLAUDE.md](../../../apps/admin/CLAUDE.md#api-接続の下地)）。URL の解釈も、GitHub の結果と合わせないと決まらない（ブランチと対象パスの区切り）ので、同じ場所に置く
 - **画面の取得方法（`fetch_type`）を受け取る理由**：取得方法は画面で決まるので、api はその取得方法の URL かを確かめる。サイトの画面に GitHub の URL が来たとき、GitHub の API を呼ばずに `github_url` で返せる（URL だけから取得方法を決めて admin が後で食い違いを見ると、無駄に GitHub を呼ぶ）
-- **Server Action にしない理由**：Server Action から api を呼ぶと、サインインの期限が切れていたとき（api の 401）に `apiClient` がサインイン画面に redirect し、入力中の表示名と URL が消える。Route Handler なら `apiClient.get(path, { onUnauthorized: "throw" })` で 401 を受けて 401 を返し、フォームは入力を残したまま「サインインの期限が切れました」を出せる。admin の CLAUDE.md が「ブラウザの `fetch` から呼ばれる Route Handler」の見本にしている「ライセンスを検出」（`app/api/sources/license/route.ts`）と同じ形にする（「画面を開いた後に続きを読む」Server Action〈ユーザーの詳細の「さらに読み込む」〉は、入力中のフォームが無いので redirect されても失うものが無い）
+- **Server Action にしない理由**：Server Action から api を呼ぶと、サインインの期限が切れていたとき（api の 401）に `apiClient` がサインイン画面に redirect し、入力中の表示名と URL が消える。Route Handler なら `apiClient.get(path, { onUnauthorized: "throw" })` で 401 を受けて 401 を返し、フォームは入力を残したまま「サインインの期限が切れました」を出せる。admin の CLAUDE.md の「ブラウザの `fetch` から呼ばれる Route Handler」の形にする（この中継がその見本。「画面を開いた後に続きを読む」Server Action〈ユーザーの詳細の「さらに読み込む」〉は、入力中のフォームが無いので redirect されても失うものが無い）
 - proxy（`src/proxy.ts`）がセッション切れで先に返す 401 は、ボディが Route Handler の形（`{ reason }`）でない。フォームは status で 401 を見分け、ボディの `reason` が読めないときは「読み込めませんでした」にする
 - **読み込めない理由は 400 の `details[0].code`** で返す（`github_url`・`not_repository_url`・`repository_not_found`・`website_unavailable`）。admin が文言を分けるために読む。値の集合は `@repo/domain` の `SOURCE_SUGGESTION_ERROR_CODES` に置く（URL から追加の `URL_IMPORT_ERROR_CODES` と同じ形）。リポジトリが無いのも 404 ではなく 400 にする（URL から追加の `source_not_found` と同じく、入力した URL の誤りとして扱う）。`website_unavailable` はローカル以外でサイトの画面を通さずに呼ばれたとき（画面は出さないが、api でも守る）
-- GitHub の rate limit・障害は throw して 500 にし、admin の Route Handler が 502 にする（今のライセンスの検出と同じ）
+- GitHub の rate limit・障害は throw して 500 にし、admin の Route Handler が 502 にする
 
 ### URL の解釈
 
@@ -180,13 +203,13 @@ GitHub の画面の 1 回の読み込みで GitHub の API を 2 回（default b
 | 呼び出し | 使う値 | 404 のとき |
 | --- | --- | --- |
 | `GET /repos/{owner}/{repo}` | `default_branch`（ブランチの既定と、ブランチとパスの区切り）・`full_name`（改名後の名前） | `repository_not_found` |
-| `GET /repos/{owner}/{repo}/license?ref={ブランチ}` | 検出したライセンスと、ライセンスのファイルの URL（今の「ライセンスを検出」と同じ） | ブランチが default branch なら、ライセンスのファイルが無い。そうでなければ次の呼び出しへ |
+| `GET /repos/{owner}/{repo}/license?ref={ブランチ}` | 検出したライセンスと、ライセンスのファイルの URL | ブランチが default branch なら、ライセンスのファイルが無い。そうでなければ次の呼び出しへ |
 | `GET /repos/{owner}/{repo}/license`（ブランチが default branch でなく、上が 404 のときだけ） | 同上（default branch のもの） | ライセンスのファイルが無い |
 
 - GitHub は無いブランチの `?ref=` にも 404 を返すので、ブランチの区切りを取り違えると、ライセンスのファイルがあっても見つからない。そのときに default branch を見直す。default branch のライセンスのファイルの URL（`blob/{default branch}/...`）も、登録の検証（そのリポジトリのファイルの URL か）を通る
-- token が無いと 60 回 / 時なので、読み込みは 20〜30 回 / 時まで。登録の頻度なら足りる（今のライセンスの検出と同じ token を使う）
+- token が無いと 60 回 / 時なので、読み込みは 20〜30 回 / 時まで。登録の頻度なら足りる
 - client は今の `GitHubLicenseClient`（`client/github-license.ts`）を `GitHubRepositoryClient`（`client/github-repository.ts`）に改め、`findRepository` を足し、`detectLicense` に `ref` を足す。ライセンスだけを扱う client ではなくなるため名前を変える。env の `GITHUB_LICENSE_TOKEN` は名前を変えない（各環境の secret の登録〈`scripts/deploy/seed-secrets.sh`〉を変えずに済ませるため）
-- 許可リストかどうかの判定は今の `detectRepositoryLicense`（service）を使い回す
+- 許可リストかどうかの判定は service の `buildRepositoryLicense` で行う
 
 ### 登録は今の API のまま
 
@@ -202,18 +225,26 @@ GitHub の画面の 1 回の読み込みで GitHub の API を 2 回（default b
 
 ### 登録のフォーム
 
-- 登録用のフォーム（`SourceCreateForm`）を、取得方法を受け取る 1 つの部品にし、2 つの画面から使う。編集とは別にするのは、編集は取得元を変えられず（文書を取得した後）、URL の読み込みが要らないため。「詳細」の中の欄（GitHub の取得元・サイトの取得元・ライセンスの各セクション）は、今の `SourceForm` から部品に切り出して登録と編集で共有する
+- 登録用のフォーム（`SourceCreateForm`）を、取得方法を受け取る 1 つの部品にし、2 つの画面から使う。編集とは別にするのは、編集は登録で決まる値を変えられず、URL の読み込みが要らないため。「詳細」の中の欄（GitHub の取得元・サイトの取得元・ライセンス）は部品に切り出して登録と編集で共有する（ブランチの欄は登録だけ）
 - 「詳細」は `<details>` にする。閉じていても中の欄はフォームの一部で、「登録する」で送られる
 - 取得方法は画面のもの、リポジトリ・サイトの URL は読み込みの結果を、hidden の欄で送る（「詳細」でも直せない）
 - 読み込み直したら、取得元の欄は `key` を読み込みのたびに変えて作り直し、ライセンスの欄は state を置き換える。除外パス・公開ページの URL 規則も作り直すのは、別の取得元を読み込んだのなら前の値は合わないため。表示名・種別・技術タグは作り直す欄の外に置いて残す
 - 「登録する」は、読み込んだ URL と今の URL の欄が同じときだけ押せる
 - 送信は今と同じく `onSubmit` から `startTransition(() => formAction(formData))`（入力エラーのときに値を消さないため。[admin の CLAUDE.md](../../../apps/admin/CLAUDE.md#api-接続の下地)）。入力エラーが「詳細」の欄にあるときは「詳細」を開く
 
+### 編集は変えられる項目だけを受ける
+
+更新の API（`PUT /api/admin/source/:id`）は、登録と同じスキーマで全項目を置き換えるのをやめ、編集の画面で直せる項目だけを受ける（ほかの項目は送っても捨てる）。画面から欄を消すだけでは、admin が消した値を hidden で送り返すことになり、別のタブで保存した値を古い値で戻しうる。変えても意味が無い値なら API でも変えられない方が、画面と API の振る舞いが一致する。
+
+- 取得元を受け取らないので、今の「取得した文書があるソースの取得元の変更は 400」と「別のソースと同じ取得元にすると 409」は起きなくなり、消す
+- 対象パス・除外パスが変わったら、今と同じく `last_collected_commit_sha` を null に戻す
+- 編集の画面だけが使っていた「ライセンスを検出」の API（`GET /api/admin/source/license`）と admin の中継は消す。検出の結果は URL の読み込みが返す
+- 詳細は [step3](./tasks/step3-admin-source-edit-fields.md)
+
 ### MVP 対象外（将来検討）
 
 以下は MVP では実装しない。登録の手間がまだ問題になったときに検討する。
 
-- 編集画面も「詳細」にまとめる（編集は登録より少なく、全項目を見て直すことが多い）
 - 読み込みの時点で、登録済みのリポジトリ・サイトかを出す（今は登録のときの 409）
 - ブランチ名に `/` を含む URL の正確な区切り（ブランチの候補ごとに GitHub に問い合わせる）
 - ドキュメント用のライセンスのファイル（`LICENSE-DOCS.md` など）を対象パスやルートから探して、GitHub の検出より先に使う
@@ -230,7 +261,7 @@ GitHub の画面の 1 回の読み込みで GitHub の API を 2 回（default b
 | --- | --- |
 | ソース一覧（`/sources`・`/sources?fetch_type=website`） | 上の [GitHub] [サイト] で、その取得方法のソースだけを出す。「ソースを登録」は選んでいる方の登録の画面を開く |
 | ソースの登録（`/sources/new/github`・`/sources/new/website`） | 上の [GitHub] [サイト] で切り替える。表示名と URL を入れて読み込み、自動で決めた内容を見て登録する。直すときは「詳細」を開く |
-| ソースの編集（`/sources/[id]`） | 変えない（「詳細」の欄の部品を登録と共有するだけ） |
+| ソースの編集（`/sources/[id]`） | 取得方法・種別・取得元・GitHub のライセンスの欄と「ライセンスを検出」を消し、「収集の状況」に読み取り専用で出す（[step3](./tasks/step3-admin-source-edit-fields.md)）。欄の部品は登録と共有する |
 
 具体的な UI 仕様は `design-mock` skill で確定後に追記される（今の画面の欄の並べ替えとボタンの追加なので、モックを作らずに実装してもよい）。
 
@@ -241,10 +272,11 @@ GitHub の画面の 1 回の読み込みで GitHub の API を 2 回（default b
 | GET | `/api/admin/source/suggestion?fetch_type=...&url=...` | 新規。画面の取得方法と URL から、登録の初期値（取得元・ブランチ・default branch・対象パス・ライセンスの検出の結果）を返す。読み込めない理由は 400 の `details[0].code` |
 | GET | `/api/admin/source` | 変えない（一覧。admin が取得方法で分ける） |
 | POST | `/api/admin/source` | 変えない（登録） |
-| GET | `/api/admin/source/license?repository=...` | 変えない（編集画面の「ライセンスを検出」） |
+| PUT | `/api/admin/source/:id` | 編集の画面で直せる項目だけを受ける（[step3](./tasks/step3-admin-source-edit-fields.md)） |
+| GET | `/api/admin/source/license?repository=...` | 消す（編集の画面の「ライセンスを検出」をやめる） |
 | GET（admin の Route Handler） | `/api/sources/suggestion?fetch_type=...&url=...` | 新規。ブラウザから api の `/api/admin/source/suggestion` を呼ぶための中継 |
 
-詳細（リクエスト・レスポンスのスキーマ）は [step1](./tasks/step1-api-source-suggestion.md)。
+詳細（リクエスト・レスポンスのスキーマ）は [step1](./tasks/step1-api-source-suggestion.md)・[step3](./tasks/step3-admin-source-edit-fields.md)。
 
 ## 必要な DB 設計
 
