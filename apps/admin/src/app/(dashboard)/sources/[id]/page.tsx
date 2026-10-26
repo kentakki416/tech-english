@@ -8,7 +8,7 @@ import {
   personalUseLicenseSchema,
 } from "@repo/api-schema"
 
-import { SourceForm } from "@/components/features/source/SourceForm"
+import { SourceEditForm } from "@/components/features/source/SourceEditForm"
 import PageBreadcrumb from "@/components/layout/PageBreadCrumb"
 import { sourceApi } from "@/features/source/source.api"
 import { tagApi } from "@/features/tag/tag.api"
@@ -49,7 +49,7 @@ export default async function EditSourcePage({ params }: Props) {
   return (
     <>
       <PageBreadcrumb pageTitle={`ソースの編集：${detail.source.name}`} />
-      <SourceForm
+      <SourceEditForm
         activeCollectionRunStatuses={activeSourceCollectionRunStatusSchema.options}
         allowedLicenses={allowedLicenseSchema.options}
         detail={detail}

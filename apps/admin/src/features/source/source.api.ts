@@ -12,6 +12,9 @@ import {
   getSourceListResponseSchema,
   type GetSourceResponse,
   getSourceResponseSchema,
+  type SuggestSourceQueryString,
+  type SuggestSourceResponse,
+  suggestSourceResponseSchema,
   type UpdateSourceRequest,
   type UpdateSourceResponse,
   updateSourceResponseSchema,
@@ -51,6 +54,15 @@ export const sourceApi = {
   requestCollection: async (id: number): Promise<CreateSourceCollectionRunResponse> => {
     const raw = await apiClient.post<unknown>(`${BASE_PATH}/${id}/collection-runs`, {})
     return createSourceCollectionRunResponseSchema.parse(raw)
+  },
+
+  /**
+   * 登録の画面の取得方法と URL から登録の初期値を取る。401 は redirect せずに ApiClientError で投げる（ブラウザの fetch から呼ぶ Route Handler が 401 を返すため）
+   */
+  suggest: async (query: SuggestSourceQueryString): Promise<SuggestSourceResponse> => {
+    const params = new URLSearchParams({ fetch_type: query.fetch_type, url: query.url })
+    const raw = await apiClient.get<unknown>(`${BASE_PATH}/suggestion?${params.toString()}`, { onUnauthorized: "throw" })
+    return suggestSourceResponseSchema.parse(raw)
   },
 
   update: async (id: number, input: UpdateSourceRequest): Promise<UpdateSourceResponse> => {
