@@ -21,7 +21,7 @@ import { buildGitHubIncludeGlob, buildWebsiteIncludeGlob, parseSourceUrl, splitB
 import {
   PassageCountRow,
   SourceCollectionRunRepository,
-  SourceInput,
+  SourceCreateInput,
   SourceRepository,
   SourceUpdateInput,
   SourceWithTags,
@@ -70,7 +70,7 @@ export type SourceWritePolicy = {
   isWebsiteSourceAllowed: boolean
 }
 
-const disableWebsiteSource = (input: SourceInput): SourceInput =>
+const disableWebsiteSource = (input: SourceCreateInput): SourceCreateInput =>
   input.fetchType === "website" ? { ...input, isEnabled: false } : input
 
 /**
@@ -93,7 +93,7 @@ const buildPassageCounts = (rows: PassageCountRow[], sourceId: number): PassageC
  * 同じ取得元（github は repository、website は site_url）で登録済みのソース
  */
 const findDuplicateSource = async (
-  input: SourceInput,
+  input: SourceCreateInput,
   repo: SourceRepo,
 ): Promise<Source | null> =>
   input.fetchType === "github_repository"
@@ -188,7 +188,7 @@ export const getSourceById = async (
  * ソースを登録する
  */
 export const createSource = async (
-  input: SourceInput,
+  input: SourceCreateInput,
   repo: SourceWriteRepo,
   policy: SourceWritePolicy,
 ): Promise<Result<SourceWithTags>> => {

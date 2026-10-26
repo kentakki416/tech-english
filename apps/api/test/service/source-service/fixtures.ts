@@ -3,15 +3,15 @@ import type { CollectSourceJobData, JobQueue } from "@repo/queue"
 
 import type {
   SourceCollectionRunRepository,
-  SourceInput,
+  SourceCreateInput,
   SourceRepository,
   SourceUpdateInput,
   SourceWithTags,
   TagRepository,
 } from "../../../src/repository"
 
-type GitHubRepositoryInput = Extract<SourceInput, { fetchType: "github_repository" }>
-type WebsiteInput = Extract<SourceInput, { fetchType: "website" }>
+type GitHubRepositoryInput = Extract<SourceCreateInput, { fetchType: "github_repository" }>
+type WebsiteInput = Extract<SourceCreateInput, { fetchType: "website" }>
 type GitHubRepositoryUpdateInput = Extract<SourceUpdateInput, { fetchType: "github_repository" }>
 type WebsiteUpdateInput = Extract<SourceUpdateInput, { fetchType: "website" }>
 type GitHubRepositorySourceWithTags = Extract<SourceWithTags, { fetchType: "github_repository" }>

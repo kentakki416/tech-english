@@ -3,7 +3,7 @@ import type { PassageStatus, TagColor } from "@repo/domain"
 
 import { DrizzleSourceRepository } from "../../src/repository/drizzle/source-repository"
 import type {
-  SourceInput,
+  SourceCreateInput,
   SourceRepository,
   SourceUpdateInput,
   SourceUpdateOptions,
@@ -13,8 +13,8 @@ import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb } from "
 
 const sourceRepository = new DrizzleSourceRepository(testDb)
 
-type GitHubRepositoryInput = Extract<SourceInput, { fetchType: "github_repository" }>
-type WebsiteInput = Extract<SourceInput, { fetchType: "website" }>
+type GitHubRepositoryInput = Extract<SourceCreateInput, { fetchType: "github_repository" }>
+type WebsiteInput = Extract<SourceCreateInput, { fetchType: "website" }>
 type GitHubRepositoryUpdateInput = Extract<SourceUpdateInput, { fetchType: "github_repository" }>
 type WebsiteUpdateInput = Extract<SourceUpdateInput, { fetchType: "website" }>
 
@@ -83,7 +83,7 @@ const NO_RESET: SourceUpdateOptions = { shouldResetCollectedCommit: false }
 /**
  * 入力から tagIds を外したもの（ソースの列）。期待値を組み立てるのに使う
  */
-const omitTagIds = ({ tagIds, ...columns }: SourceInput) => columns
+const omitTagIds = ({ tagIds, ...columns }: SourceCreateInput) => columns
 
 /**
  * 編集の入力のうち、書き換わるソースの列（tagIds と、変わらない fetchType を外したもの）。期待値を組み立てるのに使う
@@ -93,7 +93,7 @@ const pickUpdatedColumns = ({ fetchType, tagIds, ...columns }: SourceUpdateInput
 /**
  * create して作ったソースを返す（duplicate / missing_tags なら throw する）
  */
-const createSource = async (repository: SourceRepository, input: SourceInput): Promise<SourceWithTags> => {
+const createSource = async (repository: SourceRepository, input: SourceCreateInput): Promise<SourceWithTags> => {
   const result = await repository.create(input)
   if (result.kind !== "saved") throw new Error(`Unexpected ${result.kind}: ${input.name}`)
   return result.source

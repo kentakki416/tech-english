@@ -16,7 +16,7 @@ type SourceFetchType = GetSourceResponse["source"]["fetch_type"]
 type SourceKind = GetSourceResponse["source"]["kind"]
 
 /**
- * 取得方法の表示名（編集の「収集の状況」に出す）
+ * 取得方法の表示名
  */
 export const SOURCE_FETCH_TYPE_LABELS: Record<SourceFetchType, string> = {
   github_repository: "GitHub リポジトリ",
@@ -24,7 +24,7 @@ export const SOURCE_FETCH_TYPE_LABELS: Record<SourceFetchType, string> = {
 }
 
 /**
- * 種別の表示名（一覧の種別の列と、編集の「収集の状況」に出す）
+ * 種別の表示名
  */
 export const SOURCE_KIND_LABELS: Record<SourceKind, string> = {
   docs: "公式ドキュメント",

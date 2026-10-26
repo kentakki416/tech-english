@@ -12,7 +12,7 @@ type SourceEditableInputBase = Pick<Source, "excludeGlobs" | "includeGlobs" | "n
   tagIds: number[]
 }
 
-type SourceInputBase = SourceEditableInputBase & Pick<Source, "isEnabled" | "kind" | "licenseUrl">
+type SourceCreateInputBase = SourceEditableInputBase & Pick<Source, "isEnabled" | "kind" | "licenseUrl">
 
 /**
  * タグ（名前の順）つきのソース。admin のソースの API が返す
@@ -22,9 +22,9 @@ export type SourceWithTags = Source & { tags: Tag[] }
 /**
  * ソースの登録時の入力。取得方法（fetchType）ごとに書く列が違う
  */
-export type SourceInput =
-  | (SourceInputBase & Pick<GitHubRepositorySource, "branch" | "fetchType" | "licenseSpdx" | "publicUrlStripPrefix" | "publicUrlTemplate" | "repository">)
-  | (SourceInputBase & Pick<WebsiteSource, "contentSelector" | "excludeSelectors" | "fetchType" | "licenseSpdx" | "siteUrl">)
+export type SourceCreateInput =
+  | (SourceCreateInputBase & Pick<GitHubRepositorySource, "branch" | "fetchType" | "licenseSpdx" | "publicUrlStripPrefix" | "publicUrlTemplate" | "repository">)
+  | (SourceCreateInputBase & Pick<WebsiteSource, "contentSelector" | "excludeSelectors" | "fetchType" | "licenseSpdx" | "siteUrl">)
 
 /**
  * ソースの編集時の入力。取得方法（fetchType）ごとに書く列が違い、取得元・種別・GitHub のライセンスは登録で決まるので含まない。
@@ -44,7 +44,7 @@ export type PassageCountRow = { count: number; sourceId: number; status: Passage
  * - duplicate：repository / site_url の unique 制約に違反した（service の重複の事前検査と書き込みの間に、同じ取得元が別のリクエストで登録された）
  * - missing_tags：source_tags の外部キーに違反した（service がタグの存在を確かめた後、書き込みまでの間にタグが消された）
  */
-export type SourceSaveResult =
+export type SourceCreateResult =
   | { kind: "duplicate" }
   | { kind: "missing_tags" }
   | { kind: "saved"; source: SourceWithTags }
@@ -52,7 +52,7 @@ export type SourceSaveResult =
 /**
  * 編集の結果。編集は取得元を変えないので、unique 制約の違反（duplicate）は起きない
  */
-export type SourceUpdateResult = Exclude<SourceSaveResult, { kind: "duplicate" }>
+export type SourceUpdateResult = Exclude<SourceCreateResult, { kind: "duplicate" }>
 
 /**
  * 更新時に、ソースの列と一緒に戻す収集の状態
@@ -75,7 +75,7 @@ export interface SourceRepository {
   /**
    * ソースと source_tags（input.tagIds）を 1 トランザクションで作る
    */
-  create(input: SourceInput): Promise<SourceSaveResult>
+  create(input: SourceCreateInput): Promise<SourceCreateResult>
   /**
    * id の昇順。各ソースのタグは名前の順
    */

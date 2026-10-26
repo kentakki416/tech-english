@@ -187,7 +187,7 @@ export function WebsiteTargetFields({
 }
 
 /**
- * ライセンスとライセンスの記載がある URL。値は呼び出し側の state（検出・読み込みで値を入れるため）
+ * ライセンスとライセンスの記載がある URL。値は呼び出し側の state（読み込みで値を入れるため）
  */
 export function LicenseFields({
   fetchType,

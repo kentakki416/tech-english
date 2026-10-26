@@ -240,7 +240,7 @@ const websiteInputSchema = websiteUpdateInputSchema.extend({
   site_url: httpsOriginSchema,
 })
 
-type SourceInput =
+type SourceCreateInput =
   | z.infer<typeof githubRepositoryInputSchema>
   | z.infer<typeof websiteInputSchema>
 
@@ -252,7 +252,7 @@ type SourceUpdateInput =
 検証は glob の規則（登録と編集）と、ライセンスの記載がある URL（登録の GitHub だけ）に分ける。
 
 ```typescript
-const validateSourceGlobs = (value: SourceInput | SourceUpdateInput, ctx: z.RefinementCtx): void => {
+const validateSourceGlobs = (value: SourceCreateInput | SourceUpdateInput, ctx: z.RefinementCtx): void => {
   const shouldStartWithSlash = value.fetch_type === "website"
   for (const key of ["include_globs", "exclude_globs"] as const) {
     value[key].forEach((glob, index) => {
@@ -266,7 +266,7 @@ const validateSourceGlobs = (value: SourceInput | SourceUpdateInput, ctx: z.Refi
   }
 }
 
-const validateSourceInput = (value: SourceInput, ctx: z.RefinementCtx): void => {
+const validateCreateSourceInput = (value: SourceCreateInput, ctx: z.RefinementCtx): void => {
   validateSourceGlobs(value, ctx)
   if (value.fetch_type === "github_repository" && !isRepositoryFileUrl(value.license_url, value.repository)) {
     ctx.addIssue({
@@ -319,17 +319,17 @@ type SourceEditableInputBase = Pick<Source, "excludeGlobs" | "includeGlobs" | "n
   tagIds: number[]
 }
 
-type SourceInputBase = SourceEditableInputBase & Pick<Source, "isEnabled" | "kind" | "licenseUrl">
+type SourceCreateInputBase = SourceEditableInputBase & Pick<Source, "isEnabled" | "kind" | "licenseUrl">
 
-export type SourceInput =
-  | (SourceInputBase & Pick<GitHubRepositorySource, "branch" | "fetchType" | "licenseSpdx" | "publicUrlStripPrefix" | "publicUrlTemplate" | "repository">)
-  | (SourceInputBase & Pick<WebsiteSource, "contentSelector" | "excludeSelectors" | "fetchType" | "licenseSpdx" | "siteUrl">)
+export type SourceCreateInput =
+  | (SourceCreateInputBase & Pick<GitHubRepositorySource, "branch" | "fetchType" | "licenseSpdx" | "publicUrlStripPrefix" | "publicUrlTemplate" | "repository">)
+  | (SourceCreateInputBase & Pick<WebsiteSource, "contentSelector" | "excludeSelectors" | "fetchType" | "licenseSpdx" | "siteUrl">)
 
 export type SourceUpdateInput =
   | (SourceEditableInputBase & Pick<GitHubRepositorySource, "fetchType" | "isEnabled" | "publicUrlStripPrefix" | "publicUrlTemplate">)
   | (SourceEditableInputBase & Pick<WebsiteSource, "contentSelector" | "excludeSelectors" | "fetchType" | "licenseSpdx" | "licenseUrl">)
 
-export type SourceUpdateResult = Exclude<SourceSaveResult, { kind: "duplicate" }>
+export type SourceUpdateResult = Exclude<SourceCreateResult, { kind: "duplicate" }>
 
 export interface SourceRepository {
   update(id: number, input: SourceUpdateInput, options: SourceUpdateOptions): Promise<SourceUpdateResult>

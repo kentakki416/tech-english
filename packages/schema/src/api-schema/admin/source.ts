@@ -150,7 +150,7 @@ const websiteInputSchema = websiteUpdateInputSchema.extend({
   site_url: httpsOriginSchema,
 })
 
-type SourceInput =
+type SourceCreateInput =
   | z.infer<typeof githubRepositoryInputSchema>
   | z.infer<typeof websiteInputSchema>
 
@@ -175,7 +175,7 @@ const isRepositoryFileUrl = (url: string, repository: string): boolean => {
 /**
  * 対象パス・除外パスの glob の書き方。github はリポジトリ内の相対パスなので "/" で始めない。website は URL のパスなので "/" で始める
  */
-const validateSourceGlobs = (value: SourceInput | SourceUpdateInput, ctx: z.RefinementCtx): void => {
+const validateSourceGlobs = (value: SourceCreateInput | SourceUpdateInput, ctx: z.RefinementCtx): void => {
   const shouldStartWithSlash = value.fetch_type === "website"
   for (const key of ["include_globs", "exclude_globs"] as const) {
     value[key].forEach((glob, index) => {
@@ -192,7 +192,7 @@ const validateSourceGlobs = (value: SourceInput | SourceUpdateInput, ctx: z.Refi
 /**
  * 登録の、取得方法ごとのフィールドをまたぐ検証
  */
-const validateSourceInput = (value: SourceInput, ctx: z.RefinementCtx): void => {
+const validateCreateSourceInput = (value: SourceCreateInput, ctx: z.RefinementCtx): void => {
   validateSourceGlobs(value, ctx)
   if (value.fetch_type === "github_repository" && !isRepositoryFileUrl(value.license_url, value.repository)) {
     ctx.addIssue({
@@ -330,7 +330,7 @@ export type GetSourceResponse = z.infer<typeof getSourceResponseSchema>
  */
 export const createSourceRequestSchema = z
   .discriminatedUnion("fetch_type", [githubRepositoryInputSchema, websiteInputSchema])
-  .superRefine(validateSourceInput)
+  .superRefine(validateCreateSourceInput)
 
 /**
  * ソース登録のレスポンススキーマ

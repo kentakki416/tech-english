@@ -7,14 +7,14 @@ import type {
 } from "@repo/api-schema"
 import type { SourceCollectionRun } from "@repo/domain"
 
-import type { SourceInput, SourceUpdateInput, SourceWithTags } from "../../../repository"
+import type { SourceCreateInput, SourceUpdateInput, SourceWithTags } from "../../../repository"
 import type { SourceSuggestion } from "../../../service/source-service"
 import { convertTagToResponse } from "../tag/tag-mapper"
 
 /**
  * 登録のリクエスト（snake_case）→ Repository の入力（camelCase）
  */
-export const convertCreateSourceRequestToInput = (request: CreateSourceRequest): SourceInput => {
+export const convertCreateSourceRequestToInput = (request: CreateSourceRequest): SourceCreateInput => {
   const base = {
     excludeGlobs: request.exclude_globs,
     includeGlobs: request.include_globs,

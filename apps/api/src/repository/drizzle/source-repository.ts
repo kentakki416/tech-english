@@ -18,9 +18,9 @@ import { isAllowedLicense, type Source, type Tag } from "@repo/domain"
 import type { ReadOptions } from "../read-options"
 import type {
   PassageCountRow,
-  SourceInput,
+  SourceCreateInput,
   SourceRepository,
-  SourceSaveResult,
+  SourceCreateResult,
   SourceUpdateInput,
   SourceUpdateOptions,
   SourceUpdateResult,
@@ -38,7 +38,7 @@ type SourceRow = typeof sources.$inferSelect
 /**
  * 登録の入力から、取得方法ごとの列と共通の列の値を作る（fetch_type は含めない）
  */
-const buildCreateColumnValues = (input: SourceInput) => {
+const buildCreateColumnValues = (input: SourceCreateInput) => {
   const common = {
     excludeGlobs: input.excludeGlobs,
     includeGlobs: input.includeGlobs,
@@ -137,7 +137,7 @@ const replaceSourceTags = async (tx: DrizzleTransaction, sourceId: number, tagId
  * - 外部キー制約違反はタグが消された（missing_tags）とみなせる。sources は外部キーを持たず、
  *   source_tags の source_id は同じトランザクションで作った・確かめた行を指すので、違反するのは tag_id だけのため
  */
-const convertWriteErrorToResult = (error: unknown): SourceSaveResult => {
+const convertWriteErrorToResult = (error: unknown): SourceCreateResult => {
   if (isUniqueViolation(error)) return { kind: "duplicate" }
   if (isForeignKeyViolation(error)) return { kind: "missing_tags" }
   throw error
@@ -162,7 +162,7 @@ export class DrizzleSourceRepository implements SourceRepository {
       .groupBy(sourceDocuments.sourceId, passages.status)
   }
 
-  public async create(input: SourceInput): Promise<SourceSaveResult> {
+  public async create(input: SourceCreateInput): Promise<SourceCreateResult> {
     try {
       const source = await this._db.transaction(async (tx) => {
         const [row] = await tx
