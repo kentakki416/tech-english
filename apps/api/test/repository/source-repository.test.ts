@@ -5,6 +5,7 @@ import { DrizzleSourceRepository } from "../../src/repository/drizzle/source-rep
 import type {
   SourceInput,
   SourceRepository,
+  SourceUpdateInput,
   SourceUpdateOptions,
   SourceWithTags,
 } from "../../src/repository/source-repository"
@@ -14,6 +15,8 @@ const sourceRepository = new DrizzleSourceRepository(testDb)
 
 type GitHubRepositoryInput = Extract<SourceInput, { fetchType: "github_repository" }>
 type WebsiteInput = Extract<SourceInput, { fetchType: "website" }>
+type GitHubRepositoryUpdateInput = Extract<SourceUpdateInput, { fetchType: "github_repository" }>
+type WebsiteUpdateInput = Extract<SourceUpdateInput, { fetchType: "website" }>
 
 const GITHUB_INPUT: GitHubRepositoryInput = {
   branch: "main",
@@ -47,6 +50,32 @@ const WEBSITE_INPUT: WebsiteInput = {
 }
 
 /**
+ * GITHUB_INPUT・WEBSITE_INPUT のうち、編集で変えられる項目
+ */
+const GITHUB_UPDATE_INPUT: GitHubRepositoryUpdateInput = {
+  excludeGlobs: GITHUB_INPUT.excludeGlobs,
+  fetchType: "github_repository",
+  includeGlobs: GITHUB_INPUT.includeGlobs,
+  isEnabled: GITHUB_INPUT.isEnabled,
+  name: GITHUB_INPUT.name,
+  publicUrlStripPrefix: GITHUB_INPUT.publicUrlStripPrefix,
+  publicUrlTemplate: GITHUB_INPUT.publicUrlTemplate,
+  tagIds: [],
+}
+
+const WEBSITE_UPDATE_INPUT: WebsiteUpdateInput = {
+  contentSelector: WEBSITE_INPUT.contentSelector,
+  excludeGlobs: WEBSITE_INPUT.excludeGlobs,
+  excludeSelectors: WEBSITE_INPUT.excludeSelectors,
+  fetchType: "website",
+  includeGlobs: WEBSITE_INPUT.includeGlobs,
+  licenseSpdx: WEBSITE_INPUT.licenseSpdx,
+  licenseUrl: WEBSITE_INPUT.licenseUrl,
+  name: WEBSITE_INPUT.name,
+  tagIds: [],
+}
+
+/**
  * 収集の状態を何も戻さない update の options
  */
 const NO_RESET: SourceUpdateOptions = { shouldResetCollectedCommit: false }
@@ -55,6 +84,11 @@ const NO_RESET: SourceUpdateOptions = { shouldResetCollectedCommit: false }
  * 入力から tagIds を外したもの（ソースの列）。期待値を組み立てるのに使う
  */
 const omitTagIds = ({ tagIds, ...columns }: SourceInput) => columns
+
+/**
+ * 編集の入力のうち、書き換わるソースの列（tagIds と、変わらない fetchType を外したもの）。期待値を組み立てるのに使う
+ */
+const pickUpdatedColumns = ({ fetchType, tagIds, ...columns }: SourceUpdateInput) => columns
 
 /**
  * create して作ったソースを返す（duplicate / missing_tags なら throw する）
@@ -66,12 +100,12 @@ const createSource = async (repository: SourceRepository, input: SourceInput): P
 }
 
 /**
- * update して更新したソースを返す（duplicate / missing_tags なら throw する）
+ * update して更新したソースを返す（missing_tags なら throw する）
  */
 const updateSource = async (
   repository: SourceRepository,
   id: number,
-  input: SourceInput,
+  input: SourceUpdateInput,
   options: SourceUpdateOptions,
 ): Promise<SourceWithTags> => {
   const result = await repository.update(id, input, options)
@@ -184,18 +218,16 @@ describe("SourceRepository", () => {
       expect(found.map((source) => source.id)).toEqual([first.id, second.id])
     })
 
-    it("github の update は渡した列を書き、shouldResetCollectedCommit: false なら last_collected_commit_sha を残す", async () => {
+    it("github の update は編集の列だけを書き（取得元・種別・ライセンスは変えない）、shouldResetCollectedCommit: false なら last_collected_commit_sha を残す", async () => {
       const created = await createSource(sourceRepository, GITHUB_INPUT)
       await testDb
         .update(sources)
         .set({ lastCollectedCommitSha: "abc123", lastCollectedExtractionVersion: "2026-10-20.1" })
         .where(eq(sources.id, created.id))
-      const input: GitHubRepositoryInput = {
-        ...GITHUB_INPUT,
+      const input: GitHubRepositoryUpdateInput = {
+        ...GITHUB_UPDATE_INPUT,
+        excludeGlobs: [],
         isEnabled: false,
-        kind: "github",
-        licenseSpdx: "MIT",
-        licenseUrl: "https://github.com/reactjs/react.dev/blob/main/LICENSE",
         name: "React Docs",
         publicUrlStripPrefix: null,
         publicUrlTemplate: null,
@@ -204,13 +236,10 @@ describe("SourceRepository", () => {
       const updated = await updateSource(sourceRepository, created.id, input, NO_RESET)
 
       expect(updated).toEqual({
-        ...omitTagIds(input),
-        id: created.id,
-        lastCollectedAt: null,
+        ...created,
+        ...pickUpdatedColumns(input),
         lastCollectedCommitSha: "abc123",
         lastCollectedExtractionVersion: "2026-10-20.1",
-        tags: [],
-        createdAt: created.createdAt,
         updatedAt: expect.any(Date),
       })
       expect(updated.updatedAt.getTime()).toBeGreaterThanOrEqual(created.updatedAt.getTime())
@@ -220,34 +249,32 @@ describe("SourceRepository", () => {
     it("github の update は shouldResetCollectedCommit: true なら last_collected_commit_sha を null にする", async () => {
       const created = await createSource(sourceRepository, GITHUB_INPUT)
       await testDb.update(sources).set({ lastCollectedCommitSha: "abc123" }).where(eq(sources.id, created.id))
-      const input: GitHubRepositoryInput = { ...GITHUB_INPUT, branch: "canary", includeGlobs: ["docs/**/*.md"] }
+      const input: GitHubRepositoryUpdateInput = { ...GITHUB_UPDATE_INPUT, includeGlobs: ["docs/**/*.md"] }
 
       const updated = await updateSource(sourceRepository, created.id, input, { ...NO_RESET, shouldResetCollectedCommit: true })
 
-      expect(updated).toMatchObject({ branch: "canary", includeGlobs: ["docs/**/*.md"], lastCollectedCommitSha: null })
+      expect(updated).toMatchObject({ includeGlobs: ["docs/**/*.md"], lastCollectedCommitSha: null })
       const [row] = await testDb.select().from(sources).where(eq(sources.id, created.id))
-      expect(row).toMatchObject({ branch: "canary", includeGlobs: ["docs/**/*.md"], lastCollectedCommitSha: null })
+      expect(row).toMatchObject({ includeGlobs: ["docs/**/*.md"], lastCollectedCommitSha: null })
     })
 
-    it("website の update は渡した列を書く", async () => {
+    it("website の update は編集の列（ライセンスを含む）だけを書き、サイトの URL・種別・is_enabled は変えない", async () => {
       const created = await createSource(sourceRepository, WEBSITE_INPUT)
-      const input: WebsiteInput = {
-        ...WEBSITE_INPUT,
+      const input: WebsiteUpdateInput = {
+        ...WEBSITE_UPDATE_INPUT,
         contentSelector: null,
         excludeGlobs: [],
         excludeSelectors: [],
         includeGlobs: ["/doc/tutorial/**"],
-        isEnabled: false,
+        licenseSpdx: "LicenseRef-personal-use",
+        licenseUrl: "https://go.dev",
       }
 
       const updated = await updateSource(sourceRepository, created.id, input, NO_RESET)
 
       expect(updated).toEqual({
-        ...omitTagIds(input),
-        id: created.id,
-        lastCollectedAt: null,
-        tags: [],
-        createdAt: created.createdAt,
+        ...created,
+        ...pickUpdatedColumns(input),
         updatedAt: expect.any(Date),
       })
       expect(await sourceRepository.findById(created.id)).toEqual(updated)
@@ -272,7 +299,7 @@ describe("SourceRepository", () => {
       const created = await createSource(sourceRepository, { ...GITHUB_INPUT, tagIds: [react.id, frontend.id] })
       const other = await createSource(sourceRepository, { ...WEBSITE_INPUT, tagIds: [react.id, frontend.id] })
 
-      const updated = await updateSource(sourceRepository, created.id, { ...GITHUB_INPUT, tagIds: [react.id, hooks.id] }, NO_RESET)
+      const updated = await updateSource(sourceRepository, created.id, { ...GITHUB_UPDATE_INPUT, tagIds: [react.id, hooks.id] }, NO_RESET)
 
       expect(updated.tags).toEqual([hooks, react])
       expect(await selectSourceTagIds(created.id)).toEqual([react.id, hooks.id])
@@ -284,7 +311,7 @@ describe("SourceRepository", () => {
       const react = await insertTag("react")
       const created = await createSource(sourceRepository, { ...GITHUB_INPUT, tagIds: [react.id] })
 
-      const updated = await updateSource(sourceRepository, created.id, { ...GITHUB_INPUT, tagIds: [] }, NO_RESET)
+      const updated = await updateSource(sourceRepository, created.id, { ...GITHUB_UPDATE_INPUT, tagIds: [] }, NO_RESET)
 
       expect(updated.tags).toEqual([])
       expect(await selectSourceTagIds(created.id)).toEqual([])
@@ -313,15 +340,6 @@ describe("SourceRepository", () => {
 
       expect(await sourceRepository.findById(created.id)).toEqual({ ...created, tags: [frontend] })
       expect(await selectSourceTagIds(created.id)).toEqual([frontend.id])
-    })
-
-    it("hasSourceDocuments は source_documents が 1 件でもあれば true、無ければ false", async () => {
-      const github = await createSource(sourceRepository, GITHUB_INPUT)
-      const website = await createSource(sourceRepository, WEBSITE_INPUT)
-      await insertSourceDocument(github.id, "src/content/learn/a.md")
-
-      expect(await sourceRepository.hasSourceDocuments(github.id)).toBe(true)
-      expect(await sourceRepository.hasSourceDocuments(website.id)).toBe(false)
     })
 
     it("countPassagesBySource が source_documents と passages の内容と一致する", async () => {
@@ -366,7 +384,7 @@ describe("SourceRepository", () => {
 
     it("update は存在しない id で throw する", async () => {
       await expect(
-        sourceRepository.update(999999, GITHUB_INPUT, NO_RESET),
+        sourceRepository.update(999999, GITHUB_UPDATE_INPUT, NO_RESET),
       ).rejects.toThrow()
     })
 
@@ -374,7 +392,7 @@ describe("SourceRepository", () => {
       const created = await createSource(sourceRepository, GITHUB_INPUT)
 
       await expect(
-        sourceRepository.update(created.id, WEBSITE_INPUT, NO_RESET),
+        sourceRepository.update(created.id, WEBSITE_UPDATE_INPUT, NO_RESET),
       ).rejects.toThrow()
       expect(await sourceRepository.findById(created.id)).toEqual(created)
     })
@@ -386,18 +404,6 @@ describe("SourceRepository", () => {
       expect(await sourceRepository.create({ ...GITHUB_INPUT, name: "dup" })).toEqual({ kind: "duplicate" })
       expect(await sourceRepository.create({ ...WEBSITE_INPUT, name: "dup" })).toEqual({ kind: "duplicate" })
       expect(await testDb.select().from(sources)).toHaveLength(2)
-    })
-
-    it("update は別のソースの repository / site_url にすると throw せず duplicate を返し、行は変わらない（unique 制約）", async () => {
-      await createSource(sourceRepository, GITHUB_INPUT)
-      await createSource(sourceRepository, WEBSITE_INPUT)
-      const otherGitHub = await createSource(sourceRepository, { ...GITHUB_INPUT, repository: "vercel/next.js" })
-      const otherWebsite = await createSource(sourceRepository, { ...WEBSITE_INPUT, siteUrl: "https://docs.python.org" })
-
-      expect(await sourceRepository.update(otherGitHub.id, GITHUB_INPUT, NO_RESET)).toEqual({ kind: "duplicate" })
-      expect(await sourceRepository.update(otherWebsite.id, WEBSITE_INPUT, NO_RESET)).toEqual({ kind: "duplicate" })
-      expect(await sourceRepository.findById(otherGitHub.id)).toEqual(otherGitHub)
-      expect(await sourceRepository.findById(otherWebsite.id)).toEqual(otherWebsite)
     })
 
     it("create は存在しない tag の id なら throw せず missing_tags を返し、sources の行も作らない（巻き戻る）", async () => {
@@ -416,26 +422,13 @@ describe("SourceRepository", () => {
 
       const result = await sourceRepository.update(
         created.id,
-        { ...GITHUB_INPUT, name: "React Docs", tagIds: [react.id + 1000] },
+        { ...GITHUB_UPDATE_INPUT, name: "React Docs", tagIds: [react.id + 1000] },
         NO_RESET,
       )
 
       expect(result).toEqual({ kind: "missing_tags" })
       expect(await sourceRepository.findById(created.id)).toEqual(created)
       expect(await selectSourceTagIds(created.id)).toEqual([react.id])
-    })
-
-    it("update が duplicate を返したときは、タグの付け替えも巻き戻る", async () => {
-      const react = await insertTag("react")
-      const hooks = await insertTag("hooks", "emerald")
-      await createSource(sourceRepository, GITHUB_INPUT)
-      const other = await createSource(sourceRepository, { ...GITHUB_INPUT, repository: "vercel/next.js", tagIds: [react.id] })
-
-      const result = await sourceRepository.update(other.id, { ...GITHUB_INPUT, tagIds: [hooks.id] }, NO_RESET)
-
-      expect(result).toEqual({ kind: "duplicate" })
-      expect(await sourceRepository.findById(other.id)).toEqual(other)
-      expect(await selectSourceTagIds(other.id)).toEqual([react.id])
     })
   })
 })

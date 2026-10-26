@@ -12,10 +12,10 @@ import { SourceRepository, TagRepository } from "../../../repository"
 import * as service from "../../../service"
 import type { SourceWritePolicy } from "../../../service/source-service"
 
-import { convertSourceRequestToInput, convertSourceToResponse } from "./source-mapper"
+import { convertSourceToResponse, convertUpdateSourceRequestToInput } from "./source-mapper"
 
 /**
- * admin のソース更新API（GitHub は有効 / 無効の切り替えを含む。website はローカルでだけ受け付け、常に無効で保存する）。取得方法は変えられない
+ * admin のソース更新API（編集で変えられる項目だけ。GitHub は有効 / 無効の切り替えを含み、website はローカルでだけ受け付ける）。取得方法は変えられない
  */
 export class AdminSourceUpdateController {
   constructor(
@@ -30,7 +30,7 @@ export class AdminSourceUpdateController {
 
     const result = await service.source.updateSource(
       id,
-      convertSourceRequestToInput(data),
+      convertUpdateSourceRequestToInput(data),
       { sourceRepository: this._sourceRepository, tagRepository: this._tagRepository },
       this._policy,
     )

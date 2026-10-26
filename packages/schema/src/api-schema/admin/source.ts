@@ -96,49 +96,67 @@ const tagIdListSchema = z
   .refine((ids) => new Set(ids).size === ids.length, { message: "tag_ids must not contain duplicate ids" })
 
 /**
- * 取得方法によらない共通の入力
+ * 取得方法によらない、登録と編集の共通の入力
  */
 const sourceInputBaseSchema = z.object({
   exclude_globs: globListSchema,
   include_globs: globListSchema.min(1),
-  kind: z.enum(SOURCE_KINDS),
-  license_url: webUrlSchema,
   name: z.string().trim().min(1).max(100),
   tag_ids: tagIdListSchema,
 })
 
 /**
- * GitHub リポジトリの Markdown から取得するソースの入力
+ * GitHub のソースの、編集で変えられる入力。取得元（リポジトリ・ブランチ）・種別・ライセンスは登録で決まり、編集では変えない
  */
-const githubRepositoryInputSchema = sourceInputBaseSchema.extend({
-  branch: z.string().trim().min(1).max(255),
+const githubRepositoryUpdateInputSchema = sourceInputBaseSchema.extend({
   fetch_type: z.literal("github_repository"),
   is_enabled: z.boolean(),
-  /**
-   * 許可リスト外のライセンスはここで 400 になる
-   */
-  license_spdx: allowedLicenseSchema,
   public_url_strip_prefix: nullableTextSchema,
   public_url_template: webUrlSchema
     .refine((value) => value.includes("{path}"), { message: "Must include {path}" })
     .nullable(),
+})
+
+/**
+ * GitHub リポジトリの Markdown から取得するソースの登録の入力
+ */
+const githubRepositoryInputSchema = githubRepositoryUpdateInputSchema.extend({
+  branch: z.string().trim().min(1).max(255),
+  kind: z.enum(SOURCE_KINDS),
+  /**
+   * 許可リスト外のライセンスはここで 400 になる
+   */
+  license_spdx: allowedLicenseSchema,
+  license_url: webUrlSchema,
   repository: githubRepositorySchema,
 })
 
 /**
- * サイトのページを取得するソースの入力（ローカルの URL から追加だけが使う）。is_enabled は受け取らない
+ * サイトのソースの、編集で変えられる入力。is_enabled は受け取らない。サイトの URL・種別は登録で決まり、編集では変えない
  */
-const websiteInputSchema = sourceInputBaseSchema.extend({
+const websiteUpdateInputSchema = sourceInputBaseSchema.extend({
   content_selector: nullableTextSchema,
   exclude_selectors: z.array(z.string().trim().min(1).max(200)).max(20),
   fetch_type: z.literal("website"),
   license_spdx: sourceLicenseSchema,
+  license_url: webUrlSchema,
+})
+
+/**
+ * サイトのページを取得するソースの登録の入力（ローカルの URL から追加だけが使う）
+ */
+const websiteInputSchema = websiteUpdateInputSchema.extend({
+  kind: z.enum(SOURCE_KINDS),
   site_url: httpsOriginSchema,
 })
 
 type SourceInput =
   | z.infer<typeof githubRepositoryInputSchema>
   | z.infer<typeof websiteInputSchema>
+
+type SourceUpdateInput =
+  | z.infer<typeof githubRepositoryUpdateInputSchema>
+  | z.infer<typeof websiteUpdateInputSchema>
 
 /**
  * リポジトリの中のファイルの URL（https://github.com/{owner}/{repo}/blob/{ref}/{path}）か。ブランチ・タグ・コミットは問わない。
@@ -155,12 +173,9 @@ const isRepositoryFileUrl = (url: string, repository: string): boolean => {
 }
 
 /**
- * 取得方法ごとの、フィールドをまたぐ検証
+ * 対象パス・除外パスの glob の書き方。github はリポジトリ内の相対パスなので "/" で始めない。website は URL のパスなので "/" で始める
  */
-const validateSourceInput = (value: SourceInput, ctx: z.RefinementCtx): void => {
-  /**
-   * github: glob はリポジトリ内の相対パスなので "/" で始めない。website: glob は URL のパスなので "/" で始める
-   */
+const validateSourceGlobs = (value: SourceInput | SourceUpdateInput, ctx: z.RefinementCtx): void => {
   const shouldStartWithSlash = value.fetch_type === "website"
   for (const key of ["include_globs", "exclude_globs"] as const) {
     value[key].forEach((glob, index) => {
@@ -172,15 +187,19 @@ const validateSourceInput = (value: SourceInput, ctx: z.RefinementCtx): void => 
       })
     })
   }
+}
 
-  if (value.fetch_type === "github_repository") {
-    if (!isRepositoryFileUrl(value.license_url, value.repository)) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Must be a file URL in the repository (https://github.com/{owner}/{repo}/blob/...)",
-        path: ["license_url"],
-      })
-    }
+/**
+ * 登録の、取得方法ごとのフィールドをまたぐ検証
+ */
+const validateSourceInput = (value: SourceInput, ctx: z.RefinementCtx): void => {
+  validateSourceGlobs(value, ctx)
+  if (value.fetch_type === "github_repository" && !isRepositoryFileUrl(value.license_url, value.repository)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Must be a file URL in the repository (https://github.com/{owner}/{repo}/blob/...)",
+      path: ["license_url"],
+    })
   }
 }
 
@@ -333,11 +352,12 @@ export const updateSourcePathParamSchema = z.object({
 })
 
 /**
- * ソース更新のリクエストスキーマ（GitHub は有効 / 無効の切り替えを含む）。取得方法の変更は service が 400 にする
+ * ソース更新のリクエストスキーマ（GitHub は有効 / 無効の切り替えを含む）。編集で変えられる項目だけを受け、ほかの項目は送られても
+ * 捨てる（Zod の object の既定）。取得方法の変更は service が 400 にする
  */
 export const updateSourceRequestSchema = z
-  .discriminatedUnion("fetch_type", [githubRepositoryInputSchema, websiteInputSchema])
-  .superRefine(validateSourceInput)
+  .discriminatedUnion("fetch_type", [githubRepositoryUpdateInputSchema, websiteUpdateInputSchema])
+  .superRefine(validateSourceGlobs)
 
 /**
  * ソース更新のレスポンススキーマ
@@ -347,30 +367,6 @@ export const updateSourceResponseSchema = sourceSchema
 export type UpdateSourcePathParam = z.infer<typeof updateSourcePathParamSchema>
 export type UpdateSourceRequest = z.infer<typeof updateSourceRequestSchema>
 export type UpdateSourceResponse = z.infer<typeof updateSourceResponseSchema>
-
-// ========================================================
-// GET /api/admin/source/license?repository=owner/name - 検出ライセンスの取得
-// ========================================================
-
-/**
- * 検出ライセンス取得のクエリ文字列スキーマ
- */
-export const detectSourceLicenseQueryStringSchema = z.object({
-  repository: githubRepositorySchema,
-})
-
-/**
- * 検出ライセンス取得のレスポンススキーマ。license_spdx が null なのは GitHub がライセンスを判定できなかったとき（ファイルはあっても種類が分からない・複数ある）、
- * license_url（GitHub が見つけたライセンスのファイルの URL）が null なのはライセンスのファイルが無いとき
- */
-export const detectSourceLicenseResponseSchema = z.object({
-  is_allowed: z.boolean(),
-  license_spdx: z.string().nullable(),
-  license_url: z.string().nullable(),
-})
-
-export type DetectSourceLicenseQueryString = z.infer<typeof detectSourceLicenseQueryStringSchema>
-export type DetectSourceLicenseResponse = z.infer<typeof detectSourceLicenseResponseSchema>
 
 // ========================================================
 // POST /api/admin/source/:id/collection-runs - 今すぐ収集の依頼
@@ -411,6 +407,16 @@ export const suggestSourceQueryStringSchema = z.object({
 export const sourceSuggestionErrorCodeSchema = z.enum(SOURCE_SUGGESTION_ERROR_CODES)
 
 /**
+ * GitHub が検出したライセンスと、それが許可リストにあるか。license_spdx が null なのは GitHub がライセンスを判定できなかったとき
+ * （ファイルはあっても種類が分からない・複数ある）、license_url（GitHub が見つけたライセンスのファイルの URL）が null なのはライセンスのファイルが無いとき
+ */
+const detectedLicenseSchema = z.object({
+  is_allowed: z.boolean(),
+  license_spdx: z.string().nullable(),
+  license_url: z.string().nullable(),
+})
+
+/**
  * URL からの登録の初期値のレスポンススキーマ。GitHub は検出したライセンス（許可リストかどうかを含む）を、
  * サイトは自動で判定できないので個人の学習用とサイトのトップを返す
  */
@@ -418,7 +424,7 @@ export const suggestSourceResponseSchema = z.discriminatedUnion("fetch_type", [
   z.object({
     branch: z.string(),
     default_branch: z.string(),
-    detected_license: detectSourceLicenseResponseSchema,
+    detected_license: detectedLicenseSchema,
     fetch_type: z.literal("github_repository"),
     include_globs: z.array(z.string()),
     repository: z.string(),

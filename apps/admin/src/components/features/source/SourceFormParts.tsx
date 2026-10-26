@@ -92,14 +92,24 @@ export function SourceKindField({ defaultKind, error }: { defaultKind: SourceKin
 }
 
 /**
- * GitHub の取得元のうち、リポジトリの欄より下（ブランチ・対象パス・除外パス・公開ページの URL 規則）
+ * ブランチは登録でだけ決め、編集では変えられないので GitHubTargetFields と分ける
+ */
+export function GitHubBranchField({ defaultBranch, error }: { defaultBranch: string, error?: string }) {
+  return (
+    <Field error={error} hint="既定はリポジトリの default branch。" htmlFor="branch" label="ブランチ">
+      <input className={`${inputClass} font-mono sm:w-60`} defaultValue={defaultBranch} id="branch" name="branch" />
+    </Field>
+  )
+}
+
+/**
+ * GitHub の取得元の欄（対象パス・除外パス・公開ページの URL 規則）
  */
 export function GitHubTargetFields({
   defaults,
   getFieldError,
 }: {
   defaults: {
-    branch: string
     excludeGlobs: string[]
     includeGlobs: string[]
     publicUrlStripPrefix: string | null
@@ -109,9 +119,6 @@ export function GitHubTargetFields({
 }) {
   return (
     <>
-      <Field error={getFieldError("branch")} hint="既定はリポジトリの default branch。" htmlFor="branch" label="ブランチ">
-        <input className={`${inputClass} font-mono sm:w-60`} defaultValue={defaults.branch} id="branch" name="branch" />
-      </Field>
       <div className="grid gap-5 sm:grid-cols-2">
         <Field error={getFieldError("include_globs")} hint="リポジトリ内のファイルパスに対する glob。1 行に 1 つ。" htmlFor="include" label="対象パス">
           <textarea className={`${textareaClass} font-mono`} defaultValue={defaults.includeGlobs.join("\n")} id="include" name="include_globs" placeholder="src/content/learn/**/*.md" rows={3} />
@@ -143,7 +150,7 @@ export function GitHubTargetFields({
 }
 
 /**
- * サイトの取得元のうち、サイトの URL の欄より下（対象パス・除外パス・CSS セレクタ）
+ * サイトの取得元の欄（対象パス・除外パス・CSS セレクタ）
  */
 export function WebsiteTargetFields({
   defaults,

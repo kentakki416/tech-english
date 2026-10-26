@@ -28,8 +28,6 @@ export type SourceFormState = {
 
 const DUPLICATE_MESSAGE = "同じリポジトリ・サイトがすでに登録されています。"
 
-const ORIGIN_LOCKED_MESSAGE = "取得した文書があるソースは、リポジトリ・サイトの URL を変えられません。変えたいときは別のソースとして登録してください。"
-
 const MISSING_TAG_MESSAGE = "選んだタグのうち、削除されたものがあります。画面を再読み込みしてタグを選び直してください。"
 
 /**
@@ -95,10 +93,6 @@ export const updateSourceAction = async (
   } catch (error) {
     unstable_rethrow(error)
     if (error instanceof ApiClientError && error.status === 404) return { message: "このソースは見つかりませんでした。" }
-    /**
-     * 存在しないタグ以外の 400 は、取得した文書があるソースの取得元（リポジトリ・サイトの URL）の変更
-     */
-    if (error instanceof ApiClientError && error.status === 400 && !isMissingTagError(error)) return { message: ORIGIN_LOCKED_MESSAGE }
     return convertApiErrorToFormState(error, "保存に失敗しました。時間をおいて再度お試しください。", [`/sources/${id}`])
   }
 

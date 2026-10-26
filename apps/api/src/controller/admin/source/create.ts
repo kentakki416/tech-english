@@ -8,7 +8,7 @@ import { SourceRepository, TagRepository } from "../../../repository"
 import * as service from "../../../service"
 import type { SourceWritePolicy } from "../../../service/source-service"
 
-import { convertSourceRequestToInput, convertSourceToResponse } from "./source-mapper"
+import { convertCreateSourceRequestToInput, convertSourceToResponse } from "./source-mapper"
 
 /**
  * admin のソース登録API。website はローカルでだけ受け付け、無効の状態で作る
@@ -24,7 +24,7 @@ export class AdminSourceCreateController {
     const data = parseRequest(createSourceRequestSchema, req.body)
 
     const result = await service.source.createSource(
-      convertSourceRequestToInput(data),
+      convertCreateSourceRequestToInput(data),
       { sourceRepository: this._sourceRepository, tagRepository: this._tagRepository },
       this._policy,
     )

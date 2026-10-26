@@ -23,6 +23,7 @@ import {
   SourceCollectionRunRepository,
   SourceInput,
   SourceRepository,
+  SourceUpdateInput,
   SourceWithTags,
   TagRepository,
 } from "../repository"
@@ -39,7 +40,7 @@ type SourceCollectionRepo = SourceRepo & { sourceCollectionRunRepository: Source
  */
 type SourceWriteRepo = SourceRepo & { tagRepository: Pick<TagRepository, "findByIds"> }
 
-type GitHubRepositoryInput = Extract<SourceInput, { fetchType: "github_repository" }>
+type GitHubRepositoryUpdateInput = Extract<SourceUpdateInput, { fetchType: "github_repository" }>
 
 const DUPLICATE_SOURCE_MESSAGE = "Source already registered"
 
@@ -100,7 +101,7 @@ const findDuplicateSource = async (
     : repo.sourceRepository.findBySiteUrl(input.siteUrl)
 
 /**
- * 存在しないタグの id の 400。admin は details の path（["tag_ids"]）で、取得元の変更の 400 と見分けてタグの欄に出す
+ * 存在しないタグの id の 400。admin は details の path（["tag_ids"]）で見分けてタグの欄に出す
  */
 const buildTagNotFoundError = (message: string) =>
   badRequestError(TAG_NOT_FOUND_MESSAGE, [{ code: TAG_NOT_FOUND_CODE, message, path: ["tag_ids"] }])
@@ -122,25 +123,11 @@ const isSameStringList = (left: string[], right: string[]): boolean =>
   left.length === right.length && left.every((value, index) => value === right[index])
 
 /**
- * 収集の範囲（repository / branch / 対象パス / 除外パス）が変わったか
+ * 収集の範囲（対象パス / 除外パス）が変わったか
  */
-const hasCollectionScopeChanged = (existing: GitHubRepositorySource, input: GitHubRepositoryInput): boolean =>
-  existing.repository !== input.repository
-  || existing.branch !== input.branch
-  || !isSameStringList(existing.includeGlobs, input.includeGlobs)
+const hasCollectionScopeChanged = (existing: GitHubRepositorySource, input: GitHubRepositoryUpdateInput): boolean =>
+  !isSameStringList(existing.includeGlobs, input.includeGlobs)
   || !isSameStringList(existing.excludeGlobs, input.excludeGlobs)
-
-/**
- * 取得元（github は repository、website は site_url）が変わったか。
- * GitHub はリポジトリ名の大文字・小文字を区別しないので、大文字・小文字の違いだけなら変わっていない（リンクは 404 にならない）
- */
-const hasOriginChanged = (existing: Source, input: SourceInput): boolean => {
-  if (existing.fetchType === "github_repository" && input.fetchType === "github_repository") {
-    return existing.repository.toLowerCase() !== input.repository.toLowerCase()
-  }
-  if (existing.fetchType === "website" && input.fetchType === "website") return existing.siteUrl !== input.siteUrl
-  return false
-}
 
 /**
  * ソース一覧（状態別の本文候補件数つき）
@@ -242,11 +229,11 @@ export const createSource = async (
 
 /**
  * ソースを更新する（GitHub は有効 / 無効の切り替えを含む）。取得方法は変えられない。
- * 取得した文書があるソースは取得元（repository / site_url）も変えられない（変えたいときは別のソースとして登録する）
+ * 取得元は入力に含まない（編集では変えない）ので、createSource と違って重複は確かめない
  */
 export const updateSource = async (
   id: number,
-  input: SourceInput,
+  input: SourceUpdateInput,
   repo: SourceWriteRepo,
   policy: SourceWritePolicy,
 ): Promise<Result<SourceWithTags>> => {
@@ -261,29 +248,10 @@ export const updateSource = async (
   }
   if (existing.fetchType !== input.fetchType) return err(badRequestError("fetch_type cannot be changed"))
 
-  /**
-   * 入力の誤りなので、取得元の変更・重複（409）より先に確かめる
-   */
   const missingTagIds = await findMissingTagIds(input.tagIds, repo)
   if (missingTagIds.length > 0) {
     logger.debug("SourceService: Tag not found for update", { id, missingTagIds })
     return err(buildTagNotFoundError(`Tag not found: id=${missingTagIds.join(", ")}`))
-  }
-
-  /**
-   * 過去の本文候補の出典は、ソースの今の取得元と passages の source_path（GitHub は source_commit_sha も）で組み立てる。
-   * 取得元を変えると過去の問題の出典が別のリポジトリ・サイトを指して 404 になるため、取得した文書があれば拒否する。
-   * ライセンスの変更は許す（誤登録の訂正は過去の問題の出典にも反映されるのが正しい）
-   */
-  if (hasOriginChanged(existing, input) && await repo.sourceRepository.hasSourceDocuments(id)) {
-    logger.debug("SourceService: Origin of a collected source cannot be changed", { id })
-    return err(badRequestError("repository / site_url cannot be changed after documents are collected"))
-  }
-
-  const duplicate = await findDuplicateSource(input, repo)
-  if (duplicate && duplicate.id !== id) {
-    logger.debug("SourceService: Source already registered", { fetchType: input.fetchType, id })
-    return err(conflictError(DUPLICATE_SOURCE_MESSAGE))
   }
 
   /**
@@ -293,11 +261,7 @@ export const updateSource = async (
   const shouldResetCollectedCommit = existing.fetchType === "github_repository"
     && input.fetchType === "github_repository"
     && hasCollectionScopeChanged(existing, input)
-  const result = await repo.sourceRepository.update(id, disableWebsiteSource(input), { shouldResetCollectedCommit })
-  if (result.kind === "duplicate") {
-    logger.debug("SourceService: Source registered concurrently", { fetchType: input.fetchType, id })
-    return err(conflictError(DUPLICATE_SOURCE_MESSAGE))
-  }
+  const result = await repo.sourceRepository.update(id, input, { shouldResetCollectedCommit })
   if (result.kind === "missing_tags") {
     logger.debug("SourceService: Tag deleted during the request", { id })
     return err(buildTagNotFoundError("Tag was deleted during the request"))
@@ -347,15 +311,6 @@ const buildRepositoryLicense = (detected: DetectedLicense | null): RepositoryLic
     licenseUrl: detected?.licenseUrl ?? null,
   }
 }
-
-/**
- * default branch の、GitHub が検出したリポジトリのライセンスと、それが許可リストにあるか
- */
-export const detectRepositoryLicense = async (
-  repository: string,
-  deps: { githubRepositoryClient: IGitHubRepositoryClient },
-): Promise<Result<RepositoryLicense>> =>
-  ok(buildRepositoryLicense(await deps.githubRepositoryClient.detectLicense(repository, null)))
 
 /**
  * サイトのライセンスは自動で判定できないので、ローカルの用途（個人の学習用）にそろえる
