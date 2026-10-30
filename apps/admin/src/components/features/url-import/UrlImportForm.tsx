@@ -224,6 +224,10 @@ export function UrlImportForm() {
         />
       )}
       {state.status === "imported" && <ImportResult result={state.result} />}
+
+      <div className="flex justify-start">
+        <Link className="text-theme-sm text-gray-500 hover:text-gray-700 dark:text-gray-400" href="/passages?status=collected">問題一覧に戻る</Link>
+      </div>
     </div>
   )
 }
