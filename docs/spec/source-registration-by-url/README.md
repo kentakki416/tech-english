@@ -112,7 +112,7 @@ admin のソースの登録を、GitHub とサイトで画面を分け、表示�
 
 ### ライセンスの自動の取得
 
-**GitHub**：読み込んだときに GitHub が検出したライセンスを取り、そのまま使う。管理者はライセンスを操作しない（「詳細」にもライセンスの欄を出さない）。URL でブランチを指定したときは、そのブランチのライセンスを見る。そのブランチでライセンスのファイルが見つからなければ、default branch のライセンスを見る（ブランチの区切りを取り違えたときも、ライセンスは自動で入るようにするため）。
+**GitHub**：読み込んだときに GitHub が検出したライセンスを取り、そのまま使う。管理者はライセンスを操作しない（「詳細」にもライセンスの欄を出さない）。URL でブランチを指定したときは、そのブランチのライセンスだけを見る。default branch のライセンスは見ない（無いブランチや確かめていないブランチの文章を登録できてしまい、登録の後は直せないため）。
 
 | GitHub の検出の結果 | ライセンス | ライセンスの記載がある URL | 登録 |
 | --- | --- | --- | --- |
@@ -189,21 +189,20 @@ URL の解釈は api の `lib/source-url.ts` の純粋関数にする（api し�
 - `github.com`（と `www.github.com`）なら GitHub、それ以外はサイト。`http:` は `https:` として扱う
 - GitHub はパスを `/{owner}/{repo}/{tree|blob}/{ブランチとパス}` に分ける。owner / repo がリポジトリ名の形（`@repo/domain` の `GITHUB_REPOSITORY_PATTERN`）に合わなければ `not_repository_url`
 - **リポジトリ名の形は `@repo/domain` に置く**：登録の検証（api-schema の `githubRepositorySchema`）と URL の解釈で同じ形を使う。api-schema のスキーマを api の lib・service から使うと、service がリクエストのスキーマに依存する（今の service は api-schema を import していない）ため、規則の正本の `@repo/domain` に置いて両方から使う
-- **ブランチとパスの区切り**：ブランチ名は `/` を含められる（`release/v2`）ので、URL だけでは `tree/release/v2/docs` のブランチが `release` か `release/v2` か決まらない。default branch で始まればそれをブランチにし、そうでなければ最初の区切り（`release`）までをブランチにする。ブランチの候補ごとに GitHub に問い合わせれば正確に決まるが、ドキュメントの URL のほとんどは default branch（`main` / `master`）で、`/` を含むブランチを取り違えても読み込んだ内容の警告で気付けるため（そのブランチは登録できない）、呼び出しを増やさない。取り違えたときに困るのは、ブランチ・対象パスが違うことと、無いブランチのライセンスが見つからないこと。前者は default branch でないことを画面に出して気付けるようにし、後者は default branch のライセンスを見直して自動で入れる（下の「GitHub の呼び出し」）
+- **ブランチとパスの区切り**：ブランチ名は `/` を含められる（`release/v2`）ので、URL だけでは `tree/release/v2/docs` のブランチが `release` か `release/v2` か決まらない。default branch で始まればそれをブランチにし、そうでなければ最初の区切り（`release`）までをブランチにする。ブランチの候補ごとに GitHub に問い合わせれば正確に決まるが、ドキュメントの URL のほとんどは default branch（`main` / `master`）で、`/` を含むブランチを取り違えると、無いブランチになってライセンスを確認できず、登録の画面で止まるため、呼び出しを増やさない。取り違えたときに困るのは、ブランチ・対象パスが違うことと、無いブランチのライセンスが見つからないこと。前者は default branch でないことを画面に出して気付けるようにし、後者は default branch のライセンスを見直して自動で入れる（下の「GitHub の呼び出し」）
 - 対象パスは、ディレクトリなら `{パス}/**`、ファイルならそのパス、トップなら `**`。`{パス}/**` は picomatch でディレクトリ自身にも一致する。拡張子は収集（worker の `listGitHubTargetFiles`）が `.md` / `.mdx` に絞るので付けない
 - `**`（リポジトリ全体）は glob の固定部分が無いので、trees API が切り詰められる巨大なリポジトリでは収集が `isComplete: false` になる（[manual-collection](../manual-collection/README.md)・worker の `listGitHubTargetFiles`）。そうしたリポジトリはディレクトリの URL で登録する。登録の画面では止めない
 
 ### GitHub の呼び出し
 
-GitHub の画面の 1 回の読み込みで GitHub の API を 2 回（default branch でないブランチでライセンスが見つからなければ 3 回）呼ぶ。サイトの画面では呼ばない。
+GitHub の画面の 1 回の読み込みで GitHub の API を 2 回呼ぶ。サイトの画面では呼ばない。
 
 | 呼び出し | 使う値 | 404 のとき |
 | --- | --- | --- |
 | `GET /repos/{owner}/{repo}` | `default_branch`（ブランチの既定と、ブランチとパスの区切り）・`full_name`（改名後の名前） | `repository_not_found` |
-| `GET /repos/{owner}/{repo}/license?ref={ブランチ}` | 検出したライセンスと、ライセンスのファイルの URL | ブランチが default branch なら、ライセンスのファイルが無い。そうでなければ次の呼び出しへ |
-| `GET /repos/{owner}/{repo}/license`（ブランチが default branch でなく、上が 404 のときだけ） | 同上（default branch のもの） | ライセンスのファイルが無い |
+| `GET /repos/{owner}/{repo}/license?ref={ブランチ}` | 検出したライセンスと、ライセンスのファイルの URL | ライセンスのファイルが無い、またはブランチが無い |
 
-- GitHub は無いブランチの `?ref=` にも 404 を返すので、ブランチの区切りを取り違えると、ライセンスのファイルがあっても見つからない。そのときに default branch を見直す。default branch のライセンスのファイルの URL（`blob/{default branch}/...`）も、登録の検証（そのリポジトリのファイルの URL か）を通る
+- GitHub は無いブランチの `?ref=` にも 404 を返すので、ブランチの区切りを取り違えるとライセンスを確認できず、登録できない
 - token が無いと 60 回 / 時なので、読み込みは 20〜30 回 / 時まで。登録の頻度なら足りる
 - client は今の `GitHubLicenseClient`（`client/github-license.ts`）を `GitHubRepositoryClient`（`client/github-repository.ts`）に改め、`findRepository` を足し、`detectLicense` に `ref` を足す。ライセンスだけを扱う client ではなくなるため名前を変える。env の `GITHUB_LICENSE_TOKEN` は名前を変えない（各環境の secret の登録〈`scripts/deploy/seed-secrets.sh`〉を変えずに済ませるため）
 - 許可リストかどうかの判定は service の `buildRepositoryLicense` で行う
@@ -297,10 +296,6 @@ sequenceDiagram
         GH-->>API: default_branch・full_name（無ければ 404 → repository_not_found）
         API->>GH: GET /repos/{owner}/{repo}/license?ref={ブランチ}
         GH-->>API: ライセンスとファイルの URL（無ければ 404）
-        opt ブランチが default branch でなく 404
-            API->>GH: GET /repos/{owner}/{repo}/license
-            GH-->>API: default branch のライセンス（無ければ 404）
-        end
         API-->>R: 200 リポジトリ・ブランチ・default branch・対象パス・検出したライセンス
     else サイトの画面で github.com 以外の URL（ローカル）
         API-->>R: 200 サイトの URL・対象パス・個人の学習用

@@ -14,7 +14,7 @@ const getText = (formData: FormData, key: string): string => {
 }
 
 /**
- * 必須の選択肢（ラジオ・セレクト）。未選択なら undefined にして、Zod に「Required」を出させる
+ * 必須の選択肢（セレクト・hidden）。未選択なら undefined にして、Zod に「Required」を出させる
  */
 const getChoice = (formData: FormData, key: string): string | undefined => {
   const value = formData.get(key)

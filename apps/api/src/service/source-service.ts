@@ -354,12 +354,9 @@ const suggestGitHubRepositorySource = async (
   const { defaultBranch } = githubRepository
   const { branch, path } = splitBranchAndPath(sourceUrl.refAndPath, defaultBranch)
   /**
-   * GitHub は無いブランチの ?ref= にも 404 を返すので、ブランチの区切りを取り違えたときにライセンスを見失わないよう default branch を見直す
+   * 見つからなくても default branch のライセンスは見ない。無いブランチや、確かめていないブランチの文章を登録できてしまい、登録の後は直せないため
    */
-  const detectedOnBranch = await deps.githubRepositoryClient.detectLicense(repository, branch)
-  const detected = detectedOnBranch === null && branch !== defaultBranch
-    ? await deps.githubRepositoryClient.detectLicense(repository, null)
-    : detectedOnBranch
+  const detected = await deps.githubRepositoryClient.detectLicense(repository, branch)
   return ok({
     branch,
     defaultBranch,

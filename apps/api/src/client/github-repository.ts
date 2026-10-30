@@ -24,10 +24,9 @@ export type GitHubRepository = {
 
 export interface IGitHubRepositoryClient {
   /**
-   * ref が null なら default branch のライセンスを見る。
    * ライセンスのファイルが無い・リポジトリやブランチが無い（非公開を含む）なら null。通信障害や rate limit は throw
    */
-  detectLicense(repository: string, ref: string | null): Promise<DetectedLicense | null>
+  detectLicense(repository: string, ref: string): Promise<DetectedLicense | null>
   /**
    * リポジトリが無い（非公開を含む）なら null。改名したリポジトリは GitHub の redirect を fetch がたどり、改名後の名前を返す。
    * 通信障害や rate limit は throw
@@ -73,9 +72,8 @@ export class GitHubRepositoryClient implements IGitHubRepositoryClient {
     this._token = token
   }
 
-  public async detectLicense(repository: string, ref: string | null): Promise<DetectedLicense | null> {
-    const query = ref === null ? "" : `?ref=${encodeURIComponent(ref)}`
-    const response = await this._request(`${buildRepositoryPath(repository)}/license${query}`)
+  public async detectLicense(repository: string, ref: string): Promise<DetectedLicense | null> {
+    const response = await this._request(`${buildRepositoryPath(repository)}/license?ref=${encodeURIComponent(ref)}`)
     if (response.status === 404) return null
     if (!response.ok) throw new Error(`GitHub license request failed: ${response.status}`)
 

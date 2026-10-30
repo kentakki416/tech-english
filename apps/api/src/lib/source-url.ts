@@ -61,7 +61,7 @@ export const parseSourceUrl = (url: string): SourceUrl | null => {
 /**
  * tree / blob より後ろのセグメントを、ブランチとパスに分ける。空ならブランチは default branch。
  * ブランチ名は / を含められるので URL だけでは区切りが決まらない。default branch で始まればそれを、そうでなければ最初のセグメントをブランチにする
- * （候補ごとに GitHub に問い合わせれば正確になるが、ドキュメントの URL はほとんど default branch で、外れても登録の画面で直せるため）
+ * （候補ごとに GitHub に問い合わせれば正確になるが、ドキュメントの URL はほとんど default branch で、外れたらライセンスを確認できず登録の画面で止まるため）
  */
 export const splitBranchAndPath = (refAndPath: string[], defaultBranch: string): { branch: string; path: string } => {
   if (refAndPath.length === 0) return { branch: defaultBranch, path: "" }

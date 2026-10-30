@@ -32,7 +32,7 @@ const convertPassageListItemToResponse = (item: PassageListItem): PassageListIte
 })
 
 /**
- * 問題一覧API（公開中の問題。種別・タグ・難易度・未挑戦の絞り込み、cursor ページング、自分の挑戦状況）
+ * 問題一覧API（公開中の問題。タグ・難易度・未挑戦の絞り込み、cursor ページング、自分の挑戦状況）
  */
 export class PassageListController {
   constructor(
