@@ -58,7 +58,7 @@ const URL_FIELD_TEXTS: Record<SourceFetchType, { hint: string, placeholder: stri
 const CHECKLISTS: Record<SourceFetchType, string[]> = {
   github_repository: [
     "自動で入ったライセンスが、ドキュメントの文章に掛かっている（コードだけのライセンスではない）",
-    "対象パスが、問題にしたいドキュメントのディレクトリになっている",
+    "対象パスが、公式ドキュメントのディレクトリになっている（違っていれば、ディレクトリの URL を入れて読み込み直す）",
   ],
   website: [
     "ローカルでだけ使う（自分で読むためのページ）",
@@ -281,7 +281,7 @@ export function SourceCreateForm({
                   <GitHubTargetFields
                     key={revision}
                     defaults={{
-                      excludeGlobs: [],
+                      excludeGlobs: suggestion.exclude_globs,
                       includeGlobs: suggestion.include_globs,
                     }}
                     getFieldError={getFieldError}
