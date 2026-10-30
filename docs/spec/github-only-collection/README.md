@@ -92,7 +92,7 @@
 
 ### URL から追加（ローカルだけ）
 
-- dev / min / prd では、admin のメニューに「URL から追加」を出さず、画面を開くと 404 になる。API も 404 を返す
+- dev / min / prd では、admin の問題の一覧に「URL から追加」のボタンを出さず、画面を開くと 404 になる。API も 404 を返す
 - ローカルでは今と同じ（受け付ける URL・確認と保存・生成の優先）
 - 「取り込んだページは収集でも取得済みとして扱う」はなくなる（サイトを収集しないため）
 
@@ -113,7 +113,7 @@
 - api の URL から追加：production では Controller を作らず、admin の router に渡さない。router は渡された Controller のルートだけを登録するので 404 になる（dev ログインと同じ形）
 - api のソースの登録・更新：サイトのソースを受け付けるかを Service に DI で渡し、production ではサイトのソースを 400 にする。env を Service で直接読まない（テストで切り替えるため）
 - サイトのソースは常に無効（`is_enabled = false`）にする。api はサイトの `is_enabled` を受け取らず、DB も CHECK 制約 `sources_website_disabled_check`（`fetch_type <> 'website' OR is_enabled = false`）で守る。制約を足す migration で、今有効のサイトのソースを先に無効にする
-- admin：`process.env.NODE_ENV` を `src/libs/environment.ts` の `isLocalEnvironment` で 1 か所にまとめ、サイドバーの項目・フォームの取得方法の選択肢・`/url-import` の `notFound()` で使う。Next.js は `process.env.NODE_ENV` を build のときに値に置き換えるので、client component からも読める（`server-only` の `env.ts` は client component から import できない）。admin の proxy・サインイン画面の dev ログインも `process.env.NODE_ENV` を直接見ている
+- admin：`process.env.NODE_ENV` を `src/libs/environment.ts` の `isLocalEnvironment` で 1 か所にまとめ、問題の一覧の「URL から追加」のボタン・フォームの取得方法の選択肢・`/passages/url-import` の `notFound()` で使う。Next.js は `process.env.NODE_ENV` を build のときに値に置き換えるので、client component からも読める（`server-only` の `env.ts` は client component から import できない）。admin の proxy・サインイン画面の dev ログインも `process.env.NODE_ENV` を直接見ている
 
 ### 収集（cron）
 
@@ -181,7 +181,7 @@
 | --- | --- | --- |
 | `/sources` | ソース一覧 | 「取得失敗」の列と「無効のサイトのソースがあります」の案内をなくす。サイトのソースの状態は「収集しない」 |
 | `/sources/new`・`/sources/[id]` | ソースの登録・編集 | 取得方法の「サイト」はローカルだけ。サイトのときは「ページの見つけ方」・収集のスイッチ・試し実行・取得に失敗しているページを出さず、ライセンスに「個人の学習用」を足す。GitHub のときは「ライセンスの記載がある URL」にリポジトリのファイルの URL を入れるよう案内し、検出で初期値を入れる |
-| `/url-import` | URL から追加 | ローカルだけ。production ではメニューに出さず、画面は 404 |
+| `/passages/url-import` | URL から追加 | ローカルだけ。production では問題の一覧のボタンを出さず、画面は 404 |
 
 - 具体的な UI は今の画面から項目を減らすだけなので、`design-mock` skill のモックは作らない。admin の `/mock/sources` のモックも実装に合わせて項目を減らす
 
