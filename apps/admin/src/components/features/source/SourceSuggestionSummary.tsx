@@ -40,7 +40,7 @@ export function SourceSuggestionSummary({ suggestion }: { suggestion: SuggestSou
               <span className="font-mono">{suggestion.repository}</span>（ブランチ <span className="font-mono">{suggestion.branch}</span>）
               {suggestion.branch !== suggestion.default_branch && (
                 <span className="mt-1 block text-theme-xs text-warning-600 dark:text-warning-500">
-                  default branch（<span className="font-mono">{suggestion.default_branch}</span>）ではありません。違っていれば詳細で直してください
+                  default branch（<span className="font-mono">{suggestion.default_branch}</span>）ではありません。違っていれば URL を直して読み込み直してください
                 </span>
               )}
             </>

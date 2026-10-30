@@ -71,17 +71,6 @@ export function Field({
 }
 
 /**
- * ブランチは登録でだけ決め、編集では変えられないので GitHubTargetFields と分ける
- */
-export function GitHubBranchField({ defaultBranch, error }: { defaultBranch: string, error?: string }) {
-  return (
-    <Field error={error} hint="既定はリポジトリの default branch。" htmlFor="branch" label="ブランチ">
-      <input className={`${inputClass} font-mono sm:w-60`} defaultValue={defaultBranch} id="branch" name="branch" />
-    </Field>
-  )
-}
-
-/**
  * GitHub の取得元の欄（対象パス・除外パス）
  */
 export function GitHubTargetFields({
@@ -146,7 +135,7 @@ export function WebsiteTargetFields({
 /**
  * サイトのソースのライセンスとライセンスの記載がある URL。値は呼び出し側の state（読み込みで値を入れるため）
  */
-export function LicenseFields({
+export function WebsiteLicenseFields({
   getFieldError,
   licenseOptions,
   licenseSpdx,

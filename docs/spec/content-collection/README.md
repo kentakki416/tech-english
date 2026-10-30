@@ -125,15 +125,14 @@
 
 登録例（実際に登録するかは、管理者が各ソースのライセンスと利用規約を確認して決める）：
 
-| 表示名 | 種別 | 取得方法 | 取得元 | 対象パスの例 | ライセンス |
-| --- | --- | --- | --- | --- | --- |
-| React 公式ドキュメント | docs | github_repository | `reactjs/react.dev` | `src/content/learn/**/*.md` | CC-BY-4.0 |
-| Kubernetes ドキュメント | docs | github_repository | `kubernetes/website` | `content/en/docs/concepts/**/*.md` | CC-BY-4.0 |
-| The Rust Programming Language | docs | github_repository | `rust-lang/book` | `src/**/*.md` | MIT / Apache-2.0 |
-| Rust RFCs | github | github_repository | `rust-lang/rfcs` | `text/**/*.md` | MIT / Apache-2.0 |
-| Go 公式ドキュメント | docs | website | `https://go.dev` | `/doc/**` | CC-BY-4.0 |
-| Python ドキュメント | docs | website | `https://docs.python.org` | `/3/tutorial/**`, `/3/howto/**` | PSF-2.0 |
-| Google Cloud ドキュメント | docs | website | `https://cloud.google.com` | `/run/docs/**` | CC-BY-4.0 |
+| 表示名 | 取得方法 | 取得元 | 対象パスの例 | ライセンス |
+| --- | --- | --- | --- | --- |
+| React 公式ドキュメント | github_repository | `reactjs/react.dev` | `src/content/learn/**/*.md` | CC-BY-4.0 |
+| Kubernetes ドキュメント | github_repository | `kubernetes/website` | `content/en/docs/concepts/**/*.md` | CC-BY-4.0 |
+| Rust RFCs | github_repository | `rust-lang/rfcs` | `text/**/*.md` | MIT / Apache-2.0 |
+| Go 公式ドキュメント | website | `https://go.dev` | `/doc/**` | CC-BY-4.0 |
+| Python ドキュメント | website | `https://docs.python.org` | `/3/tutorial/**`, `/3/howto/**` | PSF-2.0 |
+| Google Cloud ドキュメント | website | `https://cloud.google.com` | `/run/docs/**` | CC-BY-4.0 |
 
 ### 本文候補の条件
 
@@ -373,7 +372,7 @@ api は次の登録・更新を 400 で拒否する（GitHub のライセンス�
 | 画面 | 概要 |
 | --- | --- |
 | ソース一覧 | 登録済みソースの一覧。上の [GitHub] [サイト] で取得方法ごとに分ける（[source-registration-by-url](../source-registration-by-url/README.md)）。表示名・取得元・ライセンス・有効/無効・最終収集日時・本文候補の件数（状態別。サイトは状態と最終収集を出さない） |
-| ソースの登録・編集 | 登録は [GitHub] [サイト]（サイトはローカルだけ）で画面を分け、表示名と URL を読み込んで登録する（[source-registration-by-url](../source-registration-by-url/README.md)）。編集は [ソースの登録](#ソースの登録) の項目のうち、登録で決まる値（取得方法・取得元・種別・GitHub のライセンス）を除いたものを直す。登録で決まる値は「収集の状況」に読み取り専用で出す（[source-registration-by-url の「編集の画面」](../source-registration-by-url/README.md#編集の画面)） |
+| ソースの登録・編集 | 登録は [GitHub] [サイト]（サイトはローカルだけ）で画面を分け、表示名と URL を読み込んで登録する（[source-registration-by-url](../source-registration-by-url/README.md)）。編集は [ソースの登録](#ソースの登録) の項目のうち、登録で決まる値（取得方法・取得元・GitHub のライセンス）を除いたものを直す。登録で決まる値は「収集の状況」に読み取り専用で出す（[source-registration-by-url の「編集の画面」](../source-registration-by-url/README.md#編集の画面)） |
 
 具体的な UI は [UI 設計](#ui-設計) を参照。
 
@@ -425,7 +424,7 @@ api は次の登録・更新を 400 で拒否する（GitHub のライセンス�
 
 左にフォームのカード、右に補助のカードを置く 2 カラム（1280px 未満は縦に並べる）。
 
-登録の画面は [source-registration-by-url](../source-registration-by-url/README.md) で、上の [GitHub] [サイト] で画面を分け、表示名と URL を読み込んで自動で決めた内容を見て登録する形（直すときだけ「詳細」を開く）に変えた。編集の画面も、登録で決まる値（取得方法・取得元・種別・GitHub のライセンス）を欄にせず「収集の状況」に出す形に変えた（[source-registration-by-url の「編集の画面」](../source-registration-by-url/README.md#編集の画面)）。下の図は最初の登録・編集の画面の記録として残し、今の編集の画面の欄は「フォーム（左）」の表に書く。
+登録の画面は [source-registration-by-url](../source-registration-by-url/README.md) で、上の [GitHub] [サイト] で画面を分け、表示名と URL を読み込んで自動で決めた内容を見て登録する形（直すときだけ「詳細」を開く）に変えた。編集の画面も、登録で決まる値（取得方法・取得元・GitHub のライセンス）を欄にせず「収集の状況」に出す形に変えた（[source-registration-by-url の「編集の画面」](../source-registration-by-url/README.md#編集の画面)）。下の図は最初の登録・編集の画面の記録として残し、今の編集の画面の欄は「フォーム（左）」の表に書く。
 
 ```
 ┌──────────────────────────────────────────────────┬─────────────────────────┐
@@ -469,7 +468,7 @@ api は次の登録・更新を 400 で拒否する（GitHub のライセンス�
 
 | 場面 | カード |
 | --- | --- |
-| 新規 | 「登録の前に確認すること」：GitHub では自動で入ったライセンスが文章に掛かっている（コードだけのライセンスではない）・ライセンスが許可リストにある・対象パスが問題にしたいドキュメントのディレクトリになっている。サイトではローカルでだけ使う・robots.txt・JavaScript で描画していないこと |
+| 新規 | 「登録の前に確認すること」：GitHub では自動で入ったライセンスが文章に掛かっている（コードだけのライセンスではない）・対象パスが問題にしたいドキュメントのディレクトリになっている。サイトではローカルでだけ使う・robots.txt・JavaScript で描画していないこと |
 | 編集 | 「収集の状況」：取得方法、リポジトリ（GitHub へのリンク）とブランチ（サイトはサイトの URL）、ライセンス（GitHub だけ。ライセンスのファイルへのリンク）、最終収集（GitHub だけ）、取り込んだコミット（GitHub）、本文候補の件数のバッジ（収集済み `light`・下書き `primary`・公開 `success`・却下 `error`） |
 | 編集 | 「今すぐ収集」（GitHub だけ）：ボタンと、最後の収集の状態・結果（[manual-collection](../manual-collection/README.md#収集の状態)） |
 

@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { type FormEvent, Fragment, type KeyboardEvent, startTransition, useActionState, useState } from "react"
+import { type FormEvent, type KeyboardEvent, startTransition, useActionState, useState } from "react"
 
 import type { GetSourceResponse, GetTagListResponse, SuggestSourceResponse } from "@repo/api-schema"
 
@@ -9,11 +9,10 @@ import { createSourceAction, type SourceFormState } from "@/app/(dashboard)/sour
 import {
   CollectionToggle,
   Field,
-  GitHubBranchField,
   GitHubTargetFields,
-  LicenseFields,
   errorHintClass,
   Section,
+  WebsiteLicenseFields,
   WebsiteTargetFields,
 } from "@/components/features/source/SourceFormParts"
 import { SourceSuggestionSummary } from "@/components/features/source/SourceSuggestionSummary"
@@ -69,7 +68,7 @@ const CHECKLISTS: Record<SourceFetchType, string[]> = {
 }
 
 /**
- * 「詳細」の外の欄は表示名だけなので、表示名以外の欄の入力エラーは「詳細」の中にある
+ * 「詳細」の外の欄は表示名だけなので、表示名以外の欄の入力エラーは「詳細」の中にある（読み込んだ値のエラーは欄が無いので読み込んだ内容の下に出す）
  */
 const hasDetailFieldErrors = (state: SourceFormState): boolean =>
   Object.entries(state.errors ?? {}).some(([key, messages]) => key !== "name" && (messages?.length ?? 0) > 0)
@@ -100,12 +99,14 @@ const fetchSourceSuggestion = async (fetchType: SourceFetchType, url: string): P
 }
 
 /**
- * リポジトリ・サイトの URL と GitHub のライセンスは読み込んだ値を送る（「詳細」でも直せない。変えるときは URL を読み込み直す）
+ * リポジトリ・サイトの URL と GitHub のブランチ・ライセンスは読み込んだ値を送る（「詳細」でも直せない。変えるときは URL を読み込み直す）。
+ * ライセンスは読み込んだブランチで検出するので、ブランチだけを直せると確かめていないライセンスで登録できてしまう
  */
-function SuggestionHiddenField({ suggestion }: { suggestion: SuggestSourceResponse }) {
+function SuggestionHiddenFields({ suggestion }: { suggestion: SuggestSourceResponse }) {
   if (suggestion.fetch_type === "website") return <input name="site_url" type="hidden" value={suggestion.site_url} />
   return (
     <>
+      <input name="branch" type="hidden" value={suggestion.branch} />
       <input name="license_spdx" type="hidden" value={suggestion.detected_license.license_spdx ?? ""} />
       <input name="license_url" type="hidden" value={suggestion.detected_license.license_url ?? ""} />
       <input name="repository" type="hidden" value={suggestion.repository} />
@@ -162,8 +163,8 @@ export function SourceCreateForm({
   const formState: SourceFormState = submission?.revision === revision && state !== submission.stateAtSubmit ? state : {}
   const getFieldError = (key: string): string | undefined => formState.errors?.[key]?.[0]
   const hasFieldErrors = Object.values(formState.errors ?? {}).some((messages) => (messages?.length ?? 0) > 0)
-  const gitHubLicenseError = suggestion?.fetch_type === "github_repository"
-    ? getFieldError("license_spdx") ?? getFieldError("license_url")
+  const loadedValueError = suggestion?.fetch_type === "github_repository"
+    ? getFieldError("branch") ?? getFieldError("license_spdx") ?? getFieldError("license_url")
     : undefined
 
   /**
@@ -220,7 +221,7 @@ export function SourceCreateForm({
     <div className="grid gap-6 xl:grid-cols-3">
       <form className="space-y-6 xl:col-span-2" noValidate onSubmit={handleSubmit}>
         <input name="fetch_type" type="hidden" value={fetchType} />
-        {suggestion && <SuggestionHiddenField suggestion={suggestion} />}
+        {suggestion && <SuggestionHiddenFields suggestion={suggestion} />}
         {fetchType === "github_repository" && <input name="is_enabled" type="hidden" value={String(isEnabled)} />}
 
         {formState.message && (
@@ -259,11 +260,14 @@ export function SourceCreateForm({
             </div>
           </Field>
           {suggestion && <SourceSuggestionSummary suggestion={suggestion} />}
-          {gitHubLicenseError && <p className={errorHintClass}>{gitHubLicenseError}</p>}
+          {loadedValueError && <p className={errorHintClass}>{loadedValueError}</p>}
         </Section>
 
-        {suggestion && isLicenseResolved(suggestion) && (
-          <details className={cardClass} open={isDetailsOpen} onToggle={(event) => setIsDetailsOpen(event.currentTarget.open)}>
+        {/**
+          * 登録できないリポジトリでも unmount しない。読み込み直しても、選んだ技術タグを残すため
+          */}
+        {suggestion && (
+          <details className={cardClass} hidden={!isLicenseResolved(suggestion)} open={isDetailsOpen} onToggle={(event) => setIsDetailsOpen(event.currentTarget.open)}>
             <summary className={`cursor-pointer px-6 py-5 ${titleClass}`}>詳細</summary>
             <div className={`${cardBodyClass} space-y-8`}>
               <div className="space-y-5">
@@ -274,16 +278,14 @@ export function SourceCreateForm({
               <div className="space-y-5">
                 <h4 className={detailGroupTitleClass}>取得元</h4>
                 {suggestion.fetch_type === "github_repository" ? (
-                  <Fragment key={revision}>
-                    <GitHubBranchField defaultBranch={suggestion.branch} error={getFieldError("branch")} />
-                    <GitHubTargetFields
-                      defaults={{
-                        excludeGlobs: [],
-                        includeGlobs: suggestion.include_globs,
-                      }}
-                      getFieldError={getFieldError}
-                    />
-                  </Fragment>
+                  <GitHubTargetFields
+                    key={revision}
+                    defaults={{
+                      excludeGlobs: [],
+                      includeGlobs: suggestion.include_globs,
+                    }}
+                    getFieldError={getFieldError}
+                  />
                 ) : (
                   <WebsiteTargetFields
                     key={revision}
@@ -295,7 +297,7 @@ export function SourceCreateForm({
               {suggestion.fetch_type === "website" && (
                 <div className="space-y-5">
                   <h4 className={detailGroupTitleClass}>ライセンス</h4>
-                  <LicenseFields
+                  <WebsiteLicenseFields
                     getFieldError={getFieldError}
                     licenseOptions={[...allowedLicenses, personalUseLicense]}
                     licenseSpdx={licenseSpdx}

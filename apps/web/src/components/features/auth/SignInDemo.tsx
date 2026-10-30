@@ -30,7 +30,6 @@ export function SignInDemo() {
     <div className="group/tilt" ref={tiltRef}>
       <div className={`relative overflow-hidden rounded-xl border border-line bg-surface shadow-[0_30px_80px_rgb(0_0_0/0.35)] ${TILT_CARD_CLASS}`}>
         <div className="flex items-center gap-2 border-b border-line px-4 py-2.5 text-xs text-fg-muted">
-          <span className="rounded border border-amber/40 px-1.5 py-px text-[11px] text-amber">Docs</span>
           React 公式ドキュメント
           <span className="ml-auto tabular-nums text-fg">残り 4:12</span>
         </div>

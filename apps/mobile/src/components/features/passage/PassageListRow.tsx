@@ -27,7 +27,7 @@ function MyStatus({ passage }: { passage: PassageListItemResponse }) {
 }
 
 /**
- * 問題一覧の 1 行。タイトル（2 行まで）→ 種別とソース → 難易度・英単語数・制限時間・挑戦状況
+ * 問題一覧の 1 行。タイトル（2 行まで）→ ソース → 難易度・英単語数・制限時間・挑戦状況
  */
 export function PassageListRow({ passage, onPress }: { passage: PassageListItemResponse, onPress: (id: number) => void }) {
   return (

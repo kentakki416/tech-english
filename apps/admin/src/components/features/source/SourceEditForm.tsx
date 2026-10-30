@@ -11,8 +11,8 @@ import {
   CollectionToggle,
   Field,
   GitHubTargetFields,
-  LicenseFields,
   Section,
+  WebsiteLicenseFields,
   WebsiteTargetFields,
 } from "@/components/features/source/SourceFormParts"
 import { TagPicker } from "@/components/features/source/TagPicker"
@@ -123,7 +123,7 @@ export function SourceEditForm({
               />
             </Section>
             <Section desc="ライセンスの記載が無いサイトは「個人の学習用」を選びます（ローカルでだけ使えます）。" title="ライセンス">
-              <LicenseFields
+              <WebsiteLicenseFields
                 getFieldError={getFieldError}
                 licenseOptions={[...allowedLicenses, personalUseLicense]}
                 licenseSpdx={licenseSpdx}
