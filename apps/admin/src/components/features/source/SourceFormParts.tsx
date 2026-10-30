@@ -1,3 +1,5 @@
+"use client"
+
 import Tooltip from "@/components/ui/tooltip/Tooltip"
 import { formatLicenseLabel } from "@/features/source/source.labels"
 import { InfoIcon } from "@/icons"

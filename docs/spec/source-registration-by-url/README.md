@@ -189,7 +189,7 @@ URL の解釈は api の `lib/source-url.ts` の純粋関数にする（api し�
 - `github.com`（と `www.github.com`）なら GitHub、それ以外はサイト。`http:` は `https:` として扱う
 - GitHub はパスを `/{owner}/{repo}/{tree|blob}/{ブランチとパス}` に分ける。owner / repo がリポジトリ名の形（`@repo/domain` の `GITHUB_REPOSITORY_PATTERN`）に合わなければ `not_repository_url`
 - **リポジトリ名の形は `@repo/domain` に置く**：登録の検証（api-schema の `githubRepositorySchema`）と URL の解釈で同じ形を使う。api-schema のスキーマを api の lib・service から使うと、service がリクエストのスキーマに依存する（今の service は api-schema を import していない）ため、規則の正本の `@repo/domain` に置いて両方から使う
-- **ブランチとパスの区切り**：ブランチ名は `/` を含められる（`release/v2`）ので、URL だけでは `tree/release/v2/docs` のブランチが `release` か `release/v2` か決まらない。default branch で始まればそれをブランチにし、そうでなければ最初の区切り（`release`）までをブランチにする。ブランチの候補ごとに GitHub に問い合わせれば正確に決まるが、ドキュメントの URL のほとんどは default branch（`main` / `master`）で、`/` を含むブランチを取り違えると、無いブランチになってライセンスを確認できず、登録の画面で止まるため、呼び出しを増やさない。取り違えたときに困るのは、ブランチ・対象パスが違うことと、無いブランチのライセンスが見つからないこと。前者は default branch でないことを画面に出して気付けるようにし、後者は default branch のライセンスを見直して自動で入れる（下の「GitHub の呼び出し」）
+- **ブランチとパスの区切り**：ブランチ名は `/` を含められる（`release/v2`）ので、URL だけでは `tree/release/v2/docs` のブランチが `release` か `release/v2` か決まらない。default branch で始まればそれをブランチにし、そうでなければ最初の区切り（`release`）までをブランチにする。ブランチの候補ごとに GitHub に問い合わせれば正確に決まるが、ドキュメントの URL のほとんどは default branch（`main` / `master`）で、`/` を含むブランチを取り違えると、無いブランチになってライセンスを確認できず、登録の画面で止まるため、呼び出しを増やさない。取り違えたときに困るのは、ブランチ・対象パスが違うことで、default branch でないことを画面に出して気付けるようにする
 - 対象パスは、ディレクトリなら `{パス}/**`、ファイルならそのパス、トップなら `**`。`{パス}/**` は picomatch でディレクトリ自身にも一致する。拡張子は収集（worker の `listGitHubTargetFiles`）が `.md` / `.mdx` に絞るので付けない
 - `**`（リポジトリ全体）は glob の固定部分が無いので、trees API が切り詰められる巨大なリポジトリでは収集が `isComplete: false` になる（[manual-collection](../manual-collection/README.md)・worker の `listGitHubTargetFiles`）。そうしたリポジトリはディレクトリの URL で登録する。登録の画面では止めない
 
@@ -223,9 +223,9 @@ GitHub の画面の 1 回の読み込みで GitHub の API を 2 回呼ぶ。サ
 
 - 登録用のフォーム（`SourceCreateForm`）を、取得方法を受け取る 1 つの部品にし、2 つの画面から使う。編集とは別にするのは、編集は登録で決まる値を変えられず、URL の読み込みが要らないため。「詳細」の中の欄（GitHub の取得元・サイトの取得元・サイトのライセンス）は部品に切り出して登録と編集で共有する
 - 「詳細」は `<details>` にする。閉じていても中の欄はフォームの一部で、「登録する」で送られる
-- 取得方法は画面のもの、リポジトリ・サイトの URL は読み込みの結果を、hidden の欄で送る（「詳細」でも直せない）
+- 取得方法は画面のもの、リポジトリ・サイトの URL と GitHub のブランチ・ライセンスは読み込みの結果を、hidden の欄で送る（「詳細」でも直せない）
 - 読み込み直したら、取得元の欄は `key` を読み込みのたびに変えて作り直し、サイトのライセンスの欄は state を置き換える。除外パスも作り直すのは、別の取得元を読み込んだのなら前の値は合わないため。表示名・技術タグは作り直す欄の外に置いて残す。「詳細」はライセンスを確認できないリポジトリでも unmount せずに隠す（選んだ技術タグを消さない）
-- 「登録する」は、読み込んだ URL と今の URL の欄が同じときだけ押せる
+- 「登録する」は、読み込んだ URL と今の URL の欄が同じで、ライセンスを確認できたときだけ押せる
 - 送信は今と同じく `onSubmit` から `startTransition(() => formAction(formData))`（入力エラーのときに値を消さないため。[admin の CLAUDE.md](../../../apps/admin/CLAUDE.md#api-接続の下地)）。入力エラーが「詳細」の欄にあるときは「詳細」を開く
 
 ### 編集は変えられる項目だけを受ける

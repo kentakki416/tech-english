@@ -116,7 +116,7 @@ function SuggestionHiddenFields({ suggestion }: { suggestion: SuggestSourceRespo
 
 /**
  * ソースの登録フォーム。表示名と URL を読み込み、自動で決めた値を見て登録する。直すときは「詳細」を開く。
- * 取得方法（fetchType）は登録の画面（GitHub / サイト）で決まる。読み込んだ値は初期値で、登録の検証は Server Action と api が行う。
+ * 取得方法（fetchType）は登録の画面（GitHub / サイト）で決まる。登録の検証は Server Action と api が行う。
  *
  * allowedLicenses はライセンス欄の選択肢（@repo/api-schema の許可リスト）、personalUseLicense はサイトのソースだけが選べる個人の学習用の値。
  * Client Component で Zod のスキーマを import すると bundle に入るため、Server Component から渡す

@@ -160,7 +160,7 @@
 
 - admin のトップ（`/`）をダッシュボードにする。今の TailAdmin の EC のダッシュボード（`app/(dashboard)/page.tsx`）を置き換える。テンプレートの部品（`components/features/ecommerce/`）は消さない（design-mock で参考に読む）
 - 問題の分析は `/analytics/passages/[id]`
-- サイドバーは「ダッシュボード」「問題」「ソース」「ユーザー」の順。左上のロゴのリンク先は `/`（ダッシュボード）
+- サイドバーは「ダッシュボード」「ソース」「問題」「ユーザー」の順。左上のロゴのリンク先は `/`（ダッシュボード）
 - グラフは admin に入っている ApexCharts（`react-apexcharts`）を使う。Server Component でデータを取り、グラフだけを Client Component にする（ApexCharts はブラウザでしか動かないので `next/dynamic` の `ssr: false` で読む。テンプレートの `MonthlySalesChart` と同じ）
 
 ### MVP 対象外（将来検討）
