@@ -4,22 +4,14 @@ import { useCallback, useRef, useState } from "react"
 import { ActivityIndicator, Alert, FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, Switch, Text, View } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 
-import { DIFFICULTY_LABELS, DIFFICULTY_ORDER, type PassageSourceKind, SOURCE_KIND_LABELS, SOURCE_KIND_ORDER } from "@/components/features/passage/labels"
+import { DIFFICULTY_LABELS, DIFFICULTY_ORDER } from "@/components/features/passage/labels"
 import { PassageListRow } from "@/components/features/passage/PassageListRow"
 import { appStyles } from "@/components/ui/app-styles"
 import { Chip } from "@/components/ui/Chip"
-import { Segment } from "@/components/ui/Segment"
 import { THEME_COLORS } from "@/const/design-theme"
 import { EMPTY_PASSAGE_FILTER, isPassageFilterActive, type PassageFilterQuery } from "@/features/passage/passage-query"
 import { passageApi } from "@/features/passage/passage.api"
 import { usePassageList } from "@/features/passage/use-passage-list"
-
-type KindOption = "all" | PassageSourceKind
-
-const KIND_OPTIONS: { key: KindOption, label: string }[] = [
-  { key: "all", label: "すべて" },
-  ...SOURCE_KIND_ORDER.map(kind => ({ key: kind, label: SOURCE_KIND_LABELS[kind] })),
-]
 
 /**
  * 選んでいれば外し、選んでいなければ足す
@@ -109,11 +101,6 @@ export default function PassagesScreen() {
 
       <View style={styles.filters}>
         <View style={styles.filterRow}>
-          <Segment
-            options={KIND_OPTIONS}
-            value={filter.kind ?? "all"}
-            onChange={kind => updateFilter({ kind: kind === "all" ? null : kind })}
-          />
           <View style={styles.switchRow}>
             <Text style={appStyles.caption}>未挑戦のみ</Text>
             <Switch
@@ -252,7 +239,7 @@ const styles = StyleSheet.create({
   filterRow: {
     alignItems: "center",
     flexDirection: "row",
-    justifyContent: "space-between",
+    justifyContent: "flex-end",
     paddingHorizontal: 16,
   },
   filters: {

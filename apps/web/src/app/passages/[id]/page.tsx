@@ -59,7 +59,7 @@ export default async function PassageStartPage({ params }: Props) {
 
         <div className="mt-6 rounded-xl border border-line bg-surface">
           <div className="px-6 pt-6 pb-5 sm:px-8 sm:pt-8">
-            <SourceMeta kind={attribution.source_kind} name={attribution.source_name} />
+            <SourceMeta name={attribution.source_name} />
             <h1 className="mt-3 font-reading text-[28px] leading-tight font-semibold text-fg">{passage.title}</h1>
           </div>
 

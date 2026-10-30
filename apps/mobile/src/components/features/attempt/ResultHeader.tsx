@@ -124,7 +124,7 @@ function AttributionSection({ attribution }: { attribution: PassageAttributionRe
     <View style={styles.section}>
       <Text style={appStyles.sectionTitle}>出典</Text>
       <View style={styles.sourceMeta}>
-        <SourceMeta kind={attribution.source_kind} name={attribution.source_name} />
+        <SourceMeta name={attribution.source_name} />
       </View>
       <Text numberOfLines={1} style={styles.attribution}>
         <ExternalLinkText style={styles.link} url={attribution.page_url}>{attribution.page_url.replace(/^https?:\/\//, "")}</ExternalLinkText>

@@ -161,7 +161,7 @@ export default function PassageStartScreen() {
       {state.kind === "ready" && (
         <>
           <ScrollView contentContainerStyle={styles.content}>
-            <SourceMeta kind={state.passage.attribution.source_kind} name={state.passage.attribution.source_name} />
+            <SourceMeta name={state.passage.attribution.source_name} />
             <Text accessibilityRole="header" style={styles.title}>{state.passage.title}</Text>
 
             <View style={styles.facts}>

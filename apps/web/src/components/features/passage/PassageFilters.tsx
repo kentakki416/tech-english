@@ -5,12 +5,7 @@ import { useOptimistic, useTransition } from "react"
 
 import { buildPassageListPath, type PassageFilterQuery } from "@/features/passage/passage-query"
 
-import { DIFFICULTY_LABELS, DIFFICULTY_ORDER, type PassageDifficulty, SOURCE_KIND_LABELS, SOURCE_KIND_ORDER } from "./labels"
-
-const KIND_OPTIONS: { key: PassageFilterQuery["kind"], label: string }[] = [
-  { key: null, label: "すべて" },
-  ...SOURCE_KIND_ORDER.map(kind => ({ key: kind, label: SOURCE_KIND_LABELS[kind] })),
-]
+import { DIFFICULTY_LABELS, DIFFICULTY_ORDER, type PassageDifficulty } from "./labels"
 
 /**
  * 配列に値があれば除き、無ければ足す
@@ -34,7 +29,7 @@ function FilterChip({ children, isActive, onClick }: { children: React.ReactNode
 }
 
 /**
- * 問題一覧の絞り込み（種別・難易度・技術タグ・未挑戦のみ）。
+ * 問題一覧の絞り込み（難易度・技術タグ・未挑戦のみ）。
  * 押したらすぐ URL のクエリを書き換え、Server Component が一覧を取り直す（適用ボタンは無い）。
  * 取り直している間は children（件数と一覧）を薄くする
  */
@@ -75,21 +70,6 @@ export function PassageFilters({
     <>
       <div className="mt-6 space-y-3 border-b border-line pb-5">
         <div className="flex flex-wrap items-center gap-3">
-          <div aria-label="種別" className="flex rounded-md border border-line p-0.5 text-sm" role="group">
-            {KIND_OPTIONS.map(option => (
-              <button
-                key={option.label}
-                aria-pressed={optimisticFilter.kind === option.key}
-                className={`rounded px-3 py-1 outline-none focus-visible:ring-2 focus-visible:ring-amber/60 ${
-                  optimisticFilter.kind === option.key ? "bg-raised text-fg" : "text-fg-muted hover:text-fg"
-                }`}
-                onClick={() => applyFilter({ ...optimisticFilter, kind: option.key })}
-                type="button"
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
           <div aria-label="難易度" className="flex gap-1.5" role="group">
             {DIFFICULTY_ORDER.map(level => (
               <FilterChip

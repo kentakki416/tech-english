@@ -1,19 +1,14 @@
 import type { SuggestSourceResponse } from "@repo/api-schema"
 
 import { LICENSE_NOTE } from "@/components/features/source/SourceFormParts"
+import { isLicenseResolved } from "@/features/source/source.form"
 import { formatLicenseLabel } from "@/features/source/source.labels"
 
 type DetectedLicense = Extract<SuggestSourceResponse, { fetch_type: "github_repository" }>["detected_license"]
 
 const describeDetectedLicense = ({ is_allowed: isAllowed, license_spdx: licenseSpdx, license_url: licenseUrl }: DetectedLicense): string => {
-  if (licenseSpdx !== null) {
-    return isAllowed
-      ? `${licenseSpdx}（GitHub が検出したライセンス）`
-      : `${licenseSpdx}：許可リストに無いライセンスです。ドキュメントのライセンスが別にあれば、詳細で選んでください`
-  }
-  return licenseUrl === null
-    ? "ライセンスのファイルが見つかりませんでした。詳細でライセンスと、その記載がある URL を入れてください"
-    : "ライセンスの種類を判定できませんでした。詳細で選んでください"
+  if (licenseSpdx === null || licenseUrl === null) return "ライセンスを確認できませんでした"
+  return isAllowed ? `${licenseSpdx}（GitHub が検出したライセンス）` : `${licenseSpdx}：許可リストに無いライセンスです`
 }
 
 function SummaryRow({ children, label }: { children: React.ReactNode, label: string }) {
@@ -35,6 +30,7 @@ function LicenseUrlLink({ url }: { url: string | null }) {
  */
 export function SourceSuggestionSummary({ suggestion }: { suggestion: SuggestSourceResponse }) {
   const isGitHub = suggestion.fetch_type === "github_repository"
+  const isResolved = isLicenseResolved(suggestion)
   return (
     <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm dark:border-gray-800 dark:bg-white/3">
       <dl className="space-y-3">
@@ -54,13 +50,15 @@ export function SourceSuggestionSummary({ suggestion }: { suggestion: SuggestSou
         </SummaryRow>
         <SummaryRow label="対象パス"><span className="font-mono">{suggestion.include_globs.join(", ")}</span></SummaryRow>
         <SummaryRow label="ライセンス">
-          {isGitHub ? describeDetectedLicense(suggestion.detected_license) : formatLicenseLabel(suggestion.license_spdx)}
+          <span className={isResolved ? undefined : "text-error-500"}>
+            {isGitHub ? describeDetectedLicense(suggestion.detected_license) : formatLicenseLabel(suggestion.license_spdx)}
+          </span>
         </SummaryRow>
         <SummaryRow label="ライセンスの記載がある URL">
           <LicenseUrlLink url={isGitHub ? suggestion.detected_license.license_url : suggestion.license_url} />
         </SummaryRow>
       </dl>
-      {isGitHub && <p className="mt-3 text-theme-xs text-gray-500 dark:text-gray-400">{LICENSE_NOTE}</p>}
+      {isGitHub && isResolved && <p className="mt-3 text-theme-xs text-gray-500 dark:text-gray-400">{LICENSE_NOTE}</p>}
     </div>
   )
 }

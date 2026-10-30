@@ -9,7 +9,6 @@ import { type GetPassageListQueryString, getPassageListQueryStringSchema } from 
  */
 export type PassageFilterQuery = {
   difficulty: GetPassageListQueryString["difficulty"]
-  kind: NonNullable<GetPassageListQueryString["kind"]> | null
   tag: GetPassageListQueryString["tag"]
   unattemptedOnly: GetPassageListQueryString["unattempted_only"]
 }
@@ -21,7 +20,6 @@ export type PassageListQuery = PassageFilterQuery & { cursor?: string }
  */
 export const EMPTY_PASSAGE_FILTER: PassageFilterQuery = {
   difficulty: [],
-  kind: null,
   tag: [],
   unattemptedOnly: false,
 }
@@ -30,7 +28,7 @@ export const EMPTY_PASSAGE_FILTER: PassageFilterQuery = {
  * 絞り込みの条件が 1 つでも付いているか（一覧が空のときに「絞り込みを解除する」を出すかの判定）
  */
 export const isPassageFilterActive = (filter: PassageFilterQuery): boolean =>
-  filter.kind !== null || filter.unattemptedOnly || filter.difficulty.length > 0 || filter.tag.length > 0
+  filter.unattemptedOnly || filter.difficulty.length > 0 || filter.tag.length > 0
 
 /**
  * 画面の URL のクエリを絞り込みの条件にする。
@@ -48,19 +46,17 @@ export const parsePassageSearchParams = (
   if (!parsed.success) return EMPTY_PASSAGE_FILTER
   return {
     difficulty: parsed.data.difficulty,
-    kind: parsed.data.kind ?? null,
     tag: parsed.data.tag,
     unattemptedOnly: parsed.data.unattempted_only,
   }
 }
 
 /**
- * 絞り込みの条件を API と同じ名前のクエリ（kind / tag / difficulty / unattempted_only / cursor）にする。
+ * 絞り込みの条件を API と同じ名前のクエリ（tag / difficulty / unattempted_only / cursor）にする。
  * 空の条件は付けない。複数選択は並べ替えて、同じ条件が同じ文字列になるようにする
  */
 export const buildPassageSearchParams = (query: PassageListQuery): URLSearchParams => {
   const params = new URLSearchParams()
-  if (query.kind) params.set("kind", query.kind)
   if (query.tag.length > 0) params.set("tag", [...query.tag].sort().join(","))
   if (query.difficulty.length > 0) params.set("difficulty", [...query.difficulty].sort().join(","))
   if (query.unattemptedOnly) params.set("unattempted_only", "true")

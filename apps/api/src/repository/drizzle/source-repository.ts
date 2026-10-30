@@ -52,8 +52,6 @@ const buildCreateColumnValues = (input: SourceCreateInput) => {
     return {
       ...common,
       branch: input.branch,
-      publicUrlStripPrefix: input.publicUrlStripPrefix,
-      publicUrlTemplate: input.publicUrlTemplate,
       repository: input.repository,
     }
   }
@@ -78,8 +76,6 @@ const buildUpdateColumnValues = (input: SourceUpdateInput) => {
     return {
       ...common,
       isEnabled: input.isEnabled,
-      publicUrlStripPrefix: input.publicUrlStripPrefix,
-      publicUrlTemplate: input.publicUrlTemplate,
     }
   }
   return {

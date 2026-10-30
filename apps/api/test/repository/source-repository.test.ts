@@ -28,8 +28,6 @@ const GITHUB_INPUT: GitHubRepositoryInput = {
   licenseSpdx: "CC-BY-4.0",
   licenseUrl: "https://github.com/reactjs/react.dev/blob/main/LICENSE-DOCS.md",
   name: "React 公式ドキュメント",
-  publicUrlStripPrefix: "src/content/",
-  publicUrlTemplate: "https://react.dev/{path}",
   repository: "reactjs/react.dev",
   tagIds: [],
 }
@@ -58,8 +56,6 @@ const GITHUB_UPDATE_INPUT: GitHubRepositoryUpdateInput = {
   includeGlobs: GITHUB_INPUT.includeGlobs,
   isEnabled: GITHUB_INPUT.isEnabled,
   name: GITHUB_INPUT.name,
-  publicUrlStripPrefix: GITHUB_INPUT.publicUrlStripPrefix,
-  publicUrlTemplate: GITHUB_INPUT.publicUrlTemplate,
   tagIds: [],
 }
 
@@ -184,6 +180,8 @@ describe("SourceRepository", () => {
         lastCollectedAt: null,
         lastCollectedCommitSha: null,
         lastCollectedExtractionVersion: null,
+        publicUrlStripPrefix: null,
+        publicUrlTemplate: null,
         tags: [],
         createdAt: expect.any(Date),
         updatedAt: expect.any(Date),
@@ -229,8 +227,6 @@ describe("SourceRepository", () => {
         excludeGlobs: [],
         isEnabled: false,
         name: "React Docs",
-        publicUrlStripPrefix: null,
-        publicUrlTemplate: null,
       }
 
       const updated = await updateSource(sourceRepository, created.id, input, NO_RESET)

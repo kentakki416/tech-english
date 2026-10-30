@@ -38,7 +38,7 @@ export function PassageListRow({ passage, onPress }: { passage: PassageListItemR
     >
       <Text numberOfLines={2} style={styles.title}>{passage.title}</Text>
       <View style={styles.source}>
-        <SourceMeta kind={passage.source.kind} name={passage.source.name} />
+        <SourceMeta name={passage.source.name} />
       </View>
       <View style={styles.meta}>
         <DifficultyMeter level={passage.difficulty} />

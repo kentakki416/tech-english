@@ -3,6 +3,7 @@ import Link from "next/link"
 import { connection } from "next/server"
 
 import { SourceFetchTypeTabs } from "@/components/features/source/SourceFetchTypeTabs"
+import { SourceListTitle } from "@/components/features/source/SourceListTitle"
 import { SourceTable } from "@/components/features/source/SourceTable"
 import ComponentCard from "@/components/layout/ComponentCard"
 import PageBreadcrumb from "@/components/layout/PageBreadCrumb"
@@ -19,9 +20,14 @@ type Props = {
   searchParams: Promise<{ fetch_type?: string | string[] }>
 }
 
-const LIST_DESCRIPTIONS = {
-  github_repository: "GitHub のリポジトリのソース。編集画面の「今すぐ収集」で本文候補を取り込みます。",
-  website: "サイトのソース（ローカルだけ）。収集はせず、URL から追加でページを取り込むときに使います。",
+const LIST_TITLE_TOOLTIPS = {
+  github_repository: [
+    { label: "登録", text: "「ソースを登録」で、問題の元にしたい GitHub リポジトリの URL を登録してください。登録時に、収集できるソースか（ライセンスなど）を自動でチェックし、問題なければソースに追加されます。" },
+    { label: "収集", text: "編集画面の「今すぐ収集」を押すと、ソースから英文を取り込み、問題の元になる本文候補を作ります。" },
+  ],
+  website: [
+    { label: "登録", text: "「ソースを登録」で、問題の元にしたいサイトの URL を登録してください。登録したサイトのページは、問題の一覧の「URL から追加」で取り込めます。" },
+  ],
 }
 
 /**
@@ -43,7 +49,7 @@ export default async function SourcesPage({ searchParams }: Props) {
     <>
       <PageBreadcrumb pageTitle="ソース" />
       <div className="space-y-6">
-        <ComponentCard desc={LIST_DESCRIPTIONS[fetchType]} title="ソース一覧">
+        <ComponentCard title={<SourceListTitle tooltips={LIST_TITLE_TOOLTIPS[fetchType]} />}>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <SourceFetchTypeTabs counts={counts} current={fetchType} hrefs={SOURCE_LIST_PATHS} />
             <Link className={primaryButtonClass} href={SOURCE_CREATE_PATHS[fetchType]}>ソースを登録</Link>

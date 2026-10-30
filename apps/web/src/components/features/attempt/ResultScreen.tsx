@@ -101,7 +101,7 @@ function AttributionSection({ attribution }: { attribution: PassageAttributionRe
     <section className="px-5 py-5 text-xs leading-relaxed text-fg-muted sm:px-6">
       <h2 className="text-sm font-semibold text-fg">出典</h2>
       <div className="mt-2">
-        <SourceMeta kind={attribution.source_kind} name={attribution.source_name} />
+        <SourceMeta name={attribution.source_name} />
       </div>
       <dl className="mt-3 space-y-1.5">
         <div className="flex gap-3">

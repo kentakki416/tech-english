@@ -32,7 +32,7 @@ const MARKDOWN_EXTENSION_PATTERN = /\.mdx?$/
 
 /**
  * 公開ページの URL 規則の {path} に、ファイルパスから取り除くプレフィックスと拡張子（.md / .mdx）を外したものを入れる。
- * admin のソースの登録で出す「変換の例」と同じ規則（プレフィックスで始まらないパスはそのまま使う）
+ * プレフィックスで始まらないパスはそのまま使う
  */
 const buildPublicPageUrl = (template: string, stripPrefix: string | null, sourcePath: string): string => {
   const path = stripPrefix && sourcePath.startsWith(stripPrefix) ? sourcePath.slice(stripPrefix.length) : sourcePath

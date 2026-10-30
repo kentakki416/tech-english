@@ -1,3 +1,5 @@
+import type { SuggestSourceResponse } from "@repo/api-schema"
+
 /**
  * ソースの登録・編集フォームの FormData を、API のリクエストの形（snake_case）に変換する。
  * 検証は呼び出し側（Server Action）が @repo/api-schema のスキーマで行うので、ここでは形を整えるだけにする
@@ -44,7 +46,7 @@ const getIds = (formData: FormData, key: string): number[] =>
 
 /**
  * フォームの入力をソースの登録・更新のリクエストに変換する。
- * 取得方法（fetch_type）に応じて、もう一方の取得方法の項目は入れない。編集のフォームに無い欄（種別・取得元・GitHub のライセンス）の
+ * 取得方法（fetch_type）に応じて、もう一方の取得方法の項目は入れない。編集のフォームに無い欄（取得元・GitHub のライセンス）の
  * 項目は空の値で入るが、更新のスキーマが捨てる
  */
 export const convertFormDataToSourceRequest = (formData: FormData): Record<string, unknown> => {
@@ -53,7 +55,6 @@ export const convertFormDataToSourceRequest = (formData: FormData): Record<strin
     exclude_globs: splitLines(formData, "exclude_globs"),
     fetch_type: fetchType,
     include_globs: splitLines(formData, "include_globs"),
-    kind: getChoice(formData, "kind"),
     license_spdx: getChoice(formData, "license_spdx"),
     license_url: getText(formData, "license_url").trim(),
     name: getText(formData, "name"),
@@ -65,8 +66,6 @@ export const convertFormDataToSourceRequest = (formData: FormData): Record<strin
       ...common,
       branch: getText(formData, "branch"),
       is_enabled: getText(formData, "is_enabled") === "true",
-      public_url_strip_prefix: getNullableText(formData, "public_url_strip_prefix"),
-      public_url_template: getNullableText(formData, "public_url_template"),
       repository: getText(formData, "repository").trim(),
     }
   }
@@ -85,3 +84,11 @@ export const convertFormDataToSourceRequest = (formData: FormData): Record<strin
    */
   return common
 }
+
+/**
+ * GitHub が検出したライセンスを確かめられたか（許可リストのライセンスで、そのファイルの URL がある）。サイトは常に確かめられたものとして扱う。
+ * 確かめられないリポジトリは登録させない。手で選べると、確かめていないライセンスの文章を公開できてしまうため
+ */
+export const isLicenseResolved = (suggestion: SuggestSourceResponse): boolean =>
+  suggestion.fetch_type === "website"
+  || (suggestion.detected_license.is_allowed && suggestion.detected_license.license_url !== null)

@@ -12,12 +12,13 @@ import {
   GitHubBranchField,
   GitHubTargetFields,
   LicenseFields,
+  errorHintClass,
   Section,
-  SourceKindField,
   WebsiteTargetFields,
 } from "@/components/features/source/SourceFormParts"
 import { SourceSuggestionSummary } from "@/components/features/source/SourceSuggestionSummary"
 import { TagPicker } from "@/components/features/source/TagPicker"
+import { isLicenseResolved } from "@/features/source/source.form"
 import { SOURCE_SUGGESTION_FAILURE_MESSAGES, type SourceSuggestionFailureReason } from "@/features/source/source.labels"
 import { SOURCE_LIST_PATHS } from "@/features/source/source.paths"
 import {
@@ -58,7 +59,6 @@ const URL_FIELD_TEXTS: Record<SourceFetchType, { hint: string, placeholder: stri
 const CHECKLISTS: Record<SourceFetchType, string[]> = {
   github_repository: [
     "自動で入ったライセンスが、ドキュメントの文章に掛かっている（コードだけのライセンスではない）",
-    "ライセンスが許可リストにある",
     "対象パスが、問題にしたいドキュメントのディレクトリになっている",
   ],
   website: [
@@ -76,22 +76,6 @@ const hasDetailFieldErrors = (state: SourceFormState): boolean =>
 
 const isSourceSuggestionFailureReason = (value: unknown): value is SourceSuggestionFailureReason =>
   typeof value === "string" && Object.hasOwn(SOURCE_SUGGESTION_FAILURE_MESSAGES, value)
-
-/**
- * ライセンスを自動で決められたか（許可リストのライセンスで、そのファイルの URL がある）。サイトは常に決まる
- */
-const isLicenseResolved = (suggestion: SuggestSourceResponse): boolean =>
-  suggestion.fetch_type === "website"
-  || (suggestion.detected_license.is_allowed && suggestion.detected_license.license_url !== null)
-
-/**
- * ライセンスの欄の初期値。GitHub の許可リスト外・判定できないライセンスは入れず、ライセンスのファイルの URL だけ入れる
- */
-const buildInitialLicense = (suggestion: SuggestSourceResponse): { licenseSpdx: string, licenseUrl: string } => {
-  if (suggestion.fetch_type === "website") return { licenseSpdx: suggestion.license_spdx, licenseUrl: suggestion.license_url }
-  const { is_allowed: isAllowed, license_spdx: licenseSpdx, license_url: licenseUrl } = suggestion.detected_license
-  return { licenseSpdx: isAllowed && licenseSpdx !== null ? licenseSpdx : "", licenseUrl: licenseUrl ?? "" }
-}
 
 /**
  * Route Handler の失敗のボディの理由。読めない・知らない値なら failed
@@ -116,12 +100,17 @@ const fetchSourceSuggestion = async (fetchType: SourceFetchType, url: string): P
 }
 
 /**
- * リポジトリ・サイトの URL は読み込んだ値を送る（「詳細」でも直せない。変えるときは URL を読み込み直す）
+ * リポジトリ・サイトの URL と GitHub のライセンスは読み込んだ値を送る（「詳細」でも直せない。変えるときは URL を読み込み直す）
  */
 function SuggestionHiddenField({ suggestion }: { suggestion: SuggestSourceResponse }) {
-  return suggestion.fetch_type === "github_repository"
-    ? <input name="repository" type="hidden" value={suggestion.repository} />
-    : <input name="site_url" type="hidden" value={suggestion.site_url} />
+  if (suggestion.fetch_type === "website") return <input name="site_url" type="hidden" value={suggestion.site_url} />
+  return (
+    <>
+      <input name="license_spdx" type="hidden" value={suggestion.detected_license.license_spdx ?? ""} />
+      <input name="license_url" type="hidden" value={suggestion.detected_license.license_url ?? ""} />
+      <input name="repository" type="hidden" value={suggestion.repository} />
+    </>
+  )
 }
 
 /**
@@ -164,7 +153,7 @@ export function SourceCreateForm({
 
   const suggestion = loaded?.suggestion ?? null
   const isLoadedUrl = loaded !== null && loaded.url === url.trim()
-  const licenseOptions = fetchType === "website" ? [...allowedLicenses, personalUseLicense] : allowedLicenses
+  const canRegister = isLoadedUrl && suggestion !== null && isLicenseResolved(suggestion)
   const urlFieldTexts = URL_FIELD_TEXTS[fetchType]
   /**
    * 登録の結果（入力エラー・重複など）は、いま読み込んでいる内容で送った結果だけを出す。
@@ -173,10 +162,13 @@ export function SourceCreateForm({
   const formState: SourceFormState = submission?.revision === revision && state !== submission.stateAtSubmit ? state : {}
   const getFieldError = (key: string): string | undefined => formState.errors?.[key]?.[0]
   const hasFieldErrors = Object.values(formState.errors ?? {}).some((messages) => (messages?.length ?? 0) > 0)
+  const gitHubLicenseError = suggestion?.fetch_type === "github_repository"
+    ? getFieldError("license_spdx") ?? getFieldError("license_url")
+    : undefined
 
   /**
    * 読み込みに失敗しても前に読み込んだ内容は消さない（URL の欄が違うので、そのままでは登録できない）。
-   * 読み込み直すと、取得元の欄は key を変えて作り直し、ライセンスの欄は読み込んだ値に置き換える。開いている「詳細」は閉じない
+   * 読み込み直すと、取得元の欄は key を変えて作り直し、サイトのライセンスの欄は読み込んだ値に置き換える。開いている「詳細」は閉じない
    */
   const loadSuggestion = async () => {
     const target = url.trim()
@@ -192,12 +184,12 @@ export function SourceCreateForm({
         setLoadStatus({ message: SOURCE_SUGGESTION_FAILURE_MESSAGES[result.reason], status: "failed" })
         return
       }
-      const initialLicense = buildInitialLicense(result.suggestion)
       setLoaded({ suggestion: result.suggestion, url: target })
       setRevision((value) => value + 1)
-      setLicenseSpdx(initialLicense.licenseSpdx)
-      setLicenseUrl(initialLicense.licenseUrl)
-      setIsDetailsOpen((isOpen) => isOpen || !isLicenseResolved(result.suggestion))
+      if (result.suggestion.fetch_type === "website") {
+        setLicenseSpdx(result.suggestion.license_spdx)
+        setLicenseUrl(result.suggestion.license_url)
+      }
       setLoadStatus({ status: "idle" })
     } catch {
       setLoadStatus({ message: SOURCE_SUGGESTION_FAILURE_MESSAGES.failed, status: "failed" })
@@ -218,7 +210,7 @@ export function SourceCreateForm({
    */
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    if (!isLoadedUrl) return
+    if (!canRegister) return
     const formData = new FormData(event.currentTarget)
     setSubmission({ revision, stateAtSubmit: state })
     startTransition(() => formAction(formData))
@@ -267,14 +259,14 @@ export function SourceCreateForm({
             </div>
           </Field>
           {suggestion && <SourceSuggestionSummary suggestion={suggestion} />}
+          {gitHubLicenseError && <p className={errorHintClass}>{gitHubLicenseError}</p>}
         </Section>
 
-        {suggestion && (
+        {suggestion && isLicenseResolved(suggestion) && (
           <details className={cardClass} open={isDetailsOpen} onToggle={(event) => setIsDetailsOpen(event.currentTarget.open)}>
             <summary className={`cursor-pointer px-6 py-5 ${titleClass}`}>詳細</summary>
             <div className={`${cardBodyClass} space-y-8`}>
               <div className="space-y-5">
-                <SourceKindField defaultKind="docs" error={getFieldError("kind")} />
                 <Field error={getFieldError("tag_ids")} hint="ユーザーの問題一覧の絞り込みに使います。タグはタグの画面で登録します。" label="技術タグ" labelId="source-tags-label">
                   <TagPicker defaultSelectedIds={[]} tags={tags} />
                 </Field>
@@ -288,8 +280,6 @@ export function SourceCreateForm({
                       defaults={{
                         excludeGlobs: [],
                         includeGlobs: suggestion.include_globs,
-                        publicUrlStripPrefix: null,
-                        publicUrlTemplate: null,
                       }}
                       getFieldError={getFieldError}
                     />
@@ -302,18 +292,19 @@ export function SourceCreateForm({
                   />
                 )}
               </div>
-              <div className="space-y-5">
-                <h4 className={detailGroupTitleClass}>ライセンス</h4>
-                <LicenseFields
-                  fetchType={suggestion.fetch_type}
-                  getFieldError={getFieldError}
-                  licenseOptions={licenseOptions}
-                  licenseSpdx={licenseSpdx}
-                  licenseUrl={licenseUrl}
-                  onLicenseSpdxChange={setLicenseSpdx}
-                  onLicenseUrlChange={setLicenseUrl}
-                />
-              </div>
+              {suggestion.fetch_type === "website" && (
+                <div className="space-y-5">
+                  <h4 className={detailGroupTitleClass}>ライセンス</h4>
+                  <LicenseFields
+                    getFieldError={getFieldError}
+                    licenseOptions={[...allowedLicenses, personalUseLicense]}
+                    licenseSpdx={licenseSpdx}
+                    licenseUrl={licenseUrl}
+                    onLicenseSpdxChange={setLicenseSpdx}
+                    onLicenseUrlChange={setLicenseUrl}
+                  />
+                </div>
+              )}
               {suggestion.fetch_type === "github_repository" && (
                 <div className="space-y-5">
                   <h4 className={detailGroupTitleClass}>収集</h4>
@@ -327,8 +318,9 @@ export function SourceCreateForm({
         <div className="flex flex-wrap items-center justify-end gap-3">
           {hasFieldErrors && <p className="mr-auto text-sm text-error-500" role="alert">入力内容を確認してください。各欄の下に理由を表示しています。</p>}
           {!hasFieldErrors && !isLoadedUrl && <p className="mr-auto text-sm text-gray-500 dark:text-gray-400">URL を読み込んでください。</p>}
+          {!hasFieldErrors && isLoadedUrl && !canRegister && <p className="mr-auto text-sm text-error-500">このリポジトリは登録できません。</p>}
           <Link className={outlineButtonClass} href={SOURCE_LIST_PATHS[fetchType]}>キャンセル</Link>
-          <button className={primaryButtonClass} disabled={!isLoadedUrl || isPending} type="submit">登録する</button>
+          <button className={primaryButtonClass} disabled={!canRegister || isPending} type="submit">登録する</button>
         </div>
       </form>
 

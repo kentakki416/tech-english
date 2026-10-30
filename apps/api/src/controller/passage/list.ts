@@ -46,7 +46,7 @@ export class PassageListController {
     const result = await service.passage.getPassageList(
       {
         cursor: query.cursor,
-        filter: { difficulties: query.difficulty, kind: query.kind ?? null, tags: query.tag },
+        filter: { difficulties: query.difficulty, tags: query.tag },
         limit: query.limit,
         now: new Date(),
         unattemptedOnly: query.unattempted_only,

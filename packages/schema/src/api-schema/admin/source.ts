@@ -111,10 +111,6 @@ const sourceInputBaseSchema = z.object({
 const githubRepositoryUpdateInputSchema = sourceInputBaseSchema.extend({
   fetch_type: z.literal("github_repository"),
   is_enabled: z.boolean(),
-  public_url_strip_prefix: nullableTextSchema,
-  public_url_template: webUrlSchema
-    .refine((value) => value.includes("{path}"), { message: "Must include {path}" })
-    .nullable(),
 })
 
 /**
@@ -122,7 +118,7 @@ const githubRepositoryUpdateInputSchema = sourceInputBaseSchema.extend({
  */
 const githubRepositoryInputSchema = githubRepositoryUpdateInputSchema.extend({
   branch: z.string().trim().min(1).max(255),
-  kind: z.enum(SOURCE_KINDS),
+  kind: z.enum(SOURCE_KINDS).default("docs"),
   /**
    * 許可リスト外のライセンスはここで 400 になる
    */
@@ -146,7 +142,7 @@ const websiteUpdateInputSchema = sourceInputBaseSchema.extend({
  * サイトのページを取得するソースの登録の入力（ローカルの URL から追加だけが使う）
  */
 const websiteInputSchema = websiteUpdateInputSchema.extend({
-  kind: z.enum(SOURCE_KINDS),
+  kind: z.enum(SOURCE_KINDS).default("docs"),
   site_url: httpsOriginSchema,
 })
 
@@ -226,8 +222,6 @@ export const sourceSchema = z.discriminatedUnion("fetch_type", [
     fetch_type: z.literal("github_repository"),
     last_collected_commit_sha: z.string().nullable(),
     license_spdx: allowedLicenseSchema,
-    public_url_strip_prefix: z.string().nullable(),
-    public_url_template: z.string().nullable(),
     repository: z.string(),
   }),
   sourceBaseSchema.extend({

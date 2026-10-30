@@ -1,6 +1,6 @@
-import type { GetSourceResponse } from "@repo/api-schema"
-
+import Tooltip from "@/components/ui/tooltip/Tooltip"
 import { formatLicenseLabel } from "@/features/source/source.labels"
+import { InfoIcon } from "@/icons"
 import {
   cardBodyClass,
   cardClass,
@@ -13,29 +13,14 @@ import {
   titleClass,
 } from "@/libs/ui-classes"
 
-type SourceKind = GetSourceResponse["source"]["kind"]
-
-type FetchType = GetSourceResponse["source"]["fetch_type"]
-
 /**
  * フォームの入力エラーの最初の文言。キーはリクエストのフィールド名（snake_case）
  */
 export type GetFieldError = (key: string) => string | undefined
 
-export const LICENSE_NOTE = "コードとドキュメントでライセンスが分かれているリポジトリでは、GitHub の検出はコードのライセンスのことがあります。ドキュメントの文章に掛かっているライセンスと、それが書かれたリポジトリの中のファイルを選んでください。"
+export const LICENSE_NOTE = "コードとドキュメントでライセンスが分かれているリポジトリでは、GitHub の検出はコードのライセンスのことがあります。ドキュメントの文章に掛かっているライセンスでなければ、登録しないでください。"
 
 export const errorHintClass = "mt-1.5 text-xs text-error-500"
-
-/**
- * 公開ページの URL 規則の変換例に使うファイルパス（取り除くプレフィックスと拡張子を除いたもの）
- */
-const SAMPLE_PAGE_PATH = "learn/getting-started"
-
-/**
- * 保存済みの URL 規則で、ファイルパスがどの URL になるかの例
- */
-const buildPublicUrlExample = (template: string, stripPrefix: string | null): string =>
-  `例：${stripPrefix ?? ""}${SAMPLE_PAGE_PATH}.md → ${template.replace("{path}", SAMPLE_PAGE_PATH)}`
 
 export function Section({ children, desc, title }: { children: React.ReactNode, desc?: string, title: string }) {
   return (
@@ -56,6 +41,7 @@ export function Field({
   htmlFor,
   label,
   labelId,
+  tooltip,
 }: {
   children: React.ReactNode
   error?: string
@@ -63,31 +49,24 @@ export function Field({
   htmlFor?: string
   label: string
   labelId?: string
+  tooltip?: string
 }) {
   return (
     <div>
-      <label className={labelClass} htmlFor={htmlFor} id={labelId}>{label}</label>
+      <div className="flex gap-1">
+        <label className={labelClass} htmlFor={htmlFor} id={labelId}>{label}</label>
+        {tooltip && (
+          <Tooltip content={tooltip}>
+            <span aria-label={`${label}の説明`} className="mt-0.5 inline-flex h-4 text-gray-500 dark:text-gray-400" tabIndex={0}>
+              <InfoIcon className="size-4" viewBox="0 0 24 24" />
+            </span>
+          </Tooltip>
+        )}
+      </div>
       {children}
       {hint && <p className={hintClass}>{hint}</p>}
       {error && <p className={errorHintClass}>{error}</p>}
     </div>
-  )
-}
-
-export function SourceKindField({ defaultKind, error }: { defaultKind: SourceKind, error?: string }) {
-  return (
-    <Field error={error} hint="ユーザーの問題一覧の絞り込みに使います。" label="種別">
-      <div className="flex flex-wrap gap-6 text-sm text-gray-700 dark:text-gray-300">
-        <label className="flex items-center gap-2">
-          <input className="size-4 accent-brand-500" defaultChecked={defaultKind === "docs"} name="kind" type="radio" value="docs" />
-          公式ドキュメント（Docs）
-        </label>
-        <label className="flex items-center gap-2">
-          <input className="size-4 accent-brand-500" defaultChecked={defaultKind === "github"} name="kind" type="radio" value="github" />
-          GitHub の文書（README・RFC など）
-        </label>
-      </div>
-    </Field>
   )
 }
 
@@ -103,7 +82,7 @@ export function GitHubBranchField({ defaultBranch, error }: { defaultBranch: str
 }
 
 /**
- * GitHub の取得元の欄（対象パス・除外パス・公開ページの URL 規則）
+ * GitHub の取得元の欄（対象パス・除外パス）
  */
 export function GitHubTargetFields({
   defaults,
@@ -112,40 +91,18 @@ export function GitHubTargetFields({
   defaults: {
     excludeGlobs: string[]
     includeGlobs: string[]
-    publicUrlStripPrefix: string | null
-    publicUrlTemplate: string | null
   }
   getFieldError: GetFieldError
 }) {
   return (
-    <>
-      <div className="grid gap-5 sm:grid-cols-2">
-        <Field error={getFieldError("include_globs")} hint="リポジトリ内のファイルパスに対する glob。1 行に 1 つ。" htmlFor="include" label="対象パス">
-          <textarea className={`${textareaClass} font-mono`} defaultValue={defaults.includeGlobs.join("\n")} id="include" name="include_globs" placeholder="src/content/learn/**/*.md" rows={3} />
-        </Field>
-        <Field error={getFieldError("exclude_globs")} hint="1 行に 1 つ。" htmlFor="exclude" label="除外パス">
-          <textarea className={`${textareaClass} font-mono`} defaultValue={defaults.excludeGlobs.join("\n")} id="exclude" name="exclude_globs" placeholder="**/CHANGELOG.md" rows={3} />
-        </Field>
-      </div>
-      <div className="grid gap-5 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-        <Field
-          error={getFieldError("public_url_template")}
-          hint="{path} にファイルパス（取り除くプレフィックスと拡張子を除いたもの）が入ります。未設定なら GitHub のファイルへのリンクを出します。"
-          htmlFor="url-template"
-          label="公開ページの URL 規則（任意）"
-        >
-          <input className={`${inputClass} font-mono`} defaultValue={defaults.publicUrlTemplate ?? undefined} id="url-template" name="public_url_template" placeholder="https://react.dev/{path}" />
-        </Field>
-        <Field error={getFieldError("public_url_strip_prefix")} htmlFor="strip-prefix" label="取り除くプレフィックス">
-          <input className={`${inputClass} font-mono`} defaultValue={defaults.publicUrlStripPrefix ?? undefined} id="strip-prefix" name="public_url_strip_prefix" placeholder="src/content/" />
-        </Field>
-      </div>
-      {defaults.publicUrlTemplate && (
-        <p className="rounded-lg bg-gray-50 px-3 py-2 font-mono text-theme-xs text-gray-600 dark:bg-white/5 dark:text-gray-300">
-          {buildPublicUrlExample(defaults.publicUrlTemplate, defaults.publicUrlStripPrefix)}
-        </p>
-      )}
-    </>
+    <div className="grid gap-5 sm:grid-cols-2">
+      <Field error={getFieldError("include_globs")} htmlFor="include" label="対象パス" tooltip="収集するファイルのパスを 1 行に 1 つ書きます。** や * で複数のファイルを指定できます。">
+        <textarea className={`${textareaClass} font-mono`} defaultValue={defaults.includeGlobs.join("\n")} id="include" name="include_globs" placeholder="src/content/learn/**/*.md" rows={3} />
+      </Field>
+      <Field error={getFieldError("exclude_globs")} htmlFor="exclude" label="除外パス" tooltip="収集しないファイルのパスを 1 行に 1 つ書きます。">
+        <textarea className={`${textareaClass} font-mono`} defaultValue={defaults.excludeGlobs.join("\n")} id="exclude" name="exclude_globs" placeholder="**/CHANGELOG.md" rows={3} />
+      </Field>
+    </div>
   )
 }
 
@@ -167,10 +124,10 @@ export function WebsiteTargetFields({
   return (
     <>
       <div className="grid gap-5 sm:grid-cols-2">
-        <Field error={getFieldError("include_globs")} hint="URL のパスに対する glob。1 行に 1 つ。" htmlFor="include" label="対象パス">
+        <Field error={getFieldError("include_globs")} htmlFor="include" label="対象パス" tooltip="取り込むページの URL のパスを 1 行に 1 つ書きます。** や * で複数のページを指定できます。">
           <textarea className={`${textareaClass} font-mono`} defaultValue={defaults.includeGlobs.join("\n")} id="include" name="include_globs" placeholder="/doc/**" rows={3} />
         </Field>
-        <Field error={getFieldError("exclude_globs")} hint="1 行に 1 つ。" htmlFor="exclude" label="除外パス">
+        <Field error={getFieldError("exclude_globs")} htmlFor="exclude" label="除外パス" tooltip="取り込まないページの URL のパスを 1 行に 1 つ書きます。">
           <textarea className={`${textareaClass} font-mono`} defaultValue={defaults.excludeGlobs.join("\n")} id="exclude" name="exclude_globs" placeholder="/doc/devel/**" rows={3} />
         </Field>
       </div>
@@ -178,7 +135,7 @@ export function WebsiteTargetFields({
         <Field error={getFieldError("content_selector")} hint="未設定なら本文を自動で推定します。" htmlFor="content-selector" label="本文の CSS セレクタ">
           <input className={`${inputClass} font-mono`} defaultValue={defaults.contentSelector ?? undefined} id="content-selector" name="content_selector" placeholder="main article" />
         </Field>
-        <Field error={getFieldError("exclude_selectors")} hint="本文から取り除く要素。1 行に 1 つ。" htmlFor="exclude-selectors" label="除外する CSS セレクタ">
+        <Field error={getFieldError("exclude_selectors")} htmlFor="exclude-selectors" label="除外する CSS セレクタ" tooltip="本文から取り除く要素を 1 行に 1 つ書きます。">
           <textarea className={`${textareaClass} font-mono`} defaultValue={defaults.excludeSelectors.join("\n")} id="exclude-selectors" name="exclude_selectors" placeholder=".feedback" rows={2} />
         </Field>
       </div>
@@ -187,10 +144,9 @@ export function WebsiteTargetFields({
 }
 
 /**
- * ライセンスとライセンスの記載がある URL。値は呼び出し側の state（読み込みで値を入れるため）
+ * サイトのソースのライセンスとライセンスの記載がある URL。値は呼び出し側の state（読み込みで値を入れるため）
  */
 export function LicenseFields({
-  fetchType,
   getFieldError,
   licenseOptions,
   licenseSpdx,
@@ -198,7 +154,6 @@ export function LicenseFields({
   onLicenseSpdxChange,
   onLicenseUrlChange,
 }: {
-  fetchType: FetchType
   getFieldError: GetFieldError
   licenseOptions: readonly string[]
   licenseSpdx: string
@@ -206,17 +161,14 @@ export function LicenseFields({
   onLicenseSpdxChange: (value: string) => void
   onLicenseUrlChange: (value: string) => void
 }) {
-  const isWebsite = fetchType === "website"
   return (
     <>
-      {isWebsite && (
-        <div className="rounded-xl border border-warning-500 bg-warning-50 p-4 text-sm dark:border-warning-500/30 dark:bg-warning-500/15">
-          <p className="font-medium text-gray-800 dark:text-white/90">サイトのソースはローカルでだけ使います</p>
-          <p className="mt-1 text-gray-500 dark:text-gray-400">
-            収集はせず、URL から追加で取り込むページのソースになります。ライセンスの記載があればそのライセンスを、無ければ「個人の学習用」を選んでください。
-          </p>
-        </div>
-      )}
+      <div className="rounded-xl border border-warning-500 bg-warning-50 p-4 text-sm dark:border-warning-500/30 dark:bg-warning-500/15">
+        <p className="font-medium text-gray-800 dark:text-white/90">サイトのソースはローカルでだけ使います</p>
+        <p className="mt-1 text-gray-500 dark:text-gray-400">
+          収集はせず、URL から追加で取り込むページのソースになります。ライセンスの記載があればそのライセンスを、無ければ「個人の学習用」を選んでください。
+        </p>
+      </div>
       <div className="grid gap-5 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
         <Field error={getFieldError("license_spdx")} htmlFor="license" label="ライセンス">
           <select className={selectClass} id="license" name="license_spdx" value={licenseSpdx} onChange={(event) => onLicenseSpdxChange(event.target.value)}>
@@ -228,9 +180,7 @@ export function LicenseFields({
         </Field>
         <Field
           error={getFieldError("license_url")}
-          hint={isWebsite
-            ? "サイトのライセンス、または著作権・利用規約のページ。出典表示に出します。"
-            : "リポジトリの中のライセンスのファイルの URL（https://github.com/{owner}/{repo}/blob/…）。出典表示に出します。"}
+          hint="サイトのライセンス、または著作権・利用規約のページ。出典表示に出します。"
           htmlFor="license-url"
           label="ライセンスの記載がある URL"
         >

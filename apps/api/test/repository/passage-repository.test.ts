@@ -107,7 +107,7 @@ const readAllPages = async (
 /**
  * 絞り込みなし
  */
-const NO_FILTER: PublishedPassageFilter = { difficulties: [], kind: null, tags: [], unattemptedByUserId: null }
+const NO_FILTER: PublishedPassageFilter = { difficulties: [], tags: [], unattemptedByUserId: null }
 
 /**
  * ユーザー向けの API の確認に使う問題。公開中 3 件（ソース・種別・タグ・難易度・公開日時がすべて違う）と、下書き・却下を 1 件ずつ入れる
@@ -602,11 +602,10 @@ describe("PassageRepository", () => {
       })
 
       it.each([
-        ["kind", { kind: "github" as const }, ["rust"]],
         ["tags（どれかに当てはまる）", { tags: ["go", "rust"] }, ["go", "rust"]],
         ["tags（ソースの 2 つ目のタグ）", { tags: ["frontend"] }, ["react"]],
         ["difficulties（どれかに当てはまる）", { difficulties: [1, 3] as (1 | 3)[] }, ["rust", "react"]],
-        ["kind と tags の組み合わせ", { kind: "docs" as const, tags: ["react", "rust"] }, ["react"]],
+        ["difficulties と tags の組み合わせ", { difficulties: [3] as (1 | 3)[], tags: ["react", "rust"] }, ["rust"]],
         ["当てはまらない tags", { tags: ["kubernetes"] }, []],
       ])("%sで絞り込める", async (_label, filter, expected) => {
         const set = await insertPublishedSet()
@@ -682,10 +681,9 @@ describe("PassageRepository", () => {
         await insertSubmittedAttempt(rust.id, user.id, 2)
 
         expect(await passageRepository.countPublished(NO_FILTER)).toBe(3)
-        expect(await passageRepository.countPublished({ ...NO_FILTER, kind: "docs" })).toBe(2)
         expect(await passageRepository.countPublished({ ...NO_FILTER, tags: ["rust", "react"] })).toBe(2)
         expect(await passageRepository.countPublished({ ...NO_FILTER, unattemptedByUserId: user.id })).toBe(2)
-        expect(await passageRepository.countPublished({ ...NO_FILTER, difficulties: [2], kind: "github" })).toBe(0)
+        expect(await passageRepository.countPublished({ ...NO_FILTER, difficulties: [2], tags: ["rust"] })).toBe(0)
       })
     })
   })
@@ -833,7 +831,7 @@ describe("PassageRepository", () => {
       it("絞り込みに当てはまる公開中の問題の id を返す", async () => {
         const { go, react, rust } = await insertPublishedSet()
 
-        expect(await passageRepository.findRandomPublishedId({ ...NO_FILTER, kind: "github" })).toBe(rust.id)
+        expect(await passageRepository.findRandomPublishedId({ ...NO_FILTER, tags: ["rust"] })).toBe(rust.id)
         expect([go.id, react.id, rust.id]).toContain(await passageRepository.findRandomPublishedId(NO_FILTER))
       })
 

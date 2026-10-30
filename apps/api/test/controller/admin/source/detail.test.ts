@@ -66,8 +66,6 @@ describe("GET /api/admin/source/:id", () => {
           license_spdx: "CC-BY-4.0",
           license_url: "https://github.com/reactjs/react.dev/blob/main/LICENSE-DOCS.md",
           name: "React 公式ドキュメント",
-          public_url_strip_prefix: "src/content/",
-          public_url_template: "https://react.dev/{path}",
           repository: "reactjs/react.dev",
           tags: [
             { id: frontend.id, color: frontend.color, name: "Frontend" },

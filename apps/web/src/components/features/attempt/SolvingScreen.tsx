@@ -425,7 +425,7 @@ function SolvingSession({
           <div className="hidden min-w-0 flex-1 items-center gap-3 md:flex">
             <span className="truncate font-reading text-[15px] text-fg">{attempt.passage.title}</span>
             <span className="hidden xl:inline-flex">
-              <SourceMeta kind={attempt.attribution.source_kind} name={attempt.attribution.source_name} />
+              <SourceMeta name={attempt.attribution.source_name} />
             </span>
           </div>
           <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
