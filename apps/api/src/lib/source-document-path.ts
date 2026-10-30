@@ -55,6 +55,7 @@ const RELEASE_NOTE_NAMES = "*{RELEASE-NOTE,RELEASE_NOTE,release-note,release_not
 const WHATS_NEW_NAMES = "{whats-new,whats_new,whatsnew}"
 
 /**
+ * 版は 2〜3 要素の数字だけにする（Cloudflare の製品の `1.1.1.1/` を外さないため）。`snippets/` は入れない（Cloudflare の製品のページがあり、部品は `_snippets/` のように `_` で始まることが多い）。
  * ディレクトリの除外は、末尾の `**` の後にファイルの `*` まで書く。picomatch の `a/**` は a 自身にも一致し、同じ名前のファイルまで外れるため
  */
 const DEFAULT_EXCLUDE_GLOB_SUFFIXES = [
@@ -65,9 +66,9 @@ const DEFAULT_EXCLUDE_GLOB_SUFFIXES = [
   `**/${WHATS_NEW_NAMES}*`,
   `**/${WHATS_NEW_NAMES}*/**/*`,
   "**/{blog,contribute,contributing,contributors,previous-versions,versioned_docs}/**/*",
-  "**/{includes,partials,snippets}/**/*",
+  "**/{includes,partials}/**/*",
   "**/_*/**/*",
-  "**/{[0-9]*.[0-9]*,v[0-9]*.[0-9]*,version-[0-9]*}/**/*",
+  "**/{+([0-9]).+([0-9])?(.+([0-9])),v+([0-9]).+([0-9])?(.+([0-9])),version-[0-9]*}/**/*",
   "**/{AGENTS,CLAUDE,CODE_OF_CONDUCT,CONTRIBUTING,GEMINI,SECURITY,STYLE,STYLEGUIDE}.{md,mdx}",
 ]
 
@@ -82,7 +83,7 @@ const hasOnlyDocumentDirectories = (filePath: string): boolean =>
 export const isInsideDirectory = (targetPath: string, directory: string): boolean =>
   directory === "" || targetPath === directory || targetPath.startsWith(`${directory}/`)
 
-const countChildDirectories = (filePaths: string[], directory: string): Map<string, number> => {
+const countFilesByChildDirectory = (filePaths: string[], directory: string): Map<string, number> => {
   const prefix = directory === "" ? "" : `${directory}/`
   const counts = new Map<string, number>()
   for (const filePath of filePaths) {
@@ -106,7 +107,7 @@ const findNextDirectoryName = (
   options: { isInsideDocuments: boolean },
 ): string | null => {
   const insideCount = filePaths.filter((filePath) => isInsideDirectory(filePath, directory)).length
-  const childCounts = countChildDirectories(filePaths.filter((filePath) => isInsideDirectory(filePath, directory)), directory)
+  const childCounts = countFilesByChildDirectory(filePaths.filter((filePath) => isInsideDirectory(filePath, directory)), directory)
   const englishDirectory = findEnglishDirectory(childCounts)
   if (englishDirectory) return englishDirectory
 
@@ -121,7 +122,7 @@ const findNextDirectoryName = (
  */
 export const findDocumentsDirectory = (markdownPaths: string[]): string => {
   const filePaths = markdownPaths.filter(hasOnlyDocumentDirectories)
-  const topCounts = countChildDirectories(filePaths, "")
+  const topCounts = countFilesByChildDirectory(filePaths, "")
   let directory = CONVENTIONAL_DOCUMENT_DIRECTORY_NAMES.find((name) => (topCounts.get(name) ?? 0) >= MIN_CONVENTIONAL_DOCUMENT_FILE_COUNT) ?? ""
   let isInsideDocuments = directory !== ""
 
@@ -150,7 +151,7 @@ export const buildDefaultExcludeGlobs = (documentsPath: string, options: { hasRe
 /**
  * パス自身と、ルートより下の親のディレクトリを、浅い順に返す。`a/b` なら `["a", "a/b"]`、空文字なら空
  */
-export const listAncestorDirectories = (directory: string): string[] => {
+export const listDirectoryAndAncestors = (directory: string): string[] => {
   const segments = directory.split("/").filter((segment) => segment !== "")
   return segments.map((_, index) => segments.slice(0, index + 1).join("/"))
 }

@@ -187,6 +187,12 @@ describe("GitHubRepositoryClient.listDirectoryFiles", () => {
 
       await expect(new GitHubRepositoryClient(undefined).listDirectoryFiles("a/b", "main", "docs")).rejects.toThrow()
     })
+
+    it("配列の中が想定外の形なら throw する", async () => {
+      stubFetch(createJsonResponse([{ name: "LICENSE" }]))
+
+      await expect(new GitHubRepositoryClient(undefined).listDirectoryFiles("a/b", "main", "docs")).rejects.toThrow()
+    })
   })
 })
 

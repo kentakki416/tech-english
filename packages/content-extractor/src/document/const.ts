@@ -57,4 +57,4 @@ export const PROSE_COMPONENT_NAMES: ReadonlySet<string> = new Set([
  * src/document の変更のうち、ブロック・切り分け・本文候補の条件が変わるものをしたら上げる（実装した日の日付）。
  * 上げると、取得済みの文書を次の収集で切り分け直す（URL から追加で取り込んだサイトのページは、取り込み直したとき）
  */
-export const EXTRACTION_VERSION = "2026-10-30.2"
+export const EXTRACTION_VERSION = "2026-10-30.3"

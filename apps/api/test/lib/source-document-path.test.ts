@@ -5,7 +5,7 @@ import {
   findDocumentsDirectory,
   findParentDirectory,
   isInsideDirectory,
-  listAncestorDirectories,
+  listDirectoryAndAncestors,
 } from "../../src/lib/source-document-path"
 
 const buildPaths = (directory: string, count: number): string[] =>
@@ -73,6 +73,7 @@ describe("buildDefaultExcludeGlobs", () => {
       ["アンダースコアのディレクトリ", "docs/_snippets/explanation.md"],
       ["入れ子のアンダースコアのディレクトリ", "docs/reference/_includes/content/changelog.md"],
       ["ページの部品", "docs/includes/compose/build.md"],
+      ["3 要素の版", "docs/operate/1.2.3/index.md"],
       ["古い版", "docs/operate/rs/7.22/clusters/index.md"],
       ["v つきの古い版", "docs/atlas-cli/v1.55/overview.md"],
       ["過去の版のディレクトリ", "docs/manuals/desktop/previous-versions/3.x-mac.md"],
@@ -92,6 +93,8 @@ describe("buildDefaultExcludeGlobs", () => {
       ["数字で始まるページ", "docs/1.getting-started/10.data-fetching.md"],
       ["移行ガイド", "docs/guides/migrating/from-vite.mdx"],
       ["深い階層の言語と同じ名前のページ", "docs/web/html/attributes/id/index.md"],
+      ["版に見える 4 要素の製品名（Cloudflare の 1.1.1.1）", "docs/1.1.1.1/setup.mdx"],
+      ["snippets という製品のページ", "docs/rules/snippets/how-it-works.mdx"],
     ])("%s は残す", (_label, filePath) => {
       expect(isKept(filePath, "docs")).toBe(true)
     })
@@ -109,23 +112,23 @@ describe("buildDefaultExcludeGlobs", () => {
       expect(isKept("runtime/manual.md", "")).toBe(true)
     })
 
-    it("glob は api の上限（200 文字・50 個）に収まる", () => {
-      const globs = buildDefaultExcludeGlobs("packages/documentation/copy/en", { hasReadmePages: false })
+    it("深いディレクトリでも glob は api の上限（500 文字・50 個）に収まる", () => {
+      const globs = buildDefaultExcludeGlobs("a".repeat(300), { hasReadmePages: false })
 
-      expect(Math.max(...globs.map((glob) => glob.length))).toBeLessThanOrEqual(200)
+      expect(Math.max(...globs.map((glob) => glob.length))).toBeLessThanOrEqual(500)
       expect(globs.length).toBeLessThanOrEqual(50)
     })
   })
 })
 
-describe("listAncestorDirectories", () => {
+describe("listDirectoryAndAncestors", () => {
   describe("正常系", () => {
     it.each([
       ["", []],
       ["docs", ["docs"]],
       ["docs/reference/api", ["docs", "docs/reference", "docs/reference/api"]],
     ])("%s", (directory, expected) => {
-      expect(listAncestorDirectories(directory)).toEqual(expected)
+      expect(listDirectoryAndAncestors(directory)).toEqual(expected)
     })
   })
 })

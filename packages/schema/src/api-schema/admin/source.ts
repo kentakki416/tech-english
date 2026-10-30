@@ -83,7 +83,7 @@ export const sourceLicenseSchema = z.enum(SOURCE_LICENSES)
  */
 export const personalUseLicenseSchema = z.literal(PERSONAL_USE_LICENSE)
 
-const globListSchema = z.array(z.string().trim().min(1).max(200)).max(50)
+const globListSchema = z.array(z.string().trim().min(1).max(500)).max(50)
 
 const nullableTextSchema = z.string().trim().min(1).max(500).nullable()
 

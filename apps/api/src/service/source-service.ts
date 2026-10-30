@@ -27,7 +27,7 @@ import {
   findDocumentsDirectory,
   findParentDirectory,
   isInsideDirectory,
-  listAncestorDirectories,
+  listDirectoryAndAncestors,
 } from "../lib/source-document-path"
 import { buildGitHubIncludeGlob, buildWebsiteIncludeGlob, parseSourceUrl, splitBranchAndPath } from "../lib/source-url"
 import {
@@ -292,7 +292,7 @@ export const updateSource = async (
 }
 
 /**
- * GitHub が検出したリポジトリのライセンスと、それが許可リストにあるか
+ * リポジトリのライセンス（GitHub の検出か確認済みの一覧の値）と、それが許可リストにあるか
  */
 type RepositoryLicense = {
   /**
@@ -380,7 +380,7 @@ const findConflictingLicenseUrl = async (
   input: { branch: string; directory: string; licenseSha: string; repository: string },
   deps: { githubRepositoryClient: IGitHubRepositoryClient },
 ): Promise<string | null> => {
-  for (const directory of listAncestorDirectories(input.directory)) {
+  for (const directory of listDirectoryAndAncestors(input.directory)) {
     const files = await deps.githubRepositoryClient.listDirectoryFiles(input.repository, input.branch, directory)
     const conflict = files.find((file) => LICENSE_FILE_NAME_PATTERN.test(file.name) && file.sha !== input.licenseSha)
     if (conflict) return conflict.htmlUrl
@@ -392,10 +392,10 @@ const findConflictingLicenseUrl = async (
  * 確認済みの一覧のライセンスは default branch のドキュメントの中だけに使う。ほかの場所の文章は確かめていないため
  */
 const findVerifiedLicense = (
-  input: { branch: string; defaultBranch: string; documentsPath: string; repository: string },
+  input: { branch: string; defaultBranch: string; repository: string; targetPath: string },
   verified: VerifiedDocumentRepository | undefined,
 ): RepositoryLicense | null => {
-  if (!verified?.license || input.branch !== input.defaultBranch || !isInsideDirectory(input.documentsPath, verified.documentsPath)) return null
+  if (!verified?.license || input.branch !== input.defaultBranch || !isInsideDirectory(input.targetPath, verified.documentsPath)) return null
   return {
     conflictUrl: null,
     isAllowed: isAllowedLicense(verified.license.spdx),
@@ -430,18 +430,18 @@ const suggestGitHubRepositorySource = async (
   const { defaultBranch } = githubRepository
   const { branch, path } = splitBranchAndPath(sourceUrl.refAndPath, defaultBranch)
   const verified = VERIFIED_DOCUMENT_REPOSITORIES[repository]
-  const documentsPath = path !== ""
+  const targetPath = path !== ""
     ? path
     : verified?.documentsPath ?? findDocumentsDirectory(await deps.githubRepositoryClient.listMarkdownPaths(repository, branch))
   const isFile = sourceUrl.target === "file"
-  const verifiedLicense = findVerifiedLicense({ branch, defaultBranch, documentsPath, repository }, verified)
+  const verifiedLicense = findVerifiedLicense({ branch, defaultBranch, repository, targetPath }, verified)
   /**
    * 見つからなくても default branch のライセンスは見ない。無いブランチや、確かめていないブランチの文章を登録できてしまい、登録の後は直せないため
    */
   const detected = verifiedLicense ? null : await deps.githubRepositoryClient.detectLicense(repository, branch)
   const conflictUrl = detected
     ? await findConflictingLicenseUrl(
-      { branch, directory: isFile ? findParentDirectory(documentsPath) : documentsPath, licenseSha: detected.sha, repository },
+      { branch, directory: isFile ? findParentDirectory(targetPath) : targetPath, licenseSha: detected.sha, repository },
       deps,
     )
     : null
@@ -450,11 +450,11 @@ const suggestGitHubRepositorySource = async (
     defaultBranch,
     detectedLicense: verifiedLicense ?? buildRepositoryLicense(detected, conflictUrl),
     excludeGlobs: isFile ? [] : [
-      ...buildDefaultExcludeGlobs(documentsPath, { hasReadmePages: verified?.hasReadmePages ?? false }),
+      ...buildDefaultExcludeGlobs(targetPath, { hasReadmePages: verified?.hasReadmePages ?? false }),
       ...(verified?.extraExcludeGlobs ?? []),
     ],
     fetchType: "github_repository",
-    includeGlobs: [buildGitHubIncludeGlob(isFile ? "file" : "directory", documentsPath)],
+    includeGlobs: [buildGitHubIncludeGlob(isFile ? "file" : "directory", targetPath)],
     repository,
   })
 }

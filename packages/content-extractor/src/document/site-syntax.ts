@@ -18,7 +18,7 @@ const TABLE_OF_CONTENTS_LINE_PATTERN = /^\s*\[\[toc\]\]\s*$/i
 
 const HEADING_LINE_PATTERN = /^#{1,6}\s/
 
-const HEADING_ANCHOR_PATTERN = /^\{\s*#[\w-]+\s*\}$/
+const HEADING_ANCHOR_PATTERN = /^\{\s*#[^\s{}]+\s*\}$/
 
 const isSiteSyntaxLine = (line: string): boolean =>
   CONTAINER_MARKER_PATTERN.test(line) || INCLUDE_LINE_PATTERN.test(line) || TABLE_OF_CONTENTS_LINE_PATTERN.test(line)
@@ -35,7 +35,8 @@ const removeHeadingAnchor = (line: string): string => {
 
 /**
  * サイトのビルドが処理する記法を消す。囲みの中の本文は残す。コードブロックの中は消さない。
- * MDX の `{* ... *}` や見出しの `{#id}` は式として読まれて構文エラーになるので、Markdown として読む前に消す
+ * MDX の `{* ... *}` や見出しの `{#id}` は式として読まれて構文エラーになるので、Markdown として読む前に消す。
+ * 行を先頭から順に見て、コードブロックの中かどうかを openFence で次の行に引き継ぐ
  */
 export const removeSiteSyntax = (source: string): string => {
   let openFence: string | null = null

@@ -35,6 +35,8 @@ describe("removeSiteSyntax", () => {
       ["空白なし", "## Why Composition API? {#why-composition-api}", "## Why Composition API?"],
       ["空白あり", "# Concurrency and Burgers { #concurrency-and-burgers }", "# Concurrency and Burgers"],
       ["末尾の空白", "### Title {#title}  ", "### Title"],
+      ["ドットを含む", "# Vue.js Privacy Policy {#vue.js-privacy-policy}", "# Vue.js Privacy Policy"],
+      ["英数字以外の記号を含む", "#### Web Accessibility Initiative (WAI-ARIA) {#web-accessibility-initiative-–-aria}", "#### Web Accessibility Initiative (WAI-ARIA)"],
     ])("見出しのアンカーを消す（%s）", (_label, line, expected) => {
       expect(removeSiteSyntax(line)).toBe(expected)
     })

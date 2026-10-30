@@ -68,7 +68,7 @@ export function SourceSuggestionSummary({ suggestion }: { suggestion: SuggestSou
           <SummaryRow label="別のライセンス"><LicenseUrlLink url={suggestion.detected_license.conflict_url} /></SummaryRow>
         )}
       </dl>
-      {isGitHub && isResolved && <p className="mt-3 text-theme-xs text-gray-500 dark:text-gray-400">{LICENSE_NOTE}</p>}
+      {isGitHub && isResolved && !suggestion.detected_license.is_verified && <p className="mt-3 text-theme-xs text-gray-500 dark:text-gray-400">{LICENSE_NOTE}</p>}
     </div>
   )
 }

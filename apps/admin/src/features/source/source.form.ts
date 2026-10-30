@@ -86,7 +86,7 @@ export const convertFormDataToSourceRequest = (formData: FormData): Record<strin
 }
 
 /**
- * GitHub が検出したライセンスを確かめられたか（許可リストのライセンスで、そのファイルの URL があり、対象パスに別のライセンスが無い）。サイトは常に確かめられたものとして扱う。
+ * GitHub の検出か確認済みの一覧のライセンスを確かめられたか（許可リストのライセンスで、そのファイルの URL があり、対象パスに別のライセンスが無い）。サイトは常に確かめられたものとして扱う。
  * 確かめられないリポジトリは登録させない。手で選べると、確かめていないライセンスの文章を公開できてしまうため
  */
 export const isLicenseResolved = (suggestion: SuggestSourceResponse): boolean =>

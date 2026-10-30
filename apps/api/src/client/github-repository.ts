@@ -138,9 +138,12 @@ export class GitHubRepositoryClient implements IGitHubRepositoryClient {
     if (response.status === 404) return []
     if (!response.ok) throw new Error(`GitHub contents request failed: ${response.status}`)
 
-    const body = githubDirectoryResponseSchema.safeParse(await response.json())
-    if (!body.success) return []
-    return body.data.flatMap((entry) =>
+    const body: unknown = await response.json()
+    /**
+     * ファイルのパスにはオブジェクトが返る。配列の中の想定外の形は、別のライセンスを見落とさないよう throw する
+     */
+    if (!Array.isArray(body)) return []
+    return githubDirectoryResponseSchema.parse(body).flatMap((entry) =>
       entry.type === "file" && entry.html_url !== null ? [{ htmlUrl: entry.html_url, name: entry.name, sha: entry.sha }] : [],
     )
   }
