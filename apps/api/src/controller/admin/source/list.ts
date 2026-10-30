@@ -4,32 +4,39 @@ import { getSourceListResponseSchema } from "@repo/api-schema"
 
 import { parseResponse } from "../../../lib/parse-schema"
 import { sendError } from "../../../lib/send-error"
-import { SourceRepository } from "../../../repository"
+import { SourceCollectionRunRepository, SourceRepository } from "../../../repository"
 import * as service from "../../../service"
 import { convertTagToResponse } from "../tag/tag-mapper"
 
+import { convertSourceCollectionRunToResponse } from "./source-mapper"
+
 /**
- * admin のソース一覧取得API（状態別の本文候補件数つき）
+ * admin のソース一覧取得API（状態別の本文候補件数と、最後の収集の記録つき）
  */
 export class AdminSourceListController {
-  constructor(private _sourceRepository: SourceRepository) {}
+  constructor(
+    private _sourceRepository: SourceRepository,
+    private _sourceCollectionRunRepository: SourceCollectionRunRepository,
+  ) {}
 
   public async execute(req: Request, res: Response) {
-    const result = await service.source.getSources({
-      sourceRepository: this._sourceRepository,
-    })
+    const result = await service.source.getSources(
+      { sourceCollectionRunRepository: this._sourceCollectionRunRepository, sourceRepository: this._sourceRepository },
+      { now: new Date() },
+    )
 
     if (!result.ok) {
       return sendError(req, res, result.error)
     }
 
     const response = parseResponse(getSourceListResponseSchema, {
-      sources: result.value.map(({ passageCounts, source }) => ({
+      sources: result.value.map(({ latestCollectionRun, passageCounts, source }) => ({
         id: source.id,
         fetch_type: source.fetchType,
         is_enabled: source.isEnabled,
         kind: source.kind,
         last_collected_at: source.lastCollectedAt?.toISOString() ?? null,
+        latest_collection_run: latestCollectionRun ? convertSourceCollectionRunToResponse(latestCollectionRun) : null,
         license_spdx: source.licenseSpdx,
         name: source.name,
         passage_counts: passageCounts,

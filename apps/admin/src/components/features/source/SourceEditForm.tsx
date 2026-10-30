@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { type FormEvent, startTransition, useActionState, useState } from "react"
+import { type FormEvent, startTransition, useActionState, useEffect, useRef, useState } from "react"
 
 import type { GetSourceResponse, GetTagListResponse } from "@repo/api-schema"
 
@@ -45,6 +45,12 @@ function StatusRow({ children, label }: { children: React.ReactNode, label: stri
 }
 
 /**
+ * 並びを揃えて比べる。タグを外して付け直すと tag_ids の順序だけが変わり、変更が無いのに未保存になるため
+ */
+const serializeFormValues = (form: HTMLFormElement | null): string =>
+  form === null ? "" : JSON.stringify([...new FormData(form).entries()].map(String).sort())
+
+/**
  * ソースの編集フォーム。取得方法・取得元（リポジトリとブランチ・サイトの URL）・GitHub のライセンスは登録で決まって変えられないので、
  * 欄にせず「収集の状況」に出す。
  *
@@ -74,6 +80,14 @@ export function SourceEditForm({
   const [licenseSpdx, setLicenseSpdx] = useState<string>(source.license_spdx)
   const [licenseUrl, setLicenseUrl] = useState<string>(source.license_url)
   const [isEnabled, setIsEnabled] = useState(source.is_enabled)
+  const formRef = useRef<HTMLFormElement>(null)
+  const savedFormValuesRef = useRef("")
+
+  useEffect(() => {
+    savedFormValuesRef.current = serializeFormValues(formRef.current)
+  }, [])
+
+  const hasUnsavedChanges = (): boolean => serializeFormValues(formRef.current) !== savedFormValuesRef.current
 
   const getFieldError = (key: string): string | undefined => state.errors?.[key]?.[0]
   const hasFieldErrors = Object.values(state.errors ?? {}).some((messages) => (messages?.length ?? 0) > 0)
@@ -90,7 +104,7 @@ export function SourceEditForm({
 
   return (
     <div className="grid gap-6 xl:grid-cols-3">
-      <form className="space-y-6 xl:col-span-2" noValidate onSubmit={handleSubmit}>
+      <form ref={formRef} className="space-y-6 xl:col-span-2" noValidate onSubmit={handleSubmit}>
         <input name="fetch_type" type="hidden" value={source.fetch_type} />
         {githubSource && <input name="is_enabled" type="hidden" value={String(isEnabled)} />}
 
@@ -202,6 +216,7 @@ export function SourceEditForm({
         {githubSource && (
           <SourceCollectionCard
             activeStatuses={activeCollectionRunStatuses}
+            hasUnsavedChanges={hasUnsavedChanges}
             isEnabled={githubSource.is_enabled}
             run={detail.latest_collection_run}
             sourceId={githubSource.id}

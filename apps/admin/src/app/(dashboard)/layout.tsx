@@ -5,7 +5,6 @@ import AdminShell from "@/components/layout/AdminShell"
 import { adminApi } from "@/features/admin/admin.api"
 import { markAllAsReadAction } from "@/features/notification/notification.actions"
 import { notificationApi } from "@/features/notification/notification.api"
-import { USER_LIST_KEYWORD_MAX_LENGTH } from "@/features/user/user.params"
 
 /**
  * サイドバー付きの画面の枠。サインイン中の admin と通知を取ってシェルに渡す。
@@ -32,7 +31,6 @@ export default async function DashboardLayout({ children }: { children: React.Re
       admin={admin}
       markAllAsReadAction={markAllAsReadAction}
       notifications={notifications}
-      search={{ action: "/users", maxLength: USER_LIST_KEYWORD_MAX_LENGTH ?? undefined, placeholder: "ユーザーを検索" }}
     >
       {children}
     </AdminShell>

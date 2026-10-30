@@ -12,7 +12,7 @@ export type UserListQuery = Omit<GetAdminUserListQueryString, "limit">
 
 const QUERY_FIELDS = getAdminUserListQueryStringSchema.shape
 
-export const USER_LIST_KEYWORD_MAX_LENGTH = QUERY_FIELDS.q.unwrap().maxLength
+const USER_LIST_KEYWORD_MAX_LENGTH = QUERY_FIELDS.q.unwrap().maxLength
 
 /**
  * 既定値（登録日の新しい順・1 ページ目）

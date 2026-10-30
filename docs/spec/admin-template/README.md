@@ -135,7 +135,6 @@
 
 - **ユーザーメニュー**：サインイン中の admin のアイコン（無ければ頭文字）・名前（無ければ email）・email を出す。メニューは「マイページ」と「ログアウト」
 - **通知**：ベルを押すと通知の一覧が出る。tech-english には今は通知の元が無いので、常に「通知はありません」と出す
-- **検索**：検索欄に入れて Enter を押すと、ユーザー一覧をその語で絞り込んだ状態で開く（名前・メールアドレスの部分一致。ユーザー一覧の絞り込みと同じ）。⌘K（Windows は Ctrl+K）で検索欄にフォーカスする
 
 ### マイページ
 
@@ -352,11 +351,9 @@ tech-english の本番は一般ユーザーに Google を使っていないの�
 | --- | --- |
 | `UserDropdown` | `admin`（名前・email・アイコン） |
 | `NotificationDropdown` | `notifications`（id・本文・リンク・日時・既読）、`markAllAsReadAction`（Server Action。省略可） |
-| `HeaderSearch` | `action`（検索の行き先）、`maxLength`、`placeholder`。省略すると検索欄を出さない |
 
 - proxy は cookie の期限しか見ないので、layout で `/api/admin/me` を呼び、画面を直接開いたとき・再読み込みのときは api がトークンを確かめる。クライアント側の遷移では layout が描き直されないので、機密を出す画面は自分で api を呼ぶ（今の画面はすべて自分で呼んでいる）
 - 通知は `features/notification/notification.api.ts` で取る。tech-english には通知の元が無いので、空の配列を返すだけにする（テンプレートと同じスタブ）。通知の取得に失敗しても画面はエラーにしない
-- 検索は `next/form` の GET 送信。JavaScript が無くても動き、URL はユーザー一覧の絞り込みと同じ `/users?q=...` になる。`maxLength` はユーザー一覧の `q` の上限（200）で、`features/user/user.params.ts` で API のクエリのスキーマから取る。テンプレートの `ADMIN_USER_LIST_MAX_QUERY_LENGTH` は #128 の定数なので使わない
 - 今の `(dashboard)/layout.tsx` の `min-w-0`（広い表がページを広げず、カードの中でスクロールする）は `AdminShell` に残す。テンプレートには無い
 - アイコンはテンプレートの `ui/avatar/UserAvatar` をヘッダーとマイページで使う。頭文字の切り方の修正（#131。「Admin (dev)」は「AD」）を `ui/avatar/AvatarText` に入れる。ユーザー管理の `features/user/UserAvatar` はそのまま残す
 - 表示名は名前、無ければ email（`features/admin/admin-display-name.ts`）
@@ -386,7 +383,7 @@ tech-english の本番は一般ユーザーに Google を使っていないの�
 | ダッシュボード・問題・ソース・タグ・ユーザー | 今のまま | 中身は変えない。Tooltip を足す所だけ変わる（[仕様](#tooltip)） |
 | デザインモック | `/mock`（今のまま） | サインインが要る |
 
-全画面でヘッダー（ユーザーメニュー・通知・検索）とサイドバー（メニュー・デモ）が変わる。具体的な見た目は TailAdmin のデモに合わせる（step に書く）。
+全画面でヘッダー（ユーザーメニュー・通知）とサイドバー（メニュー・デモ）が変わる。具体的な見た目は TailAdmin のデモに合わせる（step に書く）。
 
 ## 必要な API
 

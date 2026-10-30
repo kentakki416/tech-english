@@ -3,7 +3,6 @@ import React, { useState } from "react"
 
 import type { GetAdminMeResponse } from "@repo/api-schema"
 
-import HeaderSearch, { type HeaderSearchProps } from "@/components/features/header/HeaderSearch"
 import NotificationDropdown from "@/components/features/header/NotificationDropdown"
 import UserDropdown from "@/components/features/header/UserDropdown"
 import { AppLogo } from "@/components/layout/AppLogo"
@@ -15,13 +14,9 @@ export type AppHeaderProps = {
   admin: GetAdminMeResponse
   markAllAsReadAction?: () => Promise<void>
   notifications: AdminNotification[]
-  /**
-   * 省略すると検索欄を出さない
-   */
-  search?: HeaderSearchProps
 }
 
-export default function AppHeader({ admin, markAllAsReadAction, notifications, search }: AppHeaderProps) {
+export default function AppHeader({ admin, markAllAsReadAction, notifications }: AppHeaderProps) {
   const [isApplicationMenuOpen, setApplicationMenuOpen] = useState(false)
 
   const { isMobileOpen, toggleSidebar, toggleMobileSidebar } = useSidebar()
@@ -102,12 +97,6 @@ export default function AppHeader({ admin, markAllAsReadAction, notifications, s
               />
             </svg>
           </button>
-
-          {search && (
-            <div className="hidden lg:block">
-              <HeaderSearch {...search} />
-            </div>
-          )}
         </div>
         <div
           className={`${

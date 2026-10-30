@@ -31,7 +31,7 @@ import {
 type SourceRepo = { sourceRepository: SourceRepository }
 
 /**
- * 収集の実行の記録も読み書きする Repository（詳細・今すぐ収集の依頼）
+ * 収集の実行の記録も読み書きする Repository（一覧・詳細・今すぐ収集の依頼）
  */
 type SourceCollectionRepo = SourceRepo & { sourceCollectionRunRepository: SourceCollectionRunRepository }
 
@@ -130,26 +130,11 @@ const hasCollectionScopeChanged = (existing: GitHubRepositorySource, input: GitH
   || !isSameStringList(existing.excludeGlobs, input.excludeGlobs)
 
 /**
- * ソース一覧（状態別の本文候補件数つき）
- */
-export const getSources = async (
-  repo: SourceRepo,
-): Promise<Result<{ passageCounts: PassageCounts; source: SourceWithTags }[]>> => {
-  const [sources, passageCountRows] = await Promise.all([
-    repo.sourceRepository.findAll(),
-    repo.sourceRepository.countPassagesBySource(),
-  ])
-  return ok(sources.map((source) => ({
-    passageCounts: buildPassageCounts(passageCountRows, source.id),
-    source,
-  })))
-}
-
-/**
  * 収集中のまま時間切れ（SOURCE_COLLECTION_RUN_TIMEOUT_MINUTES）を過ぎた記録を failed にする。
- * worker が止まって記録が収集中のまま残っても、次に詳細を読む・依頼するときに片付けて、もう一度依頼できるようにする
+ * worker が止まって記録が収集中のまま残っても、次に一覧・詳細を読む・依頼するときに片付けて、もう一度依頼できるようにする。
+ * sourceId を省くと、すべてのソースの記録を片付ける
  */
-const failTimedOutCollectionRuns = async (sourceId: number, now: Date, repo: SourceCollectionRepo): Promise<void> => {
+const failTimedOutCollectionRuns = async (now: Date, repo: SourceCollectionRepo, sourceId?: number): Promise<void> => {
   const count = await repo.sourceCollectionRunRepository.failTimedOut({
     error: SOURCE_COLLECTION_TIMED_OUT_ERROR,
     now,
@@ -157,6 +142,30 @@ const failTimedOutCollectionRuns = async (sourceId: number, now: Date, repo: Sou
     staleBefore: new Date(now.getTime() - SOURCE_COLLECTION_RUN_TIMEOUT_MINUTES * 60_000),
   })
   if (count > 0) logger.warn("SourceService: Timed out source collection runs were failed", { count, sourceId })
+}
+
+/**
+ * ソース一覧（状態別の本文候補件数と、最後の収集の記録つき）
+ */
+export const getSources = async (
+  repo: SourceCollectionRepo,
+  deps: { now: Date },
+): Promise<Result<{ latestCollectionRun: SourceCollectionRun | null; passageCounts: PassageCounts; source: SourceWithTags }[]>> => {
+  await failTimedOutCollectionRuns(deps.now, repo)
+  /**
+   * 詳細と同じ理由で、すべて primary から読む（一覧も収集中は読み直し、終わると読み直さないので、遅れた件数が残らないように）
+   */
+  const [sources, passageCountRows, latestCollectionRuns] = await Promise.all([
+    repo.sourceRepository.findAll({ fromPrimary: true }),
+    repo.sourceRepository.countPassagesBySource(undefined, { fromPrimary: true }),
+    repo.sourceCollectionRunRepository.findLatestPerSource({ fromPrimary: true }),
+  ])
+  const latestCollectionRunBySourceId = new Map(latestCollectionRuns.map((run) => [run.sourceId, run]))
+  return ok(sources.map((source) => ({
+    latestCollectionRun: latestCollectionRunBySourceId.get(source.id) ?? null,
+    passageCounts: buildPassageCounts(passageCountRows, source.id),
+    source,
+  })))
 }
 
 /**
@@ -176,7 +185,7 @@ export const getSourceById = async (
     logger.debug("SourceService: Source not found", { id })
     return err(notFoundError("Source not found"))
   }
-  await failTimedOutCollectionRuns(id, deps.now, repo)
+  await failTimedOutCollectionRuns(deps.now, repo, id)
   const [passageCountRows, latestCollectionRun] = await Promise.all([
     repo.sourceRepository.countPassagesBySource(id, { fromPrimary: true }),
     repo.sourceCollectionRunRepository.findLatestBySourceId(id, { fromPrimary: true }),
@@ -404,7 +413,7 @@ export const requestSourceCollection = async (
     return err(buildSourceNotCollectableError(collectability.reason))
   }
 
-  await failTimedOutCollectionRuns(sourceId, deps.now, repo)
+  await failTimedOutCollectionRuns(deps.now, repo, sourceId)
   const created = await repo.sourceCollectionRunRepository.create(sourceId)
   if (created.kind === "active_exists") {
     logger.debug("SourceService: Source collection is already running", { sourceId })
