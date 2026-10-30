@@ -45,6 +45,12 @@ function StatusRow({ children, label }: { children: React.ReactNode, label: stri
 }
 
 /**
+ * 並びを揃えて比べる。タグを外して付け直すと tag_ids の順序だけが変わり、変更が無いのに未保存になるため
+ */
+const serializeFormValues = (form: HTMLFormElement | null): string =>
+  form === null ? "" : JSON.stringify([...new FormData(form).entries()].map(String).sort())
+
+/**
  * ソースの編集フォーム。取得方法・取得元（リポジトリとブランチ・サイトの URL）・GitHub のライセンスは登録で決まって変えられないので、
  * 欄にせず「収集の状況」に出す。
  *
@@ -52,9 +58,6 @@ function StatusRow({ children, label }: { children: React.ReactNode, label: stri
  * activeCollectionRunStatuses は収集中の状態の値。
  * Client Component で Zod のスキーマを import すると bundle に入るため、Server Component から渡す
  */
-const serializeFormValues = (form: HTMLFormElement | null): string =>
-  form === null ? "" : JSON.stringify([...new FormData(form).entries()])
-
 export function SourceEditForm({
   activeCollectionRunStatuses,
   allowedLicenses,

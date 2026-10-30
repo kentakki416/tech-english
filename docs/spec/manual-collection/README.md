@@ -156,7 +156,7 @@ worker を動かしていない環境（minimal の構成で worker を作らな
 
 **`queued` / `running` のまま 30 分（api の `SOURCE_COLLECTION_RUN_TIMEOUT_MINUTES`）を過ぎた記録は、api が次に読むとき（一覧・編集画面を開く・ボタンを押す）に `failed`（「30 分を過ぎても終わらなかった」）にする。**
 
-- `queued` は依頼した時刻（`created_at`）、`running` は worker が始めた時刻（`started_at`）から数える。worker の `collect-source` は 1 つずつ処理するので、`queued` の 30 分には別のソースの順番待ちの時間も入る（100 文書の収集の実測は約 30 秒なので、30 分待つのは 60 件ほどを続けて押したとき。押して一覧に戻れるので続けて押せるが、ソースは数十件なので起きにくい。起きたときは `failed` になった記録の収集は行われないので、もう一度押す）
+- `queued` は依頼した時刻（`created_at`）、`running` は worker が始めた時刻（`started_at`）から数える。worker の `collect-source` は 1 つずつ処理するので、`queued` の 30 分には別のソースの順番待ちの時間も入る（100 文書の収集はローカルの実測で約 30 秒なので、30 分待つのは 60 件ほどを続けて押したとき。押して一覧に戻れるので続けて押せるが、ソースは数十件なので起きにくい。起きたときは `failed` になった記録の収集は行われないので、もう一度押す）
 - 分数を使うのは api だけなので、api の `src/const/` に置く（cron の `STALE_GENERATING_MINUTES` などと同じく、使う app の側に置く）
 - 一覧と詳細の GET の中で UPDATE するので、読み直しのたびに条件付きの UPDATE が 1 回走る（詳細は `source_id` で絞る。一覧はすべてのソースが対象だが、収集中の記録は多くてもソースの数までなので軽い）
 
