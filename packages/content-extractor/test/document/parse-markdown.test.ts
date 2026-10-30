@@ -5,6 +5,18 @@ import { readFixture } from "./helpers"
 
 describe("parseMarkdown", () => {
   describe("正常系", () => {
+    it("サイト用の記法の行を消す。MDX の `{* ... *}` も構文エラーにならない", () => {
+      const source = "# Title {#title}\n\n:::note\nKept body.\n:::\n\n{* ../../docs_src/app.py *}\n"
+
+      const { root, title } = parseMarkdown(source, { isMdx: true })
+
+      expect(title).toBe("Title")
+      expect(convertMdastToBlocks(root)).toEqual([
+        { headingDepth: 1, text: "Title", type: "heading" },
+        { text: "Kept body.", type: "paragraph" },
+      ])
+    })
+
     it("guide.mdx：frontmatter の title を使い、import 文・JSX・表・画像を捨て、lang つきのコードと入れ子のリストを残す", () => {
       const { root, title } = parseMarkdown(readFixture("guide.mdx"), { isMdx: true })
 

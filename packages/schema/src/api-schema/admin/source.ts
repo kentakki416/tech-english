@@ -403,11 +403,14 @@ export const suggestSourceQueryStringSchema = z.object({
 export const sourceSuggestionErrorCodeSchema = z.enum(SOURCE_SUGGESTION_ERROR_CODES)
 
 /**
- * GitHub が検出したライセンスと、それが許可リストにあるか。license_spdx が null なのは GitHub がライセンスを判定できなかったとき
- * （ファイルはあっても種類が分からない・複数ある）、license_url（GitHub が見つけたライセンスのファイルの URL）が null なのはライセンスのファイルが無いとき
+ * GitHub が検出したライセンス（確認済みのリポジトリは確かめた値）と、それが許可リストにあるか。license_spdx が null なのは GitHub がライセンスを判定できなかったとき
+ * （ファイルはあっても種類が分からない・複数ある）、license_url（ライセンスのファイルの URL）が null なのはライセンスのファイルが無いとき。
+ * conflict_url は対象パスかその親にある、トップと内容の違うライセンスのファイルの URL（無ければ null）。is_verified は確認済みの一覧の値か
  */
 const detectedLicenseSchema = z.object({
+  conflict_url: z.string().nullable(),
   is_allowed: z.boolean(),
+  is_verified: z.boolean(),
   license_spdx: z.string().nullable(),
   license_url: z.string().nullable(),
 })
@@ -421,6 +424,7 @@ export const suggestSourceResponseSchema = z.discriminatedUnion("fetch_type", [
     branch: z.string(),
     default_branch: z.string(),
     detected_license: detectedLicenseSchema,
+    exclude_globs: z.array(z.string()),
     fetch_type: z.literal("github_repository"),
     include_globs: z.array(z.string()),
     repository: z.string(),

@@ -17,6 +17,18 @@ import { buildCollectSourceJobId, type CollectSourceJobData, type JobQueue } fro
 
 import type { DetectedLicense, IGitHubRepositoryClient } from "../client/github-repository"
 import { SOURCE_COLLECTION_RUN_TIMEOUT_MINUTES } from "../const"
+import {
+  UNSUPPORTED_DOCUMENT_REPOSITORIES,
+  VERIFIED_DOCUMENT_REPOSITORIES,
+  type VerifiedDocumentRepository,
+} from "../const/document-repository"
+import {
+  buildDefaultExcludeGlobs,
+  findDocumentsDirectory,
+  findParentDirectory,
+  isInsideDirectory,
+  listAncestorDirectories,
+} from "../lib/source-document-path"
 import { buildGitHubIncludeGlob, buildWebsiteIncludeGlob, parseSourceUrl, splitBranchAndPath } from "../lib/source-url"
 import {
   PassageCountRow,
@@ -282,7 +294,16 @@ export const updateSource = async (
 /**
  * GitHub が検出したリポジトリのライセンスと、それが許可リストにあるか
  */
-type RepositoryLicense = { isAllowed: boolean; licenseSpdx: string | null; licenseUrl: string | null }
+type RepositoryLicense = {
+  /**
+   * 対象パスかその親にある、トップと内容の違うライセンスのファイルの URL
+   */
+  conflictUrl: string | null
+  isAllowed: boolean
+  isVerified: boolean
+  licenseSpdx: string | null
+  licenseUrl: string | null
+}
 
 /**
  * URL からのソースの登録の初期値
@@ -292,6 +313,7 @@ export type SourceSuggestion =
     branch: string
     defaultBranch: string
     detectedLicense: RepositoryLicense
+    excludeGlobs: string[]
     fetchType: "github_repository"
     includeGlobs: string[]
     repository: string
@@ -307,15 +329,22 @@ export type SourceSuggestion =
 const SOURCE_SUGGESTION_ERROR_MESSAGE = "Cannot suggest a source from the URL"
 
 /**
+ * 大文字だけを見る。`docs/license.md` のようなページ（製品のライセンスの説明）で止めないため
+ */
+const LICENSE_FILE_NAME_PATTERN = /^(LICENSE|LICENCE|COPYING)([-._].*)?$/
+
+/**
  * URL から初期値を作れない理由の 400。admin は details[0].code で文言を分ける
  */
 const buildSourceSuggestionError = (code: SourceSuggestionErrorCode) =>
   badRequestError(SOURCE_SUGGESTION_ERROR_MESSAGE, [{ code, message: code, path: ["url"] }])
 
-const buildRepositoryLicense = (detected: DetectedLicense | null): RepositoryLicense => {
+const buildRepositoryLicense = (detected: DetectedLicense | null, conflictUrl: string | null): RepositoryLicense => {
   const licenseSpdx = detected?.licenseSpdx ?? null
   return {
+    conflictUrl,
     isAllowed: licenseSpdx !== null && isAllowedLicense(licenseSpdx),
+    isVerified: false,
     licenseSpdx,
     licenseUrl: detected?.licenseUrl ?? null,
   }
@@ -343,6 +372,39 @@ const suggestWebsiteSource = (url: string, policy: SourceWritePolicy): Result<So
   })
 }
 
+/**
+ * 対象パスとその親で、トップのライセンスと内容の違うライセンスのファイルを探す。トップの検出はサブディレクトリのライセンスを見ないので、
+ * ドキュメントだけ別のライセンスのリポジトリ（ClickHouse の docs/LICENSE）をトップのライセンスで登録してしまうため
+ */
+const findConflictingLicenseUrl = async (
+  input: { branch: string; directory: string; licenseSha: string; repository: string },
+  deps: { githubRepositoryClient: IGitHubRepositoryClient },
+): Promise<string | null> => {
+  for (const directory of listAncestorDirectories(input.directory)) {
+    const files = await deps.githubRepositoryClient.listDirectoryFiles(input.repository, input.branch, directory)
+    const conflict = files.find((file) => LICENSE_FILE_NAME_PATTERN.test(file.name) && file.sha !== input.licenseSha)
+    if (conflict) return conflict.htmlUrl
+  }
+  return null
+}
+
+/**
+ * 確認済みの一覧のライセンスは default branch のドキュメントの中だけに使う。ほかの場所の文章は確かめていないため
+ */
+const findVerifiedLicense = (
+  input: { branch: string; defaultBranch: string; documentsPath: string; repository: string },
+  verified: VerifiedDocumentRepository | undefined,
+): RepositoryLicense | null => {
+  if (!verified?.license || input.branch !== input.defaultBranch || !isInsideDirectory(input.documentsPath, verified.documentsPath)) return null
+  return {
+    conflictUrl: null,
+    isAllowed: isAllowedLicense(verified.license.spdx),
+    isVerified: true,
+    licenseSpdx: verified.license.spdx,
+    licenseUrl: `https://github.com/${input.repository}/blob/${input.branch}/${verified.license.path}`,
+  }
+}
+
 const suggestGitHubRepositorySource = async (
   url: string,
   deps: { githubRepositoryClient: IGitHubRepositoryClient },
@@ -360,18 +422,39 @@ const suggestGitHubRepositorySource = async (
   }
 
   const repository = githubRepository.fullName.toLowerCase()
+  if (UNSUPPORTED_DOCUMENT_REPOSITORIES.includes(repository)) {
+    logger.debug("SourceService: Repository is not supported", { repository })
+    return err(buildSourceSuggestionError("unsupported_repository"))
+  }
+
   const { defaultBranch } = githubRepository
   const { branch, path } = splitBranchAndPath(sourceUrl.refAndPath, defaultBranch)
+  const verified = VERIFIED_DOCUMENT_REPOSITORIES[repository]
+  const documentsPath = path !== ""
+    ? path
+    : verified?.documentsPath ?? findDocumentsDirectory(await deps.githubRepositoryClient.listMarkdownPaths(repository, branch))
+  const isFile = sourceUrl.target === "file"
+  const verifiedLicense = findVerifiedLicense({ branch, defaultBranch, documentsPath, repository }, verified)
   /**
    * 見つからなくても default branch のライセンスは見ない。無いブランチや、確かめていないブランチの文章を登録できてしまい、登録の後は直せないため
    */
-  const detected = await deps.githubRepositoryClient.detectLicense(repository, branch)
+  const detected = verifiedLicense ? null : await deps.githubRepositoryClient.detectLicense(repository, branch)
+  const conflictUrl = detected
+    ? await findConflictingLicenseUrl(
+      { branch, directory: isFile ? findParentDirectory(documentsPath) : documentsPath, licenseSha: detected.sha, repository },
+      deps,
+    )
+    : null
   return ok({
     branch,
     defaultBranch,
-    detectedLicense: buildRepositoryLicense(detected),
+    detectedLicense: verifiedLicense ?? buildRepositoryLicense(detected, conflictUrl),
+    excludeGlobs: isFile ? [] : [
+      ...buildDefaultExcludeGlobs(documentsPath, { hasReadmePages: verified?.hasReadmePages ?? false }),
+      ...(verified?.extraExcludeGlobs ?? []),
+    ],
     fetchType: "github_repository",
-    includeGlobs: [buildGitHubIncludeGlob(sourceUrl.target, path)],
+    includeGlobs: [buildGitHubIncludeGlob(isFile ? "file" : "directory", documentsPath)],
     repository,
   })
 }

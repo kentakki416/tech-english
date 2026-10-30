@@ -81,7 +81,7 @@ admin のソースの登録を、GitHub とサイトで画面を分け、表示�
 
 | URL の形 | 例 | リポジトリ | ブランチ | 対象パス |
 | --- | --- | --- | --- | --- |
-| リポジトリのトップ | `https://github.com/rust-lang/book` | `rust-lang/book` | default branch | `**`（リポジトリ全体） |
+| リポジトリのトップ | `https://github.com/vitejs/vite` | `vitejs/vite` | default branch | 推定したドキュメントのディレクトリ（`docs/**`。推定できなければ `**`。[official-docs-collection](../official-docs-collection/README.md#ドキュメントの場所)） |
 | ディレクトリ | `https://github.com/reactjs/react.dev/tree/main/src/content/learn` | `reactjs/react.dev` | `main` | `src/content/learn/**` |
 | ファイル | `https://github.com/rust-lang/rfcs/blob/master/README.md` | `rust-lang/rfcs` | `master` | `README.md` |
 
@@ -190,7 +190,7 @@ URL の解釈は api の `lib/source-url.ts` の純粋関数にする（api し�
 - GitHub はパスを `/{owner}/{repo}/{tree|blob}/{ブランチとパス}` に分ける。owner / repo がリポジトリ名の形（`@repo/domain` の `GITHUB_REPOSITORY_PATTERN`）に合わなければ `not_repository_url`
 - **リポジトリ名の形は `@repo/domain` に置く**：登録の検証（api-schema の `githubRepositorySchema`）と URL の解釈で同じ形を使う。api-schema のスキーマを api の lib・service から使うと、service がリクエストのスキーマに依存する（今の service は api-schema を import していない）ため、規則の正本の `@repo/domain` に置いて両方から使う
 - **ブランチとパスの区切り**：ブランチ名は `/` を含められる（`release/v2`）ので、URL だけでは `tree/release/v2/docs` のブランチが `release` か `release/v2` か決まらない。default branch で始まればそれをブランチにし、そうでなければ最初の区切り（`release`）までをブランチにする。ブランチの候補ごとに GitHub に問い合わせれば正確に決まるが、ドキュメントの URL のほとんどは default branch（`main` / `master`）で、`/` を含むブランチを取り違えると、無いブランチになってライセンスを確認できず、登録の画面で止まるため、呼び出しを増やさない。取り違えたときに困るのは、ブランチ・対象パスが違うことで、default branch でないことを画面に出して気付けるようにする
-- 対象パスは、ディレクトリなら `{パス}/**`、ファイルならそのパス、トップなら `**`。`{パス}/**` は picomatch でディレクトリ自身にも一致する。拡張子は収集（worker の `listGitHubTargetFiles`）が `.md` / `.mdx` に絞るので付けない
+- 対象パスは、ディレクトリなら `{パス}/**`、ファイルならそのパス、トップなら推定したドキュメントのディレクトリ（[official-docs-collection](../official-docs-collection/README.md#ドキュメントの場所の推定)）。`{パス}/**` は picomatch でディレクトリ自身にも一致する。拡張子は収集（worker の `listGitHubTargetFiles`）が `.md` / `.mdx` に絞るので付けない
 - `**`（リポジトリ全体）は glob の固定部分が無いので、trees API が切り詰められる巨大なリポジトリでは収集が `isComplete: false` になる（[manual-collection](../manual-collection/README.md)・worker の `listGitHubTargetFiles`）。そうしたリポジトリはディレクトリの URL で登録する。登録の画面では止めない
 
 ### GitHub の呼び出し

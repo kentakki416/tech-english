@@ -6,9 +6,11 @@ import { formatLicenseLabel } from "@/features/source/source.labels"
 
 type DetectedLicense = Extract<SuggestSourceResponse, { fetch_type: "github_repository" }>["detected_license"]
 
-const describeDetectedLicense = ({ is_allowed: isAllowed, license_spdx: licenseSpdx, license_url: licenseUrl }: DetectedLicense): string => {
+const describeDetectedLicense = ({ conflict_url: conflictUrl, is_allowed: isAllowed, is_verified: isVerified, license_spdx: licenseSpdx, license_url: licenseUrl }: DetectedLicense): string => {
   if (licenseSpdx === null || licenseUrl === null) return "ライセンスを確認できませんでした"
-  return isAllowed ? `${licenseSpdx}（GitHub が検出したライセンス）` : `${licenseSpdx}：許可リストに無いライセンスです`
+  if (conflictUrl !== null) return `${licenseSpdx}：ドキュメントに別のライセンスがあるので登録できません`
+  if (!isAllowed) return `${licenseSpdx}：許可リストに無いライセンスです`
+  return `${licenseSpdx}（${isVerified ? "確認済みのライセンス" : "GitHub が検出したライセンス"}）`
 }
 
 function SummaryRow({ children, label }: { children: React.ReactNode, label: string }) {
@@ -49,6 +51,11 @@ export function SourceSuggestionSummary({ suggestion }: { suggestion: SuggestSou
           )}
         </SummaryRow>
         <SummaryRow label="対象パス"><span className="font-mono">{suggestion.include_globs.join(", ")}</span></SummaryRow>
+        {isGitHub && suggestion.exclude_globs.length > 0 && (
+          <SummaryRow label="除外パス">
+            変更履歴・翻訳・ブログ・貢献者向けの文書など {suggestion.exclude_globs.length} 件（「詳細」で直せます）
+          </SummaryRow>
+        )}
         <SummaryRow label="ライセンス">
           <span className={isResolved ? undefined : "text-error-500"}>
             {isGitHub ? describeDetectedLicense(suggestion.detected_license) : formatLicenseLabel(suggestion.license_spdx)}
@@ -57,6 +64,9 @@ export function SourceSuggestionSummary({ suggestion }: { suggestion: SuggestSou
         <SummaryRow label="ライセンスの記載がある URL">
           <LicenseUrlLink url={isGitHub ? suggestion.detected_license.license_url : suggestion.license_url} />
         </SummaryRow>
+        {isGitHub && suggestion.detected_license.conflict_url !== null && (
+          <SummaryRow label="別のライセンス"><LicenseUrlLink url={suggestion.detected_license.conflict_url} /></SummaryRow>
+        )}
       </dl>
       {isGitHub && isResolved && <p className="mt-3 text-theme-xs text-gray-500 dark:text-gray-400">{LICENSE_NOTE}</p>}
     </div>

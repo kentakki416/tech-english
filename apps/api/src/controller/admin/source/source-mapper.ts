@@ -139,10 +139,13 @@ export const convertSourceSuggestionToResponse = (suggestion: SourceSuggestion):
     branch: suggestion.branch,
     default_branch: suggestion.defaultBranch,
     detected_license: {
+      conflict_url: suggestion.detectedLicense.conflictUrl,
       is_allowed: suggestion.detectedLicense.isAllowed,
+      is_verified: suggestion.detectedLicense.isVerified,
       license_spdx: suggestion.detectedLicense.licenseSpdx,
       license_url: suggestion.detectedLicense.licenseUrl,
     },
+    exclude_globs: suggestion.excludeGlobs,
     fetch_type: "github_repository",
     include_globs: suggestion.includeGlobs,
     repository: suggestion.repository,

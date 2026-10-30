@@ -3,6 +3,7 @@ import request from "supertest"
 import type { IGitHubRepositoryClient } from "../../../../src/client/github-repository"
 import { AdminSourceDetailController } from "../../../../src/controller/admin/source/detail"
 import { AdminSourceSuggestController } from "../../../../src/controller/admin/source/suggest"
+import { buildDefaultExcludeGlobs } from "../../../../src/lib/source-document-path"
 import { DrizzleSourceCollectionRunRepository } from "../../../../src/repository/drizzle/source-collection-run-repository"
 import { DrizzleSourceRepository } from "../../../../src/repository/drizzle/source-repository"
 import { adminRouter, mountAdminApi } from "../../../../src/routes/admin-router"
@@ -15,7 +16,12 @@ import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb } from "
  */
 const mockDetectLicense = vi.fn<IGitHubRepositoryClient["detectLicense"]>()
 const mockFindRepository = vi.fn<IGitHubRepositoryClient["findRepository"]>()
-const fakeGitHubRepositoryClient: IGitHubRepositoryClient = { detectLicense: mockDetectLicense, findRepository: mockFindRepository }
+const fakeGitHubRepositoryClient: IGitHubRepositoryClient = {
+  detectLicense: mockDetectLicense,
+  findRepository: mockFindRepository,
+  listDirectoryFiles: async () => [],
+  listMarkdownPaths: async () => [],
+}
 
 const LICENSE_FILE_URL = "https://github.com/reactjs/react.dev/blob/main/LICENSE-DOCS.md"
 
@@ -53,7 +59,7 @@ beforeEach(async () => {
   vi.clearAllMocks()
   policy.isWebsiteSourceAllowed = true
   mockFindRepository.mockResolvedValue({ defaultBranch: "main", fullName: "reactjs/react.dev" })
-  mockDetectLicense.mockResolvedValue({ licenseSpdx: "CC-BY-4.0", licenseUrl: LICENSE_FILE_URL })
+  mockDetectLicense.mockResolvedValue({ licenseSpdx: "CC-BY-4.0", licenseUrl: LICENSE_FILE_URL, sha: "license-sha" })
 })
 
 afterAll(async () => {
@@ -71,7 +77,8 @@ describe("GET /api/admin/source/suggestion", () => {
       expect(res.body).toEqual({
         branch: "main",
         default_branch: "main",
-        detected_license: { is_allowed: true, license_spdx: "CC-BY-4.0", license_url: LICENSE_FILE_URL },
+        detected_license: { conflict_url: null, is_allowed: true, is_verified: false, license_spdx: "CC-BY-4.0", license_url: LICENSE_FILE_URL },
+        exclude_globs: buildDefaultExcludeGlobs("src/content/learn", { hasReadmePages: false }),
         fetch_type: "github_repository",
         include_globs: ["src/content/learn/**"],
         repository: "reactjs/react.dev",

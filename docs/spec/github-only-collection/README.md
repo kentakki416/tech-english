@@ -64,7 +64,7 @@
 | --- | --- | --- | --- |
 | `reactjs/react.dev` | `LICENSE-DOCS.md`（CC-BY-4.0） | 掛かっている（README に「Content submitted to react.dev is CC-BY-4.0 licensed」） | できる |
 | `kubernetes/website` | `LICENSE`（CC-BY-4.0） | 掛かっている（リポジトリ全体のライセンスで、文章とコードを分けていない） | できる |
-| `rust-lang/book` | `LICENSE-MIT`・`LICENSE-APACHE` | 掛かっている（同上） | しない（GitHub の検出はライセンスのファイルが 2 つあるので `NOASSERTION` になり、確認できない） |
+| `rust-lang/book` | `LICENSE-MIT`・`LICENSE-APACHE` | 掛かっている（同上） | できる（GitHub の検出は `NOASSERTION` だが、[確認済みのリポジトリ](../official-docs-collection/README.md#確認済みのリポジトリ)の一覧で MIT として登録する） |
 | `awsdocs/aws-lambda-developer-guide` | `LICENSE`（MIT-0） | 掛かっていない（README によるとサンプルコードのライセンス。ガイドの本文はリポジトリに無い） | しない |
 | `mdn/content` | `LICENSE.md`（本文は CC-BY-SA-2.5） | 掛かっている | しない（許可リストに無い） |
 

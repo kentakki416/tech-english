@@ -8,6 +8,7 @@ import { parseDocument } from "yaml"
 
 import { convertPhrasingToText } from "./convert-mdast-to-blocks"
 import { convertHtmlComponentsToJsx, removeMdxComments } from "./markdown-jsx"
+import { removeSiteSyntax } from "./site-syntax"
 
 /**
  * frontmatter（YAML）の `title` を返す。YAML が壊れている・title が文字列でないときは null（throw しない）
@@ -63,6 +64,7 @@ const parsePlainMarkdown = (source: string, options: { isFragment: boolean }): R
  * MDX の構文エラーは remark-mdx が throw する。ここでは握りつぶさず、呼び出し元が文書単位の失敗として扱う
  */
 export const parseMarkdown = (source: string, options: { isMdx: boolean }): { root: Root; title: string | null } => {
-  const root = options.isMdx ? parseMdx(source) : parsePlainMarkdown(source, { isFragment: false })
+  const sourceWithoutSiteSyntax = removeSiteSyntax(source)
+  const root = options.isMdx ? parseMdx(sourceWithoutSiteSyntax) : parsePlainMarkdown(sourceWithoutSiteSyntax, { isFragment: false })
   return { root, title: findFrontmatterTitle(root) ?? findFirstHeadingText(root, 1) }
 }
