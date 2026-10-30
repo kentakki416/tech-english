@@ -11,6 +11,12 @@ describe("convertMdastToBlocks", () => {
       expect(blocks).toEqual([{ text: "Call `useState` from the hooks guide today.", type: "paragraph" }])
     })
 
+    it("空白の無い Hugo のショートコードは `{{}}` を残さず、値の入った `{{ title }}` は変えない", () => {
+      expect(convertMarkdown("{{<note>}} The kubelet only collects its containers. {{</note>}} Use {{ title }} here.")).toEqual([
+        { text: "The kubelet only collects its containers. Use {{ title }} here.", type: "paragraph" },
+      ])
+    })
+
     it("Hugo のショートコードを消し、glossary_tooltip は text の語に置き換え、ショートコードだけの段落は捨てる", () => {
       const blocks = convertMarkdown([
         "{{< note >}}",

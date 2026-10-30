@@ -86,7 +86,6 @@ GitHub の自動の判定で分からないものや、判定がドキュメン�
 | `vuejs/docs` | `src` | CC-BY-4.0 | `LICENSE` | 自動の判定が NOASSERTION |
 | `nodejs/node` | `doc/api` | MIT | `LICENSE` | 自動の判定が NOASSERTION（同梱物のライセンスを含む） |
 | `rust-lang/book` | `src` | MIT | `COPYRIGHT` | ライセンスのファイルが 2 つ（MIT か Apache-2.0 を選べる） |
-| `pytorch/pytorch` | `docs/source` | BSD-3-Clause | `LICENSE` | 自動の判定が NOASSERTION |
 | `golang/website` | `_content` | CC-BY-4.0 | `_content/copyright.md` | 自動の判定（BSD-3-Clause）はコードのライセンス |
 | `angular/angular` | `adev/src/content` | CC-BY-4.0 | `adev/src/app/core/layout/footer/footer.component.html` | 自動の判定（MIT）はコードのライセンス |
 
@@ -107,9 +106,10 @@ GitHub の自動の判定で分からないものや、判定がドキュメン�
 |---|---|---|
 | `:::note`、`:::`、`::: tip NOTE`、`:::{note}` | VitePress・Docusaurus・Starlight・MyST | 記法の行だけ消し、中の本文は残す |
 | `/// note`、`//// tab \| Python` | FastAPI（PyMdown） | 記法の行だけ消し、中の本文は残す |
+| `::note`、`::`、`:read-more{to="..."}` | Nuxt（MDC） | 記法の行だけ消し、中の本文は残す |
 | `{* ../../docs_src/app.py *}`、`{!> file !}` | FastAPI（MkDocs の取り込み） | 行を消す |
 | `[[TOC]]` | VitePress | 行を消す |
-| 見出しの `{#id}`、`{ #id }` | VitePress・FastAPI | 見出しの末尾から消す（タイトルにも出るため） |
+| 見出しの `{#id}`、`{ #id }`、`:badge[...]{...}` | VitePress・FastAPI・Nuxt | 見出しの末尾から消す（タイトルにも出るため） |
 
 - コードブロックの中は消さない
 - 見出しの代わりに書かれたラベル（`::: tip NOTE` の `NOTE`）も消える
@@ -132,8 +132,8 @@ GitHub の自動の判定で分からないものや、判定がドキュメン�
 |---|---:|---|
 | 既定の除外で使える | 10 | React、Go、Kubernetes、TypeScript、Next.js、Docker、Angular、Kafka、Nuxt、Svelte |
 | 抽出の修正で使える | 5 | FastAPI、Vite、Deno、Astro、Cloudflare |
-| 確認済みの一覧で使える | 4 | Vue、Node.js、Rust Book、PyTorch |
-| 変数の解決が要る | 1 | GitHub Docs |
+| 確認済みの一覧で使える | 3 | Vue、Node.js、Rust Book |
+| 別の記法の解釈が要る | 2 | GitHub Docs（変数）、PyTorch（MyST のロール） |
 | 形式が未対応 | 3 | Python、Django（reStructuredText）、Spring Boot（AsciiDoc） |
 | ライセンスで使えない | 12 | ClickHouse、Redis、MDN、Tailwind CSS、Prisma、MongoDB、Grafana、Elasticsearch、Terraform、Git、Linux、PostgreSQL |
 
@@ -188,6 +188,7 @@ GitHub の自動の判定で分からないものや、判定がドキュメン�
 
 - reStructuredText・AsciiDoc・SGML の抽出（Python・Django・Spring Boot・PostgreSQL の形式。PostgreSQL は許可リストの判断も要る）
 - GitHub Docs の変数の解決
+- PyTorch の MyST（`` {class}`torch.amp` `` のロールが本文候補の半分近くに残る。ライセンスの判定も NOASSERTION なので、対応するまで登録できない）
 - サイトのナビゲーションの設定（`docs.json`・`mkdocs.yml`・`SUMMARY.md` など）からページを辿ること。サイトごとに形式が違う
 - 読み込んだ時点の対象ファイル数の表示
 

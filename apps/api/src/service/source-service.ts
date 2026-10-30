@@ -433,7 +433,10 @@ const suggestGitHubRepositorySource = async (
   const targetPath = path !== ""
     ? path
     : verified?.documentsPath ?? findDocumentsDirectory(await deps.githubRepositoryClient.listMarkdownPaths(repository, branch))
-  const isFile = sourceUrl.target === "file"
+  /**
+   * パスの無い blob の URL はトップと同じに扱う（推定したディレクトリをファイルにしない）
+   */
+  const isFile = sourceUrl.target === "file" && path !== ""
   const verifiedLicense = findVerifiedLicense({ branch, defaultBranch, repository, targetPath }, verified)
   /**
    * 見つからなくても default branch のライセンスは見ない。無いブランチや、確かめていないブランチの文章を登録できてしまい、登録の後は直せないため

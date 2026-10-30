@@ -11,6 +11,8 @@ describe("removeSiteSyntax", () => {
       ["インデント", "  :::note\n  Body text.\n  :::\n"],
       ["PyMdown", "/// note\nBody text.\n///\n"],
       ["PyMdown のタブ", "//// tab | Python\nBody text.\n////\n"],
+      ["Nuxt の MDC", "::tip\nBody text.\n::\n"],
+      ["Nuxt の MDC の属性", "::note{to=\"/docs\"}\nBody text.\n::\n"],
     ])("%s の囲みの行を消し、本文を残す", (_label, source) => {
       expect(removeSiteSyntax(source).trim()).toBe("Body text.")
     })
@@ -19,6 +21,8 @@ describe("removeSiteSyntax", () => {
       ["FastAPI の取り込み", "{* ../../docs_src/app/tutorial001.py hl[1,6:11] *}"],
       ["MkDocs の取り込み", "{!> ../../docs_src/app.py !}"],
       ["VitePress の目次", "[[TOC]]"],
+      ["Nuxt の行内の部品", ":read-more{title=\"Nuxt rendering modes\" to=\"/docs/guide/concepts/rendering\"}"],
+      ["見出しから離れたアンカー", "{ #stream }"],
     ])("%s の行を消す", (_label, line) => {
       expect(removeSiteSyntax(`Before.\n\n${line}\n\nAfter.`)).toBe("Before.\n\n\nAfter.")
     })
@@ -35,6 +39,9 @@ describe("removeSiteSyntax", () => {
       ["空白なし", "## Why Composition API? {#why-composition-api}", "## Why Composition API?"],
       ["空白あり", "# Concurrency and Burgers { #concurrency-and-burgers }", "# Concurrency and Burgers"],
       ["末尾の空白", "### Title {#title}  ", "### Title"],
+      ["インデント", " ### group.instance.id {#group-instance-id}", " ### group.instance.id"],
+      ["BOM", "\uFEFF# Plugins {#plugins}", "\uFEFF# Plugins"],
+      ["Nuxt のバッジ", "## definePageMeta :badge[v4.4]{color=\"info\" variant=\"subtle\"}", "## definePageMeta"],
       ["ドットを含む", "# Vue.js Privacy Policy {#vue.js-privacy-policy}", "# Vue.js Privacy Policy"],
       ["英数字以外の記号を含む", "#### Web Accessibility Initiative (WAI-ARIA) {#web-accessibility-initiative-–-aria}", "#### Web Accessibility Initiative (WAI-ARIA)"],
     ])("見出しのアンカーを消す（%s）", (_label, line, expected) => {
@@ -55,12 +62,18 @@ describe("removeSiteSyntax", () => {
       expect(removeSiteSyntax(source)).toBe(source)
     })
 
+    it("MDX のコメントの閉じを含む行は消さない", () => {
+      const source = "{/* :::note\nHidden.\n::: */}"
+
+      expect(removeSiteSyntax(source)).toBe(source)
+    })
+
     it("コードブロックの後の記法は消す", () => {
       expect(removeSiteSyntax("```\ncode\n```\n:::note\nBody.\n:::")).toBe("```\ncode\n```\nBody.")
     })
 
     it("文の途中の記号と、取り込みでない波括弧は消さない", () => {
-      const source = "Use a::b::c here.\n\n{foo}\n\nRatio 2:::1"
+      const source = "Use a::b::c here.\n\n{foo}\n\nRatio 2:::1\n\n:smile: is an emoji."
 
       expect(removeSiteSyntax(source)).toBe(source)
     })

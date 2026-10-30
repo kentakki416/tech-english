@@ -2,9 +2,15 @@ const CODE_FENCE_PATTERN = /^\s*(`{3,}|~{3,})/
 
 /**
  * `:::note`・`:::`・`::: tip NOTE`・`:::{note}`（VitePress・Docusaurus・Starlight・MyST の囲み）と、
- * `/// note`・`//// tab | Python`（PyMdown の囲み）
+ * `/// note`・`//// tab | Python`（PyMdown の囲み）。
+ * `:::` で始まっても MDX のコメントの閉じを含む行は消さない（消すとコメントが閉じず、読めていた文書が構文エラーになる）
  */
-const CONTAINER_MARKER_PATTERN = /^\s*(:{3,}|\/{3,})/
+const CONTAINER_MARKER_PATTERN = /^\s*(:{3,}|\/{3,})(?!.*\*\/\})/
+
+/**
+ * `::note`・`::`・`:read-more{to="..."}`（Nuxt の MDC）
+ */
+const MDC_LINE_PATTERN = /^\s*(::[a-zA-Z-]*(\{.*\})?|:[a-zA-Z][\w-]*(\[.*\])?\{.*\})\s*$/
 
 /**
  * `{* ../../docs_src/app.py *}`・`{!> file !}`（MkDocs の取り込み）
@@ -16,21 +22,34 @@ const INCLUDE_LINE_PATTERN = /^\s*\{([*!]).*\1\}\s*$/
  */
 const TABLE_OF_CONTENTS_LINE_PATTERN = /^\s*\[\[toc\]\]\s*$/i
 
-const HEADING_LINE_PATTERN = /^#{1,6}\s/
+/**
+ * JS の `\s` は BOM（U+FEFF）にも一致するので、ファイルの先頭の見出しも合う
+ */
+const HEADING_LINE_PATTERN = /^\s*#{1,6}\s/
 
 const HEADING_ANCHOR_PATTERN = /^\{\s*#[^\s{}]+\s*\}$/
 
+/**
+ * `:badge[v4.4]{color="info"}`（Nuxt の見出しの末尾の部品）
+ */
+const HEADING_BADGE_PATTERN = /:[a-zA-Z][\w-]*\[[^\]]*\]\{[^}]*\}\s*$/
+
 const isSiteSyntaxLine = (line: string): boolean =>
-  CONTAINER_MARKER_PATTERN.test(line) || INCLUDE_LINE_PATTERN.test(line) || TABLE_OF_CONTENTS_LINE_PATTERN.test(line)
+  CONTAINER_MARKER_PATTERN.test(line)
+  || MDC_LINE_PATTERN.test(line)
+  || INCLUDE_LINE_PATTERN.test(line)
+  || TABLE_OF_CONTENTS_LINE_PATTERN.test(line)
+  || HEADING_ANCHOR_PATTERN.test(line.trim())
 
 /**
- * 見出しの末尾の `{#id}`・`{ #id }` を消す
+ * 見出しの末尾の `{#id}`・`{ #id }` と、`:badge[...]{...}` を消す
  */
-const removeHeadingAnchor = (line: string): string => {
+const removeHeadingSuffix = (line: string): string => {
   if (!HEADING_LINE_PATTERN.test(line)) return line
   const trimmed = line.trimEnd()
   const anchorStart = trimmed.lastIndexOf("{")
-  return anchorStart !== -1 && HEADING_ANCHOR_PATTERN.test(trimmed.slice(anchorStart)) ? trimmed.slice(0, anchorStart).trimEnd() : line
+  const withoutAnchor = anchorStart !== -1 && HEADING_ANCHOR_PATTERN.test(trimmed.slice(anchorStart)) ? trimmed.slice(0, anchorStart).trimEnd() : trimmed
+  return withoutAnchor.replace(HEADING_BADGE_PATTERN, "").trimEnd()
 }
 
 /**
@@ -52,7 +71,7 @@ export const removeSiteSyntax = (source: string): string => {
         openFence = marker
         return [line]
       }
-      return isSiteSyntaxLine(line) ? [] : [removeHeadingAnchor(line)]
+      return isSiteSyntaxLine(line) ? [] : [removeHeadingSuffix(line)]
     })
     .join("\n")
 }

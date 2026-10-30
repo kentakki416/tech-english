@@ -24,7 +24,7 @@ export type VerifiedDocumentRepository = {
 }
 ```
 
-- `apps/api/src/lib/source-document-path.ts`：`findDocumentsDirectory(markdownPaths)`・`buildDefaultExcludeGlobs(documentsPath, { hasReadmePages })`・`listAncestorDirectories(path)`
+- `apps/api/src/lib/source-document-path.ts`：`findDocumentsDirectory(markdownPaths)`・`buildDefaultExcludeGlobs(targetPath, { hasReadmePages })`・`listDirectoryAndAncestors(directory)`
 - `apps/api/src/service/source-service.ts`：`suggestGitHubRepositorySource` を、登録できないリポジトリの確認・場所の決定・ライセンスの決定に分ける
 - `apps/api/src/controller/admin/source/source-mapper.ts`：レスポンスに足す
 

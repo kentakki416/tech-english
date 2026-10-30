@@ -41,10 +41,6 @@ export const VERIFIED_DOCUMENT_REPOSITORIES: Record<string, VerifiedDocumentRepo
     documentsPath: "doc/api",
     license: { path: "LICENSE", spdx: "MIT" },
   },
-  "pytorch/pytorch": {
-    documentsPath: "docs/source",
-    license: { path: "LICENSE", spdx: "BSD-3-Clause" },
-  },
   "rust-lang/book": {
     documentsPath: "src",
     license: { path: "COPYRIGHT", spdx: "MIT" },

@@ -101,6 +101,14 @@ describe("suggestSourceFromUrl", () => {
       expect(mockListMarkdownPaths).not.toHaveBeenCalled()
     })
 
+    it("パスの無い blob の URL は、トップの URL と同じに扱う", async () => {
+      mockListMarkdownPaths.mockResolvedValue(Array.from({ length: 20 }, (_, index) => `docs/page-${index}.md`))
+
+      const result = await suggestGitHub("https://github.com/reactjs/react.dev/blob/main")
+
+      expect(result).toMatchObject({ ok: true, value: { includeGlobs: ["docs/**"] } })
+    })
+
     it("GitHub のファイルの URL は、除外パスを入れず、ファイルの親のディレクトリのライセンスを確かめる", async () => {
       const result = await suggestGitHub("https://github.com/reactjs/react.dev/blob/main/src/content/learn/index.md")
 

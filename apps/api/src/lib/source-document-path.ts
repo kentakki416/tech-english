@@ -138,8 +138,8 @@ export const findDocumentsDirectory = (markdownPaths: string[]): string => {
  * 対象パスのディレクトリに当てる既定の除外パス。glob はリポジトリのルートからのパスに当たるので、対象パスを頭に付ける
  * （付けないと、`_` で始まるディレクトリの除外に Go の `_content` がすべて掛かる）。翻訳は対象パスの直下だけ（MDN の `id/` のようなページを外さないため）
  */
-export const buildDefaultExcludeGlobs = (documentsPath: string, options: { hasReadmePages: boolean }): string[] => {
-  const prefix = documentsPath === "" ? "" : `${documentsPath}/`
+export const buildDefaultExcludeGlobs = (targetPath: string, options: { hasReadmePages: boolean }): string[] => {
+  const prefix = targetPath === "" ? "" : `${targetPath}/`
   const suffixes = [
     `{${LOCALE_DIRECTORY_NAMES.join(",")}}/**/*`,
     ...DEFAULT_EXCLUDE_GLOB_SUFFIXES,
