@@ -11,6 +11,14 @@ describe("convertMdastToBlocks", () => {
       expect(blocks).toEqual([{ text: "Call `useState` from the hooks guide today.", type: "paragraph" }])
     })
 
+    it.each([
+      ["インラインコード", "Use the `{{ }}` syntax."],
+      ["JSX の属性のインラインコード", "`style={{}}` is not a special syntax."],
+      ["本文", "It is a {{ }} tag."],
+    ])("文書が説明している空の波括弧は消さない（%s）", (_label, text) => {
+      expect(convertMarkdown(text)).toEqual([{ text, type: "paragraph" }])
+    })
+
     it("空白の無い Hugo のショートコードは `{{}}` を残さず、値の入った `{{ title }}` は変えない", () => {
       expect(convertMarkdown("{{<note>}} The kubelet only collects its containers. {{</note>}} Use {{ title }} here.")).toEqual([
         { text: "The kubelet only collects its containers. Use {{ title }} here.", type: "paragraph" },

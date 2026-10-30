@@ -106,7 +106,7 @@ GitHub の自動の判定で分からないものや、判定がドキュメン�
 |---|---|---|
 | `:::note`、`:::`、`::: tip NOTE`、`:::{note}` | VitePress・Docusaurus・Starlight・MyST | 記法の行だけ消し、中の本文は残す |
 | `/// note`、`//// tab \| Python` | FastAPI（PyMdown） | 記法の行だけ消し、中の本文は残す |
-| `::note`、`::`、`:read-more{to="..."}` | Nuxt（MDC） | 記法の行だけ消し、中の本文は残す |
+| `::note`、`::`、`:read-more{to="..."}`、`---` で囲んだ属性 | Nuxt（MDC） | 記法の行だけ消し、中の本文は残す |
 | `{* ../../docs_src/app.py *}`、`{!> file !}` | FastAPI（MkDocs の取り込み） | 行を消す |
 | `[[TOC]]` | VitePress | 行を消す |
 | 見出しの `{#id}`、`{ #id }`、`:badge[...]{...}` | VitePress・FastAPI・Nuxt | 見出しの末尾から消す（タイトルにも出るため） |

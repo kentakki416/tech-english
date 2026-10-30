@@ -11,10 +11,9 @@ import type { MdxJsxFlowElement } from "./markdown-jsx"
 export type DocumentBlock = PassageBlock & { headingDepth?: number }
 
 /**
- * Hugo のショートコード（`{{< note >}}` / `{{% tab %}}`）。Kubernetes のドキュメントの Markdown に残る。
- * 空白の無い `{{<note>}}` は `<note>` が HTML として捨てられて `{{}}` が残るので、これも消す
+ * Hugo のショートコード（`{{< note >}}` / `{{% tab %}}`）。Kubernetes のドキュメントの Markdown に残る
  */
-const HUGO_SHORTCODE_PATTERN = /\{\{[<%].*?[%>]\}\}|\{\{\s*\}\}/g
+const HUGO_SHORTCODE_PATTERN = /\{\{[<%].*?[%>]\}\}/g
 
 /**
  * Kubernetes の用語のツールチップ（`{{< glossary_tooltip text="nodes" term_id="node" >}}`）。文の一部なので消さずに語に置き換える

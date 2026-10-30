@@ -4,7 +4,7 @@
 
 ## 対応内容
 
-- `packages/content-extractor/src/document/site-syntax.ts`：`removeSiteSyntax(source)`。行ごとに見て、コードブロックの外の `:::`・`///` で始まる行と、`{* ... *}`・`{! ... !}`・`[[TOC]]` だけの行を消し、見出しの末尾の `{#id}` を消す
+- `packages/content-extractor/src/document/site-syntax.ts`：`removeSiteSyntax(source)`。行ごとに見て、コードブロックの外の `:::`・`///`・`::` の行と MDC の属性、`:read-more{...}`・`{* ... *}`・`{! ... !}`・`[[TOC]]`・`{ #id }` だけの行を消し、見出しの末尾の `{#id}`・`:badge[...]{...}` を消す。空白の無い `{{<note>}}` には空白を入れて文字列のまま読ませる
 - `packages/content-extractor/src/document/parse-markdown.ts`：`parseMarkdown` の入口で通す
 - `packages/content-extractor/src/document/const.ts`：`EXTRACTION_VERSION` を上げる
 

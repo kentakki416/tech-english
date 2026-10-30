@@ -62,6 +62,18 @@ describe("removeSiteSyntax", () => {
       expect(removeSiteSyntax(source)).toBe(source)
     })
 
+    it("名前のある MDC の YAML の属性を閉じの --- まで消す", () => {
+      expect(removeSiteSyntax("::card\n---\ntitle: Nuxt Vercel ISR\nto: https://example.com\n---\nBody text.\n::")).toBe("Body text.")
+    })
+
+    it("閉じの :: の後の区切り線は属性として扱わない", () => {
+      expect(removeSiteSyntax("::\n---\nAfter.")).toBe("---\nAfter.")
+    })
+
+    it("空白の無い Hugo のショートコードの開始に空白を入れる", () => {
+      expect(removeSiteSyntax("{{<note>}} Body. {{</note>}}")).toBe("{{< note>}} Body. {{< /note>}}")
+    })
+
     it("MDX のコメントの閉じを含む行は消さない", () => {
       const source = "{/* :::note\nHidden.\n::: */}"
 
