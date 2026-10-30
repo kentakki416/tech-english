@@ -31,7 +31,7 @@ import {
 type SourceRepo = { sourceRepository: SourceRepository }
 
 /**
- * 収集の実行の記録も読み書きする Repository（詳細・今すぐ収集の依頼）
+ * 収集の実行の記録も読み書きする Repository（一覧・詳細・今すぐ収集の依頼）
  */
 type SourceCollectionRepo = SourceRepo & { sourceCollectionRunRepository: SourceCollectionRunRepository }
 

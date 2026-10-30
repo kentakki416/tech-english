@@ -39,10 +39,12 @@ const describeCollectionRun = (run: SourceCollectionRun): string => {
 
 /**
  * 今すぐ収集のボタンと、最後の収集の状態。依頼が通ったらソース一覧へ戻る。収集中の間は画面を読み直し、結果に切り替える。
+ * 未保存の変更があれば依頼しない。一覧に移ると編集が消え、収集も保存前の対象パスで走るため。
  * activeStatuses は収集中の状態の値（Server Component が @repo/api-schema から渡す）、isEnabled は保存済みの有効 / 無効
  */
-export function SourceCollectionCard({ activeStatuses, isEnabled, run, sourceId }: {
+export function SourceCollectionCard({ activeStatuses, hasUnsavedChanges, isEnabled, run, sourceId }: {
   activeStatuses: readonly SourceCollectionRunStatus[]
+  hasUnsavedChanges: () => boolean
   isEnabled: boolean
   run: SourceCollectionRun | null
   sourceId: number
@@ -64,6 +66,10 @@ export function SourceCollectionCard({ activeStatuses, isEnabled, run, sourceId 
     : SOURCE_COLLECTION_REQUEST_FAILURE_MESSAGES[failureReason]
 
   const requestCollection = () => {
+    if (hasUnsavedChanges()) {
+      setFailureReason("unsaved")
+      return
+    }
     setFailureReason(null)
     startTransition(async () => {
       const result = await requestSourceCollectionAction(sourceId).catch(() => ({ ok: false as const, reason: "failed" as const }))

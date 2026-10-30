@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { type FormEvent, startTransition, useActionState, useState } from "react"
+import { type FormEvent, startTransition, useActionState, useEffect, useRef, useState } from "react"
 
 import type { GetSourceResponse, GetTagListResponse } from "@repo/api-schema"
 
@@ -52,6 +52,9 @@ function StatusRow({ children, label }: { children: React.ReactNode, label: stri
  * activeCollectionRunStatuses は収集中の状態の値。
  * Client Component で Zod のスキーマを import すると bundle に入るため、Server Component から渡す
  */
+const serializeFormValues = (form: HTMLFormElement | null): string =>
+  form === null ? "" : JSON.stringify([...new FormData(form).entries()])
+
 export function SourceEditForm({
   activeCollectionRunStatuses,
   allowedLicenses,
@@ -74,6 +77,14 @@ export function SourceEditForm({
   const [licenseSpdx, setLicenseSpdx] = useState<string>(source.license_spdx)
   const [licenseUrl, setLicenseUrl] = useState<string>(source.license_url)
   const [isEnabled, setIsEnabled] = useState(source.is_enabled)
+  const formRef = useRef<HTMLFormElement>(null)
+  const savedFormValuesRef = useRef("")
+
+  useEffect(() => {
+    savedFormValuesRef.current = serializeFormValues(formRef.current)
+  }, [])
+
+  const hasUnsavedChanges = (): boolean => serializeFormValues(formRef.current) !== savedFormValuesRef.current
 
   const getFieldError = (key: string): string | undefined => state.errors?.[key]?.[0]
   const hasFieldErrors = Object.values(state.errors ?? {}).some((messages) => (messages?.length ?? 0) > 0)
@@ -90,7 +101,7 @@ export function SourceEditForm({
 
   return (
     <div className="grid gap-6 xl:grid-cols-3">
-      <form className="space-y-6 xl:col-span-2" noValidate onSubmit={handleSubmit}>
+      <form ref={formRef} className="space-y-6 xl:col-span-2" noValidate onSubmit={handleSubmit}>
         <input name="fetch_type" type="hidden" value={source.fetch_type} />
         {githubSource && <input name="is_enabled" type="hidden" value={String(isEnabled)} />}
 
@@ -202,6 +213,7 @@ export function SourceEditForm({
         {githubSource && (
           <SourceCollectionCard
             activeStatuses={activeCollectionRunStatuses}
+            hasUnsavedChanges={hasUnsavedChanges}
             isEnabled={githubSource.is_enabled}
             run={detail.latest_collection_run}
             sourceId={githubSource.id}
