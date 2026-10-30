@@ -7,7 +7,7 @@ import type { GetSourceListResponse } from "@repo/api-schema"
 import { TagChip } from "@/components/features/tag/TagChip"
 import Badge from "@/components/ui/badge/Badge"
 import { type Column, DataTable, type FilterConfig } from "@/components/ui/table"
-import { formatLicenseLabel, SOURCE_KIND_LABELS } from "@/features/source/source.labels"
+import { formatLicenseLabel } from "@/features/source/source.labels"
 import { formatDateTime } from "@/libs/date"
 
 type SourceListItem = GetSourceListResponse["sources"][number]
@@ -45,12 +45,6 @@ const SOURCE_COLUMN: Column<SourceRow> = {
       )}
     </div>
   ),
-}
-
-const KIND_COLUMN: Column<SourceRow> = {
-  className: "px-5 py-4 text-theme-sm whitespace-nowrap text-gray-500 dark:text-gray-400",
-  header: "種別",
-  render: (row) => SOURCE_KIND_LABELS[row.kind],
 }
 
 const LICENSE_COLUMN: Column<SourceRow> = {
@@ -99,8 +93,8 @@ const EDIT_COLUMN: Column<SourceRow> = {
  * サイトのソースは収集しない（常に「収集しない」・最終収集は無い）ので、状態と最終収集の列を出さない
  */
 const COLUMNS: Record<SourceFetchType, Column<SourceRow>[]> = {
-  github_repository: [SOURCE_COLUMN, KIND_COLUMN, LICENSE_COLUMN, STATUS_COLUMN, LAST_COLLECTED_COLUMN, PASSAGE_COUNTS_COLUMN, EDIT_COLUMN],
-  website: [SOURCE_COLUMN, KIND_COLUMN, LICENSE_COLUMN, PASSAGE_COUNTS_COLUMN, EDIT_COLUMN],
+  github_repository: [SOURCE_COLUMN, LICENSE_COLUMN, STATUS_COLUMN, LAST_COLLECTED_COLUMN, PASSAGE_COUNTS_COLUMN, EDIT_COLUMN],
+  website: [SOURCE_COLUMN, LICENSE_COLUMN, PASSAGE_COUNTS_COLUMN, EDIT_COLUMN],
 }
 
 const FILTERS: Record<SourceFetchType, FilterConfig<SourceRow>[]> = {

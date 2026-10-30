@@ -23,11 +23,11 @@ describe("GitHubRepositoryClient.detectLicense", () => {
     it("GitHub が検出した spdx_id とライセンスのファイルの URL を返し、token があれば Authorization を付ける", async () => {
       const fetchSpy = stubFetch(createJsonResponse({ html_url: HTML_URL, license: { key: "mit", spdx_id: "MIT" }, name: "LICENSE" }))
 
-      const result = await new GitHubRepositoryClient("ghp_token").detectLicense("reactjs/react.dev", null)
+      const result = await new GitHubRepositoryClient("ghp_token").detectLicense("reactjs/react.dev", "main")
 
       expect(result).toEqual({ licenseSpdx: "MIT", licenseUrl: HTML_URL })
       expect(fetchSpy).toHaveBeenCalledTimes(1)
-      expect(fetchSpy).toHaveBeenCalledWith(LICENSE_URL, {
+      expect(fetchSpy).toHaveBeenCalledWith(`${LICENSE_URL}?ref=main`, {
         headers: {
           Accept: "application/vnd.github+json",
           Authorization: "Bearer ghp_token",
@@ -44,7 +44,7 @@ describe("GitHubRepositoryClient.detectLicense", () => {
     ])("token が %s なら Authorization を付けない", async (_label, token) => {
       const fetchSpy = stubFetch(createJsonResponse({ html_url: HTML_URL, license: { spdx_id: "Apache-2.0" } }))
 
-      const result = await new GitHubRepositoryClient(token).detectLicense("reactjs/react.dev", null)
+      const result = await new GitHubRepositoryClient(token).detectLicense("reactjs/react.dev", "main")
 
       expect(result).toEqual({ licenseSpdx: "Apache-2.0", licenseUrl: HTML_URL })
       const [, init] = fetchSpy.mock.calls[0]
@@ -54,9 +54,9 @@ describe("GitHubRepositoryClient.detectLicense", () => {
     it("owner / name を URL エンコードしてパスに入れる", async () => {
       const fetchSpy = stubFetch(createJsonResponse({ html_url: HTML_URL, license: { spdx_id: "MIT" } }))
 
-      await new GitHubRepositoryClient(undefined).detectLicense("owner/name.js", null)
+      await new GitHubRepositoryClient(undefined).detectLicense("owner/name.js", "main")
 
-      expect(fetchSpy.mock.calls[0][0]).toBe("https://api.github.com/repos/owner/name.js/license")
+      expect(fetchSpy.mock.calls[0][0]).toBe("https://api.github.com/repos/owner/name.js/license?ref=main")
     })
 
     it("ref を渡すと ?ref= を付けてそのブランチのライセンスを見る", async () => {
@@ -70,13 +70,13 @@ describe("GitHubRepositoryClient.detectLicense", () => {
     it("404（ライセンスファイルが無い・リポジトリが無い）なら null を返す", async () => {
       stubFetch(createJsonResponse({ message: "Not Found" }, 404))
 
-      expect(await new GitHubRepositoryClient(undefined).detectLicense("reactjs/react.dev", null)).toBeNull()
+      expect(await new GitHubRepositoryClient(undefined).detectLicense("reactjs/react.dev", "main")).toBeNull()
     })
 
     it("spdx_id が NOASSERTION なら licenseSpdx を null にし、ライセンスのファイルの URL は返す", async () => {
       stubFetch(createJsonResponse({ html_url: HTML_URL, license: { key: "other", spdx_id: "NOASSERTION" } }))
 
-      expect(await new GitHubRepositoryClient(undefined).detectLicense("reactjs/react.dev", null)).toEqual({ licenseSpdx: null, licenseUrl: HTML_URL })
+      expect(await new GitHubRepositoryClient(undefined).detectLicense("reactjs/react.dev", "main")).toEqual({ licenseSpdx: null, licenseUrl: HTML_URL })
     })
 
     it.each([
@@ -85,13 +85,13 @@ describe("GitHubRepositoryClient.detectLicense", () => {
     ])("%s なら licenseSpdx を null にする", async (_label, body) => {
       stubFetch(createJsonResponse(body))
 
-      expect(await new GitHubRepositoryClient(undefined).detectLicense("reactjs/react.dev", null)).toEqual({ licenseSpdx: null, licenseUrl: HTML_URL })
+      expect(await new GitHubRepositoryClient(undefined).detectLicense("reactjs/react.dev", "main")).toEqual({ licenseSpdx: null, licenseUrl: HTML_URL })
     })
 
     it("html_url が null なら licenseUrl を null にする", async () => {
       stubFetch(createJsonResponse({ html_url: null, license: { spdx_id: "MIT" } }))
 
-      expect(await new GitHubRepositoryClient(undefined).detectLicense("reactjs/react.dev", null)).toEqual({ licenseSpdx: "MIT", licenseUrl: null })
+      expect(await new GitHubRepositoryClient(undefined).detectLicense("reactjs/react.dev", "main")).toEqual({ licenseSpdx: "MIT", licenseUrl: null })
     })
   })
 
@@ -99,13 +99,13 @@ describe("GitHubRepositoryClient.detectLicense", () => {
     it.each([403, 500])("%s なら throw する", async (status) => {
       stubFetch(createJsonResponse({ message: "error" }, status))
 
-      await expect(new GitHubRepositoryClient(undefined).detectLicense("reactjs/react.dev", null)).rejects.toThrow()
+      await expect(new GitHubRepositoryClient(undefined).detectLicense("reactjs/react.dev", "main")).rejects.toThrow()
     })
 
     it("レスポンスが想定外の形なら throw する", async () => {
       stubFetch(createJsonResponse({ html_url: HTML_URL, license: { spdx_id: 1 } }))
 
-      await expect(new GitHubRepositoryClient(undefined).detectLicense("reactjs/react.dev", null)).rejects.toThrow()
+      await expect(new GitHubRepositoryClient(undefined).detectLicense("reactjs/react.dev", "main")).rejects.toThrow()
     })
   })
 })

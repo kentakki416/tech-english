@@ -52,7 +52,7 @@
 
 - [ ] `ALLOWED_LICENSES` に許諾による利用を表す値を追加し、許諾の記録の列を `sources` に足す
 - [ ] `sources` にフィードの URL を足し、URL の発見の手段に加える
-- [ ] `SOURCE_KINDS` に `blog` を足し、問題一覧の絞り込みに出す（reading-practice）
+- [ ] `SOURCE_KINDS` に `blog` を足す
 - [ ] ソース単位の一括非公開の API と画面
 
 ## ShareAlike ライセンス

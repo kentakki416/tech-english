@@ -101,7 +101,7 @@ export function PassageList({ initialPage, query }: { initialPage: GetPassageLis
               <div className="min-w-0">
                 <p className="truncate font-reading text-[19px] leading-snug text-fg group-hover:text-amber-bright">{passage.title}</p>
                 <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
-                  <SourceMeta kind={passage.source.kind} name={passage.source.name} />
+                  <SourceMeta name={passage.source.name} />
                   <span className="flex gap-1.5">
                     {passage.source.tags.map(tag => <span key={tag} className="text-xs text-fg-faint">#{tag}</span>)}
                   </span>

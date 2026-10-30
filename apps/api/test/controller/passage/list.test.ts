@@ -102,12 +102,11 @@ describe("GET /api/passage", () => {
     })
 
     it.each([
-      ["kind", "kind=github", ["rust"], 1],
       ["tag", "tag=react", ["react"], 1],
       ["tag（ソースの 2 つ目のタグ）", "tag=frontend", ["react"], 1],
       ["tag（カンマ区切りの OR）", "tag=go,rust", ["go", "rust"], 2],
       ["difficulty（カンマ区切りの OR）", "difficulty=1,3", ["rust", "react"], 2],
-      ["kind と tag の組み合わせ", "kind=docs&tag=react,rust", ["react"], 1],
+      ["difficulty と tag の組み合わせ", "difficulty=3&tag=react,rust", ["rust"], 1],
     ])("%sで絞り込み、total_count は絞り込み後の件数になる", async (_label, query, expected, totalCount) => {
       const set = await insertPublishedSet()
       const idByName: Record<string, number> = { go: set.go.id, react: set.react.id, rust: set.rust.id }
@@ -215,7 +214,6 @@ describe("GET /api/passage", () => {
     it.each([
       ["difficulty=4", "difficulty=4"],
       ["difficulty が数値でない", "difficulty=easy"],
-      ["存在しない kind", "kind=blog"],
       ["limit=0", "limit=0"],
       ["limit=51", "limit=51"],
       ["unattempted_only が true / false でない", "unattempted_only=yes"],

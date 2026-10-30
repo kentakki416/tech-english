@@ -7,7 +7,6 @@ import type {
   PassageDifficulty,
   PassageStatus,
   Question,
-  SourceKind,
   WebsiteSource,
 } from "@repo/domain"
 
@@ -126,7 +125,6 @@ export type RestoredPassageStatus = Extract<PassageStatus, "collected" | "draft"
  */
 export type PublishedPassageFilter = {
   difficulties: PassageDifficulty[]
-  kind: SourceKind | null
   /**
    * タグの名前の完全一致（大文字・小文字も区別する）
    */

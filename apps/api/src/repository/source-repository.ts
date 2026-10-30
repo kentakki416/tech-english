@@ -23,7 +23,7 @@ export type SourceWithTags = Source & { tags: Tag[] }
  * ソースの登録時の入力。取得方法（fetchType）ごとに書く列が違う
  */
 export type SourceCreateInput =
-  | (SourceCreateInputBase & Pick<GitHubRepositorySource, "branch" | "fetchType" | "licenseSpdx" | "publicUrlStripPrefix" | "publicUrlTemplate" | "repository">)
+  | (SourceCreateInputBase & Pick<GitHubRepositorySource, "branch" | "fetchType" | "licenseSpdx" | "repository">)
   | (SourceCreateInputBase & Pick<WebsiteSource, "contentSelector" | "excludeSelectors" | "fetchType" | "licenseSpdx" | "siteUrl">)
 
 /**
@@ -31,7 +31,7 @@ export type SourceCreateInput =
  * サイトは常に無効なので isEnabled も含まない
  */
 export type SourceUpdateInput =
-  | (SourceEditableInputBase & Pick<GitHubRepositorySource, "fetchType" | "isEnabled" | "publicUrlStripPrefix" | "publicUrlTemplate">)
+  | (SourceEditableInputBase & Pick<GitHubRepositorySource, "fetchType" | "isEnabled">)
   | (SourceEditableInputBase & Pick<WebsiteSource, "contentSelector" | "excludeSelectors" | "fetchType" | "licenseSpdx" | "licenseUrl">)
 
 /**

@@ -133,7 +133,7 @@ describe("PUT /api/admin/source/:id", () => {
       expect(await selectSourceTagIds(website.id)).toEqual([go.id, backend.id])
     })
 
-    it("github に repository・branch・kind・ライセンスを送っても捨て、DB のそれらは変わらない", async () => {
+    it("github に repository・branch・kind・ライセンス・公開ページの URL 規則を送っても捨て、DB のそれらは変わらない", async () => {
       const github = await insertGitHubSource()
 
       const res = await request(app)
@@ -146,6 +146,8 @@ describe("PUT /api/admin/source/:id", () => {
           license_spdx: "MIT",
           license_url: "https://github.com/vercel/next.js/blob/canary/license.md",
           name: "React Docs",
+          public_url_strip_prefix: null,
+          public_url_template: null,
           repository: "vercel/next.js",
         })
 
@@ -164,6 +166,8 @@ describe("PUT /api/admin/source/:id", () => {
         licenseSpdx: github.licenseSpdx,
         licenseUrl: github.licenseUrl,
         name: "React Docs",
+        publicUrlStripPrefix: github.publicUrlStripPrefix,
+        publicUrlTemplate: github.publicUrlTemplate,
         repository: github.repository,
       })
     })
@@ -231,13 +235,13 @@ describe("PUT /api/admin/source/:id", () => {
       expect(await selectSource(github.id)).toMatchObject({ ...columns, lastCollectedCommitSha: null })
     })
 
-    it("github の name・is_enabled・公開ページの URL 規則だけを変えると last_collected_commit_sha は残る", async () => {
+    it("github の name・is_enabled だけを変えると last_collected_commit_sha は残る", async () => {
       const github = await insertGitHubSource({ lastCollectedCommitSha: "abc123" })
 
       const res = await request(app)
         .put(`/api/admin/source/${github.id}`)
         .set("Authorization", `Bearer ${adminToken}`)
-        .send({ ...GITHUB_UPDATE_REQUEST, is_enabled: false, name: "React Docs", public_url_strip_prefix: null, public_url_template: null })
+        .send({ ...GITHUB_UPDATE_REQUEST, is_enabled: false, name: "React Docs" })
 
       expect(res.status).toBe(200)
       expect(res.body).toMatchObject({ is_enabled: false, last_collected_commit_sha: "abc123", name: "React Docs" })
@@ -245,8 +249,6 @@ describe("PUT /api/admin/source/:id", () => {
         isEnabled: false,
         lastCollectedCommitSha: "abc123",
         name: "React Docs",
-        publicUrlStripPrefix: null,
-        publicUrlTemplate: null,
       })
     })
 

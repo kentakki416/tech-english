@@ -40,9 +40,9 @@ describe("updateSource", () => {
       })
     })
 
-    it("name・is_enabled・公開ページの URL 規則だけを変えると収集の状態を戻さずに update する", async () => {
+    it("name・is_enabled だけを変えると収集の状態を戻さずに update する", async () => {
       const existing = buildGitHubSource({ id: 1 })
-      const input = buildGitHubUpdateInput({ isEnabled: false, name: "React Docs", publicUrlStripPrefix: null, publicUrlTemplate: null })
+      const input = buildGitHubUpdateInput({ isEnabled: false, name: "React Docs" })
       sourceRepository.findById.mockResolvedValue(existing)
       sourceRepository.update.mockResolvedValue({ kind: "saved", source: buildGitHubSource({ ...input, id: 1 }) })
 

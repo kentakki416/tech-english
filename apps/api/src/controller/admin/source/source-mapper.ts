@@ -30,8 +30,6 @@ export const convertCreateSourceRequestToInput = (request: CreateSourceRequest):
       fetchType: request.fetch_type,
       isEnabled: request.is_enabled,
       licenseSpdx: request.license_spdx,
-      publicUrlStripPrefix: request.public_url_strip_prefix,
-      publicUrlTemplate: request.public_url_template,
       repository: request.repository,
     }
   }
@@ -61,8 +59,6 @@ export const convertUpdateSourceRequestToInput = (request: UpdateSourceRequest):
       ...base,
       fetchType: request.fetch_type,
       isEnabled: request.is_enabled,
-      publicUrlStripPrefix: request.public_url_strip_prefix,
-      publicUrlTemplate: request.public_url_template,
     }
   }
   return {
@@ -99,8 +95,6 @@ export const convertSourceToResponse = (source: SourceWithTags): SourceResponse 
       fetch_type: source.fetchType,
       last_collected_commit_sha: source.lastCollectedCommitSha,
       license_spdx: source.licenseSpdx,
-      public_url_strip_prefix: source.publicUrlStripPrefix,
-      public_url_template: source.publicUrlTemplate,
       repository: source.repository,
     }
   }

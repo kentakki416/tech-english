@@ -53,7 +53,7 @@
 
 次の 3 つがそろうリポジトリだけを登録する。
 
-1. リポジトリの中にライセンスの記載がある（`LICENSE` などのファイル、または README の記載）
+1. リポジトリの中にライセンスの記載があり、GitHub がライセンスを検出できる（`LICENSE` などのファイル）
 2. そのライセンスが文章（ドキュメント）に掛かっている。コードだけに掛かるライセンスでは登録しない
 3. そのライセンスが許可リスト（`ALLOWED_LICENSES`）にある（今と同じ）
 
@@ -64,7 +64,7 @@
 | --- | --- | --- | --- |
 | `reactjs/react.dev` | `LICENSE-DOCS.md`（CC-BY-4.0） | 掛かっている（README に「Content submitted to react.dev is CC-BY-4.0 licensed」） | できる |
 | `kubernetes/website` | `LICENSE`（CC-BY-4.0） | 掛かっている（リポジトリ全体のライセンスで、文章とコードを分けていない） | できる |
-| `rust-lang/book` | `LICENSE-MIT`・`LICENSE-APACHE` | 掛かっている（同上） | できる（GitHub の検出はライセンスのファイルが 2 つあるので `NOASSERTION` になるが、管理者が選ぶ） |
+| `rust-lang/book` | `LICENSE-MIT`・`LICENSE-APACHE` | 掛かっている（同上） | しない（GitHub の検出はライセンスのファイルが 2 つあるので `NOASSERTION` になり、確認できない） |
 | `awsdocs/aws-lambda-developer-guide` | `LICENSE`（MIT-0） | 掛かっていない（README によるとサンプルコードのライセンス。ガイドの本文はリポジトリに無い） | しない |
 | `mdn/content` | `LICENSE.md`（本文は CC-BY-SA-2.5） | 掛かっている | しない（許可リストに無い） |
 
@@ -132,7 +132,7 @@
 - DB の CHECK 制約にはしない。大文字・小文字を区別しない比較と URL の分解を SQL で書くことになるため。ほかの入力の検証と同じく api が守る
 - 検出の API は、GitHub の `/license` が返すライセンスのファイルの URL（`html_url`）も返す
 - **比べた案**
-  - GitHub の検出が成功したリポジトリだけにする：`rust-lang/book` のようにライセンスのファイルが 2 つあるリポジトリは、検出が `NOASSERTION` になって登録できない。検出の結果はコードのライセンスのこともあり、文章に掛かっているかは結局管理者が確かめる
+  - GitHub の検出が成功したリポジトリだけにする：`rust-lang/book` のようにライセンスのファイルが 2 つあるリポジトリは、検出が `NOASSERTION` になって登録できない。検出の結果はコードのライセンスのこともあり、文章に掛かっているかは結局管理者が確かめる（その後、手で選べると確かめていないライセンスで登録できるので、[source-registration-by-url](../source-registration-by-url/README.md#ライセンスの自動の取得) で検出できたリポジトリだけを登録する形に変えた）
   - 管理者の判断だけにする：リポジトリの外のページ（creativecommons.org のライセンスの説明など）を登録できてしまい、1 の条件を守れない
 
 ### 個人の学習用のライセンスの持ち方

@@ -86,7 +86,7 @@ describe("GET /api/passage/random", () => {
       const { token } = await createTestUser()
 
       const res = await request(app)
-        .get("/api/passage/random?kind=docs&tag=go,rust&difficulty=2")
+        .get("/api/passage/random?tag=go,rust&difficulty=2")
         .set("Authorization", `Bearer ${token}`)
 
       expect(res.status).toBe(200)

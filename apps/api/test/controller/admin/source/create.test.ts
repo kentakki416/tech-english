@@ -72,11 +72,24 @@ describe("POST /api/admin/source", () => {
         includeGlobs: ["src/content/learn/**/*.md"],
         isEnabled: true,
         licenseSpdx: "CC-BY-4.0",
-        publicUrlTemplate: "https://react.dev/{path}",
+        publicUrlStripPrefix: null,
+        publicUrlTemplate: null,
         repository: "reactjs/react.dev",
         siteUrl: null,
       })
       expect(await testDb.$count(sourceTags)).toBe(0)
+    })
+
+    it("kind を送らなければ docs で登録する", async () => {
+      const res = await request(app)
+        .post("/api/admin/source")
+        .set("Authorization", `Bearer ${adminToken}`)
+        .send({ ...GITHUB_REQUEST, kind: undefined })
+
+      expect(res.status).toBe(201)
+      expect(res.body).toMatchObject({ kind: "docs" })
+      const [row] = await testDb.select().from(sources).where(eq(sources.id, res.body.id))
+      expect(row).toMatchObject({ kind: "docs" })
     })
 
     it("tag_ids を渡すと 201 と tags（{ id, color, name } の名前の順）を返し、source_tags に入る", async () => {
@@ -182,7 +195,6 @@ describe("POST /api/admin/source", () => {
       ["github で repository が owner だけ", { ...GITHUB_REQUEST, repository: "reactjs" }],
       ["github で glob が / で始まる", { ...GITHUB_REQUEST, include_globs: ["/src/**/*.md"] }],
       ["github で include_globs が空", { ...GITHUB_REQUEST, include_globs: [] }],
-      ["github で public_url_template に {path} が無い", { ...GITHUB_REQUEST, public_url_template: "https://react.dev/" }],
       ["許可リスト外のライセンス（CC-BY-SA-4.0）", { ...GITHUB_REQUEST, license_spdx: "CC-BY-SA-4.0" }],
       ["license_url が http(s) でない", { ...GITHUB_REQUEST, license_url: "javascript:alert(1)" }],
       ["github で license_url がリポジトリの外", { ...GITHUB_REQUEST, license_url: "https://creativecommons.org/licenses/by/4.0/" }],

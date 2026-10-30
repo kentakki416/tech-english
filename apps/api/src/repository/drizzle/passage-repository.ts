@@ -625,7 +625,6 @@ export class DrizzlePassageRepository implements PassageRepository {
     const { unattemptedByUserId } = filter
     return and(
       eq(passages.status, "published"),
-      filter.kind === null ? undefined : eq(sources.kind, filter.kind),
       filter.difficulties.length === 0 ? undefined : inArray(passages.difficulty, filter.difficulties),
       /**
        * ソースにどれかのタグ（名前の完全一致）が付いていれば当てはまる

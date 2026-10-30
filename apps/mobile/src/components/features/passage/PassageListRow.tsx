@@ -27,7 +27,7 @@ function MyStatus({ passage }: { passage: PassageListItemResponse }) {
 }
 
 /**
- * 問題一覧の 1 行。タイトル（2 行まで）→ 種別とソース → 難易度・英単語数・制限時間・挑戦状況
+ * 問題一覧の 1 行。タイトル（2 行まで）→ ソース → 難易度・英単語数・制限時間・挑戦状況
  */
 export function PassageListRow({ passage, onPress }: { passage: PassageListItemResponse, onPress: (id: number) => void }) {
   return (
@@ -38,7 +38,7 @@ export function PassageListRow({ passage, onPress }: { passage: PassageListItemR
     >
       <Text numberOfLines={2} style={styles.title}>{passage.title}</Text>
       <View style={styles.source}>
-        <SourceMeta kind={passage.source.kind} name={passage.source.name} />
+        <SourceMeta name={passage.source.name} />
       </View>
       <View style={styles.meta}>
         <DifficultyMeter level={passage.difficulty} />

@@ -1,7 +1,7 @@
 import React from "react"
 
 interface ComponentCardProps {
-  title: string;
+  title: React.ReactNode;
   children: React.ReactNode;
   className?: string; // Additional custom classes for styling
   desc?: string; // Description text

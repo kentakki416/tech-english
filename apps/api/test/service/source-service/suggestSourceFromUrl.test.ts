@@ -76,7 +76,7 @@ describe("suggestSourceFromUrl", () => {
       ["許可リスト外のライセンス", { licenseSpdx: "GPL-3.0", licenseUrl: LICENSE_FILE_URL }, { isAllowed: false, licenseSpdx: "GPL-3.0", licenseUrl: LICENSE_FILE_URL }],
       ["判定できないライセンス", { licenseSpdx: null, licenseUrl: LICENSE_FILE_URL }, { isAllowed: false, licenseSpdx: null, licenseUrl: LICENSE_FILE_URL }],
       ["ライセンスのファイルが無い", null, { isAllowed: false, licenseSpdx: null, licenseUrl: null }],
-    ])("default branch の %s は detectedLicense にそのまま入り、見直さない", async (_label, detected, expected) => {
+    ])("default branch の %s は detectedLicense にそのまま入る", async (_label, detected, expected) => {
       mockDetectLicense.mockResolvedValue(detected)
 
       const result = await suggestGitHub(LEARN_URL)
@@ -85,8 +85,8 @@ describe("suggestSourceFromUrl", () => {
       expect(mockDetectLicense).toHaveBeenCalledTimes(1)
     })
 
-    it("default branch でないブランチでライセンスが見つからなければ、default branch のライセンスを見直す", async () => {
-      mockDetectLicense.mockResolvedValueOnce(null).mockResolvedValueOnce({ licenseSpdx: "MIT", licenseUrl: LICENSE_FILE_URL })
+    it("default branch でないブランチでライセンスが見つからなければ、default branch のライセンスを見ずに、ファイルが無いときの値を返す", async () => {
+      mockDetectLicense.mockResolvedValue(null)
 
       const result = await suggestGitHub(RELEASE_BRANCH_URL)
 
@@ -95,25 +95,15 @@ describe("suggestSourceFromUrl", () => {
         value: {
           branch: "release",
           defaultBranch: "main",
-          detectedLicense: { isAllowed: true, licenseSpdx: "MIT", licenseUrl: LICENSE_FILE_URL },
+          detectedLicense: { isAllowed: false, licenseSpdx: null, licenseUrl: null },
           includeGlobs: ["v2/docs/**"],
         },
       })
-      expect(mockDetectLicense).toHaveBeenCalledTimes(2)
-      expect(mockDetectLicense).toHaveBeenNthCalledWith(1, "reactjs/react.dev", "release")
-      expect(mockDetectLicense).toHaveBeenNthCalledWith(2, "reactjs/react.dev", null)
+      expect(mockDetectLicense).toHaveBeenCalledTimes(1)
+      expect(mockDetectLicense).toHaveBeenCalledWith("reactjs/react.dev", "release")
     })
 
-    it("default branch でないブランチで、default branch にもライセンスが無ければ、ファイルが無いときの値を返す", async () => {
-      mockDetectLicense.mockResolvedValue(null)
-
-      const result = await suggestGitHub(RELEASE_BRANCH_URL)
-
-      expect(result).toMatchObject({ ok: true, value: { detectedLicense: { isAllowed: false, licenseSpdx: null, licenseUrl: null } } })
-      expect(mockDetectLicense).toHaveBeenCalledTimes(2)
-    })
-
-    it("default branch でないブランチでライセンスが見つかれば、見直さない", async () => {
+    it("default branch でないブランチでライセンスが見つかれば、そのライセンスを返す", async () => {
       const result = await suggestGitHub("https://github.com/reactjs/react.dev/tree/canary/src")
 
       expect(result).toMatchObject({ ok: true, value: { branch: "canary", detectedLicense: { isAllowed: true } } })

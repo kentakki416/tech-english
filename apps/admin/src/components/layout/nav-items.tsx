@@ -20,8 +20,8 @@ export type NavSection = {
 export const mainNavSection: NavSection = {
   items: [
     { icon: <GridIcon />, name: "ダッシュボード", path: "/" },
-    { icon: <DocsIcon />, name: "問題", path: "/passages" },
     { icon: <FolderIcon />, name: "ソース", path: "/sources" },
+    { icon: <DocsIcon />, name: "問題", path: "/passages" },
     { icon: <ListIcon />, name: "タグ", path: "/tags" },
     { icon: <UserCircleIcon />, name: "ユーザー", path: "/users" },
   ],

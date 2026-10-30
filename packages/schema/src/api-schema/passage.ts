@@ -99,7 +99,6 @@ export const getPassageListQueryStringSchema = z.object({
    */
   cursor: z.string().max(200).optional(),
   difficulty: difficultyFilterSchema,
-  kind: z.enum(SOURCE_KINDS).optional(),
   limit: z.coerce.number().int().min(1).max(50).default(20),
   tag: commaSeparatedSchema,
   unattempted_only: z
@@ -131,7 +130,6 @@ export type GetPassageListResponse = z.infer<typeof getPassageListResponseSchema
  */
 export const getRandomPassageQueryStringSchema = z.object({
   difficulty: difficultyFilterSchema,
-  kind: z.enum(SOURCE_KINDS).optional(),
   tag: commaSeparatedSchema,
 })
 

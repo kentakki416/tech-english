@@ -11,8 +11,8 @@ import {
   CollectionToggle,
   Field,
   GitHubTargetFields,
-  LicenseFields,
   Section,
+  WebsiteLicenseFields,
   WebsiteTargetFields,
 } from "@/components/features/source/SourceFormParts"
 import { TagPicker } from "@/components/features/source/TagPicker"
@@ -20,7 +20,6 @@ import Badge from "@/components/ui/badge/Badge"
 import {
   formatLicenseLabel,
   SOURCE_FETCH_TYPE_LABELS,
-  SOURCE_KIND_LABELS,
   type SourceCollectionRunStatus,
 } from "@/features/source/source.labels"
 import { SOURCE_LIST_PATHS } from "@/features/source/source.paths"
@@ -46,7 +45,7 @@ function StatusRow({ children, label }: { children: React.ReactNode, label: stri
 }
 
 /**
- * ソースの編集フォーム。取得方法・取得元（リポジトリとブランチ・サイトの URL）・種別・GitHub のライセンスは登録で決まって変えられないので、
+ * ソースの編集フォーム。取得方法・取得元（リポジトリとブランチ・サイトの URL）・GitHub のライセンスは登録で決まって変えられないので、
  * 欄にせず「収集の状況」に出す。
  *
  * allowedLicenses と personalUseLicense はサイトのライセンス欄の選択肢（@repo/api-schema の許可リストと個人の学習用）、
@@ -101,7 +100,7 @@ export function SourceEditForm({
           </div>
         )}
 
-        <Section desc="問題一覧と出典表示に出る情報です。" title="基本情報">
+        <Section title="基本情報">
           <Field error={getFieldError("name")} htmlFor="name" label="表示名">
             <input className={inputClass} defaultValue={source.name} id="name" name="name" placeholder="例：React 公式ドキュメント" />
           </Field>
@@ -124,8 +123,7 @@ export function SourceEditForm({
               />
             </Section>
             <Section desc="ライセンスの記載が無いサイトは「個人の学習用」を選びます（ローカルでだけ使えます）。" title="ライセンス">
-              <LicenseFields
-                fetchType={websiteSource.fetch_type}
+              <WebsiteLicenseFields
                 getFieldError={getFieldError}
                 licenseOptions={[...allowedLicenses, personalUseLicense]}
                 licenseSpdx={licenseSpdx}
@@ -142,8 +140,6 @@ export function SourceEditForm({
                 defaults={{
                   excludeGlobs: githubSource.exclude_globs,
                   includeGlobs: githubSource.include_globs,
-                  publicUrlStripPrefix: githubSource.public_url_strip_prefix,
-                  publicUrlTemplate: githubSource.public_url_template,
                 }}
                 getFieldError={getFieldError}
               />
@@ -181,7 +177,6 @@ export function SourceEditForm({
                 <a className={externalLinkClass} href={websiteSource.site_url} rel="noreferrer" target="_blank">{websiteSource.site_url}</a>
               </StatusRow>
             )}
-            <StatusRow label="種別">{SOURCE_KIND_LABELS[source.kind]}</StatusRow>
             {githubSource && (
               <>
                 <StatusRow label="ライセンス">

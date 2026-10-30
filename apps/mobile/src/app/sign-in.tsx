@@ -70,7 +70,6 @@ export default function SignInScreen() {
 
         <View style={[appStyles.card, styles.demo]}>
           <View style={styles.demoHeader}>
-            <Text style={styles.docsBadge}>Docs</Text>
             <Text style={appStyles.caption}>React 公式ドキュメント</Text>
           </View>
           <View style={{ paddingRight: 14, paddingTop: 14 }}>
@@ -175,14 +174,6 @@ const styles = StyleSheet.create({
   devLoginLink: {
     color: THEME_COLORS.fgMuted,
     textDecorationLine: "underline",
-  },
-  docsBadge: {
-    borderColor: "rgba(243, 178, 76, 0.4)",
-    borderRadius: 4,
-    borderWidth: 1,
-    color: THEME_COLORS.amber,
-    fontSize: 11,
-    paddingHorizontal: 5,
   },
   error: {
     color: THEME_COLORS.wrong,

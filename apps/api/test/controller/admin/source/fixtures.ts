@@ -18,8 +18,6 @@ export const GITHUB_REQUEST = {
   license_spdx: "CC-BY-4.0",
   license_url: "https://github.com/reactjs/react.dev/blob/main/LICENSE-DOCS.md",
   name: "React 公式ドキュメント",
-  public_url_strip_prefix: "src/content/",
-  public_url_template: "https://react.dev/{path}",
   repository: "reactjs/react.dev",
   tag_ids: [],
 }
@@ -47,8 +45,6 @@ export const GITHUB_UPDATE_REQUEST = {
   include_globs: ["src/content/learn/**/*.md"],
   is_enabled: true,
   name: "React 公式ドキュメント",
-  public_url_strip_prefix: "src/content/",
-  public_url_template: "https://react.dev/{path}",
   tag_ids: [],
 }
 

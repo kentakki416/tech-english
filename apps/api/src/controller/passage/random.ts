@@ -22,7 +22,7 @@ export class PassageRandomController {
 
     const result = await service.passage.getRandomPassageId(
       {
-        filter: { difficulties: query.difficulty, kind: query.kind ?? null, tags: query.tag },
+        filter: { difficulties: query.difficulty, tags: query.tag },
         userId: req.userId!,
       },
       { passageRepository: this._passageRepository, readingAttemptRepository: this._readingAttemptRepository },
