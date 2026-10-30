@@ -115,7 +115,8 @@ const convertCollectionRequestErrorToReason = (error: ApiClientError): SourceCol
 }
 
 /**
- * 今すぐ収集の依頼の Server Action。収集は worker が裏で行うので、依頼が通ったら編集画面を読み直して「収集中」を出す。
+ * 今すぐ収集の依頼の Server Action。収集は worker が裏で行うので、依頼が通ったら一覧を読み直して「収集中」を出す。
+ * ここでは redirect しない（redirect はブラウザ側で例外になり、呼び出し元の失敗の扱いに入るので、遷移は呼び出し元が行う）。
  * 通らなかったときも読み直す（409 は別の管理者が先に押したので、最新の記録が収集中で返り、画面が収集中と読み直しに切り替わる）。
  * 引数はブラウザから届くので、API と同じスキーマで検証してからパスに使う
  */
@@ -132,6 +133,7 @@ export const requestSourceCollectionAction = async (sourceId: number): Promise<S
     revalidatePath(`/sources/${id}`)
     return { ok: false, reason: convertCollectionRequestErrorToReason(error) }
   }
+  revalidatePath("/sources")
   revalidatePath(`/sources/${id}`)
   return { ok: true }
 }

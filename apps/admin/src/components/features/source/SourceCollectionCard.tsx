@@ -1,7 +1,7 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { useEffect, useState, useTransition } from "react"
+import { useState, useTransition } from "react"
 
 import { requestSourceCollectionAction } from "@/app/(dashboard)/sources/actions"
 import Badge from "@/components/ui/badge/Badge"
@@ -12,13 +12,10 @@ import {
   type SourceCollectionRun,
   type SourceCollectionRunStatus,
 } from "@/features/source/source.labels"
+import { SOURCE_LIST_PATHS } from "@/features/source/source.paths"
+import { useCollectionRunRefresh } from "@/hooks/useCollectionRunRefresh"
 import { formatDateTime } from "@/libs/date"
 import { cardBodyClass, cardClass, descClass, primaryButtonClass, titleClass } from "@/libs/ui-classes"
-
-/**
- * 収集中の画面を読み直す間隔。収集は数秒〜数分なので、押した後に結果へ切り替わるのを待てる長さにする
- */
-const COLLECTION_RUN_REFRESH_INTERVAL_MS = 3_000
 
 const describeCollectionRun = (run: SourceCollectionRun): string => {
   const finishedAt = run.finished_at ? formatDateTime(run.finished_at) : ""
@@ -41,7 +38,7 @@ const describeCollectionRun = (run: SourceCollectionRun): string => {
 }
 
 /**
- * 今すぐ収集のボタンと、最後の収集の状態。収集中の間は画面を読み直し、結果に切り替える。
+ * 今すぐ収集のボタンと、最後の収集の状態。依頼が通ったらソース一覧へ戻る。収集中の間は画面を読み直し、結果に切り替える。
  * activeStatuses は収集中の状態の値（Server Component が @repo/api-schema から渡す）、isEnabled は保存済みの有効 / 無効
  */
 export function SourceCollectionCard({ activeStatuses, isEnabled, run, sourceId }: {
@@ -54,12 +51,7 @@ export function SourceCollectionCard({ activeStatuses, isEnabled, run, sourceId 
   const [failureReason, setFailureReason] = useState<SourceCollectionRequestFailureReason | null>(null)
   const [isPending, startTransition] = useTransition()
   const isActive = run !== null && activeStatuses.includes(run.status)
-
-  useEffect(() => {
-    if (!isActive) return
-    const timer = setInterval(() => router.refresh(), COLLECTION_RUN_REFRESH_INTERVAL_MS)
-    return () => clearInterval(timer)
-  }, [isActive, router])
+  useCollectionRunRefresh(isActive)
 
   /**
    * 依頼が通らなかった理由の文言。読み直しで状態が変わった後に合わなくなるものは出さない
@@ -75,7 +67,11 @@ export function SourceCollectionCard({ activeStatuses, isEnabled, run, sourceId 
     setFailureReason(null)
     startTransition(async () => {
       const result = await requestSourceCollectionAction(sourceId).catch(() => ({ ok: false as const, reason: "failed" as const }))
-      setFailureReason(result.ok ? null : result.reason)
+      if (result.ok) {
+        router.push(SOURCE_LIST_PATHS.github_repository)
+        return
+      }
+      setFailureReason(result.reason)
     })
   }
 

@@ -175,9 +175,10 @@ export class DrizzleSourceRepository implements SourceRepository {
     }
   }
 
-  public async findAll(): Promise<SourceWithTags[]> {
-    const rows = await this._db.select().from(sources).orderBy(asc(sources.id))
-    return attachTags(this._db, rows.map((row) => this._toDomain(row)))
+  public async findAll(options?: ReadOptions): Promise<SourceWithTags[]> {
+    const reader = this._resolveReader(options)
+    const rows = await reader.select().from(sources).orderBy(asc(sources.id))
+    return attachTags(reader, rows.map((row) => this._toDomain(row)))
   }
 
   public async findById(id: number, options?: ReadOptions): Promise<SourceWithTags | null> {

@@ -34,13 +34,13 @@ export class DrizzleSourceCollectionRunRepository implements SourceCollectionRun
     }
   }
 
-  public async failTimedOut(input: { error: string; now: Date; sourceId: number; staleBefore: Date }): Promise<number> {
+  public async failTimedOut(input: { error: string; now: Date; sourceId?: number; staleBefore: Date }): Promise<number> {
     const rows = await this._db
       .update(sourceCollectionRuns)
       .set({ error: input.error, finishedAt: input.now, status: "failed" })
       .where(
         and(
-          eq(sourceCollectionRuns.sourceId, input.sourceId),
+          input.sourceId === undefined ? undefined : eq(sourceCollectionRuns.sourceId, input.sourceId),
           or(
             and(eq(sourceCollectionRuns.status, "queued"), lt(sourceCollectionRuns.createdAt, input.staleBefore)),
             and(eq(sourceCollectionRuns.status, "running"), lt(sourceCollectionRuns.startedAt, input.staleBefore)),
@@ -60,6 +60,15 @@ export class DrizzleSourceCollectionRunRepository implements SourceCollectionRun
       .orderBy(desc(sourceCollectionRuns.id))
       .limit(1)
     return row ? this._toDomain(row) : null
+  }
+
+  public async findLatestPerSource(options?: ReadOptions): Promise<SourceCollectionRun[]> {
+    const reader = options?.fromPrimary ? this._db.$primary : this._db
+    const rows = await reader
+      .selectDistinctOn([sourceCollectionRuns.sourceId])
+      .from(sourceCollectionRuns)
+      .orderBy(sourceCollectionRuns.sourceId, desc(sourceCollectionRuns.id))
+    return rows.map((row) => this._toDomain(row))
   }
 
   public async markQueuedAsFailed(input: { error: string; id: number }): Promise<void> {
