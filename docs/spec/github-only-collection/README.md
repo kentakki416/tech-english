@@ -92,7 +92,7 @@
 
 ### URL から追加（ローカルだけ）
 
-- dev / min / prd では、admin のメニューに「URL から追加」を出さず、画面を開くと 404 になる。API も 404 を返す
+- dev / min / prd では、admin の問題の一覧に「URL から追加」のボタンを出さず、画面を開くと 404 になる。API も 404 を返す
 - ローカルでは今と同じ（受け付ける URL・確認と保存・生成の優先）
 - 「取り込んだページは収集でも取得済みとして扱う」はなくなる（サイトを収集しないため）
 
@@ -113,7 +113,7 @@
 - api の URL から追加：production では Controller を作らず、admin の router に渡さない。router は渡された Controller のルートだけを登録するので 404 になる（dev ログインと同じ形）
 - api のソースの登録・更新：サイトのソースを受け付けるかを Service に DI で渡し、production ではサイトのソースを 400 にする。env を Service で直接読まない（テストで切り替えるため）
 - サイトのソースは常に無効（`is_enabled = false`）にする。api はサイトの `is_enabled` を受け取らず、DB も CHECK 制約 `sources_website_disabled_check`（`fetch_type <> 'website' OR is_enabled = false`）で守る。制約を足す migration で、今有効のサイトのソースを先に無効にする
-- admin：`process.env.NODE_ENV` を `src/libs/environment.ts` の `isLocalEnvironment` で 1 か所にまとめ、サイドバーの項目・フォームの取得方法の選択肢・`/url-import` の `notFound()` で使う。Next.js は `process.env.NODE_ENV` を build のときに値に置き換えるので、client component からも読める（`server-only` の `env.ts` は client component から import できない）。admin の proxy・サインイン画面の dev ログインも `process.env.NODE_ENV` を直接見ている
+- admin：`process.env.NODE_ENV` を `src/libs/environment.ts` の `isLocalEnvironment` で 1 か所にまとめ、問題の一覧の「URL から追加」のボタン・フォームの取得方法の選択肢・`/passages/url-import` の `notFound()` で使う。Next.js は `process.env.NODE_ENV` を build のときに値に置き換えるので、client component からも読める（`server-only` の `env.ts` は client component から import できない）。admin の proxy・サインイン画面の dev ログインも `process.env.NODE_ENV` を直接見ている
 
 ### 収集（cron）
 

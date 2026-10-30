@@ -10,7 +10,7 @@ import {
   previewUrlImportAction,
   type UrlImportFailure,
   type UrlImportState,
-} from "@/app/(dashboard)/url-import/actions"
+} from "@/app/(dashboard)/passages/url-import/actions"
 import ComponentCard from "@/components/layout/ComponentCard"
 import Badge from "@/components/ui/badge/Badge"
 import { tableHeadCellClass } from "@/components/ui/table/LinkTableParts"

@@ -1,10 +1,13 @@
 import type { Metadata } from "next"
+import Link from "next/link"
 
 import { adminPassageStatusSchema } from "@repo/api-schema"
 
 import { PassageTable } from "@/components/features/passage/PassageTable"
 import PageBreadcrumb from "@/components/layout/PageBreadCrumb"
 import { passageApi } from "@/features/passage/passage.api"
+import { isLocalEnvironment } from "@/libs/environment"
+import { primaryButtonClass } from "@/libs/ui-classes"
 
 export const metadata: Metadata = {
   title: "問題",
@@ -26,6 +29,11 @@ export default async function PassagesPage({ searchParams }: Props) {
   return (
     <>
       <PageBreadcrumb pageTitle="問題" />
+      {isLocalEnvironment && (
+        <div className="mb-6 flex justify-end">
+          <Link className={primaryButtonClass} href="/passages/url-import">URL から追加</Link>
+        </div>
+      )}
       <PassageTable isTruncated={list.isTruncated} passages={list.passages} status={status} statusCounts={list.statusCounts} />
     </>
   )
