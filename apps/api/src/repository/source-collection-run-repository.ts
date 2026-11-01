@@ -18,13 +18,18 @@ export interface SourceCollectionRunRepository {
    */
   create(sourceId: number): Promise<CreateSourceCollectionRunResult>
   /**
-   * そのソースの収集中の記録のうち、queued は依頼した時刻・running は始めた時刻が staleBefore より前のものを failed にし、件数を返す
+   * 収集中の記録のうち、queued は依頼した時刻・running は始めた時刻が staleBefore より前のものを failed にし、件数を返す。
+   * sourceId を省くと、すべてのソースの記録が対象
    */
-  failTimedOut(input: { error: string; now: Date; sourceId: number; staleBefore: Date }): Promise<number>
+  failTimedOut(input: { error: string; now: Date; sourceId?: number; staleBefore: Date }): Promise<number>
   /**
    * そのソースの最新の記録（id の降順で 1 件）
    */
   findLatestBySourceId(sourceId: number, options?: ReadOptions): Promise<SourceCollectionRun | null>
+  /**
+   * ソースごとの最新の記録（ソースごとに id の降順で 1 件。記録の無いソースは含まない）
+   */
+  findLatestPerSource(options?: ReadOptions): Promise<SourceCollectionRun[]>
   /**
    * queued のままの記録を failed にする（Queue に積めなかったとき）。終わった時刻は DB の今の時刻（依頼の時刻より前にならないように）
    */

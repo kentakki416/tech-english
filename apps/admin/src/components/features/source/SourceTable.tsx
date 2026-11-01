@@ -7,7 +7,8 @@ import type { GetSourceListResponse } from "@repo/api-schema"
 import { TagChip } from "@/components/features/tag/TagChip"
 import Badge from "@/components/ui/badge/Badge"
 import { type Column, DataTable, type FilterConfig } from "@/components/ui/table"
-import { formatLicenseLabel } from "@/features/source/source.labels"
+import { formatLicenseLabel, SOURCE_COLLECTION_RUN_STATUS_LABELS, type SourceCollectionRunStatus } from "@/features/source/source.labels"
+import { useCollectionRunRefresh } from "@/hooks/useCollectionRunRefresh"
 import { formatDateTime } from "@/libs/date"
 
 type SourceListItem = GetSourceListResponse["sources"][number]
@@ -62,7 +63,16 @@ const STATUS_COLUMN: Column<SourceRow> = {
 const LAST_COLLECTED_COLUMN: Column<SourceRow> = {
   className: "px-5 py-4 text-theme-sm whitespace-nowrap text-gray-500 dark:text-gray-400",
   header: "最終収集",
-  render: (row) => row.lastCollectedLabel ?? <span className="text-gray-400">未収集</span>,
+  render: (row) => (
+    <div className="space-y-1">
+      {row.latest_collection_run && (
+        <Badge color={SOURCE_COLLECTION_RUN_STATUS_LABELS[row.latest_collection_run.status].color} size="sm">
+          {SOURCE_COLLECTION_RUN_STATUS_LABELS[row.latest_collection_run.status].label}
+        </Badge>
+      )}
+      <p>{row.lastCollectedLabel ?? <span className="text-gray-400">未収集</span>}</p>
+    </div>
+  ),
 }
 
 const PASSAGE_COUNTS_COLUMN: Column<SourceRow> = {
@@ -132,10 +142,16 @@ const convertSourceToRow = (source: SourceListItem): SourceRow => ({
 
 /**
  * ソース一覧の表（1 つの取得方法のソース）。Basic Tables と同じ DataTable（検索・Filter つき、ページ送りなし）。
- * [GitHub] [サイト] はクエリだけが変わる遷移でこの部品が作り直されないので、取得方法を key にして検索の文字と Filter を消す
+ * [GitHub] [サイト] はクエリだけが変わる遷移でこの部品が作り直されないので、取得方法を key にして検索の文字と Filter を消す。
+ * 収集中のソースがある間は画面を読み直し、結果に切り替える。activeStatuses は収集中の状態の値（Server Component が @repo/api-schema から渡す）
  */
-export function SourceTable({ fetchType, sources }: { fetchType: SourceFetchType, sources: SourceListItem[] }) {
+export function SourceTable({ activeStatuses, fetchType, sources }: {
+  activeStatuses: readonly SourceCollectionRunStatus[]
+  fetchType: SourceFetchType
+  sources: SourceListItem[]
+}) {
   const rows = sources.map(convertSourceToRow)
+  useCollectionRunRefresh(sources.some((source) => source.latest_collection_run !== null && activeStatuses.includes(source.latest_collection_run.status)))
 
   return (
     <DataTable

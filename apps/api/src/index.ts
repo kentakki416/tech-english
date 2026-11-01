@@ -318,7 +318,7 @@ const sourceWritePolicy = { isWebsiteSourceAllowed: isLocalEnvironment }
  */
 const adminSourceCreateController = new AdminSourceCreateController(sourceRepository, tagRepository, sourceWritePolicy)
 const adminSourceDetailController = new AdminSourceDetailController(sourceRepository, sourceCollectionRunRepository)
-const adminSourceListController = new AdminSourceListController(sourceRepository)
+const adminSourceListController = new AdminSourceListController(sourceRepository, sourceCollectionRunRepository)
 const adminSourceSuggestController = new AdminSourceSuggestController(gitHubRepositoryClient, sourceWritePolicy)
 const adminSourceUpdateController = new AdminSourceUpdateController(sourceRepository, tagRepository, sourceWritePolicy)
 

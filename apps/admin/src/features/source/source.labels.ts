@@ -54,15 +54,16 @@ export const SOURCE_COLLECTION_RUN_STATUS_LABELS: Record<SourceCollectionRunStat
 
 /**
  * 今すぐ収集の依頼が通らなかった理由。running はほかの収集が実行中、disabled は無効のソース、
- * unavailable はこの環境に今すぐ収集が無い（api の SOURCE_COLLECTION_TYPE=none）、failed はそのほか
+ * unavailable はこの環境に今すぐ収集が無い（api の SOURCE_COLLECTION_TYPE=none）、unsaved は編集画面に未保存の変更がある、failed はそのほか
  */
-export type SourceCollectionRequestFailureReason = "disabled" | "failed" | "running" | "unavailable"
+export type SourceCollectionRequestFailureReason = "disabled" | "failed" | "running" | "unavailable" | "unsaved"
 
 export const SOURCE_COLLECTION_REQUEST_FAILURE_MESSAGES: Record<SourceCollectionRequestFailureReason, string> = {
   disabled: "無効のソースは収集しません。有効にして保存してから押してください。",
   failed: "収集を始められませんでした。時間をおいてもう一度押してください。",
   running: "ほかの収集が実行中です。終わるまで待ってください。",
   unavailable: "この環境では今すぐ収集を使えません（worker がありません）。",
+  unsaved: "未保存の変更があります。保存してから押してください。",
 }
 
 /**

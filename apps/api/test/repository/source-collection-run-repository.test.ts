@@ -148,6 +148,24 @@ describe("DrizzleSourceCollectionRunRepository", () => {
 
         expect(await selectRun(otherRun.id)).toMatchObject({ status: "queued" })
       })
+
+      it("sourceId を省くと、すべてのソースの記録を failed にする", async () => {
+        const source = await insertGitHubSource()
+        const otherSource = await insertGitHubSource({ repository: "example/other" })
+        const staleCreatedAt = new Date(STALE_BEFORE.getTime() - 1)
+        const run = await insertSourceCollectionRun({ createdAt: staleCreatedAt, sourceId: source.id, status: "queued" })
+        const otherRun = await insertSourceCollectionRun({ createdAt: staleCreatedAt, sourceId: otherSource.id, status: "queued" })
+
+        const count = await sourceCollectionRunRepository.failTimedOut({
+          error: "30 分を過ぎても終わらなかった",
+          now: NOW,
+          staleBefore: STALE_BEFORE,
+        })
+
+        expect(count).toBe(2)
+        expect(await selectRun(run.id)).toMatchObject({ status: "failed" })
+        expect(await selectRun(otherRun.id)).toMatchObject({ status: "failed" })
+      })
     })
   })
 
@@ -167,6 +185,27 @@ describe("DrizzleSourceCollectionRunRepository", () => {
         const source = await insertGitHubSource()
 
         expect(await sourceCollectionRunRepository.findLatestBySourceId(source.id)).toBeNull()
+      })
+    })
+  })
+
+  describe("findLatestPerSource", () => {
+    describe("正常系", () => {
+      it("ソースごとに id が一番大きい記録を返し、記録の無いソースは含まない", async () => {
+        const source = await insertGitHubSource()
+        const otherSource = await insertGitHubSource({ repository: "example/other" })
+        await insertGitHubSource({ repository: "example/no-runs" })
+        await insertSourceCollectionRun({ sourceId: source.id, status: "completed" })
+        const latest = await insertSourceCollectionRun({ sourceId: source.id, status: "limit_reached" })
+        const otherLatest = await insertSourceCollectionRun({ sourceId: otherSource.id, status: "queued" })
+
+        const runs = await sourceCollectionRunRepository.findLatestPerSource()
+
+        expect(runs.map((run) => run.id).sort((a, b) => a - b)).toEqual([latest.id, otherLatest.id])
+      })
+
+      it("記録が無ければ空配列", async () => {
+        expect(await sourceCollectionRunRepository.findLatestPerSource()).toEqual([])
       })
     })
   })

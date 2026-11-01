@@ -270,7 +270,8 @@ export const activeSourceCollectionRunStatusSchema = z.enum(ACTIVE_SOURCE_COLLEC
 // ========================================================
 
 /**
- * ソース一覧のレスポンススキーマ。repository / site_url は取得方法でないほうが null
+ * ソース一覧のレスポンススキーマ。repository / site_url は取得方法でないほうが null、
+ * latest_collection_run は最後の収集の記録（一度も収集していなければ null）
  */
 export const getSourceListResponseSchema = z.object({
   sources: z.array(
@@ -280,6 +281,7 @@ export const getSourceListResponseSchema = z.object({
       is_enabled: z.boolean(),
       kind: z.enum(SOURCE_KINDS),
       last_collected_at: z.string().nullable(),
+      latest_collection_run: sourceCollectionRunSchema.nullable(),
       license_spdx: sourceLicenseSchema,
       name: z.string(),
       passage_counts: passageCountsSchema,

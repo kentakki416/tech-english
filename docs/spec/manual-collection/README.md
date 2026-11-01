@@ -1,6 +1,6 @@
 # 管理画面からの今すぐ収集
 
-admin のソースの編集画面に「今すぐ収集」のボタンを置き、GitHub のソースを 1 つ、その場で収集する。収集は api が Queue に積み、worker が裏で行う。画面には「収集中」「完了（本文候補 N 件）」「上限で打ち切り」「rate limit で打ち切り」「失敗」を出す。
+admin のソースの編集画面に「今すぐ収集」のボタンを置き、GitHub のソースを 1 つ、その場で収集する。収集は api が Queue に積み、worker が裏で行う。押すとソース一覧に戻り、一覧と編集画面に「収集中」「完了」「上限で打ち切り」「rate limit で打ち切り」「失敗」などの状態を出す。
 
 収集はこのボタンだけで行い、cron の毎日の収集（`collect:passages`）はやめる。ソースを登録してすぐ本文候補まで確かめられれば、毎日の自動の収集は要らないため。収集の処理は `apps/cron` から `apps/worker` に移す（使うのは worker だけなので、共有パッケージにはしない）。
 
@@ -79,7 +79,10 @@ admin のソースの編集画面に「今すぐ収集」のボタンを置き�
 | rate limit で打ち切り（`rate_limited`） | GitHub の rate limit で打ち切り。時間をおいてもう一度押すと続きから取り込む |
 | 失敗（`failed`） | 失敗：理由（GitHub にリポジトリが無い・30 分を過ぎても終わらなかった など） |
 
-- 収集中の間は、画面を開いたままで結果に切り替わる（数秒ごとに読み直す）
+- 依頼が通ったらソース一覧（GitHub）に戻る。別のソースの作業に移れるようにするため。依頼が通らなかったときは編集画面に残り、理由を出す
+- 編集画面に未保存の変更があるときは依頼せず、「未保存の変更があります。保存してから押してください。」と出す。一覧に移ると編集が消え、収集も保存前の対象パスで走るため
+- ソース一覧の「最終収集」の列にも、最後の収集の状態のバッジを出す（一覧に戻っても収集中か結果が分かるようにするため）。件数・理由の文は編集画面だけに出す
+- 収集中の間は、一覧でも編集画面でも、画面を開いたままで結果に切り替わる（数秒ごとに読み直す）
 - 押した後に画面を閉じても、収集は続く
 
 ### 収集の中身
@@ -151,11 +154,11 @@ worker を動かしていない環境（minimal の構成で worker を作らな
 
 ### 終わらなかった実行の片付け
 
-**`queued` / `running` のまま 30 分（api の `SOURCE_COLLECTION_RUN_TIMEOUT_MINUTES`）を過ぎた記録は、api が次に読むとき（編集画面を開く・ボタンを押す）に `failed`（「30 分を過ぎても終わらなかった」）にする。**
+**`queued` / `running` のまま 30 分（api の `SOURCE_COLLECTION_RUN_TIMEOUT_MINUTES`）を過ぎた記録は、api が次に読むとき（一覧・編集画面を開く・ボタンを押す）に `failed`（「30 分を過ぎても終わらなかった」）にする。**
 
-- `queued` は依頼した時刻（`created_at`）、`running` は worker が始めた時刻（`started_at`）から数える。worker の `collect-source` は 1 つずつ処理するので、`queued` の 30 分には別のソースの順番待ちの時間も入る（ソースは数十件で、1 件の収集は数分なので、30 分の順番待ちは起きにくい）
+- `queued` は依頼した時刻（`created_at`）、`running` は worker が始めた時刻（`started_at`）から数える。worker の `collect-source` は 1 つずつ処理するので、`queued` の 30 分には別のソースの順番待ちの時間も入る（100 文書の収集はローカルの実測で約 30 秒なので、30 分待つのは 60 件ほどを続けて押したとき。押して一覧に戻れるので続けて押せるが、ソースは数十件なので起きにくい。起きたときは `failed` になった記録の収集は行われないので、もう一度押す）
 - 分数を使うのは api だけなので、api の `src/const/` に置く（cron の `STALE_GENERATING_MINUTES` などと同じく、使う app の側に置く）
-- 詳細の GET の中で UPDATE するので、収集中は 3 秒ごとの読み直しのたびに条件付きの UPDATE が 1 回走る（`source_id` で絞るので軽い）
+- 一覧と詳細の GET の中で UPDATE するので、読み直しのたびに条件付きの UPDATE が 1 回走る（詳細は `source_id` で絞る。一覧はすべてのソースが対象だが、収集中の記録は多くてもソースの数までなので軽い）
 
 - worker が止まった（deploy の SIGKILL・Fargate Spot の中断）・Redis からジョブが消えた、などで記録が `queued` / `running` のまま残ると、ボタンを二度と押せなくなるため
 - 30 分は、1 回の上限（100 文書）を GitHub API で取って抽出する時間に十分な余裕を持たせた値（`generate:questions` の回収と同じ長さ）
@@ -163,9 +166,10 @@ worker を動かしていない環境（minimal の構成で worker を作らな
 
 ### 画面の更新
 
-- ボタンは Server Action で api の `POST` を呼び、成功したら編集画面を `revalidatePath` する
-- 最新の記録が `queued` / `running` の間は、client component が 3 秒ごとに `router.refresh()` して読み直す。終わった状態になったら止める
-- 収集が終わったら、「本文候補」の件数のバッジと「最終収集」も同じ読み直しで更新される
+- ボタンは Server Action で api の `POST` を呼び、成功したら一覧と編集画面を `revalidatePath` して、client component が `router.push` で一覧へ移る。Server Action の `redirect` はブラウザ側で例外になり、ボタンの失敗の扱いに入るので使わない
+- 最新の記録が `queued` / `running` のソースがある間は、一覧も編集画面も client component が 3 秒ごとに `router.refresh()` して読み直す（`useCollectionRunRefresh`）。終わった状態になったら止める
+- 収集が終わったら、「本文候補」の件数と「最終収集」も同じ読み直しで更新される
+- 一覧も詳細と同じくすべて primary から読む。読み直しが止まった後に、read replica の遅れた件数が残らないようにするため
 
 ### MVP 対象外（将来検討）
 
@@ -180,7 +184,7 @@ worker を動かしていない環境（minimal の構成で worker を作らな
 | 画面 | 変えるところ |
 | --- | --- |
 | ソースの編集（`/sources/[id]`、GitHub のソース） | 右に「今すぐ収集」のカード（ボタンと、最後の収集の状態・結果）を、「試し実行」のカードの代わりに出す。収集中は数秒ごとに読み直す |
-| ソース一覧（`/sources`） | 説明の「毎日の収集（collect:passages）が取り込みます」を、編集画面の「今すぐ収集」で取り込むことに直す |
+| ソース一覧（`/sources`） | 説明の「毎日の収集（collect:passages）が取り込みます」を、編集画面の「今すぐ収集」で取り込むことに直す。「最終収集」の列に最後の収集の状態のバッジを出し、収集中は数秒ごとに読み直す |
 | ソースの登録・編集のフォーム | 「このソースを収集する」のスイッチの説明を、今すぐ収集を押せるかどうかに直す |
 
 具体的な UI は step4 で決める（admin のテンプレートのボタン・バッジを使う）。
@@ -190,6 +194,7 @@ worker を動かしていない環境（minimal の構成で worker を作らな
 | メソッド | パス | 説明 |
 | --- | --- | --- |
 | POST | `/api/admin/source/:id/collection-runs` | 今すぐ収集を依頼する。記録（`queued`）を作って Queue に積み、202 と記録を返す。ソースが無ければ 404、サイト・無効のソースは 400、収集中なら 409。`SOURCE_COLLECTION_TYPE=none` ならルートが無い（404） |
+| GET | `/api/admin/source` | ソース一覧の各行に `latest_collection_run`（最後の収集の記録。無ければ null）を足す。30 分を過ぎた `queued` / `running` は `failed` にしてから返す |
 | GET | `/api/admin/source/:id` | ソース詳細に `latest_collection_run`（最後の収集の記録。無ければ null）を足す。30 分を過ぎた `queued` / `running` は `failed` にしてから返す |
 
 Queue：
@@ -232,7 +237,7 @@ erDiagram
 
 ```mermaid
 sequenceDiagram
-    participant A as admin（編集画面）
+    participant A as admin（編集画面 → 一覧）
     participant API as api
     participant DB as DB
     participant Q as Queue（Redis）
@@ -249,8 +254,8 @@ sequenceDiagram
         API-->>A: 202 { collection_run }
     end
     loop 収集中のあいだ 3 秒ごと
-        A->>API: GET /api/admin/source/:id
-        API-->>A: latest_collection_run
+        A->>API: GET /api/admin/source
+        API-->>A: sources[].latest_collection_run
     end
     W->>Q: ジョブを取り出す
     W->>DB: running にする（started_at = now）
@@ -258,8 +263,8 @@ sequenceDiagram
     GH-->>W: コミット・ツリー・ファイル
     W->>DB: 本文候補・文書・last_collected_at
     W->>DB: 結果を書く（started_at が同じときだけ）
-    A->>API: GET /api/admin/source/:id
-    API-->>A: completed（本文候補 N 件）
+    A->>API: GET /api/admin/source
+    API-->>A: completed
 ```
 
 ## 実装の手順

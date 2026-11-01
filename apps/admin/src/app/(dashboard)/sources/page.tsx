@@ -2,6 +2,8 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { connection } from "next/server"
 
+import { activeSourceCollectionRunStatusSchema } from "@repo/api-schema"
+
 import { SourceFetchTypeTabs } from "@/components/features/source/SourceFetchTypeTabs"
 import { SourceListTitle } from "@/components/features/source/SourceListTitle"
 import { SourceTable } from "@/components/features/source/SourceTable"
@@ -54,7 +56,11 @@ export default async function SourcesPage({ searchParams }: Props) {
             <SourceFetchTypeTabs counts={counts} current={fetchType} hrefs={SOURCE_LIST_PATHS} />
             <Link className={primaryButtonClass} href={SOURCE_CREATE_PATHS[fetchType]}>ソースを登録</Link>
           </div>
-          <SourceTable fetchType={fetchType} sources={sources.filter((source) => source.fetch_type === fetchType)} />
+          <SourceTable
+            activeStatuses={activeSourceCollectionRunStatusSchema.options}
+            fetchType={fetchType}
+            sources={sources.filter((source) => source.fetch_type === fetchType)}
+          />
         </ComponentCard>
       </div>
     </>

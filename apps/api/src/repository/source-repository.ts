@@ -79,7 +79,7 @@ export interface SourceRepository {
   /**
    * id の昇順。各ソースのタグは名前の順
    */
-  findAll(): Promise<SourceWithTags[]>
+  findAll(options?: ReadOptions): Promise<SourceWithTags[]>
   findById(id: number, options?: ReadOptions): Promise<SourceWithTags | null>
   /**
    * 重複の検査に使うだけなのでタグは読まない
