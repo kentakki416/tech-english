@@ -98,7 +98,7 @@
 | 取得方法 | ✅ | `github_repository` | `github_repository`（GitHub の Markdown）か `website`（サイトのページ。ローカルの URL から追加だけが使い、収集しない） |
 | 対象パス | ✅ | `/doc/**` | glob。複数指定可。GitHub はリポジトリ内のファイルパス、サイトは URL のパスに対して判定する |
 | 除外パス | | `/doc/devel/**` | glob。複数指定可 |
-| ライセンス | ✅ | `CC-BY-4.0` | `github_repository` は GitHub の検出の値をそのまま使い、確認できなければ登録できない。`website` は許可リストと「個人の学習用」（`LicenseRef-personal-use`）から選ぶ |
+| ライセンス | ✅ | `CC-BY-4.0` | `github_repository` は GitHub の検出の値をそのまま使い（[確認済みのリポジトリ](../official-docs-collection/README.md#確認済みのリポジトリ)は一覧の値）、確認できなければ登録できない。`website` は許可リストと「個人の学習用」（`LicenseRef-personal-use`）から選ぶ |
 | ライセンスの記載がある URL | ✅ | `https://github.com/reactjs/react.dev/blob/main/LICENSE-DOCS.md` | 出典表示に出す。`github_repository` はそのリポジトリのファイルの URL（`https://github.com/{owner}/{repo}/blob/...`）に限る。`website` はライセンス、または著作権・利用規約のページ |
 | 技術タグ | | `go`, `backend` | admin の「タグ」で登録したタグから選ぶ（[source-tags](../source-tags/README.md)）。問題一覧の絞り込みに使う |
 | 有効 / 無効 | ✅ | 有効 | 無効にすると次回から収集しない。既に公開済みの問題は残る。`website` は常に無効 |
@@ -345,7 +345,7 @@ flowchart LR
 
 | 取得方法 | 確認の仕方 |
 | --- | --- |
-| `github_repository` | 登録の画面で URL を読み込むと、api が GitHub の default branch と、`GET /repos/{owner}/{repo}/license` で検出したライセンス・ライセンスのファイルの URL を取り、許可リストのライセンスなら **そのまま使う**。確認できなければ登録できない（[source-registration-by-url](../source-registration-by-url/README.md)）。GitHub の検出はリポジトリのルートのファイルを見るので、コードのライセンスのことがある。ライセンスが文章に掛かっているかは管理者が画面で確かめ、違えば登録しない。GitHub のライセンスは登録で決まり、編集の画面では変えられない |
+| `github_repository` | 登録の画面で URL を読み込むと、api が GitHub の default branch と、`GET /repos/{owner}/{repo}/license` で検出したライセンス・ライセンスのファイルの URL を取り、許可リストのライセンスなら **そのまま使う**。[確認済みのリポジトリ](../official-docs-collection/README.md#確認済みのリポジトリ)は一覧の値を使う。確認できない、または対象パスに別のライセンスがあれば登録できない（[source-registration-by-url](../source-registration-by-url/README.md)）。GitHub の検出はリポジトリのルートのファイルを見るので、コードのライセンスのことがある。ライセンスが文章に掛かっているかは管理者が画面で確かめ、違えば登録しない。GitHub のライセンスは登録で決まり、編集の画面では変えられない |
 | `website` | ローカルだけ。自動では判定できないため、登録の画面で URL を読み込むと「個人の学習用」とサイトのトップを入れる。管理者は **フッター等のライセンスの記載・`robots.txt`** を確認し、許可リストのライセンスなら「詳細」でライセンスとその記載がある URL を直す。**サイトのソースは常に無効**（収集しない） |
 
 api は次の登録・更新を 400 で拒否する（GitHub のライセンスは登録だけが受け取る）。

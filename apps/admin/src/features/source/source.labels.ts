@@ -79,5 +79,6 @@ export const SOURCE_SUGGESTION_FAILURE_MESSAGES: Record<SourceSuggestionFailureR
   not_repository_url: "GitHub はリポジトリの URL（https://github.com/{owner}/{repo}）を入れてください。",
   repository_not_found: "リポジトリが見つかりませんでした（非公開のリポジトリも同じ表示です）。",
   unauthorized: "サインインの期限が切れました。ページを開き直してサインインしてください。",
+  unsupported_repository: "このリポジトリは本文の書き方が対応していないので登録できません。",
   website_unavailable: "サイトのソースはローカルでだけ登録できます。",
 }

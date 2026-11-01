@@ -64,7 +64,7 @@
 | --- | --- | --- | --- |
 | `reactjs/react.dev` | `LICENSE-DOCS.md`（CC-BY-4.0） | 掛かっている（README に「Content submitted to react.dev is CC-BY-4.0 licensed」） | できる |
 | `kubernetes/website` | `LICENSE`（CC-BY-4.0） | 掛かっている（リポジトリ全体のライセンスで、文章とコードを分けていない） | できる |
-| `rust-lang/book` | `LICENSE-MIT`・`LICENSE-APACHE` | 掛かっている（同上） | しない（GitHub の検出はライセンスのファイルが 2 つあるので `NOASSERTION` になり、確認できない） |
+| `rust-lang/book` | `LICENSE-MIT`・`LICENSE-APACHE` | 掛かっている（同上） | できる（GitHub の検出は `NOASSERTION` だが、[確認済みのリポジトリ](../official-docs-collection/README.md#確認済みのリポジトリ)の一覧で MIT として登録する） |
 | `awsdocs/aws-lambda-developer-guide` | `LICENSE`（MIT-0） | 掛かっていない（README によるとサンプルコードのライセンス。ガイドの本文はリポジトリに無い） | しない |
 | `mdn/content` | `LICENSE.md`（本文は CC-BY-SA-2.5） | 掛かっている | しない（許可リストに無い） |
 
@@ -132,7 +132,7 @@
 - DB の CHECK 制約にはしない。大文字・小文字を区別しない比較と URL の分解を SQL で書くことになるため。ほかの入力の検証と同じく api が守る
 - 検出の API は、GitHub の `/license` が返すライセンスのファイルの URL（`html_url`）も返す
 - **比べた案**
-  - GitHub の検出が成功したリポジトリだけにする：`rust-lang/book` のようにライセンスのファイルが 2 つあるリポジトリは、検出が `NOASSERTION` になって登録できない。検出の結果はコードのライセンスのこともあり、文章に掛かっているかは結局管理者が確かめる（その後、手で選べると確かめていないライセンスで登録できるので、[source-registration-by-url](../source-registration-by-url/README.md#ライセンスの自動の取得) で検出できたリポジトリだけを登録する形に変えた）
+  - GitHub の検出が成功したリポジトリだけにする：`rust-lang/book` のようにライセンスのファイルが 2 つあるリポジトリは、検出が `NOASSERTION` になって登録できない（その後、[確認済みのリポジトリ](../official-docs-collection/README.md#確認済みのリポジトリ)の一覧で登録できるようにした）。検出の結果はコードのライセンスのこともあり、文章に掛かっているかは結局管理者が確かめる（その後、手で選べると確かめていないライセンスで登録できるので、[source-registration-by-url](../source-registration-by-url/README.md#ライセンスの自動の取得) で検出できたリポジトリだけを登録する形に変えた）
   - 管理者の判断だけにする：リポジトリの外のページ（creativecommons.org のライセンスの説明など）を登録できてしまい、1 の条件を守れない
 
 ### 個人の学習用のライセンスの持ち方

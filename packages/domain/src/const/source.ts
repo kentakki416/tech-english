@@ -93,6 +93,7 @@ export const GITHUB_REPOSITORY_PATTERN = /^[A-Za-z0-9][A-Za-z0-9-]{0,38}\/(?!\.{
  * - github_url: サイトの登録で github.com の URL（GitHub の登録の画面で登録する）
  * - not_repository_url: GitHub の登録で、github.com 以外の URL・owner / repo が無い・形が違う
  * - repository_not_found: GitHub の登録で、GitHub にリポジトリが無い（非公開を含む）
+ * - unsupported_repository: GitHub の登録で、本文を問題にできないリポジトリ
  * - website_unavailable: ローカル以外でサイトの登録（サイトのソースはローカルだけ）
  */
-export const SOURCE_SUGGESTION_ERROR_CODES = ["github_url", "not_repository_url", "repository_not_found", "website_unavailable"] as const
+export const SOURCE_SUGGESTION_ERROR_CODES = ["github_url", "not_repository_url", "repository_not_found", "unsupported_repository", "website_unavailable"] as const
