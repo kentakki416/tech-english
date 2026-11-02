@@ -72,7 +72,7 @@ export const readingAttempts = pgTable(
       .onDelete("cascade")
       .onUpdate("cascade"),
     /**
-     * passages は物理削除しないので restrict
+     * 挑戦記録を残すため restrict（記録のある問題のソースは削除できない）
      */
     foreignKey({
       columns: [table.passageId],

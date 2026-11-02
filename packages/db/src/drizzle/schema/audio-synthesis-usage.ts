@@ -37,7 +37,7 @@ export const audioSynthesisUsages = pgTable(
      */
     check("audio_synthesis_usages_target_check", sql`num_nonnulls(${table.passageId}, ${table.wordAudioId}) = 1`),
     /**
-     * passages は物理削除しないので restrict（課金の記録を残す）
+     * 課金の記録を残すため restrict（記録のある問題のソースは削除できない）
      */
     foreignKey({
       columns: [table.passageId],

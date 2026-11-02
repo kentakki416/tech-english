@@ -476,6 +476,29 @@ export const suggestSourceFromUrl = async (
     : suggestGitHubRepositorySource(input.url, deps)
 
 /**
+ * ソースを本文候補ごと削除する。公開中の問題・解答の記録・音声があるか、収集中のソースは 409 で何も消さない。
+ * 時間切れの収集の記録が残っていると削除できないままになるので、先に片付ける
+ */
+export const deleteSource = async (
+  id: number,
+  repo: SourceCollectionRepo,
+  deps: { now: Date },
+): Promise<Result<{ deleted: true }>> => {
+  await failTimedOutCollectionRuns(deps.now, repo, id)
+  const result = await repo.sourceRepository.deleteWithContent(id)
+  if (result.kind === "not_found") {
+    logger.debug("SourceService: Source not found for deletion", { id })
+    return err(notFoundError("Source not found"))
+  }
+  if (result.kind === "blocked") {
+    logger.debug("SourceService: Source deletion was blocked", { id, reason: result.reason })
+    return err(conflictError(`Source cannot be deleted: ${result.reason}`))
+  }
+  logger.info("SourceService: Source deleted", { id, deletedPassageCount: result.deletedPassageCount })
+  return ok({ deleted: true })
+}
+
+/**
  * 収集できないソースの理由を、api のエラーにする（ソースが無いときだけ 404）
  */
 const buildSourceNotCollectableError = (reason: SourceNotCollectableReason) => {

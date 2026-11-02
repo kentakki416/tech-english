@@ -584,7 +584,7 @@ erDiagram
 - `questions (passage_id, order_index)` は unique
 - `questions.prompt_ja` / `choices_ja` の NULL は「和訳が無い」（設問の和訳より前に生成した設問）。`choices_ja` は `choices` と同じ順で、CHECK 制約 `questions_choices_ja_check`（`choices_ja IS NULL OR type <> 'vocabulary'`）で語義の設問には持たせない（[question-translation](../question-translation/README.md#データの持ち方)）
 - index：`passages (status, created_at)`（生成タスクの取得と一覧）、`passage_glossary_entries (passage_id)`、`passage_glossary_entries (lemma)`（将来の単語問題で語彙を横断して引くため）
-- `questions` / `passage_glossary_entries` は `passages` の削除で cascade。ただし `passages` は物理削除しない（挑戦記録が参照するため）
+- `questions` / `passage_glossary_entries` は `passages` の削除で cascade。`passages` を物理削除するのは、公開中でも挑戦記録も音声も無い問題を[ソースの削除](../source-deletion/README.md)で消すときだけ
 
 ## フロー図
 

@@ -19,6 +19,7 @@ import { AdminPassageUnpublishController } from "../controller/admin/passage/unp
 import { AdminPassageUpdateController } from "../controller/admin/passage/update"
 import { AdminSourceCollectController } from "../controller/admin/source/collect"
 import { AdminSourceCreateController } from "../controller/admin/source/create"
+import { AdminSourceDeleteController } from "../controller/admin/source/delete"
 import { AdminSourceDetailController } from "../controller/admin/source/detail"
 import { AdminSourceListController } from "../controller/admin/source/list"
 import { AdminSourceSuggestController } from "../controller/admin/source/suggest"
@@ -51,6 +52,7 @@ type AdminRouterControllers = {
   source?: {
     collect?: AdminSourceCollectController
     create?: AdminSourceCreateController
+    delete?: AdminSourceDeleteController
     detail?: AdminSourceDetailController
     list?: AdminSourceListController
     suggest?: AdminSourceSuggestController
@@ -188,6 +190,14 @@ export const adminRouter = (controllers: AdminRouterControllers): Router => {
   if (source.update) {
     const controller = source.update
     router.put("/source/:id", async (req, res) => controller.execute(req, res))
+  }
+
+  /**
+   * DELETE /api/admin/source/:id
+   */
+  if (source.delete) {
+    const controller = source.delete
+    router.delete("/source/:id", async (req, res) => controller.execute(req, res))
   }
 
   /**

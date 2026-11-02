@@ -67,6 +67,17 @@ export const SOURCE_COLLECTION_REQUEST_FAILURE_MESSAGES: Record<SourceCollection
 }
 
 /**
+ * ソースを削除できなかった理由。blocked は api の 409（理由は区別しない）、not_found はほかの管理者が先に削除した、failed はそのほか
+ */
+export type SourceDeleteFailureReason = "blocked" | "failed" | "not_found"
+
+export const SOURCE_DELETE_FAILURE_MESSAGES: Record<SourceDeleteFailureReason, string> = {
+  blocked: "公開中の問題、解答の記録、音声のいずれかがあるか、収集中のため削除できません。",
+  failed: "削除に失敗しました。時間をおいて再度お試しください。",
+  not_found: "このソースはすでに削除されています。",
+}
+
+/**
  * 登録の URL を読み込めなかった理由。api の 400 の理由（SourceSuggestionErrorCode）に、URL の形の誤り（invalid_url）・
  * サインインの期限切れ（unauthorized）・そのほか（failed）を足したもの
  */

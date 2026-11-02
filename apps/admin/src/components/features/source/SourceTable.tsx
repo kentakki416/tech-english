@@ -1,9 +1,11 @@
 "use client"
 
 import Link from "next/link"
+import { useState } from "react"
 
 import type { GetSourceListResponse } from "@repo/api-schema"
 
+import { SourceDeleteModal } from "@/components/features/source/SourceDeleteModal"
 import { TagChip } from "@/components/features/tag/TagChip"
 import Badge from "@/components/ui/badge/Badge"
 import { type Column, DataTable, type FilterConfig } from "@/components/ui/table"
@@ -89,22 +91,27 @@ const PASSAGE_COUNTS_COLUMN: Column<SourceRow> = {
   ),
 }
 
-const EDIT_COLUMN: Column<SourceRow> = {
+const buildActionColumn = (openDeleteModal: (source: SourceRow) => void): Column<SourceRow> => ({
   className: "px-5 py-4 text-right text-theme-sm whitespace-nowrap",
   header: "",
   render: (row) => (
-    <Link className="font-medium text-brand-500 hover:text-brand-600" href={`/sources/${row.id}`}>
-      編集
-    </Link>
+    <div className="flex justify-end gap-4">
+      <Link className="font-medium text-brand-500 hover:text-brand-600" href={`/sources/${row.id}`}>
+        編集
+      </Link>
+      <button aria-label={`${row.name} を削除`} className="font-medium text-error-600 hover:text-error-700 dark:text-error-500" onClick={() => openDeleteModal(row)} type="button">削除</button>
+    </div>
   ),
-}
+})
 
 /**
  * サイトのソースは収集しない（常に「収集しない」・最終収集は無い）ので、状態と最終収集の列を出さない
  */
-const COLUMNS: Record<SourceFetchType, Column<SourceRow>[]> = {
-  github_repository: [SOURCE_COLUMN, LICENSE_COLUMN, STATUS_COLUMN, LAST_COLLECTED_COLUMN, PASSAGE_COUNTS_COLUMN, EDIT_COLUMN],
-  website: [SOURCE_COLUMN, LICENSE_COLUMN, PASSAGE_COUNTS_COLUMN, EDIT_COLUMN],
+const buildColumns = (fetchType: SourceFetchType, openDeleteModal: (source: SourceRow) => void): Column<SourceRow>[] => {
+  const actionColumn = buildActionColumn(openDeleteModal)
+  return fetchType === "website"
+    ? [SOURCE_COLUMN, LICENSE_COLUMN, PASSAGE_COUNTS_COLUMN, actionColumn]
+    : [SOURCE_COLUMN, LICENSE_COLUMN, STATUS_COLUMN, LAST_COLLECTED_COLUMN, PASSAGE_COUNTS_COLUMN, actionColumn]
 }
 
 const FILTERS: Record<SourceFetchType, FilterConfig<SourceRow>[]> = {
@@ -151,22 +158,26 @@ export function SourceTable({ activeStatuses, fetchType, sources }: {
   sources: SourceListItem[]
 }) {
   const rows = sources.map(convertSourceToRow)
+  const [deletingSource, setDeletingSource] = useState<SourceListItem | null>(null)
   useCollectionRunRefresh(sources.some((source) => source.latest_collection_run !== null && activeStatuses.includes(source.latest_collection_run.status)))
 
   return (
-    <DataTable
-      key={fetchType}
-      columns={COLUMNS[fetchType]}
-      data={rows}
-      emptyMessage={
-        <div>
-          <p className="text-base font-medium text-gray-800 dark:text-white/90">まだソースがありません</p>
-          <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">{EMPTY_DESCRIPTIONS[fetchType]}</p>
-        </div>
-      }
-      filters={FILTERS[fetchType]}
-      getRowKey={(row) => row.id}
-      search={{ filterKeys: ["name", "origin"], placeholder: SEARCH_PLACEHOLDERS[fetchType] }}
-    />
+    <>
+      <DataTable
+        key={fetchType}
+        columns={buildColumns(fetchType, setDeletingSource)}
+        data={rows}
+        emptyMessage={
+          <div>
+            <p className="text-base font-medium text-gray-800 dark:text-white/90">まだソースがありません</p>
+            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">{EMPTY_DESCRIPTIONS[fetchType]}</p>
+          </div>
+        }
+        filters={FILTERS[fetchType]}
+        getRowKey={(row) => row.id}
+        search={{ filterKeys: ["name", "origin"], placeholder: SEARCH_PLACEHOLDERS[fetchType] }}
+      />
+      {deletingSource && <SourceDeleteModal key={deletingSource.id} activeStatuses={activeStatuses} onClose={() => setDeletingSource(null)} source={deletingSource} />}
+    </>
   )
 }

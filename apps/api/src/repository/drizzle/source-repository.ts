@@ -1,24 +1,30 @@
 import {
   and,
   asc,
+  audioSynthesisUsages,
   count,
   DrizzleClient,
   type DrizzleTransaction,
   eq,
   inArray,
+  passageAudios,
   passages,
+  readingAttempts,
+  sourceCollectionRuns,
   sourceDocuments,
   sources,
   sourceTags,
   sql,
   tags,
 } from "@repo/db"
-import { isAllowedLicense, type Source, type Tag } from "@repo/domain"
+import { ACTIVE_SOURCE_COLLECTION_RUN_STATUSES, isAllowedLicense, type Source, type Tag } from "@repo/domain"
 
 import type { ReadOptions } from "../read-options"
 import type {
   PassageCountRow,
   SourceCreateInput,
+  SourceDeleteResult,
+  SourceDeletionBlockReason,
   SourceRepository,
   SourceCreateResult,
   SourceUpdateInput,
@@ -140,6 +146,58 @@ const convertWriteErrorToResult = (error: unknown): SourceCreateResult => {
 }
 
 /**
+ * attempt_word_lookups・attempt_answers は解答の記録に付くので、reading_attempts だけを見れば足りる
+ */
+const findDeletionBlockReason = async (
+  tx: DrizzleTransaction,
+  sourceId: number,
+): Promise<SourceDeletionBlockReason | null> => {
+  const [collectionRun] = await tx
+    .select({ id: sourceCollectionRuns.id })
+    .from(sourceCollectionRuns)
+    .where(and(
+      eq(sourceCollectionRuns.sourceId, sourceId),
+      inArray(sourceCollectionRuns.status, ACTIVE_SOURCE_COLLECTION_RUN_STATUSES),
+    ))
+    .limit(1)
+  if (collectionRun) return "collecting"
+
+  const passageIds = tx
+    .select({ id: passages.id })
+    .from(passages)
+    .innerJoin(sourceDocuments, eq(passages.sourceDocumentId, sourceDocuments.id))
+    .where(eq(sourceDocuments.sourceId, sourceId))
+
+  const [published] = await tx
+    .select({ id: passages.id })
+    .from(passages)
+    .where(and(inArray(passages.id, passageIds), eq(passages.status, "published")))
+    .limit(1)
+  if (published) return "published"
+
+  const [attempt] = await tx
+    .select({ id: readingAttempts.id })
+    .from(readingAttempts)
+    .where(inArray(readingAttempts.passageId, passageIds))
+    .limit(1)
+  if (attempt) return "attempted"
+
+  const [audio] = await tx
+    .select({ id: passageAudios.id })
+    .from(passageAudios)
+    .where(inArray(passageAudios.passageId, passageIds))
+    .limit(1)
+  if (audio) return "audio"
+
+  const [audioUsage] = await tx
+    .select({ id: audioSynthesisUsages.id })
+    .from(audioSynthesisUsages)
+    .where(inArray(audioSynthesisUsages.passageId, passageIds))
+    .limit(1)
+  return audioUsage ? "audio" : null
+}
+
+/**
  * Drizzle実装のソースリポジトリ
  */
 export class DrizzleSourceRepository implements SourceRepository {
@@ -173,6 +231,29 @@ export class DrizzleSourceRepository implements SourceRepository {
     } catch (error) {
       return convertWriteErrorToResult(error)
     }
+  }
+
+  /**
+   * sources の行をロックするのは、判定の後に収集の記録が作られないようにするため（INSERT は外部キーの検査で親の行のロックを待つ）。
+   * 消す順は外部キーの RESTRICT に合わせる。設問・用語集・source_tags・収集の記録は CASCADE で消える
+   */
+  public async deleteWithContent(id: number): Promise<SourceDeleteResult> {
+    return this._db.transaction(async (tx): Promise<SourceDeleteResult> => {
+      const [source] = await tx.select({ id: sources.id }).from(sources).where(eq(sources.id, id)).for("update")
+      if (!source) return { kind: "not_found" }
+
+      const reason = await findDeletionBlockReason(tx, id)
+      if (reason !== null) return { kind: "blocked", reason }
+
+      const documentIds = tx.select({ id: sourceDocuments.id }).from(sourceDocuments).where(eq(sourceDocuments.sourceId, id))
+      const deletedPassages = await tx
+        .delete(passages)
+        .where(inArray(passages.sourceDocumentId, documentIds))
+        .returning({ id: passages.id })
+      await tx.delete(sourceDocuments).where(eq(sourceDocuments.sourceId, id))
+      await tx.delete(sources).where(eq(sources.id, id))
+      return { deletedPassageCount: deletedPassages.length, kind: "deleted" }
+    })
   }
 
   public async findAll(options?: ReadOptions): Promise<SourceWithTags[]> {
