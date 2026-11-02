@@ -86,6 +86,45 @@ describe("convertUppercaseHeadings", () => {
     })
 
     it.each([
+      ["本文に無い", "SHOULD I USE TYPESCRIPT", "You should use TypeScript.", "Should I use TypeScript"],
+      ["本文の変数に引きずられない", "WHEN I RETRY", "Set i to zero when you retry.", "When I retry"],
+      ["短縮形", "WHEN I'VE FINISHED", "When you finished.", "When I've finished"],
+    ])("一人称の I は大文字のまま残す：%s", (_, heading, prose, expected) => {
+      expect(convertHeading(heading, prose)).toBe(expected)
+    })
+
+    it("本文に無い 1 文字の語は、ほかの語が本文に出ても残す", () => {
+      expect(convertHeading("PATH B: CONNECT", "Take this path to connect.")).toBe("Path B: connect")
+    })
+
+    it.each([
+      ["本文に無い短縮形", "WHY YOU DON'T NEED TESTS", "Why you need tests.", "Why you don't need tests"],
+      ["引用符の種類が違う短縮形", "DON'T PANIC", "You don’t need to.", "Don’t panic"],
+    ])("短縮形は略語として残さない：%s", (_, heading, prose, expected) => {
+      expect(convertHeading(heading, prose)).toBe(expected)
+    })
+
+    it.each([
+      ["所有格", "WHY CLAUDE'S MEMORY WORKS", "Why Claude has memory that works.", "Why Claude's memory works"],
+      ["曲がった引用符の所有格", "GITHUB’S API", "GitHub has an API.", "GitHub’s API"],
+      ["略語の複数形", "ABOUT SECURITY, APIS, AND DOCS", "About the security of the API and docs.", "About security, APIs, and docs"],
+      ["一般の語の複数形", "REACT HOOKS", "React has a hook.", "React hooks"],
+    ])("語の形が違っても本文の書き方に合わせる：%s", (_, heading, prose, expected) => {
+      expect(convertHeading(heading, prose)).toBe(expected)
+    })
+
+    it.each([
+      ["/ でつながった語の略語", "CI PIPELINES", "Run CI/CD pipelines.", "CI pipelines"],
+      ["ハイフンでつながった語の略語", "API DESIGN", "An API-first design.", "API design"],
+    ])("本文で記号でつながっている語の、大文字を含む部分も書き方に数える：%s", (_, heading, prose, expected) => {
+      expect(convertHeading(heading, prose)).toBe(expected)
+    })
+
+    it("本文で記号でつながっている語の、小文字だけの部分は書き方に数えない", () => {
+      expect(convertHeading("RFCS", "See vuejs/rfcs for details.")).toBe("RFCS")
+    })
+
+    it.each([
       ["Q&A SESSION", "Q&A session"],
       ["R&D TEAM", "R&D team"],
       ["A/B TESTING", "A/B testing"],
