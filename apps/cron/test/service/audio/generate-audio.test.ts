@@ -9,7 +9,7 @@ import type {
   AudioSynthesisUsageRepository,
   ClaimedAudioTarget,
   PassageAudioRepository,
-  RejectedPassageAudio,
+  WithdrawnPassageAudio,
 } from "../../../src/repository"
 import { generateAudio, type GenerateAudioInput } from "../../../src/service/audio"
 
@@ -64,7 +64,7 @@ const PREVIOUS_MANIFEST: PassageAudioManifest = {
 const createFakeRepo = (
   options: {
     completeResult?: AudioClaimResult
-    rejected?: RejectedPassageAudio[]
+    withdrawn?: WithdrawnPassageAudio[]
     targets?: ClaimedAudioTarget[]
     usedCharacters?: number
   } = {},
@@ -73,7 +73,7 @@ const createFakeRepo = (
     claimTargets: vi.fn<PassageAudioRepository["claimTargets"]>(async () => options.targets ?? [buildTarget()]),
     completeClaim: vi.fn<PassageAudioRepository["completeClaim"]>(async () => options.completeResult ?? "ready"),
     deleteByPassageId: vi.fn<PassageAudioRepository["deleteByPassageId"]>(async () => undefined),
-    findRejected: vi.fn<PassageAudioRepository["findRejected"]>(async () => options.rejected ?? []),
+    findWithdrawn: vi.fn<PassageAudioRepository["findWithdrawn"]>(async () => options.withdrawn ?? []),
     releaseClaim: vi.fn<PassageAudioRepository["releaseClaim"]>(async () => undefined),
     releaseStaleGenerating: vi.fn<PassageAudioRepository["releaseStaleGenerating"]>(async () => 0),
   } satisfies PassageAudioRepository
@@ -455,29 +455,29 @@ describe("generateAudio", () => {
     })
   })
 
-  describe("却下された問題の音声", () => {
-    const REJECTED: RejectedPassageAudio[] = [
+  describe("却下・削除された問題の音声", () => {
+    const WITHDRAWN: WithdrawnPassageAudio[] = [
       { manifest: PREVIOUS_MANIFEST, passageId: 42 },
       { manifest: null, passageId: 50 },
     ]
 
     it("確保より前に、確保中でない行（30 分前を境に）の mp3 をすべて消してから行を消す（マニフェストが無い行は行だけ消す）", async () => {
-      const repo = createFakeRepo({ rejected: REJECTED, targets: [] })
+      const repo = createFakeRepo({ withdrawn: WITHDRAWN, targets: [] })
       const deps = createDeps()
 
       const result = await generateAudio(buildInput(), repo, deps)
 
-      expect(repo.passageAudioRepository.findRejected).toHaveBeenCalledWith(new Date("2026-10-13T02:30:00.000Z"))
+      expect(repo.passageAudioRepository.findWithdrawn).toHaveBeenCalledWith(new Date("2026-10-13T02:30:00.000Z"))
       expect(deps.audioStorage.delete.mock.calls.map(([key]) => key)).toEqual(["passages/42/old-hash/0-0.mp3", "passages/42/old-hash/1-0.mp3"])
       expect(repo.passageAudioRepository.deleteByPassageId.mock.calls.map(([passageId]) => passageId)).toEqual([42, 50])
       expect(result.purgedCount).toBe(2)
-      const [findOrder] = repo.passageAudioRepository.findRejected.mock.invocationCallOrder
+      const [findOrder] = repo.passageAudioRepository.findWithdrawn.mock.invocationCallOrder
       const [claimOrder] = repo.passageAudioRepository.claimTargets.mock.invocationCallOrder
       expect(findOrder).toBeLessThan(claimOrder ?? 0)
     })
 
     it("mp3 の削除に一時的に失敗したら、その問題の行は残して（次の実行でやり直す）次の問題に進む", async () => {
-      const repo = createFakeRepo({ rejected: REJECTED, targets: [] })
+      const repo = createFakeRepo({ withdrawn: WITHDRAWN, targets: [] })
       const deps = createDeps()
       deps.audioStorage.delete.mockRejectedValueOnce(Object.assign(new Error("Please reduce your request rate."), { name: "SlowDown" }))
 
@@ -581,7 +581,7 @@ describe("generateAudio", () => {
     })
 
     it("却下された問題の mp3 の削除で保存先の設定の誤りが起きたら、行を消さずに throw し、確保もしない", async () => {
-      const repo = createFakeRepo({ rejected: [{ manifest: PREVIOUS_MANIFEST, passageId: 42 }] })
+      const repo = createFakeRepo({ withdrawn: [{ manifest: PREVIOUS_MANIFEST, passageId: 42 }] })
       const deps = createDeps()
       const fatal = Object.assign(new Error("Access Denied"), { name: "AccessDenied" })
       deps.audioStorage.delete.mockRejectedValue(fatal)

@@ -386,6 +386,19 @@ export type CreateSourceCollectionRunPathParam = z.infer<typeof createSourceColl
 export type CreateSourceCollectionRunResponse = z.infer<typeof createSourceCollectionRunResponseSchema>
 
 // ========================================================
+// DELETE /api/admin/source/:id - ソースの削除
+// ========================================================
+
+/**
+ * ソースの削除のパスパラメータスキーマ。成功は 204（ボディなし）なのでレスポンススキーマは無い
+ */
+export const deleteSourcePathParamSchema = z.object({
+  id: z.coerce.number().int().positive().max(MAX_SERIAL_ID),
+})
+
+export type DeleteSourcePathParam = z.infer<typeof deleteSourcePathParamSchema>
+
+// ========================================================
 // GET /api/admin/source/suggestion?fetch_type=...&url=... - URL からの登録の初期値
 // ========================================================
 

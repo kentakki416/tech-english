@@ -32,6 +32,7 @@ import { AdminPassageUnpublishController } from "./controller/admin/passage/unpu
 import { AdminPassageUpdateController } from "./controller/admin/passage/update"
 import { AdminSourceCollectController } from "./controller/admin/source/collect"
 import { AdminSourceCreateController } from "./controller/admin/source/create"
+import { AdminSourceDeleteController } from "./controller/admin/source/delete"
 import { AdminSourceDetailController } from "./controller/admin/source/detail"
 import { AdminSourceListController } from "./controller/admin/source/list"
 import { AdminSourceSuggestController } from "./controller/admin/source/suggest"
@@ -317,6 +318,7 @@ const sourceWritePolicy = { isWebsiteSourceAllowed: isLocalEnvironment }
  * Admin のソース管理 Controller のインスタンス化
  */
 const adminSourceCreateController = new AdminSourceCreateController(sourceRepository, tagRepository, sourceWritePolicy)
+const adminSourceDeleteController = new AdminSourceDeleteController(sourceRepository, sourceCollectionRunRepository)
 const adminSourceDetailController = new AdminSourceDetailController(sourceRepository, sourceCollectionRunRepository)
 const adminSourceListController = new AdminSourceListController(sourceRepository, sourceCollectionRunRepository)
 const adminSourceSuggestController = new AdminSourceSuggestController(gitHubRepositoryClient, sourceWritePolicy)
@@ -510,6 +512,7 @@ mountAdminApi(
     source: {
       collect: adminSourceCollectController,
       create: adminSourceCreateController,
+      delete: adminSourceDeleteController,
       detail: adminSourceDetailController,
       list: adminSourceListController,
       suggest: adminSourceSuggestController,

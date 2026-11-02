@@ -325,7 +325,7 @@ mobile のモックは `apps/mobile/src/app/mock/vocabulary/session.tsx`（同�
 ```mermaid
 erDiagram
     word_audios ||--o{ audio_synthesis_usages : "課金の記録"
-    passages ||--o{ audio_synthesis_usages : "課金の記録（読み上げ）"
+    passages ||--o{ audio_synthesis_usages : "課金の記録（読み上げ。外部キーなし）"
 
     word_audios {
         int id PK

@@ -78,7 +78,7 @@ export type AudioClaimOutcome =
 export type AudioClaimResult = "failed" | "lost_claim" | "ready" | "retry_later" | "text_changed" | "unchanged"
 /** 本文から text_hash を求める関数。service が voice を閉じ込めて渡す（Repository は lib を知らない） */
 export type CalculateTextHash = (blocks: PassageBlock[]) => string
-export type RejectedPassageAudio = Pick<PassageAudio, "manifest" | "passageId">
+export type WithdrawnPassageAudio = Pick<PassageAudio, "manifest" | "passageId">
 
 export interface PassageAudioRepository {
   /** generating のまま startedBefore より前の行を pending に戻し、件数を返す（前回の実行が途中で落ちた場合の回収） */
@@ -92,7 +92,7 @@ export interface PassageAudioRepository {
   /** 失敗回数を増やさずに確保を外す（設定の誤り・月の上限で止めるとき）。generating は pending に、ready のまま確保した行はトークンだけを外す */
   releaseClaim(claim: AudioClaim): Promise<void>
   /** 却下（rejected）の問題の音声の行（generation_started_at が staleBefore 以降の行は除く） */
-  findRejected(staleBefore: Date): Promise<RejectedPassageAudio[]>
+  findWithdrawn(staleBefore: Date): Promise<WithdrawnPassageAudio[]>
   /** 音声の行を消す（却下の問題の mp3 を消した後） */
   deleteByPassageId(passageId: number): Promise<void>
 }
@@ -123,7 +123,7 @@ Drizzle 実装の要点：
      - `failed`（`generating` で確保した行）：`attempt_count = attempt_count + 1`、`status = CASE WHEN attempt_count + 1 >= maxAttempts THEN 'failed' ELSE 'pending' END`、`last_error`、`generation_started_at = null`、`updated_at = now`。**`manifest` と `text_hash` は前の成功のまま残す**（前の mp3 のキーを後で消すため）。`returning` の `status` が `failed` なら `"failed"`、`pending` なら `"retry_later"`
      - `failed`（`ready` のまま確保した行）：`status` は変えずに `attempt_count = attempt_count + 1`・`last_error`・`generation_started_at = null`（`updated_at` は今の値のまま）。`returning` の `attempt_count` が `maxAttempts` 以上なら `"failed"`（以降は `claimTargets` が取らない）、未満なら `"retry_later"`
 - **`releaseClaim`**：1 と同じガード付きで、`generating` は `status = 'pending'`・`generation_started_at = null`、`ready` は `generation_started_at = null` だけ（`updated_at` は今の値のまま）。**`releaseStaleGenerating`**：`status = 'pending'`・`generation_started_at = null`
-- **`findRejected`**：`passage_audios` に `passages` を inner join し、`passages.status = 'rejected'` かつ確保中でない（`generation_started_at` が null か `staleBefore` より前）行の `passage_id`・`manifest` を `passage_id` の順に返す。**`deleteByPassageId`**：`passage_id` で行を消す
+- **`findWithdrawn`**：`passage_audios` に `passages` を left join し、`passages.status = 'rejected'` か問題の行が無く（[ソースの削除](../../source-deletion/README.md#音声と課金の記録)）、かつ確保中でない（`generation_started_at` が null か `staleBefore` より前）行の `passage_id`・`manifest` を `passage_id` の順に返す。**`deleteByPassageId`**：`passage_id` で行を消す
 - `.for(...)` と `onConflictDoUpdate` の `setWhere` の書き方は実装時に Drizzle のドキュメントで確かめ、書けなければ `sql` で同じ SQL を書く（question-generation step3 と同じ）。不足する演算子は `@repo/db` の re-export に足す
 - `AudioSynthesisUsageRepository` の Drizzle 実装は `insert(audioSynthesisUsages)`（`createdAt` と `updatedAt` に `now`）と ``this._db.$primary.select({ total: sql`COALESCE(SUM(characters), 0)` })``（`created_at >= since`。SUM は文字列で返るので数値にする）
 
@@ -149,7 +149,7 @@ export const generateAudio = async (
 ```
 
 1. `calculateTextHash = (blocks) => calculateAudioTextHash({ blocks, voiceId })` を作る。`staleBefore = now - 30 分` で `releaseStaleGenerating(staleBefore)`
-2. 却下の問題の音声を消す：`findRejected(staleBefore)` の行ごとに、`listUnusedAudioKeys(manifest, null)`（マニフェストのすべてのキー）を `audioStorage.delete` し、すべて消せたら `deleteByPassageId`（`purgedCount` を数える）。一時的な失敗（S3 の 5xx・throttling など）は `logger.warn` を出して行を残し、次の問題へ（次の実行でやり直す）。保存先の設定の誤り（`isFatalAudioGenerationError`）は throw（確保の前なので行は戻さなくてよい）
+2. 取り下げた問題の音声を消す：`findWithdrawn(staleBefore)` の行ごとに、`listUnusedAudioKeys(manifest, null)`（マニフェストのすべてのキー）を `audioStorage.delete` し、すべて消せたら `deleteByPassageId`（`purgedCount` を数える）。一時的な失敗（S3 の 5xx・throttling など）は `logger.warn` を出して行を残し、次の問題へ（次の実行でやり直す）。保存先の設定の誤り（`isFatalAudioGenerationError`）は throw（確保の前なので行は戻さなくてよい）
 3. `claimTargets({ calculateTextHash, limit: maxPassagesPerRun, maxAttempts: MAX_AUDIO_ATTEMPTS, now, staleBefore, voiceId })`
 4. 確保した問題を 1 件ずつ（シグナルで中断されたら、残りは 30 分後に回収される。**1 件の失敗で他の件は止めない**）、方針を決める（`planPassageAudio`。非公開の関数）
    - `textHash = calculateTextHash(target.blocks)`。`target.previous` の `manifest` が null でなく、`textHash` が同じで、`isRegenerationRequested` でなければ（状態は問わない）`unchanged`。`manifest` がある行の `text_hash` はその `manifest` のもので、その mp3 は別の生成が成功して置き換わるまで消さないので、そのまま使える
@@ -233,13 +233,13 @@ pnpm --filter cron lint
 - [ ] `ready` のまま確保した行（`claimedStatus: "ready"`）も作り直し、`completeClaim`・設定の誤りの `releaseClaim` にその確保が渡る
 - [ ] 課金文字数を Polly のリクエストごとに `record` する（0 は記録しない）
 - [ ] 月の上限：`sumCharactersSinceFromPrimary` が UTC の月初めで呼ばれ、合計 + 見込みが上限ちょうどまでなら作る。超えるなら音声合成を呼ばずにその問題と残りを `releaseClaim` し、`isMonthlyLimitReached: true`（失敗に数えない）。途中の問題で超えたら、それまでの結果は書いたまま。`unchanged` は上限を見ない
-- [ ] 却下の問題：確保より前に、`findRejected(now - 30 分)` の mp3 をすべて消してから `deleteByPassageId`（マニフェストが無い行は行だけ）。一時的に消せなかったら行を残して次へ。保存先の設定の誤りなら throw して確保もしない
+- [ ] 取り下げた問題：確保より前に、`findWithdrawn(now - 30 分)` の mp3 をすべて消してから `deleteByPassageId`（マニフェストが無い行は行だけ）。一時的に消せなかったら行を残して次へ。保存先の設定の誤りなら throw して確保もしない
 
 `test/repository/drizzle/passage-audio-repository.test.ts`（既存と同じく偽の DB で、条件と更新値を確かめる）：
 
 - [ ] `claimTargets`：取得の条件（published・行が無い / pending / 確保中でない ready のうち、公開し直された・`voice_id` が今の voice と違う・作り直しの依頼があり失敗が上限未満、failed と generating は対象外）、`SKIP LOCKED`、conflict の更新の条件（pending か確保中でない ready）、公開し直されていない ready は `update` で `generation_started_at` だけを入れて `updated_at` を今の値のままにする、返す確保の `claimedStatus`・`isRegenerationRequested`
 - [ ] `completeClaim`：ガード（`status = <claimedStatus> AND generation_started_at = ?`）に当たらなければ `lost_claim` / hash が違えば `text_changed` で `pending` / `failed` が `manifest` と `text_hash` を更新しない、3 回目で `failed` / `ready` のまま確保した行の失敗は状態と `updated_at` を変えずに回数だけ増やす / 確保の時刻までの作り直しの依頼は消し、後の依頼は残す
-- [ ] `releaseClaim`（ready のまま確保した行）・`findRejected`・`deleteByPassageId`、`AudioSynthesisUsageRepository`（`record`・primary から読む `sumCharactersSinceFromPrimary`）
+- [ ] `releaseClaim`（ready のまま確保した行）・`findWithdrawn`・`deleteByPassageId`、`AudioSynthesisUsageRepository`（`record`・primary から読む `sumCharactersSinceFromPrimary`）
 
 手動確認（ローカル DB。`published` の問題を用意する。admin で公開するか、`UPDATE passages SET status = 'published', published_at = now() WHERE id = <id>`）：
 

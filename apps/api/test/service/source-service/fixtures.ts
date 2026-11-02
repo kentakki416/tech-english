@@ -23,6 +23,7 @@ type WebsiteSourceWithTags = Extract<SourceWithTags, { fetchType: "website" }>
 export const createMockSourceRepository = () => ({
   countPassagesBySource: vi.fn<SourceRepository["countPassagesBySource"]>(),
   create: vi.fn<SourceRepository["create"]>(),
+  deleteWithContent: vi.fn<SourceRepository["deleteWithContent"]>(),
   findAll: vi.fn<SourceRepository["findAll"]>(),
   findById: vi.fn<SourceRepository["findById"]>(),
   findByRepository: vi.fn<SourceRepository["findByRepository"]>(),

@@ -397,6 +397,19 @@ describe("DrizzlePassageAudioRepository", () => {
         expect(fake.queries).toHaveLength(3)
       })
 
+      it("問題の行が無ければ（ソースの削除で消えた）ready にせず pending に戻して text_changed", async () => {
+        const fake = createFakeDb([[{ regenerateRequestedAt: null }], [], []])
+
+        const result = await new DrizzlePassageAudioRepository(fake.db).completeClaim(
+          CLAIM,
+          { billedCharacters: 120, kind: "ready", manifest: MANIFEST, textHash: `hash:${BLOCKS[0]?.text}`, voiceId: "Joanna" },
+          { calculateTextHash, now: NOW },
+        )
+
+        expect(result).toBe("text_changed")
+        expect(findArgs(fake.queries[2], "set")?.[0]).toEqual({ generationStartedAt: null, status: "pending", updatedAt: NOW })
+      })
+
       it("failed：回数の +1 と上限での failed を 1 文で更新し、manifest と text_hash は更新しない", async () => {
         const fake = createFakeDb([[{ regenerateRequestedAt: null }], [{ status: "failed" }]])
 
@@ -504,18 +517,18 @@ describe("DrizzlePassageAudioRepository", () => {
     })
   })
 
-  describe("findRejected", () => {
+  describe("findWithdrawn", () => {
     describe("正常系", () => {
-      it("却下された問題の音声のうち、確保中でない行の passage_id とマニフェストを passage_id の順に返す", async () => {
+      it("却下された問題と行が無くなった問題の音声のうち、確保中でない行の passage_id とマニフェストを passage_id の順に返す", async () => {
         const rows = [{ manifest: MANIFEST, passageId: 3 }]
         const fake = createFakeDb([rows])
 
-        const found = await new DrizzlePassageAudioRepository(fake.db).findRejected(STALE_BEFORE)
+        const found = await new DrizzlePassageAudioRepository(fake.db).findWithdrawn(STALE_BEFORE)
 
         expect(found).toEqual(rows)
         const { params, sql } = renderQuery(fake.queries[0])
-        expect(sql).toContain("from \"passage_audios\" inner join \"passages\" on \"passages\".\"id\" = \"passage_audios\".\"passage_id\"")
-        expect(sql).toContain(["where ((\"passages\".\"status\" = $?) and (", NOT_CLAIMED_RECENTLY_SQL, "))"].join(""))
+        expect(sql).toContain("from \"passage_audios\" left join \"passages\" on \"passages\".\"id\" = \"passage_audios\".\"passage_id\"")
+        expect(sql).toContain(["where (((((\"passages\".\"id\" is null)) or (\"passages\".\"status\" = $?))) and (", NOT_CLAIMED_RECENTLY_SQL, "))"].join(""))
         expect(sql).toContain("order by \"passage_audios\".\"passage_id\" asc")
         expect(params).toEqual(["rejected", "2026-10-13T02:30:00.000Z"])
       })

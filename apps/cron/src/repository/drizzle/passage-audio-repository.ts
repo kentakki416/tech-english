@@ -23,7 +23,7 @@ import type {
   CalculateTextHash,
   ClaimedAudioTarget,
   PassageAudioRepository,
-  RejectedPassageAudio,
+  WithdrawnPassageAudio,
 } from "../passage-audio-repository"
 
 /**
@@ -291,14 +291,14 @@ export class DrizzlePassageAudioRepository implements PassageAudioRepository {
     await this._db.delete(passageAudios).where(eq(passageAudios.passageId, passageId))
   }
 
-  public async findRejected(staleBefore: Date): Promise<RejectedPassageAudio[]> {
+  public async findWithdrawn(staleBefore: Date): Promise<WithdrawnPassageAudio[]> {
     return this._db
       .select({ manifest: passageAudios.manifest, passageId: passageAudios.passageId })
       .from(passageAudios)
-      .innerJoin(passages, eq(passages.id, passageAudios.passageId))
+      .leftJoin(passages, eq(passages.id, passageAudios.passageId))
       .where(
         and(
-          eq(passages.status, "rejected"),
+          or(isNull(passages.id), eq(passages.status, "rejected")),
           or(isNull(passageAudios.generationStartedAt), lt(passageAudios.generationStartedAt, staleBefore)),
         ),
       )

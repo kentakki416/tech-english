@@ -164,7 +164,7 @@ export const getPassageOverview = async (
   }
 
   /**
-   * passages は物理削除しない（reading_attempts の外部キーは restrict）ので、挑戦があれば問題もある
+   * reading_attempts の外部キーが restrict なので、挑戦があれば問題もある
    */
   const content = await repo.passageRepository.findAttemptContentById(input.passageId)
   if (!content) throw new Error(`Passage of attempt not found: attemptId=${attempt.id}, passageId=${input.passageId}`)

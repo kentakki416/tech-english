@@ -169,7 +169,7 @@ export const sources = pgTable(
 制約と index：
 
 - `check("passages_status_check", ...)`（`PASSAGE_STATUSES`）、`check("passages_difficulty_check", sql\`${table.difficulty} IN (...)\`)`（`PASSAGE_DIFFICULTIES` を `sql.join`。NULL は CHECK を通る）
-- `foreignKey(... "passages_source_document_id_fkey").onDelete("restrict").onUpdate("cascade")`（`passages` は物理削除しない）
+- `foreignKey(... "passages_source_document_id_fkey").onDelete("restrict").onUpdate("cascade")`（問題が気づかず消えないようにする。物理削除するのは[ソースの削除](../../source-deletion/README.md)のときだけ）
 - `uniqueIndex("passages_content_hash_key").on(table.contentHash)`
 - `index("passages_status_created_at_idx").on(table.status, table.createdAt)`
 - `index("passages_source_document_id_idx").on(table.sourceDocumentId)`（step2 のソースごとの件数集計で `source_documents` と結合するため）

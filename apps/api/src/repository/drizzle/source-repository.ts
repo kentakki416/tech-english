@@ -7,18 +7,21 @@ import {
   eq,
   inArray,
   passages,
+  readingAttempts,
+  sourceCollectionRuns,
   sourceDocuments,
   sources,
   sourceTags,
   sql,
   tags,
 } from "@repo/db"
-import { isAllowedLicense, type Source, type Tag } from "@repo/domain"
+import { ACTIVE_SOURCE_COLLECTION_RUN_STATUSES, isAllowedLicense, type Source, type Tag } from "@repo/domain"
 
 import type { ReadOptions } from "../read-options"
 import type {
   PassageCountRow,
   SourceCreateInput,
+  SourceDeleteResult,
   SourceRepository,
   SourceCreateResult,
   SourceUpdateInput,
@@ -173,6 +176,42 @@ export class DrizzleSourceRepository implements SourceRepository {
     } catch (error) {
       return convertWriteErrorToResult(error)
     }
+  }
+
+  /**
+   * 行をロックするのは、判定の後に収集の記録が、消している間に挑戦が作られないようにするため（INSERT は外部キーの検査で親の行のロックを待つ）。
+   * 消す順は外部キーの RESTRICT に合わせる。回答・調べた単語は挑戦記録の、設問・用語集は問題の、source_tags・収集の記録はソースの CASCADE で消える
+   */
+  public async deleteWithContent(id: number): Promise<SourceDeleteResult> {
+    return this._db.transaction(async (tx): Promise<SourceDeleteResult> => {
+      const [source] = await tx.select({ id: sources.id }).from(sources).where(eq(sources.id, id)).for("update")
+      if (!source) return { kind: "not_found" }
+
+      const [collectionRun] = await tx
+        .select({ id: sourceCollectionRuns.id })
+        .from(sourceCollectionRuns)
+        .where(and(
+          eq(sourceCollectionRuns.sourceId, id),
+          inArray(sourceCollectionRuns.status, ACTIVE_SOURCE_COLLECTION_RUN_STATUSES),
+        ))
+        .limit(1)
+      if (collectionRun) return { kind: "collecting" }
+
+      const documentIds = tx.select({ id: sourceDocuments.id }).from(sourceDocuments).where(eq(sourceDocuments.sourceId, id))
+      await tx.select({ id: passages.id }).from(passages).where(inArray(passages.sourceDocumentId, documentIds)).for("update")
+      const passageIds = tx.select({ id: passages.id }).from(passages).where(inArray(passages.sourceDocumentId, documentIds))
+      const deletedAttempts = await tx
+        .delete(readingAttempts)
+        .where(inArray(readingAttempts.passageId, passageIds))
+        .returning({ id: readingAttempts.id })
+      const deletedPassages = await tx
+        .delete(passages)
+        .where(inArray(passages.sourceDocumentId, documentIds))
+        .returning({ id: passages.id })
+      await tx.delete(sourceDocuments).where(eq(sourceDocuments.sourceId, id))
+      await tx.delete(sources).where(eq(sources.id, id))
+      return { deletedAttemptCount: deletedAttempts.length, deletedPassageCount: deletedPassages.length, kind: "deleted" }
+    })
   }
 
   public async findAll(options?: ReadOptions): Promise<SourceWithTags[]> {

@@ -56,7 +56,7 @@ export type GenerateAudioResult = {
    */
   lostClaimCount: number
   /**
-   * 却下された問題の音声（mp3 と行）を消した件数
+   * 取り下げた問題の音声（mp3 と行）を消した件数
    */
   purgedCount: number
   readyCount: number
@@ -201,17 +201,17 @@ const cleanUpAudioFiles = async (
 }
 
 /**
- * 却下（rejected）された問題の音声を消す（ライセンスなどで取り下げた問題の mp3 を残さないため）。mp3 をすべて消せたら行を消す。
+ * 却下（rejected）された問題と、ソースの削除で消えた問題の音声を消す（ライセンスなどで取り下げた問題の mp3 を残さないため）。mp3 をすべて消せたら行を消す。
  * 消せなかった mp3 があれば行を残し、次の実行でやり直す（行のマニフェストが残りのキーを指すため）。非公開（draft）の問題は、
  * 再公開で同じ本文なら作り直さずに使うので消さない。確保中（generation_started_at が staleBefore 以降）の行は、確保が終わってから消す
  */
-const purgeRejectedAudios = async (staleBefore: Date, repo: GenerateAudioRepo, deps: GenerateAudioDeps): Promise<number> => {
+const purgeWithdrawnAudios = async (staleBefore: Date, repo: GenerateAudioRepo, deps: GenerateAudioDeps): Promise<number> => {
   let purgedCount = 0
-  for (const audio of await repo.passageAudioRepository.findRejected(staleBefore)) {
+  for (const audio of await repo.passageAudioRepository.findWithdrawn(staleBefore)) {
     const keys = listUnusedAudioKeys(audio.manifest, null)
     if (!await deleteAudioKeys(keys, audio.passageId, deps.audioStorage)) continue
     await repo.passageAudioRepository.deleteByPassageId(audio.passageId)
-    logger.info("audio of a rejected passage was deleted", { keyCount: keys.length, passageId: audio.passageId })
+    logger.info("audio of a withdrawn passage was deleted", { keyCount: keys.length, passageId: audio.passageId })
     purgedCount++
   }
   return purgedCount
@@ -247,7 +247,7 @@ const summarizeOutcome = (outcome: AudioClaimOutcome) => {
  * generate:audio の本体。公開済みの問題の読み上げの音声を作る。
  *
  * 1. generating のまま 30 分以上たった行を pending に戻す
- * 2. 却下された問題の音声（mp3 と行）を消す
+ * 2. 取り下げた問題の音声（mp3 と行）を消す
  * 3. 対象を古い順に確保する（短いトランザクション。FOR UPDATE SKIP LOCKED）。voice の変更・作り直しの依頼の ready の行は ready のまま確保する
  * 4. 1 件ずつ、トランザクションの外で音声を作る。作る前に今月の課金文字数 + 見込みが月の上限を超えるなら、残りの確保を外して止める。
  *    1 件の失敗で他の件は止めない。設定の誤り（音声合成・保存先）はその行の確保を外して throw する
@@ -275,7 +275,7 @@ export const generateAudio = async (
   const releasedCount = await repo.passageAudioRepository.releaseStaleGenerating(staleBefore)
   if (releasedCount > 0) logger.warn("stale generating audios were released", { releasedCount })
 
-  result.purgedCount = await purgeRejectedAudios(staleBefore, repo, deps)
+  result.purgedCount = await purgeWithdrawnAudios(staleBefore, repo, deps)
 
   const targets = await repo.passageAudioRepository.claimTargets({
     calculateTextHash,

@@ -31,6 +31,10 @@ export const sourceApi = {
     return createSourceResponseSchema.parse(raw)
   },
 
+  delete: async (id: number): Promise<void> => {
+    await apiClient.delete(`${BASE_PATH}/${id}`)
+  },
+
   getDetail: async (id: number): Promise<GetSourceResponse> => {
     const raw = await apiClient.get<unknown>(`${BASE_PATH}/${id}`)
     return getSourceResponseSchema.parse(raw)

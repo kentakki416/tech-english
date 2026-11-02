@@ -134,7 +134,7 @@ stateDiagram-v2
 - 公開済みの問題を非公開に戻して本文を直し、再公開すると、音声を作り直す。本文が変わっていなければ作り直さない（非公開の間と、再公開の後に作り直すかを確かめる間は「準備中」になる）
 - 利用者には `pending` と `generating` をどちらも「準備中」と見せる。失敗した問題は、管理者が再試行するか、問題を公開し直す（本文を直して再公開するなど）まで自動では作り直さない
 - voice を変えたときと、管理者が「作り直す」を押したときは、**作り直す間も前の音声を出し続ける**（`ready` のまま。利用者には「準備中」にならない）。作り直しに 3 回失敗しても前の音声のまま（管理者がもう一度「作り直す」を押すとやり直す）
-- 却下した問題の音声は、次の生成タスクの実行で保存先の mp3 と行を消す（ライセンスなどで取り下げた本文の読み上げを残さないため）。非公開に戻しただけの問題は、再公開で同じ本文なら作り直さずに使うので消さない
+- 却下した問題と、[ソースの削除](../source-deletion/README.md#音声と課金の記録)で消えた問題の音声は、次の生成タスクの実行で保存先の mp3 と行を消す（ライセンスなどで取り下げた本文の読み上げを残さないため）。非公開に戻しただけの問題は、再公開で同じ本文なら作り直さずに使うので消さない
 - 管理者は admin の問題の確認画面で、音声の状態（準備中・生成中・作成済み・失敗）と作成日時を見られる。失敗したものは「再試行」、作成済みのものは「作り直す」（Polly の読みの不具合などのとき。確認のダイアログあり。依頼中は「作り直しを待っています」と出る）ができる
 
 ### 読み上げない部分
@@ -193,7 +193,7 @@ Polly の Neural は **単語の時刻（Speech Marks）を返せる最も安い
 cron に `generate:audio` タスクを足す。EventBridge Scheduler で **1 時間ごと** に起動する（`generate:questions` とは独立）。
 
 1. `generating` のまま 30 分以上たった行を `pending` に戻す（前回の実行が途中で落ちた場合の回収。[question-generation の生成タスク](../question-generation/README.md#生成タスクの動き) と同じ）
-2. 却下（`status = 'rejected'`）の問題の音声（確保中のものを除く）の mp3 をすべて消し、消せたら `passage_audios` の行も消す（[却下した問題の音声](#却下した問題の音声)）
+2. 却下（`status = 'rejected'`）の問題と、ソースの削除で行が無くなった問題の音声（確保中のものを除く）の mp3 をすべて消し、消せたら `passage_audios` の行も消す（[却下した問題の音声](#却下した問題の音声)）
 3. 対象を **状態で確保する**。`status = 'published'` の問題のうち、次の行を古い順に `AUDIO_MAX_PASSAGES_PER_RUN` 件まで、短いトランザクションで `FOR UPDATE SKIP LOCKED` で取って commit する。実行が重なっても同じ問題を二重に処理しない（`ready` は、別の実行が 30 分以内に確保した行〈`generation_started_at` がある〉を取らない）
    - `passage_audios` が無い・`status = 'pending'`・`ready` で音声を作った後に公開し直された（`passage_audios.updated_at < passages.published_at`）：`status = 'generating'`・`generation_started_at = now()` にする（行が無ければ作る）。公開し直された問題は本文が変わったかもしれないので、前のマニフェストを返さない
    - `ready` で `voice_id` が今の voice と違う・`ready` で作り直しの依頼（`regenerate_requested_at`）がある（公開し直されていないもの。失敗が 3 回未満のものだけ）：**`ready` のまま** `generation_started_at = now()` だけを入れる（`updated_at` は変えない。api は `updated_at < published_at` で公開し直しを判定するため）。作り直す間も api は前のマニフェストを返し続ける
@@ -235,9 +235,9 @@ cron に `generate:audio` タスクを足す。EventBridge Scheduler で **1 時
 
 ### 却下した問題の音声
 
-- 生成タスクは実行のたびに、却下（`rejected`）の問題の `passage_audios`（確保中〈`generation_started_at` が 30 分以内〉のものを除く）のマニフェストの mp3 をすべて消し、消せたら行も消す。一時的に消せなかった mp3 があれば行を残して次の実行でやり直す（行のマニフェストが残りのキーを指すため）。保存先の設定の誤り（権限・bucket）はタスクを止める
+- 生成タスクは実行のたびに、却下（`rejected`）の問題と、ソースの削除で行が無くなった問題の `passage_audios`（確保中〈`generation_started_at` が 30 分以内〉のものを除く）のマニフェストの mp3 をすべて消し、消せたら行も消す。一時的に消せなかった mp3 があれば行を残して次の実行でやり直す（行のマニフェストが残りのキーを指すため）。保存先の設定の誤り（権限・bucket）はタスクを止める
 - 非公開（`draft`）に戻しただけの問題は消さない（再公開で同じ本文なら作り直さずに使うため。api は非公開の問題の音声を返さない）
-- ライセンスなどで問題の音声を取り下げる手順：① admin で問題を非公開に戻してから却下する ② 次の `generate:audio`（1 時間以内。急ぐなら手動で RunTask）で S3 から mp3 と行が消える ③ CloudFront のキャッシュは 1 年なので、`aws cloudfront create-invalidation --distribution-id <id> --paths "/passages/<passage_id>/*"` でそのパスを無効化する（端末の HTTP キャッシュに残った分は消せない）
+- ライセンスなどで問題の音声を取り下げる手順：① admin で問題を非公開に戻してから却下するか、ソースごと削除する ② 次の `generate:audio`（1 時間以内。急ぐなら手動で RunTask）で S3 から mp3 と行が消える ③ CloudFront のキャッシュは 1 年なので、`aws cloudfront create-invalidation --distribution-id <id> --paths "/passages/<passage_id>/*"` でそのパスを無効化する（端末の HTTP キャッシュに残った分は消せない）
 
 ### 再生の実装
 
@@ -556,13 +556,12 @@ cron に `generate:audio` タスクを足す。EventBridge Scheduler で **1 時
 
 ```mermaid
 erDiagram
-    passages ||--o| passage_audios : "音声"
+    passages ||--o| passage_audios : "音声（外部キーなし）"
     passages ||--o{ reading_attempts : "挑戦"
-    passages ||--o{ audio_synthesis_usages : "課金の記録"
 
     passage_audios {
         int id PK
-        int passage_id FK "unique"
+        int passage_id "unique"
         text status "AUDIO_STATUSES"
         text voice_id "例: Joanna（TTS_PROVIDER=fake は fake:Joanna）"
         text text_hash "読み上げ対象の本文と voice のハッシュ"
@@ -581,7 +580,7 @@ erDiagram
     }
     audio_synthesis_usages {
         int id PK
-        int passage_id FK
+        int passage_id
         int characters "課金された文字数（> 0）"
         timestamp created_at "index"
         timestamp updated_at
@@ -590,8 +589,8 @@ erDiagram
 
 | テーブル | 列 | 説明 |
 | --- | --- | --- |
-| `passage_audios`（新規） | `id`, `passage_id`（unique、`passages` の削除で cascade）, `status`, `voice_id`, `text_hash`, `manifest`, `billed_characters`, `attempt_count`, `last_error`, `generation_started_at`, `generated_at`, `regenerate_requested_at`, timestamps | 問題ごとの読み上げの音声。1 問 1 行 |
-| `audio_synthesis_usages`（新規） | `id`, `passage_id`（`passages` の削除は restrict）, `characters`（CHECK `> 0`）, timestamps。index `(created_at)` | Polly の `SynthesizeSpeech` のリクエストごとの課金文字数。追記だけで、更新・削除しない。今月の合計で `AUDIO_MONTHLY_CHARACTER_LIMIT` を見る。`passage_id` は nullable（単語の発音の課金では null。`word_audio_id` とどちらか一方だけが値を持つ CHECK。`word_audio_id` は [vocabulary-pronunciation](../vocabulary-pronunciation/README.md#必要な-db-設計) が正本） |
+| `passage_audios`（新規） | `id`, `passage_id`（unique。外部キーは張らない。[ソースの削除](../source-deletion/README.md#音声と課金の記録)で問題が消えても行を残し、`generate:audio` が mp3 を消してから行を消す）, `status`, `voice_id`, `text_hash`, `manifest`, `billed_characters`, `attempt_count`, `last_error`, `generation_started_at`, `generated_at`, `regenerate_requested_at`, timestamps | 問題ごとの読み上げの音声。1 問 1 行 |
+| `audio_synthesis_usages`（新規） | `id`, `passage_id`（外部キーは張らない。問題が消えても月の上限の合計を減らさないよう行を残す）, `characters`（CHECK `> 0`）, timestamps。index `(created_at)` | Polly の `SynthesizeSpeech` のリクエストごとの課金文字数。追記だけで、更新・削除しない。今月の合計で `AUDIO_MONTHLY_CHARACTER_LIMIT` を見る。`passage_id` は nullable（単語の発音の課金では null。`word_audio_id` とどちらか一方だけが値を持つ CHECK。`word_audio_id` は [vocabulary-pronunciation](../vocabulary-pronunciation/README.md#必要な-db-設計) が正本） |
 | `reading_attempts`（列を追加） | `listened_block_count smallint NOT NULL DEFAULT 0` | 解答中に読み上げを聞いた段落の数 |
 
 - `AUDIO_STATUSES = ["pending", "generating", "ready", "failed"]` は `@repo/domain` の `const/audio.ts`。DB の CHECK 制約はここから作る
@@ -620,8 +619,8 @@ sequenceDiagram
     Admin->>API: 問題を公開
     API->>DB: passages.status = published
     Note over Cron: 1 時間ごと
-    Cron->>S3: 却下した問題の mp3 を消す
-    Cron->>DB: 却下した問題の音声の行を消す
+    Cron->>S3: 取り下げた問題の mp3 を消す
+    Cron->>DB: 取り下げた問題の音声の行を消す
     Cron->>DB: 対象を確保（generating。voice の変更・作り直しの依頼は ready のまま。短いトランザクション）
     Cron->>DB: 今月の課金文字数（+ 見込みが月の上限を超えるなら止める）
     loop 読み上げるブロックごと

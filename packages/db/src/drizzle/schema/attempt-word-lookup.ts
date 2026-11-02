@@ -53,7 +53,7 @@ export const attemptWordLookups = pgTable(
       .onDelete("cascade")
       .onUpdate("cascade"),
     /**
-     * passages は物理削除しないので restrict
+     * 問題と一緒に気づかず消えないよう restrict（ソースの削除は挑戦記録ごと先に消す）
      */
     foreignKey({
       columns: [table.passageId],

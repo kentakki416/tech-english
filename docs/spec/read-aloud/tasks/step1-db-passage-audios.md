@@ -104,9 +104,6 @@ export const passageAudios = pgTable(
     check("passage_audios_ready_columns_check", sql`${table.status} <> 'ready' OR (${table.manifest} IS NOT NULL AND ${table.generatedAt} IS NOT NULL)`),
     /** generating なら確保した時刻が必ずある（結果の書き込みの条件と 30 分の回収に使う） */
     check("passage_audios_generating_columns_check", sql`${table.status} <> 'generating' OR ${table.generationStartedAt} IS NOT NULL`),
-    foreignKey({ columns: [table.passageId], foreignColumns: [passages.id], name: "passage_audios_passage_id_fkey" })
-      .onDelete("cascade")
-      .onUpdate("cascade"),
     uniqueIndex("passage_audios_passage_id_key").on(table.passageId),
     /** 生成タスクの取得用 */
     index("passage_audios_status_idx").on(table.status),
@@ -138,7 +135,7 @@ pnpm --filter api db:generate
 [README の費用](../README.md#費用)（月の上限）と [音声ができるまで](../README.md#音声ができるまで)（admin の作り直し）のために、1 つのマイグレーション（`20261014021420_add_audio_regeneration_and_usages`）で足す。
 
 - `passage-audio.ts` に `regenerateRequestedAt: timestamp("regenerate_requested_at", { mode: "date", precision: 3 })`（nullable。`passageId` の後）
-- `audio-synthesis-usage.ts`（新規）：`audio_synthesis_usages`（`id` serial、`characters integer NOT NULL`〈CHECK `> 0`〉、`passage_id integer NOT NULL`〈`passages` への FK。passages は物理削除しないので restrict〉、`...timestamps`、index `audio_synthesis_usages_created_at_idx (created_at)`）。追記だけのテーブル。`schema/index.ts` に `export * from "./audio-synthesis-usage"`
+- `audio-synthesis-usage.ts`（新規）：`audio_synthesis_usages`（`id` serial、`characters integer NOT NULL`〈CHECK `> 0`〉、`passage_id integer NOT NULL`〈外部キーは張らない。問題が消えても月の上限の合計を減らさないよう行を残す〉、`...timestamps`、index `audio_synthesis_usages_created_at_idx (created_at)`）。追記だけのテーブル。`schema/index.ts` に `export * from "./audio-synthesis-usage"`
 - `@repo/domain` の `PassageAudio` に `regenerateRequestedAt: Date | null`。api の Drizzle の行 → ドメインの変換に足す
 
 ```bash
@@ -168,6 +165,6 @@ psql で制約を確かめる（`published` の問題を 1 件用意する）：
 - [ ] `status = 'ready'` で `manifest` が NULL の行は CHECK 違反。`manifest` と `generated_at` があれば入る
 - [ ] 同じ `passage_id` の 2 行目は unique 違反
 - [ ] `attempt_count = -1` は CHECK 違反
-- [ ] `passages` の行を消すと `passage_audios` の行も消える（ふだん `passages` は物理削除しないが、FK の動きを確かめる）
+- [ ] `passages` の行を消しても `passage_audios` の行は残る（[ソースの削除](../../source-deletion/README.md#音声と課金の記録)。行は `generate:audio` が mp3 を消してから消す）
 - [ ] 既存の `reading_attempts` の行の `listened_block_count` が 0
 - [ ] §6 の後：既存の `passage_audios` の行の `regenerate_requested_at` が NULL。`audio_synthesis_usages` に `characters = 0` を入れると CHECK 違反、行がある問題の `passages` を消すと FK 違反

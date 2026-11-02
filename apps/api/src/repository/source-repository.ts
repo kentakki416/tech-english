@@ -65,6 +65,14 @@ export type SourceUpdateOptions = {
 }
 
 /**
+ * collecting は収集中で、何も消していない
+ */
+export type SourceDeleteResult =
+  | { kind: "collecting" }
+  | { deletedAttemptCount: number; deletedPassageCount: number; kind: "deleted" }
+  | { kind: "not_found" }
+
+/**
  * 英文の取得元（sources）のリポジトリ
  */
 export interface SourceRepository {
@@ -76,6 +84,10 @@ export interface SourceRepository {
    * ソースと source_tags（input.tagIds）を 1 トランザクションで作る
    */
   create(input: SourceCreateInput): Promise<SourceCreateResult>
+  /**
+   * 収集中かの判定と、挑戦記録・問題（状態を問わない）・文書・ソースの削除を 1 トランザクションで行う
+   */
+  deleteWithContent(id: number): Promise<SourceDeleteResult>
   /**
    * id の昇順。各ソースのタグは名前の順
    */

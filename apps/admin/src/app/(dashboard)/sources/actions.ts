@@ -8,13 +8,14 @@ import { redirect, unstable_rethrow } from "next/navigation"
 import {
   createSourceCollectionRunPathParamSchema,
   createSourceRequestSchema,
+  deleteSourcePathParamSchema,
   errorResponseSchema,
   updateSourceRequestSchema,
 } from "@repo/api-schema"
 
 import { sourceApi } from "@/features/source/source.api"
 import { convertFormDataToSourceRequest } from "@/features/source/source.form"
-import type { SourceCollectionRequestFailureReason } from "@/features/source/source.labels"
+import type { SourceCollectionRequestFailureReason, SourceDeleteFailureReason } from "@/features/source/source.labels"
 import { SOURCE_CREATE_PATHS, SOURCE_LIST_PATHS } from "@/features/source/source.paths"
 import { ApiClientError } from "@/libs/api-client"
 
@@ -104,8 +105,8 @@ export const updateSourceAction = async (
 export type SourceCollectionRequestResult = { ok: false, reason: SourceCollectionRequestFailureReason } | { ok: true }
 
 /**
- * API の失敗を、依頼が通らなかった理由にする。404 はソースが無いときにも返るが、編集画面を開けている（ソースがある）ので、
- * この環境に今すぐ収集のルートが無い（api の SOURCE_COLLECTION_TYPE=none）とみなす
+ * API の失敗を、依頼が通らなかった理由にする。404 はこの環境に今すぐ収集のルートが無い（api の SOURCE_COLLECTION_TYPE=none）ときとして扱う。
+ * 開いている間にソースが消されたときも 404 になるが、読み直しで編集画面が notFound になるので、この理由は画面に出ない
  */
 const convertCollectionRequestErrorToReason = (error: ApiClientError): SourceCollectionRequestFailureReason => {
   if (error.status === 409) return "running"
@@ -135,5 +136,35 @@ export const requestSourceCollectionAction = async (sourceId: number): Promise<S
   }
   revalidatePath("/sources")
   revalidatePath(`/sources/${id}`)
+  return { ok: true }
+}
+
+export type SourceDeleteResult = { ok: false, reason: SourceDeleteFailureReason } | { ok: true }
+
+const convertDeleteErrorToReason = (error: ApiClientError): SourceDeleteFailureReason => {
+  if (error.status === 409) return "collecting"
+  if (error.status === 404) return "not_found"
+  return "failed"
+}
+
+/**
+ * ソースの削除の Server Action。通らなかったときも一覧を読み直す（409・404 は一覧のデータが古い）。
+ * タグのソースの件数と問題の一覧も変わるので、その画面も作り直す
+ */
+export const deleteSourceAction = async (sourceId: number): Promise<SourceDeleteResult> => {
+  const params = deleteSourcePathParamSchema.safeParse({ id: sourceId })
+  if (!params.success) return { ok: false, reason: "failed" }
+
+  try {
+    await sourceApi.delete(params.data.id)
+  } catch (error) {
+    unstable_rethrow(error)
+    if (!(error instanceof ApiClientError)) throw error
+    revalidatePath("/sources")
+    return { ok: false, reason: convertDeleteErrorToReason(error) }
+  }
+  revalidatePath("/sources", "layout")
+  revalidatePath("/tags")
+  revalidatePath("/passages")
   return { ok: true }
 }
