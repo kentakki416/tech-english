@@ -219,7 +219,7 @@ React 公式ドキュメントのソースの **除外パス** に、次のペ�
 
 | 項目 | 内容 |
 | --- | --- |
-| 見出しの確認 | その文書の `generating`・`draft`・`published` と、`generated_at` がある `rejected`（生成した後に LLM・管理者が却下したもの）の `title` を読み、同じ `title` の塊は挿入しない。収集が外した `rejected` は生成していないので `generated_at` が無い |
+| 見出しの確認 | その文書の `generating`・`draft`・`published` と、`generated_at` がある `rejected`（生成した後に LLM・管理者が却下したもの）の `title` を読み、同じ `title`（大文字・小文字は区別しない）の塊は挿入しない。収集が外した `rejected` は生成していないので `generated_at` が無い |
 | 却下の条件 | `source_document_id` がその文書、`status = 'collected'`、`content_hash` が挿入した塊のハッシュのどれでもない（1 文の `UPDATE`） |
 | 更新 | `status = 'rejected'`、`reject_reason` に「切り分け直したため、前の切り分けの本文候補を外した」。生成の記録（`generated_at` など）は空のまま |
 | 呼ぶところ | GitHub はファイルを取得して本文を抽出できたとき。サイトは本文候補を作るとき（対象パスのページで、ハッシュか版が変わったとき）だけ |

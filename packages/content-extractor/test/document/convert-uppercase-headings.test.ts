@@ -16,10 +16,28 @@ describe("convertUppercaseHeadings", () => {
       ["固有名", "OAUTH WITH GITHUB", "Sign in with OAuth through GitHub.", "OAuth with GitHub"],
       ["記号でつながった語", "NODE.JS AND CI/CD", "Run Node.js and CI/CD and more.", "Node.js and CI/CD"],
       ["語の中に大文字がある固有名", "IPHONE SETUP", "Finish the setup on your iPhone.", "iPhone setup"],
-      ["番号で始まる見出し", "1. EVAL DESIGN", "Every eval needs a good design.", "1. Eval design"],
       ["引用符で始まる見出し", "\"EVAL\" DESIGN", "Every eval needs a good design.", "\"Eval\" design"],
       ["数字で始まる語", "2FA SETUP", "Turn on 2fa during setup.", "2fa setup"],
     ])("本文の書き方に合わせて文頭だけ大文字にする：%s", (_, heading, prose, expected) => {
+      expect(convertHeading(heading, prose)).toBe(expected)
+    })
+
+    it.each([
+      ["1. EVAL DESIGN", "1. Eval design"],
+      ["1) EVAL DESIGN", "1) Eval design"],
+      ["1: EVAL DESIGN", "1: Eval design"],
+      ["(1) EVAL DESIGN", "(1) Eval design"],
+      ["1.2 EVAL DESIGN", "1.2 Eval design"],
+      ["1.2. EVAL DESIGN", "1.2. Eval design"],
+      ["1 - EVAL DESIGN", "1 - Eval design"],
+    ])("番号の後ろの語を文頭として扱う：%s", (heading, expected) => {
+      expect(convertHeading(heading, "Every eval needs a good design.")).toBe(expected)
+    })
+
+    it.each([
+      ["3 WAYS TO RUN IT", "There are ways to run it.", "3 ways to run it"],
+      ["2026 EVAL DESIGN", "Every eval needs a good design.", "2026 eval design"],
+    ])("記号の無い数字は番号に数えない：%s", (heading, prose, expected) => {
       expect(convertHeading(heading, prose)).toBe(expected)
     })
 
@@ -31,12 +49,22 @@ describe("convertUppercaseHeadings", () => {
       ["略語", "API-FIRST DESIGN", "The API comes first in this design.", "API-first design"],
       ["固有名", "GITHUB-BASED WORKFLOWS", "Use GitHub for workflows.", "GitHub-based workflows"],
       ["本文に無い部分", "WELL-SCOPED GOALS", "Nothing related here.", "Well-scoped goals"],
-    ])("ハイフンでつながった語が本文に無ければ、部分ごとに本文の書き方に合わせる：%s", (_, heading, prose, expected) => {
+      ["/ でつながった略語", "HTML/CSS BASICS", "Learn HTML and CSS basics.", "HTML/CSS basics"],
+      ["& でつながった固有名", "REACT&VUE GUIDE", "A guide to React and Vue.", "React&Vue guide"],
+      ["ピリオドは分けない", "REACT/NEXT.JS GUIDE", "A guide to React and Next.js.", "React/Next.js guide"],
+    ])("記号でつながった語が本文に無ければ、部分ごとに本文の書き方に合わせる：%s", (_, heading, prose, expected) => {
       expect(convertHeading(heading, prose)).toBe(expected)
     })
 
-    it("インラインコードは本文の書き方に数えない", () => {
+    it("インラインコードより文章の書き方を優先する", () => {
       expect(convertHeading("JSON OUTPUT", "Set `json` and `json` to print JSON output.")).toBe("JSON output")
+    })
+
+    it.each([
+      ["語の中に大文字がある語", "USEEFFECT HOOK", "Call `useEffect` in a hook.", "useEffect hook"],
+      ["コマンド名", "/CLAUDE-API HILLCLIMB", "Claude reads the API docs. Run `/claude-api hillclimb` to start.", "/claude-api hillclimb"],
+    ])("文章に無い語はインラインコードの書き方に合わせる：%s", (_, heading, prose, expected) => {
+      expect(convertHeading(heading, prose)).toBe(expected)
     })
 
     it.each([
@@ -47,6 +75,23 @@ describe("convertUppercaseHeadings", () => {
       ["略語と一般の語が混ざる見出し", "FAQ OVERVIEW", "FAQ overview"],
     ])("本文に無い語は、短ければ大文字のまま残し、長ければ小文字にする：%s", (_, heading, expected) => {
       expect(convertHeading(heading, "Nothing related here.")).toBe(expected)
+    })
+
+    it.each([
+      ["見出しの途中の語", "HABITS THAT PAY OFF", "Good habits are those that help.", "Habits that pay off"],
+      ["見出しの最後の語", "KEEP IN MIND", "Keep this in view.", "Keep in mind"],
+      ["見出しの最初の語", "FOUR HABITS WORTH KEEPING", "These habits are worth keeping.", "Four habits worth keeping"],
+    ])("ほかの語が本文に出る見出しの、本文に無い短い語は小文字にする：%s", (_, heading, prose, expected) => {
+      expect(convertHeading(heading, prose)).toBe(expected)
+    })
+
+    it.each([
+      ["Q&A SESSION", "Q&A session"],
+      ["R&D TEAM", "R&D team"],
+      ["A/B TESTING", "A/B testing"],
+      ["TL;DR SUMMARY", "TL;DR summary"],
+    ])("ほかの語が本文に出ても、記号でつながった短い語は残す：%s", (heading, expected) => {
+      expect(convertHeading(heading, "The session summary covers team testing.")).toBe(expected)
     })
 
     it("インラインコードは変えない", () => {

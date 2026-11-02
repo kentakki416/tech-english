@@ -40,8 +40,7 @@ export const PROSE_CHARS_PER_LINE = 80
 export const SECTION_HEADING_MAX_DEPTH = 3
 
 /**
- * 大文字だけの見出しで、本文に出てこない語を略語とみなして大文字のまま残す文字数の上限（この値ちょうどは残す）。
- * 短い一般の語は本文にほぼ必ず出るので、本文に無い短い語は略語（`FAQ`・`Q&A`）のことが多い
+ * 大文字だけの見出しで、本文に無い語を略語（`FAQ`・`Q&A`）とみなして大文字のまま残す文字数の上限（この値ちょうどは残す）
  */
 export const ACRONYM_MAX_LETTERS = 4
 

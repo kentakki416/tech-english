@@ -91,7 +91,7 @@ const findOrigin = (url: string): string | null => {
 const isGeneratedOrGenerating = (passage: ImportPassage): boolean =>
   GENERATED_OR_GENERATING_STATUSES.includes(passage.status) || (passage.status === "rejected" && passage.generatedAt !== null)
 
-const findGeneratedOrGeneratingTitles = (documentPassages: ImportPassage[]): Set<string> =>
+const findNormalizedGeneratedOrGeneratingTitles = (documentPassages: ImportPassage[]): Set<string> =>
   new Set(documentPassages.filter(isGeneratedOrGenerating).map((passage) => normalizePassageTitle(passage.title)))
 
 const buildExcerpt = (chunk: PassageChunk): string => {
@@ -104,11 +104,11 @@ const buildExcerpt = (chunk: PassageChunk): string => {
  */
 const classifyChunk = (
   chunk: PassageChunk,
-  generatedOrGeneratingTitles: Set<string>,
+  normalizedGeneratedOrGeneratingTitles: Set<string>,
   passagesByContentHash: Map<string, ImportPassage>,
 ): UrlImportChunkStatus => {
   if (chunk.rejectReasons.length > 0) return "not_candidate"
-  if (generatedOrGeneratingTitles.has(normalizePassageTitle(chunk.title))) return "generated_section"
+  if (normalizedGeneratedOrGeneratingTitles.has(normalizePassageTitle(chunk.title))) return "generated_section"
   const sameContentPassage = passagesByContentHash.get(chunk.contentHash)
   if (sameContentPassage === undefined) return "new"
   return sameContentPassage.status === "collected" ? "existing" : "duplicated"
@@ -234,14 +234,14 @@ export const previewUrlImport = async (
     repo.urlImportRepository.findDocumentPassages({ path: page.path, sourceId: source.id }),
     repo.urlImportRepository.findPassagesByContentHashes(page.chunks.map((chunk) => chunk.contentHash)),
   ])
-  const generatedOrGeneratingTitles = findGeneratedOrGeneratingTitles(documentPassages)
+  const normalizedGeneratedOrGeneratingTitles = findNormalizedGeneratedOrGeneratingTitles(documentPassages)
   const passagesByContentHash = new Map(sameContentPassages.map((passage) => [passage.contentHash, passage]))
   return ok({
     chunks: page.chunks.map((chunk) => ({
       excerpt: buildExcerpt(chunk),
       rejectReasons: chunk.rejectReasons,
       sameContentPassage: findSameContentPassage(chunk, passagesByContentHash),
-      status: classifyChunk(chunk, generatedOrGeneratingTitles, passagesByContentHash),
+      status: classifyChunk(chunk, normalizedGeneratedOrGeneratingTitles, passagesByContentHash),
       title: chunk.title,
       wordCount: chunk.wordCount,
     })),
@@ -278,9 +278,9 @@ export const importUrl = async (
       title: page.title,
     }, tx)
     const documentPassages = await repo.urlImportRepository.findDocumentPassages({ path: page.path, sourceId: source.id }, tx)
-    const generatedOrGeneratingTitles = findGeneratedOrGeneratingTitles(documentPassages)
+    const normalizedGeneratedOrGeneratingTitles = findNormalizedGeneratedOrGeneratingTitles(documentPassages)
     const candidatesToInsert = page.chunks.filter((chunk) =>
-      chunk.rejectReasons.length === 0 && !generatedOrGeneratingTitles.has(normalizePassageTitle(chunk.title)))
+      chunk.rejectReasons.length === 0 && !normalizedGeneratedOrGeneratingTitles.has(normalizePassageTitle(chunk.title)))
     const createdIds = await repo.urlImportRepository.insertCandidates(
       candidatesToInsert.map((chunk) => ({
         blocks: chunk.blocks,

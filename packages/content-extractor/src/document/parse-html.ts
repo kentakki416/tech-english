@@ -10,8 +10,8 @@ import { unified } from "unified"
  */
 const REMOVED_SELECTORS = ["nav", "header", "footer", "aside", "script", "style", "button", "[aria-hidden=\"true\"]"]
 
-const containsCodeOrQuote = (node: Nodes): boolean =>
-  node.type === "code" || node.type === "blockquote" || ("children" in node && node.children.some(containsCodeOrQuote))
+const hasCodeOrQuote = (node: Nodes): boolean =>
+  node.type === "code" || node.type === "blockquote" || ("children" in node && node.children.some(hasCodeOrQuote))
 
 /**
  * 図（画像・グラフと、その題名・キャプション）は本文に残さない。画像のノードにするのは、捨てた内容として
@@ -22,7 +22,7 @@ const FIGURE_HANDLERS: NonNullable<Options["handlers"]> = {
   figcaption: () => undefined,
   figure: (state, node) => {
     const children = state.toFlow(state.all(node))
-    return children.some(containsCodeOrQuote) ? children : { type: "image", url: "" }
+    return children.some(hasCodeOrQuote) ? children : { type: "image", url: "" }
   },
 }
 

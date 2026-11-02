@@ -10,7 +10,7 @@ import {
   PROSE_CHARS_PER_LINE,
 } from "./const"
 
-const INLINE_CODE_PATTERN = /`[^`]*`/g
+export const INLINE_CODE_PATTERN = /`[^`]*`/g
 
 const WORD_CHARACTER_PATTERN = /[A-Za-z0-9]/
 
