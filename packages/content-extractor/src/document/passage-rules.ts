@@ -19,7 +19,7 @@ const isProseBlock = (block: PassageBlock): boolean => block.type !== "code"
 /**
  * コード以外のブロックのテキストから、インラインコードを除いたもの
  */
-const extractProseTexts = (blocks: PassageBlock[]): string[] =>
+export const extractProseTexts = (blocks: PassageBlock[]): string[] =>
   blocks.filter(isProseBlock).map((block) => block.text.replace(INLINE_CODE_PATTERN, " "))
 
 const countWordsInText = (text: string): number =>

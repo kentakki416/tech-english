@@ -1,5 +1,6 @@
 import { calculateContentHash } from "./content-hash"
 import { convertMdastToBlocks } from "./convert-mdast-to-blocks"
+import { convertUppercaseHeadings } from "./convert-uppercase-headings"
 import { parseHtml } from "./parse-html"
 import { parseMarkdown } from "./parse-markdown"
 import { countEnglishWords } from "./passage-rules"
@@ -50,7 +51,7 @@ const parseDocument = (input: ExtractDocumentInput): ReturnType<typeof parseHtml
 export const extractDocument = (input: ExtractDocumentInput): ExtractedDocument => {
   const { root, title: parsedTitle } = parseDocument(input)
   const title = parsedTitle ?? input.fallbackTitle
-  const blocks = convertMdastToBlocks(root)
+  const blocks = convertUppercaseHeadings(convertMdastToBlocks(root))
   const chunks = splitIntoChunks(blocks, title)
   return {
     candidates: chunks.filter((chunk) => chunk.rejectReasons.length === 0),

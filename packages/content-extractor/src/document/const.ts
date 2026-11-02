@@ -40,6 +40,12 @@ export const PROSE_CHARS_PER_LINE = 80
 export const SECTION_HEADING_MAX_DEPTH = 3
 
 /**
+ * 大文字だけの見出しで、本文に出てこない語を略語とみなして大文字のまま残す文字数の上限（この値ちょうどは残す）。
+ * 短い一般の語は本文にほぼ必ず出るので、本文に無い短い語は略語（`FAQ`・`Q&A`）のことが多い
+ */
+export const ACRONYM_MAX_LETTERS = 4
+
+/**
  * 中身を本文として残す MDX / JSX のコンポーネント（文章を包むもの。react.dev の `<Intro>` / `<Note>` など）。タグだけ除いて中の文章を残す。
  * ここに無いコンポーネント（`<Sandpack>` / `<Diagram>` / `<Illustration>` / `<Challenges>` のようにコード・図・演習を包むもの）は中身ごと捨てる。
  * `<YouWillLearn>`（ページの目次）・`<Recap>`（ページ全体のまとめ）も捨てる。見出しが無いので隣の節の本文候補にくっつき、節の話題と混ざるため。
@@ -57,4 +63,4 @@ export const PROSE_COMPONENT_NAMES: ReadonlySet<string> = new Set([
  * src/document の変更のうち、ブロック・切り分け・本文候補の条件が変わるものをしたら上げる（実装した日の日付）。
  * 上げると、取得済みの文書を次の収集で切り分け直す（URL から追加で取り込んだサイトのページは、取り込み直したとき）
  */
-export const EXTRACTION_VERSION = "2026-10-30.5"
+export const EXTRACTION_VERSION = "2026-11-02.1"

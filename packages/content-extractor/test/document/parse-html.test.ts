@@ -86,6 +86,43 @@ describe("parseHtml", () => {
       expect(convertMdastToBlocks(root)).toEqual([])
     })
 
+    it("図は題名・画像・キャプションごと本文に残さない", () => {
+      const { root } = parseHtml(
+        "<main><p>Before.</p><figure><div>Score against tokens</div><div role=\"img\" aria-label=\"A chart\"><svg><text>0.5</text></svg></div><figcaption><b>FIG 1</b><span>The four elements</span></figcaption></figure><p>After.</p></main>",
+        { contentSelector: "main", excludeSelectors: [], url: "https://docs.example.dev/" },
+      )
+
+      expect(convertMdastToBlocks(root)).toEqual([
+        { text: "Before.", type: "paragraph" },
+        { text: "After.", type: "paragraph" },
+      ])
+    })
+
+    it.each([
+      [
+        "コード",
+        "<figure><figcaption>app.js</figcaption><pre><code class=\"language-js\">run()</code></pre></figure>",
+        { lang: "js", text: "run()", type: "code" },
+      ],
+      [
+        "div の中のコード",
+        "<figure><div class=\"highlight\"><pre><code class=\"language-js\">run()</code></pre></div><figcaption>app.js</figcaption></figure>",
+        { lang: "js", text: "run()", type: "code" },
+      ],
+      [
+        "引用",
+        "<figure><blockquote><p>Keep it short.</p></blockquote><figcaption>A reviewer</figcaption></figure>",
+        { text: "Keep it short.", type: "quote" },
+      ],
+    ])("%sを包む figure は中身を残してキャプションだけ捨てる", (_, figure, block) => {
+      const { root } = parseHtml(
+        `<main><p>For example:</p>${figure}</main>`,
+        { contentSelector: "main", excludeSelectors: [], url: "https://docs.example.dev/" },
+      )
+
+      expect(convertMdastToBlocks(root)).toEqual([{ text: "For example:", type: "paragraph" }, block])
+    })
+
     it("<title> が無ければ最初の h1 をタイトルにする", () => {
       const { title } = parseHtml("<main><h1>  Heading   Title </h1><p>Body.</p></main>", {
         contentSelector: "main",
@@ -99,6 +136,7 @@ describe("parseHtml", () => {
     it.each([
       ["表", "<table><tr><th>a</th></tr><tr><td>1</td></tr></table>"],
       ["リンクで包んだ画像", "<a href=\"/diagram.png\"><img src=\"/diagram.png\" alt=\"\"></a>"],
+      ["図", "<figure><img src=\"/diagram.png\" alt=\"\"><figcaption>FIG 1 A diagram</figcaption></figure>"],
     ])("「:」で終わる段落の後ろの%sを捨てたら、末尾の「:」を「.」にする", (_, dropped) => {
       const { root } = parseHtml(
         `<main><p>For example:</p>${dropped}<p>Next.</p></main>`,
