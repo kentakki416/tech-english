@@ -1,5 +1,5 @@
 import type { PassageChunk } from "@repo/content-extractor"
-import { SUPERSEDED_PASSAGE_REJECT_REASON } from "@repo/domain"
+import { normalizePassageTitle, SUPERSEDED_PASSAGE_REJECT_REASON } from "@repo/domain"
 import { logger } from "@repo/logger"
 
 import type { CollectionRepo } from "./types"
@@ -26,8 +26,9 @@ export const replacePassageCandidates = async (
   },
   repo: CollectionRepo,
 ): Promise<number> => {
-  const generatedTitles = new Set(await repo.passageRepository.findGeneratedOrGeneratingTitles(input.documentId))
-  const candidatesToInsert = input.candidates.filter((candidate) => !generatedTitles.has(candidate.title))
+  const generatedTitles = await repo.passageRepository.findGeneratedOrGeneratingTitles(input.documentId)
+  const normalizedGeneratedTitles = new Set(generatedTitles.map(normalizePassageTitle))
+  const candidatesToInsert = input.candidates.filter((candidate) => !normalizedGeneratedTitles.has(normalizePassageTitle(candidate.title)))
   const createdPassageCount = await repo.passageRepository.insertIgnoringDuplicates(
     candidatesToInsert.map((candidate) => ({
       blocks: candidate.blocks,

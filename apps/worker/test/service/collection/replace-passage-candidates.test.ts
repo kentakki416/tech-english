@@ -66,6 +66,15 @@ describe("replacePassageCandidates", () => {
       expect(repo.passageRepository.insertIgnoringDuplicates).toHaveBeenCalledWith([])
       expect(repo.passageRepository.rejectCollected).toHaveBeenCalledWith(expect.objectContaining({ keepContentHashes: [] }))
     })
+
+    it("大文字・小文字だけが違う見出しに下書きがあれば挿入しない", async () => {
+      const repo = createFakeRepo({ generatedTitles: ["EVAL DESIGN"] })
+
+      const createdPassageCount = await replacePassageCandidates(buildInput([buildCandidate("Eval design")]), repo)
+
+      expect(createdPassageCount).toBe(0)
+      expect(repo.passageRepository.insertIgnoringDuplicates).toHaveBeenCalledWith([])
+    })
   })
 
   describe("異常系", () => {

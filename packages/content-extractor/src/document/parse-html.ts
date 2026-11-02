@@ -1,14 +1,30 @@
 import { Readability } from "@mozilla/readability"
 import { JSDOM, VirtualConsole } from "jsdom"
-import type { Root } from "mdast"
+import type { Nodes, Root } from "mdast"
 import rehypeParse from "rehype-parse"
-import rehypeRemark from "rehype-remark"
+import rehypeRemark, { type Options } from "rehype-remark"
 import { unified } from "unified"
 
 /**
  * 本文から常に取り除く要素（サイトのナビゲーション・フッター・スクリプトなど）
  */
 const REMOVED_SELECTORS = ["nav", "header", "footer", "aside", "script", "style", "button", "[aria-hidden=\"true\"]"]
+
+const hasCodeOrQuote = (node: Nodes): boolean =>
+  node.type === "code" || node.type === "blockquote" || ("children" in node && node.children.some(hasCodeOrQuote))
+
+/**
+ * 図（画像・グラフと、その題名・キャプション）は本文に残さない。画像のノードにするのは、捨てた内容として
+ * 「:」で終わる段落の続きの判定に効かせるため。コードと引用を `<figure>` で包むサイトがあるので、
+ * それらを含む図は中身を残し、キャプションだけ捨てる
+ */
+const FIGURE_HANDLERS: NonNullable<Options["handlers"]> = {
+  figcaption: () => undefined,
+  figure: (state, node) => {
+    const children = state.toFlow(state.all(node))
+    return children.some(hasCodeOrQuote) ? children : { type: "image", url: "" }
+  },
+}
 
 const normalizeWhitespace = (text: string): string => text.replace(/\s+/g, " ").trim()
 
@@ -62,7 +78,7 @@ export const parseHtml = (
     const contentHtml = options.contentSelector
       ? selectContentHtml(document, options.contentSelector, options.excludeSelectors)
       : extractContentHtmlWithReadability(document, options.excludeSelectors)
-    const processor = unified().use(rehypeParse, { fragment: true }).use(rehypeRemark)
+    const processor = unified().use(rehypeParse, { fragment: true }).use(rehypeRemark, { handlers: FIGURE_HANDLERS })
     const root = processor.runSync(processor.parse(contentHtml ?? ""))
     return { root, title }
   } finally {

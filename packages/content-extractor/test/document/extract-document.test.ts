@@ -49,6 +49,15 @@ describe("extractDocument", () => {
       expect(result.chunks[0]?.title).toBe("docs/plain.md")
     })
 
+    it("大文字だけの見出しは、ブロックとタイトルの両方を本文の書き方に直す", () => {
+      const content = `## EVAL DESIGN\n\nEvery eval needs a good design. ${buildWords(200)}.\n`
+
+      const [chunk] = extractDocument({ content, fallbackTitle: "docs/eval.md", format: "markdown" }).chunks
+
+      expect(chunk?.title).toBe("Eval design")
+      expect(chunk?.blocks[0]).toEqual({ text: "Eval design", type: "heading" })
+    })
+
     it("HTML も文書全体の contentHash を持つ", () => {
       const result = extractDocument(GO_DOC_INPUT)
 

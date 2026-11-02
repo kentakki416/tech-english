@@ -187,6 +187,18 @@ describe("previewUrlImport", () => {
       expect(result.ok && result.value.chunks[0].status).toBe("generated_section")
     })
 
+    it("大文字・小文字だけが違う見出しの問題があれば generated_section", async () => {
+      const page = buildFetchedPage()
+      pageFetcher.fetchAndExtractPage.mockResolvedValue({ kind: "ok", page })
+      urlImportRepository.findDocumentPassages.mockResolvedValue([
+        buildImportPassage({ contentHash: "hash-old", status: "draft", title: page.chunks[0].title.toUpperCase() }),
+      ])
+
+      const result = await previewUrlImport(PAGE_URL, NOW, repo, deps)
+
+      expect(result.ok && result.value.chunks[0].status).toBe("generated_section")
+    })
+
     it.each([
       ["生成した後に却下したもの（generatedAt あり）", new Date("2026-10-19T00:00:00.000Z"), "generated_section"],
       ["収集が外した却下（generatedAt なし）", null, "new"],

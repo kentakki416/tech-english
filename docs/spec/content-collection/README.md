@@ -146,8 +146,9 @@
 | 文章であること | 段落・引用と、1 項目が 12 語以上の箇条書きの項目の英単語数が全体の半分以上 | 目次やリンク集のように、短い項目の箇条書きが主体の塊を除外する（数文の項目が並ぶ節は残す） |
 
 - コードブロックとインラインコードは本文に残す（エンジニアが読む文書はコードを含むのが自然なため）が、英単語数には数えない
-- 表・画像・埋め込みコンポーネント（MDX の `<Sandpack>` など）・サイトのナビゲーションやフッターは本文から除く。文章を包むコンポーネント（`<Intro>` / `<Note>` / `<Pitfall>` / `<DeepDive>`）はタグだけ除いて中の文章を残す。ページの目次（`<YouWillLearn>`）とページ全体のまとめ（`<Recap>`）は、見出しが無く隣の節の本文候補にくっつくので中身ごと除く
+- 表・画像・図（`<figure>`。中の題名・キャプションごと）・埋め込みコンポーネント（MDX の `<Sandpack>` など）・サイトのナビゲーションやフッターは本文から除く。コードや引用を包む `<figure>` は、中身を残してキャプションだけ除く。文章を包むコンポーネント（`<Intro>` / `<Note>` / `<Pitfall>` / `<DeepDive>`）はタグだけ除いて中の文章を残す。ページの目次（`<YouWillLearn>`）とページ全体のまとめ（`<Recap>`）は、見出しが無く隣の節の本文候補にくっつくので中身ごと除く
 - 続き（例のコード・表・図など）を除いたために「:」で終わる段落は、末尾の「:」を「.」にする（文は消さない）。続きが本文に残るとき（コード・箇条書き・引用・段落・見出しが続く）は変えない（[passage-extraction-tuning](../passage-extraction-tuning/README.md#本文に残すもの捨てるもの)）
+- 大文字だけで書かれた見出し（`EVAL DESIGN`）は、文頭だけ大文字の書き方（`Eval design`）にする。略語（`HTTPS`）・固有名（`GitHub`）・コマンド名（`/claude-api`）は、その文書の本文の書き方に合わせて残す。本文のブロックと本文候補のタイトルの両方が変わる（[大文字だけの見出し](#大文字だけの見出し)）
 
 ### 出典表示
 
@@ -168,7 +169,7 @@
 ### 取得元の文書が更新されたとき
 
 - **公開済みの問題は変えない。** 問題は取得した時点の内容のまま残る。出典表示もその時点（GitHub はコミット、サイトは取得日）を指す
-- 更新された箇所は、次回以降の収集で新しい本文候補として取り込まれる（内容が変わっていない箇所は取り込み直さない）。ただし同じ見出しの生成中・生成した本文候補（下書き・公開済み・生成した後に却下したもの）がある節は、新しい本文候補にしない（同じ節の問題を二重に作らず、題材に向かないと判断した節をもう一度生成に回さないため。今ある下書き・公開済みを使い続ける）
+- 更新された箇所は、次回以降の収集で新しい本文候補として取り込まれる（内容が変わっていない箇所は取り込み直さない）。ただし同じ見出し（大文字・小文字は区別しない）の生成中・生成した本文候補（下書き・公開済み・生成した後に却下したもの）がある節は、新しい本文候補にしない（同じ節の問題を二重に作らず、題材に向かないと判断した節をもう一度生成に回さないため。今ある下書き・公開済みを使い続ける）
 - 切り分け直した文書の未生成（`collected`）の本文候補のうち、新しい本文候補に無いものは却下（`rejected`。理由「切り分け直したため、前の切り分けの本文候補を外した」）にする（[passage-extraction-tuning](../passage-extraction-tuning/README.md#前の切り分けで作った本文候補)）
 - 取得元の文書が削除されても、公開済みの問題は残す。削除された文書・除外パスに入れた文書の `collected` の本文候補は、次の収集で却下する（理由「除外パスに入ったか取得元から消えたため、収集の対象から外した」。[passage-extraction-tuning](../passage-extraction-tuning/README.md#収集の対象から外れた文書の本文候補)）
 
@@ -253,8 +254,10 @@ URL の正規化：クエリ文字列とフラグメント（`#...`）を除く�
 1. `jsdom` で DOM にする
 2. 本文の CSS セレクタがあればその要素を、無ければ `@mozilla/readability` で推定した本文を取り出す（`keepClasses` を指定する。Readability は既定で `class` を消し、コードの言語が分からなくなるため）
 3. 除外する CSS セレクタに合う要素と、`nav` / `header` / `footer` / `aside` / `script` / `style` / `button` / `[aria-hidden="true"]` を取り除く
-4. `rehype-parse` + `rehype-remark` で mdast にする（`<pre><code class="language-go">` は `lang` つきのコードになる）
+4. `rehype-parse` + `rehype-remark` で mdast にする（`<pre><code class="language-go">` は `lang` つきのコードになる）。`<figcaption>` は捨て、コードか引用を含まない `<figure>` は画像のノードにする（画像と同じく捨てられ、「:」で終わる段落の続きの判定にも効く）。図の題名は `<figure>` の中の `<div>` などで書かれ、セレクタで見分けられないので、図ごと捨てる
 5. `<title>` か最初の `h1` を文書タイトルにする
+
+`<figure>` を使わず、ふつうの要素で図のキャプションを書くサイトは見分けられない。ソースの「除外する CSS セレクタ」で除く。
 
 **共通（mdast → `PassageBlock[]`）**：型の正本は [question-generation](../question-generation/README.md#本文の構造passageblock)。
 
@@ -269,6 +272,34 @@ URL の正規化：クエリ文字列とフラグメント（`#...`）を除く�
 | `link` | テキストだけ残し URL は捨てる |
 | `mdxJsxFlowElement`（`.md` の HTML ブロックのコンポーネントを含む） | 文章を包むコンポーネント（許可リスト）はタグを除いて中身を変換する。それ以外は中身ごと捨てる |
 | `table` / `image` / `html` / `yaml`（frontmatter） | 捨てる |
+
+#### 大文字だけの見出し
+
+CSS の `text-transform` ではなく、HTML に大文字で書かれた見出しがある（`<h2>EVAL DESIGN</h2>`）。そのままだと題名が読みにくいので、ブロックにした後で直す（`convert-uppercase-headings.ts`）。Markdown と HTML で同じ規則。
+
+- 対象は、インラインコードを除いたテキストに小文字が無く、大文字がある見出し。`_` を含むもの（定数名の `MAX_RETRIES`）は対象にしない
+- 語ごとに、**その文書の本文（見出し・コードブロックを除く）で最も多い書き方**にする。文章の書き方を優先し、文章に無い語はインラインコードの書き方にする。本文で記号でつながった語（`CI/CD`）は、大文字を含む部分（`CI`）も書き方に数える
+- 語の形が違うものも本文から引く。所有格は語幹の書き方にし（`CLAUDE'S` は `Claude's`）、複数形は語幹が大文字の略語のときだけ合わせる（`APIS` は `APIs`）
+- 一人称の `I` と短縮形（`I'VE`）は、本文に関係なく `I` のまま残す。本文に `I` が出ないことが多く、本文の変数の `i` に引きずられないようにするため
+- 最後に最初の語の先頭の文字を大文字にする。番号（`1.`・`1)`・`(1)`・`1.2`・`1 -`）と引用符の後ろの語を最初の語として扱う。記号の無い数字（`3 WAYS`）は番号に数えない。`/` で始まる見出しと、語の中に大文字がある語（`iPhone`）は変えない
+- 本文に無い語のうち、4 文字以下（`ACRONYM_MAX_LETTERS`）の語は、1 語の見出しと本文に出る語が無い見出しでは略語とみなして大文字のまま残す。ほかの語が本文に出る見出しはふつうの文なので、本文に無い短い語も小文字にする。`&`・`/`・`;` でつながった短い語（`Q&A`・`A/B`）と 1 文字の語（`PATH B`）は一般の語ではないので、どの見出しでも残す
+- 本文に無い語のそのほかは、`-`・`/`・`&` で分けた部分ごとに本文に合わせ、本文に無い部分は小文字にする（`API-FIRST` は本文に `API` があれば `API-first`）
+
+| 見出し | 本文の書き方 | 結果 |
+| --- | --- | --- |
+| `EVAL DESIGN` | `eval`・`design` | `Eval design` |
+| `/CLAUDE-API HILLCLIMB` | `claude-api`・`hillclimb` | `/claude-api hillclimb` |
+| `HTTPS` | `HTTPS` | `HTTPS` |
+| `OAUTH WITH GITHUB` | `OAuth`・`with`・`GitHub` | `OAuth with GitHub` |
+| `USEEFFECT HOOK` | `hook`、インラインコードの `useEffect` | `useEffect hook` |
+| `FAQ` | 本文に無い | `FAQ` |
+| `GETTING STARTED` | 本文に無い | `Getting started` |
+| `HABITS THAT PAY OFF` | `habits`・`that` があり、`pay`・`off` は無い | `Habits that pay off` |
+
+- 辞書を持たず本文に合わせるのは、見出しの文字列だけでは略語・固有名・コマンド名を見分けられず、技術文書の略語は辞書に収まらないため。dev の公式ドキュメントの本文候補の見出しでも `HTTPS`・`DNS`・`VDOM`・`SFC` のように大文字が正しいものが大半だった
+- 本文に無い短い語を、ほかの語が本文に出る見出しで残さないのは、`claude.dev/blog` の 10 記事で `Habits that PAY off`・`Keep in MIND` のように一般の語が残ったため（大文字の見出し 75 件のうち 7 件）。代わりに、本文に無い略語を含む見出しは崩れる（`AWS SETUP` が `Aws setup`）。略語は本文に出ることが多いので許容する
+- 文頭の語は本文でも大文字になるので、本文に文頭でしか出ない語は見出しの途中でも大文字になる（`CODE EXAMPLES` が `Code Examples`）。読みにくくはならないので許容する
+- 今ある行は書き換えない。`content_hash` は小文字にして比べるので、見出しの大文字・小文字だけが違う塊は同じ内容として扱われ、今の行（大文字のまま）が残る。「同じ見出し」も大文字・小文字を区別しないので（`normalizePassageTitle`）、大文字の題名のまま生成した下書き・公開済みの節の問題は二重に作らない。その下書き・公開済みの題名は大文字のまま残る
 
 **JavaScript で本文を描画するサイトには対応しない**（ヘッドレスブラウザを載せない）。取得した HTML に本文が入っていないサイトは、URL から追加の確認で英単語数がほぼ 0 になるので分かる（[deferred](./deferred-more-sources.md#javascript-で描画するサイト)）。
 
@@ -317,6 +348,7 @@ flowchart LR
 | 結合・分割のしかた | `split-into-chunks.ts` | 全ソース（下の注意） |
 | 本文候補にしない条件そのもの（理由を足す など） | `passage-rules.ts` の `findRejectReasons`（理由を足すときは `@repo/domain` の `CHUNK_REJECT_REASONS` にも足す。URL の取り込みの確認の API の `reject_reasons` と、admin の理由の文言も変わる） | 全ソース（下の注意） |
 | mdast のノードをどのブロックにするか | `convert-mdast-to-blocks.ts` | 全ソース（下の注意） |
+| 大文字だけの見出しの直し方 | `convert-uppercase-headings.ts`・`const.ts` の `ACRONYM_MAX_LETTERS` | 全ソース（下の注意） |
 | LLM が題材に向かないとする基準 | `apps/cron/src/prompt/generate-questions.ts` の「Suitability」（変えたら `PROMPT_VERSION` を上げる。[question-generation](../question-generation/README.md)） | 次の `generate:questions` から、`collected` の本文候補に |
 
 - **`src/document` の変更のうち、ブロック・切り分け・本文候補の条件が変わるものは、`const.ts` の `EXTRACTION_VERSION` を上げる。** 上げると取得済みの文書も次の収集で切り分け直す（URL から追加で取り込んだサイトのページは、取り込み直したときに）。前の切り分けの `collected` は却下する（[passage-extraction-tuning](../passage-extraction-tuning/README.md#抽出の版)）。上げないと、blob SHA が同じファイルを取り直さないので、取得済みの文書には効かない
