@@ -105,6 +105,8 @@ admin のソース一覧からソースを削除する機能。試しに登録�
 
 取り消せない操作なので、消した解答の記録と本文候補の件数を info のログに残す。
 
+`attempt_answers.question_id`・`attempt_word_lookups.passage_id` には外部キーの検査に使える index が無いので、学習記録が増えると、消す行ごとの検査で表を読む時間が延びる。トランザクションの間は、そのソースの問題の開始と提出が待たされる。まれな管理操作で今の件数なら実害が無いので、index は足さない。遅くなったら `attempt_answers.question_id` から足す。
+
 ### 音声と課金の記録
 
 `passage_audios` と `audio_synthesis_usages` は、問題を消しても行を残す。どちらも `passage_id` の外部キーを外す。

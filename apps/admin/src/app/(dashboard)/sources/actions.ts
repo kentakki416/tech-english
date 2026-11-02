@@ -105,8 +105,8 @@ export const updateSourceAction = async (
 export type SourceCollectionRequestResult = { ok: false, reason: SourceCollectionRequestFailureReason } | { ok: true }
 
 /**
- * API の失敗を、依頼が通らなかった理由にする。404 はソースが無いときにも返るが、編集画面を開けている（ソースがある）ので、
- * この環境に今すぐ収集のルートが無い（api の SOURCE_COLLECTION_TYPE=none）とみなす
+ * API の失敗を、依頼が通らなかった理由にする。404 はこの環境に今すぐ収集のルートが無い（api の SOURCE_COLLECTION_TYPE=none）ときとして扱う。
+ * 開いている間にソースが消されたときも 404 になるが、読み直しで編集画面が notFound になるので、この理由は画面に出ない
  */
 const convertCollectionRequestErrorToReason = (error: ApiClientError): SourceCollectionRequestFailureReason => {
   if (error.status === 409) return "running"

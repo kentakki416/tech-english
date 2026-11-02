@@ -33,7 +33,8 @@ export function SourceDeleteModal({ activeStatuses, onClose, source }: {
   const [failureReason, setFailureReason] = useState<SourceDeleteFailureReason | null>(null)
   const [isPending, startTransition] = useTransition()
   const isCollecting = source.latest_collection_run !== null && activeStatuses.includes(source.latest_collection_run.status)
-  const displayedReason = isCollecting ? "collecting" : failureReason
+  const remainingFailureReason = failureReason === "collecting" ? null : failureReason
+  const displayedReason = isCollecting ? "collecting" : remainingFailureReason
   const canDelete = !isCollecting && failureReason !== "not_found"
 
   /**
