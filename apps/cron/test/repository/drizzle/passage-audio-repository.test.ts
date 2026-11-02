@@ -504,18 +504,18 @@ describe("DrizzlePassageAudioRepository", () => {
     })
   })
 
-  describe("findRejected", () => {
+  describe("findWithdrawn", () => {
     describe("正常系", () => {
-      it("却下された問題の音声のうち、確保中でない行の passage_id とマニフェストを passage_id の順に返す", async () => {
+      it("却下された問題と行が無くなった問題の音声のうち、確保中でない行の passage_id とマニフェストを passage_id の順に返す", async () => {
         const rows = [{ manifest: MANIFEST, passageId: 3 }]
         const fake = createFakeDb([rows])
 
-        const found = await new DrizzlePassageAudioRepository(fake.db).findRejected(STALE_BEFORE)
+        const found = await new DrizzlePassageAudioRepository(fake.db).findWithdrawn(STALE_BEFORE)
 
         expect(found).toEqual(rows)
         const { params, sql } = renderQuery(fake.queries[0])
-        expect(sql).toContain("from \"passage_audios\" inner join \"passages\" on \"passages\".\"id\" = \"passage_audios\".\"passage_id\"")
-        expect(sql).toContain(["where ((\"passages\".\"status\" = $?) and (", NOT_CLAIMED_RECENTLY_SQL, "))"].join(""))
+        expect(sql).toContain("from \"passage_audios\" left join \"passages\" on \"passages\".\"id\" = \"passage_audios\".\"passage_id\"")
+        expect(sql).toContain(["where (((((\"passages\".\"id\" is null)) or (\"passages\".\"status\" = $?))) and (", NOT_CLAIMED_RECENTLY_SQL, "))"].join(""))
         expect(sql).toContain("order by \"passage_audios\".\"passage_id\" asc")
         expect(params).toEqual(["rejected", "2026-10-13T02:30:00.000Z"])
       })

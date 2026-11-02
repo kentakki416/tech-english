@@ -1,10 +1,14 @@
 import {
   asc,
+  attemptAnswers,
+  attemptWordLookups,
   audioSynthesisUsages,
   eq,
+  passageAudios,
   passageGlossaryEntries,
   passages,
   questions,
+  readingAttempts,
   sourceCollectionRuns,
   sourceDocuments,
   sources,
@@ -32,6 +36,7 @@ import {
   insertReadingAttempt,
 } from "../fixture/passage"
 import { insertSourceCollectionRun } from "../fixture/source-collection-run"
+import { insertWordLookup } from "../fixture/vocabulary"
 
 const sourceRepository = new DrizzleSourceRepository(testDb)
 
@@ -465,7 +470,7 @@ describe("SourceRepository.deleteWithContent", () => {
   }
 
   describe("正常系", () => {
-    it("本文候補・設問・用語集・文書・タグの紐付け・収集の記録を消し、消した本文候補の件数を返す。タグと別のソースは残る", async () => {
+    it("本文候補・設問・用語集・文書・タグの紐付け・収集の記録を消し、消した件数を返す。タグと別のソースは残る", async () => {
       const { document, source } = await insertGeneratedPassage()
       await insertPassage(document.id, { status: "rejected" })
       await insertSourceCollectionRun({ sourceId: source.id, status: "completed" })
@@ -474,7 +479,7 @@ describe("SourceRepository.deleteWithContent", () => {
 
       const result = await sourceRepository.deleteWithContent(source.id)
 
-      expect(result).toEqual({ deletedPassageCount: 2, kind: "deleted" })
+      expect(result).toEqual({ deletedAttemptCount: 0, deletedPassageCount: 2, kind: "deleted" })
       expect(await testDb.select().from(sources).where(eq(sources.id, source.id))).toHaveLength(0)
       expect(await testDb.select().from(sourceDocuments).where(eq(sourceDocuments.sourceId, source.id))).toHaveLength(0)
       expect((await testDb.select().from(passages)).map((row) => row.id)).toEqual([otherPassage.id])
@@ -489,15 +494,45 @@ describe("SourceRepository.deleteWithContent", () => {
     it("本文候補の無いソースも消す", async () => {
       const source = await insertPassageSource()
 
-      expect(await sourceRepository.deleteWithContent(source.id)).toEqual({ deletedPassageCount: 0, kind: "deleted" })
+      expect(await sourceRepository.deleteWithContent(source.id)).toEqual({ deletedAttemptCount: 0, deletedPassageCount: 0, kind: "deleted" })
       expect(await testDb.select().from(sources)).toHaveLength(0)
     })
 
-    it("非公開に戻した問題でも、解答の記録と音声が無ければ消す", async () => {
+    it("公開中の問題も消す", async () => {
       const { document, source } = await insertSourceWithDocument()
-      await insertPublishedPassage(document.id, { status: "draft" })
+      await insertPublishedPassage(document.id)
 
-      expect(await sourceRepository.deleteWithContent(source.id)).toEqual({ deletedPassageCount: 1, kind: "deleted" })
+      expect(await sourceRepository.deleteWithContent(source.id)).toEqual({ deletedAttemptCount: 0, deletedPassageCount: 1, kind: "deleted" })
+      expect(await testDb.select().from(passages)).toHaveLength(0)
+    })
+
+    it("解答の記録と、それに付く回答・調べた単語も消す。別のソースの解答の記録は残る", async () => {
+      const { passage, questions: passageQuestions, source } = await insertGeneratedPassage({ status: "published" })
+      const attempt = await insertReadingAttempt(passage.id)
+      await testDb.insert(attemptAnswers).values({ attemptId: attempt.id, isCorrect: true, questionId: passageQuestions[0].id, selectedChoiceIndex: 1 })
+      await insertWordLookup(attempt, { lemma: "effect", source: "dictionary", surface: "effect" })
+      const other = await insertSourceWithDocument()
+      const otherPassage = await insertPublishedPassage(other.document.id)
+      const otherAttempt = await insertReadingAttempt(otherPassage.id)
+
+      const result = await sourceRepository.deleteWithContent(source.id)
+
+      expect(result).toEqual({ deletedAttemptCount: 1, deletedPassageCount: 1, kind: "deleted" })
+      expect((await testDb.select().from(readingAttempts)).map((row) => row.id)).toEqual([otherAttempt.id])
+      expect(await testDb.select().from(attemptAnswers)).toHaveLength(0)
+      expect(await testDb.select().from(attemptWordLookups)).toHaveLength(0)
+    })
+
+    it("音声の行と課金の記録は残す（mp3 は generate:audio が行のマニフェストを見て消す）", async () => {
+      const { document, source } = await insertSourceWithDocument()
+      const passage = await insertPublishedPassage(document.id)
+      await insertPassageAudio(passage.id)
+      await testDb.insert(audioSynthesisUsages).values({ characters: 100, passageId: passage.id })
+
+      expect((await sourceRepository.deleteWithContent(source.id)).kind).toBe("deleted")
+
+      expect((await testDb.select().from(passageAudios)).map((row) => row.passageId)).toEqual([passage.id])
+      expect((await testDb.select().from(audioSynthesisUsages)).map((row) => row.passageId)).toEqual([passage.id])
     })
 
     it("終わった収集の記録だけなら止めない", async () => {
@@ -513,47 +548,12 @@ describe("SourceRepository.deleteWithContent", () => {
       expect(await sourceRepository.deleteWithContent(999999)).toEqual({ kind: "not_found" })
     })
 
-    it("公開中の問題があれば published で止め、何も消さない", async () => {
+    it.each(["queued", "running"] as const)("収集の記録が %s なら collecting で止め、何も消さない", async (status) => {
       const { document, source } = await insertSourceWithDocument()
       await insertPublishedPassage(document.id)
-
-      expect(await sourceRepository.deleteWithContent(source.id)).toEqual({ kind: "blocked", reason: "published" })
-      await expectNothingDeleted(source.id, 1)
-    })
-
-    it("非公開に戻した問題に解答の記録があれば attempted で止める", async () => {
-      const { document, source } = await insertSourceWithDocument()
-      const passage = await insertPublishedPassage(document.id, { status: "draft" })
-      await insertReadingAttempt(passage.id)
-
-      expect(await sourceRepository.deleteWithContent(source.id)).toEqual({ kind: "blocked", reason: "attempted" })
-      await expectNothingDeleted(source.id, 1)
-    })
-
-    it("音声の行がある問題があれば audio で止める", async () => {
-      const { document, source } = await insertSourceWithDocument()
-      const passage = await insertPublishedPassage(document.id, { status: "draft" })
-      await insertPassageAudio(passage.id)
-
-      expect(await sourceRepository.deleteWithContent(source.id)).toEqual({ kind: "blocked", reason: "audio" })
-      await expectNothingDeleted(source.id, 1)
-    })
-
-    it("音声の課金の記録だけが残っている問題も audio で止める", async () => {
-      const { document, source } = await insertSourceWithDocument()
-      const passage = await insertPassage(document.id, { status: "rejected" })
-      await testDb.insert(audioSynthesisUsages).values({ characters: 100, passageId: passage.id })
-
-      expect(await sourceRepository.deleteWithContent(source.id)).toEqual({ kind: "blocked", reason: "audio" })
-      await expectNothingDeleted(source.id, 1)
-    })
-
-    it.each(["queued", "running"] as const)("収集の記録が %s なら collecting で止める", async (status) => {
-      const { document, source } = await insertSourceWithDocument()
-      await insertPassage(document.id)
       await insertSourceCollectionRun({ sourceId: source.id, status })
 
-      expect(await sourceRepository.deleteWithContent(source.id)).toEqual({ kind: "blocked", reason: "collecting" })
+      expect(await sourceRepository.deleteWithContent(source.id)).toEqual({ kind: "collecting" })
       await expectNothingDeleted(source.id, 1)
     })
   })

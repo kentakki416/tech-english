@@ -56,7 +56,7 @@ export type GenerateAudioResult = {
    */
   lostClaimCount: number
   /**
-   * 却下された問題の音声（mp3 と行）を消した件数
+   * 取り下げた問題の音声（mp3 と行）を消した件数
    */
   purgedCount: number
   readyCount: number
@@ -201,17 +201,17 @@ const cleanUpAudioFiles = async (
 }
 
 /**
- * 却下（rejected）された問題の音声を消す（ライセンスなどで取り下げた問題の mp3 を残さないため）。mp3 をすべて消せたら行を消す。
+ * 却下（rejected）された問題と、ソースの削除で消えた問題の音声を消す（ライセンスなどで取り下げた問題の mp3 を残さないため）。mp3 をすべて消せたら行を消す。
  * 消せなかった mp3 があれば行を残し、次の実行でやり直す（行のマニフェストが残りのキーを指すため）。非公開（draft）の問題は、
  * 再公開で同じ本文なら作り直さずに使うので消さない。確保中（generation_started_at が staleBefore 以降）の行は、確保が終わってから消す
  */
-const purgeRejectedAudios = async (staleBefore: Date, repo: GenerateAudioRepo, deps: GenerateAudioDeps): Promise<number> => {
+const purgeWithdrawnAudios = async (staleBefore: Date, repo: GenerateAudioRepo, deps: GenerateAudioDeps): Promise<number> => {
   let purgedCount = 0
-  for (const audio of await repo.passageAudioRepository.findRejected(staleBefore)) {
+  for (const audio of await repo.passageAudioRepository.findWithdrawn(staleBefore)) {
     const keys = listUnusedAudioKeys(audio.manifest, null)
     if (!await deleteAudioKeys(keys, audio.passageId, deps.audioStorage)) continue
     await repo.passageAudioRepository.deleteByPassageId(audio.passageId)
-    logger.info("audio of a rejected passage was deleted", { keyCount: keys.length, passageId: audio.passageId })
+    logger.info("audio of a withdrawn passage was deleted", { keyCount: keys.length, passageId: audio.passageId })
     purgedCount++
   }
   return purgedCount
@@ -275,7 +275,7 @@ export const generateAudio = async (
   const releasedCount = await repo.passageAudioRepository.releaseStaleGenerating(staleBefore)
   if (releasedCount > 0) logger.warn("stale generating audios were released", { releasedCount })
 
-  result.purgedCount = await purgeRejectedAudios(staleBefore, repo, deps)
+  result.purgedCount = await purgeWithdrawnAudios(staleBefore, repo, deps)
 
   const targets = await repo.passageAudioRepository.claimTargets({
     calculateTextHash,

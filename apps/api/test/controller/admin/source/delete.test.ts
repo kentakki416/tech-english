@@ -1,6 +1,6 @@
 import request from "supertest"
 
-import { eq, passages, sourceCollectionRuns, sourceDocuments, sources } from "@repo/db"
+import { eq, passages, readingAttempts, sourceCollectionRuns, sourceDocuments, sources } from "@repo/db"
 
 import { AdminSourceCreateController } from "../../../../src/controller/admin/source/create"
 import { AdminSourceDeleteController } from "../../../../src/controller/admin/source/delete"
@@ -8,6 +8,7 @@ import { DrizzleSourceCollectionRunRepository } from "../../../../src/repository
 import { DrizzleSourceRepository } from "../../../../src/repository/drizzle/source-repository"
 import { DrizzleTagRepository } from "../../../../src/repository/drizzle/tag-repository"
 import { adminRouter, mountAdminApi } from "../../../../src/routes/admin-router"
+import { insertReadingAttempt } from "../../../fixture/passage"
 import { insertSourceCollectionRun } from "../../../fixture/source-collection-run"
 import { attachUnhandledExceptionHandler, createTestAdmin, createTestApp } from "../../helper"
 import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb } from "../../setup"
@@ -59,6 +60,21 @@ describe("DELETE /api/admin/source/:id", () => {
       expect(await testDb.select().from(passages)).toHaveLength(0)
     })
 
+    it("公開中の問題と解答の記録があっても消す", async () => {
+      const source = await insertGitHubSource()
+      const document = await insertSourceDocument(source.id, "docs/index.md")
+      await insertPassages(document.id, "published", 1)
+      const [passage] = await testDb.select().from(passages)
+      await insertReadingAttempt(passage.id)
+
+      const res = await del(source.id)
+
+      expect(res.status).toBe(204)
+      expect(await testDb.select().from(sources)).toHaveLength(0)
+      expect(await testDb.select().from(passages)).toHaveLength(0)
+      expect(await testDb.select().from(readingAttempts)).toHaveLength(0)
+    })
+
     it("サイトのソースも消せる", async () => {
       const source = await insertWebsiteSource()
 
@@ -92,25 +108,17 @@ describe("DELETE /api/admin/source/:id", () => {
   })
 
   describe("異常系", () => {
-    it("公開中の問題があれば 409 を返し、何も消さない", async () => {
+    it("収集中なら 409 を返し、公開中の問題も記録も消さない", async () => {
       const source = await insertGitHubSource()
       const document = await insertSourceDocument(source.id, "docs/index.md")
       await insertPassages(document.id, "published", 1)
+      await insertSourceCollectionRun({ sourceId: source.id, startedAt: new Date(), status: "running" })
 
       const res = await del(source.id)
 
       expect(res.status).toBe(409)
       expect(await testDb.select().from(passages)).toHaveLength(1)
       expect(await testDb.select().from(sources)).toHaveLength(1)
-    })
-
-    it("収集中なら 409 を返し、記録も消さない", async () => {
-      const source = await insertGitHubSource()
-      await insertSourceCollectionRun({ sourceId: source.id, startedAt: new Date(), status: "running" })
-
-      const res = await del(source.id)
-
-      expect(res.status).toBe(409)
       expect(await testDb.select().from(sourceCollectionRuns).where(eq(sourceCollectionRuns.sourceId, source.id))).toHaveLength(1)
     })
 

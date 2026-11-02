@@ -2,7 +2,6 @@ import { sql } from "drizzle-orm"
 import { check, foreignKey, index, integer, pgTable, serial } from "drizzle-orm/pg-core"
 
 import { timestamps } from "./columns"
-import { passages } from "./passage"
 import { wordAudios } from "./word-audio"
 
 /**
@@ -11,6 +10,7 @@ import { wordAudios } from "./word-audio"
  * 今月（UTC の暦月）の合計（読み上げと単語の発音の合算）で AUDIO_MONTHLY_CHARACTER_LIMIT を超えないようにする。
  * 列の正本は docs/spec/read-aloud/README.md の「必要な DB 設計」（word_audio_id は docs/spec/vocabulary-pronunciation/README.md）。
  * 制約・index 名は `{table}_{columns}_key` / `_idx` / `_fkey` の命名にそろえている。
+ * passage_id に外部キーを張らないのは、問題を消しても記録を残すため（消すと今月の合計が減り、上限が効かなくなる）
  */
 export const audioSynthesisUsages = pgTable(
   "audio_synthesis_usages",
@@ -36,16 +36,6 @@ export const audioSynthesisUsages = pgTable(
      * 読み上げ（passage_id）と単語の発音（word_audio_id）のどちらか一方だけ
      */
     check("audio_synthesis_usages_target_check", sql`num_nonnulls(${table.passageId}, ${table.wordAudioId}) = 1`),
-    /**
-     * 課金の記録を残すため restrict（記録のある問題のソースは削除できない）
-     */
-    foreignKey({
-      columns: [table.passageId],
-      foreignColumns: [passages.id],
-      name: "audio_synthesis_usages_passage_id_fkey",
-    })
-      .onDelete("restrict")
-      .onUpdate("cascade"),
     /**
      * word_audios は消さないので restrict（課金の記録を残す）
      */

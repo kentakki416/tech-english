@@ -18,7 +18,7 @@ describe("deleteSource", () => {
 
   describe("正常系", () => {
     it("時間切れの収集の記録を片付けてから削除する", async () => {
-      sourceRepository.deleteWithContent.mockResolvedValue({ deletedPassageCount: 3, kind: "deleted" })
+      sourceRepository.deleteWithContent.mockResolvedValue({ deletedAttemptCount: 2, deletedPassageCount: 3, kind: "deleted" })
 
       const result = await callDeleteSource(1)
 
@@ -39,8 +39,8 @@ describe("deleteSource", () => {
       expect(result).toMatchObject({ error: { statusCode: 404, type: "NOT_FOUND" }, ok: false })
     })
 
-    it.each(["attempted", "audio", "collecting", "published"] as const)("%s で止まったら 409 を返す", async (reason) => {
-      sourceRepository.deleteWithContent.mockResolvedValue({ kind: "blocked", reason })
+    it("収集中で止まったら 409 を返す", async () => {
+      sourceRepository.deleteWithContent.mockResolvedValue({ kind: "collecting" })
 
       const result = await callDeleteSource(1)
 

@@ -476,7 +476,7 @@ export const suggestSourceFromUrl = async (
     : suggestGitHubRepositorySource(input.url, deps)
 
 /**
- * ソースを本文候補ごと削除する。公開中の問題・解答の記録・音声があるか、収集中のソースは 409 で何も消さない。
+ * ソースを、公開中の問題と解答の記録も含めて削除する。音声の mp3 は generate:audio が消す。収集中のソースは 409 で何も消さない。
  * 時間切れの収集の記録が残っていると削除できないままになるので、先に片付ける
  */
 export const deleteSource = async (
@@ -490,11 +490,15 @@ export const deleteSource = async (
     logger.debug("SourceService: Source not found for deletion", { id })
     return err(notFoundError("Source not found"))
   }
-  if (result.kind === "blocked") {
-    logger.debug("SourceService: Source deletion was blocked", { id, reason: result.reason })
-    return err(conflictError(`Source cannot be deleted: ${result.reason}`))
+  if (result.kind === "collecting") {
+    logger.debug("SourceService: Source deletion was blocked by a running collection", { id })
+    return err(conflictError("Source cannot be deleted while it is being collected"))
   }
-  logger.info("SourceService: Source deleted", { id, deletedPassageCount: result.deletedPassageCount })
+  logger.info("SourceService: Source deleted", {
+    id,
+    deletedAttemptCount: result.deletedAttemptCount,
+    deletedPassageCount: result.deletedPassageCount,
+  })
   return ok({ deleted: true })
 }
 

@@ -21,7 +21,7 @@ import { sourceDocuments } from "./source-document"
 import { joinSqlValues } from "./sql-values"
 
 /**
- * 本文候補 / 問題。状態（status）で収集から公開までを表す。物理削除するのはソースの削除のときだけ（公開中の問題・挑戦記録・音声があるソースは削除できない）
+ * 本文候補 / 問題。状態（status）で収集から公開までを表す。物理削除するのはソースの削除のときだけ
  *
  * 列の正本は docs/spec/question-generation/README.md の「必要な DB 設計」。
  * source_path / source_commit_sha / source_retrieved_at を source_documents と別に持つのは、

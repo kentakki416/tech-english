@@ -8,7 +8,7 @@ import { SourceCollectionRunRepository, SourceRepository } from "../../../reposi
 import * as service from "../../../service"
 
 /**
- * admin のソースの削除API。本文候補・文書・収集の記録も一緒に消える。成功は 204（ボディなし）
+ * admin のソースの削除API。公開中の問題・解答の記録も一緒に消える。成功は 204（ボディなし）
  */
 export class AdminSourceDeleteController {
   constructor(

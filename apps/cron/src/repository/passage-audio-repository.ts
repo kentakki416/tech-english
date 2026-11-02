@@ -68,9 +68,9 @@ export type AudioClaimResult = "failed" | "lost_claim" | "ready" | "retry_later"
 export type CalculateTextHash = (blocks: PassageBlock[]) => string
 
 /**
- * 却下された問題の音声（generate:audio が保存先の mp3 と行を消す）
+ * 取り下げた問題（却下した問題・ソースの削除で消えた問題）の音声（generate:audio が保存先の mp3 と行を消す）
  */
-export type RejectedPassageAudio = Pick<PassageAudio, "manifest" | "passageId">
+export type WithdrawnPassageAudio = Pick<PassageAudio, "manifest" | "passageId">
 
 /**
  * cron 側で必要な読み上げの音声の操作（generate:audio）
@@ -105,13 +105,13 @@ export interface PassageAudioRepository {
     options: { calculateTextHash: CalculateTextHash; now: Date },
   ): Promise<AudioClaimResult>
   /**
-   * 音声の行を消す（却下された問題の mp3 を消した後）
+   * 音声の行を消す（取り下げた問題の mp3 を消した後）
    */
   deleteByPassageId(passageId: number): Promise<void>
   /**
-   * 却下（rejected）された問題の音声の行。generation_started_at が staleBefore 以降の行（確保中）は除く
+   * 却下（rejected）された問題と、行が無くなった問題の音声の行。generation_started_at が staleBefore 以降の行（確保中）は除く
    */
-  findRejected(staleBefore: Date): Promise<RejectedPassageAudio[]>
+  findWithdrawn(staleBefore: Date): Promise<WithdrawnPassageAudio[]>
   /**
    * 確保を外す（設定の誤り・月の上限でタスクを止めるとき）。失敗回数は増やさない。generating で確保した行は pending に戻し、
    * ready のまま確保した行は generation_started_at だけを null にする（updated_at は進めない）。確保が古ければ何もしない

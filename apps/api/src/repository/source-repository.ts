@@ -65,17 +65,11 @@ export type SourceUpdateOptions = {
 }
 
 /**
- * ソースを削除できない理由。collecting は収集中、published は公開中の問題がある、
- * attempted は解答の記録がある問題がある（非公開に戻した問題も含む）、audio は音声か音声の課金の記録がある問題がある
- */
-export type SourceDeletionBlockReason = "attempted" | "audio" | "collecting" | "published"
-
-/**
- * blocked のときは何も消していない
+ * collecting は収集中で、何も消していない
  */
 export type SourceDeleteResult =
-  | { kind: "blocked"; reason: SourceDeletionBlockReason }
-  | { deletedPassageCount: number; kind: "deleted" }
+  | { kind: "collecting" }
+  | { deletedAttemptCount: number; deletedPassageCount: number; kind: "deleted" }
   | { kind: "not_found" }
 
 /**
@@ -91,7 +85,7 @@ export interface SourceRepository {
    */
   create(input: SourceCreateInput): Promise<SourceCreateResult>
   /**
-   * 削除できるかの判定と、本文候補・文書・ソースの削除を 1 トランザクションで行う
+   * 収集中かの判定と、挑戦記録・問題（状態を問わない）・文書・ソースの削除を 1 トランザクションで行う
    */
   deleteWithContent(id: number): Promise<SourceDeleteResult>
   /**

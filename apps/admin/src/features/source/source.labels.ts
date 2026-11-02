@@ -67,12 +67,12 @@ export const SOURCE_COLLECTION_REQUEST_FAILURE_MESSAGES: Record<SourceCollection
 }
 
 /**
- * ソースを削除できなかった理由。blocked は api の 409（理由は区別しない）、not_found はほかの管理者が先に削除した、failed はそのほか
+ * ソースを削除できなかった理由。collecting は api の 409、not_found はほかの管理者が先に削除した、failed はそのほか
  */
-export type SourceDeleteFailureReason = "blocked" | "failed" | "not_found"
+export type SourceDeleteFailureReason = "collecting" | "failed" | "not_found"
 
 export const SOURCE_DELETE_FAILURE_MESSAGES: Record<SourceDeleteFailureReason, string> = {
-  blocked: "公開中の問題、解答の記録、音声のいずれかがあるか、収集中のため削除できません。",
+  collecting: "収集中のため削除できません。終わってからもう一度お試しください。",
   failed: "削除に失敗しました。時間をおいて再度お試しください。",
   not_found: "このソースはすでに削除されています。",
 }

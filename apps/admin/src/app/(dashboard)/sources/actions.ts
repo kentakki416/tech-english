@@ -142,14 +142,14 @@ export const requestSourceCollectionAction = async (sourceId: number): Promise<S
 export type SourceDeleteResult = { ok: false, reason: SourceDeleteFailureReason } | { ok: true }
 
 const convertDeleteErrorToReason = (error: ApiClientError): SourceDeleteFailureReason => {
-  if (error.status === 409) return "blocked"
+  if (error.status === 409) return "collecting"
   if (error.status === 404) return "not_found"
   return "failed"
 }
 
 /**
  * ソースの削除の Server Action。通らなかったときも一覧を読み直す（409・404 は一覧のデータが古い）。
- * タグのソースの件数も変わるので、タグの画面も作り直す
+ * タグのソースの件数と問題の一覧も変わるので、その画面も作り直す
  */
 export const deleteSourceAction = async (sourceId: number): Promise<SourceDeleteResult> => {
   const params = deleteSourcePathParamSchema.safeParse({ id: sourceId })
@@ -165,5 +165,6 @@ export const deleteSourceAction = async (sourceId: number): Promise<SourceDelete
   }
   revalidatePath("/sources", "layout")
   revalidatePath("/tags")
+  revalidatePath("/passages")
   return { ok: true }
 }

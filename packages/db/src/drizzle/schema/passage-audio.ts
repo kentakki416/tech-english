@@ -1,7 +1,6 @@
 import { sql } from "drizzle-orm"
 import {
   check,
-  foreignKey,
   index,
   integer,
   jsonb,
@@ -16,12 +15,12 @@ import {
 import { AUDIO_STATUSES, type PassageAudioManifest } from "@repo/domain"
 
 import { timestamps } from "./columns"
-import { passages } from "./passage"
 import { joinSqlValues } from "./sql-values"
 
 /**
  * 問題ごとの読み上げの音声（1 問 1 行）。列の正本は docs/spec/read-aloud/README.md の「必要な DB 設計」。
  * ユーザーに紐づかないので、アカウント削除の cascade の対象外。制約・index 名は `{table}_{columns}_key` / `_idx` / `_fkey` の命名にそろえている。
+ * passage_id に外部キーを張らないのは、問題を消しても mp3 のキー（manifest）を残すため。行は generate:audio が mp3 を消してから消す
  */
 export const passageAudios = pgTable(
   "passage_audios",
@@ -73,13 +72,6 @@ export const passageAudios = pgTable(
       "passage_audios_generating_columns_check",
       sql`${table.status} <> 'generating' OR ${table.generationStartedAt} IS NOT NULL`,
     ),
-    foreignKey({
-      columns: [table.passageId],
-      foreignColumns: [passages.id],
-      name: "passage_audios_passage_id_fkey",
-    })
-      .onDelete("cascade")
-      .onUpdate("cascade"),
     uniqueIndex("passage_audios_passage_id_key").on(table.passageId),
     /**
      * 生成タスクの取得用
