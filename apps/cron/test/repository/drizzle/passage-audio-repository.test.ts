@@ -397,6 +397,19 @@ describe("DrizzlePassageAudioRepository", () => {
         expect(fake.queries).toHaveLength(3)
       })
 
+      it("問題の行が無ければ（ソースの削除で消えた）ready にせず pending に戻して text_changed", async () => {
+        const fake = createFakeDb([[{ regenerateRequestedAt: null }], [], []])
+
+        const result = await new DrizzlePassageAudioRepository(fake.db).completeClaim(
+          CLAIM,
+          { billedCharacters: 120, kind: "ready", manifest: MANIFEST, textHash: `hash:${BLOCKS[0]?.text}`, voiceId: "Joanna" },
+          { calculateTextHash, now: NOW },
+        )
+
+        expect(result).toBe("text_changed")
+        expect(findArgs(fake.queries[2], "set")?.[0]).toEqual({ generationStartedAt: null, status: "pending", updatedAt: NOW })
+      })
+
       it("failed：回数の +1 と上限での failed を 1 文で更新し、manifest と text_hash は更新しない", async () => {
         const fake = createFakeDb([[{ regenerateRequestedAt: null }], [{ status: "failed" }]])
 

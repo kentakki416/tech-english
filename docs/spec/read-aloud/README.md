@@ -619,8 +619,8 @@ sequenceDiagram
     Admin->>API: 問題を公開
     API->>DB: passages.status = published
     Note over Cron: 1 時間ごと
-    Cron->>S3: 却下した問題の mp3 を消す
-    Cron->>DB: 却下した問題の音声の行を消す
+    Cron->>S3: 取り下げた問題の mp3 を消す
+    Cron->>DB: 取り下げた問題の音声の行を消す
     Cron->>DB: 対象を確保（generating。voice の変更・作り直しの依頼は ready のまま。短いトランザクション）
     Cron->>DB: 今月の課金文字数（+ 見込みが月の上限を超えるなら止める）
     loop 読み上げるブロックごと

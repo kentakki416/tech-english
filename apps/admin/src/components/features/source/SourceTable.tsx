@@ -150,7 +150,8 @@ const convertSourceToRow = (source: SourceListItem): SourceRow => ({
 /**
  * ソース一覧の表（1 つの取得方法のソース）。Basic Tables と同じ DataTable（検索・Filter つき、ページ送りなし）。
  * [GitHub] [サイト] はクエリだけが変わる遷移でこの部品が作り直されないので、取得方法を key にして検索の文字と Filter を消す。
- * 収集中のソースがある間は画面を読み直し、結果に切り替える。activeStatuses は収集中の状態の値（Server Component が @repo/api-schema から渡す）
+ * 収集中のソースがある間は画面を読み直し、結果に切り替える。activeStatuses は収集中の状態の値（Server Component が @repo/api-schema から渡す）。
+ * 削除のモーダルには読み直した最新の行を渡す（開いている間に収集が終わったら削除できるように）。ほかの管理者が消して行が無くなったら、開いた時点の行のまま理由を出す
  */
 export function SourceTable({ activeStatuses, fetchType, sources }: {
   activeStatuses: readonly SourceCollectionRunStatus[]
@@ -177,7 +178,14 @@ export function SourceTable({ activeStatuses, fetchType, sources }: {
         getRowKey={(row) => row.id}
         search={{ filterKeys: ["name", "origin"], placeholder: SEARCH_PLACEHOLDERS[fetchType] }}
       />
-      {deletingSource && <SourceDeleteModal key={deletingSource.id} activeStatuses={activeStatuses} onClose={() => setDeletingSource(null)} source={deletingSource} />}
+      {deletingSource && (
+        <SourceDeleteModal
+          key={deletingSource.id}
+          activeStatuses={activeStatuses}
+          onClose={() => setDeletingSource(null)}
+          source={sources.find((source) => source.id === deletingSource.id) ?? deletingSource}
+        />
+      )}
     </>
   )
 }

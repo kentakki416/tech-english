@@ -34,7 +34,7 @@ export function SourceDeleteModal({ activeStatuses, onClose, source }: {
   const [isPending, startTransition] = useTransition()
   const isCollecting = source.latest_collection_run !== null && activeStatuses.includes(source.latest_collection_run.status)
   const displayedReason = isCollecting ? "collecting" : failureReason
-  const canDelete = displayedReason !== "collecting" && displayedReason !== "not_found"
+  const canDelete = !isCollecting && failureReason !== "not_found"
 
   /**
    * 送信中に閉じると、遅れて届いた成功が別のモーダルを閉じてしまうので、送信中は閉じさせない
@@ -45,7 +45,7 @@ export function SourceDeleteModal({ activeStatuses, onClose, source }: {
 
   const handleDelete = () => {
     startTransition(async () => {
-      const result = await deleteSourceAction(source.id)
+      const result = await deleteSourceAction(source.id).catch(() => ({ ok: false as const, reason: "failed" as const }))
       if (result.ok) {
         onClose()
         return

@@ -247,7 +247,7 @@ const summarizeOutcome = (outcome: AudioClaimOutcome) => {
  * generate:audio の本体。公開済みの問題の読み上げの音声を作る。
  *
  * 1. generating のまま 30 分以上たった行を pending に戻す
- * 2. 却下された問題の音声（mp3 と行）を消す
+ * 2. 取り下げた問題の音声（mp3 と行）を消す
  * 3. 対象を古い順に確保する（短いトランザクション。FOR UPDATE SKIP LOCKED）。voice の変更・作り直しの依頼の ready の行は ready のまま確保する
  * 4. 1 件ずつ、トランザクションの外で音声を作る。作る前に今月の課金文字数 + 見込みが月の上限を超えるなら、残りの確保を外して止める。
  *    1 件の失敗で他の件は止めない。設定の誤り（音声合成・保存先）はその行の確保を外して throw する

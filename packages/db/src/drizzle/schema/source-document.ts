@@ -42,7 +42,7 @@ export const sourceDocuments = pgTable(
   },
   (table) => [
     /**
-     * ソースを削除する機能は無く、問題が出典として参照し続けるため restrict
+     * 問題が出典として参照するので、気づかず消えないよう restrict（ソースの削除は文書を先に消す）
      */
     foreignKey({
       columns: [table.sourceId],
