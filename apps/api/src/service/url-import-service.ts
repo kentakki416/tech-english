@@ -1,6 +1,7 @@
 import type { PassageChunk } from "@repo/content-extractor"
 import {
   type ChunkRejectReason,
+  normalizePassageTitle,
   type PassageStatus,
   SUPERSEDED_PASSAGE_REJECT_REASON,
   type UrlImportChunkStatus,
@@ -91,7 +92,7 @@ const isGeneratedOrGenerating = (passage: ImportPassage): boolean =>
   GENERATED_OR_GENERATING_STATUSES.includes(passage.status) || (passage.status === "rejected" && passage.generatedAt !== null)
 
 const findGeneratedOrGeneratingTitles = (documentPassages: ImportPassage[]): Set<string> =>
-  new Set(documentPassages.filter(isGeneratedOrGenerating).map((passage) => passage.title))
+  new Set(documentPassages.filter(isGeneratedOrGenerating).map((passage) => normalizePassageTitle(passage.title)))
 
 const buildExcerpt = (chunk: PassageChunk): string => {
   const text = chunk.blocks.find((block) => block.type !== "heading")?.text ?? ""
@@ -107,7 +108,7 @@ const classifyChunk = (
   passagesByContentHash: Map<string, ImportPassage>,
 ): UrlImportChunkStatus => {
   if (chunk.rejectReasons.length > 0) return "not_candidate"
-  if (generatedOrGeneratingTitles.has(chunk.title)) return "generated_section"
+  if (generatedOrGeneratingTitles.has(normalizePassageTitle(chunk.title))) return "generated_section"
   const sameContentPassage = passagesByContentHash.get(chunk.contentHash)
   if (sameContentPassage === undefined) return "new"
   return sameContentPassage.status === "collected" ? "existing" : "duplicated"
@@ -279,7 +280,7 @@ export const importUrl = async (
     const documentPassages = await repo.urlImportRepository.findDocumentPassages({ path: page.path, sourceId: source.id }, tx)
     const generatedOrGeneratingTitles = findGeneratedOrGeneratingTitles(documentPassages)
     const candidatesToInsert = page.chunks.filter((chunk) =>
-      chunk.rejectReasons.length === 0 && !generatedOrGeneratingTitles.has(chunk.title))
+      chunk.rejectReasons.length === 0 && !generatedOrGeneratingTitles.has(normalizePassageTitle(chunk.title)))
     const createdIds = await repo.urlImportRepository.insertCandidates(
       candidatesToInsert.map((chunk) => ({
         blocks: chunk.blocks,

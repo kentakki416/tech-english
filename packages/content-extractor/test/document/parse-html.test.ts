@@ -123,6 +123,15 @@ describe("parseHtml", () => {
       expect(convertMdastToBlocks(root)).toEqual([{ text: "For example:", type: "paragraph" }, block])
     })
 
+    it("箇条書きの項目の中のコードを包む figure も中身を残す", () => {
+      const { root } = parseHtml(
+        "<main><figure><ul><li><pre><code class=\"language-js\">run()</code></pre></li></ul><figcaption>app.js</figcaption></figure></main>",
+        { contentSelector: "main", excludeSelectors: [], url: "https://docs.example.dev/" },
+      )
+
+      expect(convertMdastToBlocks(root)).toEqual([{ lang: "js", text: "run()", type: "code" }])
+    })
+
     it("<title> が無ければ最初の h1 をタイトルにする", () => {
       const { title } = parseHtml("<main><h1>  Heading   Title </h1><p>Body.</p></main>", {
         contentSelector: "main",
@@ -137,6 +146,7 @@ describe("parseHtml", () => {
       ["表", "<table><tr><th>a</th></tr><tr><td>1</td></tr></table>"],
       ["リンクで包んだ画像", "<a href=\"/diagram.png\"><img src=\"/diagram.png\" alt=\"\"></a>"],
       ["図", "<figure><img src=\"/diagram.png\" alt=\"\"><figcaption>FIG 1 A diagram</figcaption></figure>"],
+      ["画像の無い図", "<figure><div>Score against tokens</div><figcaption>FIG 1 A chart</figcaption></figure>"],
     ])("「:」で終わる段落の後ろの%sを捨てたら、末尾の「:」を「.」にする", (_, dropped) => {
       const { root } = parseHtml(
         `<main><p>For example:</p>${dropped}<p>Next.</p></main>`,

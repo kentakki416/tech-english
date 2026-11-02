@@ -133,6 +133,22 @@ describe("importUrl", () => {
       expect(urlImportRepository.insertCandidates.mock.calls[0][0].map((input) => input.title)).toEqual(["B"])
     })
 
+    it("大文字・小文字だけが違う見出しの問題がある塊は作らない", async () => {
+      pageFetcher.fetchAndExtractPage.mockResolvedValue({
+        kind: "ok",
+        page: buildFetchedPage({
+          chunks: [buildChunk({ contentHash: "hash-a", title: "Eval design" }), buildChunk({ contentHash: "hash-b", title: "Examples" })],
+        }),
+      })
+      urlImportRepository.findDocumentPassages.mockResolvedValue([
+        buildImportPassage({ contentHash: "hash-old", status: "draft", title: "EVAL DESIGN" }),
+      ])
+
+      await importUrl(PAGE_URL, NOW, repo, deps)
+
+      expect(urlImportRepository.insertCandidates.mock.calls[0][0].map((input) => input.title)).toEqual(["Examples"])
+    })
+
     it("本文候補になる塊が 0 なら、文書は記録して前の切り分けの collected を却下し、挿入・優先は何も渡さない", async () => {
       pageFetcher.fetchAndExtractPage.mockResolvedValue({
         kind: "ok",

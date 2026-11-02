@@ -8,6 +8,12 @@ import {
 import type { PassageDifficulty, PassageStatus } from "../types/passage"
 
 /**
+ * 本文候補の「同じ見出し」を比べるための値。抽出の規則で見出しの大文字・小文字だけが変わっても、同じ節の問題を二重に作らないため、
+ * 大文字・小文字を区別しない（`content_hash` も小文字にして比べる）
+ */
+export const normalizePassageTitle = (title: string): string => title.toLowerCase()
+
+/**
  * 本文候補 / 問題の状態の値かどうか
  */
 export const isPassageStatus = (value: string): value is PassageStatus =>

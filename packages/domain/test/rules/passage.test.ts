@@ -4,6 +4,7 @@ import {
   calculateTimeLimitSeconds,
   isPassageDifficulty,
   isPassageStatus,
+  normalizePassageTitle,
 } from "../../src/rules/passage"
 
 describe("isPassageStatus", () => {
@@ -33,6 +34,18 @@ describe("isPassageDifficulty", () => {
      */
     it.each([0, 4, -1, 1.5, Number.NaN])("%d は難易度の値ではない", (value) => {
       expect(isPassageDifficulty(value)).toBe(false)
+    })
+  })
+})
+
+describe("normalizePassageTitle", () => {
+  describe("正常系", () => {
+    it("大文字・小文字だけが違う見出しは同じ値になる", () => {
+      expect(normalizePassageTitle("EVAL DESIGN")).toBe(normalizePassageTitle("Eval design"))
+    })
+
+    it("違う見出しは違う値になる", () => {
+      expect(normalizePassageTitle("Eval design")).not.toBe(normalizePassageTitle("Eval design (2)"))
     })
   })
 })

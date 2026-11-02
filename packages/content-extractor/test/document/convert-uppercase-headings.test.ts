@@ -15,12 +15,24 @@ describe("convertUppercaseHeadings", () => {
       ["略語を含む見出し", "REST API DESIGN", "A REST API needs a careful design.", "REST API design"],
       ["固有名", "OAUTH WITH GITHUB", "Sign in with OAuth through GitHub.", "OAuth with GitHub"],
       ["記号でつながった語", "NODE.JS AND CI/CD", "Run Node.js and CI/CD and more.", "Node.js and CI/CD"],
+      ["語の中に大文字がある固有名", "IPHONE SETUP", "Finish the setup on your iPhone.", "iPhone setup"],
+      ["番号で始まる見出し", "1. EVAL DESIGN", "Every eval needs a good design.", "1. Eval design"],
+      ["引用符で始まる見出し", "\"EVAL\" DESIGN", "Every eval needs a good design.", "\"Eval\" design"],
+      ["数字で始まる語", "2FA SETUP", "Turn on 2fa during setup.", "2fa setup"],
     ])("本文の書き方に合わせて文頭だけ大文字にする：%s", (_, heading, prose, expected) => {
       expect(convertHeading(heading, prose)).toBe(expected)
     })
 
     it("本文に書き方が複数あれば、多い方に合わせる", () => {
       expect(convertHeading("USING REACT", "React renders. React updates. Components react to state.")).toBe("Using React")
+    })
+
+    it.each([
+      ["略語", "API-FIRST DESIGN", "The API comes first in this design.", "API-first design"],
+      ["固有名", "GITHUB-BASED WORKFLOWS", "Use GitHub for workflows.", "GitHub-based workflows"],
+      ["本文に無い部分", "WELL-SCOPED GOALS", "Nothing related here.", "Well-scoped goals"],
+    ])("ハイフンでつながった語が本文に無ければ、部分ごとに本文の書き方に合わせる：%s", (_, heading, prose, expected) => {
+      expect(convertHeading(heading, prose)).toBe(expected)
     })
 
     it("インラインコードは本文の書き方に数えない", () => {
