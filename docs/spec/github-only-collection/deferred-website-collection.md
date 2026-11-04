@@ -19,7 +19,7 @@
 | | 今 | 着手後 |
 | --- | --- | --- |
 | GitHub のリポジトリの収集 | ✅ | ✅ |
-| サイトの収集（cron のクロール） | ❌ | ✅ |
+| サイトの収集（worker のクロール） | ❌ | ✅ |
 | サイトのソースの登録 | ローカルだけ | デプロイした環境でも |
 | URL から追加 | ローカルだけ | デプロイした環境でも（許可リストのライセンスのサイトだけ） |
 | 個人の学習用のライセンス | ローカルのサイトのソースだけ | 変えない（デプロイした環境には入れない） |
@@ -27,16 +27,16 @@
 ## 設計案
 
 - やめる前の実装（step1・step5 で消したもの）を git の履歴から戻す。設計の正本は、やめる前の [content-collection](../content-collection/README.md) の「サイトのクロール」「取得先の制限」「実行の上限と失敗時の扱い」（この spec の step5 で書き直す前の版）
-- 戻すときは、デプロイした環境では個人の学習用のサイトのソースを収集も取り込みもしないことを、api と cron の両方で守る（個人の学習用のソースはローカルにしか無い前提を崩さない）
+- 戻すときは、デプロイした環境では個人の学習用のサイトのソースを収集も取り込みもしないことを、api と worker の両方で守る（個人の学習用のソースはローカルにしか無い前提を崩さない）
 
 ## 既存仕様との差分（着手時のチェックリスト）
 
 - [ ] `sources.sitemap_url`・`start_url`、`source_documents.etag`・`last_modified`・`sitemap_lastmod`・`http_status` と `source_documents_source_id_fetched_at_idx` を足し直す migration
 - [ ] `sources_website_check` に sitemap・開始ページの条件を戻す
-- [ ] cron の `collectWebsiteSource`・Repository のクロールのメソッド（`findFetchQueue`・`upsertDiscovered`・`markResponse`）・`createWebPageClient` の DI・終わり方（`throttled`・`crawl_delay_too_long`）・env の `COLLECT_WEB_REQUEST_INTERVAL_MS` と `COLLECT_WEB_REFETCH_DAYS` を戻す（step1）
+- [ ] `collectWebsiteSource`・Repository のクロールのメソッド（`findFetchQueue`・`upsertDiscovered`・`markResponse`）・`createWebPageClient` の DI・終わり方（`throttled`・`crawl_delay_too_long`）・env の `COLLECT_WEB_REQUEST_INTERVAL_MS` と `COLLECT_WEB_REFETCH_DAYS` を、worker の収集に戻す（step1 で cron から消した。収集はその後 [manual-collection](../manual-collection/README.md) で cron から worker に移した）
 - [ ] `@repo/content-extractor` の、収集だけが使っていた機能を戻す。sitemap の解析・ページのリンク・クロールのページの選び方（step1）と、条件付きリクエスト（step5）
-- [ ] cron の `findEnabledGitHubSources` の取得方法の絞り込みと、`--source-id` のサイトのソースの throw を外す
+- [ ] 収集できるかの判定（`@repo/domain` の `checkSourceCollectability`）でサイトのソースを断る分岐（理由の `website`）を外す
 - [ ] api の「サイトのソースはローカルだけ」と「URL から追加はローカルだけ」を外す。サイトのソースの `is_enabled` を受け取る
 - [ ] DB の `sources_website_disabled_check` を外す（サイトのソースを有効にできるようにする）
 - [ ] admin のサイトのフォーム（ページの見つけ方・収集のスイッチ・試し実行）、ソース一覧の「取得失敗」の列と「無効のサイトのソースがあります」の案内を戻す
-- [ ] 戻した 2 つの env を、Terraform の worker の `environment` にも足す（収集は admin の今すぐ収集で worker が行い、cron のスケジュールは持たない。[manual-collection](../manual-collection/README.md)）
+- [ ] 戻した 2 つの env を、Terraform の worker の `environment` にも足す（収集は admin の今すぐ収集で worker が行い、cron のスケジュールは持たない）
