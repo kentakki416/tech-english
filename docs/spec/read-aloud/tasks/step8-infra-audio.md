@@ -5,7 +5,7 @@
 ## 前提
 
 - [step3-cron-generate-audio](./step3-cron-generate-audio.md)（`dist/task/generate-audio.js`、cron の env）・[step4-api-attempt-audio](./step4-api-attempt-audio.md)（api の `AUDIO_PUBLIC_URL_BASE`）がデプロイ済み
-- [question-generation step7-infra-cron-schedules](../../question-generation/tasks/step7-infra-cron-schedules.md)（`local.cron_task_schedules`、`modules/ecs-schedule-task` の `command` / `container_name`、`module "ecs_cron"` の `environment`）
+- [question-generation step7-infra-cron-schedules](../../question-generation/tasks/step7-infra-cron-schedules.md)（`local.cron_task_schedules`、`modules/ecs-schedule-task` の `command` / `container_name`）
 - [minimal-deploy step3-infra-env-min](../../minimal-deploy/tasks/step3-infra-env-min.md)・[step4-ci-deploy-min](../../minimal-deploy/tasks/step4-ci-deploy-min.md)（`env/min` と `deploy-aws-min.yml`）
 - 東京リージョンで `Joanna` の Neural が使えることを Polly の voice の一覧で確かめておく
 
@@ -167,7 +167,7 @@ module "cron_task_role" {
 
 | 変数（`variables.tf`） | 既定値 | description |
 | --- | --- | --- |
-| `generate_audio_schedule_expression` | `"cron(30 * * * ? *)"` | generate:audio の起動スケジュール（1 時間ごと。毎時 30 分にして 03:00 / 04:00 のタスクと時刻をずらす） |
+| `generate_audio_schedule_expression` | `"cron(30 * * * ? *)"` | generate:audio の起動スケジュール（1 時間ごと。毎時 30 分にして 04:00 のタスクと時刻をずらす） |
 | `generate_audio_schedule_state` | `"ENABLED"`（dev は `"DISABLED"`） | generate:audio のスケジュールの有効/無効。dev は Polly の費用を本番と二重に出さないため止める |
 
 - dev / prd の `module "ecs_api"` に `environment = { AUDIO_PUBLIC_URL_BASE = module.audio_cdn.public_url_base }` を足す（既に `environment` があれば足す）。task definition の差分は次の deploy で SHA の image の revision に引き継がれる
@@ -223,7 +223,7 @@ S3 のアクセスログ・バージョニング、CloudFront の WAF・アク�
 ### 8. 適用の順番
 
 1. `account/` を apply（`terraform-aws-account-apply.yml`）：PassRole と Budgets
-2. 各 env を apply（`terraform-aws-env-apply.yml`）。**毎時 30 分と 03:00〜05:00 を避ける**（apply で cron の task definition が `:latest` の image で作り直され、次の deploy までスケジュールが image の取得に失敗するため。question-generation step7 と同じ）
+2. 各 env を apply（`terraform-aws-env-apply.yml`）。**毎時 30 分と 04:00 前後を避ける**（apply で cron の task definition が `:latest` の image で作り直され、次の deploy までスケジュールが image の取得に失敗するため。question-generation step7 と同じ）
 3. min は GitHub Environment `min` の variable `AUDIO_PUBLIC_URL_BASE` に `terraform output -raw audio_public_url_base` を入れる
 4. 続けて `deploy-aws-<env>.yml` を実行する（cron が task role と env 込みの revision を SHA の image で登録し直し、api に `AUDIO_PUBLIC_URL_BASE` が入る）
 

@@ -236,7 +236,7 @@ worker の `secret_keys` に `GITHUB_CONTENT_TOKEN` を入れる前に作った�
 2. Terraform を apply する（3 環境とも worker の `secret_keys` に `GITHUB_CONTENT_TOKEN` が増える）
 3. deploy する（worker が token を読み、今すぐ収集が認証つきで GitHub を呼ぶ）
 
-min の deploy の検査（`missing keys`）は api のキーしか見ないので、1 を飛ばしても止まらずに worker のタスクが起動に失敗する。min で worker を作っていない（`enable_worker = false`）間は影響しない。
+1 を飛ばすと、dev / prd は deploy-worker が新しいタスクを起動できずに失敗する。min は worker があれば deploy の `detect` が worker の参照するキーを確かめて止まる（worker を作っていない `enable_worker = false` の間は影響しない）。
 
 > api は OAuth 系の値が**非空**でないと起動に失敗する設計。`FRONTEND_URL` は有効な URL が必須。
 > どの key が必須かは `apps/api/src/env.ts`（Zod スキーマ）を参照。

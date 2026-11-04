@@ -39,4 +39,4 @@
 - [ ] api の「サイトのソースはローカルだけ」と「URL から追加はローカルだけ」を外す。サイトのソースの `is_enabled` を受け取る
 - [ ] DB の `sources_website_disabled_check` を外す（サイトのソースを有効にできるようにする）
 - [ ] admin のサイトのフォーム（ページの見つけ方・収集のスイッチ・試し実行）、ソース一覧の「取得失敗」の列と「無効のサイトのソースがあります」の案内を戻す
-- [ ] cron のスケジュールを Terraform に足すとき（[question-generation の step7](../question-generation/tasks/step7-infra-cron-schedules.md)）、戻した 2 つの env も足す
+- [ ] 戻した 2 つの env を、Terraform の worker の `environment` にも足す（収集は admin の今すぐ収集で worker が行い、cron のスケジュールは持たない。[manual-collection](../manual-collection/README.md)）
