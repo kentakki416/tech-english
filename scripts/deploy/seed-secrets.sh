@@ -22,8 +22,9 @@
 #   GITHUB_OAUTH_CLIENT_ID
 #   GITHUB_OAUTH_CLIENT_SECRET
 #   GITHUB_LICENSE_TOKEN   (任意。admin のソース登録で GitHub〈default branch・ライセンスの検出〉を呼ぶときに使う。未設定でも 60 req/h で動く)
-#   GITHUB_CONTENT_TOKEN   (任意。worker の collect-source（admin の今すぐ収集）が GitHub から英文を取得するのに使う。
-#                           公開リポジトリの読み取りだけの fine-grained token。未設定でも動くが 60 req/h で 1 回に数十ファイルまで)
+#   GITHUB_CONTENT_TOKEN   (worker の collect-source（admin の今すぐ収集）が GitHub から英文を取得するのに使う。
+#                           公開リポジトリの読み取りだけの fine-grained token。worker の task definition が valueFrom で参照するので、
+#                           worker を動かす環境では必須 (無いと worker が起動しない。Terraform の apply より先に入れる))
 #   CRON_ANTHROPIC_API_KEY (→ ANTHROPIC_API_KEY。cron の generate:questions が Claude API に使う。generate:questions を動かす環境では必須。
 #                           個人のシェルによくある ANTHROPIC_API_KEY を誤って書き込まないよう別名で受ける。
 #                           利用額の上限は Anthropic Console 側でも設定しておく)

@@ -200,7 +200,7 @@ export GITHUB_CLIENT_SECRET='<本番 OAuth App の Client secret>'
 export GOOGLE_CLIENT_ID='<Phase 5-2 の Client ID>'     # admin の Google のサインイン
 export GOOGLE_CLIENT_SECRET='<Phase 5-2 の Client secret>'
 export FRONTEND_URL='https://<your-domain>'           # フロント(apex)
-# 例: crawler 等を使うなら export GITHUB_PAT='ghp_...'（dev のを流用可）
+export GITHUB_CONTENT_TOKEN='<公開リポジトリの読み取りだけの fine-grained token>'  # worker の今すぐ収集。worker が Secrets Manager から読むので必須
 ./scripts/deploy/seed-secrets.sh prd
 ```
 
@@ -214,7 +214,7 @@ export FRONTEND_URL='https://<your-domain>'           # フロント(apex)
 ```bash
 aws secretsmanager get-secret-value --secret-id /<project>-prd/app \
   --query SecretString --output text | jq 'keys'
-# DATABASE_URL / REDIS_* / OAuth / FRONTEND_URL / JWT_*（JWT_ADMIN_* を含む）が揃っていること
+# DATABASE_URL / REDIS_* / OAuth / FRONTEND_URL / JWT_*（JWT_ADMIN_* を含む）/ GITHUB_CONTENT_TOKEN が揃っていること
 ```
 
 ### 既存の環境に admin の認証を反映する順番
@@ -227,6 +227,16 @@ admin の認証（admin-template）を入れる前に作った環境は、deploy
 4. 「Admin Create」で admin を登録する（[Phase 8 の「admin を登録する」](#admin-を登録する)）
 
 1 より先に 2 / 3 を行うと、ECS のタスクが起動できない（Secrets Manager に無いキーを参照するため）。min は deploy の検査（`missing keys`）で止まる。
+
+### 既存の環境に worker の GitHub の token を反映する順番
+
+worker の `secret_keys` に `GITHUB_CONTENT_TOKEN` を入れる前に作った環境も、同じ理由で seed を先に行う。
+
+1. `GITHUB_CONTENT_TOKEN` を export して `scripts/deploy/seed-secrets.sh <env>` を流す
+2. Terraform を apply する（3 環境とも worker の `secret_keys` に `GITHUB_CONTENT_TOKEN` が増える）
+3. deploy する（worker が token を読み、今すぐ収集が認証つきで GitHub を呼ぶ）
+
+min の deploy の検査（`missing keys`）は api のキーしか見ないので、1 を飛ばしても止まらずに worker のタスクが起動に失敗する。min で worker を作っていない（`enable_worker = false`）間は影響しない。
 
 > api は OAuth 系の値が**非空**でないと起動に失敗する設計。`FRONTEND_URL` は有効な URL が必須。
 > どの key が必須かは `apps/api/src/env.ts`（Zod スキーマ）を参照。
