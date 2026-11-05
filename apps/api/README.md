@@ -368,7 +368,7 @@ attachUnhandledExceptionHandler(app)  // ルート登録後に呼び出すこと
 #### テスト用DB
 
 - 開発用と同じDBコンテナ内にテスト用データベースを作成する（コンテナを分けない）
-- インテグレーションテストはドメイン単位でデータベースを分割可能にし、並列実行やCI での分割実行に対応する
+- テストは `tech-english_test` の 1 つの DB を共有するので、ファイルは直列に流す（`vitest.config.ts` の `fileParallelism: false`）。`test/vitest.setup.ts` が `DB_NAME` を常にこの DB に置き換える
 - 各テストケースの `beforeEach` / `afterEach` で初期データの投入とクリーンアップを必ず行い、テスト間の独立性を保証する
 
 #### テストの実行

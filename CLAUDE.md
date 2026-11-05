@@ -61,7 +61,7 @@ pnpm build        # 全アプリをビルド
 pnpm lint         # ESLint
 pnpm lint:fix     # ESLint 自動修正
 pnpm test         # テスト
-pnpm typecheck    # 型チェック（tsc --noEmit。web / admin は next typegen で route の型を作ってから）。vitest は型を見ないので、CI はこれを別に流す
+pnpm typecheck    # 型チェック（tsc --noEmit。web / admin は next typegen、mobile は expo customize tsconfig.json で route の型を作ってから）。vitest は型を見ないので、CI はこれを別に流す
 ```
 
 各アプリ固有のコマンドは対応サブディレクトリの `CLAUDE.md` を参照。前提は Node.js >=18 / pnpm >=9（インフラ作業時は Terraform + AWS CLI）。

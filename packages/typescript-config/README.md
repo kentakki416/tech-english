@@ -58,7 +58,7 @@
 
 ## `tsconfig.json` と `tsconfig.build.json` の使い分け
 
-dist を本番に出す server-side app（api / cron / worker）は **2 つの tsconfig を持つ**。役割が違う。
+dist を本番に出す server-side app（api / cron / worker）と、test を持つパッケージ（content-extractor / data-warehouse / domain / events / queue）は **2 つの tsconfig を持つ**。役割が違う。
 
 | ファイル | 用途 | include |
 | --- | --- | --- |
@@ -82,6 +82,6 @@ dist を本番に出す server-side app（api / cron / worker）は **2 つの t
   - **dist にテストコードを出力しない**（本番成果物を汚さない）
   - **`rootDir: "./src"` で出力構造を固定**。`src` と `test` を両方 include すると rootDir が共通祖先になり、出力が `dist/src/...` / `dist/test/...` とネストする。`src` のみにすれば `dist/*.js`（src 直下構造）に保てる
 
-base のデフォルト include は `src` のみ。**cron / worker の `tsconfig.json` はこれを上書きして `test` を足し**、`tsconfig.build.json` で再び `src` のみに戻している。
+base のデフォルト include は `src` のみ。**cron / worker と test を持つパッケージの `tsconfig.json` はこれを上書きして `test` を足し**、`tsconfig.build.json` で再び `src` のみに戻している。
 
-> **分割が不要な側**: Next.js / Expo の app（web / admin / mobile）はビルドを framework に委ねるため不要。packages は test ディレクトリを持たず `tsconfig.json` が既に `src` のみ対象なので、分割しない。
+> **分割が不要な側**: Next.js / Expo の app（web / admin / mobile）はビルドを framework に委ねるため不要。test を持たないパッケージは `tsconfig.json` が既に `src` のみ対象なので、分割しない。test を足すときは分割する（分割しないと test の型を誰も確かめない）。
