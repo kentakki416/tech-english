@@ -1,3 +1,4 @@
+import type { TrackEventInput } from "./event"
 import type { EventTracker } from "./tracker"
 
 /**
@@ -12,11 +13,11 @@ export class NoopEventTracker implements EventTracker {
     /** 送出しないので、待つものは無い */
   }
 
-  public track(): void {
+  public track(_input: TrackEventInput): void {
     /** 捨てる */
   }
 
-  public trackAll(): void {
+  public trackAll(_inputs: TrackEventInput[]): void {
     /** 捨てる */
   }
 }

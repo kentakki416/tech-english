@@ -1,4 +1,4 @@
-import { createDrizzleClient, sql } from "@repo/db"
+import { createDrizzleClient, type DrizzleClient, sql } from "@repo/db"
 import { createRedisClient } from "@repo/redis"
 
 /**
@@ -18,7 +18,7 @@ export { redis as testRedis }
 /**
  * テスト用 DB の public スキーマ配下に存在するテーブル名一覧。
  * PostgreSQL の system catalog から取得する。Drizzle の管理テーブルは drizzle スキーマにあるので対象外になる。
- * テストプロセス全体で一度だけ取得し、以降はキャッシュを使い回す。
+ * テストファイルごとに一度だけ取得し、以降はキャッシュを使い回す（vitest はテストファイルごとにモジュールを読み直す）。
  */
 let cachedTableNames: string[] | null = null
 
@@ -33,21 +33,22 @@ const fetchTableNames = async (): Promise<string[]> => {
 }
 
 /**
- * 接続先の DB 名が `_test` で終わらなければ throw する。確かめるのはテストプロセス全体で 1 回だけ。
+ * 接続先の DB 名が `_test` で終わらなければ throw する。
  * DB_NAME は test/vitest.setup.ts でテスト用に置き換えているが、接続先は DATABASE_URL の DB 名の部分を
  * 正規表現で書き換えて決まる（buildConnectionString）ため、TRUNCATE の前に実際の接続先で確かめる
  */
-let isTestDatabaseVerified = false
-
-const assertTestDatabase = async (): Promise<void> => {
-  if (isTestDatabaseVerified) return
-  const result = await db.execute<{ name: string }>(sql`SELECT current_database() AS name`)
+const assertConnectedToTestDatabase = async (client: DrizzleClient): Promise<void> => {
+  const result = await client.execute<{ name: string }>(sql`SELECT current_database() AS name`)
   const name = result.rows[0]?.name
   if (!name?.endsWith("_test")) {
     throw new Error(`Refusing to truncate tables: connected database "${name}" is not a test database (name must end with "_test")`)
   }
-  isTestDatabaseVerified = true
 }
+
+/**
+ * 接続先はテストファイルごとに一度だけ確かめる
+ */
+let isTestDatabaseVerified = false
 
 /**
  * テスト間でデータをクリーンアップする（全テーブルを TRUNCATE CASCADE する）
@@ -55,7 +56,10 @@ const assertTestDatabase = async (): Promise<void> => {
  * 各テストは beforeEach で呼び出し、必要なデータは自分で seed する方針
  */
 export const cleanupTestData = async (): Promise<void> => {
-  await assertTestDatabase()
+  if (!isTestDatabaseVerified) {
+    await assertConnectedToTestDatabase(db)
+    isTestDatabaseVerified = true
+  }
   const names = await fetchTableNames()
   if (names.length === 0) return
   const tables = names.map((name) => `"${name}"`).join(", ")
@@ -83,3 +87,5 @@ export const disconnectTestDb = async (): Promise<void> => {
 export const disconnectTestRedis = async (): Promise<void> => {
   await redis.quit()
 }
+
+export const forTesting = { assertConnectedToTestDatabase }

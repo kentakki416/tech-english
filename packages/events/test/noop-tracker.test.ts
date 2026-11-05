@@ -1,10 +1,9 @@
 import { NoopEventTracker } from "../src/noop-tracker"
-import type { EventTracker } from "../src/tracker"
 
 describe("NoopEventTracker", () => {
   describe("正常系", () => {
     it("track / trackAll は例外を投げずにイベントを捨てる", () => {
-      const tracker: EventTracker = new NoopEventTracker()
+      const tracker = new NoopEventTracker()
 
       expect(() => {
         tracker.track({ name: "memo_created", source: "api", userId: 1 })
@@ -16,7 +15,7 @@ describe("NoopEventTracker", () => {
     })
 
     it("flush はすぐ resolve する", async () => {
-      const tracker: EventTracker = new NoopEventTracker()
+      const tracker = new NoopEventTracker()
       tracker.track({ name: "memo_created", source: "api", userId: 1 })
 
       await expect(tracker.flush()).resolves.toBeUndefined()
