@@ -97,7 +97,7 @@ admin の「今すぐ収集」で、GitHub のソースを 1 つ収集する。c
 | `LOGGER_TYPE` | no | `pino` | `pino` / `winston` / `console` / `silent` |
 | `LOG_LEVEL` | no | `info` | `debug` / `info` / `warn` / `error` |
 | `WORKER_CONCURRENCY` | no | `10` | 1 worker あたりの同時並行ジョブ数（`collect-source` は 1 固定） |
-| `GITHUB_CONTENT_TOKEN` | no | - | collect-source が GitHub API に使う token（公開リポジトリの読み取りだけを許可した fine-grained token）。未設定なら認証なし（60 req/h）で動き、起動時に warn を出す |
+| `GITHUB_CONTENT_TOKEN` | no | - | collect-source が GitHub API に使う token（公開リポジトリの読み取りだけを許可した fine-grained token）。未設定なら認証なし（60 req/h）で動き、起動時に warn を出す。AWS では Terraform の `secret_keys` で Secrets Manager から渡すので、`scripts/deploy/seed-secrets.sh` で入れておく（無いとタスクが起動しない） |
 | `COLLECT_MAX_DOCUMENTS_PER_SOURCE` | no | `100` | collect-source が 1 回の収集（1 ソース）で取得する文書数の上限 |
 | `COLLECT_MAX_PASSAGES_PER_RUN` | no | `200` | collect-source が 1 回の収集（1 ソース）で作る本文候補の上限 |
 | `COLLECT_WEB_CONTACT_URL` | no | - | 収集のリクエスト（GitHub API）の User-Agent に入れるサービスのトップの URL（`TechEnglishBot/1.0 (+{url})`）。未設定なら `TechEnglishBot/1.0` だけを送る |

@@ -70,6 +70,8 @@ fi
 
 `push_only=true` の初回は Terraform を apply する前なので、cluster が無く `describe-services` が失敗する。そのときは調べないよう、detect の step に `if: ${{ !inputs.push_only }}` を付ける（build が detect を待つので、job ごとは skip しない。`worker_enabled` は空になる）。
 
+worker があるときは、worker の task definition（family の最新の revision）の `secrets[].valueFrom` のうち app の secret を指すもの（`<ARN>:<KEY>::`）からキーを取り出し、Secrets Manager の app の secret に無いキーがあれば止める。無いまま進むと worker のタスクは起動しないのに Service は ACTIVE なので、api が `queue` に切り替わってジョブが Upstash に溜まる。キーは task definition から取るので、Terraform の `secret_keys` を workflow に二重に持たない。
+
 ### build
 
 prd の build job と同じく、イメージをコミット SHA（12 桁）のタグで push する。prd との違いは 3 点。
@@ -246,8 +248,11 @@ Lambda（と worker の ECS Service）は作成時にイメージが必要なの
     EXTERNAL_REDIS_URL='rediss://default:<password>@<endpoint>:6379' \
     GOOGLE_CLIENT_ID=... GOOGLE_CLIENT_SECRET=... \
     FRONTEND_URL=https://<web のドメイン> \
+    GITHUB_CONTENT_TOKEN=... \
       ./scripts/deploy/seed-secrets.sh min
     ```
+
+    `GITHUB_CONTENT_TOKEN`（公開リポジトリの読み取りだけの fine-grained token）は worker の task definition が参照するので、worker を作る前に入れておく（無いと worker のタスクが起動しない）
 
 6. `deploy-aws-min.yml` を通常（`push_only: false`）で実行する。migrate → api / worker（あれば）/ cron の順にデプロイされる
 
@@ -256,8 +261,9 @@ Lambda（と worker の ECS Service）は作成時にイメージが必要なの
 **有効にする**（`enable_worker`: `false` → `true`）:
 
 1. Upstash のプランを `Fixed` に変える
-2. `env/min/variables.tf` の `enable_worker` の既定値を `true` にしてコミットし、apply する。worker の ECS Service が `initial` タグのイメージで作られる
-3. `deploy-aws-min.yml` を実行する。worker が最新のイメージに更新され、api が `EVENT_TRACKER_TYPE=queue` に切り替わる（ここからイベントが記録される）
+2. Secrets Manager に `GITHUB_CONTENT_TOKEN` が無ければ、export して `./scripts/deploy/seed-secrets.sh min` を流す。worker の task definition が参照するので、無いまま apply すると worker のタスクが起動しない
+3. `env/min/variables.tf` の `enable_worker` の既定値を `true` にしてコミットし、apply する。worker の ECS Service が `initial` タグのイメージで作られる
+4. `deploy-aws-min.yml` を実行する。worker が最新のイメージに更新され、api が `EVENT_TRACKER_TYPE=queue` に切り替わる（ここからイベントが記録される）。worker が参照する secret のキーが欠けていれば、`detect` で止まって api も切り替えない
 
 **止める**（`enable_worker`: `true` → `false`）:
 

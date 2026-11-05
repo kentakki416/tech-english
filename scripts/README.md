@@ -43,6 +43,7 @@
 | `REDIS_HOST` | `terraform output` (step5 で activate) | **自動構築** |
 | `GITHUB_OAUTH_CLIENT_ID` / `GITHUB_OAUTH_CLIENT_SECRET` | 環境変数 | **要 export** |
 | `GITHUB_LICENSE_TOKEN` | 環境変数 | 任意（admin のソース登録で GitHub〈リポジトリの default branch・ライセンスの検出〉を呼ぶときの token。未設定でも 60 req/h で動く） |
+| `GITHUB_CONTENT_TOKEN` | 環境変数 | **要 export**（worker の今すぐ収集が GitHub から英文を取得するときの token。worker の task definition が参照するので、無いと worker のタスクが起動しない） |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | 環境変数 | **要 export** |
 | `LIVEKIT_HOST` / `LIVEKIT_API_KEY` / `LIVEKIT_API_SECRET` / `LIVEKIT_WEBHOOK_SECRET` | 環境変数 | **要 export** |
 | `FRONTEND_URL` | 環境変数 | **要 export** |
@@ -117,6 +118,7 @@ terraform init
 GITHUB_OAUTH_CLIENT_ID
 GITHUB_OAUTH_CLIENT_SECRET
 GITHUB_LICENSE_TOKEN
+GITHUB_CONTENT_TOKEN
 GOOGLE_CLIENT_ID
 GOOGLE_CLIENT_SECRET
 LIVEKIT_HOST
@@ -128,18 +130,18 @@ FRONTEND_URL
 
 設定方法は 2 つ。**(a) を推奨** (`apps/api/.env.local` がすでに dotenvx 暗号化済みで `.env.keys` も symlink で揃っているため、追加セットアップ不要)。
 
-##### (a) dotenvx 経由で `apps/api/.env.local` を流す（推奨）
+##### (a) dotenvx 経由で `apps/api/.env.local`・`apps/worker/.env.local` を流す（推奨）
 
 ```bash
-npx dotenvx run -f apps/api/.env.local -- ./scripts/deploy/seed-secrets.sh dev
+npx dotenvx run -f apps/api/.env.local -f apps/worker/.env.local -- ./scripts/deploy/seed-secrets.sh dev
 ```
 
-- `apps/api/.env.local` で既に管理している GOOGLE / LIVEKIT 等の値がそのまま使われる
+- `apps/api/.env.local` で既に管理している GOOGLE / LIVEKIT 等の値と、`apps/worker/.env.local` の `GITHUB_CONTENT_TOKEN` がそのまま使われる（2 つのファイルは同じ dotenvx の鍵で暗号化している）
 - AWS dev 用に上書きしたい値があれば事前に `export` しておけば優先される:
 
   ```bash
   FRONTEND_URL="https://tech-english-xxx.vercel.app" \
-    npx dotenvx run -f apps/api/.env.local -- ./scripts/deploy/seed-secrets.sh dev
+    npx dotenvx run -f apps/api/.env.local -f apps/worker/.env.local -- ./scripts/deploy/seed-secrets.sh dev
   ```
 
 - `LIVEKIT_WEBHOOK_SECRET` のように `.env.local` に未登録の値は skip + warn が出る（後で `npx dotenvx set` で追加して再実行）
@@ -160,7 +162,7 @@ export GOOGLE_CLIENT_SECRET="..."
 ./scripts/deploy/seed-secrets.sh <env>
 
 # 推奨: dotenvx 経由
-npx dotenvx run -f apps/api/.env.local -- ./scripts/deploy/seed-secrets.sh dev
+npx dotenvx run -f apps/api/.env.local -f apps/worker/.env.local -- ./scripts/deploy/seed-secrets.sh dev
 ```
 
 実行イメージ:
@@ -192,9 +194,9 @@ terraform destroy
 # 再構築 (3〜15 分)
 terraform apply
 
-# secret 投入 (10 秒、dotenvx で apps/api/.env.local の値を流す)
+# secret 投入 (10 秒、dotenvx で apps/api/.env.local と apps/worker/.env.local の値を流す)
 cd /Users/.../tech-english
-npx dotenvx run -f apps/api/.env.local -- ./scripts/deploy/seed-secrets.sh dev
+npx dotenvx run -f apps/api/.env.local -f apps/worker/.env.local -- ./scripts/deploy/seed-secrets.sh dev
 ```
 
 これで dev 環境がフル復活する。

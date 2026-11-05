@@ -76,7 +76,7 @@ env:
 
 jobs:
   # =========================================================================
-  # worker の ECS Service の有無 (= Terraform の enable_worker) を調べる
+  # worker の ECS Service の有無 (= Terraform の enable_worker) と、worker が参照する secret のキーが揃っているかを調べる
   # =========================================================================
   # push_only=true の初回は cluster が無く describe-services が失敗するので調べない
   # (build がこの job を待つため、job 自体は skip せず step を飛ばす)
@@ -109,6 +109,29 @@ jobs:
             echo "worker_enabled=false" >> "$GITHUB_OUTPUT"
           fi
           echo "worker service status: ${STATUS}"
+
+      # worker の task definition が参照する app secret のキーが Secrets Manager に無ければ止める。
+      # 無いまま進むと worker のタスクは起動しないのに Service は ACTIVE なので、api が queue に切り替わってジョブが溜まる。
+      # キーは deploy-worker が使う最新の revision の valueFrom (<app secret の ARN>:KEY::) から取り、Terraform の secret_keys を二重に持たない
+      - name: Check worker secret keys
+        if: ${{ steps.worker.outputs.worker_enabled == 'true' }}
+        run: |
+          set -euo pipefail
+          # SecretString には secret の値が入るので echo やログに出さない
+          SECRET_JSON=$(aws secretsmanager get-secret-value \
+            --secret-id "${APP_SECRET_NAME}" --output json)
+          VALUE_FROMS=$(aws ecs describe-task-definition \
+            --task-definition "${ECS_WORKER_SERVICE}" \
+            --query 'taskDefinition.containerDefinitions[0].secrets[].valueFrom' --output json)
+          MISSING=$(jq -rn --argjson secret "${SECRET_JSON}" --argjson refs "${VALUE_FROMS}" '
+            ($secret.ARN + ":") as $prefix
+            | [($refs // [])[] | select(startswith($prefix)) | ltrimstr($prefix) | rtrimstr("::")]
+              - ($secret.SecretString | fromjson | keys)
+            | join(",")')
+          if [ -n "${MISSING}" ]; then
+            echo "::error::missing keys in ${APP_SECRET_NAME} for worker: ${MISSING} (scripts/deploy/seed-secrets.sh min で入れる)"
+            exit 1
+          fi
 
   # =========================================================================
   # ClickHouse の有無 (= Terraform の enable_data_warehouse) を調べる

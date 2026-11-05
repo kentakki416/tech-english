@@ -630,7 +630,7 @@ locals {
       "FRONTEND_URL", "NODE_ENV", "PORT",
     ]
     # DATA_WAREHOUSE_* は app secret ではなく local.data_warehouse_secrets から渡す
-    worker    = ["DATABASE_URL", "REDIS_URL", "NODE_ENV"]
+    worker    = ["DATABASE_URL", "REDIS_URL", "NODE_ENV", "GITHUB_CONTENT_TOKEN"]
     cron      = ["DATABASE_URL", "NODE_ENV"]
     migration = ["DATABASE_URL"]
   }

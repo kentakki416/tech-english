@@ -626,4 +626,4 @@ sequenceDiagram
 | [step4-api-admin-auth](./tasks/step4-api-admin-auth.md) | `adminAuthMiddleware`、admin の Basic 認証、admin の api client にトークンを付与 |
 | [step5-api-admin-passage](./tasks/step5-api-admin-passage.md) | 問題一覧・詳細・保存・公開・却下・却下の取り消し・非公開・再生成・要確認の解除の API と公開の条件の検査 |
 | [step6-admin-passage-review](./tasks/step6-admin-passage-review.md) | admin の問題一覧と確認・修正画面 |
-| [step7-infra-cron-schedules](./tasks/step7-infra-cron-schedules.md) | `collect:passages` / `generate:questions` の EventBridge Scheduler の登録と cron の secret の追加 |
+| [step7-infra-cron-schedules](./tasks/step7-infra-cron-schedules.md) | `generate:questions` の EventBridge Scheduler の登録と cron の secret の追加 |

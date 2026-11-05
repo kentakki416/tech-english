@@ -137,7 +137,7 @@ worker を動かしていない環境（minimal の構成で worker を作らな
 - **冪等性**：同じジョブが 2 回動いても（stalled の検出・リトライ）、収集は今までどおり冪等（本文候補は `content_hash` の unique、commit SHA の記録は楽観ロック）。記録の書き込みは「実行中にしたときの時刻」をトークンにして、古い実行が新しい結果を上書きしないようにする（`generate:questions` の `generation_started_at` と同じ）
 - **同時に 1 つ**：worker の `collect-source` は concurrency 1。GitHub の rate limit は token 単位で、並べても速くならない。別のソースの収集は順番待ちになる
 - **worker の起動を重くしない**：収集は `@repo/content-extractor` の Markdown の抽出を使うが、パッケージの `index.ts` は jsdom（サイトの取得）も読む。worker は `collect-source` のジョブで初めて使うときに収集の service を `import()` で読む（api の `client/page-fetcher.ts` と同じ）。worker の他のジョブと起動を遅くせず、メモリ（512MB）も使わない
-- **GitHub の token**：`GITHUB_CONTENT_TOKEN` は cron から worker の env に移す（任意。無ければ認証なしの 60 回 / 時で動き、起動時に warn）
+- **GitHub の token**：`GITHUB_CONTENT_TOKEN` は cron から worker の env に移す（env.ts では任意。無ければ認証なしの 60 回 / 時で動き、起動時に warn）。AWS では worker の `secret_keys` に入れるので、Secrets Manager に値が要る（無いと worker のタスクが起動しない）
 - **使えない環境**：api の env `SOURCE_COLLECTION_TYPE`（`queue` / `none`、既定 `queue`）で切り替える。`none` なら `POST` の Controller を作らない（ルートを登録しないので 404）。minimal の deploy の workflow で `EVENT_TRACKER_TYPE` と同じく、worker があれば `queue`、無ければ `none` にする
 
 ### 収集の実行の記録

@@ -289,7 +289,7 @@ locals {
   # api は Lambda なので ECS の secret_keys は持たない (deploy workflow が環境変数に注入する)
   # DATA_WAREHOUSE_* は app secret ではなく local.data_warehouse_secrets から渡す
   secret_keys = {
-    worker    = ["DATABASE_URL", "REDIS_URL", "NODE_ENV"]
+    worker    = ["DATABASE_URL", "REDIS_URL", "NODE_ENV", "GITHUB_CONTENT_TOKEN"]
     cron      = ["DATABASE_URL", "NODE_ENV"]
     migration = ["DATABASE_URL"]
   }
