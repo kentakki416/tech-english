@@ -33,11 +33,29 @@ const fetchTableNames = async (): Promise<string[]> => {
 }
 
 /**
+ * 接続先の DB 名が `_test` で終わらなければ throw する。確かめるのはテストプロセス全体で 1 回だけ。
+ * DB_NAME は test/vitest.setup.ts でテスト用に置き換えているが、接続先は DATABASE_URL の DB 名の部分を
+ * 正規表現で書き換えて決まる（buildConnectionString）ため、TRUNCATE の前に実際の接続先で確かめる
+ */
+let isTestDatabaseVerified = false
+
+const assertTestDatabase = async (): Promise<void> => {
+  if (isTestDatabaseVerified) return
+  const result = await db.execute<{ name: string }>(sql`SELECT current_database() AS name`)
+  const name = result.rows[0]?.name
+  if (!name?.endsWith("_test")) {
+    throw new Error(`Refusing to truncate tables: connected database "${name}" is not a test database (name must end with "_test")`)
+  }
+  isTestDatabaseVerified = true
+}
+
+/**
  * テスト間でデータをクリーンアップする（全テーブルを TRUNCATE CASCADE する）
  * PostgreSQL の TRUNCATE ... CASCADE で FK 制約を含めて一括削除する
  * 各テストは beforeEach で呼び出し、必要なデータは自分で seed する方針
  */
 export const cleanupTestData = async (): Promise<void> => {
+  await assertTestDatabase()
   const names = await fetchTableNames()
   if (names.length === 0) return
   const tables = names.map((name) => `"${name}"`).join(", ")

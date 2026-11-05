@@ -374,11 +374,9 @@ attachUnhandledExceptionHandler(app)  // ルート登録後に呼び出すこと
 #### テストの実行
 
 ```bash
-# ユニットテストのみ（DB不要）
+# パスで絞り込む（引数は vitest run に渡る。先に db:migrate が走るので、Service のテストだけでも Postgres は起動しておく）
 pnpm test test/service
-
-# インテグレーションテストのみ（DB必要）
-pnpm test test/controller
+pnpm test test/controller/memo/list.test.ts
 
 # 全テスト
 pnpm test

@@ -37,11 +37,11 @@ process.env.DATABASE_URL =
   process.env.DATABASE_URL || "postgresql://postgres:password@localhost:5433/tech-english_test"
 
 /**
- * Controller integration テストの接続先（テスト用 DB / Redis DB 1）。
- * 旧構成では test/controller/setup.ts の先頭で設定していたが、上記理由により
- * ここに移し、controller / service のどちらの実行でも同じ初期化が走るようにする。
+ * DB 名は設定されていても tech-english_test に置き換える（test/controller/setup.ts が全テーブルを TRUNCATE する）。
+ * .env.local の DB_NAME は開発用の tech-english_dev なので、未設定のときだけ補う形だと、
+ * `pnpm test` を通さずに .env.local を読ませて vitest を流したときに開発用の DB を空にしてしまう
  */
-process.env.DB_NAME = process.env.DB_NAME || "tech-english_test"
+process.env.DB_NAME = "tech-english_test"
 
 /**
  * Redis は設定されていても DB の番号を 1 に置き換える（test/controller/setup.ts が flushdb する）。

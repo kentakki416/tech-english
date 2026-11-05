@@ -105,8 +105,7 @@ curl http://localhost:8080/api/health
 ```bash
 cd apps/api
 pnpm test                   # 全テスト (DB_NAME=tech-english_test に対して db:migrate 後に実行)
-pnpm test test/service      # Service ユニットテストのみ (DB 不要)
-pnpm test test/controller   # Controller インテグレーションテストのみ (DB 必要)
+pnpm test test/service      # パスで絞り込む (引数は vitest run に渡る。先に db:migrate が走るので Postgres は要る)
 pnpm test:watch             # watch モード
 pnpm test:coverage          # カバレッジ計測 (coverage/ に出力)
 ```

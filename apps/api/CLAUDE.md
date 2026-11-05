@@ -6,7 +6,7 @@ Express.js API サーバー（port 8080）。
 
 ```bash
 pnpm dev           # ホットリロード起動
-pnpm test          # ローカル用（dotenvx で .env.local を復号して vitest run）
+pnpm test          # ローカル用（dotenvx で .env.local を復号して vitest run）。pnpm test test/controller/memo のように引数で絞り込める
 pnpm test:ci       # CI 用（env は外部から渡す前提。migrate + vitest run）
 pnpm test:watch    # 変更ファイルだけ再実行
 pnpm test:coverage # カバレッジ計測（coverage/ に出力）
@@ -67,11 +67,13 @@ try/catch を許容するのは次の 3 つだけ。
 
 - **Service はユニットテスト**（`vi.fn()` で Repository をモック、DB 不要）、**Controller はインテグレーションテスト**（`supertest` で HTTP レイヤーから検証）
 - **`describe` を「正常系」「異常系」で必ず分類する**。トップレベルはテスト対象（関数名 / エンドポイント）にし、その直下に分類の `describe` を置く。異常系の抜け漏れに気付きやすくするため
+- **テストは接続先の DB と Redis を空にする**（`test/controller/setup.ts` の `cleanupTestData` が `public` スキーマの全テーブルを TRUNCATE し、`cleanupTestRedis` が FLUSHDB する）。開発用のデータを消さないよう、`test/vitest.setup.ts` は `DB_NAME` を `tech-english_test` に、`REDIS_URL` を DB 1 に、設定されていても置き換え、`cleanupTestData` は接続先の DB 名が `_test` で終わらなければ止まる。この置き換えと確認を外さない
 - **自前インフラ（Postgres / Redis）はモックしない**。キー名・TTL・型変換・SQL の誤りは mock では検出できない。**実 Redis を `vi.fn()` で差し替えるのは禁止**。モックしてよいのは外部 SaaS（Google OAuth / S3 / 課金 API）だけ
 - **エラーメッセージ等の文字列は assertion しない**。文言変更・i18n・ログ改善のたびに無関係なテストが落ちるため。Service は `Result` の構造（`ok` / `statusCode` / `type`）、Controller は HTTP ステータスとボディの存在のみ検証する
 - **アサーションは最終状態まで含める**。呼び出し回数だけでなく DB / Redis の結果まで確認する
 - **オブジェクトは一括 assertion にする**。API レスポンス（外部契約）は `toEqual` + `expect.any(...)`（フィールド増減で落ちる方が望ましい）、DB 行（内部状態）は `toMatchObject`
 - **境界値テストは必須**（日付フィルタの境界、条件分岐の境界）
+- **足したテストは、実装を壊すと落ちることを確かめる**。テストが見ている条件を実装側で 1 か所だけ反転させ（`<` を `<=` にする、返す値を変える など）、`pnpm test` で落ちるのを見てから元に戻す。実装と同じ思い込みで書いたテストは、実装が間違っていても通るため
 
 ## Admin API 設計方針
 
