@@ -19,7 +19,8 @@
     "test": "DB_NAME=tech-english_test dotenvx run -f .env.local -- sh -c 'pnpm --filter @repo/db db:migrate && vitest run \"$@\"' sh",
     "test:ci": "pnpm --filter @repo/db db:migrate && vitest run",
     "test:coverage": "DB_NAME=tech-english_test dotenvx run -f .env.local -- sh -c 'pnpm --filter @repo/db db:migrate && vitest run --coverage \"$@\"' sh",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
   },
   "keywords": [],
   "author": "",

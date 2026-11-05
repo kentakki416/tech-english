@@ -28,7 +28,7 @@
 | `setup/copy-template.sh` | テンプレートから新規プロジェクトを作成（手順はルートの [README](../README.md#新規プロジェクトを作る)） |
 | [setup/setup-labels.sh](#setup-labelssh) | `.github/labeler.yml` が付与する PR ラベルを GitHub リポジトリに作成 |
 | [deploy/seed-secrets.sh](#seed-secretssh) | apply 後に AWS Secrets Manager へ外部 secret と RDS / Redis 接続情報を投入 |
-| `ci/turbo-scope.sh` | lint / test を変更の影響範囲だけ実行（`lint.yml` / `test.yml` から呼ばれる） |
+| `ci/turbo-scope.sh` | lint / test / typecheck を変更の影響範囲だけ実行（`lint.yml` / `test.yml` / `typecheck.yml` から呼ばれる） |
 | `ci/turbo-scope.test.sh` | `turbo-scope.sh` の判定のテスト。判定を変えたらローカルで実行する |
 
 ---

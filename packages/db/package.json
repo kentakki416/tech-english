@@ -19,7 +19,8 @@
     "lint": "eslint 'src/**/*.ts'",
     "lint:fix": "eslint 'src/**/*.ts' --fix",
     "test": "tsx --test drizzle/ejdict.test.ts",
-    "test:ci": "tsx --test drizzle/ejdict.test.ts"
+    "test:ci": "tsx --test drizzle/ejdict.test.ts",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@repo/domain": "workspace:^",

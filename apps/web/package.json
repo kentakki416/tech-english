@@ -8,6 +8,7 @@
     "start": "dotenvx run -f .env.local -- next start -p ${PORT_WEB:-3000}",
     "lint": "eslint",
     "lint:fix": "eslint --fix",
+    "typecheck": "next typegen && tsc --noEmit",
     "sound:choice-pop": "tsx scripts/write-choice-pop-wav.ts"
   },
   "dependencies": {

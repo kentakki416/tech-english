@@ -2,9 +2,9 @@ import type { JobQueue, TrackEventJobData } from "@repo/queue"
 
 import { QueueEventTracker } from "../src/queue-tracker"
 
-const buildQueue = (
-  enqueue: JobQueue<TrackEventJobData>["enqueue"],
-): JobQueue<TrackEventJobData> => ({
+type Enqueue = JobQueue<TrackEventJobData>["enqueue"]
+
+const buildQueue = (enqueue: Enqueue): JobQueue<TrackEventJobData> => ({
   close: vi.fn(async () => undefined),
   enqueue,
 })
@@ -27,7 +27,7 @@ const waitForPendingCallbacks = async (): Promise<void> => {
 describe("QueueEventTracker", () => {
   describe("正常系", () => {
     it("複数イベントを 1 回の enqueue にまとめる", () => {
-      const enqueue = vi.fn(async () => undefined)
+      const enqueue = vi.fn<Enqueue>(async () => undefined)
       const tracker = new QueueEventTracker(buildQueue(enqueue))
 
       tracker.trackAll([
@@ -40,7 +40,7 @@ describe("QueueEventTracker", () => {
     })
 
     it("eventId をイベントごとに異なる UUID で採番する", () => {
-      const enqueue = vi.fn(async () => undefined)
+      const enqueue = vi.fn<Enqueue>(async () => undefined)
       const tracker = new QueueEventTracker(buildQueue(enqueue))
 
       tracker.trackAll([
@@ -55,7 +55,7 @@ describe("QueueEventTracker", () => {
     })
 
     it("properties 未指定のとき空オブジェクトを入れる", () => {
-      const enqueue = vi.fn(async () => undefined)
+      const enqueue = vi.fn<Enqueue>(async () => undefined)
       const tracker = new QueueEventTracker(buildQueue(enqueue))
 
       tracker.track({ name: "memo_deleted", source: "api", userId: 3 })
@@ -66,7 +66,7 @@ describe("QueueEventTracker", () => {
 
   describe("異常系", () => {
     it("空配列のとき enqueue を呼ばない", () => {
-      const enqueue = vi.fn(async () => undefined)
+      const enqueue = vi.fn<Enqueue>(async () => undefined)
       const tracker = new QueueEventTracker(buildQueue(enqueue))
 
       tracker.trackAll([])
