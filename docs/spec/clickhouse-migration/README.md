@@ -221,7 +221,8 @@ flowchart LR
 ```mermaid
 flowchart TD
     A[env を検証] --> B[migrations/ の版番号の重複と<br/>cdc-tables.json と views/ の対応を検査]
-    B --> C{DATA_WAREHOUSE_CDC}
+    B --> L[local なら DATA_WAREHOUSE_DATABASE の<br/>database があるか確かめ、無ければ止める]
+    L --> C{DATA_WAREHOUSE_CDC}
     C -- materialized_postgresql<br/>（local） --> D[pg_cdc を作り直し、<br/>全テーブルの取り込みを待つ]
     C -- none（local） --> E[前に作った pg_cdc が<br/>残っていれば警告する]
     C -- clickpipes /<br/>none（Cloud） --> F
@@ -269,7 +270,8 @@ WHERE ${CDC_LIVE_FILTER}
 - 取り込むテーブルが変わらない間、MaterializedPostgreSQL は replication slot を進めない。止まった slot が WAL とシステムカタログの古い行（`catalog_xmin`。同じサーバーの全 DB に効く）を残し続け、api のテストの TRUNCATE が遅くなった（実測は [`cdc.md`](../../tech-stack/clickhouse/cdc.md#ローカルの-cdc)）。AWS の環境も CDC を既定で作らないので、ローカルもそろえる
 - `none` でローカル（`http`）の ClickHouse に流すときは、前に作った `pg_cdc` が残っていれば、消し方を示す警告を出す。既定を変える前に作った環境に、止まった slot が残っているのに気付けるようにするため
 - 自動では消さない。同じ DB 名を使う別プロジェクトの CDC を自分のものと取り違えたときや、`pg_cdc` を読む手作りの view まで消えてしまうため。消すのは、消し方を見た人がコマンドで行う（[`cdc.md`](../../tech-stack/clickhouse/cdc.md#ローカルの-cdc)）
-- 別プロジェクトの Postgres を取り込む `pg_cdc` があれば、作り直しと同じく止まる（`DATA_WAREHOUSE_URL` が別プロジェクトの ClickHouse を指していて、そちらに database を作ってしまうのを防ぐ）。`pg_cdc` を読む view も、読めないまま残らないよう消す
+- 別プロジェクトの Postgres を取り込む `pg_cdc` があれば、作り直しと同じく止まる（`DATA_WAREHOUSE_URL` が別プロジェクトの ClickHouse を指していて、そちらに database を作ってしまうのを防ぐ）
+- ローカル（`http`）では、CDC の設定に関係なく、`DATA_WAREHOUSE_DATABASE` の database が既にあるかも確かめ、無ければ止める。docker compose の `CLICKHOUSE_DB` が初回の起動時に作るので、無いのは別プロジェクトの ClickHouse に繋いでいる可能性が高い。どのプロジェクトも既定で CDC を作らなくなると、`pg_cdc` ではこの取り違えに気付けないため
 
 **CDC を作るとき（`materialized_postgresql`）、ローカルの migration コマンドは CDC の database（`pg_cdc`）を毎回消して作り直す。**
 
@@ -405,7 +407,7 @@ ClickHouse の接続情報は、Terraform が管理する専用の secret（`/<p
 | ClickPipe の作成時に、論理レプリケーションが有効になっていない（RDS の再起動漏れ） | step3 で apply の前に `SHOW wal_level` が `logical` か確認する手順を入れる | RDS を再起動してから apply し直す |
 | ClickPipes が RDS の証明書を既定で信頼せず、TLS で失敗する | step3 で ClickPipe の `state` を確認する | `ca_certificate` に RDS のリージョンの CA バンドルを渡す |
 | SSH の鍵の検証（`active` になること）が ClickPipe の作成より遅れる、または鍵の API が organization で使えない | step3 で鍵の `status` と ClickPipe の `state` を確認する | `time_sleep` を延ばす。使えなければ判断し直す（PrivateLink か IP 許可リスト） |
-| ローカルで、同じテンプレートから作った別プロジェクトの ClickHouse に誤って繋ぐ（既定のポートが同じ） | step1 で、別の DB を取り込む `pg_cdc` があると消さずに止まることを確認する | ― （作り直しの前の確認で防ぐ） |
+| ローカルで、同じテンプレートから作った別プロジェクトの ClickHouse に誤って繋ぐ（既定のポートが同じ） | step1 で、別の DB を取り込む `pg_cdc` があると消さずに止まることを確認する | ― （作り直しの前の確認と、`DATA_WAREHOUSE_DATABASE` の database があるかの確認で防ぐ） |
 | min の ClickHouse Cloud が `0.0.0.0/0` を許可しているため、インターネットのスキャンでアイドルから起こされて費用が増える | min で有効にした後、ClickHouse Cloud の使用量を 1 週間見る | min の worker を固定 IP（NAT）経由にするか、min では ClickHouse を使わない |
 | ClickHouse Cloud の Shared database で `CREATE OR REPLACE VIEW` が一瞬 view を消す | step4 で dev に対して、migration を流しながら view を読み続けて失敗しないか確認する | 分析クエリは数秒のリトライで十分なので、README に注意を書くだけにする |
 | ClickPipe の列の反映（ケース 3）が遅れ、view に新しい列が出ないまま気づかない | step4 の動作確認で、列を足した後に書き込み → migration の再実行で view に出ることを確認する | ClickHouse の migration だけを流す workflow（`clickhouse-migrate.yml`）を実行する |

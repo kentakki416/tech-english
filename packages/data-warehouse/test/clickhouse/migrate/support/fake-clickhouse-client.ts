@@ -1,5 +1,7 @@
 import type { ClickHouseClient } from "@clickhouse/client"
 
+import { CDC_DATABASE } from "../../../../clickhouse/migrate/cdc-view-variables"
+
 type RecordedCall = {
   kind: "command" | "query"
   query: string
@@ -14,6 +16,10 @@ type FakeState = {
    * system.tables にある pg_cdc のテーブル
    */
   existingCdcTables: string[]
+  /**
+   * system.databases にある、pg_cdc 以外の database
+   */
+  existingDatabases?: string[]
 }
 
 /**
@@ -29,8 +35,13 @@ export const createFakeClickHouseClient = (state: FakeState) => {
     },
     query: async ({ query, query_params }: { query: string, query_params?: Record<string, unknown> }) => {
       calls.push({ kind: "query", query })
+      const findDatabaseRows = () => {
+        const name = query_params?.name
+        if (name === CDC_DATABASE) return state.cdcEngineFull === undefined ? [] : [{ engine_full: state.cdcEngineFull }]
+        return (state.existingDatabases ?? []).filter((database) => database === name).map((database) => ({ name: database }))
+      }
       const rows = query.includes("system.databases")
-        ? (state.cdcEngineFull === undefined ? [] : [{ engine_full: state.cdcEngineFull }])
+        ? findDatabaseRows()
         : state.existingCdcTables
           .filter((name) => (query_params?.tables as string[] | undefined)?.includes(name) ?? true)
           .map((name) => ({ name }))

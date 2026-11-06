@@ -1,4 +1,4 @@
-import { hasLocalCdc, rebuildLocalCdc, verifyExistingCdcDatabaseIsOwn } from "../../../clickhouse/migrate/rebuild-local-cdc"
+import { hasCdcDatabase, rebuildLocalCdc, verifyExistingCdcDatabaseIsOwn } from "../../../clickhouse/migrate/rebuild-local-cdc"
 
 import { createFakeClickHouseClient } from "./support/fake-clickhouse-client"
 
@@ -67,18 +67,18 @@ describe("rebuildLocalCdc", () => {
   })
 })
 
-describe("hasLocalCdc", () => {
+describe("hasCdcDatabase", () => {
   describe("正常系", () => {
     it("pg_cdc があれば true", async () => {
       const { client } = createFakeClickHouseClient({ cdcEngineFull: OWN_ENGINE, existingCdcTables: ["users", "memos"] })
 
-      await expect(hasLocalCdc(client)).resolves.toBe(true)
+      await expect(hasCdcDatabase(client)).resolves.toBe(true)
     })
 
     it("pg_cdc が無ければ false", async () => {
       const { client } = createFakeClickHouseClient({ existingCdcTables: [] })
 
-      await expect(hasLocalCdc(client)).resolves.toBe(false)
+      await expect(hasCdcDatabase(client)).resolves.toBe(false)
     })
   })
 })

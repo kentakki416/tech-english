@@ -4,10 +4,7 @@ const MATERIALIZED_POSTGRESQL_ARGS_PATTERN = /^MaterializedPostgreSQL\('([^']*)'
  * system.databases の engine_full が、指定した Postgres（ホストと DB 名）を取り込む
  * MaterializedPostgreSQL かを判定する。
  *
- * ローカルの CDC を作り直す（DROP DATABASE）前に、消そうとしている database が
- * このプロジェクトのものか確かめるために使う。同じテンプレートから作った別プロジェクトの
- * ClickHouse が同じポートで動いていると、接続先を取り違えたまま別プロジェクトの CDC を
- * 消してしまうため。
+ * 既にある pg_cdc が、このプロジェクトのものか確かめるために使う（理由は verifyExistingCdcDatabaseIsOwn）。
  */
 export const isLocalCdcDatabaseOf = (
   engineFull: string,

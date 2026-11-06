@@ -26,9 +26,10 @@ pnpm --filter @repo/data-warehouse dwh:migrate    # ClickHouse
 処理の順序:
 
 1. `migrations/` のファイル名と、`infra/clickhouse/cdc-tables.json` と `views/` の対応を検査する（問題があれば DB に触る前に止まる）
-2. `DATA_WAREHOUSE_CDC=materialized_postgresql` なら CDC を作り直し、全テーブルの取り込みを待つ。`none` でローカル（`http`）の ClickHouse に流すときは、前に作った CDC が残っていれば警告する（消さない。[ローカルの CDC](./cdc.md#ローカルの-cdc)）
-3. [`clickhouse-migrations`](https://github.com/VVVi/clickhouse-migrations) で未適用の migration を適用する（database が無ければ作る）
-4. CDC があれば（`DATA_WAREHOUSE_CDC` が `none` 以外）、`views/` の view を全部作り直す
+2. ローカル（`http`）なら、`DATA_WAREHOUSE_DATABASE` の database が既にあるか確かめ、無ければ止まる。docker compose の `CLICKHOUSE_DB` が初回の起動時に作るので、無いのは同じポートで動いている別プロジェクトの ClickHouse に繋いでいる可能性が高い（そのまま流すと、そちらに database と `events` テーブルを作ってしまう）
+3. `DATA_WAREHOUSE_CDC=materialized_postgresql` なら CDC を作り直し、全テーブルの取り込みを待つ。`none` でローカル（`http`）の ClickHouse に流すときは、前に作った CDC が残っていれば警告する（消さない。[ローカルの CDC](./cdc.md#ローカルの-cdc)）
+4. [`clickhouse-migrations`](https://github.com/VVVi/clickhouse-migrations) で未適用の migration を適用する（database が無ければ作る。ClickHouse Cloud では初回にここで作る）
+5. CDC があれば（`DATA_WAREHOUSE_CDC` が `none` 以外）、`views/` の view を全部作り直す
 
 ## ClickHouse に置くもの
 

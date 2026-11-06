@@ -65,7 +65,7 @@ DATA_WAREHOUSE_CDC=materialized_postgresql pnpm --filter @repo/data-warehouse dw
   ```bash
   docker exec tech-english-clickhouse clickhouse-client --query "DROP DATABASE IF EXISTS pg_cdc SYNC"
   docker exec tech-english-clickhouse clickhouse-client --multiquery --query "DROP VIEW IF EXISTS tech_english.v_users; DROP VIEW IF EXISTS tech_english.v_memos"
-  ````pg_cdc` を読む view（`v_*`）も消す（残すと読んだときに `Database pg_cdc does not exist` になる）
+  ```
 - AWS の環境も CDC を既定で作らない（[ClickHouse Cloud の CDC](#clickhouse-cloud-の-cdcclickpipes)）。ローカルにだけ CDC があると、本番に無い slot の不具合をローカルだけが抱える
 
 CDC を作るとき（`materialized_postgresql`）は、**migration コマンドが毎回 `pg_cdc` を消して作り直す。**

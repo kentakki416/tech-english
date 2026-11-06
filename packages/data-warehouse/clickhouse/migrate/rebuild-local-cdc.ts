@@ -50,7 +50,7 @@ export const rebuildLocalCdc = async (client: ClickHouseClient, params: LocalCdc
   await waitForCdcTables(client, params.tables, params.timeoutMs)
 }
 
-export const hasLocalCdc = async (client: ClickHouseClient): Promise<boolean> => (
+export const hasCdcDatabase = async (client: ClickHouseClient): Promise<boolean> => (
   await findCdcEngineFull(client) !== undefined
 )
 
@@ -65,10 +65,10 @@ const findCdcEngineFull = async (client: ClickHouseClient): Promise<string | und
 }
 
 /**
- * 既にある pg_cdc が、このプロジェクトの Postgres を取り込むものか確かめる。違えば消さずに止める。
+ * 既にある pg_cdc が、このプロジェクトの Postgres を取り込むものか確かめる。違えば何もせずに止める。
  *
  * 同じテンプレートから作った別プロジェクトの ClickHouse が同じポート（8124）で動いていると、
- * 接続先を取り違えたまま別プロジェクトの CDC を消してしまうため。
+ * 接続先を取り違えたまま、作り直しでは別プロジェクトの CDC を消し、none では別プロジェクトの CDC を消すよう警告してしまうため。
  */
 export const verifyExistingCdcDatabaseIsOwn = async (
   client: ClickHouseClient,
