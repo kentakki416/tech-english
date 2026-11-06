@@ -407,7 +407,7 @@ pnpm --filter @repo/data-warehouse dwh:migrate
 - **一覧と view のずれ**: `cdc-tables.json` だけに足して migrate → DB に触る前にエラーで止まる
 - **Postgres にテーブルが無い**: `cdc-tables.json` と view に存在しないテーブルを足して migrate → 60 秒で「`db:migrate` を先に」のエラー
 - **版番号の重複**: `1_x.sql` を足して migrate → DB に触る前にエラー
-- **別の DB の `pg_cdc`**: `LOCAL_CDC_POSTGRES_DATABASE` を別の名前にして migrate → 既にある `pg_cdc` を消さずに「refusing to drop」で止まる
+- **別の DB の `pg_cdc`**: `LOCAL_CDC_POSTGRES_DATABASE` を別の名前にして migrate → 既にある `pg_cdc` を消さずに「refusing to touch」で止まる
 - **環境変数が渡ること**: `DATA_WAREHOUSE_URL` を既定と違うポートにして migrate → そのポートの ClickHouse に適用される（`turbo run ... --dry=json` の `passthrough` にも出る）
 - **適用済みファイルの変更**: `1_create_events.sql` を書き換えて migrate → `clickhouse-migrations` がチェックサムの不一致で止まる（確認後に戻す）
 

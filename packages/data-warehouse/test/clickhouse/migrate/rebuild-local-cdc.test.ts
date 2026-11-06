@@ -1,4 +1,4 @@
-import { dropOwnLocalCdc, rebuildLocalCdc } from "../../../clickhouse/migrate/rebuild-local-cdc"
+import { hasLocalCdc, rebuildLocalCdc, verifyExistingCdcDatabaseIsOwn } from "../../../clickhouse/migrate/rebuild-local-cdc"
 
 import { createFakeClickHouseClient } from "./support/fake-clickhouse-client"
 
@@ -44,7 +44,7 @@ describe("rebuildLocalCdc", () => {
 
       await expect(
         rebuildLocalCdc(client, { postgres: POSTGRES, tables: ["users", "memos"], timeoutMs: 1000 }),
-      ).rejects.toThrow("refusing to drop pg_cdc")
+      ).rejects.toThrow("refusing to touch pg_cdc")
       expect(calls.filter((call) => call.kind === "command")).toEqual([])
     })
 
@@ -67,30 +67,42 @@ describe("rebuildLocalCdc", () => {
   })
 })
 
-describe("dropOwnLocalCdc", () => {
+describe("hasLocalCdc", () => {
   describe("正常系", () => {
-    it("このプロジェクトの pg_cdc が残っていれば消す", async () => {
-      const { calls, client } = createFakeClickHouseClient({ cdcEngineFull: OWN_ENGINE, existingCdcTables: ["users", "memos"] })
+    it("pg_cdc があれば true", async () => {
+      const { client } = createFakeClickHouseClient({ cdcEngineFull: OWN_ENGINE, existingCdcTables: ["users", "memos"] })
 
-      await expect(dropOwnLocalCdc(client, POSTGRES)).resolves.toBe("dropped")
-      expect(calls.filter((call) => call.kind === "command").map((call) => call.query)).toEqual([
-        "DROP DATABASE IF EXISTS pg_cdc SYNC",
-      ])
+      await expect(hasLocalCdc(client)).resolves.toBe(true)
     })
 
-    it("pg_cdc が無ければ何もしない", async () => {
-      const { calls, client } = createFakeClickHouseClient({ existingCdcTables: [] })
+    it("pg_cdc が無ければ false", async () => {
+      const { client } = createFakeClickHouseClient({ existingCdcTables: [] })
 
-      await expect(dropOwnLocalCdc(client, POSTGRES)).resolves.toBe("absent")
-      expect(calls.filter((call) => call.kind === "command")).toEqual([])
+      await expect(hasLocalCdc(client)).resolves.toBe(false)
+    })
+  })
+})
+
+describe("verifyExistingCdcDatabaseIsOwn", () => {
+  describe("正常系", () => {
+    it("このプロジェクトの pg_cdc なら通る", async () => {
+      const { client } = createFakeClickHouseClient({ cdcEngineFull: OWN_ENGINE, existingCdcTables: ["users", "memos"] })
+
+      await expect(verifyExistingCdcDatabaseIsOwn(client, POSTGRES)).resolves.toBeUndefined()
+    })
+
+    it("pg_cdc が無ければ通る", async () => {
+      const { client } = createFakeClickHouseClient({ existingCdcTables: [] })
+
+      await expect(verifyExistingCdcDatabaseIsOwn(client, POSTGRES)).resolves.toBeUndefined()
     })
   })
 
   describe("異常系", () => {
-    it("pg_cdc が別プロジェクトの Postgres を取り込んでいれば、消さずに other_project を返す", async () => {
+    it("pg_cdc が別プロジェクトの Postgres を取り込んでいれば、何も消さずに throw する（別プロジェクトの ClickHouse に繋いでいる）", async () => {
       const { calls, client } = createFakeClickHouseClient({ cdcEngineFull: OTHER_PROJECT_ENGINE, existingCdcTables: ["users", "memos"] })
 
-      await expect(dropOwnLocalCdc(client, POSTGRES)).resolves.toBe("other_project")
+      await expect(verifyExistingCdcDatabaseIsOwn(client, POSTGRES)).rejects.toThrow("refusing to touch pg_cdc")
       expect(calls.filter((call) => call.kind === "command")).toEqual([])
     })
   })

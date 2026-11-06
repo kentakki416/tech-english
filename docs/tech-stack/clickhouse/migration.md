@@ -26,9 +26,9 @@ pnpm --filter @repo/data-warehouse dwh:migrate    # ClickHouse
 処理の順序:
 
 1. `migrations/` のファイル名と、`infra/clickhouse/cdc-tables.json` と `views/` の対応を検査する（問題があれば DB に触る前に止まる）
-2. `DATA_WAREHOUSE_CDC=materialized_postgresql` なら CDC を作り直し、全テーブルの取り込みを待つ。`none` でローカル（`http`）の ClickHouse に流すときは、前に作った CDC が残っていれば消す（[ローカルの CDC](./cdc.md#ローカルの-cdc)）
+2. `DATA_WAREHOUSE_CDC=materialized_postgresql` なら CDC を作り直し、全テーブルの取り込みを待つ。`none` でローカル（`http`）の ClickHouse に流すときは、前に作った CDC が残っていれば警告する（消さない。[ローカルの CDC](./cdc.md#ローカルの-cdc)）
 3. [`clickhouse-migrations`](https://github.com/VVVi/clickhouse-migrations) で未適用の migration を適用する（database が無ければ作る）
-4. CDC があれば（`DATA_WAREHOUSE_CDC` が `none` 以外）、`views/` の view を全部作り直す。`none` でローカルの ClickHouse に流すときは、`pg_cdc` を読む view を消す
+4. CDC があれば（`DATA_WAREHOUSE_CDC` が `none` 以外）、`views/` の view を全部作り直す
 
 ## ClickHouse に置くもの
 
@@ -39,7 +39,7 @@ pnpm --filter @repo/data-warehouse dwh:migrate    # ClickHouse
 | 版管理する migration（`events`、将来のマテリアライズドビュー・集計テーブル） | `migrations/` | 各ファイルを 1 回だけ。適用済みは `<database>._migrations` に記録される |
 | CDC の view（`v_users` / `v_memos`） | `views/` | 毎回作り直す（`CREATE OR REPLACE VIEW`） |
 | CDC の対象テーブルの一覧 | `infra/clickhouse/cdc-tables.json`（リポジトリのルートから） | ローカルはこのコマンドが、ClickHouse Cloud は Terraform が反映する |
-| CDC のテーブル本体（`pg_cdc.*`） | （取り込み側が作る） | ClickHouse Cloud ではこのコマンドから作らない・変えない。ローカルは毎回作り直す |
+| CDC のテーブル本体（`pg_cdc.*`） | （取り込み側が作る） | ClickHouse Cloud ではこのコマンドから作らない・変えない。ローカルは `materialized_postgresql` のとき毎回作り直し、`none` のとき前に作ったものが残っていれば警告する |
 
 **view を作り直しても過去のデータは消えない。** 通常の view はデータを持たないため。マテリアライズドビューは作り直し方によってデータが消えるので、`views/` ではなく `migrations/` に書く。
 

@@ -35,23 +35,3 @@ export const applyViews = async (client: ClickHouseClient, params: ApplyViewsPar
   }
   return missingTables
 }
-
-/**
- * CDC の database を読む view を全部消し、消した view の名前を返す。
- * CDC を使わない設定にした後、前に作った view が pg_cdc の無いまま残り、読むとエラーになるのを防ぐ
- *
- * client の既定の database の view だけを見る。
- */
-export const dropCdcViews = async (client: ClickHouseClient): Promise<string[]> => {
-  const result = await client.query({
-    format: "JSONEachRow",
-    query: `SELECT name FROM system.tables
-      WHERE database = currentDatabase() AND engine = 'View' AND position(create_table_query, {cdcTablePrefix:String}) > 0`,
-    query_params: { cdcTablePrefix: `${CDC_DATABASE}.` },
-  })
-  const names = (await result.json<{ name: string }>()).map((row) => row.name)
-  for (const name of names) {
-    await client.command({ query: `DROP VIEW IF EXISTS \`${name}\`` })
-  }
-  return names
-}

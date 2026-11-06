@@ -2,7 +2,7 @@ import { createClient, type ClickHouseClient } from "@clickhouse/client"
 
 import { logger } from "@repo/logger"
 
-import { applyViews, dropCdcViews } from "./apply-views"
+import { applyViews } from "./apply-views"
 import {
   readCdcTables,
   readMigrationDefinitions,
@@ -13,7 +13,7 @@ import {
 } from "./definition-files"
 import { env, isLocalClickHouse } from "./env"
 import { CDC_TABLES_PATH, MIGRATIONS_DIR, VIEWS_DIR } from "./paths"
-import { dropOwnLocalCdc, rebuildLocalCdc } from "./rebuild-local-cdc"
+import { hasLocalCdc, rebuildLocalCdc, verifyExistingCdcDatabaseIsOwn } from "./rebuild-local-cdc"
 import { runVersionedMigrations } from "./run-versioned-migrations"
 
 const LOCAL_CDC_TIMEOUT_MS = 60_000
@@ -31,9 +31,9 @@ const closeClient = async (client: ClickHouseClient): Promise<void> => {
  * ClickHouse の migration
  *
  * 1. 定義ファイルを検査する（DB に触る前に止める）
- * 2. ローカルで CDC を使うなら（materialized_postgresql）CDC を作り直し、使わないなら（none）前に作った CDC を消す
+ * 2. ローカルで CDC を使うなら（materialized_postgresql）CDC を作り直し、使わないなら（none）前に作った CDC が残っていれば警告する
  * 3. 版管理する migration を適用する
- * 4. CDC があれば view を作り直し、ローカルで CDC を使わないなら前に作った view を消す
+ * 4. CDC があれば view を作り直す
  *
  * 設計: docs/spec/clickhouse-migration/README.md
  */
@@ -76,14 +76,21 @@ const main = async (): Promise<void> => {
       await closeClient(client)
     }
   } else if (env.DATA_WAREHOUSE_CDC === "none" && isLocalClickHouse) {
+    /**
+     * 消すのは、消し方を見た人に任せる（自動で消すと、別プロジェクトの CDC を同じ DB 名で取り違えたときや、pg_cdc を読む手作りの view まで消えるため）
+     */
     const client = createClient(connection)
     try {
-      const outcome = await dropOwnLocalCdc(client, {
+      await verifyExistingCdcDatabaseIsOwn(client, {
         database: env.LOCAL_CDC_POSTGRES_DATABASE,
         host: env.LOCAL_CDC_POSTGRES_HOST,
       })
-      if (outcome === "dropped") logger.info("dropped the local cdc left from an earlier run (DATA_WAREHOUSE_CDC=none)")
-      if (outcome === "other_project") logger.warn("left pg_cdc as is: it replicates another project's Postgres")
+      if (await hasLocalCdc(client)) {
+        logger.warn(
+          "pg_cdc from an earlier run is still attached (DATA_WAREHOUSE_CDC=none). Its replication slot stops while the replicated tables do not change, "
+          + "and keeps WAL and old catalog rows on Postgres. Drop it unless you use the local cdc: DROP DATABASE pg_cdc (see docs/tech-stack/clickhouse/cdc.md)",
+        )
+      }
     } finally {
       await closeClient(client)
     }
@@ -97,15 +104,6 @@ const main = async (): Promise<void> => {
   })
 
   if (env.DATA_WAREHOUSE_CDC === "none") {
-    if (isLocalClickHouse) {
-      const client = createClient({ ...connection, database: env.DATA_WAREHOUSE_DATABASE })
-      try {
-        const droppedViews = await dropCdcViews(client)
-        if (droppedViews.length > 0) logger.info("dropped views that read the local cdc", { views: droppedViews })
-      } finally {
-        await closeClient(client)
-      }
-    }
     logger.info("cdc is disabled, skipped views")
     return
   }
