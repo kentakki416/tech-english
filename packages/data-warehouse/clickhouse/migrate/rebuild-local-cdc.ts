@@ -36,7 +36,7 @@ export const rebuildLocalCdc = async (client: ClickHouseClient, params: LocalCdc
   }
 
   await verifyExistingCdcDatabaseIsOwn(client, params.postgres)
-  await client.command({ query: `DROP DATABASE IF EXISTS ${CDC_DATABASE} SYNC` })
+  await dropCdcDatabase(client)
   /**
    * 対象が空のまま作ると、MaterializedPostgreSQL は DB の全テーブルを取り込んでしまう
    */
@@ -51,6 +51,36 @@ export const rebuildLocalCdc = async (client: ClickHouseClient, params: LocalCdc
 }
 
 /**
+ * 前に作ったローカルの CDC（pg_cdc）が残っていれば、このプロジェクトのものだけ消す（replication slot と publication も消える）。
+ * 別プロジェクトの pg_cdc は消さずに `other_project` を返す。CDC を使わない設定で流したときに、
+ * 同じポートで動いている別プロジェクトの CDC を止めないため
+ */
+export const dropOwnLocalCdc = async (
+  client: ClickHouseClient,
+  postgres: Pick<LocalCdcParams["postgres"], "database" | "host">,
+): Promise<"absent" | "dropped" | "other_project"> => {
+  const engineFull = await findCdcEngineFull(client)
+  if (engineFull === undefined) return "absent"
+  if (!isLocalCdcDatabaseOf(engineFull, postgres)) return "other_project"
+  await dropCdcDatabase(client)
+  return "dropped"
+}
+
+const dropCdcDatabase = async (client: ClickHouseClient): Promise<void> => {
+  await client.command({ query: `DROP DATABASE IF EXISTS ${CDC_DATABASE} SYNC` })
+}
+
+const findCdcEngineFull = async (client: ClickHouseClient): Promise<string | undefined> => {
+  const result = await client.query({
+    format: "JSONEachRow",
+    query: "SELECT engine_full FROM system.databases WHERE name = {name:String}",
+    query_params: { name: CDC_DATABASE },
+  })
+  const rows = await result.json<{ engine_full: string }>()
+  return rows[0]?.engine_full
+}
+
+/**
  * 既にある pg_cdc が、このプロジェクトの Postgres を取り込むものか確かめる。違えば消さずに止める。
  *
  * 同じテンプレートから作った別プロジェクトの ClickHouse が同じポート（8124）で動いていると、
@@ -60,13 +90,7 @@ const verifyExistingCdcDatabaseIsOwn = async (
   client: ClickHouseClient,
   postgres: LocalCdcParams["postgres"],
 ): Promise<void> => {
-  const result = await client.query({
-    format: "JSONEachRow",
-    query: "SELECT engine_full FROM system.databases WHERE name = {name:String}",
-    query_params: { name: CDC_DATABASE },
-  })
-  const rows = await result.json<{ engine_full: string }>()
-  const engineFull = rows[0]?.engine_full
+  const engineFull = await findCdcEngineFull(client)
   if (engineFull !== undefined && !isLocalCdcDatabaseOf(engineFull, postgres)) {
     throw new Error(
       `refusing to drop ${CDC_DATABASE}: it does not replicate ${postgres.host}/${postgres.database} (${engineFull}). `

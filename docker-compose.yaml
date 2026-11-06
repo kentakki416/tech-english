@@ -4,7 +4,7 @@ services:
     image: postgres:16-alpine
     container_name: tech-english-postgres
     restart: unless-stopped
-    # ClickHouse への CDC（論理レプリケーション）に wal_level=logical が必要。
+    # ClickHouse への CDC（論理レプリケーション。既定では作らない）に wal_level=logical が必要。
     # 既定は replica で、そのままだと replication slot を作れない。
     # prd の ClickPipes も同じ前提なので、ローカルで同じ設定を再現している。
     command: postgres -c wal_level=logical

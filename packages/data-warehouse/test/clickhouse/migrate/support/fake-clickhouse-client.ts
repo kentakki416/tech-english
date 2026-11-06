@@ -11,6 +11,10 @@ type FakeState = {
    */
   cdcEngineFull?: string
   /**
+   * system.tables にある、pg_cdc を読む view
+   */
+  cdcViews?: string[]
+  /**
    * system.tables にある pg_cdc のテーブル
    */
   existingCdcTables: string[]
@@ -19,7 +23,7 @@ type FakeState = {
 /**
  * migration コマンドが使う query / command だけを持つ ClickHouse client の偽物
  *
- * 実行した SQL を記録し、system.databases / system.tables への問い合わせには state から答える。
+ * 実行した SQL を記録し、system.databases / system.tables（view かテーブル）への問い合わせには state から答える。
  */
 export const createFakeClickHouseClient = (state: FakeState) => {
   const calls: RecordedCall[] = []
@@ -29,11 +33,13 @@ export const createFakeClickHouseClient = (state: FakeState) => {
     },
     query: async ({ query, query_params }: { query: string, query_params?: Record<string, unknown> }) => {
       calls.push({ kind: "query", query })
+      const findTableRows = () => state.existingCdcTables
+        .filter((name) => (query_params?.tables as string[] | undefined)?.includes(name) ?? true)
+        .map((name) => ({ name }))
+      const findViewRows = () => (state.cdcViews ?? []).map((name) => ({ name }))
       const rows = query.includes("system.databases")
         ? (state.cdcEngineFull === undefined ? [] : [{ engine_full: state.cdcEngineFull }])
-        : state.existingCdcTables
-          .filter((name) => (query_params?.tables as string[] | undefined)?.includes(name) ?? true)
-          .map((name) => ({ name }))
+        : query.includes("engine = 'View'") ? findViewRows() : findTableRows()
       return { json: async () => rows }
     },
   }

@@ -53,10 +53,10 @@ packages/db/
 
 ローカルの dev / test DB を空から作り直す手順（中のデータは消える）。マイグレーションの適用履歴と DB の中身がずれて `db:migrate` が `relation "users" already exists` などで失敗するときに使う。
 
-dev DB には ClickHouse の CDC（replication slot）が繋がっていて、そのままでは `DROP DATABASE` できないので、先に CDC を外して最後に張り直す。
+ClickHouse の CDC（replication slot）を作っているときは、dev DB をそのままでは `DROP DATABASE` できないので、先に CDC を外す（CDC は既定では作らない。[ローカルの CDC](../../docs/tech-stack/clickhouse/cdc.md#ローカルの-cdc)）。
 
 ```bash
-# 1. ClickHouse の CDC を外す（Postgres 側の replication slot / publication も一緒に消える）
+# 1. ClickHouse の CDC を外す（Postgres 側の replication slot / publication も一緒に消える。CDC が無ければ何もしない）
 docker exec tech-english-clickhouse clickhouse-client --query "DROP DATABASE IF EXISTS pg_cdc"
 
 # 2. dev / test DB を作り直す（WITH (FORCE) は起動中の api などの接続を切ってから消す）
@@ -69,8 +69,8 @@ pnpm --filter api db:migrate
 pnpm --filter api db:seed
 pnpm --filter api db:seed:dictionary
 
-# 4. CDC を張り直す（ClickHouse の migration は CDC を毎回作り直す）
-pnpm --filter @repo/data-warehouse dwh:migrate
+# 4. CDC を使っていたときだけ張り直す（ClickHouse の migration は CDC を毎回作り直す）
+DATA_WAREHOUSE_CDC=materialized_postgresql pnpm --filter @repo/data-warehouse dwh:migrate
 ```
 
 test DB は `pnpm --filter api test` が実行のたびにマイグレーションを流すので、作り直した後は空のままでよい。

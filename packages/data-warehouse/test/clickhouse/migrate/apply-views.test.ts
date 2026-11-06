@@ -1,4 +1,4 @@
-import { applyViews } from "../../../clickhouse/migrate/apply-views"
+import { applyViews, dropCdcViews } from "../../../clickhouse/migrate/apply-views"
 
 import { createFakeClickHouseClient } from "./support/fake-clickhouse-client"
 
@@ -36,6 +36,27 @@ describe("applyViews", () => {
       const { client } = createFakeClickHouseClient({ existingCdcTables: ["users"] })
 
       await expect(applyViews(client, { cdcMode: "materialized_postgresql", views: VIEWS })).rejects.toThrow("pg_cdc.memos")
+    })
+  })
+})
+
+describe("dropCdcViews", () => {
+  describe("正常系", () => {
+    it("pg_cdc を読む view を消して、消した名前を返す", async () => {
+      const { calls, client } = createFakeClickHouseClient({ cdcViews: ["v_memos", "v_users"], existingCdcTables: [] })
+
+      await expect(dropCdcViews(client)).resolves.toEqual(["v_memos", "v_users"])
+      expect(calls.filter((call) => call.kind === "command").map((call) => call.query)).toEqual([
+        "DROP VIEW IF EXISTS `v_memos`",
+        "DROP VIEW IF EXISTS `v_users`",
+      ])
+    })
+
+    it("pg_cdc を読む view が無ければ何もしない", async () => {
+      const { calls, client } = createFakeClickHouseClient({ existingCdcTables: [] })
+
+      await expect(dropCdcViews(client)).resolves.toEqual([])
+      expect(calls.filter((call) => call.kind === "command")).toEqual([])
     })
   })
 })

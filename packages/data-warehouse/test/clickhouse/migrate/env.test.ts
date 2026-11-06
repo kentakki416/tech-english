@@ -4,11 +4,15 @@ const { envSchema } = forTesting
 
 describe("envSchema", () => {
   describe("正常系", () => {
-    it("何も指定しなければローカルの docker compose 向けの値になる", () => {
+    it("何も指定しなければローカルの docker compose 向けの値になり、CDC は使わない", () => {
       const result = envSchema.parse({})
 
-      expect(result.DATA_WAREHOUSE_CDC).toBe("materialized_postgresql")
+      expect(result.DATA_WAREHOUSE_CDC).toBe("none")
       expect(result.DATA_WAREHOUSE_URL).toBe("http://localhost:8124")
+    })
+
+    it("ローカル（http）の ClickHouse に materialized_postgresql で繋げる", () => {
+      expect(envSchema.safeParse({ DATA_WAREHOUSE_CDC: "materialized_postgresql" }).success).toBe(true)
     })
 
     it("ClickHouse Cloud（https）に clickpipes で繋げる", () => {
@@ -21,7 +25,10 @@ describe("envSchema", () => {
   describe("異常系", () => {
     it("https の ClickHouse に materialized_postgresql（ローカル用で pg_cdc を作り直す）を使えない", () => {
       expect(
-        envSchema.safeParse({ DATA_WAREHOUSE_URL: "https://abc.ap-northeast-1.aws.clickhouse.cloud:8443" }).success,
+        envSchema.safeParse({
+          DATA_WAREHOUSE_CDC: "materialized_postgresql",
+          DATA_WAREHOUSE_URL: "https://abc.ap-northeast-1.aws.clickhouse.cloud:8443",
+        }).success,
       ).toBe(false)
     })
 

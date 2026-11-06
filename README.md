@@ -107,8 +107,8 @@ docker compose up -d
 # 4. Drizzle の migration を適用する
 pnpm --filter api db:migrate
 
-# 5. ClickHouse の migration を適用する（events テーブル / Postgres からの CDC / view）
-#    CDC は Postgres のテーブルを取り込むため、4 の後に流す
+# 5. ClickHouse の migration を適用する（events テーブル）
+#    Postgres からの CDC は既定では作らない（docs/tech-stack/clickhouse/cdc.md の「ローカルの CDC」）
 pnpm --filter @repo/data-warehouse dwh:migrate
 
 # 6. 全アプリを起動する

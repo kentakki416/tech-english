@@ -1,7 +1,7 @@
 # CDC（Postgres からの取り込み）
 
 Postgres の業務データを、論理レプリケーションで ClickHouse に写す仕組み。ローカルは ClickHouse 内蔵の MaterializedPostgreSQL、
-ClickHouse Cloud は ClickPipes で取り込む。この方式を選んだ理由は [`README.md`](./README.md#方式の選択)。
+ClickHouse Cloud は ClickPipes で取り込む。**どの環境も既定では CDC を作らず**、仕組みだけを用意している。この方式を選んだ理由は [`README.md`](./README.md#方式の選択)。
 
 ## 目次
 
@@ -23,7 +23,7 @@ flowchart LR
 同期対象は `infra/clickhouse/cdc-tables.json` に並べたテーブル（今は `users` / `memos`）。publication と
 replication slot は取り込み側が自動作成する。取り込んだテーブルは `pg_cdc` database に入り、
 分析クエリは `tech_english.v_*` の view から読む（[view を経由する規約](./query.md#view-を経由する規約)）。
-ローカルの CDC（MaterializedPostgreSQL）と、両方の環境の view は [migration コマンド](./migration.md)が作る。ClickHouse Cloud の CDC（ClickPipe）は Terraform が作る。
+ローカルの CDC（MaterializedPostgreSQL。`DATA_WAREHOUSE_CDC=materialized_postgresql` のときだけ）と、両方の環境の view は [migration コマンド](./migration.md)が作る。ClickHouse Cloud の CDC（ClickPipe）は Terraform が作る。
 
 ## ローカルと ClickHouse Cloud の違い
 
@@ -46,12 +46,23 @@ view 定義に閉じ込めている。
   埋まって書き込み不能になる。AWS の RDS は `max_slot_wal_keep_size`（5 GB）で上限を付けていて、
   超えると slot が無効になり CDC は止まるが、DB は止まらない（再同期で戻す）。slot ラグの監視は**未実装**
 - 反映は同期ではない。ローカルでの実測は数秒〜10 秒程度で、再起動直後は長めに出る
-- ローカルで `pg_cdc` を消すときは `DROP DATABASE pg_cdc`。slot と publication も一緒に消える。
-  手で消さずに放置すると docker volume が WAL で膨らみ続ける
+- ローカルで `pg_cdc` を消すときは、`DATA_WAREHOUSE_CDC` を付けずに migration コマンドを流すか、`DROP DATABASE pg_cdc`。slot と publication も一緒に消える。
+  放置すると docker volume が WAL で膨らみ続ける（[ローカルの CDC](#ローカルの-cdc)）
 
 ## ローカルの CDC
 
-ローカルでは ClickHouse の MaterializedPostgreSQL で Postgres を取り込む。**migration コマンドは毎回 `pg_cdc` を消して作り直す。**
+**ローカルも既定では CDC を作らない。** CDC の view を作り込むときだけ、`DATA_WAREHOUSE_CDC=materialized_postgresql` を付けて migration コマンドを流す。
+
+```bash
+DATA_WAREHOUSE_CDC=materialized_postgresql pnpm --filter @repo/data-warehouse dwh:migrate
+```
+
+- 既定で作らないのは、止まった replication slot が Postgres を遅くするため。MaterializedPostgreSQL は、取り込むテーブル（`users` / `memos`）が変わらない間 slot を進めない（10 秒ごとに読みに来るが、`confirmed_flush_lsn` が止まったまま WAL だけが進むのを実機で確認）。止まった slot は WAL を手放さず、システムカタログの古い行も消させない（`catalog_xmin`。slot の DB だけでなく、同じサーバーの全 DB に効く）
+- api のテストは毎回全テーブルを TRUNCATE し、そのたびにシステムカタログ（`pg_class`）の行を書き換える。古い行が消えずにたまり、このプロジェクトでは `pg_class` の古い行が約 141 万行になって、TRUNCATE 1 回が 40 ミリ秒から 2.6 秒以上になった
+- `DATA_WAREHOUSE_CDC` を付けずに（`none` で）ローカルの ClickHouse に migration コマンドを流すと、前に作った `pg_cdc` が残っていれば消す。消すのはこのプロジェクトの Postgres を取り込むものだけで、別プロジェクトのものは警告を出して残す。`pg_cdc` を読む view（`v_*`）も消す（残すと読んだときに `Database pg_cdc does not exist` になる）
+- AWS の環境も CDC を既定で作らない（[ClickHouse Cloud の CDC](#clickhouse-cloud-の-cdcclickpipes)）。ローカルにだけ CDC があると、本番に無い slot の不具合をローカルだけが抱える
+
+CDC を作るとき（`materialized_postgresql`）は、**migration コマンドが毎回 `pg_cdc` を消して作り直す。**
 
 - MaterializedPostgreSQL は Postgres 側で列が変わるとそのテーブルの同期を止める。ClickHouse のドキュメントにある「テーブルを付け直す」では、ClickHouse 24.10 で付け直した後の変更が反映されなかったため、database ごと作り直している
 - 作り直すと replication slot と publication も作り直され、全件を取り込み直す。ローカルのデータは少ないので数秒で終わる

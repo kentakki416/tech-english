@@ -56,7 +56,7 @@ ClickHouse に置くテーブル・view を **Postgres と同じように版管�
 | | local | dev | min | prd |
 | --- | --- | --- | --- | --- |
 | ClickHouse | docker compose（常にある） | `enable_data_warehouse`（既定 `false`）。`true` なら ClickHouse Cloud | 同左（既定 `false`） | 同左（既定 `true`） |
-| CDC | MaterializedPostgreSQL（常にある） | `enable_cdc`（既定 `false`）。`true` なら ClickPipes | **なし**（MVP 対象外） | 同 dev（既定 `false`） |
+| CDC | MaterializedPostgreSQL（既定はなし。`DATA_WAREHOUSE_CDC=materialized_postgresql` のときだけ作る） | `enable_cdc`（既定 `false`）。`true` なら ClickPipes | **なし**（MVP 対象外） | 同 dev（既定 `false`） |
 | worker の書き込み先 | ClickHouse | フラグが `false` なら書かない（`DATA_WAREHOUSE_TYPE=none`） | 同左 | 同左 |
 | ClickHouse の migration | 手元でコマンドを実行 | deploy で実行（フラグが `true` のときだけ） | 同左 | 同左 |
 
@@ -96,7 +96,7 @@ Postgres（Drizzle）の変更と同じ PR で、ClickHouse 側に必要な変�
 | 5. 列の削除 | 列を消す | 不要 | 消した列名を view の除外列に足す | deploy のみ |
 | 6. ClickHouse だけの変更 | - | - | `migrations/` にファイルを足す | deploy のみ |
 
-- **ローカルはどのケースでも Postgres の migration（`pnpm --filter api db:migrate`）→ ClickHouse の migration の順に流すだけでよい。** ローカルの migration コマンドは CDC を毎回作り直す（[後述](#ローカルの-cdc)）ため、テーブルや列の変更に自動で追いつく
+- **ローカルはどのケースでも Postgres の migration（`pnpm --filter api db:migrate`）→ ClickHouse の migration の順に流すだけでよい。** CDC を作るとき（`materialized_postgresql`）、ローカルの migration コマンドは CDC を毎回作り直す（[後述](#ローカルの-cdc)）ため、テーブルや列の変更に自動で追いつく
 - ケース 1 で view の元テーブルがまだ ClickHouse に無いとき（初回の取り込み前）、migration コマンドはその view だけ作らずに警告を出して成功する。次の実行で作られる
 - ケース 3 で ClickPipes が ClickHouse 側に列を足すのは、**そのテーブルに次の書き込みが来たとき**。それまでは view にも出ない
 - ケース 4 では、Resync が終わるまでその間の変更が ClickHouse に届かない。Resync は新しいテーブルを裏で作ってから入れ替えるため、view が空になる時間は無い
@@ -262,7 +262,12 @@ WHERE ${CDC_LIVE_FILTER}
 
 ### ローカルの CDC
 
-**ローカルの migration コマンドは、CDC の database（`pg_cdc`）を毎回消して作り直す。**
+**ローカルも既定では CDC を作らない（`DATA_WAREHOUSE_CDC` の既定は `none`）。** CDC の view を作り込むときだけ `materialized_postgresql` を指定する。
+
+- 取り込むテーブルが変わらない間、MaterializedPostgreSQL は replication slot を進めない。止まった slot が WAL とシステムカタログの古い行（`catalog_xmin`。同じサーバーの全 DB に効く）を残し続け、api のテストの TRUNCATE が遅くなった（実測は [`cdc.md`](../../tech-stack/clickhouse/cdc.md#ローカルの-cdc)）。AWS の環境も CDC を既定で作らないので、ローカルもそろえる
+- `none` でローカル（`http`）の ClickHouse に流すときは、前に作った `pg_cdc` が残っていれば消す（このプロジェクトの Postgres を取り込むものだけ。別プロジェクトのものは警告して残す）。既定を変える前に作った環境から、止まった slot を消すため。`pg_cdc` を読む view も、読めないまま残らないよう消す
+
+**CDC を作るとき（`materialized_postgresql`）、ローカルの migration コマンドは CDC の database（`pg_cdc`）を毎回消して作り直す。**
 
 - MaterializedPostgreSQL は、Postgres 側で列の追加・削除・型の変更があると、そのテーブルの同期を止める（`Table users is skipped from replication stream because its structure has changes`）
 - ClickHouse のドキュメントは「テーブルを `DETACH ... PERMANENTLY` して `ATTACH` し直す」ことで戻せるとしているが、**ClickHouse 24.10 で試すと、付け直した後の変更が反映されなかった**（replication slot の位置は進むが、テーブルに行が入らない）
@@ -370,7 +375,7 @@ ClickHouse の接続情報は、Terraform が管理する専用の secret（`/<p
 | --- | --- | --- |
 | `DATA_WAREHOUSE_TYPE` | worker | `enable_data_warehouse` が `true` なら `clickhouse`、`false` なら `none` |
 | `DATA_WAREHOUSE_URL` / `USER` / `PASSWORD` / `DATABASE` | worker / dwh-migration | data-warehouse の secret から（`enable_data_warehouse` のときだけ） |
-| `DATA_WAREHOUSE_CDC` | dwh-migration | `enable_cdc` が `true` なら `clickpipes`、`false` なら `none`。ローカルの既定値は `materialized_postgresql` |
+| `DATA_WAREHOUSE_CDC` | dwh-migration | `enable_cdc` が `true` なら `clickpipes`、`false` なら `none`。ローカルの既定値も `none`（CDC を試すときだけ `materialized_postgresql`） |
 
 ### 既存ファイルの扱い
 
