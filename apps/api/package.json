@@ -16,10 +16,11 @@
     "lint": "eslint 'src/**/*.ts' 'test/**/*.ts'",
     "lint:fix": "eslint 'src/**/*.ts' 'test/**/*.ts' --fix",
     "start": "PORT=${PORT_API:-8080} dotenvx run -f .env.local -- node dist/index.js",
-    "test": "DB_NAME=tech-english_test dotenvx run -f .env.local -- sh -c 'pnpm --filter @repo/db db:migrate && vitest run'",
+    "test": "DB_NAME=tech-english_test dotenvx run -f .env.local -- sh -c 'pnpm --filter @repo/db db:migrate && vitest run \"$@\"' sh",
     "test:ci": "pnpm --filter @repo/db db:migrate && vitest run",
-    "test:coverage": "DB_NAME=tech-english_test dotenvx run -f .env.local -- sh -c 'pnpm --filter @repo/db db:migrate && vitest run --coverage'",
-    "test:watch": "vitest"
+    "test:coverage": "DB_NAME=tech-english_test dotenvx run -f .env.local -- sh -c 'pnpm --filter @repo/db db:migrate && vitest run --coverage \"$@\"' sh",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
   },
   "keywords": [],
   "author": "",

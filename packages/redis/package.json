@@ -9,7 +9,8 @@
     "clean": "rm -rf dist",
     "dev": "tsc --watch",
     "lint": "eslint 'src/**/*.ts'",
-    "lint:fix": "eslint 'src/**/*.ts' --fix"
+    "lint:fix": "eslint 'src/**/*.ts' --fix",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "ioredis": "^5.10.1"

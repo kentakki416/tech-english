@@ -5,15 +5,16 @@
   "types": "./dist/index.d.ts",
   "sideEffects": false,
   "scripts": {
-    "build": "tsc && tsc -p clickhouse/tsconfig.json",
+    "build": "tsc --project tsconfig.build.json && tsc -p clickhouse/tsconfig.json",
     "clean": "rm -rf dist",
-    "dev": "tsc --watch",
+    "dev": "tsc --project tsconfig.build.json --watch",
     "dwh:migrate": "turbo run dwh:migrate:run --filter=@repo/data-warehouse",
     "dwh:migrate:run": "tsx clickhouse/migrate/index.ts",
     "lint": "eslint 'src/**/*.ts' 'clickhouse/**/*.ts'",
     "lint:fix": "eslint 'src/**/*.ts' 'clickhouse/**/*.ts' --fix",
     "test": "vitest run",
-    "test:ci": "vitest run"
+    "test:ci": "vitest run",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p clickhouse/tsconfig.json"
   },
   "dependencies": {
     "@clickhouse/client": "^1.14.0",

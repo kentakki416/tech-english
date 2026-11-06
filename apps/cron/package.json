@@ -15,7 +15,8 @@
     "start": "dotenvx run -f .env.local -- node dist/index.js",
     "test": "vitest run",
     "test:ci": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.133.0",

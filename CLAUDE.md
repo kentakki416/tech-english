@@ -61,6 +61,7 @@ pnpm build        # 全アプリをビルド
 pnpm lint         # ESLint
 pnpm lint:fix     # ESLint 自動修正
 pnpm test         # テスト
+pnpm typecheck    # 型チェック（tsc --noEmit。web / admin は next typegen、mobile は expo customize tsconfig.json で route の型を作ってから）。vitest は型を見ないので、CI はこれを別に流す
 ```
 
 各アプリ固有のコマンドは対応サブディレクトリの `CLAUDE.md` を参照。前提は Node.js >=18 / pnpm >=9（インフラ作業時は Terraform + AWS CLI）。
@@ -100,6 +101,10 @@ lint 設定自体を触るときの注意:
 - 仕様書・設計書は `docs/spec/{feature}/` に置き、**実装前に必ず `design-feature` skill で作成する**（構成・テンプレート・step の書き方は同 skill が持つ）。デザインモックは `design-mock` skill
 - ドキュメントは日本語で書く
 - **図は Mermaid で書く**（フロー図 / シーケンス図 / ER 図 / 状態遷移図）。ASCII アートは使わない
+
+## PR
+
+- **マージの前に、CodeRabbit の未解決のスレッドを確かめる。** 直したものは resolve し、直さないものは PR 本文に理由を書いてから resolve する。未解決のまま残すと、直さないと決めたのか見落としたのかが後から分からない
 
 ## Important Notes
 
