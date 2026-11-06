@@ -28,10 +28,14 @@ const envSchema = z
     /**
      * CDC の実装。view の定義に埋める値と、ローカルの CDC を作り直すかを決める。
      * none は CDC を張っていない環境で、view を作らない。
+     *
+     * ローカルも既定は none にし、CDC を試すときだけ materialized_postgresql を指定する。
+     * 取り込むテーブルが変わらない間、MaterializedPostgreSQL は replication slot を進めず、
+     * 止まった slot が WAL とシステムカタログの古い行を残し続けるため（docs/tech-stack/clickhouse/cdc.md）
      */
     DATA_WAREHOUSE_CDC: z
       .enum(["materialized_postgresql", "clickpipes", "none"])
-      .default("materialized_postgresql"),
+      .default("none"),
     /**
      * migration と view を置く database。clickhouse-migrations が CREATE DATABASE に埋め込むため、識別子に限る
      */
@@ -42,7 +46,7 @@ const envSchema = z
     /**
      * ローカルの MaterializedPostgreSQL が接続する Postgres。
      * **ClickHouse のコンテナから見た**接続先なので、ホストは docker compose のサービス名になる。
-     * DATA_WAREHOUSE_CDC が materialized_postgresql のときだけ使う。
+     * CDC を作るとき（materialized_postgresql）と、none で前に作った pg_cdc がこのプロジェクトのものか見分けるときに使う。
      */
     LOCAL_CDC_POSTGRES_DATABASE: z.string().default("tech-english_dev"),
     LOCAL_CDC_POSTGRES_HOST: z.string().default("postgres:5432"),
@@ -51,9 +55,7 @@ const envSchema = z
   })
   .superRefine((env, ctx) => {
     /**
-     * materialized_postgresql は pg_cdc を消して作り直すローカル用のモード。
-     * ClickHouse Cloud（https）に向けて流さないよう、タスク定義で DATA_WAREHOUSE_CDC を
-     * 書き忘れたとき（既定値がこのモード）に止める。
+     * materialized_postgresql は pg_cdc を消して作り直すローカル用のモード。ClickHouse Cloud（https）に向けて流さないよう止める。
      */
     const protocol = readUrlProtocol(env.DATA_WAREHOUSE_URL)
     if (env.DATA_WAREHOUSE_CDC === "materialized_postgresql" && protocol !== undefined && protocol !== "http:") {
@@ -73,6 +75,11 @@ if (!result.success) {
 }
 
 export const env = result.data
+
+/**
+ * http の ClickHouse をローカルの docker compose とみなす（ClickHouse Cloud は https だけを受け付ける）
+ */
+export const isLocalClickHouse = readUrlProtocol(env.DATA_WAREHOUSE_URL) === "http:"
 
 export type CdcMode = typeof env.DATA_WAREHOUSE_CDC
 

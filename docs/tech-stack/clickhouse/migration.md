@@ -18,17 +18,18 @@ pnpm --filter api db:migrate                      # 先に Postgres
 pnpm --filter @repo/data-warehouse dwh:migrate    # ClickHouse
 ```
 
-- **何度実行してもよい。** 版管理する migration は未適用のものだけを流し、CDC（ローカル）と view は毎回作り直す
+- **何度実行してもよい。** 版管理する migration は未適用のものだけを流し、CDC（ローカルで `materialized_postgresql` を指定したとき）と view は毎回作り直す
 - `dwh:migrate` は依存パッケージ（`@repo/logger`）を turbo でビルドしてから `dwh:migrate:run` を実行する。コンテナ（migration イメージ）ではビルド済みなので `dwh:migrate:run` を直接起動する
 - 環境変数は turbo の `passThroughEnv`（`turbo.json` の `dwh:migrate:run`）で渡している。**新しい環境変数を足したらそこにも足す。** 足さないと turbo が渡さず、既定値のまま動く
-- `DATA_WAREHOUSE_CDC=materialized_postgresql`（既定値）は `http` の ClickHouse にだけ使える。`https`（ClickHouse Cloud）に向けると env の検証で止まる
+- `DATA_WAREHOUSE_CDC` の既定値は `none`（ローカルも CDC を作らない。[ローカルの CDC](./cdc.md#ローカルの-cdc)）。`materialized_postgresql` は `http` の ClickHouse にだけ使える。`https`（ClickHouse Cloud）に向けると env の検証で止まる
 
 処理の順序:
 
 1. `migrations/` のファイル名と、`infra/clickhouse/cdc-tables.json` と `views/` の対応を検査する（問題があれば DB に触る前に止まる）
-2. ローカル（`DATA_WAREHOUSE_CDC=materialized_postgresql`）なら CDC を作り直し、全テーブルの取り込みを待つ（[ローカルの CDC](./cdc.md#ローカルの-cdc)）
-3. [`clickhouse-migrations`](https://github.com/VVVi/clickhouse-migrations) で未適用の migration を適用する（database が無ければ作る）
-4. CDC があれば（`DATA_WAREHOUSE_CDC` が `none` 以外）、`views/` の view を全部作り直す
+2. ローカル（`http`）なら、`DATA_WAREHOUSE_DATABASE` の database が既にあるか確かめ、無ければ止まる。docker compose の `CLICKHOUSE_DB` が初回の起動時に作るので、無いのは同じポートで動いている別プロジェクトの ClickHouse に繋いでいる可能性が高い（そのまま流すと、そちらに database と `events` テーブルを作ってしまう）
+3. `DATA_WAREHOUSE_CDC=materialized_postgresql` なら CDC を作り直し、全テーブルの取り込みを待つ。`none` でローカル（`http`）の ClickHouse に流すときは、前に作った CDC が残っていれば警告する（消さない。[ローカルの CDC](./cdc.md#ローカルの-cdc)）
+4. [`clickhouse-migrations`](https://github.com/VVVi/clickhouse-migrations) で未適用の migration を適用する（database が無ければ作る。ClickHouse Cloud では初回にここで作る）
+5. CDC があれば（`DATA_WAREHOUSE_CDC` が `none` 以外）、`views/` の view を全部作り直す
 
 ## ClickHouse に置くもの
 
@@ -39,7 +40,7 @@ pnpm --filter @repo/data-warehouse dwh:migrate    # ClickHouse
 | 版管理する migration（`events`、将来のマテリアライズドビュー・集計テーブル） | `migrations/` | 各ファイルを 1 回だけ。適用済みは `<database>._migrations` に記録される |
 | CDC の view（`v_users` / `v_memos`） | `views/` | 毎回作り直す（`CREATE OR REPLACE VIEW`） |
 | CDC の対象テーブルの一覧 | `infra/clickhouse/cdc-tables.json`（リポジトリのルートから） | ローカルはこのコマンドが、ClickHouse Cloud は Terraform が反映する |
-| CDC のテーブル本体（`pg_cdc.*`） | （取り込み側が作る） | ClickHouse Cloud ではこのコマンドから作らない・変えない。ローカルは毎回作り直す |
+| CDC のテーブル本体（`pg_cdc.*`） | （取り込み側が作る） | ClickHouse Cloud ではこのコマンドから作らない・変えない。ローカルは `materialized_postgresql` のとき毎回作り直し、`none` のとき前に作ったものが残っていれば警告する |
 
 **view を作り直しても過去のデータは消えない。** 通常の view はデータを持たないため。マテリアライズドビューは作り直し方によってデータが消えるので、`views/` ではなく `migrations/` に書く。
 
@@ -88,5 +89,5 @@ WHERE ${CDC_LIVE_FILTER}
 | `DATA_WAREHOUSE_URL` | `http://localhost:8124` | ClickHouse の HTTP(S) の URL |
 | `DATA_WAREHOUSE_USER` / `DATA_WAREHOUSE_PASSWORD` | `default` / `password` | |
 | `DATA_WAREHOUSE_DATABASE` | `tech_english` | migration と view を置く database |
-| `DATA_WAREHOUSE_CDC` | `materialized_postgresql` | `materialized_postgresql`（ローカル）/ `clickpipes`（ClickHouse Cloud）/ `none`（CDC なし。view を作らない） |
+| `DATA_WAREHOUSE_CDC` | `none` | `none`（CDC なし。view を作らない）/ `materialized_postgresql`（ローカルで CDC を試すとき）/ `clickpipes`（ClickHouse Cloud） |
 | `LOCAL_CDC_POSTGRES_HOST` / `_DATABASE` / `_USER` / `_PASSWORD` | `postgres:5432` / `tech-english_dev` / `postgres` / `password` | ローカルの MaterializedPostgreSQL が繋ぐ Postgres。**ClickHouse のコンテナから見た**接続先 |

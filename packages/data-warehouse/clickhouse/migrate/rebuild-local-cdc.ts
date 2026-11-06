@@ -50,26 +50,34 @@ export const rebuildLocalCdc = async (client: ClickHouseClient, params: LocalCdc
   await waitForCdcTables(client, params.tables, params.timeoutMs)
 }
 
-/**
- * 既にある pg_cdc が、このプロジェクトの Postgres を取り込むものか確かめる。違えば消さずに止める。
- *
- * 同じテンプレートから作った別プロジェクトの ClickHouse が同じポート（8124）で動いていると、
- * 接続先を取り違えたまま別プロジェクトの CDC を消してしまうため。
- */
-const verifyExistingCdcDatabaseIsOwn = async (
-  client: ClickHouseClient,
-  postgres: LocalCdcParams["postgres"],
-): Promise<void> => {
+export const hasCdcDatabase = async (client: ClickHouseClient): Promise<boolean> => (
+  await findCdcEngineFull(client) !== undefined
+)
+
+const findCdcEngineFull = async (client: ClickHouseClient): Promise<string | undefined> => {
   const result = await client.query({
     format: "JSONEachRow",
     query: "SELECT engine_full FROM system.databases WHERE name = {name:String}",
     query_params: { name: CDC_DATABASE },
   })
   const rows = await result.json<{ engine_full: string }>()
-  const engineFull = rows[0]?.engine_full
+  return rows[0]?.engine_full
+}
+
+/**
+ * 既にある pg_cdc が、このプロジェクトの Postgres を取り込むものか確かめる。違えば何もせずに止める。
+ *
+ * 同じテンプレートから作った別プロジェクトの ClickHouse が同じポート（8124）で動いていると、
+ * 接続先を取り違えたまま、作り直しでは別プロジェクトの CDC を消し、none では別プロジェクトの CDC を消すよう警告してしまうため。
+ */
+export const verifyExistingCdcDatabaseIsOwn = async (
+  client: ClickHouseClient,
+  postgres: Pick<LocalCdcParams["postgres"], "database" | "host">,
+): Promise<void> => {
+  const engineFull = await findCdcEngineFull(client)
   if (engineFull !== undefined && !isLocalCdcDatabaseOf(engineFull, postgres)) {
     throw new Error(
-      `refusing to drop ${CDC_DATABASE}: it does not replicate ${postgres.host}/${postgres.database} (${engineFull}). `
+      `refusing to touch ${CDC_DATABASE}: it does not replicate ${postgres.host}/${postgres.database} (${engineFull}). `
       + "DATA_WAREHOUSE_URL may point to another project's ClickHouse. "
       + `If you changed LOCAL_CDC_POSTGRES_* on purpose, drop it yourself: DROP DATABASE ${CDC_DATABASE}`,
     )

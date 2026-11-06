@@ -71,7 +71,7 @@ ClickHouse は、行動イベントの置き場所に求めることを次のよ
 | 追記だけの大量の書き込みと、大量行の集計 | 列指向で、この用途に最適化されている |
 | 古いイベントを TTL で自動で消す | テーブル定義の `TTL` |
 | 同じイベントを 1 件に畳む | `ReplacingMergeTree`（[`query.md`](./query.md#events-テーブル)） |
-| Postgres の業務データを CDC で取り込む | ローカルは `MaterializedPostgreSQL`、ClickHouse Cloud は ClickPipes（[`cdc.md`](./cdc.md)） |
+| Postgres の業務データを CDC で取り込む | ローカルは `MaterializedPostgreSQL`、ClickHouse Cloud は ClickPipes。どの環境も既定では作らない（[`cdc.md`](./cdc.md)） |
 | リクエストが無いときの費用が小さい | ClickHouse Cloud は月額最低額が無く、アイドル時に compute がゼロへスケールダウンする |
 
 ### 他の候補と却下理由
@@ -100,6 +100,7 @@ ClickHouse を使うと決めた後、動かし方と取り込み方に選択肢
 | ローカルの CDC | **MaterializedPostgreSQL**（ClickHouse 内蔵。追加のコンテナが要らない） | **ClickPipes**: マネージドサービスなのでローカルでは動かせない。**PeerDB（ClickPipes と同じエンジン）のセルフホスト**: catalog Postgres / Temporal / MinIO を含む 11 サービスが増え、ダッシュボードがポート 3000 で `apps/web` と衝突する |
 | ClickPipes から RDS への経路 | **SSH bastion**（public subnet の小さな EC2。月 $10 未満） | **PrivateLink**: Basic tier で使えない可能性が高く、AWS 側の時間課金（約 $73/月相当）もかかる。**RDS をインターネットに公開**: bastion は要らないが、DB をインターネットに出すことになる |
 | AWS で CDC を有効にするか | **既定で無効**（`enable_cdc = false`。仕組みだけ用意する） | **有効にする**: ClickPipes の計算資源と bastion で月 $80 強の固定費がかかる。行動イベントに `userId` と分析に要る属性を載せれば、業務データと JOIN しなくても分析できる |
+| ローカルで CDC を作るか | **既定で作らない**（`DATA_WAREHOUSE_CDC=none`。view を作り込むときだけ `materialized_postgresql`） | **常に作る**: 取り込むテーブルが変わらない間 MaterializedPostgreSQL が replication slot を進めず、止まった slot が WAL とシステムカタログの古い行を残し続けて、api のテストの TRUNCATE が遅くなる（[`cdc.md`](./cdc.md#ローカルの-cdc)） |
 
 環境ごとの違い（ローカルの MaterializedPostgreSQL と ClickPipes で削除の表現が違うなど）は view に閉じ込めて、分析クエリはどちらでもそのまま動くようにしている（[`query.md`](./query.md#view-を経由する規約)）。
 
