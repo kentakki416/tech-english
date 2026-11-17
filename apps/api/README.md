@@ -175,6 +175,7 @@ Controller で `Result.err` を HTTP レスポンスとして返却する共通�
 - **`RequestSchemaMismatchError`** → 400 "Invalid request"（クライアント入力不正、`logger.warn`）
 - **`ResponseSchemaMismatchError`** → 500 "Internal Server Error"（サーバ起因の契約違反、`logger.error`）
 - **その他の throw** → 500 "Internal Server Error"（DB 障害等の想定外エラー、`logger.error` + スタック）
+- **レスポンスを送り始めた後の throw** → ステータスと本文は変えられないので、`logger.error` に残すだけ。送っている途中なら Express の既定のエラーハンドラに渡して接続を切らせ、送り終えていれば何もしない
 
 ### 例外的に try/catch を許容するケース
 
