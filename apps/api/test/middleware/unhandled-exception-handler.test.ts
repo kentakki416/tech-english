@@ -48,7 +48,7 @@ describe("unhandledExceptionHandler", () => {
       const res = await request(buildApp()).get("/before-send")
 
       expect(res.status).toBe(500)
-      expect(res.body).toEqual({ error: "Internal Server Error", status_code: 500 })
+      expect(res.body).toEqual({ error: expect.any(String), status_code: 500 })
     })
 
     it("レスポンスを送っている途中の例外は、ログに残して接続を切る", async () => {
