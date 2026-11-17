@@ -10,9 +10,6 @@ const STATES = [
   { key: "no-results", label: "絞り込み結果が 0 件" },
 ]
 
-/**
- * 問題一覧（モック）
- */
 export default async function MockPassagesPage({ searchParams }: { searchParams: Promise<{ state?: string }> }) {
   const { state } = await searchParams
   const isNoResults = state === "no-results"

@@ -12,14 +12,14 @@ const isReducedMotion = (): boolean => window.matchMedia("(prefers-reduced-motio
 const clampToUnit = (value: number): number => Math.min(Math.max(value, 0), 1)
 
 /**
- * 傾きをやめる。子は data-tilting で傾きと光を切り替えるので、CSS の transition で平らに戻る
+ * 子は data-tilting で傾きと光を切り替えるので、CSS の transition で平らに戻る
  */
 const resetTilt = (element: HTMLElement) => {
   element.dataset.tilting = "false"
 }
 
 /**
- * マウスの動きでカードを傾ける。返す ref を付けた要素（傾けない枠）に、傾きと光の位置を書き込む
+ * 返す ref を付けた要素（傾けない枠）に、傾きと光の位置を書き込む
  *
  * - `data-tilting`: マウスで傾けている間は "true"。子は group-data で傾き・光を切り替える
  * - `--tilt-rotate-x` / `--tilt-rotate-y`: 傾き（deg）。カーソルのある側が奥に沈む向き

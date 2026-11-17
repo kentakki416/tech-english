@@ -7,9 +7,6 @@ import { formatDayLabel } from "@/libs/format"
 
 import { CardStackBehind, PaperCardFront, PaperSheet, type VocabularyCard } from "./PaperCard"
 
-/**
- * 束になったカードの見本。一番上は今日の 1 枚目の表を縮小して出す（今日の分が無ければ薄くする）
- */
 function DeckPreview({ card, isDimmed }: { card: VocabularyCard | undefined, isDimmed: boolean }) {
   return (
     <div aria-hidden className={`relative mx-auto w-full max-w-[260px] pt-2 pb-7 sm:max-w-[320px] ${isDimmed ? "opacity-45 saturate-50" : ""}`}>
@@ -41,10 +38,6 @@ function CountStat({ label, unit, value }: { label: string, unit: string, value:
   )
 }
 
-/**
- * 単語帳のトップの中身。
- * 今日の分がある / 今日の分が終わった / まだ単語が無い、の 3 つの状態で出し分ける
- */
 export function VocabularySummaryPanel({ firstCard, summary }: { firstCard: VocabularyCard | undefined, summary: GetVocabularySummaryResponse }) {
   const todayCount = Math.min(summary.due_count + summary.new_count, VOCABULARY_SESSION_SIZE)
   const hasAnyWord = todayCount > 0 || summary.learning_count > 0 || summary.mastered_count > 0

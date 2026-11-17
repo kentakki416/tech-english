@@ -3,13 +3,10 @@ import type { GetUserStatsResponse } from "@repo/api-schema"
 import { formatStudyTime } from "@/libs/format"
 
 /**
- * 正答率の表示。設問が 0 問（null）なら `—`
+ * 設問が 0 問（null）なら `—`
  */
 const formatAccuracy = (accuracyPercent: number | null): string => (accuracyPercent === null ? "—" : `${accuracyPercent}%`)
 
-/**
- * 累計（解いた問題・挑戦した回数・学習時間・正答率）と、アシストなしの正答率
- */
 export function StudyTotals({
   noAssist,
   totals,

@@ -25,7 +25,6 @@ const buildRemainingText = (remainingSeconds: number): string =>
   remainingSeconds < 0 ? `超過 +${formatSeconds(-remainingSeconds)}` : `残り ${formatSeconds(remainingSeconds)}`
 
 /**
- * 開始確認の「前回の続きから再開できます。」（琥珀の枠と淡い琥珀の背景）。
  * 経過秒数と回答数は端末に保存した途中経過から出す（別の端末で始めた挑戦は保存が無いので 0）。
  * 公開を終了した問題（canStart が false）は、新しく始められないことを添える
  */

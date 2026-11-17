@@ -203,9 +203,6 @@ function Dialog({ children, labelledBy }: { children: React.ReactNode, labelledB
   )
 }
 
-/**
- * 問題を解く画面（モック）
- */
 export function SolvingScreen({ initialState }: { initialState: SolvingMockState }) {
   const [answers, setAnswers] = useState<Record<number, number | null>>(
     initialState === "confirm" ? { 1: 1, 2: 2, 3: 1 } : { 1: 1, 2: 2 },

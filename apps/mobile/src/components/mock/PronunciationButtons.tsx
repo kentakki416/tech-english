@@ -6,7 +6,7 @@ import Svg, { Path } from "react-native-svg"
 import { MOCK_COLORS } from "@/const/mock-theme"
 
 /**
- * モック：単語帳のカードの発音のボタン（vocabulary-pronunciation）。本番は mp3 を鳴らすが、モックは音を出さずに再生中の見た目だけを出す
+ * 本番は mp3 を鳴らすが、モックは音を出さずに再生中の見た目だけを出す
  */
 
 export type PronunciationTarget = "sentence" | "word"

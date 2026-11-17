@@ -10,9 +10,6 @@ const DEMO_BLOCKS = [MOCK_BLOCKS[0], MOCK_BLOCKS[5]]
 
 const DEMO_GLOSSARY = MOCK_GLOSSARY.filter(entry => entry.blockIndex === 5).map(entry => ({ ...entry, blockIndex: 1 }))
 
-/**
- * ログイン画面の体験デモ。実際の解答画面と同じ部品で、単語の意味と和訳を試せる
- */
 export function SignInDemo() {
   const [translatedBlocks, setTranslatedBlocks] = useState<Set<number>>(new Set())
 

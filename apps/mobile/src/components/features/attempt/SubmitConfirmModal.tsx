@@ -4,8 +4,6 @@ import { PrimaryButton } from "@/components/ui/PrimaryButton"
 import { THEME_COLORS } from "@/const/design-theme"
 
 /**
- * 提出の確認。RN の Modal（transparent）の上のダイアログで、「提出する」を上、「戻って回答する」を下に縦に並べる。
- * 未回答があれば件数と「不正解として採点」を伝える。送信中は両方のボタンを無効にし、
  * 失敗したらダイアログの中に理由を出す（web と同じ。回答は端末に残っているので再送できる）
  */
 export function SubmitConfirmModal({

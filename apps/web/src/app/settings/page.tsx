@@ -24,9 +24,6 @@ const listTimezoneOptions = (current: string): string[] => {
   return zones.includes(current) ? zones : [current, ...zones]
 }
 
-/**
- * 設定（目標 → タイムゾーン → リマインダー → アカウント → 危険な操作）
- */
 export default async function SettingsPage() {
   const [user, { goal }] = await Promise.all([getUser(), learningRecordApi.getGoal()]).catch(redirectIfSessionRejected)
 

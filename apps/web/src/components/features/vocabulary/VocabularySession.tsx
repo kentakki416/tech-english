@@ -19,9 +19,6 @@ type Grade = ReviewVocabularyCardRequest["grade"]
 
 type ReviewAction = (input: ReviewVocabularyCardRequest) => Promise<ReviewVocabularyCardActionResult>
 
-/**
- * 1 回分の上部バー（「‹ 単語帳」・進み具合・効果音）
- */
 function SessionTopBar({
   answers,
   isSoundEnabled,
@@ -58,9 +55,6 @@ function SessionTopBar({
   )
 }
 
-/**
- * 今日の分が無いとき（カードが 0 枚で開いた）
- */
 function SessionDone({ nextDueDate }: { nextDueDate: string | null }) {
   return (
     <div className="mx-auto max-w-md text-center">
@@ -84,11 +78,9 @@ function SessionDone({ nextDueDate }: { nextDueDate: string | null }) {
 }
 
 /**
- * 単語帳の 1 回分。カードをめくって覚えた / まだを付け、全部答えるとふりかえり。
- *
  * 答えたら保存を待たずに次のカードへ進む。保存は Server Action で 1 枚ずつ行い、失敗したカードはふりかえりで送り直せる。
  * Server Action の呼び出し自体が失敗した（通信が切れた・デプロイで action が変わった）ときも失敗として扱い、エラー画面にしない。
- * カードの発音（vocabulary-pronunciation）の再生はここで 1 つだけ持ち、カードに渡す
+ * カードの発音の再生はここで 1 つだけ持ち、カードに渡す
  */
 export function VocabularySession({
   cards,

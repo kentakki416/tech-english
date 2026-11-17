@@ -96,10 +96,6 @@ function WordHeading({ card, pronunciation, size }: { card: VocabularyCard, pron
   )
 }
 
-/**
- * カードの表。語句・本文の 1 文・出典。新しい単語には印を付ける。
- * 発音の操作を渡されたら、語句の右に単語のボタン、1 文の下に 1 文のボタン（1 文の音声があるときだけ）を置く
- */
 export function PaperCardFront({ card, pronunciation }: { card: VocabularyCard, pronunciation?: PronunciationControls }) {
   return (
     <View style={styles.face}>
@@ -118,10 +114,6 @@ export function PaperCardFront({ card, pronunciation }: { card: VocabularyCard, 
   )
 }
 
-/**
- * カードの裏。表の語句と 1 文を小さく残し、意味・補足・出どころを出す。辞書の意味は語義ごとに行を分ける。
- * 発音のボタンは表と同じく語句の右と 1 文の下（1 文のボタンは左寄せ）
- */
 export function PaperCardBack({ card, pronunciation }: { card: VocabularyCard, pronunciation?: PronunciationControls }) {
   const allSenses = card.meaning_source === "dictionary" ? splitDictionarySenses(card.meaning_ja) : [card.meaning_ja]
   const senses = allSenses.length > MAX_SENSES ? [...allSenses.slice(0, MAX_SENSES), "…"] : allSenses

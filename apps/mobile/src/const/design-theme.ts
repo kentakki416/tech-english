@@ -2,7 +2,6 @@
  * 本番の画面で使うデザイントークン（web の `globals.css` の @theme と同じ値）
  *
  * 日本語の UI は OS の標準書体を使い、英文（Literata）とコード（IBM Plex Mono）だけフォントを同梱する。
- * フォントはルートレイアウト（`src/app/_layout.tsx`）で読み込む。
  */
 
 export const THEME_COLORS = {

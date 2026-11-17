@@ -13,18 +13,12 @@ import { EMPTY_PASSAGE_FILTER, isPassageFilterActive, type PassageFilterQuery } 
 import { passageApi } from "@/features/passage/passage.api"
 import { usePassageList } from "@/features/passage/use-passage-list"
 
-/**
- * 選んでいれば外し、選んでいなければ足す
- */
 const toggleItem = <T, >(list: T[], item: T): T[] => (list.includes(item) ? list.filter(value => value !== item) : [...list, item])
 
 function ItemSeparator() {
   return <View style={appStyles.divider} />
 }
 
-/**
- * 問題一覧（問題タブ）。絞り込みは画面の state で、変わったら 1 ページ目から取り直す
- */
 export default function PassagesScreen() {
   const router = useRouter()
   const [filter, setFilter] = useState<PassageFilterQuery>(EMPTY_PASSAGE_FILTER)

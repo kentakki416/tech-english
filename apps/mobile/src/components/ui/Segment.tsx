@@ -2,9 +2,6 @@ import { Pressable, StyleSheet, Text, View } from "react-native"
 
 import { THEME_COLORS } from "@/const/design-theme"
 
-/**
- * セグメント（選択中だけ raised の塗り）
- */
 export function Segment<T extends string>({ options, value, onChange }: { options: { key: T, label: string }[], value: T, onChange: (value: T) => void }) {
   return (
     <View style={styles.segment}>

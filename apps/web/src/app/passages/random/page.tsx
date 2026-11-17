@@ -10,7 +10,6 @@ type Props = {
 }
 
 /**
- * ランダムに 1 問。絞り込みに合う問題を API に選ばせて開始確認へ移る。該当が無ければ同じ絞り込みの一覧へ戻す。
  * GET 相当なので Server Action にしない（マイページ・リマインダーの通知の入口にもなる）
  */
 export default async function RandomPassagePage({ searchParams }: Props) {

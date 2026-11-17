@@ -9,9 +9,6 @@ const STATES = [
   { key: "overtime", label: "時間超過" },
 ]
 
-/**
- * 結果・解説画面（モック）
- */
 export default async function MockResultPage({ searchParams }: { searchParams: Promise<{ state?: string }> }) {
   const { state } = await searchParams
   const current = STATES.find(item => item.key === state)?.key ?? "normal"

@@ -28,9 +28,6 @@ const WEEKDAY_LABELS = ["月", "火", "水", "木", "金", "土", "日"]
 
 const LOAD_FAILED_MESSAGE = "読み込めませんでした。時間をおいて再度お試しください。"
 
-/**
- * 月曜を 0 とした曜日
- */
 const getMondayBasedWeekday = (date: string): number => (new Date(`${date}T00:00:00Z`).getUTCDay() + 6) % 7
 
 /**
@@ -65,7 +62,6 @@ const buildDayCellLabel = (date: string, day: CalendarDay | undefined, separator
 }
 
 /**
- * 学習カレンダー。年表示（草）と月表示を切り替え、日付を選ぶとその日の挑戦を出す。
  * 年表示のデータは Server Component から受け取り、それより前の月と選んだ日の挑戦は Route Handler から取得する
  */
 export function StudyCalendar({ initialCalendar }: { initialCalendar: GetUserCalendarResponse }) {

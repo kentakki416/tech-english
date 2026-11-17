@@ -5,9 +5,6 @@ import type { GetUserStatsResponse } from "@repo/api-schema"
 import { appStyles } from "@/components/ui/app-styles"
 import { THEME_COLORS } from "@/const/design-theme"
 
-/**
- * 連続学習日数のパネル。直近 14 日のマスは学習した日を琥珀にし、末尾（今日）は学習していれば光らせる
- */
 export function StreakPanel({ isEmpty, streak }: { isEmpty: boolean, streak: GetUserStatsResponse["streak"] }) {
   const lastIndex = streak.recent_days.length - 1
 

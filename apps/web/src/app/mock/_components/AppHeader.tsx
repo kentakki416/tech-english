@@ -14,9 +14,6 @@ const NAV_ITEMS: { href: string, key: NavKey, label: string }[] = [
   { href: "/mock/settings", key: "settings", label: "設定" },
 ]
 
-/**
- * ログイン後の共通ヘッダー（解答画面以外）
- */
 export function AppHeader({ current }: { current: NavKey }) {
   return (
     <header className="sticky top-0 z-30 border-b border-line bg-canvas/60 backdrop-blur-md">

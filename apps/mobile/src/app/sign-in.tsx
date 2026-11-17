@@ -42,15 +42,14 @@ export default function SignInScreen() {
     setIsSigningIn(true)
     setIsFailed(false)
     const result = await signInWithGitHub()
-    /** 成功したときはこの画面が外れるので、状態を戻すのは失敗・取り消しのときだけ */
+    /**
+     * 成功したときはこの画面が外れるので、状態を戻すのは失敗・取り消しのときだけ
+     */
     if (result === "signedIn") return
     setIsFailed(result === "failed")
     setIsSigningIn(false)
   }
 
-  /**
-   * 開発用のログイン（`__DEV__` のときだけ出す）。成功したときの扱いは GitHub と同じ
-   */
   const pressDevSignIn = async (email: string) => {
     setIsSigningIn(true)
     setIsFailed(false)

@@ -108,9 +108,6 @@ const playSwish = (context: AudioContext) => {
   source.stop(now + SWISH_SECONDS)
 }
 
-/**
- * 選択肢を選んだときの「ポキン」を 1 回鳴らす
- */
 const playChoicePop = (context: AudioContext) => {
   const pitchRatio = 1 - CHOICE_POP_PITCH_JITTER + Math.random() * CHOICE_POP_PITCH_JITTER * 2
   const samples = buildChoicePopSamples(context.sampleRate, pitchRatio)

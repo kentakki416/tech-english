@@ -7,14 +7,8 @@ import { updateUserGoalRequestSchema, updateUserRequestSchema } from "@repo/api-
 import { learningRecordApi } from "@/features/learning-record/learning-record.api"
 import { userApi } from "@/features/user/user.api"
 
-/**
- * useActionState に返す目標のフォームの状態
- */
 export type GoalFormState = { message?: string, status: "error" | "idle" | "saved" }
 
-/**
- * タイムゾーンの変更の結果
- */
 export type UpdateTimezoneResult = { status: "error" | "saved" }
 
 /**

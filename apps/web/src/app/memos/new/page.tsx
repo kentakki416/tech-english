@@ -6,9 +6,6 @@ import { createMemoAction } from "../actions"
 
 export const metadata: Metadata = { title: "メモを作成" }
 
-/**
- * メモ作成ページ
- */
 export default function NewMemoPage() {
   return (
     <main className="mx-auto max-w-2xl p-6">

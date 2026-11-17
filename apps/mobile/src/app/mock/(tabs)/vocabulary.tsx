@@ -51,9 +51,6 @@ function CountStat({ label, unit, value }: { label: string, unit: string, value:
   )
 }
 
-/**
- * 単語帳のトップ（モック・タブ）
- */
 export default function MockVocabularyScreen() {
   const router = useRouter()
   const params = useLocalSearchParams<{ state?: string }>()

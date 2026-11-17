@@ -5,9 +5,6 @@ import type { LearningRecordAttemptResponse } from "@repo/api-schema"
 import { ScoreSquares } from "@/components/ui/ScoreSquares"
 import { formatSeconds } from "@/libs/format"
 
-/**
- * 最近の挑戦（直近 5 件）。行を押すと結果画面、「すべて見る」で学習履歴へ
- */
 export function RecentAttempts({ attempts }: { attempts: LearningRecordAttemptResponse[] }) {
   return (
     <section className="p-5">

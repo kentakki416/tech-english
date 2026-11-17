@@ -121,9 +121,6 @@ function WordHeading({ card, pronunciation, size }: { card: MockVocabularyCard, 
   )
 }
 
-/**
- * カードの表。語句・本文の 1 文・出典。新しい単語には印を付ける
- */
 export function PaperCardFront({ card, pronunciation }: { card: MockVocabularyCard, pronunciation?: MockPronunciation }) {
   return (
     <div className="flex h-full flex-col px-6 pt-12 pb-5 sm:px-10 sm:pt-12">
@@ -150,9 +147,6 @@ export function PaperCardFront({ card, pronunciation }: { card: MockVocabularyCa
   )
 }
 
-/**
- * カードの裏。表の語句と 1 文を小さく残し、意味・補足・出どころを出す
- */
 export function PaperCardBack({ card, pronunciation }: { card: MockVocabularyCard, pronunciation?: MockPronunciation }) {
   const senses = card.meaningSource === "dictionary" ? card.meaningJa.split(" / ") : [card.meaningJa]
   return (
@@ -194,7 +188,7 @@ const STACK_LAYERS = [
 ]
 
 /**
- * 重ねたカードの束（後ろの 2 枚）。残りの枚数に合わせて出す枚数を減らす（残り 1 枚なら 1 枚、0 枚なら出さない）
+ * 残りの枚数に合わせて出す枚数を減らす（残り 1 枚なら 1 枚、0 枚なら出さない）
  */
 export function CardStackBehind({ count }: { count: number }) {
   const layers = STACK_LAYERS.slice(STACK_LAYERS.length - Math.min(count, STACK_LAYERS.length))

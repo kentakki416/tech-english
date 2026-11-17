@@ -26,7 +26,7 @@ import { type CardAnswer, ProgressSquares, SessionReview } from "./SessionReview
 const HEADER_SIDE_WIDTH = 100
 
 /**
- * 1 回分の上部バー（「‹ 単語帳」・進み具合・効果音）。読み込み中は進み具合と効果音を出さない
+ * 読み込み中は進み具合と効果音を出さない
  */
 export function SessionTopBar({
   answeredCount,
@@ -88,10 +88,7 @@ function SessionDone({ nextDueDate }: { nextDueDate: string | null }) {
 }
 
 /**
- * 単語帳の 1 回分。カードをめくって覚えた / まだを付け、全部答えるとふりかえり。
- *
- * 答えたら保存を待たずに次のカードへ進む。保存は 1 枚ずつ行い、失敗したカードはふりかえりで同じ clientReviewId で送り直せる。
- * 「もう 1 回」は親が 1 回分を取り直す（取り直している間はこのコンポーネントを外すので、前の回の state を持ち越さない）
+ * 答えたら保存を待たずに次のカードへ進む。保存は 1 枚ずつ行い、失敗したカードはふりかえりで同じ clientReviewId で送り直せる
  */
 export function VocabularySession({
   cards,

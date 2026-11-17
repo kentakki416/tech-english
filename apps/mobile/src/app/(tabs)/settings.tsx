@@ -26,10 +26,6 @@ function SectionTitle({ children }: { children: string }) {
   return <Text accessibilityRole="header" style={styles.sectionTitle}>{children}</Text>
 }
 
-/**
- * 設定（タブ）。区画の順は「目標 → リマインダー → タイムゾーン → アカウント → 危険な操作」。
- * 目標とタイムゾーンはフォーカスのたびに取り直す（取り直した値で目標のフォームを作り直す）
- */
 export default function SettingsScreen() {
   const router = useRouter()
   const [data, setData] = useState<SettingsData | null>(null)
@@ -72,9 +68,6 @@ export default function SettingsScreen() {
     void load()
   }
 
-  /**
-   * 選んだタイムゾーンをその場で保存する。成功したらモーダルを閉じ、失敗したら知らせて元の値に戻す
-   */
   const changeTimezone = async (next: string) => {
     if (data === null) return
     const previous = data.timezone

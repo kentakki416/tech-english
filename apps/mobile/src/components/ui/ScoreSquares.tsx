@@ -31,9 +31,6 @@ function ScoreSquare({ delay, isAnimated, result, size }: { delay: number, isAni
   )
 }
 
-/**
- * 設問ごとの正誤を並べたマス。結果画面では順に灯す（isAnimated）
- */
 export function ScoreSquares({ isAnimated = false, results, size = 10 }: { isAnimated?: boolean, results: (boolean | null)[], size?: number }) {
   return (
     <View style={{ flexDirection: "row", gap: size > 20 ? 8 : 4 }}>

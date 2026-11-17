@@ -19,9 +19,6 @@ const SECTIONS = Array.from(new Set(MOCK_ATTEMPT_HISTORY.map(attempt => attempt.
   title: formatDateHeading(date),
 }))
 
-/**
- * 学習履歴（モック）。マイページの「すべて見る」から開く
- */
 export default function MockHistoryScreen() {
   const router = useRouter()
   return (

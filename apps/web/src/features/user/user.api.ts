@@ -9,7 +9,7 @@ import { apiClient } from "@/libs/api-client"
  */
 export const userApi = {
   /**
-   * DELETE /api/user。成功は 204（ボディなし）。確認の文言が違えば API が 400（ApiClientError）
+   * 成功は 204（ボディなし）。確認の文言が違えば API が 400（ApiClientError）
    */
   delete: async (input: DeleteUserRequest): Promise<void> => {
     await apiClient.delete("/api/user", input)

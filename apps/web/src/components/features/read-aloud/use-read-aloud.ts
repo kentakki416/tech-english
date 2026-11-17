@@ -33,9 +33,6 @@ export type ReadAloudPlayback = {
   wordIndex: number
 }
 
-/**
- * 読み上げ中の単語のハイライト（PassageReader に渡す）
- */
 export type ReadAloudReading = {
   blockIndex: number
   segmentEnd: number
@@ -50,7 +47,7 @@ type UseReadAloudOptions = {
    */
   isEnabled?: boolean
   /**
-   * 解答画面だけ渡す。ブロックの中の再生位置が 1 秒を超えたとき、ブロックごとに 1 回呼ぶ
+   * ブロックの中の再生位置が 1 秒を超えたとき、ブロックごとに 1 回呼ぶ
    */
   onBlockListened?: (blockIndex: number) => void
 }
@@ -100,7 +97,6 @@ const fetchAudio = async (attemptId: number, blocks: AttemptBlock[], signal: Abo
 }
 
 /**
- * HTMLAudioElement での再生。
  * audio を 1 つ使い回してパートごとに src を差し替え、再生中だけ requestAnimationFrame で読み上げ中の単語を追う。
  * React の state は events.onPlaybackChange で更新し、単語が変わったときだけ呼ぶ（画面全体を毎フレーム描き直さない）
  */
@@ -363,7 +359,6 @@ const createReadAloudPlayer = (events: PlayerEvents) => {
 }
 
 /**
- * 読み上げ（解答画面と結果画面で共有する）。音声の取得・再生・単語の追跡・聞いた段落の通知をまとめる。
  * 返す関数はすべて参照が変わらない（PassageReader の memo したブロックに渡せる）
  */
 export function useReadAloud({ attemptId, blocks, isEnabled = true, onBlockListened }: UseReadAloudOptions): {
@@ -375,7 +370,7 @@ export function useReadAloud({ attemptId, blocks, isEnabled = true, onBlockListe
   progress: number
   rate: ReadAloudRate
   /**
-   * 読み上げ中の単語のハイライト（PassageReader に渡す）。単語が無いとき null
+   * 単語が無いとき null
    */
   reading: ReadAloudReading | null
   pause: () => void

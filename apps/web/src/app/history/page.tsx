@@ -9,9 +9,6 @@ export const metadata: Metadata = {
   title: "学習履歴",
 }
 
-/**
- * 学習履歴。1 ページ目をここで取り、続きは HistoryList が「さらに表示」で取得する
- */
 export default async function HistoryPage() {
   /**
    * 削除済みユーザーの access token では 401 になり、共通ヘッダーまで描画が進まないので、ここでもログイン画面へ移す

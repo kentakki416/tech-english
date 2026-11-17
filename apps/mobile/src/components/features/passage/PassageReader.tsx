@@ -33,7 +33,7 @@ export type ReaderHighlight = {
 }
 
 /**
- * 読み上げ（解答画面・結果画面だけ渡す。ログイン画面のデモは渡さない）。形は web の PassageReader と同じ
+ * 形は web の PassageReader と同じ
  */
 export type ReaderReadAloud = {
   /**
@@ -66,9 +66,6 @@ type PassageReaderProps = {
   contentContainerStyle?: StyleProp<ViewStyle>
   fontSize?: number
   glossary: AttemptGlossaryEntry[]
-  /**
-   * 結果画面の根拠。セグメントの添字の範囲
-   */
   highlight?: ReaderHighlight | null
   ListFooterComponent?: React.ReactElement
   ListHeaderComponent?: React.ReactElement
@@ -179,9 +176,6 @@ const LONG_PRESS_DELAY_MS = 300
 
 const CODE_TOKEN_PATTERN = /(\/\/.*$)|("[^"]*")|\b(function|const|let|return|import|from|export)\b|\b([A-Za-z_]\w*)(?=\()/gm
 
-/**
- * コードブロックの簡易シンタックスハイライト
- */
 function HighlightedCode({ code }: { code: string }) {
   const nodes: React.ReactNode[] = []
   let cursor = 0
@@ -196,9 +190,6 @@ function HighlightedCode({ code }: { code: string }) {
   return <Text style={styles.code}>{nodes}</Text>
 }
 
-/**
- * 和訳。インラインコードはバッククォートで分けて等幅にする（表示だけの処理）
- */
 function TranslationText({ fontSize, isHeading, text }: { fontSize: number, isHeading: boolean, text: string }) {
   return (
     <Text style={[styles.translation, isHeading && styles.translationHeading, { fontSize: fontSize * 0.92, lineHeight: Math.round(fontSize * 1.8) }]}>
@@ -369,7 +360,6 @@ const extractBlockKey = (_block: AttemptBlock, index: number): string => String(
  * - ブロックごとに FlatList の 1 行にして、画面外のブロックは描画しない（600 語で入れ子の <Text> が 1,500 程度になるため）
  * - 単語を押すと、用語集の語句（glossary_entry_id）は「この文での意味」、それ以外は onLookupDictionary で英和辞書を引く
  * - 長押しはブロックの本文を包む Pressable と単語の <Text> の両方で受け、押している間だけ和訳を重ねる。読み上げ中の段落でも重ねる
- * - readAloud を渡すと段落の再生ボタンと読み上げ中の単語の印を出す。読み上げ中の段落は、和訳中・全文訳でも英文で出す
  */
 export function PassageReader({
   blocks,

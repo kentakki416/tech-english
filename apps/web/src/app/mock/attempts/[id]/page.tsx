@@ -12,9 +12,6 @@ const STATES: { key: SolvingMockState, label: string }[] = [
   { key: "audio_pending", label: "音声の準備中" },
 ]
 
-/**
- * 問題を解く画面（モック）
- */
 export default async function MockAttemptPage({ searchParams }: { searchParams: Promise<{ state?: string }> }) {
   const { state } = await searchParams
   const current = STATES.find(item => item.key === state)?.key ?? "normal"

@@ -4,7 +4,6 @@ import { ACCESS_TOKEN_COOKIE, AUTH_COOKIE_OPTIONS, REFRESH_TOKEN_COOKIE } from "
 import { isAccessTokenUsable, refreshAuthTokens } from "@/libs/token-refresh"
 
 /**
- * production 以外でのみ公開する dev 専用パス
  * - `/api/dev/login?as=alice` を踏むだけでログイン状態にできる開発支援機能
  * - `/mock` はデザインモック（design-mock skill）。ダミーデータだけで描画し API を呼ばない
  */
@@ -80,9 +79,6 @@ const deleteAuthCookies = (res: NextResponse): NextResponse => {
   return res
 }
 
-/**
- * 更新した token を、このリクエスト（Server Component / Server Action / Route Handler が読む）とブラウザの両方に渡す
- */
 const forwardRefreshedTokens = (req: NextRequest, tokens: { accessToken: string, refreshToken: string }): NextResponse => {
   /**
    * req.cookies.set はリクエストの cookie ヘッダーも書き換えるので、それを next に渡す
@@ -106,8 +102,6 @@ const forwardWithoutAuthCookies = (req: NextRequest): NextResponse => {
 }
 
 /**
- * JWT の署名は検証せず、Cookie の有無と exp だけで判断する（実検証は API 側で行う）
- *
  * access token が無い（ブラウザが期限で消した）か期限が近ければ、ここで refresh する。
  * Server Component は cookie を書き換えられないので、描画より前のここで更新し、
  * 新しい cookie をこのリクエスト（Server Component / Server Action / Route Handler が読む）とブラウザの両方に渡す。
@@ -145,7 +139,7 @@ export const proxy = async (req: NextRequest) => {
 
 export const config = {
   /**
-   * _next, _next/static, _next/image, favicon, public 配下を除外
+   * _next/static, _next/image, favicon.ico, public/ 配下を除外
    */
   matcher: [
     "/((?!_next/static|_next/image|favicon.ico|public/).*)",

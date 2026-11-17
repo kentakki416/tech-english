@@ -12,9 +12,6 @@ type KindFilter = "all" | MockSourceKind
 
 const ALL_TAGS = Array.from(new Set(MOCK_PASSAGE_LIST.flatMap(passage => passage.tags))).sort()
 
-/**
- * 問題一覧（モック）
- */
 export default function MockPassagesScreen() {
   const router = useRouter()
   const params = useLocalSearchParams<{ state?: string }>()

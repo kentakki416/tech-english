@@ -27,9 +27,6 @@ const FONT_SIZE_CLASS: Record<ReaderFontSize, string> = {
 
 const CODE_TOKEN_PATTERN = /(\/\/.*$)|("[^"]*")|\b(function|const|let|return|import|from|export)\b|\b([A-Za-z_]\w*)(?=\()/gm
 
-/**
- * コードブロックの簡易シンタックスハイライト（モック用）
- */
 function HighlightedCode({ code }: { code: string }) {
   const nodes: React.ReactNode[] = []
   let cursor = 0
@@ -200,9 +197,6 @@ function HighlightedParagraph({
   )
 }
 
-/**
- * 本文を表示する。段落番号の列（エディタの行番号のような gutter）・段落ごとの和訳・単語の意味・根拠のハイライトを持つ
- */
 export function PassageReader({
   blocks,
   dictionary,

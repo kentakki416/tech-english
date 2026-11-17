@@ -7,9 +7,6 @@ import { startAttemptPathParamSchema } from "@repo/api-schema"
 
 import { attemptApi } from "@/features/attempt/attempt.api"
 
-/**
- * useActionState に返す開始ボタンの状態
- */
 export type StartAttemptState = { message?: string }
 
 const START_FAILED_MESSAGE = "開始できませんでした。時間をおいて再度お試しください。"

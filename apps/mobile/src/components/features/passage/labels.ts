@@ -14,9 +14,6 @@ export const DIFFICULTY_LABELS: Record<PassageDifficulty, string> = {
   3: "Hard",
 }
 
-/**
- * 難易度の並び（絞り込みのチップ）
- */
 export const DIFFICULTY_ORDER = [1, 2, 3] as const satisfies readonly PassageDifficulty[]
 
 export const QUESTION_TYPE_LABELS: Record<QuestionType, string> = {

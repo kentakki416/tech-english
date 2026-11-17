@@ -31,9 +31,6 @@ function SectionTitle({ children }: { children: string }) {
   return <Text style={styles.sectionTitle}>{children}</Text>
 }
 
-/**
- * 設定（モック）。目標・リマインダー・タイムゾーン・アカウント・危険な操作
- */
 export default function MockSettingsScreen() {
   const router = useRouter()
   const params = useLocalSearchParams<{ state?: string }>()

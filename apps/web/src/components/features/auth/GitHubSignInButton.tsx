@@ -2,9 +2,6 @@
 
 import { useFormStatus } from "react-dom"
 
-/**
- * 「GitHub でログイン」。送信時にブラウザのタイムゾーンを足して Server Action を呼ぶ
- */
 export function GitHubSignInButton({ action }: { action: (formData: FormData) => Promise<void> }) {
   return (
     <form

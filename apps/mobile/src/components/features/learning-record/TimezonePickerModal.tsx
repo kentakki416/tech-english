@@ -30,8 +30,7 @@ function ItemSeparator() {
 }
 
 /**
- * タイムゾーンの選択（RN の Modal の pageSheet。新しいルートは足さない）。上の入力欄で絞り込み、行を押すと onSelect。
- * 保存中は行を押せなくする
+ * タイムゾーンの選択（RN の Modal の pageSheet。新しいルートは足さない）
  */
 export function TimezonePickerModal({
   currentTimezone,

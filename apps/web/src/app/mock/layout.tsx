@@ -28,8 +28,6 @@ export const metadata: Metadata = {
 }
 
 /**
- * デザインモック共通のレイアウト
- *
  * ルートレイアウトの Geist / ライトテーマの影響を受けないよう、ここでフォントと背景を当てる。
  */
 export default function MockLayout({

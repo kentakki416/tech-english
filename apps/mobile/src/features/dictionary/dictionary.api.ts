@@ -4,9 +4,6 @@ import { type LookupDictionaryResponse, lookupDictionaryResponseSchema } from "@
 
 import { apiClient } from "@/libs/api-client"
 
-/**
- * 英和辞書の API 通信層
- */
 export const dictionaryApi = {
   /**
    * GET /api/dictionary?word=。辞書に無い（API の 404）ときは null。

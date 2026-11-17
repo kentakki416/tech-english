@@ -25,7 +25,7 @@ export type WordCardContent = {
 }
 
 /**
- * 単語のカードの状態。PassageReader の onWordCard に showWordCard を渡す。
+ * 単語のカードの状態。
  * 辞書の結果を待つ間にカードを閉じた・別の単語を押したら、後から届いた結果でカードを開き直さない
  */
 export function useWordCard(): {
@@ -45,10 +45,6 @@ export function useWordCard(): {
   return { closeWordCard, showWordCard, wordCard }
 }
 
-/**
- * 単語のカード（画面の下端に全幅で出す。置き場所は画面が決める）。
- * 出どころは、用語集なら琥珀の点と「この文での意味」、辞書なら灰の点と「英和辞書（一般的な意味）」
- */
 export function WordCard({ content, onClose }: { content: WordCardContent, onClose: () => void }) {
   const { meaning, surface } = content
   const subline = meaning.status === "glossary"

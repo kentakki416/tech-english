@@ -193,7 +193,7 @@ const DEMO_DICTIONARY: Record<string, string> = {
 }
 
 /**
- * デモの英和辞書を引く（PassageReader の onLookupDictionary）。見出し語そのまま → 語尾の規則を外した候補の順に試す。
+ * デモの英和辞書を引く。見出し語そのまま → 語尾の規則を外した候補の順に試す。
  * 本番は api が引く（ログイン前は api を呼べないため、デモだけ手元の抜粋で引く）
  */
 export const lookUpDemoDictionary = async (word: string): Promise<DictionaryLookupResult | null> => {

@@ -10,8 +10,7 @@ import { EMPTY_PASSAGE_FILTER } from "@/features/passage/passage-query"
 import { passageApi } from "@/features/passage/passage.api"
 
 /**
- * 結果画面の下端に固定する操作。「もう一度解く」（副）は同じ問題の開始確認、
- * 「次の問題を解く」（主要）は絞り込みなしで API に 1 問選ばせてその開始確認を開く（新しい挑戦は開始確認から始める）
+ * どちらのボタンも開始確認を開く（新しい挑戦は開始確認から始める）
  */
 export function ResultBottomBar({ passageId }: { passageId: number }) {
   const router = useRouter()

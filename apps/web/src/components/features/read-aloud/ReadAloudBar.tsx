@@ -9,18 +9,11 @@ import { Keycap } from "@/components/ui/Keycap"
 import type { ReadAloudAvailability, ReadAloudPlayback } from "./use-read-aloud"
 import { READ_ALOUD_RATES, type ReadAloudRate } from "./use-read-aloud-rate"
 
-/**
- * 準備中・失敗の文言（再生ボタン・停止・速度は出さない）
- */
 const UNAVAILABLE_MESSAGES: Record<Extract<ReadAloudAvailability, "failed" | "pending">, string> = {
   failed: "この問題の読み上げは利用できません",
   pending: "読み上げの音声を準備中です",
 }
 
-/**
- * 速度のメニュー（速度のボタンの上に開く）。選ぶとすぐに速度が変わり、メニューを閉じる（再生は止めない）。
- * 外のクリック・Esc で閉じる（Esc は単語のカードの Esc と同時に効いてよい）
- */
 function SpeedMenu({ rate, onChange }: { rate: ReadAloudRate, onChange: (rate: ReadAloudRate) => void }) {
   const [isOpen, setIsOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -30,6 +23,9 @@ function SpeedMenu({ rate, onChange }: { rate: ReadAloudRate, onChange: (rate: R
     const closeOnOutside = (event: MouseEvent) => {
       if (!containerRef.current?.contains(event.target as Node)) setIsOpen(false)
     }
+    /**
+     * Esc は単語のカードの Esc と同時に効いてよい
+     */
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") setIsOpen(false)
     }
@@ -83,10 +79,6 @@ function SpeedMenu({ rate, onChange }: { rate: ReadAloudRate, onChange: (rate: R
   )
 }
 
-/**
- * 本文の列の下端に固定する読み上げのミニプレーヤー（再生・停止・速度）。
- * 待機中は「全文を読み上げ」、再生中・一時停止中は読み上げ中の位置（段落番号の列と同じ番号）と全文 / この段落だけ
- */
 export function ReadAloudBar({
   availability,
   blocks,
@@ -176,9 +168,6 @@ export function ReadAloudBar({
   )
 }
 
-/**
- * 自動スクロールを止めた後に出す「読み上げ中の位置に戻る」
- */
 export function ReturnToReadingButton({ onClick }: { onClick: () => void }) {
   return (
     <button

@@ -9,7 +9,7 @@ import { MOCK_COLORS, MOCK_FONTS } from "@/const/mock-theme"
 import { formatSeconds, MOCK_PASSAGE_LIST } from "@/libs/mock-data"
 
 /**
- * 開始確認（モック）。モーダルで出し、本文はまだ見せない
+ * モーダルで出し、本文はまだ見せない
  */
 export default function MockPassageStartScreen() {
   const router = useRouter()

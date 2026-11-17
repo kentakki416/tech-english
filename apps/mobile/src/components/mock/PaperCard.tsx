@@ -128,9 +128,6 @@ function WordHeading({ card, pronunciation, size }: { card: MockVocabularyCard, 
   )
 }
 
-/**
- * カードの表。語句・本文の 1 文・出典。新しい単語には印を付ける
- */
 export function PaperCardFront({ card, pronunciation }: { card: MockVocabularyCard, pronunciation?: MockPronunciation }) {
   return (
     <View style={styles.face}>
@@ -149,9 +146,6 @@ export function PaperCardFront({ card, pronunciation }: { card: MockVocabularyCa
   )
 }
 
-/**
- * カードの裏。表の語句と 1 文を小さく残し、意味・補足・出どころを出す
- */
 export function PaperCardBack({ card, pronunciation }: { card: MockVocabularyCard, pronunciation?: MockPronunciation }) {
   const senses = card.meaningSource === "dictionary" ? card.meaningJa.split(" / ") : [card.meaningJa]
   return (

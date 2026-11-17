@@ -12,9 +12,6 @@ const formatDateHeading = (date: string): string => {
   return `${value.getUTCFullYear()}年${value.getUTCMonth() + 1}月${value.getUTCDate()}日（${WEEKDAY_LABELS[value.getUTCDay()]}）`
 }
 
-/**
- * 学習履歴（モック）
- */
 export default function MockHistoryPage() {
   const dates = Array.from(new Set(MOCK_ATTEMPT_HISTORY.map(attempt => attempt.date)))
 

@@ -17,7 +17,6 @@ const PHASE_TEXT_CLASS: Record<TimerPhase, string> = {
 }
 
 /**
- * 上部バーの残り時間。超過したら「超過 +m:ss」のカウントアップ。等幅数字。
  * isPending の間（端末の経過を戻す前）は数字を出さない（保存していた値に飛ぶのを見せない）
  */
 export function TimerReadout({

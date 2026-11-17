@@ -2,9 +2,6 @@ import { AppHeader } from "../_components/AppHeader"
 
 import { SettingsForm } from "./SettingsForm"
 
-/**
- * 設定（モック）
- */
 export default function MockSettingsPage() {
   return (
     <>

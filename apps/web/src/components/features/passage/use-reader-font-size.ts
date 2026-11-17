@@ -4,9 +4,6 @@ import { useCallback, useSyncExternalStore } from "react"
 
 import type { ReaderFontSize } from "./PassageReader"
 
-/**
- * 本文の文字サイズの設定。端末（localStorage）に保存する
- */
 const FONT_SIZE_STORAGE_KEY = "reader-font-size"
 
 const DEFAULT_FONT_SIZE: ReaderFontSize = "md"
@@ -50,9 +47,6 @@ const subscribeFontSize = (listener: () => void) => {
   }
 }
 
-/**
- * 本文の文字サイズと、それを変えて保存する関数
- */
 export function useReaderFontSize(): [ReaderFontSize, (fontSize: ReaderFontSize) => void] {
   const fontSize = useSyncExternalStore(subscribeFontSize, readFontSize, readServerFontSize)
 

@@ -17,9 +17,6 @@ import { buildPassageSearchParams, type PassageFilterQuery, type PassageListQuer
  */
 const buildPath = (path: string, search: string): string => (search ? `${path}?${search}` : path)
 
-/**
- * 問題（ユーザー向け）の API 通信層
- */
 export const passageApi = {
   /**
    * GET /api/passage/:id。開始確認の概要（本文は含まない）。下書き・存在しない ID は API が 404

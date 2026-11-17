@@ -1,5 +1,5 @@
 /**
- * 設問ごとの正誤を並べたマス。null は未挑戦。結果画面では animate で順に灯す
+ * null は未挑戦
  */
 export function ScoreSquares({
   animate = false,

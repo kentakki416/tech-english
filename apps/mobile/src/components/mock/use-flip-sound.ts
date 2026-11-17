@@ -6,9 +6,6 @@ import { useState } from "react"
  */
 const FLIP_SOUND = require("../../../assets/sounds/page-flip.wav")
 
-/**
- * カードをめくる効果音（モック）。expo-audio で同梱の音声を鳴らし、オン / オフを切り替えられる
- */
 export function useFlipSound() {
   const player = useAudioPlayer(FLIP_SOUND)
   const [isEnabled, setIsEnabled] = useState(true)

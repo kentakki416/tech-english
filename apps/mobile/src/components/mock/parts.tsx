@@ -5,7 +5,7 @@ import { MOCK_COLORS, MOCK_FONTS } from "@/const/mock-theme"
 import { DIFFICULTY_LABELS, type MockDifficulty, type MockSourceKind, SOURCE_KIND_LABELS } from "@/libs/mock-data"
 
 /**
- * ロゴ。学習した日を表す「灯ったマス」をブランドの印にする
+ * 学習した日を表す「灯ったマス」をブランドの印にする
  */
 export function Wordmark() {
   return (
@@ -16,9 +16,6 @@ export function Wordmark() {
   )
 }
 
-/**
- * 取得元の種別（GitHub / Docs）とソース名
- */
 export function SourceMeta({ kind, name }: { kind: MockSourceKind, name: string }) {
   return (
     <View style={styles.sourceMeta}>
@@ -28,9 +25,6 @@ export function SourceMeta({ kind, name }: { kind: MockSourceKind, name: string 
   )
 }
 
-/**
- * 難易度。3 本のバーのうち難易度の数だけ灯す
- */
 export function DifficultyMeter({ level }: { level: MockDifficulty }) {
   return (
     <View style={styles.difficulty}>
@@ -72,9 +66,6 @@ function ScoreSquare({ delay, isAnimated, result, size }: { delay: number, isAni
   )
 }
 
-/**
- * 設問ごとの正誤を並べたマス。結果画面では順に灯す
- */
 export function ScoreSquares({ isAnimated = false, results, size = 10 }: { isAnimated?: boolean, results: (boolean | null)[], size?: number }) {
   return (
     <View style={{ flexDirection: "row", gap: size > 20 ? 8 : 4 }}>
@@ -96,9 +87,6 @@ export function PrimaryButton({ label, onPress }: { label: string, onPress?: () 
   )
 }
 
-/**
- * 副ボタン（枠だけ）
- */
 export function SecondaryButton({ label, onPress }: { label: string, onPress?: () => void }) {
   return (
     <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.secondaryButton, pressed && { backgroundColor: MOCK_COLORS.raised }]}>
@@ -107,9 +95,6 @@ export function SecondaryButton({ label, onPress }: { label: string, onPress?: (
   )
 }
 
-/**
- * セグメント（選択中だけ raised の塗り）
- */
 export function Segment<T extends string>({ onChange, options, value }: { onChange: (value: T) => void, options: { key: T, label: string }[], value: T }) {
   return (
     <View style={styles.segment}>
@@ -128,9 +113,6 @@ export function Segment<T extends string>({ onChange, options, value }: { onChan
   )
 }
 
-/**
- * チップ（選択中は琥珀の枠と淡い琥珀）
- */
 export function Chip({ isActive, label, onPress }: { isActive: boolean, label: string, onPress: () => void }) {
   return (
     <Pressable accessibilityRole="button" accessibilityState={{ selected: isActive }} onPress={onPress} style={[styles.chip, isActive && styles.chipActive]}>

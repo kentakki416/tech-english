@@ -71,16 +71,15 @@ export const getRefreshToken = async (): Promise<string | null> => {
   return store.get(REFRESH_TOKEN_COOKIE)?.value ?? null
 }
 
-/**
- * 認可画面へ行く前に state・code_verifier・タイムゾーンを保存する。
- * GitHub からのトップレベルの戻りで送らせるため sameSite=lax（state 照合と PKCE にだけ使うため攻撃対象は限定的）
- */
 export const saveOAuthSession = async (session: OAuthSession) => {
   const store = await cookies()
   const options = {
     httpOnly: true,
     maxAge: OAUTH_COOKIE_MAX_AGE,
     path: "/",
+    /**
+     * GitHub からのトップレベルの戻りで送らせるため lax にする（state 照合と PKCE にだけ使うため攻撃対象は限定的）
+     */
     sameSite: "lax",
     secure: isProduction,
   } as const

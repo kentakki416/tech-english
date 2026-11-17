@@ -2,9 +2,6 @@ import { Pressable, StyleSheet, Text } from "react-native"
 
 import { THEME_COLORS } from "@/const/design-theme"
 
-/**
- * 副ボタン（枠だけ）。押している間は raised の塗り、無効の間は薄くする
- */
 export function SecondaryButton({ isDisabled = false, label, onPress }: { isDisabled?: boolean, label: string, onPress?: () => void }) {
   return (
     <Pressable

@@ -10,9 +10,6 @@ import {
 
 import { apiClient } from "@/libs/api-client"
 
-/**
- * 単語帳の API 通信層
- */
 export const vocabularyApi = {
   /**
    * GET /api/vocabulary/session。1 回分のカード（最大 10 枚）。読み取りだけで何も書き込まない

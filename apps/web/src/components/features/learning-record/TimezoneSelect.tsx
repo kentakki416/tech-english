@@ -9,7 +9,7 @@ type UpdateTimezoneAction = (timezone: string) => Promise<UpdateTimezoneResult>
 const inputClass = "rounded-lg border border-line-strong bg-canvas px-3 py-2 text-sm text-fg outline-none focus:border-amber/70 focus:ring-2 focus:ring-amber/30 disabled:opacity-70"
 
 /**
- * タイムゾーンのセレクト。変えたらその場で保存し、失敗したら元の値に戻す
+ * 変えたらその場で保存し、失敗したら元の値に戻す
  */
 export function TimezoneSelect({
   action,

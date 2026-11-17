@@ -14,9 +14,6 @@ const STATES: { key: VocabularySessionMockState, label: string }[] = [
   { key: "done", label: "今日の分が終わった" },
 ]
 
-/**
- * 単語帳の 1 回分（モック）
- */
 export default async function MockVocabularySessionPage({ searchParams }: { searchParams: Promise<{ state?: string }> }) {
   const { state } = await searchParams
   const current = STATES.find(item => item.key === state)?.key ?? "front"

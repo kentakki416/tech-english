@@ -15,7 +15,7 @@ type Props = {
 }
 
 /**
- * URL の id を検証して挑戦を取る。不正な id と API の 404（他人の挑戦・存在しない）は null。
+ * 不正な id と API の 404（他人の挑戦・存在しない）は null。
  * cache で包み、generateMetadata とページで 1 回の取得にする
  */
 const loadAttempt = cache(async (rawId: string): Promise<GetAttemptResponse | null> => {
@@ -34,10 +34,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return { title: attempt ? `結果：${attempt.passage.title}` : "挑戦が見つかりません" }
 }
 
-/**
- * 結果・解説。提出の直後と、学習履歴から過去の挑戦を開いたときに来る。
- * 共通ヘッダーは出さず、結果画面の上部バーを出す（ResultScreen）。まだ提出していない挑戦は解答画面へ、期限切れは開始確認へ戻す
- */
 export default async function AttemptResultPage({ params }: Props) {
   const attempt = await loadAttempt((await params).id).catch(redirectIfSessionRejected)
   if (attempt === null) notFound()

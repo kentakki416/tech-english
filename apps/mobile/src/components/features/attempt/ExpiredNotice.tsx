@@ -4,7 +4,7 @@ import { SecondaryButton } from "@/components/ui/SecondaryButton"
 import { THEME_COLORS } from "@/const/design-theme"
 
 /**
- * 期限（開始から 24 時間）を過ぎた挑戦の表示。開いたときに期限切れだった・解答中に過ぎた・提出が期限切れで断られたときに出す。
+ * 期限（開始から 24 時間）を過ぎた挑戦の表示。
  * この挑戦はもう提出できないので、問題一覧から新しく始めてもらう
  */
 export function ExpiredNotice({ onBackToList }: { onBackToList: () => void }) {

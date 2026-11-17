@@ -18,7 +18,6 @@ const TILT_CARD_CLASS = "transition-transform duration-500 ease-out group-data-[
 const TILT_GLARE_CLASS = "pointer-events-none absolute inset-0 z-10 bg-[radial-gradient(circle_at_var(--tilt-glare-x)_var(--tilt-glare-y),rgb(255_255_255/0.07),transparent_55%)] opacity-0 transition-opacity duration-500 group-data-[tilting=true]/tilt:opacity-100"
 
 /**
- * ログイン画面の体験デモ。実際の解答画面と同じ部品で、単語の意味と和訳を試せる。
  * マウスに合わせてカードが傾く（単語のカードを開いている間は止める）
  */
 export function SignInDemo() {

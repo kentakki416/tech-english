@@ -19,9 +19,6 @@ const GOAL_TEXT_MAX = 200
 
 const inputClass = "rounded-lg border border-line-strong bg-canvas px-3 py-2 text-sm text-fg outline-none placeholder:text-fg-faint focus:border-amber/70 focus:ring-2 focus:ring-amber/30"
 
-/**
- * 設定画面のフォーム（モック）
- */
 export function SettingsForm() {
   const [goalText, setGoalText] = useState(MOCK_STATS.goal.goalText)
   const [metric, setMetric] = useState<WeeklyMetric>(MOCK_STATS.goal.weeklyMetric)

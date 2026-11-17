@@ -8,9 +8,6 @@ import { THEME_COLORS } from "@/const/design-theme"
  */
 const TIME_STEP_MINUTES = 15
 
-/**
- * 時刻の「−」「＋」。値は等幅数字 26px
- */
 export function ReminderTimeStepper({ time, onShift }: { time: string, onShift: (minutes: number) => void }) {
   return (
     <View style={styles.timeRow}>

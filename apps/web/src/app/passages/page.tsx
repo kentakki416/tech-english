@@ -17,7 +17,7 @@ type Props = {
 }
 
 /**
- * 問題一覧。絞り込みは URL のクエリで持ち、変わるたびにこの Server Component が 1 ページ目を取り直す
+ * 絞り込みは URL のクエリで持ち、変わるたびにこの Server Component が 1 ページ目を取り直す
  */
 export default async function PassagesPage({ searchParams }: Props) {
   const filter = parsePassageSearchParams(await searchParams)

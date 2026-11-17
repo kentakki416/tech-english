@@ -1,9 +1,7 @@
 import type { MockGlossaryEntry } from "@/libs/mock-data"
 
 /**
- * 本文のセグメント（単語・空白・記号・インラインコード）
- *
- * 本実装では api が分割して返す（reading-practice spec の「本文のトークン化」）。
+ * 本実装では api が分割して返す。
  * モックでは同じ形をクライアントで作る。
  */
 export type Segment = {

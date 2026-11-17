@@ -10,9 +10,6 @@ export const metadata: Metadata = {
   title: "アカウントを削除",
 }
 
-/**
- * アカウント削除の確認（設定画面の「危険な操作」から開く）。完了の表示は `/settings/delete-account/done`
- */
 export default function DeleteAccountPage() {
   return (
     <>

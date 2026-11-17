@@ -14,9 +14,6 @@ type CalendarDay = GetUserCalendarResponse["days"][number]
 
 type CalendarView = "month" | "year"
 
-/**
- * 月表示で取得した月の日（取得に失敗したら "error"）
- */
 type FetchedMonth = CalendarDay[] | "error"
 
 /**

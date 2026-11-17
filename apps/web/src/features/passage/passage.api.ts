@@ -13,9 +13,6 @@ import { apiClient } from "@/libs/api-client"
 
 import { buildPassageSearchParams, type PassageFilterQuery, type PassageListQuery } from "./passage-query"
 
-/**
- * 問題（ユーザー向け）の API 通信層
- */
 export const passageApi = {
   getDetail: async (id: number): Promise<GetPassageResponse> => {
     const raw = await apiClient.get<unknown>(`/api/passage/${id}`)

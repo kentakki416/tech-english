@@ -10,9 +10,6 @@ const STATES = [
   { key: "done", label: "削除完了" },
 ]
 
-/**
- * アカウント削除の確認（モック）
- */
 export default async function MockDeleteAccountPage({ searchParams }: { searchParams: Promise<{ state?: string }> }) {
   const { state } = await searchParams
   const isDone = state === "done"

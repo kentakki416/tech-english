@@ -21,9 +21,6 @@ export type ReaderHighlight = {
   segmentStart: number
 }
 
-/**
- * 読み上げ（解答画面・結果画面だけ渡す。ログイン画面のデモは渡さない）
- */
 export type ReaderReadAloud = {
   /**
    * 読み上げ中（一時停止中を含む）のブロック。待機中は null
@@ -83,9 +80,6 @@ const WORD_CARD_WIDTH = 340
  */
 const READING_WORD_CLASS = "bg-amber/15 shadow-[inset_0_-2px_0_var(--color-amber)]"
 
-/**
- * コードブロックの簡易シンタックスハイライト
- */
 function HighlightedCode({ code }: { code: string }) {
   const nodes: React.ReactNode[] = []
   let cursor = 0
@@ -189,7 +183,6 @@ function TranslationText({ text }: { text: string }) {
 }
 
 /**
- * 本文の 1 ブロック。左に段落番号の列（エディタの行番号のような gutter）と「訳」・段落の再生ボタン、右に英文 / 和訳 / コード。
  * 解答画面はタイマーで毎秒描き直すので memo して、表示が変わったブロックだけを描き直す。
  * 読み上げはブロックごとの値だけを受け取るので、単語が変わっても描き直すのは読み上げ中のブロックだけになる
  */
@@ -409,12 +402,11 @@ function WordCard({ card, onClose }: { card: WordCardState, onClose: () => void 
 }
 
 /**
- * 本文を表示する。段落番号の列・段落ごとの和訳・単語の意味・根拠のハイライトを持つ。
  * セグメントは api が分割したもの（blocks[].segments）をそのまま描画する（分割は api の 1 か所だけ）
  *
  * - 単語を押すと、用語集の語句（glossary_entry_id）は「この文での意味」、それ以外は onLookupDictionary で英和辞書を引く
  * - onLookupWord は意味が見つかったときだけ呼ぶ（解答画面が調べた単語として記録する）
- * - readAloud を渡すと段落の再生ボタンと読み上げ中の単語の印を出す。読み上げ中の段落は、和訳中・全文訳でも英文で出す
+ * - readAloud を渡すと段落の再生ボタンと読み上げ中の単語の印を出す
  * - 単語のカードは body に描画する（祖先に transform があると fixed の位置の基準がその祖先になり、位置がずれて切れるため。ログイン画面のデモはカードを傾ける）。
  *   カードは押した後にだけ描画するので、document はブラウザで必ずある
  */
@@ -434,22 +426,13 @@ export function PassageReader({
   blocks: AttemptBlock[]
   fontSize?: ReaderFontSize
   glossary: AttemptGlossaryEntry[]
-  /**
-   * 結果画面の根拠
-   */
   highlight?: ReaderHighlight | null
   readAloud?: ReaderReadAloud | null
   showAllTranslations?: boolean
   translatedBlocks: Set<number>
-  /**
-   * 用語集に無い単語を引く。親がキャッシュと通信を持つ（useDictionaryLookup）
-   */
   onLookupDictionary: LookupDictionary
   onLookupWord?: (lookup: WordLookupRecord) => void
   onToggleTranslation?: (blockIndex: number) => void
-  /**
-   * 単語のカードを開いた・閉じたとき（ログイン画面のデモが、開いている間はカードの傾きを止める）
-   */
   onWordCardOpenChange?: (isOpen: boolean) => void
 }) {
   const [card, setCard] = useState<WordCardState | null>(null)

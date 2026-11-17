@@ -8,10 +8,6 @@ const CHOICE_LETTERS = ["A", "B", "C", "D"]
 
 const MOVE_BUTTON_CLASS = "inline-flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm text-fg-muted outline-none hover:bg-raised hover:text-fg focus-visible:ring-2 focus-visible:ring-amber/60 disabled:pointer-events-none disabled:opacity-40"
 
-/**
- * 設問パネル。上部に設問の番号（現在の設問は塗りと枠、回答済みは琥珀の点）、設問文と選択肢、下部に前後の移動。
- * PC 幅では右の列、スマホ幅では設問シートの中に置く
- */
 export function QuestionPanel({
   answers,
   currentIndex,
@@ -29,9 +25,6 @@ export function QuestionPanel({
   currentIndex: number
   isLabelVisible?: boolean
   questions: AttemptQuestion[]
-  /**
-   * 和訳を出している設問の ID
-   */
   translatedQuestionIds: Set<number>
   onChoose: (questionId: number, choiceIndex: number) => void
   onMove: (index: number) => void

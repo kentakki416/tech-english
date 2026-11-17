@@ -52,9 +52,6 @@ export function ResultScreen({ result }: { result: SubmittedAttempt }) {
   const lookupDictionary = useDictionaryLookup()
   const { closeWordCard, showWordCard, wordCard } = useWordCard()
   const { blocks, questions } = result
-  /**
-   * 結果画面で聞いた段落は数えない（onBlockListened を渡さない）
-   */
   const readAloud = useReadAloud({ attemptId: result.id, blocks })
   const { playBlock: playReadAloudBlock } = readAloud
   const autoScroll = useReadingAutoScroll(readerRef, readAloud.playback?.blockIndex ?? null)
@@ -63,9 +60,6 @@ export function ResultScreen({ result }: { result: SubmittedAttempt }) {
   const [highlightQuestionId, setHighlightQuestionId] = useState<number | null>(
     () => questions.find(question => !question.is_correct && question.evidence !== null)?.id ?? null,
   )
-  /**
-   * いま和訳を表示している段落
-   */
   const [translatedBlocks, setTranslatedBlocks] = useState<Set<number>>(() => new Set())
   /**
    * 長押しで和訳を重ねている段落
@@ -105,9 +99,6 @@ export function ResultScreen({ result }: { result: SubmittedAttempt }) {
     })
   }, [])
 
-  /**
-   * 長押しが成立したら軽く振動して、押している間だけ和訳を重ねる
-   */
   const startPeek = useCallback((blockIndex: number) => {
     if (!translatableBlockIndexes.has(blockIndex)) return
     setPeekBlock(blockIndex)

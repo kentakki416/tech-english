@@ -22,9 +22,6 @@ export type CardAnswer = {
   saveStatus: "failed" | "saved" | "saving"
 }
 
-/**
- * 進み具合のマス。覚えたは琥珀、まだはローズの枠、今のカードは白い輪
- */
 export function ProgressSquares({ answers, total }: { answers: Pick<CardAnswer, "grade">[], total: number }) {
   return (
     <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.squares}>

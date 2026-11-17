@@ -115,9 +115,6 @@ export function useReadAloudMock({
   return { cycleRate, listenedBlocks, pause, playBlock, progress, rate, state, stop, togglePlay }
 }
 
-/**
- * 本文の下端（設問シートのすぐ上）に浮かべる読み上げのミニプレーヤー
- */
 export function ReadAloudBar({
   blocks,
   isAvailable,
@@ -184,9 +181,6 @@ export function ReadAloudBar({
   )
 }
 
-/**
- * 自動スクロールを止めた後に出す「読み上げ中の位置に戻る」
- */
 export function ReturnToReadingButton({ onPress }: { onPress: () => void }) {
   return (
     <Pressable onPress={onPress} style={styles.returnButton}>

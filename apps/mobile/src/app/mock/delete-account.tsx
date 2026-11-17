@@ -18,7 +18,7 @@ const DELETED_ITEMS = [
 ]
 
 /**
- * アカウント削除の確認（モック）。App Store の要件どおり、web に誘導せずアプリ内で完結させる
+ * App Store の要件どおり、web に誘導せずアプリ内で完結させる
  */
 export default function MockDeleteAccountScreen() {
   const router = useRouter()

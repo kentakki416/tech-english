@@ -18,10 +18,6 @@ function ExternalLink({ children, href }: { children: React.ReactNode, href: str
   )
 }
 
-/**
- * 本文の下の出典の注記。
- * ソース名は取得元のページ、ライセンス名はライセンスの記載へのリンク。取得時点は GitHub ならコミットへの固定リンク、サイトなら取得日
- */
 export function AttributionNote({ attribution }: { attribution: PassageAttributionResponse }) {
   const { commit_sha: commitSha, permalink_url: permalinkUrl } = attribution
   return (

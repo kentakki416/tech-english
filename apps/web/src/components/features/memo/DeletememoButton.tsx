@@ -13,7 +13,6 @@ function ConfirmButton() {
   )
 }
 
-/** action は Server Action（id を bind 済み）を親から受け取る */
 export function DeleteMemoButton({ action }: { action: () => Promise<void> }) {
   return <form action={action}><ConfirmButton /></form>
 }

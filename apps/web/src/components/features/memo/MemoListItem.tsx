@@ -2,14 +2,10 @@ import Link from "next/link"
 
 import type { GetMemoListResponse } from "@repo/api-schema"
 
-/** memo1件 */
 type Props = {
   memo: GetMemoListResponse["memos"][number]
 }
 
-/**
- * メモ１件分の見た目
- */
 export function MemoListItem({ memo }: Props) {
   return (
     <li className="rounded-lg border border-zinc-200 p-4 transition hover:border-zinc-400">

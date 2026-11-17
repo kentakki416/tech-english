@@ -44,7 +44,7 @@ export type ReadAloudPlayback = {
 }
 
 /**
- * 読み上げ中の単語のハイライト（PassageReader に渡す）
+ * 読み上げ中の単語のハイライト
  */
 export type ReadAloudReading = {
   blockIndex: number
@@ -56,7 +56,7 @@ type UseReadAloudOptions = {
   attemptId: number
   blocks: AttemptBlock[]
   /**
-   * 解答画面だけ渡す。ブロックの中の再生位置が 1 秒を超えたとき、ブロックごとに 1 回呼ぶ
+   * ブロックの中の再生位置が 1 秒を超えたとき、ブロックごとに 1 回呼ぶ
    */
   onBlockListened?: (blockIndex: number) => void
 }
@@ -230,8 +230,7 @@ const createReadAloudController = (player: AudioPlayer, events: ControllerEvents
   }
 
   /**
-   * パートを最初から再生する。shouldPlay が false なら replace するだけで play() せず、一時停止の表示にする（再開すると最初から鳴る）。
-   * 読み込みに失敗しても AudioStatus にはエラーが無いので、10 秒たっても読み込めていなければ止める
+   * パートを最初から再生する。shouldPlay が false なら replace するだけで play() せず、一時停止の表示にする（再開すると最初から鳴る）
    */
   const startPart = (blockIndex: number, partIndex: number, mode: ReadAloudMode, options: { shouldPlay: boolean }) => {
     const part = findBlock(blockIndex)?.parts[partIndex]
@@ -492,7 +491,7 @@ export function useReadAloud({ attemptId, blocks, onBlockListened }: UseReadAlou
   progress: number
   rate: ReadAloudRate
   /**
-   * 読み上げ中の単語のハイライト（PassageReader に渡す）。単語が無いとき null
+   * 読み上げ中の単語のハイライト。単語が無いとき null
    */
   reading: ReadAloudReading | null
   /**

@@ -19,9 +19,6 @@ export type CardAnswer = {
   saveStatus: "failed" | "saved" | "saving"
 }
 
-/**
- * 進み具合のマス。覚えたは琥珀に灯り、まだはローズの枠、今のカードは白い輪
- */
 export function ProgressSquares({ answers, total }: { answers: Pick<CardAnswer, "grade">[], total: number }) {
   return (
     <span aria-hidden className="flex gap-1">
@@ -46,10 +43,6 @@ export function ProgressSquares({ answers, total }: { answers: Pick<CardAnswer, 
   )
 }
 
-/**
- * ふりかえり。覚えた / まだの数と、まだの単語の一覧。保存できなかったカードは同じ clientReviewId で送り直せる。
- * 保存中のカードが残っている間と、次の回を取りに行っている間は「もう 1 回」を押せない
- */
 export function SessionReview({
   answers,
   cards,

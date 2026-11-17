@@ -19,14 +19,8 @@ const formatDayLabel = (date: string): string => {
   return `${value.getUTCMonth() + 1}月${value.getUTCDate()}日（${WEEKDAY_LABELS[value.getUTCDay()]}）`
 }
 
-/**
- * 復習の間隔を 1 行で示す
- */
 const INTERVAL_STEPS = ["翌日", "3 日後", "7 日後", "30 日後"]
 
-/**
- * 束になったカードの見本（一番上は今日の 1 枚目の表）
- */
 function DeckPreview({ isDimmed = false }: { isDimmed?: boolean }) {
   return (
     <div aria-hidden className={`relative mx-auto w-full max-w-[260px] pt-2 pb-7 sm:max-w-[320px] ${isDimmed ? "opacity-45 saturate-50" : ""}`}>
@@ -54,9 +48,6 @@ function CountStat({ label, unit, value }: { label: string, unit: string, value:
   )
 }
 
-/**
- * 単語帳のトップ（モック）
- */
 export default async function MockVocabularyPage({ searchParams }: { searchParams: Promise<{ state?: string }> }) {
   const { state } = await searchParams
   const current = STATES.find(item => item.key === state)?.key ?? "normal"

@@ -39,9 +39,6 @@ function PrimaryActions() {
   )
 }
 
-/**
- * マイページ（モック）
- */
 export default async function MockHomePage({ searchParams }: { searchParams: Promise<{ state?: string }> }) {
   const { state } = await searchParams
   const isEmpty = state === "empty"

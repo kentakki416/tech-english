@@ -19,9 +19,6 @@ import { ScoreSquares, SourceMeta } from "../../../_components/parts"
 import { PassageReader } from "../../../_components/PassageReader"
 import { ReadAloudBar, ReturnToReadingButton, useReadAloudMock } from "../../../_components/ReadAloud"
 
-/**
- * 解答中に読み上げを聞いた段落の数（モック用の値）
- */
 const MOCK_LISTENED_BLOCK_COUNT = 2
 
 const CHOICE_LETTERS = ["A", "B", "C", "D"]
@@ -65,9 +62,6 @@ function ChoiceRow({
   )
 }
 
-/**
- * 結果・解説画面（モック）
- */
 export function ResultScreen({ elapsedSeconds }: { elapsedSeconds: number }) {
   const results = MOCK_QUESTIONS.map(question => MOCK_SUBMITTED_ANSWERS[question.id] === question.correctChoiceIndex)
   const correctCount = results.filter(Boolean).length

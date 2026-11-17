@@ -13,7 +13,7 @@ import { THEME_COLORS } from "@/const/design-theme"
 const TAB_ANIMATION = Platform.OS === "web" ? "fade" : "none"
 
 /**
- * タブ（マイページ / 問題 / 単語帳 / 設定）。各画面が自分の上部を持つので共通のヘッダーは出さない
+ * 各画面が自分の上部を持つので共通のヘッダーは出さない
  */
 export default function TabLayout() {
   return (

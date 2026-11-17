@@ -1,4 +1,3 @@
-/** https://docs.expo.dev/guides/using-eslint/ */
 const { defineConfig } = require("eslint/config")
 const expoConfig = require("eslint-config-expo/flat")
 const tailwindcss = require("eslint-plugin-tailwindcss")
@@ -46,14 +45,11 @@ module.exports = defineConfig([
     rules: {
       ...commonRules,
 
-      /** TypeScript: 命名規則（mobile 固有: Expo Router の unstable_ を除外） */
       "@typescript-eslint/naming-convention": ["error", ...mobileNamingConvention],
 
-      /** React: JSX インデント */
       "react/jsx-indent": ["error", 2],
       "react/jsx-indent-props": ["error", 2],
 
-      /** React: JSX タグのスペース */
       "react/jsx-tag-spacing": ["error", {
         "afterOpening": "never",
         "beforeClosing": "never",
@@ -61,7 +57,6 @@ module.exports = defineConfig([
         "closingSlash": "never",
       }],
 
-      /** Tailwind CSS (NativeWind) */
       "tailwindcss/classnames-order": "error",
       "tailwindcss/no-custom-classname": "error",
     },

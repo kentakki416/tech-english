@@ -12,7 +12,7 @@ import { THEME_COLORS } from "@/const/design-theme"
 const WEAK_ACCURACY_PERCENT = 70
 
 /**
- * 設問の種類別の正答率。設問の無い種類（null）は `—` と空の棒。一番低い種類を下に書く
+ * 設問の無い種類（null）は `—` と空の棒
  */
 export function TypeAccuracy({
   typeAccuracy,

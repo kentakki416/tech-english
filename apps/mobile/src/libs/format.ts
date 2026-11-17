@@ -16,7 +16,7 @@ export const formatSeconds = (totalSeconds: number): string => {
 const SECONDS_PER_MINUTE = 60
 
 /**
- * 学習秒数を分にする。学習時間の分の表示はすべてここを通し、端数は切り捨てる（api の週の目標の進捗と同じ）
+ * 学習時間の分の表示はすべてここを通し、端数は切り捨てる（api の週の目標の進捗と同じ）
  */
 const convertStudySecondsToMinutes = (studySeconds: number): number => Math.floor(studySeconds / SECONDS_PER_MINUTE)
 

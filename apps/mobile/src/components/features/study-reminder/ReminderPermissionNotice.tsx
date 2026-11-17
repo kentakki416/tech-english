@@ -3,9 +3,6 @@ import { Pressable, StyleSheet, Text, View } from "react-native"
 
 import { THEME_COLORS } from "@/const/design-theme"
 
-/**
- * リマインダーがオンなのに通知が許可されていないときの案内（カード上部の淡い琥珀の帯）
- */
 export function ReminderPermissionNotice({ onOpenSettings }: { onOpenSettings: () => void }) {
   return (
     <View style={styles.permission}>

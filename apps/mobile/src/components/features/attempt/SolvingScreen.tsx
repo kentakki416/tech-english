@@ -382,7 +382,7 @@ export function SolvingScreen({ attempt }: { attempt: InProgressAttempt }) {
   }
 
   /**
-   * 長押しが成立したら軽く振動して、押している間だけ和訳を重ねる。長押しで見た段落も「和訳を見た段落」に数える
+   * 長押しで見た段落も「和訳を見た段落」に数える
    */
   const startPeek = useCallback((blockIndex: number) => {
     if (!translatableBlockIndexes.has(blockIndex)) return

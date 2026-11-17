@@ -17,8 +17,7 @@ const DELETED_ITEMS: { description: string, label: string }[] = [
 ]
 
 /**
- * アカウント削除の確認。`delete my account` と入力するまで削除のボタンを押せない（前後の空白は許す）。
- * 削除は Server Action（useActionState）。成功すると action が完了画面へ redirect するので、ここは失敗だけを表示する
+ * 成功すると action が完了画面へ redirect するので、ここは失敗だけを表示する
  */
 export function DeleteAccountForm({ action }: { action: DeleteAccountAction }) {
   const [state, formAction, isPending] = useActionState(action, { isFailed: false })

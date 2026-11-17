@@ -3,9 +3,6 @@ import { resolve } from "node:path"
 
 import { buildChoicePopSamples } from "../src/libs/choice-pop"
 
-/**
- * mobile の効果音。web と同じ関数から、高さの揺らぎを付けずに書き出す（pnpm --filter web sound:choice-pop）
- */
 const SAMPLE_RATE = 44100
 
 const OUTPUT_PATH = resolve(import.meta.dirname, "../../mobile/assets/sounds/choice-pop.wav")
@@ -37,4 +34,7 @@ const encodeWav = (samples: Float32Array, sampleRate: number): Buffer => {
   return buffer
 }
 
+/**
+ * web と同じ関数から、高さの揺らぎを付けずに書き出す
+ */
 writeFileSync(OUTPUT_PATH, encodeWav(buildChoicePopSamples(SAMPLE_RATE, 1), SAMPLE_RATE))

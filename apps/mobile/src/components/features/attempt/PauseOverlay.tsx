@@ -4,7 +4,7 @@ import { PrimaryButton } from "@/components/ui/PrimaryButton"
 import { THEME_COLORS } from "@/const/design-theme"
 
 /**
- * 一時停止中の表示。本文・設問シート・単語のカードを覆い隠す（透かさない）。上部バーは隠さない（再開のボタンがあるため）
+ * 本文・設問シート・単語のカードを覆い隠す（透かさない）。上部バーは隠さない（再開のボタンがあるため）
  */
 export function PauseOverlay({ onResume }: { onResume: () => void }) {
   return (

@@ -43,12 +43,13 @@ const styles = StyleSheet.create({
     marginVertical: 6,
     paddingHorizontal: 16,
     paddingVertical: 14,
-    // iOS shadow
+    /**
+     * shadow* は iOS、elevation は Android にだけ効く
+     */
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.4,
     shadowRadius: 6,
-    // Android elevation
     elevation: 4,
   },
   itemContent: {

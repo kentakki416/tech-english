@@ -11,10 +11,6 @@ import { ExternalLinkText } from "./ExternalLinkText"
  */
 export const SHORT_SHA_LENGTH = 7
 
-/**
- * 本文の下の出典の注記（web の AttributionNote と同じ内容）。
- * ソース名は取得元のページ、ライセンス名はライセンスの記載へのリンク。取得時点は GitHub ならコミットへの固定リンク、サイトなら取得日
- */
 export function AttributionNote({ attribution }: { attribution: PassageAttributionResponse }) {
   const { commit_sha: commitSha, permalink_url: permalinkUrl } = attribution
   return (

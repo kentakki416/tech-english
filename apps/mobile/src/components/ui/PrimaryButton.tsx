@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text } from "react-native"
 import { THEME_COLORS } from "@/const/design-theme"
 
 /**
- * 主要ボタン（琥珀）。1 画面に 1 つ。押している間は amber-bright、無効の間は薄くする
+ * 主要ボタン。1 画面に 1 つ
  */
 export function PrimaryButton({ isDisabled = false, label, onPress }: { isDisabled?: boolean, label: string, onPress?: () => void }) {
   return (

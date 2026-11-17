@@ -18,9 +18,6 @@ export function useReadingAutoScroll(
   activeBlockIndex: number | null,
 ): {
   isFollowing: boolean
-  /**
-   * PassageReader の onScrollBeginDrag に渡す
-   */
   onScrollBeginDrag: () => void
   resumeFollowing: () => void
 } {
@@ -37,17 +34,11 @@ export function useReadingAutoScroll(
     if (activeBlockIndex === null) setIsFollowing(true)
   }
 
-  /**
-   * 読み上げ中の段落が変わったとき・追うのを再開したときに、その段落までスクロールする
-   */
   useEffect(() => {
     if (activeBlockIndex === null || !isFollowing) return
     listRef.current?.scrollToIndex({ animated: !isReducedMotion, index: activeBlockIndex, viewOffset: BLOCK_SCROLL_VIEW_OFFSET })
   }, [activeBlockIndex, isFollowing, isReducedMotion, listRef])
 
-  /**
-   * 読み上げ中に指で本文を動かし始めたら追うのを止める
-   */
   const onScrollBeginDrag = useCallback(() => {
     if (isReading) setIsFollowing(false)
   }, [isReading])

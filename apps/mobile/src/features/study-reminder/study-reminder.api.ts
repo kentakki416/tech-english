@@ -14,9 +14,6 @@ import { apiClient } from "@/libs/api-client"
  */
 const REQUEST_TIMEOUT_MS = 15_000
 
-/**
- * リマインダーの設定の API 通信層
- */
 export const studyReminderApi = {
   /**
    * GET /api/user/reminder。未保存なら既定値（オフ・毎日・21:00）

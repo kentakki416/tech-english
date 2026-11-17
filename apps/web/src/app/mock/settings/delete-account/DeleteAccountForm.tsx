@@ -12,9 +12,6 @@ const DELETED_ITEMS: { description: string, label: string }[] = [
   { description: "設定と、各端末に予約された通知", label: "リマインダー" },
 ]
 
-/**
- * アカウント削除の確認（モック）
- */
 export function DeleteAccountForm({ initialDone }: { initialDone: boolean }) {
   const [confirmation, setConfirmation] = useState("")
   const [isDone, setIsDone] = useState(initialDone)

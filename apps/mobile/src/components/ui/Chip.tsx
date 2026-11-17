@@ -2,9 +2,6 @@ import { Pressable, StyleSheet, Text } from "react-native"
 
 import { THEME_COLORS } from "@/const/design-theme"
 
-/**
- * チップ（選択中は琥珀の枠と淡い琥珀）
- */
 export function Chip({ isActive, label, onPress }: { isActive: boolean, label: string, onPress: () => void }) {
   return (
     <Pressable

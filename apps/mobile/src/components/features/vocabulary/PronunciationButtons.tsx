@@ -39,9 +39,6 @@ const MIN_TOUCH_SIZE = 44
 
 const PRESSED_BACKGROUND = "rgba(216, 201, 172, 0.6)"
 
-/**
- * 音の波 1 本。再生中は明滅させる
- */
 function SoundWave({ color, d, delay, isAnimated, size }: { color: string, d: string, delay: number, isAnimated: boolean, size: number }) {
   const opacity = useRef(new Animated.Value(1)).current
 
