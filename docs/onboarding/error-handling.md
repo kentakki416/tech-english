@@ -109,7 +109,7 @@ async execute(req: Request, res: Response) {
 | レスポンススキーマ違反 | `ResponseSchemaMismatchError` | `logger.error` | 500 |
 | アクセスログ | 全リクエスト | `requestLogger` が `info` / `warn` | - |
 
-`unhandledExceptionHandler` は全ルート登録後に `app.use(...)` で登録する。業務 4xx は `sendError` 経由で返るためこのハンドラを通らない。
+`unhandledExceptionHandler` は全ルート登録後に `app.use(...)` で登録する。業務 4xx は `sendError` 経由で返るためこのハンドラを通らない。レスポンスを送り始めた後の throw は、ステータスを変えられないので `logger.error` に残すだけにする（送っている途中なら Express の既定のエラーハンドラに渡して接続を切らせ、送り終えていれば何もしない）。
 
 ## try/catch を書いてよいケース
 

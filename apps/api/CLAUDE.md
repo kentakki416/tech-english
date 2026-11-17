@@ -53,7 +53,7 @@ pnpm db:seed:sample-passages # 開発用のサンプル問題（公開 1・下�
 - **Controller**: **try-catch を書かない**。`if (!result.ok)` は必ず `sendError`（`src/lib/send-error.ts`）経由で返す。`res.status().json()` を直接書くとログを書き忘れるため
 - Service から別 Service を呼ぶときも `ok` 判定し、そのまま re-return するか再解釈する（例: pre-condition の 404 を 400 に変換）
 - 原因が複数ある 400 は `badRequestError(message, details)` で `ApiErrorDetail[]`（`{ code, message, path }`）を付ける。`sendError` がレスポンスの `details` に含める（admin の問題の公開の条件の検査など。テストは `code` と `path` を検証し、`message` は検証しない）
-- 想定外の throw / スキーマ違反は `src/middleware/unhandled-exception-handler.ts` が処理する（リクエストスキーマ違反 → 400 + `warn`、レスポンススキーマ違反とその他 → 500 + `error`）
+- 想定外の throw / スキーマ違反は `src/middleware/unhandled-exception-handler.ts` が処理する（リクエストスキーマ違反 → 400 + `warn`、レスポンススキーマ違反とその他 → 500 + `error`。レスポンスを送り始めた後の throw は `error` に残すだけで、送っている途中なら接続を切る）
 
 try/catch を許容するのは次の 3 つだけ。
 
