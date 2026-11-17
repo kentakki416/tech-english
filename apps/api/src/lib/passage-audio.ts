@@ -1,10 +1,6 @@
 import type { AudioStatus, Passage, PassageAudio } from "@repo/domain"
 
 /**
- * 読み上げの音声の状態と URL。admin と利用者向けの API で共有する
- */
-
-/**
  * 表示する状態（admin と利用者で共通）。ready でも、次のときは本文が変わってマニフェストの位置がずれているかもしれないので pending として扱う。
  *
  * - 問題が公開中でない（非公開に戻した）：published_at は残り、下書きのまま本文を直せるので、updated_at と published_at の比較では

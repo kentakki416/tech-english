@@ -13,7 +13,6 @@ export type GoogleUserInfo = {
 }
 
 /**
- * Google userinfo エンドポイントのレスポンス検証スキーマ。
  * 外部 API のレスポンスは無検証キャストせず Zod で検証し、想定外の形（id/email
  * 欠落、エラー JSON 等）が後段の findByProvider / ユーザー作成へ流れるのを防ぐ。
  * 利用しないフィールド（family_name 等）は検証対象に含めない（余剰は無視）。
@@ -30,8 +29,6 @@ const googleUserInfoResponseSchema = z.object({
 })
 
 /**
- * GoogleOAuthクライアントのインターフェース
- *
  * code を token に交換する際の redirect_uri は Google OAuth の仕様上
  * 認証時に使った URL と完全一致する必要があるため、getUserInfo の引数で受け取る。
  */

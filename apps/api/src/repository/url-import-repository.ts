@@ -2,14 +2,8 @@ import type { Passage } from "@repo/domain"
 
 import type { TransactionContext } from "./transaction"
 
-/**
- * 取り込みの判定に使う本文候補の項目
- */
 export type ImportPassage = Pick<Passage, "contentHash" | "generatedAt" | "id" | "status" | "title">
 
-/**
- * 取得したページの文書（source_documents）に書く値
- */
 export type FetchedDocumentInput = {
   contentHash: string
   extractionVersion: string
@@ -30,9 +24,6 @@ export type CandidateInput = Pick<
   "blocks" | "contentHash" | "generationPrioritizedAt" | "sourceDocumentId" | "sourcePath" | "sourceRetrievedAt" | "title" | "wordCount"
 >
 
-/**
- * admin の URL の取り込み（1 ページの文書と本文候補）のリポジトリ
- */
 export interface UrlImportRepository {
   /**
    * (sourceId, path) の文書の本文候補。文書が無ければ空

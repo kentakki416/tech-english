@@ -7,9 +7,6 @@ import { sendError } from "../../../lib/send-error"
 import { SourceCollectionRunRepository, SourceRepository } from "../../../repository"
 import * as service from "../../../service"
 
-/**
- * admin のソースの削除API。公開中の問題・解答の記録も一緒に消える。成功は 204（ボディなし）
- */
 export class AdminSourceDeleteController {
   constructor(
     private _sourceRepository: SourceRepository,

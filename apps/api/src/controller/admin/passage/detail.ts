@@ -9,9 +9,6 @@ import * as service from "../../../service"
 
 import { convertAdminPassageDetailToResponse } from "./convert-detail-to-response"
 
-/**
- * admin の問題詳細API（本文・和訳・設問と正解・解説・用語集・要確認の理由・出典・制限時間の計算式）
- */
 export class AdminPassageDetailController {
   constructor(private _passageRepository: PassageRepository) {}
 

@@ -10,9 +10,6 @@ import { sendError } from "../../../lib/send-error"
 import { PassageRepository } from "../../../repository"
 import * as service from "../../../service"
 
-/**
- * admin の要確認の解除API（needs_attention = false、attention_reasons = []。状態は問わず、解除済みでも 200）
- */
 export class AdminPassageResolveAttentionController {
   constructor(private _passageRepository: PassageRepository) {}
 

@@ -9,9 +9,6 @@ import { sendError } from "../../lib/send-error"
 import { MemoRepository } from "../../repository"
 import * as service from "../../service"
 
-/**
- * メモ作成API
- */
 export class MemoCreateController {
   constructor(
     private _memoRepository: MemoRepository,

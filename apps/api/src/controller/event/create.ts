@@ -6,15 +6,6 @@ import type { EventTracker } from "@repo/events"
 import { findUserId } from "../../lib/find-user-id"
 import { parseRequest, parseResponse } from "../../lib/parse-schema"
 
-/**
- * 行動イベント受信 API
- *
- * フロント（web / admin / mobile）がバッファリングしたイベントをまとめて受け取る。
- *
- * - `userId` は **リクエストボディから受け取らない**。認証済みユーザーから解決する
- * - `source` も server 側で決める（クライアントの自己申告を信用しない）
- * - 受け取った配列は 1 回の `trackAll()` でまとめて enqueue する（1 リクエスト = 1 ジョブ）
- */
 export class EventCreateController {
   constructor(private _eventTracker: EventTracker) {}
 
@@ -35,6 +26,9 @@ export class EventCreateController {
       events.map((event) => ({
         name: event.name,
         properties: event.properties,
+        /**
+         * `source` は server 側で決める（クライアントの自己申告を信用しない）
+         */
         source: "web" as const,
         userId,
       })),

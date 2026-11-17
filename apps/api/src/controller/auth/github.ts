@@ -15,11 +15,6 @@ import {
 } from "../../repository"
 import * as service from "../../service"
 
-/**
- * POST /api/auth/github
- *
- * GitHub OAuth の Authorization Code（+ PKCE の code_verifier）を検証し、Access/Refresh Token を発行する API
- */
 export class AuthGitHubController {
   constructor(
     private _authAccountRepository: AuthAccountRepository,

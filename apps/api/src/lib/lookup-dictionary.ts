@@ -3,11 +3,6 @@ import type { DictionaryEntry } from "@repo/domain"
 import { IRREGULAR_WORD_FORMS } from "../const/irregular-word-forms"
 
 /**
- * 英和辞書の引き方。DB を知らない純関数で、
- * 引く候補を順に並べ（generateLookupCandidates）、辞書から 1 回で取った項目のうち候補の順で最初のものを選ぶ（pickFirstEntry）
- */
-
-/**
  * 語尾を外した後に残す語幹の最短の長さ（is → i、ped → p のような 1 文字の候補を作らない）
  */
 const MIN_STEM_LENGTH = 2
@@ -25,7 +20,7 @@ const SHORT_VOWEL_ENDING_PATTERN = /(?:^|[^aeiou])[aeiou][^aeiouwxy]$/
 const DOUBLED_CONSONANT_PATTERN = /([^aeiou])\1$/
 
 /**
- * 1. 小文字化し、’ を ' に、末尾の 's と ' を除く（React's → react、users' → users）
+ * 小文字化し、’ を ' に、末尾の 's と ' を除く（React's → react、users' → users）
  */
 const normalizeWord = (word: string): string =>
   word.trim().toLowerCase().replace(/’/g, "'").replace(/'s$/, "").replace(/'+$/, "")

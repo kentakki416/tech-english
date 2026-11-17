@@ -9,9 +9,6 @@ import { PassageRepository, ReadingAttemptRepository } from "../../repository"
 import * as service from "../../service"
 import type { PassageListItem } from "../../service/passage-service"
 
-/**
- * 一覧の 1 件 → レスポンス
- */
 const convertPassageListItemToResponse = (item: PassageListItem): PassageListItemResponse => ({
   id: item.passage.id,
   difficulty: item.passage.difficulty,
@@ -31,9 +28,6 @@ const convertPassageListItemToResponse = (item: PassageListItem): PassageListIte
   word_count: item.passage.wordCount,
 })
 
-/**
- * 問題一覧API（公開中の問題。タグ・難易度・未挑戦の絞り込み、cursor ページング、自分の挑戦状況）
- */
 export class PassageListController {
   constructor(
     private _passageRepository: PassageRepository,

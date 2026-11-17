@@ -7,9 +7,6 @@ import { sendError } from "../../../lib/send-error"
 import { TagRepository } from "../../../repository"
 import * as service from "../../../service"
 
-/**
- * admin のタグの削除API。付けていたソースからも外れる。成功は 204（ボディなし）
- */
 export class AdminTagDeleteController {
   constructor(private _tagRepository: TagRepository) {}
 

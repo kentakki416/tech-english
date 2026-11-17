@@ -24,9 +24,6 @@ const tryParseJson = (text: string): unknown => {
   }
 }
 
-/**
- * ユーザー向けの問題一覧のカーソルを、JSON を base64url にした文字列にする
- */
 export const encodePassageCursor = (cursor: PassageCursor): string =>
   Buffer.from(JSON.stringify({ id: cursor.id, pa: cursor.publishedAt.toISOString() }), "utf8").toString("base64url")
 

@@ -46,7 +46,9 @@ describe("memo-service の行動イベント送出", () => {
       expect(eventTracker.inputs.map((i) => i.name)).toEqual(["memo_updated"])
     })
 
-    /** 物理削除なので DB から復元できない。ここで記録しないと永久に失われる */
+    /**
+     * 物理削除なので DB から復元できない。ここで記録しないと永久に失われる
+     */
     it("deleteMemo 成功時に memo_deleted を記録する", async () => {
       const eventTracker = new FakeEventTracker()
 

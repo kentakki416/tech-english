@@ -8,7 +8,9 @@ export class FakeJobQueue<T> implements JobQueue<T> {
   public readonly enqueued: { data: T; options: EnqueueOptions | undefined }[] = []
 
   public async close(): Promise<void> {
-    /** 閉じる接続が無い */
+    /**
+     * 閉じる接続が無い
+     */
   }
 
   public async enqueue(data: T, options?: EnqueueOptions): Promise<void> {

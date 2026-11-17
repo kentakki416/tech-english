@@ -37,9 +37,6 @@ const buildCandidateInput = (sourceDocumentId: number, overrides: Partial<Candid
   ...overrides,
 })
 
-/**
- * サイトのソースと、PATH の取得文書を入れる
- */
 const insertWebsiteDocument = async () => {
   const source = await insertPassageSource(buildWebsiteSourceValues())
   const document = await insertPassageDocument(source.id, PATH)

@@ -10,10 +10,6 @@ import * as service from "../../service"
 
 import { convertUserCalendarToResponse } from "./learning-record-mapper"
 
-/**
- * 学習カレンダーAPI（GET /api/user/calendar?from=&to=）。from〜to の全日の集計と色の段階、ユーザーのタイムゾーンでの today を返す。
- * from / to を省略すると年表示の範囲。片方だけ・from > to・366 日を超える期間は 400、ユーザーが存在しなければ 401
- */
 export class UserCalendarController {
   constructor(
     private _learningRecordRepository: LearningRecordRepository,

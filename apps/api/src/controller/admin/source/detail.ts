@@ -9,9 +9,6 @@ import * as service from "../../../service"
 
 import { convertSourceCollectionRunToResponse, convertSourceToResponse } from "./source-mapper"
 
-/**
- * admin のソース詳細取得API（状態別の本文候補件数と、最後の収集の記録つき）
- */
 export class AdminSourceDetailController {
   constructor(
     private _sourceRepository: SourceRepository,

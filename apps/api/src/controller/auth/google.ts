@@ -15,9 +15,6 @@ import {
 } from "../../repository"
 import * as service from "../../service"
 
-/**
- * Google OAuth 認証コードを検証し、Access/Refresh Token を発行する API
- */
 export class AuthGoogleController {
   constructor(
     private _authAccountRepository: AuthAccountRepository,

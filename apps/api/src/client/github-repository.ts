@@ -1,8 +1,5 @@
 import { z } from "zod"
 
-/**
- * GitHub が見つけたリポジトリのライセンス
- */
 export type DetectedLicense = {
   /**
    * GitHub が判定したライセンスの SPDX 識別子。判定できなければ null（NOASSERTION。ファイルはあっても種類が分からない・複数ある）
@@ -18,9 +15,6 @@ export type DetectedLicense = {
   sha: string
 }
 
-/**
- * ディレクトリの直下のファイル
- */
 export type GitHubDirectoryFile = {
   htmlUrl: string
   name: string
@@ -103,7 +97,6 @@ const buildRepositoryPath = (repository: string): string => {
 }
 
 /**
- * GitHub の REST API でリポジトリの情報・ライセンス・ファイルの一覧を取る。
  * token は任意（未設定でも 60 req/h の範囲で動く）
  */
 export class GitHubRepositoryClient implements IGitHubRepositoryClient {

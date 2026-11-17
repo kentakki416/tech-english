@@ -2,9 +2,6 @@ import type { GitHubRepositorySource, PassageStatus, Source, Tag, WebsiteSource 
 
 import type { ReadOptions } from "./read-options"
 
-/**
- * 登録と編集の共通の入力
- */
 type SourceEditableInputBase = Pick<Source, "excludeGlobs" | "includeGlobs" | "name"> & {
   /**
    * 付けるタグの id（重複なし。存在するかは service が確かめる）
@@ -15,19 +12,19 @@ type SourceEditableInputBase = Pick<Source, "excludeGlobs" | "includeGlobs" | "n
 type SourceCreateInputBase = SourceEditableInputBase & Pick<Source, "isEnabled" | "kind" | "licenseUrl">
 
 /**
- * タグ（名前の順）つきのソース。admin のソースの API が返す
+ * tags は名前の順
  */
 export type SourceWithTags = Source & { tags: Tag[] }
 
 /**
- * ソースの登録時の入力。取得方法（fetchType）ごとに書く列が違う
+ * 取得方法（fetchType）ごとに書く列が違う
  */
 export type SourceCreateInput =
   | (SourceCreateInputBase & Pick<GitHubRepositorySource, "branch" | "fetchType" | "licenseSpdx" | "repository">)
   | (SourceCreateInputBase & Pick<WebsiteSource, "contentSelector" | "excludeSelectors" | "fetchType" | "licenseSpdx" | "siteUrl">)
 
 /**
- * ソースの編集時の入力。取得方法（fetchType）ごとに書く列が違い、取得元・種別・GitHub のライセンスは登録で決まるので含まない。
+ * 取得方法（fetchType）ごとに書く列が違い、取得元・種別・GitHub のライセンスは登録で決まるので含まない。
  * サイトは常に無効なので isEnabled も含まない
  */
 export type SourceUpdateInput =
@@ -54,9 +51,6 @@ export type SourceCreateResult =
  */
 export type SourceUpdateResult = Exclude<SourceCreateResult, { kind: "duplicate" }>
 
-/**
- * 更新時に、ソースの列と一緒に戻す収集の状態
- */
 export type SourceUpdateOptions = {
   /**
    * last_collected_commit_sha を null に戻す（github の対象パス・除外パスが変わったとき）
@@ -72,9 +66,6 @@ export type SourceDeleteResult =
   | { deletedAttemptCount: number; deletedPassageCount: number; kind: "deleted" }
   | { kind: "not_found" }
 
-/**
- * 英文の取得元（sources）のリポジトリ
- */
 export interface SourceRepository {
   /**
    * sourceId を省略すると全ソース分
@@ -89,7 +80,7 @@ export interface SourceRepository {
    */
   deleteWithContent(id: number): Promise<SourceDeleteResult>
   /**
-   * id の昇順。各ソースのタグは名前の順
+   * id の昇順
    */
   findAll(options?: ReadOptions): Promise<SourceWithTags[]>
   findById(id: number, options?: ReadOptions): Promise<SourceWithTags | null>

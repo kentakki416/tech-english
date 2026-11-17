@@ -14,9 +14,6 @@ import { buildContainsLikePattern } from "./like-pattern"
 import { resolveDrizzleClient } from "./transaction-runner"
 import { convertUtcTimestampTextToDate } from "./utc-timestamp"
 
-/**
- * Drizzleの型
- */
 type UserRow = typeof users.$inferSelect
 
 type AdminUserListRow = {
@@ -43,9 +40,6 @@ const ADMIN_USER_SORT_EXPRESSIONS: Record<AdminUserSort, SQL> = {
   solved_attempts: sql`coalesce(a.solved_attempts, 0)`,
 }
 
-/**
- * Drizzle実装のユーザーリポジトリ
- */
 export class DrizzleUserRepository implements UserRepository {
   private _db: DrizzleClient
 
@@ -60,8 +54,8 @@ export class DrizzleUserRepository implements UserRepository {
   }
 
   /**
-   * users に、提出の数と最後の study_date・単語帳の最後の study_date・ログイン方法を、それぞれユーザーごとに束ねて left join する
-   * （admin-users step1）。範囲外のページ（offset が 1 以上で行が 0 件）では count(*) OVER () が取れないので、件数だけ数え直す
+   * users に、提出の数と最後の study_date・単語帳の最後の study_date・ログイン方法を、それぞれユーザーごとに束ねて left join する。
+   * 範囲外のページ（offset が 1 以上で行が 0 件）では count(*) OVER () が取れないので、件数だけ数え直す
    */
   public async findForAdmin(query: FindUsersForAdminQuery): Promise<{ items: AdminUserListItem[]; total: number }> {
     const condition = query.q === undefined
@@ -122,9 +116,6 @@ export class DrizzleUserRepository implements UserRepository {
     return this._toDomainUser(row)
   }
 
-  /**
-   * 対象が無いときは throw する
-   */
   public async updateProfile(id: number, data: UpdateUserProfileInput): Promise<User> {
     const [row] = await this._db
       .update(users)
@@ -138,9 +129,6 @@ export class DrizzleUserRepository implements UserRepository {
     return this._toDomainUser(row)
   }
 
-  /**
-   * 対象が無いときは throw する
-   */
   public async updateTimezone(id: number, timezone: string): Promise<User> {
     const [row] = await this._db
       .update(users)
@@ -151,10 +139,6 @@ export class DrizzleUserRepository implements UserRepository {
     return this._toDomainUser(row)
   }
 
-  /**
-   * 関連テーブル（auth_accounts など）は DB の ON DELETE CASCADE で消える。
-   * 対象が無いときは何もしない（interface の契約）
-   */
   public async deleteById(id: number): Promise<void> {
     await this._db.delete(users).where(eq(users.id, id))
   }
@@ -174,9 +158,6 @@ export class DrizzleUserRepository implements UserRepository {
     }
   }
 
-  /**
-   * Drizzleの型 → ドメインの型に変換
-   */
   private _toDomainUser(row: UserRow): User {
     return {
       avatarUrl: row.avatarUrl,

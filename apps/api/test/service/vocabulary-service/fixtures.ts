@@ -4,10 +4,6 @@ import type { UserRepository, VocabularyEncounter, VocabularyRepository } from "
 import { PASSAGE_BLOCKS } from "../../fixture/passage-content"
 
 /**
- * vocabulary-service のユニットテストで共有する値とモック
- */
-
-/**
  * Asia/Tokyo では 2026-10-15、UTC では 2026-10-14
  */
 export const FIXED_NOW = new Date("2026-10-14T15:30:00.000Z")

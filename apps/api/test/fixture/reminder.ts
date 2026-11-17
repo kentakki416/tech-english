@@ -3,10 +3,6 @@ import { eq, reminderSettings } from "@repo/db"
 import { testDb } from "../controller/setup"
 
 /**
- * 学習リマインダー（study-reminder）のテスト用のヘルパー。Repository のテストと Controller のインテグレーションテストで使う
- */
-
-/**
  * リマインダーの設定を入れる（time は Postgres の time 型にそのまま渡す。"21:15" でよい）
  */
 export const insertReminderSetting = async (

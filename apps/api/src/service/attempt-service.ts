@@ -44,23 +44,17 @@ type AttemptRepo = {
   userRepository: UserRepository
 }
 
-/**
- * read replica の遅れを避けて primary から読む（書き込みの直後・同時操作の後の読み直し、書き込み API の前提の確認）
- */
 const PRIMARY_READ: ReadOptions = { fromPrimary: true }
 
 /**
- * 提出で受け取る調べた単語（調べた 1 回ごとに 1 件）。glossaryEntryId は source が glossary のときだけ持つ
+ * 調べた 1 回ごとに 1 件。glossaryEntryId は source が glossary のときだけ持つ
  */
 export type WordLookupInput = Pick<AttemptWordLookup, "glossaryEntryId" | "lemma" | "source" | "surface">
 
-/**
- * 挑戦した問題の概要
- */
 export type AttemptPassageView = Pick<Passage, "id" | "title" | "wordCount"> & { difficulty: PassageDifficulty }
 
 /**
- * 本文の 1 ブロック。paragraphNumber は heading と code が null、segments は code のブロックが空
+ * paragraphNumber は heading と code が null、segments は code のブロックが空
  */
 export type AttemptBlockView = {
   lang: string | null
@@ -72,7 +66,7 @@ export type AttemptBlockView = {
 }
 
 /**
- * 用語集の項目（位置はセグメントの glossaryEntryId で示すので持たない）
+ * 位置はセグメントの glossaryEntryId で示すので持たない
  */
 export type AttemptGlossaryEntryView = Pick<GlossaryEntry, "id" | "lemma" | "meaningJa" | "noteJa" | "partOfSpeech" | "surface">
 
@@ -82,7 +76,7 @@ export type AttemptGlossaryEntryView = Pick<GlossaryEntry, "id" | "lemma" | "mea
 export type AttemptQuestionView = Pick<Question, "id" | "choices" | "choicesJa" | "orderIndex" | "prompt" | "promptJa" | "type">
 
 /**
- * 解答中の挑戦。用語集とセグメントから語義設問の対象語句を除く
+ * 用語集とセグメントから語義設問の対象語句を除く
  */
 export type InProgressAttemptView = {
   id: number
@@ -102,12 +96,12 @@ export type InProgressAttemptView = {
 }
 
 /**
- * 根拠の位置。blockIndex のブロックのセグメントの [segmentStart, segmentEnd)
+ * blockIndex のブロックのセグメントの [segmentStart, segmentEnd)
  */
 export type EvidenceView = { blockIndex: number; quote: string; segmentEnd: number; segmentStart: number }
 
 /**
- * 結果の設問。正解・解説・選択肢はいまの設問、selectedChoiceIndex と isCorrect は提出時に保存した値
+ * 正解・解説・選択肢はいまの設問、selectedChoiceIndex と isCorrect は提出時に保存した値
  */
 export type ResultQuestionView = AttemptQuestionView &
   Pick<Question, "correctChoiceIndex" | "explanationJa"> & {
@@ -126,13 +120,10 @@ export type ResultQuestionView = AttemptQuestionView &
     selectedChoiceIndex: number | null
   }
 
-/**
- * 結果の「調べた単語」の 1 件
- */
 export type ResultWordLookupView = Pick<WordLookupWithMeaning, "lemma" | "meaningJa" | "source" | "surface">
 
 /**
- * 提出済みの挑戦（結果の形）。本文・用語集は語義設問の対象語句も含む
+ * 本文・用語集は語義設問の対象語句も含む
  */
 export type SubmittedAttemptView = {
   id: number
@@ -170,38 +161,29 @@ export type SubmittedAttemptView = {
   wordsPerMinute: number | null
 }
 
-/**
- * 期限切れの挑戦
- */
 export type ExpiredAttemptView = { id: number; passage: AttemptPassageView; startedAt: Date; status: "expired" }
 
-/**
- * 挑戦の取得の結果
- */
 export type AttemptView = ExpiredAttemptView | InProgressAttemptView | SubmittedAttemptView
 
 /**
- * 読み上げの音声の 1 パート（url は AUDIO_PUBLIC_URL_BASE とキーから組み立てる）
+ * url は AUDIO_PUBLIC_URL_BASE とキーから組み立てる
  */
 export type AttemptAudioPartView = { durationMs: number; url: string; words: AudioWordTiming[] }
 
-/**
- * 挑戦の問題の読み上げの音声。利用者には generating も pending と見せる
- */
 export type AttemptAudioView =
   | { status: "failed" | "pending" }
   | { blocks: { blockIndex: number; parts: AttemptAudioPartView[] }[]; status: "ready" }
 
-/**
- * 問題の概要。挑戦がある問題は一度公開されているので難易度を必ず持つ（公開の条件。非公開に戻しても消えない）
- */
 const buildPassageView = (passage: Passage): AttemptPassageView => {
+  /**
+   * 挑戦がある問題は一度公開されているので難易度を必ず持つ（公開の条件。非公開に戻しても消えない）
+   */
   if (passage.difficulty === null) throw new Error(`Passage with an attempt has no difficulty: id=${passage.id}`)
   return { id: passage.id, difficulty: passage.difficulty, title: passage.title, wordCount: passage.wordCount }
 }
 
 /**
- * セグメントから位置を外す（位置は根拠のハイライトの計算に使い、レスポンスには出さない）
+ * 位置は根拠のハイライトの計算に使い、レスポンスには出さない
  */
 const stripSegmentRange = ({ canLookUp, glossaryEntryId, kind, text }: SegmentWithRange): PassageSegment => ({
   ...(canLookUp === undefined ? {} : { canLookUp }),
@@ -210,9 +192,6 @@ const stripSegmentRange = ({ canLookUp, glossaryEntryId, kind, text }: SegmentWi
   text,
 })
 
-/**
- * 本文のブロック（セグメントは位置を外して出す）
- */
 const buildBlockViews = (blocks: PassageBlock[], segmentsByBlock: SegmentWithRange[][]): AttemptBlockView[] => {
   const paragraphNumbers = numberParagraphs(blocks)
   return blocks.map((block, index) => ({
@@ -236,7 +215,7 @@ const buildGlossaryViews = (glossary: GlossaryEntry[]): AttemptGlossaryEntryView
   }))
 
 /**
- * 設問の、解答中にも出してよい列だけ（正解が混ざらないよう明示的に取り出す）
+ * 正解が混ざらないよう明示的に取り出す
  */
 const buildQuestionView = (question: Question): AttemptQuestionView => ({
   id: question.id,
@@ -249,7 +228,7 @@ const buildQuestionView = (question: Question): AttemptQuestionView => ({
 })
 
 /**
- * 解答中の形。語義設問の対象語句を用語集から外してからセグメントに分けるので、その語句はどの出現も普通の単語になる（押すと辞書を引く）。
+ * 語義設問の対象語句を用語集から外してからセグメントに分けるので、その語句はどの出現も普通の単語になる（押すと辞書を引く）。
  * 対象の項目と表記が同じ別の項目も外す（残すと、その項目のほかの出現として対象語句の位置にも意味が出るため）
  */
 const buildInProgressView = (attempt: ReadingAttempt, content: AttemptContent, now: Date): InProgressAttemptView => {
@@ -279,7 +258,7 @@ const buildInProgressView = (attempt: ReadingAttempt, content: AttemptContent, n
 }
 
 /**
- * 設問の根拠の引用を、根拠のブロックのセグメントの範囲にする。ブロックが無い・code のブロック・引用が見つからなければ null
+ * ブロックが無い・code のブロック・引用が見つからなければ null
  */
 const locateEvidence = (question: Question, blocks: PassageBlock[], segmentsByBlock: SegmentWithRange[][]): EvidenceView | null => {
   const block = blocks[question.evidenceBlockIndex]
@@ -291,7 +270,7 @@ const locateEvidence = (question: Question, blocks: PassageBlock[], segmentsByBl
 }
 
 /**
- * 結果の「調べた単語」。(source, 用語集の ID か見出し語) で重複を除き、最初に調べた順（lookups は id の昇順）に並べる。
+ * 最初に調べた順（lookups は id の昇順）に並べる。
  * 用語集の項目が消された（ID が null になった）ものは見出し語で重複を除く
  */
 const dedupeWordLookups = (lookups: WordLookupWithMeaning[]): ResultWordLookupView[] => {
@@ -306,11 +285,6 @@ const dedupeWordLookups = (lookups: WordLookupWithMeaning[]): ResultWordLookupVi
   })
 }
 
-/**
- * 結果の形。用語集は全件（語義設問の対象語句も含む）でセグメントに分け、各設問の根拠をセグメントの範囲にする。
- * 正誤と自分の回答は保存値、正解・解説・選択肢はいまの設問（一度挑戦された問題は設問の数が変わらないので、どの設問にも回答がある）。
- * 提出後に正解が直されて両者が食い違う設問は isAnswerKeyChanged を true にする（提出時の採点は変えない）
- */
 const buildSubmittedView = (
   attempt: ReadingAttempt,
   content: AttemptContent,
@@ -348,6 +322,9 @@ const buildSubmittedView = (
     questionCount,
     questions: content.questions.map((question) => {
       const answer = answerByQuestionId.get(question.id)
+      /**
+       * 一度挑戦された問題は設問の数が変わらないので、どの設問にも回答がある
+       */
       if (!answer) throw new Error(`Answer of submitted attempt not found: attemptId=${attempt.id}, questionId=${question.id}`)
       return {
         ...buildQuestionView(question),
@@ -372,9 +349,6 @@ const buildSubmittedView = (
   }
 }
 
-/**
- * 提出済みの挑戦の回答と調べた単語を読んで結果の形にする
- */
 const loadSubmittedView = async (
   attempt: ReadingAttempt,
   content: AttemptContent,
@@ -396,7 +370,7 @@ const buildExpiredView = (attempt: ReadingAttempt, content: AttemptContent): Exp
 })
 
 /**
- * 挑戦の開始。そのユーザーの期限切れの挑戦中を expired にしてから、期限内の挑戦中があればそれを返し（isCreated: false）、
+ * そのユーザーの期限切れの挑戦中を expired にしてから、期限内の挑戦中があればそれを返し（isCreated: false）、
  * 無ければ新しく作る（isCreated: true）。新しく始められるのは公開中の問題だけで、非公開に戻された問題でも挑戦中なら再開できる
  */
 export const startAttempt = async (
@@ -459,8 +433,7 @@ export const startAttempt = async (
 }
 
 /**
- * 自分の挑戦の取得。そのユーザーの期限切れの挑戦中を expired にしてから読む。他人の挑戦・存在しない ID は 404（存在を明かさない）。
- * 先に expireStale で書き込むので書き込み API と同じく primary から読む（開始・提出の直後の挑戦を read replica の遅れで見失わないため）
+ * 他人の挑戦・存在しない ID は 404（存在を明かさない）
  */
 export const getAttempt = async (
   input: { attemptId: number; now: Date; userId: number },
@@ -468,6 +441,9 @@ export const getAttempt = async (
 ): Promise<Result<AttemptView>> => {
   await repo.readingAttemptRepository.expireStale(input.userId, calculateAliveSince(input.now))
 
+  /**
+   * 先に expireStale で書き込むので書き込み API と同じく primary から読む（開始・提出の直後の挑戦を read replica の遅れで見失わないため）
+   */
   const attempt = await repo.readingAttemptRepository.findByIdForUser(input.attemptId, input.userId, PRIMARY_READ)
   if (!attempt) {
     logger.debug("AttemptService: Attempt not found", { attemptId: input.attemptId, userId: input.userId })
@@ -495,9 +471,6 @@ export const getAttempt = async (
   return ok(buildInProgressView(attempt, content, input.now))
 }
 
-/**
- * 回答の検証。この問題に無い設問・同じ設問への 2 回目の回答を、原因ごとに返す
- */
 const validateAnswers = (answers: AnswerInput[], questions: Question[]): ApiErrorDetail[] => {
   const questionIds = new Set(questions.map((question) => question.id))
   const answeredIds = new Set<number>()
@@ -514,10 +487,6 @@ const validateAnswers = (answers: AnswerInput[], questions: Question[]): ApiErro
   })
 }
 
-/**
- * 保存する調べた単語。glossary はこの問題の用語集にある ID だけ残して見出し語を用語集の値にし（無い ID は捨てて warn）、
- * dictionary は見出し語を小文字にする
- */
 const resolveWordLookups = (lookups: WordLookupInput[], glossary: GlossaryEntry[], attemptId: number): WordLookupInput[] => {
   const glossaryById = new Map(glossary.map((entry) => [entry.id, entry]))
   const droppedGlossaryEntryIds: (number | null)[] = []
@@ -537,10 +506,8 @@ const resolveWordLookups = (lookups: WordLookupInput[], glossary: GlossaryEntry[
 }
 
 /**
- * 提出。採点は提出時点の設問で行い、かかった時間を壁時計で切り詰め、study_date をユーザーのタイムゾーンで決めて、
- * 挑戦・回答（全設問）・調べた単語を 1 トランザクションで保存する。
- * すでに提出済みなら入力を無視して保存済みの結果を返す（通信の再送で二重に記録しない）。期限切れは 409。
- * 書き込み API なので挑戦は primary から読む（作った直後・提出した直後の挑戦を read replica の遅れで見失わないため）
+ * 採点は提出時点の設問で行い、かかった時間を壁時計で切り詰め、study_date をユーザーのタイムゾーンで決めて、
+ * 挑戦・回答（全設問）・調べた単語を 1 トランザクションで保存する
  */
 export const submitAttempt = async (
   input: {
@@ -565,6 +532,9 @@ export const submitAttempt = async (
     return err(unauthorizedError("User not found"))
   }
 
+  /**
+   * 書き込み API なので挑戦は primary から読む（作った直後・提出した直後の挑戦を read replica の遅れで見失わないため）
+   */
   const attempt = await repo.readingAttemptRepository.findByIdForUser(input.attemptId, input.userId, PRIMARY_READ)
   if (!attempt) {
     logger.debug("AttemptService: Attempt not found", { attemptId: input.attemptId, userId: input.userId })
@@ -577,6 +547,9 @@ export const submitAttempt = async (
   const content = await repo.passageRepository.findAttemptContentById(attempt.passageId)
   if (!content) throw new Error(`Passage of attempt not found: attemptId=${attempt.id}, passageId=${attempt.passageId}`)
 
+  /**
+   * すでに提出済みなら入力を無視して保存済みの結果を返す（通信の再送で二重に記録しない）
+   */
   if (attempt.status === "submitted") {
     logger.debug("AttemptService: Attempt is already submitted", { attemptId: attempt.id })
     return ok(await loadSubmittedView(attempt, content, repo.readingAttemptRepository, PRIMARY_READ))
@@ -676,9 +649,7 @@ export const submitAttempt = async (
 }
 
 /**
- * 挑戦の問題の読み上げの音声（マニフェストのキーを URL にしたもの）。他人の挑戦・存在しない ID は 404 で、挑戦の状態は問わない
- * （解答画面と結果画面の両方で使う）。音声が使えない間は status だけを返す。
- * 問題が非公開に戻されていれば、ready の音声があっても pending にする（下書きのまま本文を直せるため。非公開の問題でも挑戦中・提出済みの挑戦からは開ける）。
+ * 他人の挑戦・存在しない ID は 404 で、挑戦の状態は問わない（解答画面と結果画面の両方で使う）。
  * audioPublicUrlBase が null（production で AUDIO_PUBLIC_URL_BASE が未設定）なら、音声があっても pending にする
  */
 export const getAttemptAudio = async (

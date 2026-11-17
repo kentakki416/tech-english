@@ -10,9 +10,6 @@ import type { SourceWritePolicy } from "../../../service/source-service"
 
 import { convertSourceSuggestionToResponse } from "./source-mapper"
 
-/**
- * admin の URL からのソースの登録の初期値API（GitHub・サイトの登録のフォームの「読み込む」用）。website はローカルでだけ返す
- */
 export class AdminSourceSuggestController {
   constructor(
     private _githubRepositoryClient: IGitHubRepositoryClient,

@@ -50,9 +50,7 @@ const mockRefreshTokenRepository: RefreshTokenRepository = {
 }
 
 /**
- * Fake TransactionRunner: tx を渡さずそのまま callback を実行する。
- * 単体テストでは実 tx の atomicity を検証する必要が無いため、tx 引数として
- * undefined を渡し、Repository が tx 無し経路で動作することを確認する。
+ * 単体テストでは実際のトランザクションの atomicity を検証しないので、tx に undefined を渡して callback をそのまま実行する
  */
 const mockTransactionRunner: TransactionRunner = {
   run: vi.fn(async (fn) => fn(undefined as unknown as TransactionContext)),
@@ -126,7 +124,6 @@ describe("authenticateWithGoogle", () => {
       })
     }
     expect(mockGetUserInfo).toHaveBeenCalledWith("auth-code", REDIRECT_URI)
-    /** 既存ユーザーなのでトランザクションは走らない */
     expect(mockTransactionRunner.run).not.toHaveBeenCalled()
     expect(mockUserCreate).not.toHaveBeenCalled()
     expect(mockAuthAccountCreate).not.toHaveBeenCalled()

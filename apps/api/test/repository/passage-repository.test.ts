@@ -104,9 +104,6 @@ const readAllPages = async (
   }
 }
 
-/**
- * 絞り込みなし
- */
 const NO_FILTER: PublishedPassageFilter = { difficulties: [], tags: [], unattemptedByUserId: null }
 
 /**

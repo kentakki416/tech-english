@@ -7,9 +7,6 @@ import { sendError } from "../../../lib/send-error"
 import { PassageAudioRepository } from "../../../repository"
 import * as service from "../../../service"
 
-/**
- * admin の読み上げの音声の作り直しの依頼API（ready のときだけ。それ以外の状態・音声の行が無ければ 409）
- */
 export class AdminPassageRegenerateAudioController {
   constructor(private _passageAudioRepository: PassageAudioRepository) {}
 

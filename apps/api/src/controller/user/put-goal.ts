@@ -8,10 +8,6 @@ import { AuthRequest } from "../../middleware/auth"
 import { UserGoalRepository, UserRepository } from "../../repository"
 import * as service from "../../service"
 
-/**
- * 目標の保存API（PUT /api/user/goal）。すべての項目を受け取って upsert し、保存後の値を 200 で返す。
- * 検証エラーは 400、ユーザーが存在しない（削除済みユーザーの access token）なら 401
- */
 export class UserPutGoalController {
   constructor(
     private _userGoalRepository: UserGoalRepository,

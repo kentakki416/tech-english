@@ -7,9 +7,6 @@ import { createMockUserRepository, createMockVocabularyRepository, FIXED_NOW, US
 
 const TX = {} as TransactionContext
 
-/**
- * 渡された関数をそのまま呼ぶ transactionRunner
- */
 const createTransactionRunner = () => ({
   run: vi.fn(async <T>(fn: (tx: TransactionContext) => Promise<T>) => fn(TX)) as TransactionRunner["run"],
 })

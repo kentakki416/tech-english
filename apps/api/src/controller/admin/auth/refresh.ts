@@ -13,9 +13,6 @@ import { sendError } from "../../../lib/send-error"
 import { AdminRepository, RefreshTokenRepository } from "../../../repository"
 import * as service from "../../../service"
 
-/**
- * admin の Refresh Token をローテーションして新しい Access/Refresh Token を発行する API
- */
 export class AdminAuthRefreshController {
   constructor(
     private _adminRepository: AdminRepository,

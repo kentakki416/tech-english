@@ -6,14 +6,8 @@ import type { CreateSourceCollectionRunResult, SourceCollectionRunRepository } f
 
 import { isUniqueViolation } from "./pg-error"
 
-/**
- * Drizzleの型
- */
 type SourceCollectionRunRow = typeof sourceCollectionRuns.$inferSelect
 
-/**
- * Drizzle実装の収集の実行の記録のリポジトリ
- */
 export class DrizzleSourceCollectionRunRepository implements SourceCollectionRunRepository {
   private _db: DrizzleClient
 
@@ -78,9 +72,6 @@ export class DrizzleSourceCollectionRunRepository implements SourceCollectionRun
       .where(and(eq(sourceCollectionRuns.id, input.id), eq(sourceCollectionRuns.status, "queued")))
   }
 
-  /**
-   * Drizzleの型 → ドメインの型に変換
-   */
   private _toDomain(row: SourceCollectionRunRow): SourceCollectionRun {
     return {
       id: row.id,

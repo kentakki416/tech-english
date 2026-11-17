@@ -2,10 +2,6 @@ import { DrizzleTransactionRunner } from "../../src/repository/drizzle/transacti
 import { DrizzleUserRepository } from "../../src/repository/drizzle/user-repository"
 import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb } from "../controller/setup"
 
-/**
- * TransactionRunner が、callback 内の書き込みを 1 つのトランザクションとして
- * commit / rollback することを確かめる。
- */
 const transactionRunner = new DrizzleTransactionRunner(testDb)
 const userRepository = new DrizzleUserRepository(testDb)
 

@@ -8,9 +8,6 @@ import { AuthRequest } from "../../middleware/auth"
 import { ReminderSettingRepository } from "../../repository"
 import * as service from "../../service"
 
-/**
- * リマインダーの設定の取得API（GET /api/user/reminder）。未保存なら既定値（オフ・毎日・21:00）を返す
- */
 export class UserGetReminderController {
   constructor(private _reminderSettingRepository: ReminderSettingRepository) {}
 

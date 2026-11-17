@@ -78,9 +78,6 @@ const createRefreshToken = async (userId: number): Promise<{ jti: string; token:
   return refreshToken
 }
 
-/**
- * ユーザーの行が残っているか
- */
 const hasUserRow = async (userId: number): Promise<boolean> =>
   (await testDb.$count(users, eq(users.id, userId))) > 0
 
@@ -107,7 +104,9 @@ describe("DELETE /api/user", () => {
 
       const targetRowsBefore = await countUserOwnedRows(user.id)
       const otherRowsBefore = await countUserOwnedRows(otherUser.id)
-      /** 関連データが全テーブルに入っていること（入っていないと消えたことを確かめられない） */
+      /**
+       * 関連データが全テーブルに入っていること（入っていないと消えたことを確かめられない）
+       */
       for (const table of USER_OWNED_TABLES) {
         expect(targetRowsBefore[table.tableName]).toBeGreaterThan(0)
       }
@@ -268,7 +267,9 @@ describe("DELETE /api/user", () => {
       expect(patchRes.status).toBe(401)
       expect(patchRes.body).toEqual({ error: expect.any(String), status_code: 401 })
 
-      /** PATCH で行が作り直されたりしていない */
+      /**
+       * PATCH で行が作り直されたりしていない
+       */
       expect(await hasUserRow(user.id)).toBe(false)
     })
 

@@ -3,14 +3,8 @@ import type { UserGoal } from "@repo/domain"
 
 import type { UpsertUserGoalInput, UserGoalRepository } from "../user-goal-repository"
 
-/**
- * Drizzleの型
- */
 type UserGoalRow = typeof userGoals.$inferSelect
 
-/**
- * Drizzle 実装の UserGoalRepository
- */
 export class DrizzleUserGoalRepository implements UserGoalRepository {
   private _db: DrizzleClient
 
@@ -24,8 +18,7 @@ export class DrizzleUserGoalRepository implements UserGoalRepository {
   }
 
   /**
-   * user_id の unique index を ON CONFLICT の対象にして 1 文で upsert する。
-   * onConflictDoUpdate の set には $onUpdate が効かないので updatedAt を明示する
+   * user_id の unique index を ON CONFLICT の対象にして 1 文で upsert する
    */
   public async upsertByUserId(userId: number, data: UpsertUserGoalInput): Promise<UserGoal> {
     const values = {
@@ -43,7 +36,7 @@ export class DrizzleUserGoalRepository implements UserGoalRepository {
   }
 
   /**
-   * Drizzleの型 → ドメインの型に変換（target_date は mode: "string" なので YYYY-MM-DD のまま）
+   * target_date は mode: "string" なので YYYY-MM-DD のまま
    */
   private _toDomainUserGoal(row: UserGoalRow): UserGoal {
     return {

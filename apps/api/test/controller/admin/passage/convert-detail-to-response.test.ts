@@ -1,9 +1,6 @@
 import { convertAdminPassageDetailToResponse } from "../../../../src/controller/admin/passage/convert-detail-to-response"
 import { buildAdminPassageDetail, buildPassage } from "../../../fixture/passage-content"
 
-/**
- * DB を使わない変換のユニットテスト（レスポンス全体の形は detail.test.ts のインテグレーションテストで見る）
- */
 describe("convertAdminPassageDetailToResponse", () => {
   describe("正常系", () => {
     it.each([

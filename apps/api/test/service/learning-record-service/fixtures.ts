@@ -3,10 +3,6 @@ import type { User, UserGoal } from "@repo/domain"
 import type { LearningRecordRepository, SubmittedAttempt, UserGoalRepository, UserRepository } from "../../../src/repository"
 
 /**
- * learning-record-service のユニットテストで共有する値とモック
- */
-
-/**
  * Asia/Tokyo では 2026-10-11（日曜）の 00:30
  */
 export const FIXED_NOW = new Date("2026-10-10T15:30:00.000Z")

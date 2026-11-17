@@ -9,11 +9,6 @@ import { AdminAuthRequest } from "../../../middleware/admin-auth"
 import { AdminRepository } from "../../../repository"
 import * as service from "../../../service"
 
-/**
- * GET /api/admin/me
- *
- * サインイン中の admin を返す。req.adminId は adminAuthMiddleware が確定済みの前提
- */
 export class AdminMeGetController {
   constructor(private _adminRepository: AdminRepository) {}
 

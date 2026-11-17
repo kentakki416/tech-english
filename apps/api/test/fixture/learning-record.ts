@@ -4,11 +4,6 @@ import { testDb } from "../controller/setup"
 
 import { insertReadingAttempt } from "./passage"
 
-/**
- * 学習記録（learning-record）のテスト用のヘルパー。Repository のテストと Controller のインテグレーションテストで使う。
- * 問題（passages・設問）は test/fixture/passage.ts の insertGeneratedPassage などで先に入れる
- */
-
 type CreateSubmittedAttemptInput = {
   /**
    * 設問ごとの正誤（questionIds と同じ順）。省略するとすべて正解
@@ -75,9 +70,6 @@ export const createSubmittedAttempt = async (input: CreateSubmittedAttemptInput)
   return attempt
 }
 
-/**
- * 目標を入れる
- */
 export const insertUserGoal = async (userId: number, overrides: Partial<typeof userGoals.$inferInsert> = {}) => {
   const [row] = await testDb
     .insert(userGoals)

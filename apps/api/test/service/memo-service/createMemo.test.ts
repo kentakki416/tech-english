@@ -4,7 +4,6 @@ import { FakeEventTracker } from "@repo/events"
 import { CreateMemoInput, MemoRepository } from "../../../src/repository"
 import { createMemo } from "../../../src/service/memo-service"
 
-// モック
 const mockCreate = vi.fn<(_0: CreateMemoInput) => Promise<Memo>>()
 
 const mockMemoRepository: MemoRepository = {
@@ -23,7 +22,6 @@ describe("createMemo", () => {
   })
 
   it("メモを作成して ok: true で返す", async () => {
-    // Arrange
     const input: CreateMemoInput = {
       body: "New Body",
       title: "New Title",
@@ -39,10 +37,8 @@ describe("createMemo", () => {
 
     mockCreate.mockResolvedValue(mockMemo)
 
-    // Act
     const result = await createMemo(input, { memoRepository: mockMemoRepository }, { eventTracker, userId: 1 })
 
-    // Assert
     expect(result.ok).toBe(true)
     if (result.ok) {
       expect(result.value).toEqual(mockMemo)
@@ -52,7 +48,6 @@ describe("createMemo", () => {
   })
 
   it("データベースエラー時にエラーをスローする", async () => {
-    // Arrange
     const input: CreateMemoInput = {
       body: "New Body",
       title: "New Title",
@@ -61,7 +56,6 @@ describe("createMemo", () => {
     const mockError = new Error("Database connection failed")
     mockCreate.mockRejectedValue(mockError)
 
-    // Act & Assert
     await expect(createMemo(input, { memoRepository: mockMemoRepository }, { eventTracker, userId: 1 })).rejects.toThrow(
       "Database connection failed"
     )

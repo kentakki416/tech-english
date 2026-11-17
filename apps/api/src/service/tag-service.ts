@@ -9,21 +9,17 @@ type TagRepo = { tagRepository: TagRepository }
 const DUPLICATE_TAG_MESSAGE = "Tag already exists"
 
 /**
- * タグの作成の入力。color が null なら自動で割り当てる
+ * color が null なら自動で割り当てる
  */
 export type CreateTagInput = { color: TagColor | null; name: string }
 
-/**
- * タグの一覧（使っているソースの数つき）
- */
 export const getTags = async (repo: TagRepo): Promise<Result<TagWithSourceCount[]>> =>
   ok(await repo.tagRepository.findAll())
 
-/**
- * タグを作る。色の指定が無ければ、今いちばん使われていない色を割り当てる。
- * 2 つのリクエストが同時に来ると同じ色になりうるが、色は識別に使わないので許す（ロックは取らない）
- */
 export const createTag = async (input: CreateTagInput, repo: TagRepo): Promise<Result<Tag>> => {
+  /**
+   * 2 つのリクエストが同時に来ると同じ色になりうるが、色は識別に使わないので許す（ロックは取らない）
+   */
   const color = input.color ?? selectTagColor(await repo.tagRepository.findColors())
   /**
    * 重複の事前の検査はしない。lower(name) の unique index が同時のリクエストも含めて止める
@@ -38,7 +34,7 @@ export const createTag = async (input: CreateTagInput, repo: TagRepo): Promise<R
 }
 
 /**
- * タグの名前と色を変える。名前の変更は、このタグを付けたすべてのソースに反映される
+ * 名前の変更は、このタグを付けたすべてのソースに反映される
  */
 export const updateTag = async (id: number, input: TagInput, repo: TagRepo): Promise<Result<Tag>> => {
   const result = await repo.tagRepository.update(id, input)
@@ -55,7 +51,7 @@ export const updateTag = async (id: number, input: TagInput, repo: TagRepo): Pro
 }
 
 /**
- * タグを消す。付けていたソースからも外れる（source_tags の CASCADE）
+ * 付けていたソースからも外れる（source_tags の CASCADE）
  */
 export const deleteTag = async (id: number, repo: TagRepo): Promise<Result<{ deleted: true }>> => {
   if (!(await repo.tagRepository.delete(id))) {

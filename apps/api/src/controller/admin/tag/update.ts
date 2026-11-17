@@ -9,9 +9,6 @@ import * as service from "../../../service"
 
 import { convertTagToResponse } from "./tag-mapper"
 
-/**
- * admin のタグの更新API。名前と色の両方を送る
- */
 export class AdminTagUpdateController {
   constructor(private _tagRepository: TagRepository) {}
 

@@ -10,10 +10,6 @@ import * as service from "../../service"
 
 import { convertUserStatsToResponse } from "./learning-record-mapper"
 
-/**
- * マイページの統計API（GET /api/user/stats）。連続学習日数・目標の進捗・累計・設問の種類別の正答率・最近の挑戦を返す。
- * ユーザーが存在しない（削除済みユーザーの access token）なら 401
- */
 export class UserStatsController {
   constructor(
     private _learningRecordRepository: LearningRecordRepository,

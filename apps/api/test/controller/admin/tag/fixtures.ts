@@ -4,9 +4,6 @@ import { testDb } from "../../setup"
 
 type TagInsert = typeof tags.$inferInsert
 
-/**
- * admin のタグ API のインテグレーションテストで共有する DB への投入
- */
 export const insertTag = async (overrides: Partial<TagInsert> = {}) => {
   const [row] = await testDb
     .insert(tags)

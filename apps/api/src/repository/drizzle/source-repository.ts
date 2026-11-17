@@ -33,13 +33,10 @@ import type {
 import { isForeignKeyViolation, isUniqueViolation } from "./pg-error"
 import { convertTagRowToDomain } from "./tag-row"
 
-/**
- * Drizzleの型
- */
 type SourceRow = typeof sources.$inferSelect
 
 /**
- * 登録の入力から、取得方法ごとの列と共通の列の値を作る（fetch_type は含めない）
+ * fetch_type は含めない
  */
 const buildCreateColumnValues = (input: SourceCreateInput) => {
   const common = {
@@ -67,7 +64,7 @@ const buildCreateColumnValues = (input: SourceCreateInput) => {
 }
 
 /**
- * 編集の入力から、書く列の値を作る（fetch_type は含めない）
+ * fetch_type は含めない
  */
 const buildUpdateColumnValues = (input: SourceUpdateInput) => {
   const common = {
@@ -109,9 +106,6 @@ const findTagsBySourceIds = async (
   return tagsBySourceId
 }
 
-/**
- * ソースにタグを付けて返す
- */
 const attachTags = async (
   db: DrizzleClient["$primary"] | DrizzleTransaction,
   sourcesWithoutTags: Source[],
@@ -121,7 +115,7 @@ const attachTags = async (
 }
 
 /**
- * このソースの source_tags を tagIds に付け替える（消してから入れ直す）。create / update のトランザクションの中で呼ぶ
+ * このソースの source_tags を tagIds に付け替える（消してから入れ直す）
  */
 const replaceSourceTags = async (tx: DrizzleTransaction, sourceId: number, tagIds: number[]): Promise<void> => {
   await tx.delete(sourceTags).where(eq(sourceTags.sourceId, sourceId))
@@ -142,9 +136,6 @@ const convertWriteErrorToResult = (error: unknown): SourceCreateResult => {
   throw error
 }
 
-/**
- * Drizzle実装のソースリポジトリ
- */
 export class DrizzleSourceRepository implements SourceRepository {
   private _db: DrizzleClient
 
@@ -238,9 +229,6 @@ export class DrizzleSourceRepository implements SourceRepository {
     return row ? this._toDomain(row) : null
   }
 
-  /**
-   * 対象が無いときは throw する
-   */
   public async update(
     id: number,
     input: SourceUpdateInput,
@@ -271,15 +259,12 @@ export class DrizzleSourceRepository implements SourceRepository {
     }
   }
 
-  /**
-   * 読み取りに使う接続。fromPrimary なら read replica を通さずに primary から読む
-   */
   private _resolveReader(options?: ReadOptions): DrizzleClient["$primary"] {
     return options?.fromPrimary ? this._db.$primary : this._db
   }
 
   /**
-   * Drizzleの型 → ドメインの型に変換。取得方法ごとの必須列は CHECK 制約で保証しているが、念のため検証する
+   * 取得方法ごとの必須列は CHECK 制約で保証しているが、念のため検証する
    */
   private _toDomain(row: SourceRow): Source {
     const base = {

@@ -37,7 +37,7 @@ const fetchedPageSchema = z.object({
 }).strict()
 
 /**
- * ioredis 実装。キーは `url_import_page:{sourceId}:{sourceUpdatedAt のミリ秒}:{url の SHA-256}`（URL は最大 2048 文字あるので、キーを短くするためにハッシュにする）。
+ * キーは `url_import_page:{sourceId}:{sourceUpdatedAt のミリ秒}:{url の SHA-256}`（URL は最大 2048 文字あるので、キーを短くするためにハッシュにする）。
  * 値の形は strict で確かめる（FetchedPage に項目が増えたとき、古い形の値を使って項目が欠けたまま保存しないため）
  */
 export class IoRedisUrlImportPageCacheRepository implements UrlImportPageCacheRepository {

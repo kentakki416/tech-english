@@ -7,9 +7,6 @@ import { sendError } from "../../../lib/send-error"
 import { PassageAudioRepository, PassageRepository, TransactionRunner } from "../../../repository"
 import * as service from "../../../service"
 
-/**
- * admin の問題公開API（draft のときだけ）。公開の条件を満たさなければ 400 と details。読み上げの音声が failed なら pending に戻す
- */
 export class AdminPassagePublishController {
   constructor(
     private _passageRepository: PassageRepository,

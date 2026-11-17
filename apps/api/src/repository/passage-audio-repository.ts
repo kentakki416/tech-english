@@ -23,7 +23,7 @@ export interface PassageAudioRepository {
    */
   findByPassageId(passageId: number): Promise<PassageAudioWithPassage | null>
   /**
-   * findByPassageId を複数の問題で 1 回に引く（単語帳の 1 回分のカードの 1 文の読み上げ）。passage_id → 結果。存在しない問題は含まない
+   * findByPassageId を複数の問題で 1 回に引く。passage_id → 結果。存在しない問題は含まない
    */
   findByPassageIds(passageIds: number[]): Promise<Map<number, PassageAudioWithPassage>>
   /**

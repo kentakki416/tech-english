@@ -157,7 +157,7 @@ export const listDirectoryAndAncestors = (directory: string): string[] => {
 }
 
 /**
- * ファイルのあるディレクトリ。ルートのファイルなら空文字
+ * ルートのファイルなら空文字
  */
 export const findParentDirectory = (filePath: string): string => {
   const directory = path.posix.dirname(filePath)

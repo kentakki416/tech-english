@@ -1,12 +1,6 @@
 /**
- * Vitest 共通セットアップ。テストモジュールの import より前に実行されるため、
- * 環境変数を参照する src/ 配下のモジュール（env.ts や test/controller/setup.ts で
- * 呼ぶ createDrizzleClient / createRedisClient 等）が読み込まれる前に
- * 必要な値を確実に設定できる。
- *
- * 旧 Jest 構成では jest.config.js のトップレベルおよび test/controller/setup.ts の
- * 先頭で process.env を書き換えていたが、ESM 環境では import の hoist によって
- * その代入より先にモジュールが評価されるため、Vitest 側では setupFiles に集約する。
+ * setupFiles はテストモジュールの import より前に実行されるので、環境変数を参照する src/ 配下のモジュール
+ * （env.ts など）が読み込まれる前に値を設定できる
  */
 process.env.LOGGER_TYPE = process.env.LOGGER_TYPE || "silent"
 

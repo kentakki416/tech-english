@@ -54,10 +54,8 @@ describe("POST /api/auth/refresh", () => {
         refresh_token: expect.any(String),
       })
 
-      /** 旧 jti は Redis から削除されている */
       expect(await refreshTokenRepository.findUserId(oldJti)).toBeNull()
 
-      /** 新 jti は Redis に保存されている */
       const newPayload = verifyRefreshToken(res.body.refresh_token)
       expect(newPayload).not.toBeNull()
       expect(await refreshTokenRepository.findUserId(newPayload!.jti)).toBe(user.id)
@@ -85,9 +83,6 @@ describe("POST /api/auth/refresh", () => {
       const ttl = await testRedis.ttl(`refresh_token_rotated:${jti}`)
       expect(ttl).toBeGreaterThan(0)
       expect(ttl).toBeLessThanOrEqual(30)
-      /**
-       * Redis に残る refresh token は 1 回目で発行したものだけ
-       */
       const firstPayload = verifyRefreshToken(first.body.refresh_token)
       expect(await testRedis.keys("refresh_token:*")).toEqual([`refresh_token:${firstPayload!.jti}`])
     })
@@ -168,7 +163,9 @@ describe("POST /api/auth/refresh", () => {
       expect(res.status).toBe(401)
       expect(res.body).toEqual({ error: expect.any(String), status_code: 401 })
       expect(await refreshTokenRepository.findUserId(jti)).toBeNull()
-      /** 新しい token は発行・保存されない（Redis に残るキーが無い） */
+      /**
+       * 新しい token は発行・保存されない（Redis に残るキーが無い）
+       */
       expect(await testRedis.keys("refresh_token:*")).toEqual([])
     })
 

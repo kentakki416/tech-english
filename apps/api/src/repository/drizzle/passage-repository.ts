@@ -45,9 +45,6 @@ import type { TransactionContext } from "../transaction"
 import { convertPassageAudioRowToDomain } from "./passage-audio-row"
 import { resolveDrizzleClient } from "./transaction-runner"
 
-/**
- * Drizzleの型
- */
 type PassageRow = typeof passages.$inferSelect
 type GlossaryEntryRow = typeof passageGlossaryEntries.$inferSelect
 type QuestionRow = typeof questions.$inferSelect
@@ -83,7 +80,7 @@ const SOURCE_TAG_NAMES_SQL = sql<string[]>`ARRAY(
 )`
 
 /**
- * 出典と一覧の表示に使うソースの列。passages → source_documents → sources を結合したクエリで使う
+ * passages → source_documents → sources を結合したクエリで使う
  */
 const PASSAGE_SOURCE_COLUMNS = {
   branch: sources.branch,
@@ -120,7 +117,7 @@ const PUBLISHED_SUMMARY_COLUMNS = {
 
 /**
  * 生成待ち（collected）に戻すときに書く値。生成の記録・却下の理由・確認の記録・要確認を空にし、失敗の回数を 0 に戻す
- * （英文とタイトルは残す。和訳は blocks から別に外す）。再生成と、設問の無い却下の取り消しで使う
+ * （英文とタイトルは残す。和訳は blocks から別に外す）
  */
 const RESET_TO_COLLECTED_VALUES = {
   attentionReasons: [],
@@ -138,15 +135,9 @@ const RESET_TO_COLLECTED_VALUES = {
   timeLimitSeconds: null,
 } satisfies Partial<typeof passages.$inferInsert>
 
-/**
- * blocks から和訳を外す（collected に戻すとき）
- */
 const removeTranslations = (blocks: PassageRow["blocks"]): PassageRow["blocks"] =>
   blocks.map(({ translationJa: _translationJa, ...block }) => block)
 
-/**
- * Drizzleの型 → ドメインの型
- */
 const convertPassageRowToDomain = (row: PassageRow): Passage => ({
   id: row.id,
   attentionReasons: row.attentionReasons,
@@ -211,7 +202,7 @@ const convertQuestionRowToDomain = (row: QuestionRow): Question => ({
 })
 
 /**
- * 公開中の問題の列 → ドメインの型。公開中なら必ずある列が NULL なら throw する
+ * 公開中なら必ずある列が NULL なら throw する
  */
 const convertPassageOverviewRowToDomain = (row: PassageOverviewRow): PassageOverview => {
   if (row.difficulty === null || row.publishedAt === null || row.timeLimitSeconds === null) {
@@ -231,7 +222,7 @@ const convertPassageOverviewRowToDomain = (row: PassageOverviewRow): PassageOver
 }
 
 /**
- * ソースの列 → ドメインの型。取得方法ごとの必須の列が NULL なら throw する（CHECK 制約で保証している）
+ * 取得方法ごとの必須の列が NULL なら throw する（CHECK 制約で保証している）
  */
 const convertPassageSourceRowToDomain = (row: PassageSourceRow): PassageSource => {
   const base = {
@@ -259,9 +250,6 @@ const convertPassageSourceRowToDomain = (row: PassageSourceRow): PassageSource =
   return { ...base, fetchType: row.fetchType, licenseSpdx: row.licenseSpdx, siteUrl: row.siteUrl }
 }
 
-/**
- * PUBLISHED_SUMMARY_COLUMNS で読んだ行 → ドメインの型
- */
 const convertPublishedSummaryRowToDomain = (row: {
   passage: PassageOverviewRow
   questionCount: number
@@ -272,9 +260,6 @@ const convertPublishedSummaryRowToDomain = (row: {
   source: convertPassageSourceRowToDomain(row.source),
 })
 
-/**
- * Drizzle 実装の PassageRepository
- */
 export class DrizzlePassageRepository implements PassageRepository {
   private _db: DrizzleClient
 
@@ -311,10 +296,10 @@ export class DrizzlePassageRepository implements PassageRepository {
     return row?.count ?? 0
   }
 
-  /**
-   * 保存・状態の遷移の前の検査と、保存した直後の再取得に使うので、read replica の遅延を避けて primary から読む
-   */
   public async findAdminDetail(id: number): Promise<AdminPassageDetail | null> {
+    /**
+     * 保存・状態の遷移の前の検査と、保存した直後の再取得に使うので、read replica の遅延を避けて primary から読む
+     */
     const db = this._db.$primary
     const [row] = await db
       .select({
@@ -619,7 +604,7 @@ export class DrizzlePassageRepository implements PassageRepository {
   }
 
   /**
-   * 公開中の問題の絞り込みの条件。passages → source_documents → sources を結合したクエリで使う
+   * passages → source_documents → sources を結合したクエリで使う
    */
   private _buildPublishedCondition(filter: PublishedPassageFilter) {
     const { unattemptedByUserId } = filter
@@ -655,9 +640,6 @@ export class DrizzlePassageRepository implements PassageRepository {
     )
   }
 
-  /**
-   * カーソルの行より後ろの条件。draft は needs_attention DESC, updated_at ASC, id ASC、それ以外は updated_at DESC, id DESC の並び
-   */
   private _buildCursorCondition(query: AdminPassageListQuery) {
     const { cursor } = query
     if (!cursor) return undefined

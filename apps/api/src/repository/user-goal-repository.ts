@@ -1,7 +1,7 @@
 import type { GoalMetric, UserGoal } from "@repo/domain"
 
 /**
- * 目標の保存（upsert）の入力。すべての項目を上書きする（空は null）。
+ * すべての項目を上書きする（空は null）。
  * weeklyMetric と weeklyTarget は両方あるか両方 null（DB の CHECK 制約。破ると throw する）
  */
 export type UpsertUserGoalInput = {

@@ -2,10 +2,6 @@ import type { User, UserGoal } from "@repo/domain"
 
 import type { UpsertUserGoalInput, UserGoalRepository, UserRepository } from "../../../src/repository"
 
-/**
- * goal-service のユニットテストで共有する値とモック
- */
-
 export const USER: User = {
   id: 7,
   avatarUrl: null,

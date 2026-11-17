@@ -11,18 +11,12 @@ import { PASSAGE_BLOCKS } from "../fixture/passage-content"
 
 const { segmentBlockText } = forTesting
 
-/**
- * 本文中の surface の位置の用語集（ブロックは 0）
- */
 const buildGlossarySpan = (id: number, text: string, surface: string, blockIndex = 0): GlossarySpan => {
   const startOffset = text.indexOf(surface)
   if (startOffset === -1) throw new Error(`Surface not found in test text: ${surface}`)
   return { id, blockIndex, endOffset: startOffset + surface.length, startOffset, surface }
 }
 
-/**
- * セグメントの種類と文字列（位置と用語集の ID を見ないテスト用）
- */
 const summarizeSegments = (segments: SegmentWithRange[]) => segments.map(({ kind, text }) => ({ kind, text }))
 
 const listGlossaryEntryIdsByBlock = (segmentsByBlock: SegmentWithRange[][]): number[][] =>

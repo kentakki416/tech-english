@@ -79,9 +79,6 @@ export class DrizzleUrlImportRepository implements UrlImportRepository {
     return rows.length
   }
 
-  /**
-   * onConflictDoUpdate の set には $onUpdate が効かないので updatedAt を明示する
-   */
   public async upsertFetchedDocument(input: FetchedDocumentInput, tx: TransactionContext): Promise<{ id: number }> {
     const values = {
       blobSha: null,

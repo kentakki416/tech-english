@@ -64,9 +64,6 @@ const insertSourceDocument = async (sourceId: number, path = "src/content/learn/
   return row
 }
 
-/**
- * passages を必須列だけで入れる
- */
 const insertPassage = async (sourceDocumentId: number, overrides: Partial<PassageInsert> = {}) => {
   const [row] = await testDb
     .insert(passages)

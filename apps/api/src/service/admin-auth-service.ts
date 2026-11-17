@@ -13,9 +13,6 @@ export type AuthenticateAdminSuccess = {
   refreshToken: string
 }
 
-/**
- * dev-login でサインインできる admin の email のドメイン（seed の admin@dev.local）
- */
 const DEV_ADMIN_EMAIL_DOMAIN = "@dev.local"
 
 type Repositories = {
@@ -23,9 +20,6 @@ type Repositories = {
   refreshTokenRepository: RefreshTokenRepository
 }
 
-/**
- * admin の Access/Refresh Token を発行し、refresh の jti を保存する
- */
 const issueAdminTokens = async (
   adminId: number,
   repo: { refreshTokenRepository: RefreshTokenRepository },
@@ -38,10 +32,7 @@ const issueAdminTokens = async (
 }
 
 /**
- * admin の Google 認証
- *
- * Google で確認済みの email が admins に登録されていればトークンを発行し、名前・アイコン・最終サインイン日時を更新する。
- * 未確認・未登録は 403。admins の行はここでは作らない（事前登録制。admin:create コマンドで作る）。
+ * Google で確認済みの email が admins に登録されていなければ 403。admins の行はここでは作らない（事前登録制。admin:create コマンドで作る）。
  * email は PII なのでログに出さず、googleId だけを出す
  */
 export const authenticateAdminWithGoogle = async (
@@ -75,19 +66,15 @@ export const authenticateAdminWithGoogle = async (
   return ok({ ...tokens, admin: signedInAdmin })
 }
 
-/**
- * 開発環境専用の admin ログイン
- *
- * email で seed 済みの admin（admin@dev.local）を引き当ててトークンを発行し、最終サインイン日時だけを更新する。
- * production での誤実行を防ぐガードは呼び出し側で行う。
- * production 以外でも、@dev.local 以外の admin（admin:create で登録した実在の人）には Google を通さずにはなれない
- */
 export const loginAsDevAdmin = async (
   input: { email: string },
   repo: Repositories,
   tokenGenerators: TokenGenerators,
 ): Promise<Result<AuthenticateAdminSuccess>> => {
   const email = normalizeEmail(input.email)
+  /**
+   * production 以外でも、@dev.local 以外の admin（admin:create で登録した実在の人）には Google を通さずにはなれない
+   */
   if (!email.endsWith(DEV_ADMIN_EMAIL_DOMAIN)) {
     return err(notFoundError("Dev admin not found"))
   }

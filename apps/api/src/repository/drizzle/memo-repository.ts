@@ -3,14 +3,8 @@ import { Memo } from "@repo/domain"
 
 import type { CreateMemoInput, MemoRepository, UpdateMemoInput } from "../memo-repository"
 
-/**
- * Drizzleの型
- */
 type MemoRow = typeof memos.$inferSelect
 
-/**
- * Drizzle実装のメモリポジトリ
- */
 export class DrizzleMemoRepository implements MemoRepository {
   private _db: DrizzleClient
 
@@ -64,9 +58,6 @@ export class DrizzleMemoRepository implements MemoRepository {
     if (!row) throw new Error(`Memo not found: id=${id}`)
   }
 
-  /**
-   * Drizzleの型 → ドメインの型に変換
-   */
   private _toDomainMemo(row: MemoRow): Memo {
     return {
       body: row.body,

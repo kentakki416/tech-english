@@ -25,9 +25,6 @@ export type DailyStudySummary = {
   studySeconds: number
 }
 
-/**
- * これまでの累計
- */
 export type StudyTotals = {
   attemptCount: number
   correctCount: number
@@ -39,19 +36,10 @@ export type StudyTotals = {
   studySeconds: number
 }
 
-/**
- * 正答数と設問数
- */
 export type AccuracyCount = { correctCount: number; questionCount: number }
 
-/**
- * 設問の種類ごとの正答数と設問数
- */
 export type QuestionTypeAccuracyCount = AccuracyCount & { type: QuestionType }
 
-/**
- * 提出した挑戦の一覧の 1 行
- */
 export type SubmittedAttempt = {
   id: number
   correctCount: number
@@ -72,7 +60,7 @@ export type SubmittedAttempt = {
 }
 
 /**
- * 提出した挑戦の一覧の取得条件。cursor はその id の挑戦より後ろ（古い側）を返す
+ * cursor はその id の挑戦より後ろ（古い側）を返す
  */
 export type FindSubmittedAttemptsOptions = { cursor?: number; date?: string; limit: number }
 
@@ -94,7 +82,7 @@ export interface LearningRecordRepository {
    */
   findSubmittedAttempts(userId: number, options: FindSubmittedAttemptsOptions): Promise<SubmittedAttempt[]>
   /**
-   * 設問の種類ごとの正答数と設問数（attempt_answers を設問の種類でまとめる）。設問の無い種類は返さない
+   * attempt_answers を設問の種類でまとめる。設問の無い種類は返さない
    */
   summarizeAccuracyByQuestionType(userId: number): Promise<QuestionTypeAccuracyCount[]>
   /**

@@ -1,5 +1,5 @@
 /**
- * 辞書を引くときに原形へ戻す不規則変化の表（変化形 → 原形）。lib/lookup-dictionary.ts が、見出し語そのままの次に引く。
+ * 辞書を引くときに原形へ戻す不規則変化の表（変化形 → 原形）。
  *
  * - 不規則動詞の過去形・過去分詞（be / have / do / go の活用、die / lie / tie / vie の -ying も含む）
  * - 不規則な複数形（children / indices / criteria など）

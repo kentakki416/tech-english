@@ -10,8 +10,6 @@ const rotatedTokensSchema = z.object({
 })
 
 /**
- * ioredis 実装の Refresh Token リポジトリ
- *
  * キーは `{keyPrefix}:{jti}` と、ローテーションの猶予の `{keyPrefix}_rotated:{jti}`。
  * 一般ユーザーは既定の `refresh_token`、admin は `admin_refresh_token` で作り、同じ Redis の中で混ざらないようにする
  * （接頭辞は 2 つのキーの両方に掛ける。片方だけだと、猶予の記録が一般ユーザーと admin で同じ空間に入る）

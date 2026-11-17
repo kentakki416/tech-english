@@ -10,13 +10,6 @@ import { AuthRequest } from "../../middleware/auth"
 import { RefreshTokenRepository, UserRepository } from "../../repository"
 import * as service from "../../service"
 
-/**
- * DELETE /api/user
- *
- * 認証中ユーザー自身のアカウントを削除する。req.userId は authMiddleware が確定済みの前提。
- * confirmation が "delete my account" と一致しないリクエストは parseRequest が 400 にする（Service には届かない）。
- * 成功は 204（ボディなし）
- */
 export class UserDeleteController {
   constructor(
     private _userRepository: UserRepository,

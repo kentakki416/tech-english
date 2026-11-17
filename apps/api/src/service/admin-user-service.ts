@@ -14,9 +14,6 @@ import type {
 import { getUserAttempts, getUserCalendar, getUserStats, type UserAttempts, type UserCalendar, type UserStats } from "./learning-record-service"
 import { getVocabularySummary } from "./vocabulary-service"
 
-/**
- * ユーザーの詳細に使う Repository（マイページの学習のまとめと単語帳の数に、ログイン方法を足したもの）
- */
 type AdminUserRepo = {
   authAccountRepository: AuthAccountRepository
   learningRecordRepository: LearningRecordRepository
@@ -36,7 +33,7 @@ export type AdminUserDetail = {
 }
 
 /**
- * ユーザーが居るか確かめる。マイページの Service はユーザーが居ないと 401（本人のトークンの検査の一部）を返すので、
+ * マイページの Service はユーザーが居ないと 401（本人のトークンの検査の一部）を返すので、
  * admin では先にこれで確かめて 404 にする
  */
 const findUserForAdmin = async (userId: number, repo: { userRepository: UserRepository }): Promise<Result<User>> => {
@@ -52,7 +49,7 @@ const convertMissingUserToNotFound = <T>(result: Result<T>): Result<T> =>
   !result.ok && result.error.statusCode === 401 ? err(notFoundError("User not found")) : result
 
 /**
- * ユーザー一覧（page は 1 始まり。範囲外のページは空の配列で、total は全体の件数）
+ * page は 1 始まり。範囲外のページは空の配列で、total は全体の件数
  */
 export const getAdminUserList = async (
   query: { limit: number; order: "asc" | "desc"; page: number; q?: string; sort: AdminUserSort },
@@ -68,9 +65,6 @@ export const getAdminUserList = async (
   return ok({ items, limit: query.limit, page: query.page, total })
 }
 
-/**
- * ユーザーの詳細。基本の情報・ログイン方法・最後に学習した日に、マイページと同じ学習のまとめと単語帳の数を足す。ユーザーが居なければ notFoundError
- */
 export const getAdminUser = async (
   userId: number,
   repo: AdminUserRepo,
@@ -95,9 +89,6 @@ export const getAdminUser = async (
   })
 }
 
-/**
- * 学習カレンダー（マイページと同じ）。ユーザーが居なければ notFoundError
- */
 export const getAdminUserCalendar = async (
   userId: number,
   range: { from?: string; to?: string },
@@ -109,9 +100,6 @@ export const getAdminUserCalendar = async (
   return convertMissingUserToNotFound(await getUserCalendar(userId, range, repo, deps))
 }
 
-/**
- * 学習履歴（マイページと同じ）。ユーザーが居なければ notFoundError
- */
 export const getAdminUserAttempts = async (
   userId: number,
   query: { cursor?: number; date?: string; limit: number },

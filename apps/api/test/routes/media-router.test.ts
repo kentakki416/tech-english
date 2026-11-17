@@ -8,10 +8,6 @@ import request from "supertest"
 import { mediaRouter } from "../../src/routes/media-router"
 import { createTestApp } from "../controller/helper"
 
-/**
- * 開発環境のローカルの音声の配信（/media）。本番と同じく helmet と auth middleware の後ろにマウントする
- * （NODE_ENV=test では PUBLIC_PATHS に /media が入るので、Authorization ヘッダなしで読める）
- */
 const audioDir = mkdtempSync(join(tmpdir(), "media-router-"))
 const AUDIO_KEY = "passages/48/abc123/1-0.mp3"
 const AUDIO_BYTES = Buffer.from(Array.from({ length: 1000 }, (_, index) => index % 256))
@@ -25,6 +21,10 @@ writeFileSync(join(audioDir, "passages/48/abc123/.hidden.mp3"), AUDIO_BYTES)
 const outsideFile = `${audioDir}-outside.txt`
 writeFileSync(outsideFile, "secret")
 
+/**
+ * 開発環境のローカルの音声の配信（/media）。本番と同じく helmet と auth middleware の後ろにマウントする
+ * （NODE_ENV=test では PUBLIC_PATHS に /media が入るので、Authorization ヘッダなしで読める）
+ */
 const app = createTestApp()
 
 app.use(helmet())

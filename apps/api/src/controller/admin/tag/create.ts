@@ -9,9 +9,6 @@ import * as service from "../../../service"
 
 import { convertTagToResponse } from "./tag-mapper"
 
-/**
- * admin のタグの作成API。color を省くと自動で割り当てる
- */
 export class AdminTagCreateController {
   constructor(private _tagRepository: TagRepository) {}
 

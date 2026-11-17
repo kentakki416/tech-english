@@ -2,9 +2,6 @@ import type { PassageChunk } from "@repo/content-extractor"
 
 import type { FetchedPage } from "../../src/client/page-fetcher"
 
-/**
- * URL の取り込みの service のユニットテストと Controller のインテグレーションテストで共有する、取得・抽出したページの値
- */
 export const buildChunk = (overrides: Partial<PassageChunk> = {}): PassageChunk => ({
   blocks: [
     { text: "Getting started", type: "heading" },

@@ -9,9 +9,6 @@ import * as service from "../../../service"
 
 import { convertAssistRatesToResponse } from "./convert-stats-to-response"
 
-/**
- * admin のダッシュボードの全体の利用状況API（数字と推移）
- */
 export class AdminStatsOverviewController {
   constructor(private _adminStatsRepository: AdminStatsRepository) {}
 

@@ -10,9 +10,6 @@ import * as service from "../../../service"
 
 import { convertSourceCollectionRunToResponse } from "./source-mapper"
 
-/**
- * admin の今すぐ収集の依頼API。記録を作って Queue に積み、202 を返す（収集は worker が行う）
- */
 export class AdminSourceCollectController {
   constructor(
     private _sourceRepository: SourceRepository,

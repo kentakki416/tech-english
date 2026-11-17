@@ -3,7 +3,7 @@ import type { SourceCollectionRun } from "@repo/domain"
 import type { ReadOptions } from "./read-options"
 
 /**
- * 記録を作った結果。active_exists はそのソースの収集が queued / running で残っている（部分 unique index に違反した）
+ * active_exists はそのソースの収集が queued / running で残っている（部分 unique index に違反した）
  */
 export type CreateSourceCollectionRunResult =
   | { kind: "active_exists" }

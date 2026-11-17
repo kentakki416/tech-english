@@ -119,7 +119,7 @@ const convertPassageStatsRow = (row: PassageStatsQueryRow): PassageStatsRow => (
 })
 
 /**
- * Drizzle 実装の AdminStatsRepository。集計は生の SQL で書く（ra / p / s などの別名を使う）
+ * 集計は生の SQL で書く（ra / p / s などの別名を使う）
  */
 export class DrizzleAdminStatsRepository implements AdminStatsRepository {
   private _db: DrizzleClient
@@ -186,9 +186,6 @@ export class DrizzleAdminStatsRepository implements AdminStatsRepository {
     }))
   }
 
-  /**
-   * 範囲外のページ（offset が 1 以上で行が 0 件）では count(*) OVER () が取れないので、件数だけ数え直す
-   */
   public async findPassageStats(query: FindPassageStatsQuery): Promise<{ items: PassageStatsRow[]; total: number }> {
     const filter = sql`(p.status = 'published' OR s.solved_attempts > 0)${query.q === undefined ? sql`` : sql` AND p.title ILIKE ${buildContainsLikePattern(query.q)} ESCAPE '\\'`}`
     const direction = query.order === "asc" ? sql`ASC` : sql`DESC`
@@ -201,6 +198,9 @@ export class DrizzleAdminStatsRepository implements AdminStatsRepository {
       return { items: result.rows.map(convertPassageStatsRow), total: Number(result.rows[0].total) }
     }
     if (query.offset === 0) return { items: [], total: 0 }
+    /**
+     * 範囲外のページ（offset が 1 以上で行が 0 件）では count(*) OVER () が取れないので、件数だけ数え直す
+     */
     const counted = await this._db.execute<{ total: string }>(sql`
       SELECT count(*) AS total FROM (${this._buildPassageStatsSelect(query, filter)}) counted
     `)

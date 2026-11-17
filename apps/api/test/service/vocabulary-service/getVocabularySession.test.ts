@@ -16,11 +16,11 @@ const buildDueCards = (count: number) =>
     encounter: buildEncounter(`due-${index}`),
   }))
 
+const SENTENCE_BLOCK = PASSAGE_BLOCKS[2]?.text ?? ""
+
 /**
  * 「logic」の 1 文（PASSAGE_BLOCKS のブロック 2 全体）の最初と最後の単語に時刻を付けたマニフェスト。間の単語は省く
  */
-const SENTENCE_BLOCK = PASSAGE_BLOCKS[2]?.text ?? ""
-
 const LOGIC_MANIFEST: PassageAudioManifest = {
   blocks: [
     {

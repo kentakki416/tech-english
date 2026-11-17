@@ -2,9 +2,6 @@ import type { Passage, SourceKind } from "@repo/domain"
 
 import type { PassageSource } from "../repository"
 
-/**
- * 出典表示に出す内容
- */
 export type PassageAttribution = {
   /**
    * 取得時のコミット。サイトは null
@@ -25,9 +22,6 @@ export type PassageAttribution = {
   sourceName: string
 }
 
-/**
- * 公開ページの URL を作るときにファイルパスから外す拡張子
- */
 const MARKDOWN_EXTENSION_PATTERN = /\.mdx?$/
 
 /**
@@ -40,7 +34,7 @@ const buildPublicPageUrl = (template: string, stripPrefix: string | null, source
 }
 
 /**
- * 問題の出典表示を組み立てる。リンクはソースの今の設定と、問題が取得した時点の値（パス・コミット・取得日時）から作る
+ * リンクはソースの今の設定と、問題が取得した時点の値（パス・コミット・取得日時）から作る
  */
 export const buildAttribution = (
   source: PassageSource,

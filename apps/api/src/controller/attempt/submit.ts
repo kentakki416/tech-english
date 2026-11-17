@@ -10,10 +10,6 @@ import * as service from "../../service"
 
 import { convertSubmittedAttemptToResponse } from "./mapper"
 
-/**
- * 提出API（POST /api/attempt/:id/submit）。採点結果（正解・解説・根拠を含む）を 200 で返す。
- * すでに提出済みなら保存済みの結果を同じ 200 で返す（冪等）。期限切れは 409、他人の挑戦・存在しない ID は 404
- */
 export class AttemptSubmitController {
   constructor(
     private _passageRepository: PassageRepository,

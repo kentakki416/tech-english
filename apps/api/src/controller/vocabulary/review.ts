@@ -8,10 +8,6 @@ import { AuthRequest } from "../../middleware/auth"
 import { TransactionRunner, UserRepository, VocabularyRepository } from "../../repository"
 import * as service from "../../service"
 
-/**
- * 単語帳の 1 枚の答えの保存 API（POST /api/vocabulary/review）。client_review_id で冪等（保存済みなら 200 で今の状態を返す）。
- * 候補にもカードにも無い見出し語は 404、ユーザーが存在しなければ 401
- */
 export class VocabularyReviewController {
   constructor(
     private _transactionRunner: TransactionRunner,

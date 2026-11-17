@@ -7,9 +7,6 @@ import { sendError } from "../../../lib/send-error"
 import { PassageRepository } from "../../../repository"
 import * as service from "../../../service"
 
-/**
- * admin の問題を非公開に戻すAPI（published → draft）
- */
 export class AdminPassageUnpublishController {
   constructor(private _passageRepository: PassageRepository) {}
 

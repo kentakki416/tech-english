@@ -20,9 +20,6 @@ const TIME_LIMIT_FORMULA: AdminPassageDetailResponse["time_limit_formula"] = {
   wpm_by_difficulty: PASSAGE_DIFFICULTIES.map((difficulty) => ({ difficulty, wpm: READING_WPM_BY_DIFFICULTY[difficulty] })),
 }
 
-/**
- * 一覧の 1 行（ドメイン → snake_case、日時は ISO 8601）
- */
 export const convertAdminPassageListItemToResponse = (item: AdminPassageListItem): AdminPassageListItemResponse => ({
   id: item.passage.id,
   attempt_count: item.attemptCount,
@@ -53,9 +50,6 @@ const convertAudioToResponse = ({ audio, passage }: AdminPassageDetail): AdminPa
   }
 }
 
-/**
- * 問題の全情報（詳細と保存のレスポンス。ドメイン → snake_case、日時は ISO 8601）
- */
 export const convertAdminPassageDetailToResponse = (detail: AdminPassageDetail): AdminPassageDetailResponse => {
   const { passage } = detail
   return {
@@ -121,9 +115,6 @@ export const convertAdminPassageDetailToResponse = (detail: AdminPassageDetail):
   }
 }
 
-/**
- * 保存のリクエスト（snake_case）→ service の入力（camelCase）
- */
 export const convertUpdateAdminPassageRequestToInput = (request: UpdateAdminPassageRequest): AdminPassageEditInput => ({
   blocks: request.blocks.map((block) => ({ text: block.text, translationJa: block.translation_ja })),
   difficulty: request.difficulty,

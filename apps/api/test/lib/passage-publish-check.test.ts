@@ -2,9 +2,6 @@ import { listPublishViolations } from "../../src/lib/passage-publish-check"
 import type { AdminPassageDetail } from "../../src/repository"
 import { buildAdminPassageDetail, buildPassage, PASSAGE_BLOCKS } from "../fixture/passage-content"
 
-/**
- * 詳細の設問 1 つだけを書き換える
- */
 const replaceQuestion = (
   detail: AdminPassageDetail,
   index: number,

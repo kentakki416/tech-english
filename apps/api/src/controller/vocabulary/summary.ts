@@ -10,10 +10,6 @@ import * as service from "../../service"
 
 import { convertVocabularySummaryToResponse } from "./vocabulary-mapper"
 
-/**
- * 単語帳のトップの数 API（GET /api/vocabulary/summary）。今日の復習・新しい単語・復習中・覚えた単語の数と次の復習の日。
- * ユーザーが存在しなければ 401
- */
 export class VocabularySummaryController {
   constructor(
     private _userRepository: UserRepository,

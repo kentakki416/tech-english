@@ -8,10 +8,6 @@ import { AuthRequest } from "../../middleware/auth"
 import { ReminderSettingRepository, UserRepository } from "../../repository"
 import * as service from "../../service"
 
-/**
- * リマインダーの設定の保存API（PUT /api/user/reminder）。3 項目を受け取って upsert し、保存後の値を 200 で返す。
- * 検証エラーは 400、ユーザーが存在しない（削除済みユーザーの access token）なら 401
- */
 export class UserPutReminderController {
   constructor(
     private _reminderSettingRepository: ReminderSettingRepository,

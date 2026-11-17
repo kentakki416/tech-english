@@ -57,9 +57,6 @@ const requireSubmittedValue = <T>(value: T | null, column: string, attemptId: nu
   return value
 }
 
-/**
- * Drizzle 実装の LearningRecordRepository
- */
 export class DrizzleLearningRecordRepository implements LearningRecordRepository {
   private _db: DrizzleClient
 
@@ -125,9 +122,6 @@ export class DrizzleLearningRecordRepository implements LearningRecordRepository
     }))
   }
 
-  /**
-   * 回答（attempt_answers）を挑戦と設問に join して、設問の種類でまとめる。正答数は FILTER で数える
-   */
   public async summarizeAccuracyByQuestionType(userId: number): Promise<QuestionTypeAccuracyCount[]> {
     return this._db
       .select({
@@ -207,9 +201,6 @@ export class DrizzleLearningRecordRepository implements LearningRecordRepository
     return [...byDate.values()].sort((left, right) => left.date.localeCompare(right.date))
   }
 
-  /**
-   * 段落の和訳・設問の和訳・単語・読み上げをどれも使っていない挑戦だけ
-   */
   public async summarizeNoAssistAccuracy(userId: number): Promise<AccuracyCount> {
     const [row] = await this._db
       .select({
@@ -229,9 +220,6 @@ export class DrizzleLearningRecordRepository implements LearningRecordRepository
     return row
   }
 
-  /**
-   * 学習秒数にだけ単語帳の秒数を足す
-   */
   public async summarizeTotals(userId: number): Promise<StudyTotals> {
     const [[row], [review]] = await Promise.all([
       this._db

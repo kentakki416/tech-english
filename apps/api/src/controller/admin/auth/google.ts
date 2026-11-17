@@ -10,9 +10,6 @@ import { sendError } from "../../../lib/send-error"
 import { AdminRepository, RefreshTokenRepository } from "../../../repository"
 import * as service from "../../../service"
 
-/**
- * Google OAuth の認証コードを検証し、admins に登録された email なら admin のトークンを発行する API
- */
 export class AdminAuthGoogleController {
   constructor(
     private _adminRepository: AdminRepository,

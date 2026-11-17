@@ -25,7 +25,7 @@ import type {
 } from "../repository"
 
 /**
- * カードの発音の音声（vocabulary-pronunciation）。wordUrl は見出し語の mp3、sentence は元の問題の読み上げの音声の 1 文の区間。
+ * wordUrl は見出し語の mp3、sentence は元の問題の読み上げの音声の 1 文の区間。
  * 音声ができていない・区間が求まらなければ null
  */
 export type VocabularyCardPronunciation = {
@@ -35,15 +35,12 @@ export type VocabularyCardPronunciation = {
 
 export type VocabularySessionCard = VocabularyCardView & { pronunciation: VocabularyCardPronunciation }
 
-/**
- * 1 回分のカード
- */
 export type VocabularySession = { cards: VocabularySessionCard[]; today: string }
 
 type VocabularyReadRepo = { userRepository: UserRepository; vocabularyRepository: VocabularyRepository }
 
 /**
- * 「今日」を求めるのにタイムゾーンが要るため、読み取りの API でもユーザーが無ければ 401 にする（learning-record と同じ）
+ * 「今日」を求めるのにタイムゾーンが要るため、読み取りの API でもユーザーが無ければ 401 にする
  */
 const findUser = async (userId: number, repo: { userRepository: UserRepository }): Promise<Result<User>> => {
   const user = await repo.userRepository.findById(userId)
@@ -51,9 +48,6 @@ const findUser = async (userId: number, repo: { userRepository: UserRepository }
   return ok(user)
 }
 
-/**
- * 単語帳のトップの数（今日の復習・新しい単語・復習中・覚えた単語・次の復習の日）
- */
 export const getVocabularySummary = async (
   userId: number,
   repo: VocabularyReadRepo,
@@ -65,9 +59,6 @@ export const getVocabularySummary = async (
   return ok(await repo.vocabularyRepository.summarize(userId, today))
 }
 
-/**
- * 1 文の区間を求める。元の問題の音声が ready のとき（resolveAudioStatus。非公開に戻した・公開し直した直後は使わない）だけ
- */
 const buildSentencePronunciation = (
   card: VocabularyCardView,
   audio: PassageAudioWithPassage | undefined,
@@ -84,7 +75,7 @@ const buildSentencePronunciation = (
 }
 
 /**
- * カードに発音の音声を付ける。見出し語の音声と元の問題の音声は、カードの数だけ引かずにまとめて 1 回ずつ引く。
+ * 見出し語の音声と元の問題の音声は、カードの数だけ引かずにまとめて 1 回ずつ引く。
  * audioPublicUrlBase が null（production で AUDIO_PUBLIC_URL_BASE が未設定）なら、音声を引かずに単語も 1 文も null にする
  */
 const attachPronunciations = async (
@@ -112,8 +103,7 @@ const attachPronunciations = async (
 }
 
 /**
- * 1 回分のカード（最大 VOCABULARY_SESSION_SIZE 枚）。今日の復習を先に入れ、余った枠を新しい単語で埋める。何も書き込まない。
- * カードには発音の音声（単語の mp3 の URL と、1 文の読み上げの区間）を付ける
+ * 今日の復習を先に入れ、余った枠を新しい単語で埋める。何も書き込まない
  */
 export const getVocabularySession = async (
   userId: number,
@@ -135,9 +125,6 @@ export const getVocabularySession = async (
   return ok({ cards: await attachPronunciations(cards, repo, deps.audioPublicUrlBase), today })
 }
 
-/**
- * 答えた後のカードの状態
- */
 export type VocabularyReviewResult = Pick<VocabularyCard, "dueDate" | "lemma" | "stage">
 
 const convertCardToReviewResult = (card: VocabularyCard): VocabularyReviewResult => ({
@@ -147,13 +134,12 @@ const convertCardToReviewResult = (card: VocabularyCard): VocabularyReviewResult
 })
 
 /**
- * 1 枚の答えを保存する。次の段階と次に出す日は users.timezone での今日から求める。
+ * 次の段階と次に出す日は users.timezone での今日から求める。
  *
  * - 同じ client_review_id の答えが保存済みなら何もせず、そのカードの今の状態を返す（冪等）
  * - 今日の分ではないカード（次に出す日が今日より後・覚えた単語）への答えは保存せず、そのカードの今の状態を返す。
  *   戻るボタンで古い 1 回分を開き直して答えた・別の端末で先に答えた、のような重なった答えで段階を 2 つ進めないため
  * - カードが無く、出題の候補にも無い（意味が用意できない）見出し語は 404
- * - 見ていた秒数は VOCABULARY_MAX_CARD_SECONDS に切り詰める
  */
 export const reviewVocabularyCard = async (
   userId: number,

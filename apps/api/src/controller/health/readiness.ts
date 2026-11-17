@@ -7,12 +7,6 @@ import { parseResponse } from "../../lib/parse-schema"
 import { DatabaseHealthRepository, RedisHealthRepository } from "../../repository"
 import * as service from "../../service"
 
-/**
- * Readiness チェック
- * 外部サービス（DB, Redis）への接続状態を確認する
- * 健康診断エンドポイントなので、依存サービスが落ちている場合は 503 を返す
- * （他の Controller と異なり、独自にステータスコードを制御）
- */
 export class HealthReadinessController {
   constructor(
     private _databaseHealthRepository: DatabaseHealthRepository,

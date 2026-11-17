@@ -2,9 +2,6 @@ import { findSurfaceRanges, type GlossaryEntry, type PassageBlock, type PassageS
 
 import { findLookupTargetRanges } from "./part-of-speech"
 
-/**
- * 本文のセグメント。API の snake_case への変換は Controller で行う
- */
 export type PassageSegment = {
   /**
    * kind が word のときだけ。押して意味を引けるか（名詞・動詞と用語集の語句は true）

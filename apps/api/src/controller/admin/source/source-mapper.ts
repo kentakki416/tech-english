@@ -11,9 +11,6 @@ import type { SourceCreateInput, SourceUpdateInput, SourceWithTags } from "../..
 import type { SourceSuggestion } from "../../../service/source-service"
 import { convertTagToResponse } from "../tag/tag-mapper"
 
-/**
- * 登録のリクエスト（snake_case）→ Repository の入力（camelCase）
- */
 export const convertCreateSourceRequestToInput = (request: CreateSourceRequest): SourceCreateInput => {
   const base = {
     excludeGlobs: request.exclude_globs,
@@ -44,9 +41,6 @@ export const convertCreateSourceRequestToInput = (request: CreateSourceRequest):
   }
 }
 
-/**
- * 編集のリクエスト（snake_case）→ Repository の編集の入力（camelCase）
- */
 export const convertUpdateSourceRequestToInput = (request: UpdateSourceRequest): SourceUpdateInput => {
   const base = {
     excludeGlobs: request.exclude_globs,
@@ -71,9 +65,6 @@ export const convertUpdateSourceRequestToInput = (request: UpdateSourceRequest):
   }
 }
 
-/**
- * タグつきのソース → レスポンス（snake_case、日時は ISO 8601）
- */
 export const convertSourceToResponse = (source: SourceWithTags): SourceResponse => {
   const base = {
     id: source.id,
@@ -108,9 +99,6 @@ export const convertSourceToResponse = (source: SourceWithTags): SourceResponse 
   }
 }
 
-/**
- * 収集の実行の記録（domain）→ レスポンス（snake_case）
- */
 export const convertSourceCollectionRunToResponse = (run: SourceCollectionRun): SourceCollectionRunResponse => ({
   id: run.id,
   created_passage_count: run.createdPassageCount,
@@ -122,9 +110,6 @@ export const convertSourceCollectionRunToResponse = (run: SourceCollectionRun): 
   created_at: run.createdAt.toISOString(),
 })
 
-/**
- * URL からの登録の初期値（camelCase）→ レスポンス（snake_case）
- */
 export const convertSourceSuggestionToResponse = (suggestion: SourceSuggestion): SuggestSourceResponse => {
   if (suggestion.fetchType === "website") {
     return {
