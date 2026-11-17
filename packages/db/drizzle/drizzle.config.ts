@@ -14,6 +14,9 @@ export default defineConfig({
     url: buildConnectionString(),
   },
   dialect: "postgresql",
-  out: "./drizzle/migrations",
+  /**
+   * db:migrate が、途中までのフォルダだけを適用するときに差し替える（migrate/migrate.ts）
+   */
+  out: process.env.DRIZZLE_MIGRATIONS_DIR ?? "./drizzle/migrations",
   schema: "./src/drizzle/schema/index.ts",
 })

@@ -249,7 +249,7 @@ Actions → **「Deploy to AWS prd」** を workflow_dispatch。
 
 フロー（`prd` ゲートを外していれば自動で流れる）:
 1. **build**: api / worker / cron / **migration** の4イメージを ECR へ push
-2. **migrate**: prod RDS に `drizzle-kit migrate`（migration イメージ = `packages/db/Dockerfile.migration`）
+2. **migrate**: prod RDS に `db:migrate`（`migration.sql` と `online.sql` を、フォルダの順に適用する。migration イメージ = `packages/db/Dockerfile.migration`）
 3. **migrate-dwh**: ClickHouse の migration（同じ migration イメージ。`enable_data_warehouse` の環境だけで、無ければ skip）。失敗すると deploy-worker は止まるが、api の deploy は続く
 4. **deploy-worker / deploy-cron**: 承認なしで完走
 5. **deploy-api**: Blue/Green の green を待機 TG に投入 → テストトラフィックを green に
@@ -380,7 +380,7 @@ dev ロールは `AdministratorAccess` 付きだが、prd ロールを scoped po
 
 ### 落とし穴 6: migration Dockerfile は packages/db に置く（欠落しやすい）
 DB の schema / migrations は `@repo/db`（packages/db）にあるのに、migration の Dockerfile が `apps/api/Dockerfile.migration`（旧構成の名残）を参照していると、ファイル欠落で build が `failed to read dockerfile` で落ちる。
-→ **`packages/db/Dockerfile.migration`** を使い、workflow の `-f` パスもそこに向ける。`CMD = pnpm --filter @repo/db db:migrate`（`drizzle-kit migrate`）。
+→ **`packages/db/Dockerfile.migration`** を使い、workflow の `-f` パスもそこに向ける。`CMD = pnpm --filter @repo/db db:migrate`（`migration.sql` と `online.sql` を、フォルダの順に適用する）。
 → **migration は単一スキーマ(@repo/db)を migrate するので、api/cron/worker いずれが触るテーブルも一括で反映される**（DB は1つ・スキーマは1つの共有設計）。
 
 ### 落とし穴 7: HTTPS は deploy より先に（ECS Blue/Green のルール紐付け）

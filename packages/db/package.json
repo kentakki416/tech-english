@@ -6,21 +6,21 @@
   "sideEffects": false,
   "scripts": {
     "admin:create": "tsx drizzle/create-admin.ts",
-    "build": "tsc",
+    "build": "tsc --project tsconfig.build.json && tsc -p migrate/tsconfig.json",
     "clean": "rm -rf dist",
-    "dev": "tsc --watch",
-    "db:generate": "drizzle-kit generate --config=drizzle/drizzle.config.ts",
-    "db:migrate": "drizzle-kit migrate --config=drizzle/drizzle.config.ts",
+    "dev": "tsc --project tsconfig.build.json --watch",
+    "db:generate": "tsx migrate/generate.ts",
+    "db:migrate": "tsx migrate/migrate.ts",
     "db:push": "drizzle-kit push --config=drizzle/drizzle.config.ts",
     "db:seed": "tsx drizzle/seed.ts",
     "db:seed:dictionary": "tsx drizzle/seed-dictionary.ts",
     "db:seed:sample-passages": "tsx drizzle/seed-sample-passages.ts",
     "db:studio": "drizzle-kit studio --config=drizzle/drizzle.config.ts",
-    "lint": "eslint 'src/**/*.ts'",
-    "lint:fix": "eslint 'src/**/*.ts' --fix",
-    "test": "tsx --test drizzle/ejdict.test.ts",
-    "test:ci": "tsx --test drizzle/ejdict.test.ts",
-    "typecheck": "tsc --noEmit"
+    "lint": "eslint 'src/**/*.ts' 'migrate/**/*.ts'",
+    "lint:fix": "eslint 'src/**/*.ts' 'migrate/**/*.ts' --fix",
+    "test": "tsx --test drizzle/ejdict.test.ts && vitest run",
+    "test:ci": "tsx --test drizzle/ejdict.test.ts && vitest run",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p migrate/tsconfig.json"
   },
   "dependencies": {
     "@repo/domain": "workspace:^",
@@ -35,6 +35,7 @@
     "drizzle-kit": "1.0.0-rc.4",
     "eslint": "^9.39.1",
     "tsx": "^4.21.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.5"
   }
 }

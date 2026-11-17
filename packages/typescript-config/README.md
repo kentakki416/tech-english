@@ -58,7 +58,7 @@
 
 ## `tsconfig.json` と `tsconfig.build.json` の使い分け
 
-dist を本番に出す server-side app（api / cron / worker）と、test を持つパッケージ（content-extractor / data-warehouse / domain / events / queue）は **2 つの tsconfig を持つ**。役割が違う。
+dist を本番に出す server-side app（api / cron / worker）と、test を持つパッケージ（content-extractor / data-warehouse / db / domain / events / queue）は **2 つの tsconfig を持つ**。役割が違う。
 
 | ファイル | 用途 | include |
 | --- | --- | --- |
