@@ -10,7 +10,7 @@ import type { ReminderSettingRepository, UpsertReminderSettingInput, UserReposit
 type ReminderSchedule = Pick<ReminderSetting, "isEnabled" | "time" | "weekdays">
 
 /**
- * 未保存のユーザーに返す既定値（docs/spec/study-reminder の「設定できる項目」：オフ・毎日・21:00）
+ * 未保存のユーザーに返す既定値（オフ・毎日・21:00）
  */
 const DEFAULT_REMINDER_SCHEDULE: ReminderSchedule = { isEnabled: false, time: "21:00", weekdays: [1, 2, 3, 4, 5, 6, 7] }
 

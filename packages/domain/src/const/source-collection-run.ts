@@ -1,5 +1,5 @@
 /**
- * 1 ソースの収集が最後まで動いたときの終わり方（docs/spec/manual-collection/README.md「収集の状態」）。収集の失敗（failed）は含まない
+ * 1 ソースの収集が最後まで動いたときの終わり方。収集の失敗（failed）は含まない
  *
  * - completed: 対象の文書を全部処理した（last_collected_commit_sha を更新する）
  * - limit_reached: 文書数・本文候補数の上限で打ち切った。またはツリーが切り詰められて全部を列挙できなかった

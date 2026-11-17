@@ -4,7 +4,6 @@
 ローカルは docker compose、AWS は ClickHouse Cloud で動かし、worker が [`@repo/data-warehouse`](../../../packages/data-warehouse/README.md) の interface 越しに書き込む。
 
 - コード: 書き込みの実装は `packages/data-warehouse/src/clickhouse/`、テーブル・view の定義と migration コマンドは [`packages/data-warehouse/clickhouse/`](../../../packages/data-warehouse/clickhouse/README.md)
-- 設計: [`docs/spec/clickhouse-migration/README.md`](../../spec/clickhouse-migration/README.md)（migration と環境ごとの有効化）
 
 | ドキュメント | 内容 |
 | --- | --- |
@@ -43,7 +42,6 @@ flowchart LR
 
 - 送出の抽象は `@repo/events` の `EventTracker`。api は ClickHouse を知らない
 - 配送は BullMQ（[`packages/queue`](../../../packages/queue/README.md)）なので、同じイベントが 2 回届くことがある（[`events` テーブル](./query.md#events-テーブル)で畳む）
-- 詳細は [`docs/spec/user-behavior-events/README.md`](../../spec/user-behavior-events/README.md)
 
 ### 業務データ
 
@@ -125,6 +123,4 @@ ClickHouse を使うと決めた後、動かし方と取り込み方に選択肢
 - [`packages/data-warehouse/README.md`](../../../packages/data-warehouse/README.md) — 書き込み先の抽象（`DataWarehouse`）のパッケージ
 - [`packages/data-warehouse/clickhouse/README.md`](../../../packages/data-warehouse/clickhouse/README.md) — テーブル・view の定義と migration コマンドのディレクトリ
 - [`packages/queue/README.md`](../../../packages/queue/README.md) — 行動イベントの配送（BullMQ）
-- [`docs/spec/clickhouse-migration/README.md`](../../spec/clickhouse-migration/README.md) — migration と、環境ごとの有効化の設計
-- [`docs/spec/user-behavior-events/README.md`](../../spec/user-behavior-events/README.md) — 行動イベント基盤の設計
 - [`docs/setup/infra.md`](../../setup/infra.md#7-clickhouse-cloud-の準備) — ClickHouse Cloud の organization と API キーの準備

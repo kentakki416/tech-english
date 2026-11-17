@@ -147,7 +147,7 @@ const fetchAudio = async (attemptId: number, blocks: AttemptBlock[]): Promise<Fe
 }
 
 /**
- * expo-audio の player での再生（docs/spec/read-aloud/README.md「再生の実装」）。
+ * expo-audio の player での再生。
  * player を 1 つ使い回してパートごとに replace し、playbackStatusUpdate（100ms ごと）で読み上げ中の単語を追う。
  * React の state は events.onPlaybackChange で更新し、単語が変わったときだけ呼ぶ（画面全体を 100ms ごとに描き直さない）。
  * 次のパートの先読みはしない（段落の間に短い間が空くのは許容する）
@@ -479,7 +479,7 @@ const createReadAloudController = (player: AudioPlayer, events: ControllerEvents
  * 読み上げ（解答画面と結果画面で共有する）。音声の取得・再生・単語の追跡・聞いた段落の通知をまとめる。
  * 返す値・操作は web の同名の hook と同じ（速度は setRate の代わりに cycleRate）。返す関数はすべて参照が変わらない
  *
- * - 再生は expo-audio（docs/spec/read-aloud/README.md「再生の実装」）。web 表示では HTML の audio で動く
+ * - 再生は expo-audio。web 表示では HTML の audio で動く
  * - アプリが前面でなくなったら一時停止する（タイマーが止まるのと合わせる）
  * - 画面の上に別の画面を積んだときも一時停止する（結果画面の「もう一度解く」「次の問題を解く」は push なので、結果画面が残って鳴り続けるため）
  */

@@ -2,7 +2,6 @@
 # API Gateway HTTP API ($default ルートで Lambda alias に全リクエストを流す) + 独自ドメイン
 # =============================================================================
 # ALB と違い時間課金が無い (リクエスト数の従量のみ)。
-# 設計: docs/spec/minimal-deploy/README.md「api を Lambda で動かす」
 
 resource "aws_apigatewayv2_api" "this" {
   name          = var.name

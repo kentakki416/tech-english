@@ -9,7 +9,7 @@ const NOT_FOUND_RESPONSE: ErrorResponse = { error: "Not found", status_code: 404
 
 /**
  * 開発環境だけのローカルの音声の配信（/media にマウントする）。cron の generate:audio が .storage/audio/ に書いた mp3 を返す。
- * 本番は S3 + CloudFront で配信するので、production では使わない（docs/spec/read-aloud/README.md「音声の保存と配信」）。
+ * 本番は S3 + CloudFront で配信するので、production では使わない。
  *
  * dev-login と同じくガードを 1 か所に集めない：index.ts は production でこの router を登録せず、
  * PUBLIC_PATHS も production では /media を含めない。それでも登録されたときのために、この router の先頭でも production なら 404 にする。

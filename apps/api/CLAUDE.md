@@ -43,8 +43,6 @@ pnpm db:seed:sample-passages # 開発用のサンプル問題（公開 1・下�
 - **auth middleware は公開パスでも optional 認証を行う。** トークンがあれば `req.userId` を埋め、無くても 401 にしない。早期 return すると公開パスで有効なトークンを渡しても userId が入らず、イベントが永久に記録されない
 - `POST /api/events` は `PUBLIC_PATHS` に含めない（認証必須）。`userId` はボディから受け取らず server 側で解決する
 
-設計: `docs/spec/user-behavior-events/README.md`
-
 ## エラーハンドリング（Result 型）
 
 `@repo/errors` の `Result<T>` を使う。**業務エラー（4xx）は値で返し、想定外エラー（DB 障害等）は throw する**、が原則。
@@ -76,20 +74,20 @@ try/catch を許容するのは次の 3 つだけ。
 
 ## Admin API 設計方針
 
-admin（`apps/admin`）のサーバー側だけが呼ぶ API。一般ユーザーの API と認証を完全に分ける（設計: [admin-template の「admin 認証」](../../docs/spec/admin-template/README.md#admin-認証)）。
+admin（`apps/admin`）のサーバー側だけが呼ぶ API。一般ユーザーの API と認証を完全に分ける。
 
 - すべて `/api/admin/` 配下に置き、`src/routes/admin-router.ts` にマッピングする。コントローラーはリソースごとに `controllers.source` / `controllers.passage` のようにネストして渡し、既存の router と同じく渡されたものだけを登録する
 - **`/api/admin` の下のルートは必ず admin-router に足す**（別の router に足すと admin の認証を通らない）
 - **認証は Bearer の admin の JWT**。admin は `admins` テーブル（`users` とは別。事前登録制）で、トークンは admin 専用の鍵（`JWT_ADMIN_ACCESS_SECRET` / `JWT_ADMIN_REFRESH_SECRET`）で署名し、payload は `{ adminId }`（発行・検証は `src/lib/admin-jwt.ts`）。refresh の jti は Redis の `admin_refresh_token:{jti}`（猶予は `admin_refresh_token_rotated:{jti}`）
 - **`adminAuthMiddleware`（`src/middleware/admin-auth.ts`）は全体ではなく `/api/admin` の mount の中に置く**。`src/index.ts` とテストは `mountAdminApi`（`src/routes/admin-router.ts`）で mount する。Express 5 の mount と Router は大文字小文字を区別しないので、全体に適用して文字列で比べると `/API/Admin/...` が判定をすり抜ける。一般ユーザーの `authMiddleware` は `/api/admin` を見ない
 - admin の access token を求めないパスは `ADMIN_PUBLIC_PATHS`（`src/const/index.ts`。mount からの相対で、完全一致で比べる。google / refresh / logout と、production 以外の dev-login）
-- Controller は `src/controller/admin/{resource}/{action}.ts`。Service は `src/service/{source,admin-passage,admin-stats,admin-user,url-import}-service.ts` と、認証の `admin-auth-service.ts`（Google・dev ログイン）・`admin-service.ts`（`GET /api/admin/me`）。ユーザー向けと同じ Repository を使う（ダッシュボードの集計だけは admin 専用の `AdminStatsRepository`。生の SQL で Postgres をその場で集計する。[admin-dashboard](../../docs/spec/admin-dashboard/README.md)）
+- Controller は `src/controller/admin/{resource}/{action}.ts`。Service は `src/service/{source,admin-passage,admin-stats,admin-user,url-import}-service.ts` と、認証の `admin-auth-service.ts`（Google・dev ログイン）・`admin-service.ts`（`GET /api/admin/me`）。ユーザー向けと同じ Repository を使う（ダッシュボードの集計だけは admin 専用の `AdminStatsRepository`。生の SQL で Postgres をその場で集計する）
 - admin の refresh / logout は一般ユーザーの `service.auth.refreshTokens` / `service.auth.logout` に admin 用の Repository・検証関数・発行関数を渡す。`refreshTokens` は持ち主を `tokenOwnerRepository` で確かめるので、admin は `adminRepository` を渡す（`admins` から消された admin の refresh token は 401）
 - ユーザー管理（`/api/admin/user/*`）はマイページの Service を使い回す。マイページの Service はユーザーが居ないと 401 を返すので、admin の Service（`admin-user-service.ts`）が先に存在を確かめて 404 にする
-- **ソースの登録・更新**（[github-only-collection](../../docs/spec/github-only-collection/README.md)）：登録の GitHub の `license_url` はそのリポジトリのファイルの URL でなければ 400（api-schema の `validateCreateSourceInput`）。サイトのソースはローカルでだけ受け付け（`SourceWritePolicy` を `src/index.ts` が `NODE_ENV` から作って Controller に渡す）、常に無効で保存する。更新（`PUT /api/admin/source/:id`）は編集で変えられる項目だけを受け（`SourceUpdateInput`）、取得元・種別・GitHub のライセンスは送られても捨てる。公開ページの URL 規則は登録でも更新でも受けない（DB に値があるソースの出典のリンクにだけ使う）。種別は登録で送られなければ `docs` にする（admin の画面に欄は無く、Server Action が既定値を入れて送る）（[source-registration-by-url の step3](../../docs/spec/source-registration-by-url/tasks/step3-admin-source-edit-fields.md)）
-- **URL からの登録の初期値**（[source-registration-by-url](../../docs/spec/source-registration-by-url/README.md)）：`GET /api/admin/source/suggestion?fetch_type=&url=` は登録の画面（GitHub / サイト）の取得方法で、URL を `src/lib/source-url.ts` で解釈する。GitHub は `GitHubRepositoryClient`（`src/client/github-repository.ts`）で default branch とライセンスを取って、登録のフォームの初期値を返す。登録の検証はしない（`POST /api/admin/source` が行う）。読めない理由は 400 の `details[0].code`（`SOURCE_SUGGESTION_ERROR_CODES`。サイトの画面の GitHub の URL は `github_url`）。トップの URL は `findDocumentsDirectory`（`src/lib/source-document-path.ts`）でドキュメントのディレクトリを推定し、ディレクトリの URL にも既定の除外パス（`buildDefaultExcludeGlobs`）を付ける。対象パスとその親にトップと blob SHA の違う `LICENSE` があれば `conflict_url` を返す（admin が登録を止める）。GitHub の判定が使えないリポジトリは `src/const/document-repository.ts` の確認済みの一覧で決める（足すときはライセンスの原文を読む。[official-docs-collection](../../docs/spec/official-docs-collection/README.md)）
-- **今すぐ収集**（[manual-collection](../../docs/spec/manual-collection/README.md)）：`POST /api/admin/source/:id/collection-runs` は収集の実行の記録（`source_collection_runs`）を `queued` で作ってから `collect-source` の Queue に積み、202 を返す（収集は worker）。同じソースの収集中は部分 unique index の違反で 409。30 分を過ぎても収集中のままの記録は、一覧・詳細を読む・依頼するときに `failed` にする。worker の無い環境は `SOURCE_COLLECTION_TYPE=none` で Controller を作らない（404）
-- **ソースの削除**（[source-deletion](../../docs/spec/source-deletion/README.md)）：`DELETE /api/admin/source/:id` はソースを、公開中の問題と解答の記録も含めて物理削除する。収集中のソースは 409。判定と削除は `SourceRepository.deleteWithContent` の 1 トランザクションで、`sources` と `passages` の行をロックして行う。`passage_audios` と `audio_synthesis_usages` の行は残す（mp3 は `generate:audio` が消す。課金の記録は月の上限に使う）
+- **ソースの登録・更新**：登録の GitHub の `license_url` はそのリポジトリのファイルの URL でなければ 400（api-schema の `validateCreateSourceInput`）。サイトのソースはローカルでだけ受け付け（`SourceWritePolicy` を `src/index.ts` が `NODE_ENV` から作って Controller に渡す）、常に無効で保存する。更新（`PUT /api/admin/source/:id`）は編集で変えられる項目だけを受け（`SourceUpdateInput`）、取得元・種別・GitHub のライセンスは送られても捨てる。公開ページの URL 規則は登録でも更新でも受けない（DB に値があるソースの出典のリンクにだけ使う）。種別は登録で送られなければ `docs` にする（admin の画面に欄は無く、Server Action が既定値を入れて送る）
+- **URL からの登録の初期値**：`GET /api/admin/source/suggestion?fetch_type=&url=` は登録の画面（GitHub / サイト）の取得方法で、URL を `src/lib/source-url.ts` で解釈する。GitHub は `GitHubRepositoryClient`（`src/client/github-repository.ts`）で default branch とライセンスを取って、登録のフォームの初期値を返す。登録の検証はしない（`POST /api/admin/source` が行う）。読めない理由は 400 の `details[0].code`（`SOURCE_SUGGESTION_ERROR_CODES`。サイトの画面の GitHub の URL は `github_url`）。トップの URL は `findDocumentsDirectory`（`src/lib/source-document-path.ts`）でドキュメントのディレクトリを推定し、ディレクトリの URL にも既定の除外パス（`buildDefaultExcludeGlobs`）を付ける。対象パスとその親にトップと blob SHA の違う `LICENSE` があれば `conflict_url` を返す（admin が登録を止める）。GitHub の判定が使えないリポジトリは `src/const/document-repository.ts` の確認済みの一覧で決める（足すときはライセンスの原文を読む）
+- **今すぐ収集**：`POST /api/admin/source/:id/collection-runs` は収集の実行の記録（`source_collection_runs`）を `queued` で作ってから `collect-source` の Queue に積み、202 を返す（収集は worker）。同じソースの収集中は部分 unique index の違反で 409。30 分を過ぎても収集中のままの記録は、一覧・詳細を読む・依頼するときに `failed` にする。worker の無い環境は `SOURCE_COLLECTION_TYPE=none` で Controller を作らない（404）
+- **ソースの削除**：`DELETE /api/admin/source/:id` はソースを、公開中の問題と解答の記録も含めて物理削除する。収集中のソースは 409。判定と削除は `SourceRepository.deleteWithContent` の 1 トランザクションで、`sources` と `passages` の行をロックして行う。`passage_audios` と `audio_synthesis_usages` の行は残す（mp3 は `generate:audio` が消す。課金の記録は月の上限に使う）
 - スキーマは `@repo/api-schema` の `admin/` に集約。既存と同一なら re-export し、Admin 固有のレスポンスが必要になった時点で新規定義する
 - **admin の登録**: `pnpm --filter @repo/db admin:create --email <email>`。dev / min / prd は GitHub Actions の「Admin Create」（`docs/deploy/prd.md`）。ローカルは seed で `admin@dev.local` が入り、`POST /api/admin/auth/dev-login` でログインできる（dev-login は `@dev.local` の admin しか受け付けない）
 
@@ -108,7 +106,7 @@ npx dotenvx set KEY "value" -f apps/api/.env.local
 
 `COLLECT_WEB_CONTACT_URL`（任意）は admin の URL の取り込みでサイトに送る User-Agent に入れるサービスのトップの URL（`TechEnglishBot/1.0 (+{url})`）。未設定なら `FRONTEND_URL`（web のトップ）を使うので、ふつうは設定しなくてよい。
 
-読み上げ（[read-aloud](../../docs/spec/read-aloud/README.md#音声の保存と配信)）の音声の env:
+読み上げの音声の env:
 
 | 変数 | 既定 | 説明 |
 | --- | --- | --- |
@@ -119,10 +117,10 @@ npx dotenvx set KEY "value" -f apps/api/.env.local
 
 ## サイトのページの取得（`@repo/content-extractor`）
 
-admin の URL の取り込み（`POST /api/admin/url-import`・`/preview`。[url-import](../../docs/spec/url-import/README.md)）は **ローカルだけ**（`src/index.ts` は production で Controller を作らないので、ルートが登録されず 404）。`@repo/content-extractor` でページを取得・抽出する（本文の抽出の規則は cron の収集と同じ。cron はサイトを収集しない）。
+admin の URL の取り込み（`POST /api/admin/url-import`・`/preview`）は **ローカルだけ**（`src/index.ts` は production で Controller を作らないので、ルートが登録されず 404）。`@repo/content-extractor` でページを取得・抽出する（本文の抽出の規則は cron の収集と同じ。cron はサイトを収集しない）。
 
 - パッケージは `src/client/page-fetcher.ts` の中で、使うときに `import()` で読む。jsdom などが重く、ほかの API のコールドスタートを遅くしないため。service・Repository は型だけを import する
-- パッケージは CommonJS で、ESM だけで配布されている unified などを Node の `require(esm)` で読むので、**Node 20.19 以上**が要る（Docker は `node:20-slim`）。vitest と tsx はこの経路を通らないので、Node のバージョンを変えるときはビルドした dist で読めることを確かめる（[step3 の動作確認](../../docs/spec/url-import/tasks/step3-api-url-import.md#動作確認)）
+- パッケージは CommonJS で、ESM だけで配布されている unified などを Node の `require(esm)` で読むので、**Node 20.19 以上**が要る（Docker は `node:20-slim`）。vitest と tsx はこの経路を通らないので、Node のバージョンを変えるときはビルドした dist で読めることを確かめる
 - 取得は始めてから 15 秒で打ち切る（API Gateway と Lambda の 29 秒に、抽出・DB・コールドスタートの分を残して収めるため）。期限・Crawl-delay の上限・リクエストの間隔は `page-fetcher.ts` の定数
 - 取得・抽出したページは Redis（`url_import_page:*`、10 分）に置き、確認と保存で使い回す（`IoRedisUrlImportPageCacheRepository`）。キャッシュの読み書きに失敗しても取得して進める
 - api はパッケージの `dist` を読むので、パッケージを変えたら `pnpm --filter @repo/content-extractor build` してから起動・テストする

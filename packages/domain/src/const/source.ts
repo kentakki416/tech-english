@@ -21,7 +21,7 @@ export const SOURCE_FETCH_TYPES = ["github_repository", "website"] as const
  * NoDerivatives（CC-BY-ND-*）は和訳を作れないため入れない
  *
  * アプリは問題の画面と結果の画面に、出典としてソースの表示名（取得元へのリンク）・取得した時点・
- * ライセンス名（ライセンスの記載がある URL へのリンク）・「一部を抜粋・改変しています」を出す（docs/spec/content-collection/README.md の「出典表示」）
+ * ライセンス名（ライセンスの記載がある URL へのリンク）・「一部を抜粋・改変しています」を出す
  */
 export const ALLOWED_LICENSES = [
   /**

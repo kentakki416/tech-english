@@ -1,5 +1,5 @@
 /**
- * 読み上げの時刻表（docs/spec/read-aloud/README.md「再生の実装」）。マニフェストとブロックのセグメントから、再生とハイライトに使う形を作る。
+ * 読み上げの時刻表。マニフェストとブロックのセグメントから、再生とハイライトに使う形を作る。
  * web（apps/web/src/features/read-aloud/read-aloud-timeline.ts）と同じ。変えるときは両方を変える
  * （web と mobile で共有するクライアントのパッケージが無いので写している）
  */

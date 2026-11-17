@@ -7,9 +7,9 @@
 | タスク | コマンド | 処理内容 |
 | --- | --- | --- |
 | `cleanup:old-memos` | `pnpm cleanup:old-memos` | `CLEANUP_MEMO_OLDER_THAN_DAYS`（既定 90）日より前の memo を一括削除 |
-| `generate:questions` | `pnpm generate:questions [--passage-id=N]` | `collected` の本文候補から Claude API で設問・和訳・用語集を生成し、解答キーを見ない検証をして `draft` にする（[question-generation](../../docs/spec/question-generation/README.md#生成タスクの動き)）。`ANTHROPIC_API_KEY` が必須。`--passage-id` で 1 件だけ（`collected` でなければ throw。下書きの上限を見ない）。1 件でも `failed` になる、または取得した全件が一時的な失敗で `collected` に戻る（下書き・却下が 0 件）と exit 1 |
-| `generate:audio` | `pnpm generate:audio` | 公開済みの問題の読み上げの音声（mp3 と単語の時刻のマニフェスト）を Amazon Polly で作り、`passage_audios` を `ready` にする（[read-aloud](../../docs/spec/read-aloud/README.md#音声の生成タスク)）。本番は 1 時間ごと。`production` 以外の既定は `TTS_PROVIDER=fake`（無音の mp3 と等間隔の単語の時刻。ローカルの確認用）。`polly` で AWS の資格情報を解決できなければ、`production` 以外は warn を出して何もせず exit 0。`production` で `AUDIO_STORAGE_TYPE=local` なら起動時に throw（exit 1）。却下（`rejected`）の問題とソースの削除で消えた問題の mp3 と行は毎回消す。今月の Polly の課金文字数が `AUDIO_MONTHLY_CHARACTER_LIMIT` を超えそうなら止めて exit 1。1 件でも失敗（失敗の上限に達した・次の実行に回した失敗）があれば exit 1 |
-| `generate:word-audio` | `pnpm generate:word-audio` | 単語帳に出うる見出し語（調べた単語のうち英和辞書の見出し語と一致するもの・公開中の問題の用語集の語句）の発音の mp3 を Amazon Polly で 1 語ずつ作り、`word_audios` を `ready` にする（[vocabulary-pronunciation](../../docs/spec/vocabulary-pronunciation/README.md#単語の音声の生成タスク)）。本番は 1 時間ごと。音声合成・保存先・月の上限（読み上げと合算）は `generate:audio` と共有する。月の上限で止めたら・1 語でも失敗があれば exit 1 |
+| `generate:questions` | `pnpm generate:questions [--passage-id=N]` | `collected` の本文候補から Claude API で設問・和訳・用語集を生成し、解答キーを見ない検証をして `draft` にする。`ANTHROPIC_API_KEY` が必須。`--passage-id` で 1 件だけ（`collected` でなければ throw。下書きの上限を見ない）。1 件でも `failed` になる、または取得した全件が一時的な失敗で `collected` に戻る（下書き・却下が 0 件）と exit 1 |
+| `generate:audio` | `pnpm generate:audio` | 公開済みの問題の読み上げの音声（mp3 と単語の時刻のマニフェスト）を Amazon Polly で作り、`passage_audios` を `ready` にする。本番は 1 時間ごと。`production` 以外の既定は `TTS_PROVIDER=fake`（無音の mp3 と等間隔の単語の時刻。ローカルの確認用）。`polly` で AWS の資格情報を解決できなければ、`production` 以外は warn を出して何もせず exit 0。`production` で `AUDIO_STORAGE_TYPE=local` なら起動時に throw（exit 1）。却下（`rejected`）の問題とソースの削除で消えた問題の mp3 と行は毎回消す。今月の Polly の課金文字数が `AUDIO_MONTHLY_CHARACTER_LIMIT` を超えそうなら止めて exit 1。1 件でも失敗（失敗の上限に達した・次の実行に回した失敗）があれば exit 1 |
+| `generate:word-audio` | `pnpm generate:word-audio` | 単語帳に出うる見出し語（調べた単語のうち英和辞書の見出し語と一致するもの・公開中の問題の用語集の語句）の発音の mp3 を Amazon Polly で 1 語ずつ作り、`word_audios` を `ready` にする。本番は 1 時間ごと。音声合成・保存先・月の上限（読み上げと合算）は `generate:audio` と共有する。月の上限で止めたら・1 語でも失敗があれば exit 1 |
 
 ## Commands
 
@@ -35,11 +35,11 @@ pnpm test              # Vitest（DB client を mock するので DB 不要）
 
 Repository の interface は api / worker と意図的に分離する（api は CRUD、cron は batch 系と操作セットが違うため）。一方ドメイン型は `@repo/domain` で共有する。
 
-**英文の収集（`collect:passages`）は cron でやめ、worker の `collect-source`（admin の今すぐ収集）に移した**（[manual-collection](../../docs/spec/manual-collection/README.md)。収集の処理と規則は [`apps/worker/CLAUDE.md`](../worker/CLAUDE.md#collect-source英文の収集)）。
+**英文の収集（`collect:passages`）は cron でやめ、worker の `collect-source`（admin の今すぐ収集）に移した**（収集の処理と規則は [`apps/worker/CLAUDE.md`](../worker/CLAUDE.md#collect-source英文の収集)）。
 
 ### 問題の生成（LLM のクライアントとプロンプト）
 
-`generate:questions`（[question-generation](../../docs/spec/question-generation/README.md#llm-の呼び出し)）が使う Claude API のクライアントとプロンプト。タスクの動きは次の「generate:questions（問題の生成のタスク）」。
+`generate:questions` が使う Claude API のクライアントとプロンプト。タスクの動きは次の「generate:questions（問題の生成のタスク）」。
 
 | ファイル | 役割 |
 | --- | --- |
@@ -80,7 +80,7 @@ Repository の interface は api / worker と意図的に分離する（api は 
 
 ### generate:audio（読み上げの音声の生成）
 
-[read-aloud](../../docs/spec/read-aloud/README.md#音声の生成タスク) の音声を作るタスク。`passage_audios` の列とマニフェスト（`PassageAudioManifest`）の型は read-aloud の README が正本。
+読み上げの音声を作るタスク。
 
 | ファイル | 役割 |
 | --- | --- |
@@ -106,7 +106,7 @@ Repository の interface は api / worker と意図的に分離する（api は 
 - **voice・読み上げ用テキストの版を変えたとき**：`TTS_VOICE_ID` を変えると、`voice_id` が違う `ready` の行が対象になり、次の実行から `AUDIO_MAX_PASSAGES_PER_RUN` 件ずつ作り直す（作り直すまでは前の声のまま `ready`）。`TTS_PROVIDER` を `fake` と `polly` で切り替えたときも同じ（`fake` の `voice_id` は `fake:<TTS_VOICE_ID>`。同じ値だと fake で作った無音の音声が `unchanged` のまま残り、保存キーも同じなので CloudFront の長期キャッシュにも残る）。`AUDIO_TEXT_VERSION`（`const/audio.ts`）を上げただけでは `ready` の行は作り直さない。作り直すときはデプロイの後に作り直しの依頼を入れる（`UPDATE passage_audios SET regenerate_requested_at = timezone('utc', now()), attempt_count = 0, last_error = NULL WHERE status = 'ready'`。日時の列は UTC なので `timezone('utc', ...)` にする。`updated_at` は変えない）。作り直すまでは前の音声のまま `ready`。どちらも公開済みの問題の数だけ Polly の課金がかかるので、`AUDIO_MONTHLY_CHARACTER_LIMIT` を一時的に上げる
 - **作り直しの依頼**（admin の「作り直す」。api が `ready` のときだけ `regenerate_requested_at = now`・`attempt_count = 0`・`last_error = null` にする）：本文の hash が同じでも Polly で作り直す（`unchanged` にしない）。hash が同じなら保存キーのディレクトリを `{textHash}-r{確保の時刻のミリ秒}` にする（同じキーに上書きすると CloudFront と端末の長期キャッシュ〈1 年・immutable〉に前の音声が残るため）。成功したら、確保の時刻までに出された依頼を消す（確保の後に出された依頼は残し、次の実行でもう一度作り直す）
 - **月の上限**：Polly の `SynthesizeSpeech`（音声と単語の時刻）のリクエストごとに課金文字数を `audio_synthesis_usages` に記録する（`TTS_PROVIDER=fake` は記録しない）。Polly を呼ぶ問題ごとに、作る前に「今月〈UTC の暦月〉の合計 + その問題の見込み〈`estimateBilledCharacters`〉」が `AUDIO_MONTHLY_CHARACTER_LIMIT` を超えるなら、その問題と残りの確保を外し（失敗の回数は増やさない。generating は pending に戻り、ready のまま確保した行は前の音声のまま）、error のログを出して exit 1 で止める。上限を上げるか翌月になれば、次の実行から続きを作る。`unchanged`（Polly を呼ばない）は上限を見ない
-- **取り下げた問題の音声**：毎回、確保の前に、却下（`rejected`）の問題と、[ソースの削除](../../docs/spec/source-deletion/README.md#音声と課金の記録)で行が無くなった問題の `passage_audios`（確保中のものを除く）のマニフェストの mp3 をすべて消し、消せたら行も消す（一時的に消せなかった mp3 があれば行を残して次の実行でやり直す。保存先の設定の誤りは throw）。非公開（`draft`）の問題の音声は、再公開で同じ本文なら作り直さずに使うので消さない
+- **取り下げた問題の音声**：毎回、確保の前に、却下（`rejected`）の問題と、ソースの削除で行が無くなった問題の `passage_audios`（確保中のものを除く）のマニフェストの mp3 をすべて消し、消せたら行も消す（一時的に消せなかった mp3 があれば行を残して次の実行でやり直す。保存先の設定の誤りは throw）。非公開（`draft`）の問題の音声は、再公開で同じ本文なら作り直さずに使うので消さない
 - **ライセンスなどで問題の音声を取り下げるとき**：① admin で問題を非公開に戻してから却下するか、ソースごと削除する ② 次の `generate:audio`（1 時間以内。急ぐなら手動で RunTask）で S3 から mp3 と行が消える（ログの `audio of a withdrawn passage was deleted`）③ CloudFront のキャッシュは 1 年なので、`aws cloudfront create-invalidation --distribution-id <id> --paths "/passages/<passage_id>/*"` でそのパスを無効化する（端末の HTTP キャッシュに残った分は消せない）
 - **claim のガード**：結果の書き込みは `WHERE passage_id = ? AND status = <確保したときの状態（generating / ready）> AND generation_started_at = ?`。当たらなければ `lost_claim`（何も書かず、mp3 も消さない）。生成中に本文が変わった（非公開 → 修正 → 再公開）ら `text_changed` で `pending` に戻し、今回作った mp3 を消す
 - **失敗の扱い**：Polly の throttling・5xx は SDK のリトライ（`POLLY_MAX_ATTEMPTS`）に任せる。それでも失敗した・保存に一時的に失敗した（S3 の 5xx・ローカルの保存先の失敗）問題は `attempt_count` を増やし、3 回目で `failed`（`last_error` に「種類: メッセージ」。ready のまま確保した行は `ready` のまま）。`manifest` と `text_hash` は前の成功のまま残す（前の mp3 のキーを後で消すため）。設定の誤り（`isFatalAudioGenerationError`。Polly と保存先の両方）は失敗回数を増やさずに `releaseClaim` して throw（他の確保済みの行は 30 分後に回収される。保存は音声合成の後なので、保存先の誤りを 1 件の失敗にすると Polly の料金をかけて全件が `failed` に進む）
@@ -115,7 +115,7 @@ Repository の interface は api / worker と意図的に分離する（api は 
 
 ### generate:word-audio（単語の発音の音声の生成）
 
-[vocabulary-pronunciation](../../docs/spec/vocabulary-pronunciation/README.md#単語の音声の生成タスク) の単語の音声を作るタスク。`word_audios` の列は vocabulary-pronunciation の README が正本。`generate:audio` と音声合成のクライアント・保存先・月の上限・設定の誤りの判定を共有し、流れ（状態での確保・確保の時刻のガード・3 回で `failed`）もそろえている。
+単語の音声を作るタスク。`generate:audio` と音声合成のクライアント・保存先・月の上限・設定の誤りの判定を共有し、流れ（状態での確保・確保の時刻のガード・3 回で `failed`）もそろえている。
 
 | ファイル | 役割 |
 | --- | --- |

@@ -36,8 +36,6 @@ const closeClient = async (client: ClickHouseClient): Promise<void> => {
  * 3. ローカルで CDC を使うなら（materialized_postgresql）CDC を作り直し、使わないなら（none）前に作った CDC が残っていれば警告する
  * 4. 版管理する migration を適用する
  * 5. CDC があれば view を作り直す
- *
- * 設計: docs/spec/clickhouse-migration/README.md
  */
 const main = async (): Promise<void> => {
   const [migrations, cdcTables, views] = await Promise.all([

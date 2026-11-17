@@ -33,7 +33,7 @@ tech-english/
 │   └── queue/     # @repo/queue : JobQueue<T> 抽象 + BullMQ 実装
 ├── infra/
 │   └── terraform/ # AWS Infrastructure as Code
-└── docs/          # 仕様書・設計書・セットアップ手順
+└── docs/          # セットアップ手順・キャッチアップ資料・技術選定
 ```
 
 ## apps（アプリ）

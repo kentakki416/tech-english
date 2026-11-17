@@ -6,7 +6,7 @@ name: Terraform AWS Env Apply
 #
 # 運用ルール:
 # - dev: workflow_dispatch から実行。承認ゲートなし
-# - min: workflow_dispatch から実行。承認ゲートなし（minimal 構成。docs/spec/minimal-deploy/README.md）。
+# - min: workflow_dispatch から実行。承認ゲートなし（minimal 構成）。
 #        GitHub Environment は terraform 用の min-terraform を使う（deploy 用の min とは role を分けている）
 # - prd: workflow_dispatch から実行。`prd` Environment の Required reviewers で承認ゲート（将来）
 #

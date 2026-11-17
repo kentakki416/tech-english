@@ -26,6 +26,5 @@ packages/data-warehouse/
 ## 関連
 
 - [`docs/tech-stack/clickhouse/`](../../docs/tech-stack/clickhouse/README.md) — ClickHouse の採用理由・方式の選択・集計クエリの注意・CDC・migration
-- [`docs/spec/user-behavior-events/README.md`](../../docs/spec/user-behavior-events/README.md) — 行動イベント基盤の設計
 - [`packages/events/`](../events) — 送出の抽象（`EventTracker`）
 - [`apps/worker/CLAUDE.md`](../../apps/worker/CLAUDE.md) — 消費側の実装と環境変数

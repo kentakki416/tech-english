@@ -14,7 +14,7 @@ SQS / Cloud Tasks / pg-boss 等へ乗り換えるときは `packages/queue` に�
 | --- | --- | --- |
 | `process-memo` | `ProcessMemoJobData = { memoId: number }` | memo を id で fetch してログ出力（メール送信 / 通知などに差し替える起点） |
 | `track-event` | `TrackEventJobData = { events: [...] }` | 行動イベントをデータウェアハウスへ一括 INSERT。1 ジョブに複数イベントが入る |
-| `collect-source` | `CollectSourceJobData = { runId: number }` | admin の今すぐ収集。api が作った収集の記録（`source_collection_runs`）を running にし、GitHub のソースを 1 つ収集して本文候補を作り、結果を記録に書く（[manual-collection](../../docs/spec/manual-collection/README.md)。下の「collect-source（英文の収集）」） |
+| `collect-source` | `CollectSourceJobData = { runId: number }` | admin の今すぐ収集。api が作った収集の記録（`source_collection_runs`）を running にし、GitHub のソースを 1 つ収集して本文候補を作り、結果を記録に書く（下の「collect-source（英文の収集）」） |
 
 ## Commands
 
@@ -52,7 +52,7 @@ BullMQ の stalled 検出 / リトライ / ECS deploy 時の SIGKILL で **同�
 
 ## collect-source（英文の収集）
 
-admin の「今すぐ収集」で、GitHub のソースを 1 つ収集する。cron の毎日の収集（`collect:passages`）をやめて、ここに移した（[manual-collection](../../docs/spec/manual-collection/README.md)）。
+admin の「今すぐ収集」で、GitHub のソースを 1 つ収集する。cron の毎日の収集（`collect:passages`）をやめて、ここに移した。
 
 | ファイル | 役割 |
 | --- | --- |
@@ -73,7 +73,7 @@ admin の「今すぐ収集」で、GitHub のソースを 1 つ収集する。c
 - **rate limit**：`x-ratelimit-remaining` が閾値（token ありは 100、token なしは 10。`const/collection.ts`）を切ったら `rate_limited` で打ち切る。`GitHubRateLimitError` も失敗にせず `rate_limited` にする
 - **抽出の版（`EXTRACTION_VERSION`、`packages/content-extractor/src/document/const.ts`）**：`src/document` の変更のうち、ブロック・切り分け・本文候補の条件が変わるものをしたら上げる（実装した日の日付）。上げると、次にそのソースを収集したときに取得済みの文書を切り分け直す（毎日の収集は無いので、ソースごとに今すぐ収集を押す）。版は `source_documents.extraction_version` と `sources.last_collected_extraction_version` に記録する
 - **古い本文候補の却下**：切り分け直した文書の `collected` のうち新しい本文候補に無いもの（`SUPERSEDED_PASSAGE_REJECT_REASON`）と、収集の対象から外れた文書（除外パス・対象パスから外した、取得元から消えた）の `collected`（`OUT_OF_TARGET_PASSAGE_REJECT_REASON`）を `rejected` にする。下書き・公開済み・生成中・失敗は変えない（公開済みの問題は取得元から消えても残す）。`source_documents` の行は消さない
-- **サイトのクロール（website）はしない**：やめた理由と、戻すときに足し直すものは [github-only-collection](../../docs/spec/github-only-collection/README.md)。User-Agent は `TechEnglishBot/1.0 (+COLLECT_WEB_CONTACT_URL)`（未設定なら `TechEnglishBot/1.0`）で、GitHub API に送る
+- **サイトのクロール（website）はしない**。User-Agent は `TechEnglishBot/1.0 (+COLLECT_WEB_CONTACT_URL)`（未設定なら `TechEnglishBot/1.0`）で、GitHub API に送る
 - **テスト**：GitHub API は `fetch`（client のテスト）か client の偽物（service のテスト。`test/service/collection/helpers.ts`）に差し替える。**実在のリポジトリにリクエストを送るテストは書かない**。記録の `claim` / `finish` の SQL は文字列までなので、変えたらローカル DB で確かめる（`queued` が `running` になる・`failed` は取れない・古い `started_at` では書かれない）
 
 ### ESM 専用の依存（require(esm)）

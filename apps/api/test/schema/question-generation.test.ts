@@ -3,7 +3,7 @@ import { eq, passageGlossaryEntries, passages, questions, sourceDocuments, sourc
 import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb } from "../controller/setup"
 
 /**
- * questions / passage_glossary_entries の制約を実 DB で確かめる（docs/spec/question-generation/tasks/step1-db-questions.md）。
+ * questions / passage_glossary_entries の制約を実 DB で確かめる。
  * 定数に無い値は Drizzle の型で弾かれるので、sql の生 insert で入れる
  */
 

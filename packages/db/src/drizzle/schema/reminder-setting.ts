@@ -4,7 +4,7 @@ import { timestamps } from "./columns"
 import { users } from "./user"
 
 /**
- * 学習リマインダーの設定（docs/spec/study-reminder）。1 ユーザー 1 行
+ * 学習リマインダーの設定。1 ユーザー 1 行
  *
  * weekdays の値域（1〜7・1 つ以上・重複なし）と time の 15 分刻みは API の Zod で検証する。
  * 既定値は DB に持たせない（未保存のユーザーには API が既定値を返す。既定値を 2 か所に書かない）。

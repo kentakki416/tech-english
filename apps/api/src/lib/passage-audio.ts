@@ -1,7 +1,7 @@
 import type { AudioStatus, Passage, PassageAudio } from "@repo/domain"
 
 /**
- * 読み上げの音声の状態と URL（docs/spec/read-aloud/README.md「音声の保存と配信」）。admin と利用者向けの API で共有する
+ * 読み上げの音声の状態と URL。admin と利用者向けの API で共有する
  */
 
 /**

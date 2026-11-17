@@ -41,7 +41,7 @@ pnpm ios          # iOS で起動
 
 ## 開発用のログインとブラウザでの確認
 
-- **Dev Login**: `__DEV__` のときだけ、ログイン画面の下に「Dev Login: alice / bob」を出す。api の `POST /api/auth/dev-login`（[dev-login](../../docs/spec/dev-login/README.md)。api 側は production で無効）でトークンを受け取り、GitHub ログインと同じく保存してログイン中にする（`features/auth/auth.session.ts` の `signInAsDevUser`）
+- **Dev Login**: `__DEV__` のときだけ、ログイン画面の下に「Dev Login: alice / bob」を出す。api の `POST /api/auth/dev-login`（api 側は production で無効）でトークンを受け取り、GitHub ログインと同じく保存してログイン中にする（`features/auth/auth.session.ts` の `signInAsDevUser`）
 - **web 表示のトークン**: secure-store は web で動かないため、`__DEV__` かつ `Platform.OS === "web"` のときだけ `localStorage` に保存する（`features/auth/auth.storage.ts`）。本番の web ビルドと iOS / Android は secure-store のまま
 - ログイン後の画面をブラウザで確かめる手順（シミュレーターが無いとき）:
   1. `app.json` の `web.output` を一時的に `single` にする（`static` は 500 になる。終わったら必ず `static` に戻す）

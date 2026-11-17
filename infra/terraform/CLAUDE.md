@@ -10,7 +10,7 @@ AWS デプロイ用の Infrastructure as Code (Terraform)。
 | --- | --- | --- |
 | `bootstrap/` | S3 backend のみ。一度きり apply | **local**（chicken-and-egg のため） |
 | `account/` | OIDC provider / GitHub Actions IAM role / ECR。env をまたいで共有 | remote |
-| `env/` | 環境ごとに分離するリソース。`dev` / `prd` は VPC / ECS / RDS / ALB、`min` は固定費を抑えた本番構成（Lambda + API Gateway、DB / Redis は外部サービス、worker は `enable_worker` のときだけ Fargate Spot。設計は `docs/spec/minimal-deploy/README.md`） | remote |
+| `env/` | 環境ごとに分離するリソース。`dev` / `prd` は VPC / ECS / RDS / ALB、`min` は固定費を抑えた本番構成（Lambda + API Gateway、DB / Redis は外部サービス、worker は `enable_worker` のときだけ Fargate Spot） | remote |
 
 ## Commands
 

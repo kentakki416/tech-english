@@ -151,7 +151,7 @@ Claudeが参照するドメイン知識・パターン集。タスクに関連�
 
 | スキル | 説明 |
 |---|---|
-| `design-mock` | デザインモックを `apps/web` に作成し、ユーザー承認後に `docs/spec/{feature}/README.md` の「UI設計」セクションを追記する。テーマヒアリング → `apps/admin` の既存デザイン参照 → モック作成 → 承認 → 仕様書化 までを 1 skill で対応。「モック作って」「画面のイメージを作って」で起動 |
+| `design-mock` | デザインモックを `apps/web` に作成し、ユーザー承認後に `docs/kentakki416/tasks/{feature}/README.md` の「UI設計」セクションを追記する。テーマヒアリング → `apps/admin` の既存デザイン参照 → モック作成 → 承認 → 仕様書化 までを 1 skill で対応。「モック作って」「画面のイメージを作って」で起動 |
 
 > どのプロジェクトでも使う汎用の skill（`design-feature` / `design-step` / `create-pr` / `coding-style` など）は、このリポジトリではなくユーザーレベルの `~/.claude/skills/` に置きます。同じ名前の skill が両方にあるとユーザーレベルの方が読み込まれるので、ここには同じ名前の skill を置きません。
 >

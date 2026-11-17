@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 }
 
 /**
- * URL を入れてページを確認し、本文候補として保存する（docs/spec/url-import）。ローカルだけ
+ * URL を入れてページを確認し、本文候補として保存する。ローカルだけ
  */
 export default function UrlImportPage() {
   if (!isLocalEnvironment) notFound()

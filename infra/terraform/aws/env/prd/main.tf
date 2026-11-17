@@ -424,7 +424,6 @@ module "elasticache" {
 #   (判定の正本はこのフラグだけ)
 # - 接続を許すのは、worker と migration のタスクが外へ出る NAT の IP と、
 #   clickhouse_additional_ip_access_cidrs に足した IP (分析ツールなど) だけ
-# 設計: docs/spec/clickhouse-migration/README.md
 
 module "clickhouse" {
   source = "../../modules/clickhouse-service"
@@ -455,7 +454,6 @@ locals {
 # =============================================================================
 # - ClickPipes が SSH bastion 経由で RDS の論理レプリケーションを読み、pg_cdc に取り込む
 # - 同期の対象は infra/clickhouse/cdc-tables.json。変えたら apply で ClickPipe に反映する
-# 設計: docs/spec/clickhouse-migration/README.md
 
 module "cdc" {
   source = "../../modules/clickpipes-postgres-cdc"

@@ -83,7 +83,7 @@ jobs:
   # =========================================================================
   # 判定の正本は Terraform のフラグだけ。フラグが true の環境にだけ接続情報の secret がある。
   # dwh-migration のタスク定義では判定しない (deploy が register した revision が、フラグを
-  # false にしても ACTIVE のまま残るため)。設計: docs/spec/clickhouse-migration/README.md
+  # false にしても ACTIVE のまま残るため)。
   detect:
     name: Detect data warehouse
     runs-on: ubuntu-latest

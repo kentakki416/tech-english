@@ -9,7 +9,6 @@ import { joinSqlValues } from "./sql-values"
 
 /**
  * 収集（admin の今すぐ収集）の 1 回ごとの状態と結果。api が queued で作り、worker が running にして結果を書く
- * （docs/spec/manual-collection/README.md「収集の実行の記録」）
  */
 export const sourceCollectionRuns = pgTable(
   "source_collection_runs",

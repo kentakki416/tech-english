@@ -1,7 +1,7 @@
 import type { AttemptBlock, GetAttemptAudioResponse, PassageSegmentResponse } from "@repo/api-schema"
 
 /**
- * 読み上げの時刻表（docs/spec/read-aloud/README.md「再生の実装」）。マニフェストとブロックのセグメントから、再生とハイライトに使う形を作る。
+ * 読み上げの時刻表。マニフェストとブロックのセグメントから、再生とハイライトに使う形を作る。
  * ブラウザでだけ使うが、DOM に触れない純関数なので `server-only` も `"use client"` も付けない
  */
 

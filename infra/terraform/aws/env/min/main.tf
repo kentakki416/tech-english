@@ -6,7 +6,6 @@
 #   - DB は PlanetScale、Redis は Upstash (どちらも Terraform の管理外。接続文字列は seed-secrets.sh で投入)
 #   - worker は enable_worker のときだけ Fargate Spot で作る
 #   - cron / migration は public subnet + public IP の ECS RunTask
-# 設計: docs/spec/minimal-deploy/README.md
 
 locals {
   name_prefix = "${var.project_name}-${var.environment}"
@@ -147,7 +146,6 @@ module "app_secrets" {
 # prd と同じ (deploy workflow はこの secret の有無で ClickHouse の migration を流すかを判定する)。
 # ただし NAT が無く、worker と migration のタスクの public IP は起動のたびに変わるため、
 # 接続元は絞らずパスワードで守る。
-# 設計: docs/spec/clickhouse-migration/README.md
 
 module "clickhouse" {
   source = "../../modules/clickhouse-service"
@@ -246,7 +244,7 @@ module "api_gateway" {
 
 # api.<domain> → API Gateway の独自ドメイン。
 # modules/route53 は ALB 向け (evaluate_target_health = true 固定) なので使わず、ここで直接書く。
-# prd と同じ FQDN なので、prd と同時に公開しないこと (移行手順は docs/spec/minimal-deploy/deferred-migrate-to-standard.md)
+# prd と同じ FQDN なので、prd と同時に公開しないこと
 resource "aws_route53_record" "api" {
   zone_id = data.aws_route53_zone.primary.zone_id
   name    = "${var.api_subdomain}.${var.domain_name}"

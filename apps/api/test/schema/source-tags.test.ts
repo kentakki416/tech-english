@@ -3,7 +3,7 @@ import { eq, sources, sourceTags, sql, tags } from "@repo/db"
 import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb } from "../controller/setup"
 
 /**
- * tags / source_tags の制約を実 DB で確かめる（docs/spec/source-tags/tasks/step1-db-tags.md）。
+ * tags / source_tags の制約を実 DB で確かめる。
  * 定数に無い値は Drizzle の型で弾かれるので、sql の生 insert で入れる
  */
 
