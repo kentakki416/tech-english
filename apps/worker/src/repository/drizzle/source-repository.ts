@@ -3,14 +3,8 @@ import { isAllowedLicense, type Source } from "@repo/domain"
 
 import type { MarkCollectedInput, SourceRepository } from "../source-repository"
 
-/**
- * Drizzleの型
- */
 type SourceRow = typeof sources.$inferSelect
 
-/**
- * Drizzle 実装の SourceRepository
- */
 export class DrizzleSourceRepository implements SourceRepository {
   private _db: DrizzleClient
 
@@ -49,7 +43,7 @@ export class DrizzleSourceRepository implements SourceRepository {
   }
 
   /**
-   * Drizzleの型 → ドメインの型に変換。取得方法ごとの必須列は CHECK 制約で保証しているが、念のため検証する
+   * 取得方法ごとの必須列は CHECK 制約で保証しているが、念のため検証する
    */
   private _toDomain(row: SourceRow): Source {
     const base = {

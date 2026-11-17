@@ -7,9 +7,6 @@ import { numberParagraphs, type PassageBlock } from "@repo/domain"
 const escapeAttributeValue = (value: string): string =>
   value.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
 
-/**
- * [名前, 値] の並びを ` name="value"` の列にする。値が undefined の属性は出さない（並び順は引数の順）
- */
 const buildAttributes = (attributes: [string, number | string | undefined][]): string =>
   attributes
     .flatMap(([name, value]) => (value === undefined ? [] : [` ${name}="${escapeAttributeValue(String(value))}"`]))
@@ -26,7 +23,7 @@ export type PassagePromptInput = {
 }
 
 /**
- * 本文を番号つきのブロックの XML にする。生成と、解答キーを見ない検証の user message で共有する。
+ * 本文を番号つきのブロックの XML にする。
  *
  * - `index`：ブロック番号（0 始まり、全ブロック）。出力の blockIndex はこの番号
  * - `paragraph`：段落番号（1 始まり、`numberParagraphs`）。見出しとコードには付かない。設問文の "paragraph 2" はこの番号

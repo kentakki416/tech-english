@@ -5,8 +5,6 @@ import { PASSAGE_DIFFICULTIES, QUESTION_CHOICE_COUNT, QUESTION_TYPES } from "@re
 import { convertZodToStructuredOutputSchema } from "../client/anthropic"
 
 /**
- * 問題生成の LLM の出力のスキーマ。キーは camelCase。
- *
  * zod は 3.25 だが、Zod から JSON Schema を作る `z.toJSONSchema` が v4 にしか無いので、このファイルは `zod/v4` で書く。
  * structured output は省略可能なキーより nullable の方が扱いやすいので、任意の値は null で表す。
  * description は JSON Schema に入ってモデルへの指示になる（短く保つ）
@@ -55,9 +53,6 @@ export const translationSchema = z.object({
   translationJa: z.string().min(1),
 })
 
-/**
- * refine を付ける前のオブジェクト。JSON Schema はここから作る（refine は JSON Schema に表せない）
- */
 const generateQuestionsOutputObjectSchema = z.object({
   difficulty: z.literal(PASSAGE_DIFFICULTIES),
   glossary: z.array(glossaryItemSchema),
@@ -67,9 +62,6 @@ const generateQuestionsOutputObjectSchema = z.object({
   unsuitableReason: z.string().nullable().describe("Reason in Japanese when isSuitable is false. null otherwise"),
 })
 
-/**
- * LLM の出力の検証に使う。形だけを見る（設問数・選択肢の重複・ブロック番号の範囲などの本文と突き合わせる検査は validateGeneratedOutput）
- */
 export const generateQuestionsOutputSchema = generateQuestionsOutputObjectSchema.superRefine((output, ctx) => {
   /**
    * vocabulary の設問だけが対象語句を持ち、選択肢の和訳を持たない（和訳から答えが分かるため）
@@ -101,7 +93,4 @@ export type GenerateQuestionsOutput = z.infer<typeof generateQuestionsOutputSche
 
 export type GeneratedQuestion = z.infer<typeof generatedQuestionSchema>
 
-/**
- * API の structured output に渡す JSON Schema。キーの順序を揺らさないよう、モジュールの読み込み時に 1 回だけ作る
- */
 export const GENERATE_QUESTIONS_OUTPUT_JSON_SCHEMA = convertZodToStructuredOutputSchema(generateQuestionsOutputObjectSchema)

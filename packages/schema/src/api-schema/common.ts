@@ -34,7 +34,7 @@ export type ErrorResponse = z.infer<typeof errorResponseSchema>
 // ========================================================
 
 /**
- * メッセージのみを返す成功レスポンススキーマ（DELETE 系などで使用）
+ * メッセージのみを返す成功レスポンススキーマ
  */
 export const messageResponseSchema = z.object({
   message: z.string(),
@@ -59,7 +59,6 @@ export type CursorPaginationQueryString = z.infer<typeof cursorPaginationQuerySt
 
 /**
  * カーソルベースページネーションのレスポンスメタ部
- * 個別エンドポイントでは `data` を該当配列スキーマに置き換えて利用する
  */
 export const cursorPaginationMetaSchema = z.object({
   has_more: z.boolean(),

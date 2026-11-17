@@ -9,14 +9,11 @@ import { addDaysToDate } from "./learning-record"
 export const isVocabularyCardDue = (card: Pick<VocabularyCard, "dueDate">, today: string): boolean =>
   card.dueDate !== null && card.dueDate <= today
 
-/**
- * 単語帳の答えの値かどうか
- */
 export const isVocabularyGrade = (value: string): value is VocabularyGrade =>
   (VOCABULARY_GRADES as readonly string[]).includes(value)
 
 /**
- * 見出し語をカードの単位（vocabulary_cards.lemma）にそろえる。前後の空白を除いて小文字にする
+ * 見出し語をカードの単位（vocabulary_cards.lemma）にそろえる
  */
 export const normalizeVocabularyLemma = (lemma: string): string => lemma.trim().toLowerCase()
 

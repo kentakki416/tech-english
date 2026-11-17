@@ -8,8 +8,7 @@ export type TaskContext = {
 }
 
 /**
- * シグナル → 終了コードの対応（慣例の `128 + シグナル番号`）。
- * SIGTERM(15)=143 / SIGINT(2)=130。
+ * 終了コードは慣例の `128 + シグナル番号`（SIGTERM は 15、SIGINT は 2）
  */
 const SIGNAL_EXIT_CODES = {
   SIGINT: 130,

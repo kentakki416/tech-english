@@ -38,7 +38,6 @@ describe("DataWarehouseEventRepository", () => {
       expect(row.received_at).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}$/)
     })
 
-    /** ISO 8601 の T / Z をそのまま渡すと DateTime64 のパースに失敗する */
     it("occurred_at を ClickHouse の DateTime64 形式に変換する", async () => {
       const insertAll = vi.fn<DataWarehouse["insertAll"]>(async () => undefined)
       const repo = new DataWarehouseEventRepository({ close: vi.fn(), insertAll })

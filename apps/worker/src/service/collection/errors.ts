@@ -1,7 +1,7 @@
 import type { SourceNotCollectableReason } from "@repo/domain"
 
 /**
- * 収集できないソース（無い・サイト・無効）を収集しようとした。reason は記録の失敗の理由に使う
+ * 収集できないソース（無い・サイト・無効）を収集しようとした
  */
 export class SourceNotCollectableError extends Error {
   constructor(

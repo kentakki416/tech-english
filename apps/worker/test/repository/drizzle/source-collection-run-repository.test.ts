@@ -17,9 +17,6 @@ const renderClient = createDrizzleClient({ url: "postgresql://user:password@127.
  */
 const normalizeParams = (text: string): string => text.replace(/\$\d+/g, "$?")
 
-/**
- * `db.update(table).set(values).where(condition).returning(selection)` を記録する偽物
- */
 const createFakeUpdateDb = (rows: unknown[]) => {
   const returning = vi.fn(async (_selection: unknown) => rows)
   const where = vi.fn((_condition: unknown) => ({ returning }))

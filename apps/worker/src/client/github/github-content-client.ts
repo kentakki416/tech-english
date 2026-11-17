@@ -15,9 +15,6 @@ export type GitHubTreeEntry = {
   type: "blob" | "commit" | "tree"
 }
 
-/**
- * GitHub のリポジトリの内容を読むクライアントのインターフェース
- */
 export interface IGitHubContentClient {
   /**
    * ファイルの本文（raw）。ref はコミットの SHA を渡して、ツリーと同じ時点に固定する
@@ -84,9 +81,6 @@ const treeResponseSchema = z.object({
   truncated: z.boolean(),
 })
 
-/**
- * owner/name を /repos/{owner}/{repo} にする。それぞれ URL エンコードする
- */
 const buildRepositoryPath = (repository: string): string => {
   const segments = repository.split("/")
   if (segments.length !== 2 || segments.some((segment) => segment === "")) {
@@ -95,14 +89,8 @@ const buildRepositoryPath = (repository: string): string => {
   return `/repos/${segments.map(encodeURIComponent).join("/")}`
 }
 
-/**
- * ファイルパスをセグメントごとに URL エンコードする（区切りの / は残す）
- */
 const encodeFilePath = (path: string): string => path.split("/").map(encodeURIComponent).join("/")
 
-/**
- * GitHub REST API でリポジトリのコミット・ツリー・ファイルを読む。env は読まずコンストラクタで受ける
- */
 export class GitHubContentClient implements IGitHubContentClient {
   private _fetch: typeof fetch
   private _rateLimitRemaining: number | null = null

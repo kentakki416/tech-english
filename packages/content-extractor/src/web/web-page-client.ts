@@ -10,9 +10,6 @@ import { CRAWLER_NAME, MAX_CRAWL_DELAY_SECONDS, MAX_HTML_BYTES, MAX_REDIRECTS, W
 import { BlockedUrlError, CrawlDelayTooLongError, WebDeadlineExceededError, WebSourceThrottledError } from "./errors"
 import { createSafeLookup, isBlockedIpLiteral } from "./safe-lookup"
 
-/**
- * ページを取得しなかった理由
- */
 export type FetchPageSkipReason = "not_html" | "redirect_not_allowed" | "robots_disallowed" | "too_large" | "too_many_redirects"
 
 export type FetchPageResult =
@@ -27,9 +24,6 @@ export type FetchPageResult =
   | { errorMessage: string; kind: "network_error" }
   | { kind: "skipped"; reason: FetchPageSkipReason; status: number | null }
 
-/**
- * 1 つのサイト（オリジン）を礼儀正しく取得するクライアントのインターフェース
- */
 export interface IWebPageClient {
   /**
    * 429 / 503 は WebSourceThrottledError、取得先の制限に掛かった URL は BlockedUrlError、期限（deadlineAt）を過ぎたら WebDeadlineExceededError を throw する
@@ -81,9 +75,6 @@ export type WebPageClientOptions = {
 
 type Robots = ReturnType<typeof robotsParser>
 
-/**
- * リダイレクトをたどった結果。たどり着いたレスポンスか、取得しなかった・できなかった理由
- */
 type RequestResult =
   | { finalUrl: string; kind: "response"; response: Response }
   | { errorMessage: string; kind: "network_error" }
@@ -291,9 +282,6 @@ export class WebPageClient implements IWebPageClient {
     this._setRobots(robotsUrl, new TextDecoder("utf-8").decode(body.bytes))
   }
 
-  /**
-   * リクエストの前の URL の検査。https 以外・別のオリジン・弾く範囲の IP アドレスのホストなら BlockedUrlError
-   */
   private _assertAllowedUrl(url: string): void {
     let parsed: URL
     try {
@@ -339,9 +327,6 @@ export class WebPageClient implements IWebPageClient {
     }
   }
 
-  /**
-   * Location を解決する。https かつ同じオリジンでなければ null（たどらない）
-   */
   private _resolveRedirectUrl(location: string, base: string): string | null {
     try {
       const url = new URL(location, base)
@@ -410,9 +395,6 @@ export class WebPageClient implements IWebPageClient {
     this._crawlDelayMs = crawlDelay !== undefined && Number.isFinite(crawlDelay) && crawlDelay > 0 ? crawlDelay * 1000 : 0
   }
 
-  /**
-   * 429 / 503 なら本文を捨てて WebSourceThrottledError を throw する
-   */
   private async _throwIfThrottled(response: Response, url: string): Promise<void> {
     if (!THROTTLED_STATUSES.has(response.status)) return
     await discardBody(response)

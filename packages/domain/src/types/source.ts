@@ -1,28 +1,13 @@
 import type { ALLOWED_LICENSES, SOURCE_FETCH_TYPES, SOURCE_KINDS, SOURCE_LICENSES, SOURCE_SUGGESTION_ERROR_CODES } from "../const/source"
 
-/**
- * ソースの種別
- */
 export type SourceKind = (typeof SOURCE_KINDS)[number]
 
-/**
- * ソースの取得方法
- */
 export type SourceFetchType = (typeof SOURCE_FETCH_TYPES)[number]
 
-/**
- * 公開してよいライセンス（SPDX 識別子）
- */
 export type AllowedLicense = (typeof ALLOWED_LICENSES)[number]
 
-/**
- * ソースに入れられるライセンス。個人の学習用はサイトのソースだけ
- */
 export type SourceLicense = (typeof SOURCE_LICENSES)[number]
 
-/**
- * 取得方法によらない共通の項目
- */
 type SourceBase = {
   id: number
   /**
@@ -59,7 +44,7 @@ export type GitHubRepositorySource = SourceBase & {
    */
   lastCollectedCommitSha: string | null
   /**
-   * lastCollectedCommitSha を記録したときの抽出の版（cron の EXTRACTION_VERSION）
+   * lastCollectedCommitSha を記録したときの抽出の版（@repo/content-extractor の EXTRACTION_VERSION）
    */
   lastCollectedExtractionVersion: string | null
   licenseSpdx: AllowedLicense
@@ -102,9 +87,6 @@ export type WebsiteSource = SourceBase & {
  */
 export type Source = GitHubRepositorySource | WebsiteSource
 
-/**
- * URL からソースの登録の初期値を作れない理由
- */
 export type SourceSuggestionErrorCode = (typeof SOURCE_SUGGESTION_ERROR_CODES)[number]
 
 /**

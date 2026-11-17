@@ -34,9 +34,6 @@ const buildNewLemmaQuery = (limit: number) => sql`
    LIMIT ${limit}
 `
 
-/**
- * Drizzle 実装の WordAudioRepository
- */
 export class DrizzleWordAudioRepository implements WordAudioRepository {
   private _db: DrizzleClient
 
@@ -44,13 +41,6 @@ export class DrizzleWordAudioRepository implements WordAudioRepository {
     this._db = db
   }
 
-  /**
-   * 次の順に limit 件まで確保する。
-   * ① pending（作り直し待ち）② まだ行が無い見出し語 ③ voice が今と違う ready（確保中でなく、失敗が上限未満）。
-   * voice の変更の行は作り直す間も前の音声を出せるので最後にする（voice を変えた直後も、新しく出た見出し語を先に作る）。
-   * ①③ は FOR UPDATE SKIP LOCKED でロックしてから更新する（別の実行がロック中の行は飛ばす）。② は候補を選んでから insert し、
-   * ON CONFLICT (lemma) DO NOTHING で、別の実行が先に作った見出し語は確保しない（RETURNING で返った行だけを確保できたものとする）
-   */
   public async claimTargets(input: {
     limit: number
     maxAttempts: number
@@ -194,9 +184,6 @@ export class DrizzleWordAudioRepository implements WordAudioRepository {
     return rows.length
   }
 
-  /**
-   * 確保した行か（状態と確保した時刻が確保したときのまま）
-   */
   private _buildClaimCondition(claim: ClaimedWordAudio) {
     return and(
       eq(wordAudios.id, claim.id),

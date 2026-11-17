@@ -6,9 +6,6 @@ import type {
   SourceCollectionRunRepository,
 } from "../source-collection-run-repository"
 
-/**
- * Drizzle 実装の SourceCollectionRunRepository
- */
 export class DrizzleSourceCollectionRunRepository implements SourceCollectionRunRepository {
   private _db: DrizzleClient
 

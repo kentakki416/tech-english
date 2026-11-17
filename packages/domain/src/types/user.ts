@@ -1,6 +1,3 @@
-/**
- * ユーザードメイン型
- */
 export type User = {
   avatarUrl: string | null
   createdAt: Date

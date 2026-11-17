@@ -8,9 +8,6 @@ export const GITHUB_MIN_RATE_LIMIT_REMAINING = 100
  */
 export const GITHUB_UNAUTHENTICATED_MIN_RATE_LIMIT_REMAINING = 10
 
-/**
- * GitHub の token の有無で、打ち切りの閾値を選ぶ
- */
 export const selectGitHubMinRateLimitRemaining = (token: string | undefined): number =>
   token ? GITHUB_MIN_RATE_LIMIT_REMAINING : GITHUB_UNAUTHENTICATED_MIN_RATE_LIMIT_REMAINING
 

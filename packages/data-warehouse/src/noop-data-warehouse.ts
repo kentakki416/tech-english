@@ -3,8 +3,6 @@ import { logger } from "@repo/logger"
 import type { DataWarehouse } from "./data-warehouse"
 
 /**
- * 何も書き込まない DataWarehouse 実装
- *
  * データウェアハウスを持たない環境（Terraform の enable_data_warehouse = false の環境）で使う。
  * 行動イベントの分析価値が無い環境のためにインスタンスを常駐させるのは
  * コストに見合わないが、実装が無いと worker が起動できなくなるため
@@ -22,6 +20,8 @@ export class NoopDataWarehouse implements DataWarehouse {
   }
 
   public async close(): Promise<void> {
-    /** 接続を持たないので閉じるものが無い */
+    /**
+     * 接続を持たないので閉じるものが無い
+     */
   }
 }

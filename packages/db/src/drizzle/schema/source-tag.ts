@@ -4,8 +4,6 @@ import { sources } from "./source"
 import { tags } from "./tag"
 
 /**
- * ソースとタグの紐付け。ソースかタグを消すと紐付けも消える（CASCADE）
- *
  * 紐付けた時刻は使わないので timestamps は持たない。
  */
 export const sourceTags = pgTable(

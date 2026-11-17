@@ -43,7 +43,7 @@ const buildRequest = (overrides: Partial<StructuredMessageRequest> = {}): Struct
 })
 
 /**
- * Messages API のレスポンス（SDK の Message）。既定は思考ブロックの後ろに JSON の text が続く正常な応答
+ * 既定は思考ブロックの後ろに JSON の text が続く正常な応答
  */
 const buildMessage = (overrides: Partial<Message> = {}): Message => ({
   id: "msg_01",
@@ -73,9 +73,6 @@ const buildMessage = (overrides: Partial<Message> = {}): Message => ({
   ...overrides,
 })
 
-/**
- * messages.create だけの SDK の偽物（外部 SaaS なので実 API は呼ばない）
- */
 const createFakeSdk = (result: Message | Error) => {
   const create = vi.fn<(params: MessageCreateParamsNonStreaming) => Promise<Message>>(async () => {
     if (result instanceof Error) throw result

@@ -17,9 +17,6 @@ export type SourceCollectionOutcome =
   | { createdPassageCount: number; fetchedDocumentCount: number; status: SourceCollectionResultStatus }
   | { error: string; status: "failed" }
 
-/**
- * worker 側で必要な収集の実行の記録の操作（実行中にする・結果を書く）
- */
 export interface SourceCollectionRunRepository {
   /**
    * queued か running の記録を running にし（started_at = now）、トークンを返す。それ以外（時間切れで片付けられた・終わった）なら null。

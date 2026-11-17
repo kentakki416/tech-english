@@ -20,7 +20,7 @@ const urlImportUrlSchema = z
   .regex(/^https:\/\//i, { message: "Must be an https URL" })
 
 /**
- * 取り込めない理由（400 の details[0].code）。admin が文言を分けるために読む
+ * 取り込めない理由（400 の details[0].code）
  */
 export const urlImportErrorCodeSchema = z.enum(URL_IMPORT_ERROR_CODES)
 

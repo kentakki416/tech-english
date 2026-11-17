@@ -29,8 +29,7 @@ export type GetMemoListResponse = z.infer<typeof getMemoListResponseSchema>
 // ===========================
 
 /**
- * 路径パラメータ `:id` を検証するスキーマ
- * string → number に coerce してから int/positive の制約を掛ける
+ * パスパラメータ `:id` を検証するスキーマ
  */
 export const getMemoPathParamSchema = z.object({
   id: z.coerce.number().int().positive().max(MAX_SERIAL_ID),
@@ -60,7 +59,7 @@ export type CreateMemoResponse = z.infer<typeof createMemoResponseSchema>
 // ===========================
 
 /**
- * 路径パラメータ `:id` を検証するスキーマ
+ * パスパラメータ `:id` を検証するスキーマ
  */
 export const updateMemoPathParamSchema = z.object({
   id: z.coerce.number().int().positive().max(MAX_SERIAL_ID),
@@ -82,7 +81,7 @@ export type UpdateMemoResponse = z.infer<typeof updateMemoResponseSchema>
 // ===========================
 
 /**
- * 路径パラメータ `:id` を検証するスキーマ
+ * パスパラメータ `:id` を検証するスキーマ
  */
 export const deleteMemoPathParamSchema = z.object({
   id: z.coerce.number().int().positive().max(MAX_SERIAL_ID),

@@ -69,9 +69,6 @@ export const buildBlob = (path: string, sha: string, size = 1_000): GitHubTreeEn
 
 export const buildTree = (path: string, sha: string): GitHubTreeEntry => ({ path, sha, size: null, type: "tree" })
 
-/**
- * 英単語を count 語並べた文（見分けが付くよう単語を変えられる）
- */
 const buildWords = (word: string, count: number): string => Array.from({ length: count }, () => word).join(" ")
 
 /**
@@ -107,7 +104,7 @@ export type FakeGitHubOptions = {
 }
 
 /**
- * GitHubContentClient の偽物。登録されていないファイル・ツリーを取りに来たら throw する
+ * 登録されていないファイル・ツリーを取りに来たら throw する
  */
 export const createFakeGitHubClient = (options: FakeGitHubOptions = {}) => {
   let remaining = options.rateLimitRemaining ?? null

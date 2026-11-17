@@ -14,9 +14,6 @@ const buildInput = (contentHash: string): CreatePassageInput => ({
   wordCount: 250,
 })
 
-/**
- * `db.insert(table).values(rows).onConflictDoNothing(options).returning(selection)` だけを持つ DrizzleClient の偽物
- */
 const createFakeDb = (returning: (_selection: unknown) => Promise<{ id: number }[]>) => {
   const returningMock = vi.fn(returning)
   const onConflictDoNothing = vi.fn((_options: unknown) => ({ returning: returningMock }))
@@ -45,7 +42,7 @@ const buildAwaitableQuery = <T>(result: T, methods: Record<string, unknown>) => 
 })
 
 /**
- * `db.update(table).set(values).where(condition)`（returning は任意）を記録する偽物。select はクエリを組み立てるだけの実物を使う
+ * select はクエリを組み立てるだけの実物を使う
  */
 const createFakeUpdateDb = (rows: unknown[]) => {
   const returning = vi.fn(async (_selection: unknown) => rows)

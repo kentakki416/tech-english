@@ -2,9 +2,6 @@ import type { LookupAddress } from "node:dns"
 
 import { BlockedUrlError, createSafeLookup, isBlockedAddress, isBlockedIpLiteral, type LookupAll } from "../../src/web"
 
-/**
- * dns.lookup の偽物。決まったアドレスを返す
- */
 const createLookup = (addresses: LookupAddress[], error: NodeJS.ErrnoException | null = null) =>
   vi.fn<LookupAll>((_hostname, _options, callback) => {
     callback(error, addresses)

@@ -70,9 +70,6 @@ const convertInlineToText = (node: PhrasingContent): string => {
   }
 }
 
-/**
- * インラインのノード列を、整えたテキストにする（見出し・段落の本文）
- */
 export const convertPhrasingToText = (nodes: PhrasingContent[]): string =>
   normalizeProseText(nodes.map(convertInlineToText).join(""))
 
@@ -235,6 +232,6 @@ const convertNode = (node: RootContent): DocumentBlock[] => {
 }
 
 /**
- * mdast を本文のブロック列にする。Markdown と HTML のどちらから作った mdast も同じ規則で変換する
+ * Markdown と HTML のどちらから作った mdast も同じ規則で変換する
  */
 export const convertMdastToBlocks = (root: Root): DocumentBlock[] => convertSiblingsFixingDanglingColons(root.children)

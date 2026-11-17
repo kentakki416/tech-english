@@ -1,13 +1,6 @@
 /**
  * `@repo/db`（Drizzle）の import 境界を強制する flat config フラグメント
  *
- * `@repo/db` を依存に持つ server-side app（api / cron / worker）の
- * eslint.config.* から spread して使う:
- *
- *   const baseConfig = require("@repo/eslint-config")
- *   const dbBoundary = require("@repo/eslint-config/db-boundary")
- *   module.exports = [...baseConfig, ...dbBoundary]
- *
  * 目的: Drizzle のテーブル定義・演算子を repository 層の内側に閉じ、
  * service / jobs / controller が永続化モデルに型付けされるのを防ぐ。業務ロジックは `@repo/domain` の型を使う。
  *
@@ -29,11 +22,14 @@
  * ときだけで、テーブルが増えても触る必要はない。
  */
 const ALLOWED_DB_IMPORT_NAMES = [
-  /** composition root で client を生成する factory */
+  /**
+   * composition root で client を生成する factory
+   */
   "createDrizzleClient",
-  /** 上記 factory の options 型 */
   "CreateDrizzleClientOptions",
-  /** DI の型注釈 / graceful shutdown の $disconnect() で必要 */
+  /**
+   * DI の型注釈 / graceful shutdown の $disconnect() で必要
+   */
   "DrizzleClient",
 ]
 

@@ -3,14 +3,8 @@ import type { Message, MessageCreateParamsNonStreaming, OutputConfig } from "@an
 
 import { LlmInvalidJsonError, LlmOutputTruncatedError, LlmRefusalError } from "./errors"
 
-/**
- * effort の段階（`output_config.effort`）。low / medium / high / xhigh / max
- */
 export type LlmEffort = NonNullable<OutputConfig["effort"]>
 
-/**
- * structured output で JSON を 1 つ返させるリクエスト。生成と、解答キーを見ない検証の両方がこの形で呼ぶ
- */
 export type StructuredMessageRequest = {
   /**
    * 指定すると `thinking: { type: "adaptive" }` と `output_config.effort` を明示して送る（生成）。
@@ -30,9 +24,6 @@ export type StructuredMessageRequest = {
    * 全件共通の指示。キャッシュするので、日時や件数など毎回変わる値を入れない
    */
   system: string
-  /**
-   * 本文など毎回変わる部分
-   */
   userContent: string
 }
 
@@ -42,7 +33,7 @@ export type LlmUsage = {
    */
   cacheCreationInputTokens: number
   /**
-   * キャッシュから読んだ入力トークン数。2 回目以降も 0 なら、最小キャッシュ長未満か system に可変値が混ざっている
+   * 2 回目以降も 0 なら、最小キャッシュ長未満か system に可変値が混ざっている
    */
   cacheReadInputTokens: number
   /**
@@ -61,15 +52,12 @@ export type StructuredMessageResponse = {
    */
   json: unknown
   /**
-   * レスポンスが返したモデル ID（passages.generation_model に記録する）
+   * レスポンスが返したモデル ID
    */
   model: string
   usage: LlmUsage
 }
 
-/**
- * LLM のクライアント。service はこの interface だけを知る
- */
 export interface ILlmClient {
   /**
    * SDK が throw したエラー（リトライ後の 429 / 5xx / タイムアウト、401 / 403 など）はそのまま伝播する
@@ -97,13 +85,10 @@ export const ANTHROPIC_MAX_RETRIES = 2
  */
 export const ANTHROPIC_REQUEST_TIMEOUT_MS = 10 * 60 * 1000
 
-/**
- * 出力が途中で切れたことを表す stop_reason
- */
 const TRUNCATED_STOP_REASONS: ReadonlySet<string> = new Set(["max_tokens", "model_context_window_exceeded"])
 
 /**
- * text ブロックをつなげて JSON.parse する。adaptive thinking のモデルは thinking ブロックも返すので text だけを見る
+ * adaptive thinking のモデルは thinking ブロックも返すので text だけを見る
  */
 const parseTextBlocksAsJson = (content: Message["content"]): unknown => {
   const textBlocks = content.flatMap((block) => (block.type === "text" ? [block.text] : []))
@@ -115,15 +100,6 @@ const parseTextBlocksAsJson = (content: Message["content"]): unknown => {
   }
 }
 
-/**
- * Claude API（Messages API）のクライアント。env は読まず、SDK のインスタンスをコンストラクタで受ける
- *
- * - structured output（`output_config.format` に JSON Schema）で JSON を 1 つ返させる
- * - system prompt に `cache_control` を付けてキャッシュする（最小キャッシュ長未満ならエラーにならずキャッシュされないだけ）
- * - temperature などのサンプリングの引数は渡さない（新しいモデルは既定以外を受け付けないものがある）。thinking と effort は
- *   `adaptiveThinking` を指定したときだけ送る（生成は明示し、検証はモデルの既定に任せる）
- * - リトライは SDK に任せる（`createAnthropicClient`）
- */
 export class AnthropicClient implements ILlmClient {
   private _sdk: AnthropicMessagesApi
 
@@ -133,6 +109,9 @@ export class AnthropicClient implements ILlmClient {
 
   public async createStructuredMessage(request: StructuredMessageRequest): Promise<StructuredMessageResponse> {
     const { adaptiveThinking } = request
+    /**
+     * temperature などのサンプリングの引数は渡さない（新しいモデルは既定以外を受け付けないものがある）
+     */
     const message = await this._sdk.messages.create({
       max_tokens: request.maxTokens,
       messages: [{ content: request.userContent, role: "user" }],
@@ -141,6 +120,9 @@ export class AnthropicClient implements ILlmClient {
         ...(adaptiveThinking ? { effort: adaptiveThinking.effort } : {}),
         format: { schema: request.jsonSchema, type: "json_schema" },
       },
+      /**
+       * 最小キャッシュ長未満ならエラーにならずキャッシュされないだけ
+       */
       system: [{ cache_control: { type: "ephemeral" }, text: request.system, type: "text" }],
       ...(adaptiveThinking ? { thinking: { type: "adaptive" } } : {}),
     })
@@ -169,9 +151,6 @@ export type CreateAnthropicClientOptions = {
   fetch?: typeof fetch
 }
 
-/**
- * SDK を生成して AnthropicClient に包む。task が env の API キーを渡して 1 回だけ呼ぶ
- */
 export const createAnthropicClient = (options: CreateAnthropicClientOptions): AnthropicClient =>
   new AnthropicClient(
     new Anthropic({

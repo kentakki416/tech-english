@@ -42,9 +42,6 @@ const extractUnexpectedErrorReason = (error: unknown): string => {
   return reason.slice(0, UNEXPECTED_ERROR_REASON_MAX_LENGTH)
 }
 
-/**
- * 収集の例外を記録の結果にする。rate limit は打ち切りとして扱い、ほかは失敗にする
- */
 const convertCollectionErrorToOutcome = (error: unknown, claim: SourceCollectionRunClaim): SourceCollectionOutcome => {
   if (error instanceof GitHubRateLimitError) return { createdPassageCount: 0, fetchedDocumentCount: 0, status: "rate_limited" }
   if (error instanceof SourceNotCollectableError) return { error: NOT_COLLECTABLE_ERROR_MESSAGES[error.reason], status: "failed" }
@@ -77,8 +74,6 @@ const runCollection = async (claim: SourceCollectionRunClaim, deps: CollectSourc
 }
 
 /**
- * `collect-source` ジョブハンドラ（admin の今すぐ収集）。
- *
  * api が作った収集の記録を running にし、1 ソースを収集して、結果を記録に書く。
  * 記録の読み書き（claim / finish）の失敗だけが throw され、BullMQ のリトライになる。
  *

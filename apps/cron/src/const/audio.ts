@@ -24,11 +24,11 @@ export const AUDIO_CACHE_CONTROL = "public, max-age=31536000, immutable"
 export const POLLY_MAX_ATTEMPTS = 3
 
 /**
- * 確保したままこの分数を超えた行は、前回の実行が途中で落ちたものとして回収する（generate:audio・generate:word-audio で共有）
+ * 確保したままこの分数を超えた行は、前回の実行が途中で落ちたものとして回収する
  */
 export const STALE_CLAIM_MINUTES = 30
 
 /**
- * 失敗がこの回数に達したら、generating で確保した行は failed にし、ready のまま確保した行は取らなくなる（generate:audio・generate:word-audio で共有）
+ * 失敗がこの回数に達したら、generating で確保した行は failed にし、ready のまま確保した行は取らなくなる
  */
 export const MAX_AUDIO_ATTEMPTS = 3

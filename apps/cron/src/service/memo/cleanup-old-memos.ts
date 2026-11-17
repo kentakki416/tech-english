@@ -4,7 +4,6 @@ import type { MemoRepository } from "../../repository"
 
 export type CleanupOldMemosInput = {
   now: Date
-  /** この日数より前に作成された memo を削除対象とする */
   olderThanDays: number
 }
 

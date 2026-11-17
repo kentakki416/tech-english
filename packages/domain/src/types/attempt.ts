@@ -1,17 +1,11 @@
 import type { ATTEMPT_STATUSES, WORD_LOOKUP_SOURCES } from "../const/attempt"
 
-/**
- * 挑戦の状態
- */
 export type AttemptStatus = (typeof ATTEMPT_STATUSES)[number]
 
-/**
- * 調べた単語の出どころ
- */
 export type WordLookupSource = (typeof WORD_LOOKUP_SOURCES)[number]
 
 /**
- * 挑戦。提出時に採点結果と時間が入る（in_progress / expired の間は null）
+ * 提出時に採点結果と時間が入る（in_progress / expired の間は null）
  */
 export type ReadingAttempt = {
   id: number
@@ -65,9 +59,6 @@ export type AttemptAnswer = {
   updatedAt: Date
 }
 
-/**
- * 調べた単語
- */
 export type AttemptWordLookup = {
   id: number
   attemptId: number

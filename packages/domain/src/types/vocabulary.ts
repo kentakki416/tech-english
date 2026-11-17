@@ -1,8 +1,5 @@
 import type { VOCABULARY_GRADES } from "../const/vocabulary"
 
-/**
- * 単語帳の答え
- */
 export type VocabularyGrade = (typeof VOCABULARY_GRADES)[number]
 
 /**

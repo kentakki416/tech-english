@@ -9,7 +9,6 @@ import { passages } from "./passage"
  *
  * 位置は passages.blocks[block_index].text（インラインコードのバッククォートを含む生の文字列）上の
  * UTF-16 の index で、[start_offset, end_offset)。管理者が英文を修正すると位置がずれるので、保存時に再計算する。
- * 制約・index 名は `{table}_{columns}_key` / `_idx` / `_fkey` の命名にそろえている。
  */
 export const passageGlossaryEntries = pgTable(
   "passage_glossary_entries",

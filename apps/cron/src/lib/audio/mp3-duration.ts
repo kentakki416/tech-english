@@ -18,9 +18,6 @@ const SAMPLE_RATES_BY_VERSION: Record<number, readonly number[]> = {
 
 const MPEG1_VERSION_BITS = 3
 
-/**
- * Layer III のレイヤのビット
- */
 const LAYER3_BITS = 1
 
 const FRAME_HEADER_BYTES = 4
@@ -85,7 +82,7 @@ const readFrameHeader = (audio: Buffer, offset: number): FrameHeader | null => {
 }
 
 /**
- * フレームが VBR のヘッダ（Xing / Info / VBRI）か。Xing / Info はサイド情報の直後にある
+ * Xing / Info はサイド情報の直後にある
  */
 const isVbrHeaderFrame = (audio: Buffer, offset: number, header: FrameHeader): boolean => {
   const hasCrc = ((audio[offset + 1] ?? 0) & 0b1) === 0
@@ -107,7 +104,6 @@ const measureId3v2Bytes = (audio: Buffer): number => {
 
 /**
  * mp3 の長さ（ミリ秒）。Polly は音声の長さを返さないので、フレームを数えて求める。
- * 先頭の ID3v2 タグを飛ばし、フレームヘッダを読んで フレーム長の分だけ進めながら「サンプル数 ÷ サンプリング周波数」を足し上げる。
  * フレームが続かなくなった位置（末尾の ID3v1 タグなど）で止める。フレームが 1 つも読めなければ throw
  */
 export const measureMp3DurationMs = (audio: Buffer): number => {

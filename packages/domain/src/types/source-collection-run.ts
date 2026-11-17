@@ -1,13 +1,7 @@
 import type { SOURCE_COLLECTION_RESULT_STATUSES, SOURCE_COLLECTION_RUN_STATUSES } from "../const/source-collection-run"
 
-/**
- * 1 ソースの収集の終わり方
- */
 export type SourceCollectionResultStatus = (typeof SOURCE_COLLECTION_RESULT_STATUSES)[number]
 
-/**
- * 収集の実行の記録の状態
- */
 export type SourceCollectionRunStatus = (typeof SOURCE_COLLECTION_RUN_STATUSES)[number]
 
 /**
@@ -20,7 +14,7 @@ export type SourceCollectionRun = {
    */
   createdPassageCount: number | null
   /**
-   * failed のときの理由（admin にそのまま出す）
+   * failed のときの理由
    */
   error: string | null
   /**

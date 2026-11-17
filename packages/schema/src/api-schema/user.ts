@@ -72,7 +72,7 @@ export type UpdateUserResponse = z.infer<typeof updateUserResponseSchema>
 // ========================================================
 
 /**
- * 削除の確認で入力させる文言。web / mobile の入力欄もこの値と比べる
+ * 削除の確認で入力させる文言
  */
 export const DELETE_ACCOUNT_CONFIRMATION_TEXT = "delete my account"
 

@@ -11,7 +11,7 @@ export type GitHubTargetFiles = {
    */
   files: GitHubTreeEntry[]
   /**
-   * false はツリーが切り詰められて、対象のファイルを全部は列挙できなかった（commit SHA を更新しない）
+   * false はツリーが切り詰められて、対象のファイルを全部は列挙できなかった
    */
   isComplete: boolean
 }
@@ -23,9 +23,6 @@ const comparePath = (a: GitHubTreeEntry, b: GitHubTreeEntry): number => {
   return a.path < b.path ? -1 : 1
 }
 
-/**
- * blob で、拡張子が .md / .mdx で、対象パスに合い、大きすぎないものに絞って path の昇順にする
- */
 const filterTargetFiles = (entries: GitHubTreeEntry[], source: GitHubRepositorySource): GitHubTreeEntry[] =>
   entries
     .filter(

@@ -9,9 +9,6 @@ import { type PassageFixture, readPassageFixture } from "../../prompt/helpers"
  */
 export const PASSAGE: PassageFixture = readPassageFixture("retrying-requests.json")
 
-/**
- * code 以外のブロックの index
- */
 export const PROSE_BLOCK_INDEXES = PASSAGE.blocks.flatMap((block: PassageBlock, index) => (block.type === "code" ? [] : [index]))
 
 export const buildQuestion = (overrides: Partial<GeneratedQuestion> = {}): GeneratedQuestion => ({

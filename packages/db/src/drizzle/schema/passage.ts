@@ -25,15 +25,11 @@ import { joinSqlValues } from "./sql-values"
  *
  * source_path / source_commit_sha / source_retrieved_at を source_documents と別に持つのは、
  * source_documents が次回の収集で最新の状態に上書きされても、問題が取得した時点を指し続けるため。
- * 制約・index 名は `{table}_{columns}_key` / `_idx` / `_fkey` の命名にそろえている。
  */
 export const passages = pgTable(
   "passages",
   {
     id: serial("id").primaryKey(),
-    /**
-     * 要確認の理由
-     */
     attentionReasons: jsonb("attention_reasons").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
     blocks: jsonb("blocks").$type<PassageBlock[]>().notNull(),
     /**

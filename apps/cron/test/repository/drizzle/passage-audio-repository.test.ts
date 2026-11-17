@@ -83,20 +83,11 @@ const renderQuery = (calls: RecordedCall[] | undefined) => {
   return { params: query.params, sql: normalizeParams(query.sql) }
 }
 
-/**
- * update の SQL の SET 句（where より前）
- */
 const readSetClause = (sql: string): string => sql.slice(0, sql.indexOf(" where "))
 
-/**
- * 記録した呼び出しのうち、指定のメソッドの引数
- */
 const findArgs = (calls: RecordedCall[] | undefined, method: string): unknown[] | undefined =>
   calls?.find((call) => call.method === method)?.args
 
-/**
- * claim のガード（passage_id・状態・確保の時刻）
- */
 const CLAIM_CONDITION_SQL = [
   "where ((\"passage_audios\".\"passage_id\" = $?) and (\"passage_audios\".\"status\" = $?)",
   " and (\"passage_audios\".\"generation_started_at\" = $?))",
@@ -106,9 +97,6 @@ const CLAIM_CONDITION_PARAMS = [42, "generating", "2026-10-13T02:50:00.123Z"]
 
 const READY_CLAIM_CONDITION_PARAMS = [42, "ready", "2026-10-13T02:50:00.123Z"]
 
-/**
- * 確保中でない（generation_started_at が無いか staleBefore より前）
- */
 const NOT_CLAIMED_RECENTLY_SQL = "(((\"passage_audios\".\"generation_started_at\" is null)) or (\"passage_audios\".\"generation_started_at\" < $?))"
 
 /**

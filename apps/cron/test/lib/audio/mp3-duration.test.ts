@@ -20,9 +20,6 @@ const createId3v2Tag = (bodyBytes: number): Buffer => {
   return Buffer.concat([header, Buffer.alloc(bodyBytes, 0x20)])
 }
 
-/**
- * 決まった種から作る疑似乱数のバイト列（毎回同じ値）
- */
 const createPseudoRandomBytes = (length: number): Buffer => {
   let seed = 42
   return Buffer.from(Array.from({ length }, () => {

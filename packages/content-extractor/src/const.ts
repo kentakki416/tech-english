@@ -1,10 +1,10 @@
 /**
- * 収集のリクエストに付ける User-Agent。取得先の管理者がどのサービスのボットか分かるようにする
+ * 取得先の管理者がどのサービスのボットか分かるようにする
  */
 export const COLLECTOR_USER_AGENT = "TechEnglishBot/1.0"
 
 /**
- * 収集のリクエストの User-Agent。連絡先の URL（サービスのトップ）があれば `TechEnglishBot/1.0 (+url)` にする
+ * 連絡先の URL（サービスのトップ）があれば `TechEnglishBot/1.0 (+url)` にする
  */
 export const buildCollectorUserAgent = (contactUrl: string | undefined): string =>
   contactUrl ? `${COLLECTOR_USER_AGENT} (+${contactUrl})` : COLLECTOR_USER_AGENT
@@ -16,13 +16,10 @@ export const CRAWLER_NAME = "TechEnglishBot"
 
 /**
  * robots.txt の Crawl-delay（秒）の既定の上限（この値ちょうどは従う）。これを超える値を返すサイトは、loadRobots が CrawlDelayTooLongError を throw する。
- * 極端に大きい値（3600 など）にそのまま従うと、取得が何時間も止まるため（api の URL から追加は maxCrawlDelaySeconds でさらに縮める）
+ * 極端に大きい値（3600 など）にそのまま従うと、取得が何時間も止まるため
  */
 export const MAX_CRAWL_DELAY_SECONDS = 30
 
-/**
- * サイトへの 1 リクエストのタイムアウト（ミリ秒）
- */
 export const WEB_REQUEST_TIMEOUT_MS = 10_000
 
 /**

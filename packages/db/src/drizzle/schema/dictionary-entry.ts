@@ -7,7 +7,7 @@ import { timestamps } from "./columns"
  * 英和辞書（EJDict-hand）。用語集に無い単語の意味を引く。drizzle/seed-dictionary.ts で投入する
  *
  * このファイルは @repo/domain を import しない（seed-dictionary.ts が migration イメージで
- * @repo/domain のビルド無しに読み込むため）。制約・index 名は `{table}_{columns}_key` / `_idx` / `_fkey` の命名にそろえている。
+ * @repo/domain のビルド無しに読み込むため）。
  */
 export const dictionaryEntries = pgTable(
   "dictionary_entries",

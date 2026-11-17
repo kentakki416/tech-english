@@ -4,10 +4,6 @@ import { convertChoiceIndexToLetter } from "../lib/question-generation/choice-le
 
 import { buildPassagePrompt } from "./passage"
 
-/**
- * 解答キーを見ない検証の指示。全件共通なのでキャッシュする（短くて最小キャッシュ長に届かなければキャッシュされないだけ）。
- * 日時・件数・本文など毎回変わる値を入れない
- */
 export const VERIFY_QUESTIONS_SYSTEM_PROMPT = `You are taking an English reading-comprehension test. Each request contains one passage from English technical documentation and multiple-choice questions about it. Read the passage carefully and, for each question, choose the one choice that the passage best supports.
 
 # Input
@@ -42,7 +38,7 @@ The questions follow the passage:
 - For each question, return questionNumber (the number attribute of <question>) and choiceIndex (0 for A, 1 for B, 2 for C, 3 for D).`
 
 /**
- * 検証モデルに渡す設問。正解・解説・根拠は渡さない
+ * 正解・解説・根拠は渡さない
  */
 export type VerifyQuestionsPromptQuestion = {
   /**
@@ -60,7 +56,6 @@ export type VerifyQuestionsPromptInput = {
 }
 
 /**
- * 解答キーを見ない検証の user message。生成と同じ形の番号つきブロック（和訳なし）と、シャッフル後の設問・選択肢（A〜D）を並べる。
  * 設問文と選択肢は本文と同じくエスケープしない
  */
 export const buildVerifyQuestionsUserContent = (input: VerifyQuestionsPromptInput): string => {

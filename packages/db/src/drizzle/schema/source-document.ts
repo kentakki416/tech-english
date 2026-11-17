@@ -6,7 +6,7 @@ import { sources } from "./source"
 /**
  * 取得した文書（GitHub のファイル / URL から追加で取り込んだサイトのページ）。差分検出・出典の組み立てに使う
  *
- * 取得方法ごとの列は nullable。制約・index 名は `{table}_{columns}_key` / `_idx` / `_fkey` の命名にそろえている。
+ * 取得方法ごとの列は nullable。
  */
 export const sourceDocuments = pgTable(
   "source_documents",
@@ -25,7 +25,7 @@ export const sourceDocuments = pgTable(
      */
     contentHash: text("content_hash"),
     /**
-     * 文書を切り分けたときの抽出の版（cron の EXTRACTION_VERSION）。NULL はこの列を足してから一度も切り分けていない文書
+     * 文書を切り分けたときの抽出の版（@repo/content-extractor の EXTRACTION_VERSION）。NULL はこの列を足してから一度も切り分けていない文書
      */
     extractionVersion: text("extraction_version"),
     /**

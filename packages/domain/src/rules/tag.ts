@@ -1,9 +1,6 @@
 import { TAG_COLORS } from "../const/tag"
 import type { TagColor } from "../types/tag"
 
-/**
- * タグの色の値かどうか
- */
 export const isTagColor = (value: string): value is TagColor =>
   (TAG_COLORS as readonly string[]).includes(value)
 
@@ -16,9 +13,6 @@ export const selectTagColor = (usedColors: readonly TagColor[]): TagColor => {
   for (const color of usedColors) {
     counts.set(color, (counts.get(color) ?? 0) + 1)
   }
-  /**
-   * 先頭から見て、より少ない色に出会ったときだけ入れ替える。同じ数なら先に見た（先頭に近い）色が残る
-   */
   return TAG_COLORS.reduce((selected, color) =>
     (counts.get(color) ?? 0) < (counts.get(selected) ?? 0) ? color : selected,
   )

@@ -4,17 +4,14 @@ import { admins, authAccounts, users } from "../src/drizzle/schema"
 
 const db = createDrizzleClient()
 
-/**
- * dev-login で使う開発用ユーザー
- *
- * `/api/auth/dev-login` および web の sign-in 画面の「Login as alice/bob」
- * ボタン経由でログインできる。production 環境では seed 自体スキップする。
- */
 type DevUserSeed = {
   email: string
   name: string
 }
 
+/**
+ * dev-login（`/api/auth/dev-login`）でログインできる開発用ユーザー
+ */
 const devUsers: DevUserSeed[] = [
   { email: "alice@dev.local", name: "Alice (dev)" },
   { email: "bob@dev.local", name: "Bob (dev)" },
@@ -33,8 +30,7 @@ const seedDevUsers = async () => {
     if (!user) throw new Error(`Failed to upsert dev user: ${devUser.email}`)
 
     /**
-     * AuthAccount(provider: "dev") を upsert して
-     * Google アカウントと衝突しない形で dev ユーザーを識別できるようにする
+     * provider を "dev" にして、Google のアカウントと衝突させずに dev ユーザーを識別する
      */
     await db
       .insert(authAccounts)

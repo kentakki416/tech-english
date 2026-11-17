@@ -1,8 +1,5 @@
 import type { AUDIO_STATUSES } from "../const/audio"
 
-/**
- * 読み上げの音声の状態
- */
 export type AudioStatus = (typeof AUDIO_STATUSES)[number]
 
 /**
@@ -24,9 +21,6 @@ export type PassageAudioPart = {
   words: AudioWordTiming[]
 }
 
-/**
- * 問題の読み上げの音声のマニフェスト（passage_audios.manifest）
- */
 export type PassageAudioManifest = {
   /**
    * 読み上げるブロックだけ（code のブロックは含まない）。blockIndex の昇順

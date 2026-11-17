@@ -7,9 +7,6 @@ import { buildPinoRedactPaths } from "./redact"
 
 type NodeEnv = typeof NODE_ENV[keyof typeof NODE_ENV]
 
-/**
- * Pino Logger
- */
 export class PinoLogger implements ILogger {
   private _logger: pino.Logger
 

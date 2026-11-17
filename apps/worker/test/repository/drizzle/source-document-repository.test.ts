@@ -21,9 +21,6 @@ const buildRow = (overrides: Partial<SourceDocumentRow> = {}): SourceDocumentRow
   ...overrides,
 })
 
-/**
- * insert ... on conflict do update ... returning と update ... set ... where だけを持つ偽物
- */
 const createFakeDb = (rows: SourceDocumentRow[]) => {
   const returning = vi.fn(async () => rows)
   const onConflictDoUpdate = vi.fn((_options: unknown) => ({ returning }))

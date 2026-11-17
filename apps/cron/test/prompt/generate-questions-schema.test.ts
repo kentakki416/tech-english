@@ -70,9 +70,6 @@ const buildValidOutput = (): GenerateQuestionsOutput => ({
   unsuitableReason: null,
 })
 
-/**
- * JSON Schema を再帰的にたどって、全ノードを列挙する
- */
 const collectSchemaNodes = (node: unknown): Record<string, unknown>[] => {
   if (typeof node !== "object" || node === null) return []
   if (Array.isArray(node)) return node.flatMap(collectSchemaNodes)

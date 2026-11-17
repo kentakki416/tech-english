@@ -12,9 +12,6 @@ type FakeState = {
    * system.databases の pg_cdc の engine_full。undefined なら pg_cdc は無い
    */
   cdcEngineFull?: string
-  /**
-   * system.tables にある pg_cdc のテーブル
-   */
   existingCdcTables: string[]
   /**
    * system.databases にある、pg_cdc 以外の database

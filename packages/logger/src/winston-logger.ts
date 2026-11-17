@@ -9,9 +9,6 @@ type NodeEnv = typeof NODE_ENV[keyof typeof NODE_ENV]
 
 const { combine, timestamp, errors, json, simple, colorize } = format
 
-/**
- * Winston Logger
- */
 export class WinstonLogger implements ILogger {
   private _logger: ReturnType<typeof createLogger>
 
@@ -20,8 +17,7 @@ export class WinstonLogger implements ILogger {
     const logLevel = env === NODE_ENV.PRD ? LOG_LEVEL.INFO : LOG_LEVEL.DEBUG
 
     /**
-     * 開発環境: 可読性の高いフォーマット
-     * 本番環境: JSON 形式（CloudWatch Logs などで処理しやすい）
+     * 本番は CloudWatch Logs などで処理しやすい JSON 形式、それ以外は人が読みやすい形式にする
      */
     const consoleFormat =
       env === NODE_ENV.PRD
@@ -44,9 +40,6 @@ export class WinstonLogger implements ILogger {
     })
   }
 
-  /**
-   * コンテキスト（requestId, userId）を含むchild loggerを取得
-   */
   private _getLogger(): ReturnType<typeof createLogger> {
     const context = logContext.getStore()
     if (context) {

@@ -3,14 +3,8 @@ import type { Memo } from "@repo/domain"
 
 import type { MemoRepository } from "../memo-repository"
 
-/**
- * Drizzle の行の型
- */
 type MemoRow = typeof memos.$inferSelect
 
-/**
- * Drizzle 実装の MemoRepository
- */
 export class DrizzleMemoRepository implements MemoRepository {
   private _db: DrizzleClient
 
@@ -24,9 +18,6 @@ export class DrizzleMemoRepository implements MemoRepository {
     return this._toDomainMemo(row)
   }
 
-  /**
-   * Drizzle の型 → ドメインの型に変換
-   */
   private _toDomainMemo(row: MemoRow): Memo {
     return {
       id: row.id,

@@ -1,5 +1,5 @@
 /**
- * ソースの種別。登録の画面では選ばず、新しいソースは docs にする
+ * 登録の画面では選ばず、新しいソースは docs にする
  *
  * - docs: 公式ドキュメント
  * - github: README / RFC などリポジトリそのものの文書
@@ -7,8 +7,6 @@
 export const SOURCE_KINDS = ["docs", "github"] as const
 
 /**
- * ソースの取得方法
- *
  * - github_repository: GitHub リポジトリの Markdown
  * - website: サイトのページ（ローカルの URL から追加だけが使う。収集はしない）
  */
@@ -77,9 +75,6 @@ export const ALLOWED_LICENSES = [
  */
 export const PERSONAL_USE_LICENSE = "LicenseRef-personal-use"
 
-/**
- * ソースに入れられるライセンス。DB の CHECK 制約はここから作る
- */
 export const SOURCE_LICENSES = [...ALLOWED_LICENSES, PERSONAL_USE_LICENSE] as const
 
 /**

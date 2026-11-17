@@ -57,7 +57,7 @@ const extractContentHtmlWithReadability = (document: Document, excludeSelectors:
 }
 
 /**
- * HTML を mdast にする。タイトルは `<title>` → 最初の h1 の順
+ * タイトルは `<title>` → 最初の h1 の順
  *
  * 不正な CSS セレクタは jsdom が throw する。呼び出し元が文書単位の失敗として扱う
  */

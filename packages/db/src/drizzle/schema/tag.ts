@@ -10,7 +10,6 @@ import { joinSqlValues } from "./sql-values"
  * ソースの技術タグ。管理者が admin の「タグ」で登録し、ソースには source_tags で付ける
  *
  * 大文字・小文字だけが違う名前（React と react）は lower(name) の unique index で拒否する。
- * 制約・index 名は `{table}_{columns}_key` / `_idx` / `_fkey` の命名にそろえている。
  */
 export const tags = pgTable(
   "tags",

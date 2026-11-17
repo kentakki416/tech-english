@@ -4,9 +4,6 @@ import { measureMp3DurationMs } from "../../../src/lib/audio"
 
 const { SILENT_FRAME_MS } = forTesting
 
-/**
- * 課金されないので呼ばれない（呼ばれたらテストで分かるよう vi.fn にする）
- */
 const recordBilledCharacters = vi.fn(async (_characters: number) => undefined)
 
 describe("FakeTtsClient", () => {

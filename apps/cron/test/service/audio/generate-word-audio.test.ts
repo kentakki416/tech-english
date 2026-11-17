@@ -67,9 +67,6 @@ class BilledFakeTtsClient implements TtsClient {
   }
 }
 
-/**
- * synthesizeAudio が error を throw する音声合成
- */
 const createFailingTtsClient = (error: Error): TtsClient => ({
   synthesize: vi.fn(),
   synthesizeAudio: vi.fn(async () => {

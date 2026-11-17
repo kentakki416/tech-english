@@ -8,15 +8,7 @@ import { assertAudioStorageAllowed, createAudioStorage, createTtsClient } from "
 import * as service from "../service"
 
 /**
- * generate:word-audio
- *
- * 単語帳に出うる見出し語の発音の音声（mp3）を作る。本番は EventBridge Scheduler →
- * ECS RunTask で 1 時間ごとに `node dist/task/generate-word-audio.js` を起動する想定（generate:audio とは独立。片方の失敗で片方を止めない）。
- *
- *   pnpm generate:word-audio                      # production は Polly、それ以外は無音の mp3（TTS_PROVIDER の既定）
- *   TTS_PROVIDER=polly pnpm generate:word-audio   # ローカルで Polly を呼ぶ（手元の AWS の資格情報で課金される。無ければ warn を出して何もしない）
- *
- * 音声合成・保存先・月の上限（AUDIO_MONTHLY_CHARACTER_LIMIT。読み上げと合算）は generate:audio と共有する。
+ * generate:audio とは別の task にして独立に起動する（片方の失敗で片方を止めない）
  */
 runTask("generate-word-audio", async ({ db }) => {
   assertAudioStorageAllowed("generate-word-audio")

@@ -88,9 +88,6 @@ const renderQuery = (calls: RecordedCall[] | undefined) => {
 const findArgs = (calls: RecordedCall[] | undefined, method: string): unknown[] | undefined =>
   calls?.find((call) => call.method === method)?.args
 
-/**
- * claim のガード（id・状態・確保の時刻）
- */
 const CLAIM_CONDITION_SQL = [
   "where ((\"word_audios\".\"id\" = $?) and (\"word_audios\".\"status\" = $?)",
   " and (\"word_audios\".\"generation_started_at\" = $?))",

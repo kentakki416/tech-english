@@ -2,11 +2,6 @@
  * フロント（Next.js / Expo）が import してよい `@repo/*` パッケージを制限する
  * flat config フラグメント
  *
- * apps/web / apps/admin / apps/mobile の eslint.config.* から spread して使う:
- *
- *   const frontendBoundary = require("@repo/eslint-config/frontend-boundary")
- *   module.exports = defineConfig([...(既存の config), ...frontendBoundary])
- *
  * 目的: server 専用パッケージが client bundle に混入するのを防ぐ。
  * これらの app は DB を直接触らず必ず Express API を経由する設計なので、
  * 共有すべき契約は `@repo/api-schema` だけになる。

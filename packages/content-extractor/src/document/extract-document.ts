@@ -24,7 +24,7 @@ export type ExtractedDocument = {
    */
   chunks: PassageChunk[]
   /**
-   * 文書全体のブロックのハッシュ。source_documents.content_hash に入れる
+   * 文書全体のブロックのハッシュ
    */
   contentHash: string
   title: string

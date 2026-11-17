@@ -2,22 +2,24 @@ import type { TrackEventInput } from "./event"
 import type { EventTracker } from "./tracker"
 
 /**
- * イベントを捨てる EventTracker
- *
- * worker を動かさない環境（minimal 構成で worker を作らない場合）で使う。Queue に入れても
- * 処理する worker がいないため、ジョブが Redis に溜まり続けるのを防ぐ。
- * worker の DATA_WAREHOUSE_TYPE=none と同じく、記録しないことを env で明示的に選んだときだけ使う。
+ * worker を動かさない環境で使う。queue に入れても処理する worker がいないと、ジョブが Redis に溜まり続ける。
  */
 export class NoopEventTracker implements EventTracker {
   public async flush(): Promise<void> {
-    /** 送出しないので、待つものは無い */
+    /**
+     * 送出しないので、待つものは無い
+     */
   }
 
   public track(_input: TrackEventInput): void {
-    /** 捨てる */
+    /**
+     * 捨てる
+     */
   }
 
   public trackAll(_inputs: TrackEventInput[]): void {
-    /** 捨てる */
+    /**
+     * 捨てる
+     */
   }
 }

@@ -3,7 +3,7 @@ import type { SpeechMark } from "../../lib/audio"
 export type SynthesizeInput = {
   /**
    * 課金された文字数を記録する（月の上限の集計用）。課金されるリクエスト（Polly の音声と単語の時刻）が成功するたびに、その文字数で呼ぶ。
-   * 片方だけが成功して失敗に終わるときも、成功した方の分を記録してから throw する。課金されない FakeTtsClient は呼ばない
+   * 片方だけが成功して失敗に終わるときも、成功した方の分を記録してから throw する
    */
   recordBilledCharacters: (characters: number) => Promise<void>
   /**
@@ -39,9 +39,6 @@ export type SynthesizeAudioResult = {
   billedCharacters: number
 }
 
-/**
- * 音声合成のクライアント。service はこの interface だけを知る（本番は PollyTtsClient、ローカルとテストは FakeTtsClient）
- */
 export interface TtsClient {
   /**
    * 音声と単語の時刻を作る（読み上げ）。SDK が throw したエラー（リトライ後の throttling / 5xx、資格情報・権限の誤りなど）と、

@@ -17,7 +17,7 @@ export type SourceDocument = {
    */
   contentHash: string | null
   /**
-   * 文書を切り分けたときの抽出の版（cron の EXTRACTION_VERSION）。null はこの列を足してから一度も切り分けていない文書
+   * 文書を切り分けたときの抽出の版（@repo/content-extractor の EXTRACTION_VERSION）。null はこの列を足してから一度も切り分けていない文書
    */
   extractionVersion: string | null
   /**

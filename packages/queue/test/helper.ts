@@ -1,8 +1,6 @@
 import { createRedisClient, type Redis } from "@repo/redis"
 
 /**
- * テスト用 Redis 接続。
- *
  * **実 Redis を使い、モックしない。** キー名・BullMQ の状態遷移・リトライの
  * 挙動は mock では検出できない（`apps/api/CLAUDE.md` のテスト方針）。
  *

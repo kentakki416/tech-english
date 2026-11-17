@@ -10,7 +10,7 @@ import { users } from "./user"
 /**
  * ユーザーの目標（1 ユーザー 1 行）。項目はどれも任意
  *
- * users の削除で cascade する（アカウント削除で目標も消すため）。制約・index 名は `{table}_{columns}_key` / `_idx` / `_fkey` の命名にそろえている。
+ * users の削除で cascade する（アカウント削除で目標も消すため）。
  */
 export const userGoals = pgTable(
   "user_goals",

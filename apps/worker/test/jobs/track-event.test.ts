@@ -50,10 +50,6 @@ describe("trackEvent", () => {
       expect(insertAll).not.toHaveBeenCalled()
     })
 
-    /**
-     * 握りつぶすと BullMQ がジョブを成功扱いにしてリトライが効かなくなる。
-     * 送出側（QueueEventTracker）の fire-and-forget とは逆の方針。
-     */
     it("insertAll が throw したらそのまま伝播させる", async () => {
       const insertAll = vi.fn<EventRepository["insertAll"]>(async () => {
         throw new Error("clickhouse down")
