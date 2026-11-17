@@ -13,16 +13,28 @@ import { RequestSchemaMismatchError, ResponseSchemaMismatchError } from "../lib/
  * - RequestSchemaMismatchError    → 400 + warn ログ（クライアント入力不正）
  * - ResponseSchemaMismatchError   → 500 + error ログ（サーバ起因の契約違反、Zod issues 付き）
  * - その他の throw（DB 障害等）   → 500 + error ログ（スタック付き）
- *
- * Express の「引数が4つのミドルウェア」はエラーハンドラとして扱われるため
- * シグネチャは (err, req, res, next) で固定。next は呼ばないが Express の規約で受け取る
  */
-export const unhandledExceptionHandler = (err: unknown, req: Request, res: Response, _next: NextFunction) => {
-  /**
-   * すでにレスポンス送信済みなら Express に委譲（二重送信防止）
-   */
+export const unhandledExceptionHandler = (err: unknown, req: Request, res: Response, next: NextFunction) => {
   if (res.headersSent) {
-    return
+    logger.error(
+      "Unhandled exception after the response started",
+      err instanceof Error ? err : new Error(String(err)),
+      {
+        method: req.method,
+        path: req.path,
+      },
+    )
+    /**
+     * 送り終えていれば、クライアントにはもう届いている。既定のエラーハンドラに渡すと接続が切られ、
+     * 同じ接続で続くリクエストが失敗するので、何もしない
+     */
+    if (res.writableEnded) {
+      return
+    }
+    /**
+     * 送っている途中なら、もう書き換えられない。Express の既定のエラーハンドラに渡して、接続を切らせる
+     */
+    return next(err)
   }
 
   /**
