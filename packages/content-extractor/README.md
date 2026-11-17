@@ -35,7 +35,7 @@ Markdown / MDX / HTML から本文を抽出して本文候補に切り分ける�
 
 fetch はグローバルではなく undici のもの（npm の undici の `Agent` をグローバルの fetch に渡すと版の違いで動かないことがあるため）。undici は Node 20 で動く v7 に固定している（v8 は Node 22.19 以上が必要）。
 
-取得先の制限（SSRF 対策）・robots.txt・リクエストの間隔の詳細は `apps/api/CLAUDE.md` の「サイトのページの取得」。
+取得先の制限（SSRF 対策）と robots.txt の扱いは `src/web/web-page-client.ts`・`src/web/safe-lookup.ts`、api の URL の取り込みでの取得の期限・リクエストの間隔は `apps/api/CLAUDE.md` の「サイトのページの取得」。
 
 ## ESM 専用の依存（require(esm)）
 

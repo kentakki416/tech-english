@@ -3,7 +3,7 @@ import type { Passage, SourceKind } from "@repo/domain"
 import type { PassageSource } from "../repository"
 
 /**
- * 出典表示（content-collection の「出典表示」）に出す内容
+ * 出典表示に出す内容
  */
 export type PassageAttribution = {
   /**

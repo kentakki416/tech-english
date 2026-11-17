@@ -145,7 +145,7 @@ describe("GENERATE_QUESTIONS_SYSTEM_PROMPT", () => {
       expect(GENERATE_QUESTIONS_SYSTEM_PROMPT).toContain("- 3 (Hard: ")
     })
 
-    it("README の設問・和訳・用語集の主なルールを含む", () => {
+    it("設問・和訳・用語集の主なルールを含む", () => {
       expect(GENERATE_QUESTIONS_SYSTEM_PROMPT).toContain("Write exactly question_count questions.")
       expect(GENERATE_QUESTIONS_SYSTEM_PROMPT).toContain("Use at least two different types")
       expect(GENERATE_QUESTIONS_SYSTEM_PROMPT).toContain("Never use \"All of the above\", \"None of the above\"")

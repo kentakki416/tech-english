@@ -116,7 +116,7 @@ function WordLookupSection({ lookups }: { lookups: ResultWordLookup[] }) {
 }
 
 /**
- * 出典（content-collection README「出典表示」）。ページ・取得時点（GitHub はコミットへの固定リンク、サイトは取得日）・ライセンス・改変の表示
+ * 出典。ページ・取得時点（GitHub はコミットへの固定リンク、サイトは取得日）・ライセンス・改変の表示
  */
 function AttributionSection({ attribution }: { attribution: PassageAttributionResponse }) {
   const { commit_sha: commitSha, permalink_url: permalinkUrl } = attribution

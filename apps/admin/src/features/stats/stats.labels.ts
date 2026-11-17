@@ -1,7 +1,7 @@
 import type { AdminStatsPeriod } from "@repo/api-schema"
 
 /**
- * ダッシュボードの表示ラベル（admin-dashboard の UI 設計）
+ * ダッシュボードの表示ラベル
  */
 
 const STATS_PERIOD_LABELS: Record<AdminStatsPeriod, string> = {

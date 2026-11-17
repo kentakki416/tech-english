@@ -123,7 +123,7 @@ const deletePreviousWordAudio = async (
 }
 
 /**
- * generate:word-audio の本体。単語帳に出うる見出し語の発音の音声を作る（vocabulary-pronunciation README「単語の音声の生成タスク」）。
+ * generate:word-audio の本体。単語帳に出うる見出し語の発音の音声を作る。
  *
  * 1. generating のまま 30 分以上たった行を pending に戻す
  * 2. 作り直し待ち・voice の変更・まだ行の無い見出し語を確保する（短いトランザクション）

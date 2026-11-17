@@ -1,6 +1,6 @@
 /**
- * 選択肢を選んだときの「ポキン」（choice-sound README「音の作り」）。
- * 値を変えたら README の表を直し、`pnpm --filter web sound:choice-pop` で mobile の WAV も書き出し直してコミットする
+ * 選択肢を選んだときの「ポキン」。
+ * 値を変えたら、`pnpm --filter web sound:choice-pop` で mobile の WAV も書き出し直してコミットする
  */
 const POP_START_HZ = 1760
 const POP_END_HZ = 830

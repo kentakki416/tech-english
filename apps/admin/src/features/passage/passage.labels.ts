@@ -28,7 +28,7 @@ export const PASSAGE_STATUS_LABELS: Record<AdminPassageStatus, string> = {
 }
 
 /**
- * 状態のバッジの色（README の「状態のバッジの色」）
+ * 状態のバッジの色
  */
 export const PASSAGE_STATUS_BADGE_COLORS: Record<AdminPassageStatus, BadgeColor> = {
   collected: "light",

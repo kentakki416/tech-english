@@ -3,7 +3,7 @@ import type { DictionaryEntry } from "@repo/domain"
 import { IRREGULAR_WORD_FORMS } from "../const/irregular-word-forms"
 
 /**
- * 英和辞書の引き方（reading-practice README「英和辞書」）。DB を知らない純関数で、
+ * 英和辞書の引き方。DB を知らない純関数で、
  * 引く候補を順に並べ（generateLookupCandidates）、辞書から 1 回で取った項目のうち候補の順で最初のものを選ぶ（pickFirstEntry）
  */
 

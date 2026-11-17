@@ -53,7 +53,7 @@ const unloadAudio = (audio: HTMLAudioElement) => {
 }
 
 /**
- * カードの発音の再生（vocabulary-pronunciation README「再生の実装」）。1 回分の画面で 1 つだけ持つ。
+ * カードの発音の再生。1 回分の画面で 1 つだけ持つ。
  * 1 文は段落の mp3 を鳴らす HTMLAudioElement を 1 つ使い回し、区間の始めに合わせて再生して、requestAnimationFrame で終わりを過ぎたら止める
  * （区間の終わりは次の単語の始まりで、文の後の間を含むので、余白は足さない）。
  * 単語は preload で URL ごとに作っておいた Audio を鳴らす（1 回分は最大 10 語なので数に上限は置かない）。

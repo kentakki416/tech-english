@@ -36,7 +36,7 @@ const isEditableTarget = (target: EventTarget | null): boolean =>
   target instanceof HTMLElement && (target.isContentEditable || ["INPUT", "SELECT", "TEXTAREA"].includes(target.tagName))
 
 /**
- * 解答画面のキーボード操作（reading-practice README「キーボード操作（web）」）。
+ * 解答画面のキーボード操作。
  * `1`〜`4` 回答、`J` / `K` 設問の移動、`T` 全文訳、`R` 読み上げ、`?` ショートカット一覧、`Ctrl` / `⌘` + `Enter` 提出の確認、`Esc` ダイアログを閉じる。
  * 単語のカードの `Esc` は PassageReader、速度のメニューの `Esc` は ReadAloudBar が持つ
  */

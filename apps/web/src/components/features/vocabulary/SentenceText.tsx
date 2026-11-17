@@ -27,7 +27,7 @@ function InkText({ text }: { text: string }) {
 }
 
 /**
- * 本文の 1 文。単語に蛍光ペンのような琥珀の線を引く。1 文を再生している間は線のまわりをゆっくり光らせる（vocabulary-pronunciation README「UI 設計 > 動き」）。
+ * 本文の 1 文。単語に蛍光ペンのような琥珀の線を引く。1 文を再生している間は線のまわりをゆっくり光らせる。
  * 行数で切る（overflow: hidden の）ところでは外側の光が切れるので、isGlowInset で光を内側に出す
  */
 export function SentenceText({

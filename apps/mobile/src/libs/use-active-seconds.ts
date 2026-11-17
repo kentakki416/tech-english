@@ -12,7 +12,7 @@ const TICK_INTERVAL_MS = 250
 const MAX_TICK_MS = 2000
 
 /**
- * 画面を見ていた秒数（reading-practice README「時間の計測」）。
+ * 画面を見ていた秒数。
  * アプリが前面（AppState.currentState === "active"）かつ isRunning の間だけ進む。
  * 戻り値は initialSeconds（端末に保存していた経過）にこの画面で数えた秒数を足したもの。
  * 1 秒ごとに足すのではなく実際の経過時間を積算するので、一時停止やアプリの切り替えで端数を失わない（web の同名の hook と同じ）

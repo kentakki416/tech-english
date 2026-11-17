@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto"
 
 /**
- * 単語の発音の text_hash（voice と見出し語の SHA-256 の 16 進。vocabulary-pronunciation README「単語の音声の保存と配信」）。
+ * 単語の発音の text_hash（voice と見出し語の SHA-256 の 16 進）。
  * voice が変わるとハッシュも保存キーも変わるので、CDN の長期キャッシュに前の voice の音声が残らない
  */
 export const calculateWordTextHash = (input: { lemma: string; voiceId: string }): string =>

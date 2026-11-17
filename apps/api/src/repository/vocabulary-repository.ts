@@ -74,7 +74,7 @@ export type SaveVocabularyReviewInput = {
 
 /**
  * 単語帳（vocabulary_cards / vocabulary_reviews と、出題の候補）のリポジトリ。
- * 候補は attempt_word_lookups と、提出した挑戦の問題の passage_glossary_entries から都度集める（vocabulary-cards README「1 回分の選び方」）
+ * 候補は attempt_word_lookups と、提出した挑戦の問題の passage_glossary_entries から都度集める
  */
 export interface VocabularyRepository {
   /**

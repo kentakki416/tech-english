@@ -1,5 +1,5 @@
 /**
- * ダッシュボード・ユーザー管理の数字の表示（admin-dashboard の UI 設計「数字の書き方」）。Client Component からも使うので server-only にしない
+ * ダッシュボード・ユーザー管理の数字の表示。Client Component からも使うので server-only にしない
  */
 
 /**

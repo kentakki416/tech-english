@@ -10,7 +10,7 @@ import * as service from "../service"
 /**
  * generate:word-audio
  *
- * 単語帳に出うる見出し語の発音の音声（mp3）を作る（vocabulary-pronunciation README「単語の音声の生成タスク」）。本番は EventBridge Scheduler →
+ * 単語帳に出うる見出し語の発音の音声（mp3）を作る。本番は EventBridge Scheduler →
  * ECS RunTask で 1 時間ごとに `node dist/task/generate-word-audio.js` を起動する想定（generate:audio とは独立。片方の失敗で片方を止めない）。
  *
  *   pnpm generate:word-audio                      # production は Polly、それ以外は無音の mp3（TTS_PROVIDER の既定）

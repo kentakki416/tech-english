@@ -1,7 +1,7 @@
 import type { Question } from "@repo/domain"
 
 /**
- * 提出の採点と時間の計算（reading-practice README「時間の計測」）。DB を知らない純関数
+ * 提出の採点と時間の計算。DB を知らない純関数
  */
 
 /**

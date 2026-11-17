@@ -74,7 +74,7 @@ const getAudioContext = (): AudioContext | null => {
 }
 
 /**
- * 紙をめくる「シュッ」を 1 回鳴らす（vocabulary-cards README「効果音」）。
+ * 紙をめくる「シュッ」を 1 回鳴らす。
  * ノイズの低い成分を落とし、中高音の帯域を上へ動かして軽く抜ける音にする。鳴らすたびに高さを ±5% 変える
  */
 const playSwish = (context: AudioContext) => {
@@ -109,7 +109,7 @@ const playSwish = (context: AudioContext) => {
 }
 
 /**
- * 選択肢を選んだときの「ポキン」を 1 回鳴らす（choice-sound README「音の作り」）
+ * 選択肢を選んだときの「ポキン」を 1 回鳴らす
  */
 const playChoicePop = (context: AudioContext) => {
   const pitchRatio = 1 - CHOICE_POP_PITCH_JITTER + Math.random() * CHOICE_POP_PITCH_JITTER * 2

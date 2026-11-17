@@ -6,7 +6,7 @@ import {
 } from "../../src/prompt"
 
 /**
- * README の「LLM の呼び出し」の表どおりの出力（fixture の retrying-requests.json に対するもの）
+ * スキーマどおりの出力（fixture の retrying-requests.json に対するもの）
  */
 const buildValidOutput = (): GenerateQuestionsOutput => ({
   difficulty: 2,
@@ -82,7 +82,7 @@ const collectSchemaNodes = (node: unknown): Record<string, unknown>[] => {
 
 describe("generateQuestionsOutputSchema", () => {
   describe("正常系", () => {
-    it("README の表どおりの出力が通る", () => {
+    it("スキーマどおりの出力が通る", () => {
       const result = generateQuestionsOutputSchema.safeParse(buildValidOutput())
 
       expect(result.success).toBe(true)

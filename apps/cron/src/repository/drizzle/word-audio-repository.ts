@@ -45,7 +45,7 @@ export class DrizzleWordAudioRepository implements WordAudioRepository {
   }
 
   /**
-   * 次の順に limit 件まで確保する（vocabulary-pronunciation README「単語の音声の生成タスク」）。
+   * 次の順に limit 件まで確保する。
    * ① pending（作り直し待ち）② まだ行が無い見出し語 ③ voice が今と違う ready（確保中でなく、失敗が上限未満）。
    * voice の変更の行は作り直す間も前の音声を出せるので最後にする（voice を変えた直後も、新しく出た見出し語を先に作る）。
    * ①③ は FOR UPDATE SKIP LOCKED でロックしてから更新する（別の実行がロック中の行は飛ばす）。② は候補を選んでから insert し、

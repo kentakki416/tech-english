@@ -78,7 +78,7 @@ describe("isAllowedLicense", () => {
 
   describe("異常系", () => {
     /**
-     * ShareAlike・コピーレフト・NonCommercial は許可しない（content-collection README の許可リスト）。
+     * ShareAlike・コピーレフト・NonCommercial は許可しない。
      * SPDX 識別子は大文字小文字まで一致させる。個人の学習用は公開してよいライセンスではない
      */
     it.each(["", "CC-BY-SA-4.0", "GPL-3.0", "CC-BY-NC-4.0", "mit", "Apache 2.0", PERSONAL_USE_LICENSE])("%j は許可リストに無い", (value) => {

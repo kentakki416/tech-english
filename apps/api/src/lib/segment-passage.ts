@@ -3,7 +3,7 @@ import { findSurfaceRanges, type GlossaryEntry, type PassageBlock, type PassageS
 import { findLookupTargetRanges } from "./part-of-speech"
 
 /**
- * 本文のセグメント（reading-practice README「本文のトークン化」）。API の snake_case への変換は Controller で行う
+ * 本文のセグメント。API の snake_case への変換は Controller で行う
  */
 export type PassageSegment = {
   /**

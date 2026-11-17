@@ -39,7 +39,7 @@ const findSentenceBySurface = (encounter: VocabularyEncounter): { blockIndex: nu
 }
 
 /**
- * 出会った場所からカードの中身を作る（vocabulary-cards README「カードの中身の組み立て」）。
+ * 出会った場所からカードの中身を作る。
  * 用語集の行があれば文脈での意味と位置を使い、無ければ英和辞書の意味と本文の検索で作る。
  * 意味が無ければ null（Repository が意味のある見出し語だけを返すので、通常は来ない）
  */

@@ -4,7 +4,7 @@ import { disconnectTestDb, disconnectTestRedis, testDb } from "../controller/set
 import { USER_OWNED_TABLES } from "../controller/user-owned-data"
 
 /**
- * アカウント削除は users の行を物理削除し、関連テーブルは外部キーの ON DELETE CASCADE で消す（github-auth README「アカウント削除の処理」）。
+ * アカウント削除は users の行を物理削除し、関連テーブルは外部キーの ON DELETE CASCADE で消す。
  * そのため、users（とその子孫）を参照する外部キーがすべて cascade であることを DB のカタログから確かめる。
  * テーブルが増えても、外部キーを張れば自動でこのテストの対象になる
  */
@@ -65,8 +65,7 @@ describe("users の削除の cascade", () => {
       const result = await testDb.execute<{ table_name: string }>(USER_OWNED_TABLES_QUERY)
 
       /**
-       * テーブルを足したらこの一覧と github-auth README の「アカウント削除の処理」の表、
-       * test/controller/user-owned-data.ts の USER_OWNED_TABLES を更新する
+       * テーブルを足したら、この一覧と test/controller/user-owned-data.ts の USER_OWNED_TABLES を更新する
        */
       expect(result.rows.map((row) => row.table_name)).toEqual([
         "attempt_answers",

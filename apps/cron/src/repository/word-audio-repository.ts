@@ -41,7 +41,7 @@ export type WordAudioClaimOutcome =
 export type WordAudioClaimResult = "failed" | "lost_claim" | "ready" | "retry_later"
 
 /**
- * cron 側で必要な単語の発音の音声の操作（generate:word-audio。vocabulary-pronunciation README「単語の音声の生成タスク」）
+ * cron 側で必要な単語の発音の音声の操作（generate:word-audio）
  */
 export interface WordAudioRepository {
   /**

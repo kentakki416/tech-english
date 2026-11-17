@@ -13,9 +13,6 @@ const MINUTES_PER_DAY = 24 * 60
  */
 export type StudyReminderHref = typeof STUDY_REMINDER_HREF
 
-/**
- * README「通知の内容」の 3 種
- */
 const STUDY_REMINDER_MESSAGES = [
   { body: "5 分で読める技術英語を 1 問解きませんか？", title: "今日の 1 問" },
   { body: "公式ドキュメントの英文で、今日も少しだけ。", title: "英語のドキュメント、読んでますか？" },

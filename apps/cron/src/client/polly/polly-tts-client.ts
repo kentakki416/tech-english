@@ -29,7 +29,7 @@ const readAudioStream = async (stream: SynthesizeSpeechCommandOutput["AudioStrea
 /**
  * Amazon Polly（Neural）のクライアント。env は読まず、SDK のクライアントをコンストラクタで受ける（region・リトライは task が決める）
  *
- * - 音声（mp3）と単語の時刻（Speech Marks の word）は別々のリクエストで、どちらも課金される（README「費用」）。
+ * - 音声（mp3）と単語の時刻（Speech Marks の word）は別々のリクエストで、どちらも課金される。
  *   成功したリクエストごとに課金文字数（RequestCharacters）を recordBilledCharacters で記録する。単語の発音（synthesizeAudio）は mp3 の 1 リクエストだけ
  * - SampleRate は指定しない（Neural の mp3 の既定は 24000 Hz）
  * - 一時的なエラー（throttling・5xx）は SDK の既定のリトライに任せ、ここでは再試行しない
