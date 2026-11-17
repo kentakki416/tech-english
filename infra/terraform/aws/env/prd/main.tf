@@ -710,7 +710,7 @@ module "ecs_worker" {
 # - GHA から `aws ecs run-task --task-definition <family>` で起動する想定
 # - 本番 API イメージに devDependencies が混入するのを避けるため、専用 ECR
 #   (tech-english-migration) + 専用 Dockerfile (packages/db/Dockerfile.migration) を使う
-# - Dockerfile の CMD = `pnpm --filter @repo/db db:migrate` (drizzle-kit migrate) を
+# - Dockerfile の CMD = `pnpm --filter @repo/db db:migrate` (migration.sql と online.sql を、フォルダの順に適用する) を
 #   そのまま使うので command override は不要
 
 module "ecs_migration" {

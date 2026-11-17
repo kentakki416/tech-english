@@ -1,6 +1,6 @@
 /**
- * packages/db には vitest が無いため Node 標準の node:test で書く。
- * 実行: pnpm --filter @repo/db test（= tsx --test drizzle/ejdict.test.ts）
+ * drizzle/ は vitest の対象（test/）の外なので、Node 標準の node:test で書く。
+ * 実行: pnpm --filter @repo/db test（tsx --test drizzle/ejdict.test.ts の後に vitest が流れる）
  */
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"

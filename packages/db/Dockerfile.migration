@@ -62,5 +62,5 @@ COPY infra/clickhouse/cdc-tables.json ./infra/clickhouse/cdc-tables.json
 ENTRYPOINT ["/usr/bin/tini", "--"]
 
 # DATABASE_URL は ECS task definition の secrets で注入される。
-# db:migrate = `drizzle-kit migrate --config=drizzle/drizzle.config.ts` (packages/db で実行)
+# db:migrate = migration.sql (drizzle-kit migrate) と online.sql を、フォルダの順に適用する (packages/db/migrate/migrate.ts)
 CMD ["pnpm", "--filter", "@repo/db", "db:migrate"]
