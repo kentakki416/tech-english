@@ -1,8 +1,7 @@
 {
   "extends": "@repo/typescript-config/base.json",
   "compilerOptions": {
-    "noEmit": true,
-    "types": ["node", "vitest/globals"]
+    "noEmit": true
   },
-  "include": ["${configDir}/**/*", "${configDir}/../test/**/*"]
+  "include": ["${configDir}/**/*"]
 }

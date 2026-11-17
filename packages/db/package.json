@@ -6,9 +6,9 @@
   "sideEffects": false,
   "scripts": {
     "admin:create": "tsx drizzle/create-admin.ts",
-    "build": "tsc && tsc -p migrate/tsconfig.json",
+    "build": "tsc --project tsconfig.build.json && tsc -p migrate/tsconfig.json",
     "clean": "rm -rf dist",
-    "dev": "tsc --watch",
+    "dev": "tsc --project tsconfig.build.json --watch",
     "db:generate": "tsx migrate/generate.ts",
     "db:migrate": "tsx migrate/migrate.ts",
     "db:push": "drizzle-kit push --config=drizzle/drizzle.config.ts",
