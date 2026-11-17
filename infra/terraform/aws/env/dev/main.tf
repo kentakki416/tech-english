@@ -292,7 +292,7 @@ module "app_secrets" {
 # =============================================================================
 # RDS Postgres 16
 # =============================================================================
-# - isolated subnet に配置、SG は ECS のみから 5432 許可 (step1 で定義済み)
+# - isolated subnet に配置、SG は ECS のみから 5432 許可
 # - master password は app secret の DB_PASSWORD を唯一の情報源とし、ephemeral 経由で
 #   password_wo (write-only) に渡す。tfstate / plan に平文は残らない
 # - DATABASE_URL は apply 後に scripts/deploy/seed-secrets.sh で /tech-english-dev/app に追加する
