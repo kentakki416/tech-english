@@ -63,7 +63,7 @@ export const updateMemoAction = async (
   }
 
   revalidatePath("/memos")
-  revalidatePath("/memos/${id}")
+  revalidatePath(`/memos/${id}`)
   redirect(`/memos/${id}`)
 }
 
