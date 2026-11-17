@@ -18,13 +18,13 @@ const QUERY_FIELDS = getAdminPassageStatsListQueryStringSchema.shape
 const DEFAULT_QUERY: DashboardQuery = getAdminPassageStatsListQueryStringSchema.omit({ limit: true }).parse({})
 
 /**
- * URL の期間を読む。不正・未指定は既定値
+ * 不正・未指定は既定値
  */
 export const convertSearchParamToPeriod = (value: SearchParamValue): AdminStatsPeriod =>
   convertSearchParamBySchema(QUERY_FIELDS.period, value, DEFAULT_QUERY.period)
 
 /**
- * URL のクエリを読む。不正・未指定は既定値、絞り込みの文字は API の上限で切り詰める
+ * 不正・未指定は既定値、絞り込みの文字は API の上限で切り詰める
  */
 export const convertSearchParamsToDashboardQuery = (params: SearchParams): DashboardQuery => ({
   order: convertSearchParamBySchema(QUERY_FIELDS.order, params.order, DEFAULT_QUERY.order),
@@ -35,7 +35,7 @@ export const convertSearchParamsToDashboardQuery = (params: SearchParams): Dashb
 })
 
 /**
- * ダッシュボードの URL のクエリ。既定値の項目は省く（渡さなかった項目は既定値）
+ * 既定値の項目は省く（渡さなかった項目は既定値）
  */
 const buildDashboardSearchParams = (query: Partial<DashboardQuery>): URLSearchParams => {
   const merged = { ...DEFAULT_QUERY, ...query }
@@ -48,9 +48,6 @@ const buildDashboardSearchParams = (query: Partial<DashboardQuery>): URLSearchPa
   return params
 }
 
-/**
- * ダッシュボードの URL（`/?period=7d&sort=correct_rate`）。既定値の項目は省く
- */
 export const buildDashboardHref = (query: Partial<DashboardQuery>): string => {
   const search = buildDashboardSearchParams(query).toString()
   return search ? `/?${search}` : "/"
@@ -62,8 +59,5 @@ export const buildDashboardHref = (query: Partial<DashboardQuery>): string => {
 export const buildDashboardSearchFormValues = (query: DashboardQuery): Record<string, string> =>
   Object.fromEntries(buildDashboardSearchParams({ ...query, page: DEFAULT_QUERY.page, q: undefined }))
 
-/**
- * 問題の分析の URL（ダッシュボードと同じ期間。既定値なら省く）
- */
 export const buildPassageAnalyticsHref = (passageId: number, period: AdminStatsPeriod): string =>
   period === DEFAULT_QUERY.period ? `/analytics/passages/${passageId}` : `/analytics/passages/${passageId}?period=${period}`

@@ -16,7 +16,7 @@ import { apiClient } from "@/libs/api-client"
 const BASE_PATH = "/api/admin/tag"
 
 /**
- * タグの API 通信層。404 / 409 は apiClient の ApiClientError（status）で呼び出し側が見分ける
+ * 404 / 409 は apiClient の ApiClientError（status）で呼び出し側が見分ける
  */
 export const tagApi = {
   create: async (input: CreateTagRequest): Promise<CreateTagResponse> => {

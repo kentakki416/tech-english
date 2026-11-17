@@ -20,7 +20,7 @@ export const TAG_COLOR_CLASSES: Record<TagColor, { chip: string, swatch: string 
 }
 
 /**
- * 色付きのタグ。isMuted は選んでいないタグ（ソースのタグの選択）を薄く出す
+ * isMuted は選んでいないタグ（ソースのタグの選択）を薄く出す
  */
 export function TagChip({ color, isMuted = false, name }: { color: TagColor, isMuted?: boolean, name: string }) {
   return (

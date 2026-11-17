@@ -13,7 +13,7 @@ type SourceFetchType = GetSourceResponse["source"]["fetch_type"]
 const AVAILABLE_FETCH_TYPES = (["github_repository", "website"] as const).filter((fetchType) => isLocalEnvironment || fetchType !== "website")
 
 /**
- * ソースの一覧・登録の画面の [GitHub] [サイト] の切り替え。ダッシュボードの期間の切り替え（PeriodTabs）と同じ見た目のリンクで、押すと hrefs の画面へ移る
+ * ダッシュボードの期間の切り替え（PeriodTabs）と同じ見た目のリンクで、押すと hrefs の画面へ移る
  */
 export function SourceFetchTypeTabs({
   counts,

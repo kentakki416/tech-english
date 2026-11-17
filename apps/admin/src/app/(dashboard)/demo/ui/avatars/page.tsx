@@ -15,7 +15,6 @@ export default function AvatarPage() {
       <PageBreadcrumb pageTitle="Avatar" />
       <div className="space-y-5 sm:space-y-6">
         <ComponentCard title="Default Avatar">
-          {/* Default Avatar (No Status) */}
           <div className="flex flex-col items-center justify-center gap-5 sm:flex-row">
             <Avatar src="/images/user/user-01.jpg" size="xsmall" />
             <Avatar src="/images/user/user-01.jpg" size="small" />

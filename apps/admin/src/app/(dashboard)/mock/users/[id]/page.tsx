@@ -20,9 +20,6 @@ import { UserAvatar } from "../UserAvatar"
 import { UserAttemptList } from "./UserAttemptList"
 import { UserCalendar } from "./UserCalendar"
 
-/**
- * まだ学習していないユーザーの数字
- */
 const UNSTUDIED_USER_STATS = {
   goal: null,
   noAssistRate: null,
@@ -37,9 +34,6 @@ const UNSTUDIED_USER_STATS = {
  */
 const GOAL_METRIC_UNITS = { minutes: "分", passages: "問" }
 
-/**
- * 数字のカード 1 枚
- */
 function StatCard({ label, note, value }: { label: string, note: string, value: string }) {
   return (
     <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3">
@@ -50,9 +44,6 @@ function StatCard({ label, note, value }: { label: string, note: string, value: 
   )
 }
 
-/**
- * 見出しつきの小さなカード
- */
 function SideCard({ children, title }: { children: ReactNode, title: string }) {
   return (
     <section className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3">

@@ -5,7 +5,7 @@ import { type AdminStatsPeriod, STATS_PERIOD_LABELS } from "@/libs/mock-data"
 const PERIODS: AdminStatsPeriod[] = ["7d", "30d", "all"]
 
 /**
- * 期間の切り替え（直近 7 日・30 日・全期間）。テンプレートの ChartTab と同じ見た目で、押すと URL の ?period= を変える。
+ * テンプレートの ChartTab と同じ見た目で、押すと URL の ?period= を変える。
  * extraQuery（例 "state=few"）は切り替えても残す
  */
 export function PeriodTabs({ basePath, current, extraQuery }: { basePath: string, current: AdminStatsPeriod, extraQuery?: string }) {

@@ -19,9 +19,6 @@ function MetricCard({ icon, label, note, value }: { icon: ReactNode, label: stri
   )
 }
 
-/**
- * 全体の利用状況の数字のカード（登録ユーザー・学習したユーザー・解いた回数・正答率）
- */
 export function OverviewCards({ overview }: { overview: MockOverview }) {
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:gap-6 xl:grid-cols-4">

@@ -40,9 +40,6 @@ const SORTABLE_COLUMNS: { label: string, sort: AdminPassageStatsSort }[] = [
   { label: PASSAGE_STATS_LABELS.overtimeRate, sort: "overtime_rate" },
 ]
 
-/**
- * 表が空のときの見出しと補足（範囲外のページ・絞り込みで 0 件・問題がまだ無い）
- */
 const buildEmptyMessage = (total: number, q: string | undefined): { description: string, title: string } => {
   if (total > 0) return { description: "Previous で最後のページに戻れます。", title: "このページには問題がありません" }
   if (q) return { description: "絞り込みの文字を変えてください。", title: "条件に合う問題がありません" }
@@ -50,7 +47,7 @@ const buildEmptyMessage = (total: number, q: string | undefined): { description:
 }
 
 /**
- * 問題ごとの成績の表。並べ替え・絞り込み・ページ送りは URL のクエリを変えて API に任せる
+ * 並べ替え・絞り込み・ページ送りは URL のクエリを変えて API に任せる
  */
 export function PassageStatsTable({ list, query }: { list: GetAdminPassageStatsListResponse, query: DashboardQuery }) {
   const totalPages = Math.max(1, Math.ceil(list.total / list.limit))

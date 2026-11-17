@@ -7,7 +7,6 @@ import ComponentCard from "@/components/layout/ComponentCard"
 export default function DropzoneComponent() {
   const onDrop = (acceptedFiles: File[]) => {
     console.log("Files dropped:", acceptedFiles)
-    // Handle file uploads here
   }
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -33,11 +32,9 @@ export default function DropzoneComponent() {
       `}
           id="demo-upload"
         >
-          {/* Hidden Input */}
           <input {...getInputProps()} />
 
           <div className="dz-message flex flex-col items-center m-0!">
-            {/* Icon Container */}
             <div className="mb-[22px] flex justify-center">
               <div className="flex h-[68px] w-[68px]  items-center justify-center rounded-full bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-400">
                 <svg
@@ -56,7 +53,6 @@ export default function DropzoneComponent() {
               </div>
             </div>
 
-            {/* Text Content */}
             <h4 className="mb-3 font-semibold text-gray-800 text-theme-xl dark:text-white/90">
               {isDragActive ? "Drop Files Here" : "Drag & Drop Files Here"}
             </h4>

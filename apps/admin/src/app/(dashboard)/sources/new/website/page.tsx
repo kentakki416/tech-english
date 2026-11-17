@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 }
 
 /**
- * サイトのソースの登録。サイトのソースはローカルだけなので、ローカル以外では 404
+ * サイトのソースはローカルだけなので、ローカル以外では 404
  */
 export default function NewWebsiteSourcePage() {
   if (!isLocalEnvironment) notFound()

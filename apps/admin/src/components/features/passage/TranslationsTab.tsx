@@ -7,9 +7,6 @@ import type { GetAdminPassageResponse } from "@repo/api-schema"
 import { formatBlockLabel, type PassageErrorMarks, type PassageForm } from "@/features/passage/passage.form"
 import { labelClass, textareaClass } from "@/libs/ui-classes"
 
-/**
- * 和訳タブ。コード以外の全ブロックの英文（2 行まで）と和訳のテキストエリア。公開の 400 で和訳が空と言われたブロックは error の枠
- */
 export function TranslationsTab({
   blocks,
   form,

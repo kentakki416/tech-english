@@ -3,7 +3,6 @@
 import { ApexOptions } from "apexcharts"
 import dynamic from "next/dynamic"
 import React from "react"
-// Dynamically import the ReactApexChart component
 const ReactApexChart = dynamic(async () => import("react-apexcharts"), {
   ssr: false,
 })

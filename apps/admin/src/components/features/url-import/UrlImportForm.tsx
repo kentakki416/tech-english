@@ -168,9 +168,6 @@ function ImportResult({ result }: { result: CreateUrlImportResponse }) {
   )
 }
 
-/**
- * URL を入れて確認し、本文候補として保存する
- */
 export function UrlImportForm() {
   const [state, formAction, isPending] = useActionState(dispatchUrlImportAction, INITIAL_STATE)
   const [submittedIntent, setSubmittedIntent] = useState<UrlImportIntent>("preview")

@@ -10,9 +10,6 @@ const STATES = [
   { href: "/mock/users?state=empty", key: "empty", label: "絞り込み結果が 0 件" },
 ]
 
-/**
- * ユーザー一覧（モック）
- */
 export default async function MockUsersPage({ searchParams }: { searchParams: Promise<{ state?: string }> }) {
   const { state } = await searchParams
   const current = state === "empty" ? "empty" : "normal"

@@ -12,12 +12,12 @@ export type BadgeColor =
   | "dark"
 
 interface BadgeProps {
-  variant?: BadgeVariant; // Light or solid variant
-  size?: BadgeSize; // Badge size
-  color?: BadgeColor; // Badge color
-  startIcon?: React.ReactNode; // Icon at the start
-  endIcon?: React.ReactNode; // Icon at the end
-  children: React.ReactNode; // Badge content
+  variant?: BadgeVariant;
+  size?: BadgeSize;
+  color?: BadgeColor;
+  startIcon?: React.ReactNode;
+  endIcon?: React.ReactNode;
+  children: React.ReactNode;
 }
 
 export default function Badge({
@@ -31,13 +31,11 @@ export default function Badge({
   const baseStyles =
     "inline-flex items-center px-2.5 py-0.5 justify-center gap-1 rounded-full font-medium"
 
-  // Define size styles
   const sizeStyles = {
-    sm: "text-theme-xs", // Smaller padding and font size
-    md: "text-sm", // Default padding and font size
+    sm: "text-theme-xs",
+    md: "text-sm",
   }
 
-  // Define color styles for variants
   const variants = {
     light: {
       primary:
@@ -63,7 +61,6 @@ export default function Badge({
     },
   }
 
-  // Get styles based on size and color variant
   const sizeClass = sizeStyles[size]
   const colorStyles = variants[variant][color]
 

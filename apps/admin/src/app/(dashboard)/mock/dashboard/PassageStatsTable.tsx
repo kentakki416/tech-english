@@ -21,9 +21,6 @@ import {
 
 type SortKey = "averageElapsedSeconds" | "correctRate" | "overtimeRate" | "publishedAt" | "solvedAttempts" | "solvedUsers"
 
-/**
- * 1 ページの件数（本実装と同じ）
- */
 const PAGE_SIZE = 50
 
 /**
@@ -31,9 +28,6 @@ const PAGE_SIZE = 50
  */
 const LOW_CORRECT_RATE = 0.5
 
-/**
- * 問題ごとの成績の表（モック）。本実装では並べ替え・絞り込み・ページ送りを URL のクエリにして API に任せる
- */
 export function PassageStatsTable({ period, rows }: { period: AdminStatsPeriod, rows: PassageStatsRow[] }) {
   const [sort, setSort] = useState<{ key: SortKey, order: SortOrder }>({ key: "solvedUsers", order: "desc" })
   const [query, setQuery] = useState("")

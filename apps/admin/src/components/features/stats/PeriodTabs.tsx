@@ -5,7 +5,7 @@ import type { AdminStatsPeriod } from "@repo/api-schema"
 import { formatPeriodLabel, STATS_PERIOD_ORDER } from "@/features/stats/stats.labels"
 
 /**
- * 期間の切り替え（直近 7 日・30 日・全期間）。テンプレートの ChartTab と同じ見た目のリンクで、押すと buildHref の URL（?period= を変えたもの）へ移る
+ * テンプレートの ChartTab と同じ見た目のリンクで、押すと buildHref の URL（?period= を変えたもの）へ移る
  */
 export function PeriodTabs({ buildHref, current }: { buildHref: (period: AdminStatsPeriod) => string, current: AdminStatsPeriod }) {
   return (

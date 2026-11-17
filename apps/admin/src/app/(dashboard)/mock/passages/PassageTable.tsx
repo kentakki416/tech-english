@@ -100,9 +100,6 @@ const createFilters = (status: AdminPassageStatus): FilterConfig<PassageTableRow
     : []),
 ]
 
-/**
- * 問題一覧の状態タブと表（モック）。表は Basic Table と同じ DataTable を使う
- */
 export function PassageTable({ initialStatus, isEmpty }: { initialStatus: AdminPassageStatus, isEmpty: boolean }) {
   const [status, setStatus] = useState<AdminPassageStatus>(initialStatus)
 

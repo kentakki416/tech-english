@@ -12,7 +12,7 @@ const STATES: { href: string, key: ReviewMockState, label: string }[] = [
 ]
 
 /**
- * 問題の確認・修正（モック）。どの id でも同じ問題を表示する
+ * どの id でも同じ問題を表示する
  */
 export default async function MockPassageReviewPage({ searchParams }: { searchParams: Promise<{ state?: string }> }) {
   const { state } = await searchParams

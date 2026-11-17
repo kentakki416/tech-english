@@ -8,9 +8,6 @@ import type { MockUserAttempt } from "@/libs/mock-data"
 import { formatElapsedWithLimit } from "../../_components/stats-format"
 import { outlineButtonClass } from "../../_components/ui"
 
-/**
- * 1 回に読む件数（本実装は API の limit）
- */
 const PAGE_SIZE = 10
 
 /**
@@ -25,9 +22,6 @@ const formatAssists = (assists: MockUserAttempt["assists"]): string => {
   return parts.length > 0 ? parts.join("・") : "なし"
 }
 
-/**
- * 学習履歴（新しい順）。「さらに読み込む」で続きを出す（本実装は cursor で次を読む Server Action）
- */
 export function UserAttemptList({ attempts }: { attempts: MockUserAttempt[] }) {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
   const visibleAttempts = attempts.slice(0, visibleCount)

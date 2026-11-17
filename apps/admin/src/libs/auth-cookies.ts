@@ -37,9 +37,6 @@ export const REFRESH_TOKEN_COOKIE_OPTIONS = {
   secure: isProduction,
 } as const
 
-/**
- * OAuth の間だけ使う cookie（state とサインイン後の戻り先）の属性
- */
 export const OAUTH_COOKIE_OPTIONS = {
   httpOnly: true,
   maxAge: OAUTH_COOKIE_MAX_AGE,
@@ -55,7 +52,7 @@ export const OAUTH_COOKIE_OPTIONS = {
 const ACCESS_TOKEN_REFRESH_MARGIN_SECONDS = 30
 
 /**
- * access token の期限が近い（または読めない）か。proxy とサインイン画面が使う。
+ * access token の期限が近い（または読めない）か。
  * 署名は検証しない（検証は api が行う）。payload の exp を読むだけ
  */
 export const isAccessTokenExpiringSoon = (token: string): boolean => {

@@ -27,9 +27,6 @@ export const PASSAGE_STATUS_LABELS: Record<AdminPassageStatus, string> = {
   rejected: "却下",
 }
 
-/**
- * 状態のバッジの色
- */
 export const PASSAGE_STATUS_BADGE_COLORS: Record<AdminPassageStatus, BadgeColor> = {
   collected: "light",
   draft: "primary",

@@ -12,12 +12,12 @@ import { hintClass, inputClass, labelClass, outlineButtonClass, primaryButtonCla
 type TagListItem = GetTagListResponse["tags"][number]
 
 /**
- * 選んでいる色。auto は「自動」（追加のときだけ）
+ * auto は「自動」（追加のときだけ）
  */
 type ColorChoice = TagColor | "auto"
 
 /**
- * タグの追加・編集のモーダル。tag が null なら追加
+ * tag が null なら追加
  */
 export function TagFormModal({ colors, onClose, tag }: { colors: readonly TagColor[], onClose: () => void, tag: TagListItem | null }) {
   const [name, setName] = useState(tag?.name ?? "")

@@ -1,8 +1,6 @@
 import Link from "next/link"
 
 /**
- * モック専用：画面の状態を切り替えるパネル
- *
  * 製品の UI ではないことが分かるよう破線の枠にし、普段は畳んで画面の右下に置く。
  */
 export function MockStatePanel({ current, states }: { current: string, states: { href: string, key: string, label: string }[] }) {

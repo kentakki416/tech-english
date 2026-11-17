@@ -8,7 +8,7 @@ import { env } from "@/env"
 import { setAuthCookies } from "@/libs/auth"
 
 /**
- * dev admin の email。packages/db/drizzle/seed.ts の admin と一致させる
+ * packages/db/drizzle/seed.ts の admin と一致させる
  */
 const DEV_ADMIN_EMAIL = "admin@dev.local"
 

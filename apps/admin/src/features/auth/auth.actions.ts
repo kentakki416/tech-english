@@ -9,7 +9,7 @@ import { clearAuthCookies, getRefreshToken } from "@/libs/auth"
 import { getErrorName } from "@/libs/error-name"
 
 /**
- * ログアウト。api の refresh token を無効にしてから cookie を消し、サインイン画面に送る
+ * api の refresh token を無効にしてから cookie を消し、サインイン画面に送る
  */
 export const logoutAction = async () => {
   const refreshToken = await getRefreshToken()

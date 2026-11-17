@@ -7,9 +7,6 @@ import { EMPTY_VALUE } from "@/libs/format-stats"
 
 import { UserAvatar } from "./UserAvatar"
 
-/**
- * ユーザーの基本の情報（アイコン・名前・メールアドレス・ログイン方法、ユーザー ID・登録日時・タイムゾーン・最後に学習した日）
- */
 export function UserProfileCard({ user }: { user: GetAdminUserResponse["user"] }) {
   const items = [
     { label: "ユーザー ID", value: String(user.id) },

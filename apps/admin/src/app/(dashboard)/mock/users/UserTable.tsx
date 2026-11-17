@@ -23,14 +23,8 @@ import { UserAvatar } from "./UserAvatar"
 
 type SortKey = "createdAt" | "lastStudiedDate" | "solvedAttempts"
 
-/**
- * 1 ページの件数（本実装と同じ）
- */
 const PAGE_SIZE = 50
 
-/**
- * ユーザー一覧の表（モック）。本実装では並べ替え・絞り込み・ページ送りを URL のクエリにして API に任せる
- */
 export function UserTable({ initialQuery, users }: { initialQuery: string, users: MockUser[] }) {
   const [sort, setSort] = useState<{ key: SortKey, order: SortOrder }>({ key: "createdAt", order: "desc" })
   const [query, setQuery] = useState(initialQuery)

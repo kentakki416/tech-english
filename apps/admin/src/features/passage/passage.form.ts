@@ -231,9 +231,6 @@ export const createNewClientKey = (existingKeys: string[]): string => {
   return `new-${maxNumber + 1}`
 }
 
-/**
- * 詳細をフォームの状態にする
- */
 export const convertDetailToForm = (detail: GetAdminPassageResponse): PassageForm => {
   const glossaryKeyById = new Map(detail.glossary.map((entry) => [entry.id, `id-${entry.id}`]))
   return {

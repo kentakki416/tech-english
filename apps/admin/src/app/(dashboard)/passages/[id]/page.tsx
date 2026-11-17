@@ -28,9 +28,6 @@ const loadPassage = async (id: string) => {
   return detail
 }
 
-/**
- * 問題の確認・修正。左にユーザーと同じ見た目のプレビュー、右に設問・和訳・用語集・本文・基本情報のタブ
- */
 export default async function PassageReviewPage({ params }: Props) {
   const { id } = await params
   const detail = await loadPassage(id)

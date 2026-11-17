@@ -49,9 +49,6 @@ const updateChoiceTranslation = (question: PassageFormQuestion, choiceIndex: num
   return { ...question, choices_ja: choicesJa.map((current, index) => (index === choiceIndex ? value : current)) }
 }
 
-/**
- * 設問タブ。設問ごとの開閉できるカード（開くとプレビューがその根拠までスクロールしてハイライトする）
- */
 export function QuestionsTab({
   attemptCount,
   blocks,
@@ -75,14 +72,11 @@ export function QuestionsTab({
    * 英単語数から決まる目安の設問数（詳細の recommended_question_count。境界は API の domain が持つ）
    */
   recommendedQuestionCount: number
-  /**
-   * 検証モデルとの食い違いのバッジを出すか（公開中は出さない）
-   */
   showVerificationMismatch: boolean
   wordCount: number
   onChange: Dispatch<SetStateAction<PassageForm>>
   /**
-   * 設問を開く・閉じる。evidenceBlockIndex を渡したら、プレビューをその根拠までスクロールする
+   * evidenceBlockIndex を渡したら、プレビューをその根拠までスクロールする
    */
   onOpenQuestionChange: (key: string | null, evidenceBlockIndex?: number) => void
 }) {

@@ -45,7 +45,6 @@ const getIds = (formData: FormData, key: string): number[] =>
   formData.getAll(key).map((value) => (typeof value === "string" && value !== "" ? Number(value) : Number.NaN))
 
 /**
- * フォームの入力をソースの登録・更新のリクエストに変換する。
  * 取得方法（fetch_type）に応じて、もう一方の取得方法の項目は入れない。編集のフォームに無い欄（取得元・GitHub のライセンス）の
  * 項目は空の値で入るが、更新のスキーマが捨てる
  */

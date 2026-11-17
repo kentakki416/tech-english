@@ -14,7 +14,7 @@ import { apiClient } from "@/libs/api-client"
 const BASE_PATH = "/api/admin/url-import"
 
 /**
- * URL の取り込みの API 通信層。取り込めない理由（400）は apiClient の ApiClientError の body の details[0].code で呼び出し側が見分ける
+ * 取り込めない理由（400）は apiClient の ApiClientError の body の details[0].code で呼び出し側が見分ける
  */
 export const urlImportApi = {
   create: async (input: CreateUrlImportRequest): Promise<CreateUrlImportResponse> => {

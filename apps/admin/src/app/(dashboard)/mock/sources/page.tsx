@@ -14,9 +14,6 @@ const STATES = [
   { href: "/mock/sources?state=empty", key: "empty", label: "ソースが 0 件" },
 ]
 
-/**
- * ソース一覧（モック）。Basic Table と同じ構成（ComponentCard ＋ DataTable）
- */
 export default async function MockSourcesPage({ searchParams }: { searchParams: Promise<{ state?: string }> }) {
   const { state } = await searchParams
   const isEmpty = state === "empty"

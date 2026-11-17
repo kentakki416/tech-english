@@ -18,9 +18,6 @@ const isMisleadingChoice = (question: QuestionStats, index: number): boolean =>
   && question.choiceRates[index] > 0
   && question.choiceRates[index] >= question.choiceRates[question.correctChoiceIndex]
 
-/**
- * 選択肢 1 つの行。正解は緑、正解と同じかそれ以上選ばれた誤りは橙、ほかは灰色の横棒
- */
 function ChoiceRow({ isCorrect, isMisleading, label, rate, text }: { isCorrect: boolean, isMisleading: boolean, label: string, rate: number | null, text: string }) {
   const barColor = isCorrect ? "bg-success-500" : isMisleading ? "bg-warning-500" : "bg-gray-300 dark:bg-gray-600"
   return (
@@ -41,7 +38,7 @@ function ChoiceRow({ isCorrect, isMisleading, label, rate, text }: { isCorrect: 
 }
 
 /**
- * 設問 1 つの分析（種類・設問文・正答率・選択肢ごとの割合・未回答・要確認の印）。answerCount はこの設問の期間内の解答の数
+ * answerCount はこの設問の期間内の解答の数
  */
 export function QuestionStatsCard({ isSolved, answerCount, question }: { isSolved: boolean, answerCount: number, question: QuestionStats }) {
   const needsReview = isSolved && answerCount >= REVIEW_MIN_ATTEMPTS && question.choices.some((_, index) => isMisleadingChoice(question, index))

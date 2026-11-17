@@ -30,7 +30,6 @@ type TooltipProps = {
    * フォーカスできない要素なら tabIndex={0} を付ける（キーボードでも出せるように）
    */
   children: React.ReactElement<Record<string, unknown>>
-  /** 吹き出しの中身 */
   content: React.ReactNode
   placement?: TooltipPlacement
   variant?: TooltipVariant

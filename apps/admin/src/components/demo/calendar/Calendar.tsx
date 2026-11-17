@@ -68,7 +68,6 @@ export default function Calendar() {
 
   const handleAddOrUpdateEvent = () => {
     if (selectedEvent) {
-      // Update existing event
       setEvents((prevEvents) =>
         prevEvents.map((event) =>
           event.id === selectedEvent.id
@@ -83,7 +82,6 @@ export default function Calendar() {
         )
       )
     } else {
-      // Add new event
       const newEvent: CalendarEvent = {
         id: crypto.randomUUID(),
         title: eventTitle,

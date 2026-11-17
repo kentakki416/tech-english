@@ -39,9 +39,6 @@ const loadSource = async (id: string) => {
   }
 }
 
-/**
- * ソースの編集。右に収集の状況と、GitHub のソースは今すぐ収集を出す
- */
 export default async function EditSourcePage({ params }: Props) {
   const { id } = await params
   const [detail, { tags }] = await Promise.all([loadSource(id), tagApi.getList()])

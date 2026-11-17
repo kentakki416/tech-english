@@ -6,9 +6,6 @@ import { useEffect } from "react"
  */
 const COLLECTION_RUN_REFRESH_INTERVAL_MS = 3_000
 
-/**
- * isCollecting の間、画面を一定の間隔で読み直す
- */
 export function useCollectionRunRefresh(isCollecting: boolean) {
   const router = useRouter()
 

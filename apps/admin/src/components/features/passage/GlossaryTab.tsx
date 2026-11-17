@@ -20,9 +20,6 @@ import { hintClass, inputClass, labelClass, outlineButtonClass, primaryButtonCla
 
 type DetailBlocks = GetAdminPassageResponse["blocks"]
 
-/**
- * 語句の追加・編集のダイアログの入力値
- */
 type GlossaryDraft = {
   blockIndex: number
   lemma: string
@@ -32,9 +29,6 @@ type GlossaryDraft = {
   surface: string
 }
 
-/**
- * 表の 1 行。フォームの語句に、表示に使う値を足す
- */
 type GlossaryRow = PassageFormGlossaryEntry & {
   blockLabel: string
   errors: string[]

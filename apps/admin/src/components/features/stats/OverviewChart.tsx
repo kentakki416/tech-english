@@ -34,11 +34,6 @@ const SERIES_STYLES = [
   { color: "#F79009", dotClass: "bg-warning-500", key: "new_users", name: "新規登録" },
 ] as const satisfies readonly { color: string, dotClass: string, key: keyof Omit<SeriesPoint, "date">, name: string }[]
 
-/**
- * 推移の折れ線（学習したユーザー数・解いた回数・新規登録数）。7 日・30 日は日ごと、全期間は週ごと。
- * 狭い画面で横にスクロールするときは、直近（右端）から見せる（dir="rtl"。グラフの中は左から右のまま）。
- * 凡例はスクロールで隠れないよう、ApexCharts の凡例を使わずにグラフの外に出す
- */
 export function OverviewChart({ series }: { series: GetAdminStatsOverviewResponse["series"] }) {
   const categories = series.points.map(point => (series.bucket === "week" ? `${formatShortDate(point.date)}〜` : formatShortDate(point.date)))
   const chartSeries = SERIES_STYLES.map(style => ({ data: series.points.map(point => point[style.key]), name: style.name }))
@@ -59,6 +54,9 @@ export function OverviewChart({ series }: { series: GetAdminStatsOverviewRespons
     colors: SERIES_STYLES.map(style => style.color),
     dataLabels: { enabled: false },
     grid: { xaxis: { lines: { show: false } }, yaxis: { lines: { show: true } } },
+    /**
+     * 凡例はスクロールで隠れないよう、ApexCharts の凡例を使わずにグラフの外に出す
+     */
     legend: { show: false },
     /**
      * 点が 1 つ（全期間で最初の登録が今週など）だと線が引けないので、点を出す
@@ -93,6 +91,9 @@ export function OverviewChart({ series }: { series: GetAdminStatsOverviewRespons
           </li>
         ))}
       </ul>
+      {/**
+       * 狭い画面で横にスクロールするときは、直近（右端）から見せる（dir="rtl"。グラフの中は左から右のまま）
+       */}
       <div className="custom-scrollbar mt-2 max-w-full overflow-x-auto" dir="rtl">
         <div className="min-w-[640px] xl:min-w-full" dir="ltr">
           <Chart height={300} options={options} series={chartSeries} type="line" />

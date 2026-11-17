@@ -1,7 +1,7 @@
 import Image from "next/image"
 
 /**
- * ユーザーのアイコン。画像が無ければ名前の頭文字（絵文字なども 1 文字として扱う。名前が無い・空なら「?」）を丸に出す
+ * 画像が無ければ名前の頭文字（絵文字なども 1 文字として扱う。名前が無い・空なら「?」）を丸に出す
  */
 export function UserAvatar({ avatarUrl, name, size }: { avatarUrl: string | null, name: string | null, size: number }) {
   if (avatarUrl) {

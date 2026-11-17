@@ -23,7 +23,7 @@ import { apiClient } from "@/libs/api-client"
 const BASE_PATH = "/api/admin/source"
 
 /**
- * ソース（英文の取得元）の API 通信層。404 / 409 は apiClient の ApiClientError（status）で呼び出し側が見分ける
+ * 404 / 409 は apiClient の ApiClientError（status）で呼び出し側が見分ける
  */
 export const sourceApi = {
   create: async (input: CreateSourceRequest): Promise<CreateSourceResponse> => {

@@ -19,7 +19,7 @@ import { urlImportApi } from "@/features/url-import/url-import.api"
 import { ApiClientError } from "@/libs/api-client"
 
 /**
- * 取り込めなかったとき。errorCode は api が返した取り込めない理由（URL の形の誤り・想定外の失敗は null）
+ * errorCode は api が返した取り込めない理由（URL の形の誤り・想定外の失敗は null）
  */
 export type UrlImportFailure = { errorCode: UrlImportErrorCode | null, message: string }
 

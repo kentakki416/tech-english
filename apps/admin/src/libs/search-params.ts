@@ -1,9 +1,5 @@
 import type { ZodType, ZodTypeDef } from "zod"
 
-/**
- * URL のクエリの読み取り（Server Component の searchParams）。ダッシュボードとユーザー一覧で使う
- */
-
 export type SearchParamValue = string | string[] | undefined
 
 export type SearchParams = Record<string, SearchParamValue>

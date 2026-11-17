@@ -17,9 +17,6 @@ const Chart = dynamic(async () => import("react-apexcharts"), { ssr: false })
  */
 const MAX_X_LABELS = 8
 
-/**
- * 推移の折れ線（学習したユーザー数・解いた回数・新規登録数）。7 日・30 日は日ごと、全期間は週ごと
- */
 export function OverviewChart({ overview }: { overview: MockOverview }) {
   const categories = overview.points.map(point => (overview.bucket === "week" ? `${formatShortDate(point.date)}〜` : formatShortDate(point.date)))
   const options: ApexOptions = {

@@ -7,8 +7,6 @@ import { markAllAsReadAction } from "@/features/notification/notification.action
 import { notificationApi } from "@/features/notification/notification.api"
 
 /**
- * サイドバー付きの画面の枠。サインイン中の admin と通知を取ってシェルに渡す。
- *
  * proxy は cookie の期限しか見ないので、ここで api の /api/admin/me を呼び、画面を直接開いたとき・再読み込みのとき
  * （router.refresh を含む）は api が token を確かめる。クライアント側の遷移では layout は描き直されないので、
  * 機密を出す画面は自分で api を呼ぶ

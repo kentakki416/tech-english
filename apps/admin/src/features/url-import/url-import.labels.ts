@@ -3,7 +3,7 @@ import type { PreviewUrlImportResponse } from "@repo/api-schema"
 import type { BadgeColor } from "@/components/ui/badge/Badge"
 
 /**
- * URL の取り込みの表示ラベル。Client Component からも使うので `server-only` を付けない。
+ * Client Component からも使うので `server-only` を付けない。
  * 値の集合は `@repo/api-schema` の型で網羅を検査する（Zod のスキーマは bundle に入れないため import しない）
  */
 
@@ -26,6 +26,6 @@ export const CHUNK_REJECT_REASON_LABELS: Record<UrlImportChunk["reject_reasons"]
 }
 
 /**
- * 保存すると本文候補になる・生成を優先する塊か（無ければ保存のボタンを押せない）
+ * 保存すると本文候補になる・生成を優先する塊か
  */
 export const isImportableChunk = (chunk: UrlImportChunk): boolean => chunk.status === "new" || chunk.status === "existing"

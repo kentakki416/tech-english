@@ -1,8 +1,5 @@
 "use client"
 
-/**
- * 並べ替えの向き。null（値が無い行）はどちらの向きでも最後に置く
- */
 export type SortOrder = "asc" | "desc"
 
 /**
@@ -53,9 +50,6 @@ export function SortableHeaderCell({ isActive, label, order, onClick }: { isActi
   )
 }
 
-/**
- * 表の上の絞り込みの入力欄（虫めがねのアイコン付き）
- */
 export function SearchField({ placeholder, value, onChange }: { placeholder: string, value: string, onChange: (value: string) => void }) {
   return (
     <div className="relative w-full sm:w-auto">

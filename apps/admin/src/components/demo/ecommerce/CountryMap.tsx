@@ -1,4 +1,3 @@
-// import { VectorMap } from "@react-jvectormap/core";
 import { worldMill } from "@react-jvectormap/world"
 import dynamic from "next/dynamic"
 import React from "react"
@@ -6,8 +5,9 @@ import React from "react"
 const VectorMap = dynamic(
   async () => {
     const mod = await import("@react-jvectormap/core")
-    // Polyfill jvm.$.isArray - jvectormap uses jQuery's $.isArray internally
-    // but the bundled jQuery shim does not include it
+    /**
+     * jvectormap は jQuery の $.isArray を使うが、同梱の jQuery の代用には無いので足す
+     */
     const w = window as unknown as { jvm?: { $?: Record<string, unknown> } }
     if (w.jvm?.$ && !w.jvm.$.isArray) {
       w.jvm.$.isArray = Array.isArray
@@ -17,7 +17,6 @@ const VectorMap = dynamic(
   { ssr: false }
 )
 
-// Define the component props
 interface CountryMapProps {
   mapColor?: string;
 }
@@ -25,7 +24,7 @@ interface CountryMapProps {
 type MarkerStyle = {
   initial: {
     fill: string;
-    r: number; // Radius for markers
+    r: number;
   };
 }
 
@@ -50,8 +49,8 @@ export default function CountryMap({ mapColor }: CountryMapProps) {
         {
           initial: {
             fill: "#465FFF",
-            r: 4, // Custom radius for markers
-          }, // Type assertion to bypass strict CSS property checks
+            r: 4,
+          },
         }
       }
       markersSelectable={true}

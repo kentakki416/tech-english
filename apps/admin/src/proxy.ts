@@ -34,9 +34,6 @@ const PUBLIC_PATHS = [
   SIGN_IN_PATH,
   "/api/auth/callback/google",
   "/api/auth/signout",
-  /**
-   * サインイン・サインアップのフォームの見本（デモ）。サインインしなくても見られる
-   */
   "/demo/signin",
   "/demo/signup",
   ...DEV_ONLY_PUBLIC_PATHS,

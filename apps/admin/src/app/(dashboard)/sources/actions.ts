@@ -54,7 +54,7 @@ const convertApiErrorToFormState = (error: unknown, fallbackMessage: string, rev
 }
 
 /**
- * ソース登録の Server Action。成功したら、今すぐ収集を押せるよう編集画面へ遷移する
+ * 成功したら、今すぐ収集を押せるよう編集画面へ遷移する
  */
 export const createSourceAction = async (
   _prev: SourceFormState,
@@ -78,9 +78,6 @@ export const createSourceAction = async (
   redirect(`/sources/${id}`)
 }
 
-/**
- * ソース更新の Server Action（有効 / 無効の切り替えを含む）。成功したらそのソースの取得方法の一覧へ遷移する
- */
 export const updateSourceAction = async (
   id: number,
   _prev: SourceFormState,
@@ -116,7 +113,7 @@ const convertCollectionRequestErrorToReason = (error: ApiClientError): SourceCol
 }
 
 /**
- * 今すぐ収集の依頼の Server Action。収集は worker が裏で行うので、依頼が通ったら一覧を読み直して「収集中」を出す。
+ * 収集は worker が裏で行うので、依頼が通ったら一覧を読み直して「収集中」を出す。
  * ここでは redirect しない（redirect はブラウザ側で例外になり、呼び出し元の失敗の扱いに入るので、遷移は呼び出し元が行う）。
  * 通らなかったときも読み直す（409 は別の管理者が先に押したので、最新の記録が収集中で返り、画面が収集中と読み直しに切り替わる）。
  * 引数はブラウザから届くので、API と同じスキーマで検証してからパスに使う
@@ -148,7 +145,7 @@ const convertDeleteErrorToReason = (error: ApiClientError): SourceDeleteFailureR
 }
 
 /**
- * ソースの削除の Server Action。通らなかったときも一覧を読み直す（409・404 は一覧のデータが古い）。
+ * 通らなかったときも一覧を読み直す（409・404 は一覧のデータが古い）。
  * タグのソースの件数と問題の一覧も変わるので、その画面も作り直す
  */
 export const deleteSourceAction = async (sourceId: number): Promise<SourceDeleteResult> => {

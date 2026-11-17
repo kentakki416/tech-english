@@ -8,9 +8,6 @@ const ASSISTS: { key: keyof AssistRates, label: string }[] = [
   { key: "listened", label: "読み上げ" },
 ]
 
-/**
- * アシストの利用率（解いたうち、各アシストを 1 回以上使った割合）を横棒で並べる
- */
 export function AssistCard({ rates }: { rates: AssistRates }) {
   return (
     <div className="h-full rounded-2xl border border-gray-200 bg-white px-5 py-5 sm:px-6 sm:py-6 dark:border-gray-800 dark:bg-white/3">

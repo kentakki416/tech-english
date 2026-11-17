@@ -26,7 +26,7 @@ import { QuestionStatsCard, REVIEW_MIN_ATTEMPTS } from "./QuestionStatsCard"
 const FEW_STATE_SOLVED_ATTEMPTS = REVIEW_MIN_ATTEMPTS - 2
 
 /**
- * 問題の分析（モック）。設問は What Is Ownership? のものを、どの問題でも出す
+ * 設問は What Is Ownership? のものを、どの問題でも出す
  */
 export default async function MockPassageAnalyticsPage({
   params,

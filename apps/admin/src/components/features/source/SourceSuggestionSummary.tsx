@@ -28,7 +28,7 @@ function LicenseUrlLink({ url }: { url: string | null }) {
 }
 
 /**
- * 登録の URL から読み込んだ内容。ライセンスと「詳細」を直す前の値（読み込んだときの値）を出す
+ * ライセンスと「詳細」を直す前の値（読み込んだときの値）を出す
  */
 export function SourceSuggestionSummary({ suggestion }: { suggestion: SuggestSourceResponse }) {
   const isGitHub = suggestion.fetch_type === "github_repository"

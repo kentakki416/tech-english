@@ -1,5 +1,4 @@
 "use client"
-// import Chart from "react-apexcharts";
 import { ApexOptions } from "apexcharts"
 import dynamic from "next/dynamic"
 import { useState } from "react"
@@ -7,7 +6,6 @@ import { useState } from "react"
 import { Dropdown } from "@/components/ui/dropdown/Dropdown"
 import { DropdownItem } from "@/components/ui/dropdown/DropdownItem"
 import { MoreDotIcon } from "@/icons"
-// Dynamically import the ReactApexChart component
 const ReactApexChart = dynamic(async () => import("react-apexcharts"), {
   ssr: false,
 })
@@ -34,7 +32,7 @@ export default function MonthlyTarget() {
         track: {
           background: "#E4E7EC",
           strokeWidth: "100%",
-          margin: 5, // margin is in pixels
+          margin: 5,
         },
         dataLabels: {
           name: {

@@ -11,10 +11,6 @@ type AdminShellProps = AppHeaderProps & {
   children: React.ReactNode
 }
 
-/**
- * サイドバー付きの画面の枠（client）。サイドバーの開閉で本文の左の余白を変える。
- * データ（admin・通知）は layout（Server Component）から props で受け取り、ヘッダーに渡す
- */
 export default function AdminShell({ children, ...headerProps }: AdminShellProps) {
   const { isExpanded, isHovered, isMobileOpen } = useSidebar()
 

@@ -16,7 +16,7 @@ type TagOption = GetTagListResponse["tags"][number]
 const MAX_SOURCE_TAGS = 10
 
 /**
- * ソースの技術タグの選択。選んだ id は hidden の input（name="tag_ids"）でフォームに乗せる
+ * 選んだ id は hidden の input（name="tag_ids"）でフォームに乗せる
  */
 export function TagPicker({ defaultSelectedIds, tags }: { defaultSelectedIds: number[], tags: TagOption[] }) {
   const [selectedIds, setSelectedIds] = useState<number[]>(defaultSelectedIds)

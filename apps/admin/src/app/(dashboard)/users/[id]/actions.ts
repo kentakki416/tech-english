@@ -20,7 +20,7 @@ export type LoadMoreUserAttemptsFailureReason = "not_found" | "unavailable"
 export type LoadMoreUserAttemptsResult = { ok: false, reason: LoadMoreUserAttemptsFailureReason } | { ok: true, page: GetAdminUserAttemptsResponse }
 
 /**
- * 学習履歴の次のページを読む（「さらに読み込む」）。引数はブラウザから届くので、API と同じスキーマで検証する。
+ * 引数はブラウザから届くので、API と同じスキーマで検証する。
  * 読むだけだが、admin の API はトークンが要りブラウザから直接呼べないので Server Action にする
  */
 export const loadMoreUserAttemptsAction = async (userId: number, cursor: number): Promise<LoadMoreUserAttemptsResult> => {

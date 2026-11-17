@@ -36,9 +36,6 @@ const buildColumns = (openModal: (modal: OpenModal) => void): Column<TagListItem
   },
 ]
 
-/**
- * タグの一覧の表。追加・編集・削除のモーダルの開閉もここで持つ
- */
 export function TagTable({ colors, tags }: { colors: readonly TagColor[], tags: TagListItem[] }) {
   const [openModal, setOpenModal] = useState<OpenModal>(null)
   const closeModal = () => setOpenModal(null)

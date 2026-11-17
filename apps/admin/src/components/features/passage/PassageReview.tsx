@@ -52,7 +52,7 @@ import { TranslationsTab } from "./TranslationsTab"
 type TabKey = "basics" | "body" | "glossary" | "questions" | "translations"
 
 /**
- * 直前の操作の結果。error の marks は該当の項目（設問・和訳・語句）に付ける印
+ * error の marks は該当の項目（設問・和訳・語句）に付ける印
  */
 type ReviewFeedback =
   | { kind: "saved" }
@@ -107,9 +107,6 @@ const findInitialQuestionKey = (form: PassageForm): string | null => {
   return (mismatch ?? form.questions[0])?.clientKey ?? null
 }
 
-/**
- * 囲みの案内。action は囲みの右上に置く操作（要確認の解除など）
- */
 function Notice({ action, items, title, tone }: {
   action?: ReactNode
   items: string[]
@@ -134,7 +131,7 @@ function Notice({ action, items, title, tone }: {
 }
 
 /**
- * 状態ごとの案内（公開中・却下・失敗・生成待ち・生成中）。下書きの要確認と公開できない理由は別に出す
+ * 下書きの要確認と公開できない理由は別に出す
  */
 function StatusNotice({ detail }: { detail: GetAdminPassageResponse }) {
   switch (detail.status) {
@@ -182,9 +179,6 @@ function StatusNotice({ detail }: { detail: GetAdminPassageResponse }) {
   }
 }
 
-/**
- * 問題の確認・修正。左にユーザーと同じ見た目のプレビュー（フォームの未保存の修正を含む）、右に設問・和訳・用語集・本文・基本情報のタブ
- */
 export function PassageReview({ detail }: { detail: GetAdminPassageResponse }) {
   const router = useRouter()
   const [form, setForm] = useState<PassageForm>(() => convertDetailToForm(detail))
@@ -236,9 +230,6 @@ export function PassageReview({ detail }: { detail: GetAdminPassageResponse }) {
     return { detail: result.detail, ok: true }
   }
 
-  /**
-   * 状態を変える操作（却下・非公開・再生成・却下の取り消し・要確認の解除）。成功したらダイアログを閉じて詳細を取り直す
-   */
   const changeStatus = async (execute: () => Promise<{ ok: true } | PassageActionFailure>): Promise<ReviewState> => {
     const result = await execute()
     setIsRejectOpen(false)
@@ -332,9 +323,6 @@ export function PassageReview({ detail }: { detail: GetAdminPassageResponse }) {
       return next
     })
 
-  /**
-   * 設問を開いたら、プレビューをその根拠のブロックまでスクロールする
-   */
   const openQuestionAndShowEvidence = (key: string | null, evidenceBlockIndex?: number) => {
     setOpenQuestionKey(key)
     if (key === null || evidenceBlockIndex === undefined) return

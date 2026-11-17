@@ -7,7 +7,6 @@ import { Dropdown } from "@/components/ui/dropdown/Dropdown"
 import { DropdownItem } from "@/components/ui/dropdown/DropdownItem"
 import { MoreDotIcon } from "@/icons"
 
-// Dynamically import the ReactApexChart component
 const ReactApexChart = dynamic(async () => import("react-apexcharts"), {
   ssr: false,
 })

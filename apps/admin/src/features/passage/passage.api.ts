@@ -53,11 +53,11 @@ export type AdminPassageList = {
 }
 
 /**
- * 問題の API 通信層。400 / 404 / 409 は apiClient の ApiClientError（status / body）で呼び出し側が見分ける
+ * 400 / 404 / 409 は apiClient の ApiClientError（status / body）で呼び出し側が見分ける
  */
 export const passageApi = {
   /**
-   * 問題の全情報。404 は null
+   * 404 は null
    */
   getDetail: async (id: number): Promise<GetAdminPassageResponse | null> => {
     try {

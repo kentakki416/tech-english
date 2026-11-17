@@ -9,7 +9,6 @@ export default function InputStates() {
   const [email, setEmail] = useState("")
   const [error, setError] = useState(false)
 
-  // Simulate a validation check
   const validateEmail = (value: string) => {
     const isValidEmail =
       /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(value)
@@ -28,7 +27,6 @@ export default function InputStates() {
       desc="Validation styles for error, success and disabled states on form controls."
     >
       <div className="space-y-5 sm:space-y-6">
-        {/* Error Input */}
         <div>
           <Label>Email</Label>
           <Input
@@ -41,7 +39,6 @@ export default function InputStates() {
           />
         </div>
 
-        {/* Success Input */}
         <div>
           <Label>Email</Label>
           <Input
@@ -54,7 +51,6 @@ export default function InputStates() {
           />
         </div>
 
-        {/* Disabled Input */}
         <div>
           <Label>Email</Label>
           <Input
