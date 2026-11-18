@@ -1,11 +1,3 @@
-/**
- * 各パッケージは以下のいずれかで利用する:
- *   module.exports = require("@repo/eslint-config")
- *
- * 追加で ignore したいパス等がある場合:
- *   const baseConfig = require("@repo/eslint-config")
- *   module.exports = [...baseConfig, { ignores: ["generated/**"] }]
- */
 const { defineConfig } = require("eslint/config")
 const typescriptEslint = require("@typescript-eslint/eslint-plugin")
 const typescriptParser = require("@typescript-eslint/parser")
