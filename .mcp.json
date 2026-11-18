@@ -63,13 +63,6 @@
         "@lottiefiles/creator-mcp@latest"
       ]
     },
-    "vercel": {
-      "command": "npx",
-      "args": [
-        "mcp-remote",
-        "https://mcp.vercel.com"
-      ]
-    },
     "notion": {
       "command": "npx",
       "args": [
