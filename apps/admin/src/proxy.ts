@@ -57,7 +57,6 @@ type RefreshResult =
   | { status: "failed" }
 
 /**
- * api に refresh token を渡して、新しい access / refresh token を受け取る。
  * 401（refresh token が無効・使用済み、admin が消された）と、それ以外の失敗（api の障害など）を分けて返す
  */
 const requestTokenRefresh = async (refreshToken: string): Promise<RefreshResult> => {
