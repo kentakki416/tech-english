@@ -3,8 +3,7 @@ import type { Request } from "express"
 import type { AuthRequest } from "../middleware/auth"
 
 /**
- * `/api/memo` のように `PUBLIC_PATHS` に含まれるエンドポイントは未ログインでも
- * 呼べるため、`req.userId` は存在しないことがある。
+ * `PUBLIC_PATHS` に含まれるパスは未ログインでも呼べるので、`req.userId` が無いことがある
  */
 export const findUserId = (req: Request): number | undefined =>
   (req as AuthRequest).userId

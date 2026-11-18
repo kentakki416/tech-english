@@ -10,8 +10,8 @@ import type { AdminAuthRequest } from "./admin-auth"
 import type { AuthRequest } from "./auth"
 
 /**
- * - ステータスコードによる level 分岐はしない（エラー詳細は出さず status / latency / path のみ）
- * - エラーの内容ログは sendError ヘルパ（業務 4xx）と unhandled-exception-handler（想定外例外）の責務
+ * ステータスコードで level を分けず、エラーの内容も出さない（status / duration / path だけ）。
+ * エラーの内容は sendError（業務 4xx）と unhandledExceptionHandler（想定外の例外）がログに残す
  */
 export const requestLogger = (req: Request, res: Response, next: NextFunction) => {
   if (LOG_EXCLUDE_PATHS.some(path => path === req.path)) {
@@ -36,7 +36,7 @@ export const requestLogger = (req: Request, res: Response, next: NextFunction) =
       const duration = Date.now() - startTime
       logger.info("API Request Completed", {
         /**
-         * adminAuthMiddleware はこのミドルウェアより後に動くので、終わった時点で読む
+         * admin の認証（adminAuthMiddleware）はこのミドルウェアより後に動くので、終わった時点で読む
          */
         adminId: (req as AdminAuthRequest).adminId,
         duration,

@@ -14,7 +14,7 @@ export default defineConfig({
     include: ["test/**/*.test.ts"],
 
     /**
-     * 実 DB を共有する controller テストの競合を避けるため、直列実行する
+     * controller テストは実 DB を共有するので、テストファイルを直列に実行して競合を避ける
      */
     fileParallelism: false,
 

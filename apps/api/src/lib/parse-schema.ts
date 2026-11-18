@@ -27,9 +27,8 @@ export const parseRequest = <Schema extends z.ZodTypeAny>(schema: Schema, value:
 }
 
 /**
- * 入力を `unknown` ではなく `z.input<Schema>` で受けることで、スキーマとの不一致を
- * 実行時 500 ではなくコンパイルエラーとして検出する。スキーマにフィールドを追加したら
- * 追従していない Controller が型エラーになる
+ * 入力を `unknown` ではなく `z.input<Schema>` で受けて、スキーマとの不一致を実行時の 500 ではなく
+ * コンパイルエラーにする。スキーマにフィールドを足すと、追従していない Controller が型エラーになる
  */
 export const parseResponse = <Schema extends z.ZodTypeAny>(
   schema: Schema,

@@ -14,7 +14,7 @@ export type ReadinessResult = {
 }
 
 /**
- * 個別サービスの失敗は "error" ステータスとして結果に含め、業務エラーにはしない
+ * 個別のサービスの失敗は status: "error" として結果に含め、業務エラーにはしない
  */
 export const checkReadiness = async (
   repo: {

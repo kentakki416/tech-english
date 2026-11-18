@@ -41,9 +41,6 @@ export const unhandledExceptionHandler = (err: unknown, req: Request, res: Respo
     return res.status(400).json(errorResponse)
   }
 
-  /**
-   * レスポンス検証失敗はサーバ起因の不整合 → 500
-   */
   if (err instanceof ResponseSchemaMismatchError) {
     logger.error("Response schema mismatch", err, {
       issues: err.zodError.issues,

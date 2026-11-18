@@ -58,7 +58,7 @@ describe("POST /api/events", () => {
     })
 
     /**
-     * クライアントが他人の ID を詐称できないことの確認
+     * クライアントが他人の ID を詐称できないことの確認。
      */
     it("ボディに userId を混ぜても無視し、認証済みユーザーの ID を使う", async () => {
       const { token, user } = await createTestUser()

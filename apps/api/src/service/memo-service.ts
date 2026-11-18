@@ -18,7 +18,7 @@ const trackIfSignedIn = (
   event: { name: "memo_created" | "memo_deleted" | "memo_updated"; memoId: number },
 ): void => {
   /**
-   * 未ログイン時は記録しない（匿名追跡をしない方針）
+   * 匿名ユーザーは追跡しない方針なので、未ログインなら記録しない
    */
   if (deps.userId === undefined) return
   deps.eventTracker.track({
