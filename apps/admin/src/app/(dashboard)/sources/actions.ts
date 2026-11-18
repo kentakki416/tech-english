@@ -40,7 +40,7 @@ const isMissingTagError = (error: ApiClientError): boolean => {
 }
 
 /**
- * API の失敗をフォームの文言にする。409 は重複、400（存在しないタグ）はタグの欄のエラー、それ以外は再試行を促す。
+ * 409 は重複、400（存在しないタグ）はタグの欄のエラー、それ以外は再試行を促す。
  * 存在しないタグのときは、ピッカーの tags が古いので revalidatePaths の画面を作り直させる
  */
 const convertApiErrorToFormState = (error: unknown, fallbackMessage: string, revalidatePaths: string[]): SourceFormState => {
@@ -102,7 +102,7 @@ export const updateSourceAction = async (
 export type SourceCollectionRequestResult = { ok: false, reason: SourceCollectionRequestFailureReason } | { ok: true }
 
 /**
- * API の失敗を、依頼が通らなかった理由にする。404 はこの環境に今すぐ収集のルートが無い（api の SOURCE_COLLECTION_TYPE=none）ときとして扱う。
+ * 404 はこの環境に今すぐ収集のルートが無い（api の SOURCE_COLLECTION_TYPE=none）ときとして扱う。
  * 開いている間にソースが消されたときも 404 になるが、読み直しで編集画面が notFound になるので、この理由は画面に出ない
  */
 const convertCollectionRequestErrorToReason = (error: ApiClientError): SourceCollectionRequestFailureReason => {

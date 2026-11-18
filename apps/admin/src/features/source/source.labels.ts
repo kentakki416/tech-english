@@ -27,7 +27,7 @@ export const SOURCE_FETCH_TYPE_TAB_LABELS: Record<SourceFetchType, string> = {
 }
 
 /**
- * ライセンスの表示名。個人の学習用だけ日本語の名前にし、ほかは SPDX 識別子のまま出す
+ * 個人の学習用だけ日本語の名前にし、ほかは SPDX 識別子のまま出す
  */
 export const formatLicenseLabel = (license: string): string =>
   license === PERSONAL_USE_LICENSE ? "個人の学習用（ライセンスなし）" : license
@@ -50,7 +50,7 @@ export const SOURCE_COLLECTION_RUN_STATUS_LABELS: Record<SourceCollectionRunStat
 }
 
 /**
- * 今すぐ収集の依頼が通らなかった理由。running はほかの収集が実行中、disabled は無効のソース、
+ * running はほかの収集が実行中、disabled は無効のソース、
  * unavailable はこの環境に今すぐ収集が無い（api の SOURCE_COLLECTION_TYPE=none）、unsaved は編集画面に未保存の変更がある、failed はそのほか
  */
 export type SourceCollectionRequestFailureReason = "disabled" | "failed" | "running" | "unavailable" | "unsaved"
@@ -64,7 +64,7 @@ export const SOURCE_COLLECTION_REQUEST_FAILURE_MESSAGES: Record<SourceCollection
 }
 
 /**
- * ソースを削除できなかった理由。collecting は api の 409、not_found はほかの管理者が先に削除した、failed はそのほか
+ * collecting は api の 409、not_found はほかの管理者が先に削除した、failed はそのほか
  */
 export type SourceDeleteFailureReason = "collecting" | "failed" | "not_found"
 

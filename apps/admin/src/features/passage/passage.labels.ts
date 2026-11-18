@@ -12,7 +12,7 @@ export type AdminPassageDifficulty = NonNullable<GetAdminPassageResponse["diffic
 export type AdminQuestionType = GetAdminPassageResponse["questions"][number]["type"]
 
 /**
- * 読み上げの音声（詳細の audio）。下書きなどで音声の行も無ければ詳細の audio が null なので、ここでは null を除く
+ * 下書きなどで音声の行も無ければ詳細の audio が null なので、ここでは null を除く
  */
 export type AdminPassageAudio = NonNullable<GetAdminPassageResponse["audio"]>
 

@@ -39,7 +39,7 @@ const BASE_PATH = "/api/admin/passage"
 const LIST_PAGE_SIZE = 200
 
 /**
- * 一覧で取る最大の行数。表（DataTable）は検索・Filter・ページ送りを画面内で行うため、1 つの状態の行をまとめて取る
+ * 表（DataTable）は検索・Filter・ページ送りを画面内で行うため、1 つの状態の行をまとめて取る
  */
 const MAX_LIST_ROWS = 1000
 

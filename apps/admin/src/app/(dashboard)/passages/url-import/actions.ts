@@ -105,7 +105,7 @@ export const previewUrlImportAction = async (_state: UrlImportState, formData: F
 }
 
 /**
- * 保存の失敗を状態にする。確認の結果を出しているときはそれを残す（一時的な失敗なら、もう一度保存を押せばよい）
+ * 確認の結果を出しているときはそれを残す（一時的な失敗なら、もう一度保存を押せばよい）
  */
 const buildSaveFailureState = (state: UrlImportState, failure: UrlImportFailure): UrlImportState =>
   state.status === "previewed" ? { ...state, saveFailure: failure } : { ...failure, status: "error" }

@@ -18,7 +18,7 @@ export const convertSearchParamBySchema = <T>(schema: ZodType<T, ZodTypeDef, unk
 }
 
 /**
- * 絞り込みの文字。前後の空白を除き、maxLength（API の上限）を超える分は切り詰める（API は超えると 400 を返すため）。空なら undefined
+ * 前後の空白を除き、maxLength（API の上限）を超える分は切り詰める（API は超えると 400 を返すため）。空なら undefined
  */
 export const convertSearchParamToKeyword = (value: SearchParamValue, maxLength: number | null): string | undefined => {
   const keyword = pickFirstSearchParam(value)?.trim()

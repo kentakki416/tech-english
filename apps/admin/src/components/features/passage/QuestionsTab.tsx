@@ -24,7 +24,7 @@ const MAX_QUESTIONS = 5
 const MIN_SAVABLE_QUESTIONS = 1
 
 /**
- * 追加する設問の初期値。根拠の段落は最初の段落（無ければ先頭のブロック）
+ * 根拠の段落は最初の段落（無ければ先頭のブロック）
  */
 const createEmptyQuestion = (clientKey: string, evidenceBlockIndex: number): PassageFormQuestion => ({
   id: null,
@@ -42,7 +42,7 @@ const createEmptyQuestion = (clientKey: string, evidenceBlockIndex: number): Pas
 })
 
 /**
- * 選択肢の和訳の 1 つを書き換える。和訳がまだ無い（null）なら、選択肢と同じ数の空の和訳から始める
+ * 和訳がまだ無い（null）なら、選択肢と同じ数の空の和訳から始める
  */
 const updateChoiceTranslation = (question: PassageFormQuestion, choiceIndex: number, value: string): PassageFormQuestion => {
   const choicesJa = question.choices_ja ?? question.choices.map(() => "")

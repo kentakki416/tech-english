@@ -6,7 +6,7 @@ import type { SuggestSourceResponse } from "@repo/api-schema"
  */
 
 /**
- * 文字列の値。未送信（null）やファイルは空文字にする
+ * 未送信（null）やファイルは空文字にする
  */
 const getText = (formData: FormData, key: string): string => {
   const value = formData.get(key)

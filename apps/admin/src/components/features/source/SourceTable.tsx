@@ -135,7 +135,7 @@ const buildStatusLabel = (source: SourceListItem): string => {
 }
 
 /**
- * API の 1 ソースを表の行にする。取得元は取得方法でないほうが null なので、ある方を使う
+ * 取得元は取得方法でないほうが null なので、ある方を使う
  */
 const convertSourceToRow = (source: SourceListItem): SourceRow => ({
   ...source,

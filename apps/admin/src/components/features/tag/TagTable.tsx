@@ -13,7 +13,7 @@ import { primaryButtonClass } from "@/libs/ui-classes"
 type TagListItem = GetTagListResponse["tags"][number]
 
 /**
- * 開いているモーダル。null は閉じている
+ * null は閉じている
  */
 type OpenModal = { kind: "create" } | { kind: "delete", tag: TagListItem } | { kind: "edit", tag: TagListItem } | null
 

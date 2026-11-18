@@ -61,7 +61,7 @@ type ReviewFeedback =
 type ReviewState = { feedback: ReviewFeedback | null }
 
 /**
- * useActionState に渡す操作。保存・公開はリクエストを作ったときのフォームを持つ（エラーの印を付ける項目を決めるため）
+ * 保存・公開はリクエストを作ったときのフォームを持つ（エラーの印を付ける項目を決めるため）
  */
 type ReviewCommand =
   | { form: PassageForm, type: "save" }

@@ -14,7 +14,7 @@ type DetailGlossaryEntry = GetAdminPassageResponse["glossary"][number]
 type DetailQuestion = GetAdminPassageResponse["questions"][number]
 
 /**
- * 用語集の 1 語句。clientKey は保存済みなら `id-12`、追加分は `new-1`。設問の対象の語句はこれで指す。
+ * clientKey は保存済みなら `id-12`、追加分は `new-1`。設問の対象の語句はこれで指す。
  * start_offset / end_offset は保存済みの本文（詳細の blocks[block_index].text）上の位置で、追加した語句と、語句・段落を変えた語句は null。
  * プレビューの下線に使い、保存のリクエストには含めない（位置は API が保存時に求め直す）
  */
@@ -26,7 +26,7 @@ export type PassageFormGlossaryEntry = Omit<DetailGlossaryEntry, "end_offset" | 
 }
 
 /**
- * 本文中の位置。生の本文（インラインコードのバッククォートを含む）上の UTF-16 の index で [startOffset, endOffset)
+ * 生の本文（インラインコードのバッククォートを含む）上の UTF-16 の index で [startOffset, endOffset)
  */
 export type SurfaceRange = {
   endOffset: number
@@ -34,7 +34,7 @@ export type SurfaceRange = {
 }
 
 /**
- * 設問 1 問。clientKey は開いている設問・エラーの印の目印（保存済みなら `id-12`、追加分は `new-1`）。
+ * clientKey は開いている設問・エラーの印の目印（保存済みなら `id-12`、追加分は `new-1`）。
  * verification_choice_index は表示用に持ったまま、保存のリクエストには含めない
  */
 export type PassageFormQuestion = Omit<DetailQuestion, "id" | "order_index" | "target_glossary_entry_id"> & {
@@ -144,7 +144,7 @@ export const joinBlockLabel = (label: string, rest: string): string =>
   (/\d$/.test(label) ? `${label} ${rest}` : `${label}${rest}`)
 
 /**
- * text の index の文字が英数字かどうか。範囲の外は英数字ではない扱い
+ * 範囲の外は英数字ではない扱い
  */
 const isAlphanumericAt = (text: string, index: number): boolean =>
   index >= 0 && index < text.length && ALPHANUMERIC_PATTERN.test(text.charAt(index))
@@ -248,7 +248,7 @@ export const convertDetailToForm = (detail: GetAdminPassageResponse): PassageFor
 }
 
 /**
- * フォームの状態を保存のリクエストにする。設問の targetGlossaryKey は glossary 配列の位置（target_glossary_index）に直す。
+ * 設問の targetGlossaryKey は glossary 配列の位置（target_glossary_index）に直す。
  * 制限時間の形が違うときは 0 秒にして、Server Action のスキーマ検証で不合格にする
  */
 export const convertFormToRequest = (form: PassageForm): UpdateAdminPassageRequest => {
@@ -304,7 +304,7 @@ export const listFormProblems = (form: PassageForm, blocks: Pick<DetailBlock, "l
 }
 
 /**
- * details をエラーの印にする。path の位置は snapshot（リクエストを作ったときのフォーム）の配列の位置
+ * path の位置は snapshot（リクエストを作ったときのフォーム）の配列の位置
  */
 export const convertDetailsToMarks = (details: ErrorDetail[], snapshot: PassageForm): PassageErrorMarks => {
   const marks: PassageErrorMarks = {

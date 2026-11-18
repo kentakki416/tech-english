@@ -3,7 +3,7 @@ import { appConfig } from "@/config/app"
 const dateTimeFormats = new Map<string, Intl.DateTimeFormat>()
 
 /**
- * タイムゾーンごとの書式。作るのが重いので使い回す
+ * 作るのが重いので使い回す
  */
 const getDateTimeFormat = (timeZone: string): Intl.DateTimeFormat => {
   const cached = dateTimeFormats.get(timeZone)

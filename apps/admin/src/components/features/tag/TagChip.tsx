@@ -3,7 +3,7 @@ import type { GetTagListResponse } from "@repo/api-schema"
 export type TagColor = GetTagListResponse["tags"][number]["color"]
 
 /**
- * 色ごとのクラス。chip はタグ（ライト：薄い背景と濃い文字、ダーク：半透明の背景と明るい文字）、swatch は色の見本の丸。
+ * chip はタグ（ライト：薄い背景と濃い文字、ダーク：半透明の背景と明るい文字）、swatch は色の見本の丸。
  * Tailwind はソースに書かれたクラス名しか CSS にしないため、色ごとにクラス名をそのまま書く
  */
 export const TAG_COLOR_CLASSES: Record<TagColor, { chip: string, swatch: string }> = {

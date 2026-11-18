@@ -28,7 +28,7 @@ const MAX_AUDIO_ATTEMPTS = 3
 /**
  * 状態ごとの本文。準備中・生成中は、前に作った音声があれば前回の作成日時も出す
  * （公開し直した後の確認待ち。非公開に戻した問題の作成済みの音声も、API が準備中として返す）。
- * 作成済みで作り直しの依頼があれば、依頼の日時も出す（作り直すまでは今の音声のまま）
+ * 作成済みで作り直しの依頼があれば、依頼の日時も出す
  */
 const listAudioMessages = (audio: AdminPassageAudio): string[] => {
   const previous = audio.generated_at ? [`前回の作成：${formatDateTime(audio.generated_at)}`] : []

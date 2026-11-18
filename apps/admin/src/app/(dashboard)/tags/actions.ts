@@ -24,7 +24,7 @@ const NOT_FOUND_MESSAGE = "このタグは見つかりませんでした。画�
 const NAME_ERROR = "名前は 1〜30 文字で、カンマを含めずに入力してください。"
 
 /**
- * API の失敗をモーダルの文言にする。409 は重複、404 は削除済み、それ以外は再試行を促す
+ * 409 は重複、404 は削除済み、それ以外は再試行を促す
  */
 const convertApiErrorToResult = (error: unknown, fallbackMessage: string): TagActionResult => {
   if (error instanceof ApiClientError && error.status === 409) return { errors: { name: [DUPLICATE_MESSAGE] }, ok: false }

@@ -13,7 +13,7 @@ import {
 import { USER_ATTEMPTS_PAGE_SIZE, userApi } from "@/features/user/user.api"
 
 /**
- * 失敗の理由。not_found はユーザーが居ない（退会・不正な引数）で押し直しても直らない、unavailable は API の一時的な失敗で押し直せば直りうる
+ * not_found はユーザーが居ない（退会・不正な引数）で押し直しても直らない、unavailable は API の一時的な失敗で押し直せば直りうる
  */
 export type LoadMoreUserAttemptsFailureReason = "not_found" | "unavailable"
 

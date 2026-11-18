@@ -25,7 +25,7 @@ import { PassageStatsStatusBadge } from "./PassageStatsStatusBadge"
 const LOW_CORRECT_RATE_PERCENT = 50
 
 /**
- * 正答率が低いか。表示と同じく丸めた % で比べる（49.5% は「50%」と出るので橙にしない）
+ * 表示と同じく丸めた % で比べる（49.5% は「50%」と出るので橙にしない）
  */
 const isLowCorrectRate = (rate: number | null): boolean => rate !== null && convertRateToPercent(rate) < LOW_CORRECT_RATE_PERCENT
 
