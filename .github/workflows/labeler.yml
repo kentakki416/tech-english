@@ -12,7 +12,9 @@ permissions:
   pull-requests: write # ラベルの付与/削除に必要
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  # pull_request_target の github.ref は PR ではなく既定のブランチを指すので、github.ref で分けると
+  # すべての PR が同じグループになり、別の PR の実行を取り消してしまう
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
   cancel-in-progress: true # 同一グループのワークフローが実行中ならキャンセル
 
 jobs:
