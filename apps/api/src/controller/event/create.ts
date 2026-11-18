@@ -11,9 +11,7 @@ export class EventCreateController {
 
   public async execute(req: Request, res: Response) {
     /**
-     * このエンドポイントは PUBLIC_PATHS に含めていないため、auth middleware を
-     * 通った時点で userId は必ず存在する。無い場合は middleware の設定ミスなので
-     * throw して想定外例外ハンドラに 500 を返させる（黙って捨てない）。
+     * userId が無いのは middleware の設定ミスなので、黙って捨てずに throw して想定外例外ハンドラに 500 を返させる
      */
     const userId = findUserId(req)
     if (userId === undefined) {

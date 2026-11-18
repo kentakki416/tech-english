@@ -24,10 +24,6 @@ const waitForFlush = async (eventTracker: EventTracker): Promise<void> => {
   }
 }
 
-/**
- * Lambda はレスポンスを返した時点で実行環境を凍結するため、service が await せずに
- * 投げた enqueue が止まったまま失われうる。res.end を包んで flush を待ってから返す
- */
 export const flushEventsBeforeResponse = (eventTracker: EventTracker) =>
   (_req: Request, res: Response, next: NextFunction): void => {
     const end = res.end.bind(res) as (...args: unknown[]) => Response

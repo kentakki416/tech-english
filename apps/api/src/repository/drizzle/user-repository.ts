@@ -54,8 +54,7 @@ export class DrizzleUserRepository implements UserRepository {
   }
 
   /**
-   * users に、提出の数と最後の study_date・単語帳の最後の study_date・ログイン方法を、それぞれユーザーごとに束ねて left join する。
-   * 範囲外のページ（offset が 1 以上で行が 0 件）では count(*) OVER () が取れないので、件数だけ数え直す
+   * users に、提出の数と最後の study_date・単語帳の最後の study_date・ログイン方法を、それぞれユーザーごとに束ねて left join する
    */
   public async findForAdmin(query: FindUsersForAdminQuery): Promise<{ items: AdminUserListItem[]; total: number }> {
     const condition = query.q === undefined
@@ -90,6 +89,7 @@ export class DrizzleUserRepository implements UserRepository {
     }
     if (query.offset === 0) return { items: [], total: 0 }
     /**
+     * 範囲外のページ（offset が 1 以上で行が 0 件）では count(*) OVER () が取れないので、件数だけ数え直す。
      * 結ぶ集計はどれもユーザーに 1 対 1 なので、件数は users だけで数えられる
      */
     const counted = await this._db.execute<{ total: string }>(sql`SELECT count(*) AS total FROM users u WHERE ${condition}`)

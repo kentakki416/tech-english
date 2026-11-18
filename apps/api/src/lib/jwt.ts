@@ -31,9 +31,6 @@ export const generateAccessToken = (userId: number): string => {
   return jwt.sign({ userId }, JWT_ACCESS_SECRET, { expiresIn: JWT_ACCESS_EXPIRATION })
 }
 
-/**
- * jti は Redis に保存し、ローテーション・ログアウト時に当該 jti を破棄する
- */
 export const generateRefreshToken = (userId: number): { jti: string; token: string } => {
   const jti = randomUUID()
   const token = jwt.sign({ jti, userId }, JWT_REFRESH_SECRET, { expiresIn: JWT_REFRESH_EXPIRATION })
