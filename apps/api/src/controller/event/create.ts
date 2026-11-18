@@ -10,10 +10,10 @@ export class EventCreateController {
   constructor(private _eventTracker: EventTracker) {}
 
   public async execute(req: Request, res: Response) {
+    const userId = findUserId(req)
     /**
      * userId が無いのは middleware の設定ミスなので、黙って捨てずに throw して想定外例外ハンドラに 500 を返させる
      */
-    const userId = findUserId(req)
     if (userId === undefined) {
       throw new Error("userId is missing. POST /api/events must be behind the auth middleware.")
     }
@@ -24,9 +24,6 @@ export class EventCreateController {
       events.map((event) => ({
         name: event.name,
         properties: event.properties,
-        /**
-         * `source` は server 側で決める（クライアントの自己申告を信用しない）
-         */
         source: "web" as const,
         userId,
       })),

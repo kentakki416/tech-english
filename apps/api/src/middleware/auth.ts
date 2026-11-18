@@ -8,7 +8,7 @@ import { verifyAccessToken } from "../lib/jwt"
 
 export interface AuthRequest extends Request {
   /**
-   * PUBLIC_PATHS と ADMIN_PATH_PREFIX の下に無いパスでは、authMiddleware を通った時点で必ずある
+   * PUBLIC_PATHS（未ログインでも呼べる）と ADMIN_PATH_PREFIX の下では無いことがある。それ以外のパスでは、authMiddleware を通った時点で必ずある
    */
   userId?: number
 }

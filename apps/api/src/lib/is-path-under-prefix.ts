@@ -5,7 +5,7 @@
  * 通してしまうため、`/` 区切り（= path segment 境界）で一致するものだけを通す。
  *
  * 大文字小文字を区別しないのは、Express 5 の mount と Router が区別しないため。
- * 区別して比べると、`/API/Health` のように Router には届くのに認証の判定だけが外れる。
+ * 区別して比べると、`/API/Health` のように Router には届くのに、公開のパスと判定されずに 401 になる。
  *
  * 例（prefix = "/api/auth/github"）:
  * - "/api/auth/github"          → true（完全一致）
