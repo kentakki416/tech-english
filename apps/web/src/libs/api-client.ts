@@ -4,7 +4,9 @@ import { getAccessToken } from "./auth"
 
 const API_BASE_URL = env.API_URL
 
-/** status とボディを保持するので、呼び出し側が元の status をそのまま返せる */
+/**
+ * status とボディを保持するので、呼び出し側が元の status をそのまま返せる
+ */
 export class ApiClientError extends Error {
   constructor(
     public readonly status: number,
@@ -25,8 +27,7 @@ const buildHeaders = async (extra?: HeadersInit): Promise<HeadersInit> => {
 }
 
 /**
- * access token の更新はここでは行わない。Server Component は cookie を書き換えられず、更新した refresh token を
- * 保存できないため。更新は描画より前に proxy（src/libs/token-refresh.ts）が行い、ここに届く cookie は更新済み
+ * access token の更新はここでは行わない。更新は描画より前に proxy（src/libs/token-refresh.ts）が行い、ここに届く cookie は更新済み
  */
 const fetchWithAuth = async (input: string, init: RequestInit): Promise<Response> => {
   const headers = await buildHeaders(init.headers)

@@ -1,8 +1,5 @@
 import { DIFFICULTY_LABELS, DIFFICULTY_ORDER, type PassageDifficulty } from "./labels"
 
-/**
- * 難易度。3 本のバーのうち難易度の数だけ灯す
- */
 export function DifficultyMeter({ level, showLabel = true }: { level: PassageDifficulty, showLabel?: boolean }) {
   return (
     <span className="inline-flex items-center gap-1.5 text-sm text-fg-muted">

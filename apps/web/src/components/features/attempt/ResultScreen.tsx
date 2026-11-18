@@ -34,9 +34,6 @@ const LINK_CLASS = "text-fg underline decoration-line-strong underline-offset-2 
 
 const HEADER_LINK_FOCUS_CLASS = "outline-none focus-visible:ring-2 focus-visible:ring-amber/60"
 
-/**
- * 提出後に正解が直された設問の注記
- */
 const ANSWER_KEY_CHANGED_NOTE = "提出後にこの設問の正解が修正されました（正誤は提出したときの採点のままです）"
 
 function ChoiceRow({
@@ -82,7 +79,7 @@ function ChoiceRow({
 }
 
 /**
- * 出典のリンク。結果画面を離れないよう別のタブで開く
+ * 結果画面を離れないよう別のタブで開く
  */
 function ExternalLink({ children, href }: { children: React.ReactNode, href: string }) {
   return (
@@ -92,9 +89,6 @@ function ExternalLink({ children, href }: { children: React.ReactNode, href: str
   )
 }
 
-/**
- * 出典。取得時点は GitHub ならコミットへの固定リンク、サイトなら取得日
- */
 function AttributionSection({ attribution }: { attribution: PassageAttributionResponse }) {
   const { commit_sha: commitSha, permalink_url: permalinkUrl } = attribution
   return (
@@ -137,10 +131,6 @@ function AttributionSection({ attribution }: { attribution: PassageAttributionRe
   )
 }
 
-/**
- * 結果・解説画面。PC 幅は左に本文・右に結果と解説の 2 カラムで、それぞれの列が独立してスクロールする。
- * スマホ幅は 上部バー → スコアと時間 → 設問ごとの結果 → 調べた単語 → 出典 → 本文 の順に縦に並べ、操作を下端に固定する
- */
 export function ResultScreen({ result }: { result: SubmittedAttempt }) {
   const { questions } = result
   const results = questions.map(question => question.is_correct)
@@ -150,9 +140,6 @@ export function ResultScreen({ result }: { result: SubmittedAttempt }) {
    * 最初は最初の不正解の設問の根拠をハイライトする（スクロールはしない。画面の上から読み始めるため）
    */
   const [highlightQuestionId, setHighlightQuestionId] = useState<number | null>(firstWrong?.id ?? null)
-  /**
-   * 不正解の設問は最初から開き、正解の設問は閉じておく
-   */
   const [openQuestionIds, setOpenQuestionIds] = useState<Set<number>>(
     () => new Set(questions.filter(question => !question.is_correct).map(question => question.id)),
   )
@@ -214,9 +201,6 @@ export function ResultScreen({ result }: { result: SubmittedAttempt }) {
     })
   }
 
-  /**
-   * 本文のブロックは memo されているので、参照を変えないよう useCallback にする
-   */
   const toggleTranslation = useCallback((blockIndex: number) => {
     setTranslatedBlocks((current) => {
       const next = new Set(current)
@@ -234,9 +218,6 @@ export function ResultScreen({ result }: { result: SubmittedAttempt }) {
     readAloud.togglePlay()
   }
 
-  /**
-   * 本文のブロックは memo されているので、参照を変えないよう useCallback にする
-   */
   const playBlock = useCallback((blockIndex: number) => {
     resumeFollowing()
     playReadAloudBlock(blockIndex)

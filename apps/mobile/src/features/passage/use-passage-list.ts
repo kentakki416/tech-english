@@ -27,7 +27,7 @@ export type PassageListState = {
    */
   refresh: (options?: { isSilent?: boolean }) => void
   /**
-   * 公開中の問題があるソースのタグ全件（絞り込みのチップ）
+   * 公開中の問題があるソースのタグ全件
    */
   tags: string[]
   /**

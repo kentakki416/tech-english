@@ -48,9 +48,6 @@ const SCREENS: { href: Href, spec: string, states?: { href: Href, label: string 
   { href: "/mock/delete-account", spec: "github-auth", states: [{ href: "/mock/delete-account?state=done", label: "削除完了" }], title: "アカウント削除" },
 ]
 
-/**
- * mobile モックの画面一覧（レビュー用。製品の画面ではない）
- */
 export default function MockIndexScreen() {
   const router = useRouter()
   return (

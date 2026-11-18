@@ -46,9 +46,6 @@ import { SubmitConfirmModal } from "./SubmitConfirmModal"
 
 type RestoredProgress = Omit<AttemptProgress, "version">
 
-/**
- * 期限（開始から 24 時間）を確かめる間隔
- */
 const EXPIRY_CHECK_INTERVAL_MS = 60 * 1000
 
 /**
@@ -382,7 +379,7 @@ export function SolvingScreen({ attempt }: { attempt: InProgressAttempt }) {
   }
 
   /**
-   * 長押しが成立したら軽く振動して、押している間だけ和訳を重ねる。長押しで見た段落も「和訳を見た段落」に数える
+   * 長押しで見た段落も「和訳を見た段落」に数える
    */
   const startPeek = useCallback((blockIndex: number) => {
     if (!translatableBlockIndexes.has(blockIndex)) return

@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from "react-native"
 import { THEME_COLORS, THEME_FONTS } from "@/const/design-theme"
 
 /**
- * ロゴ。学習した日を表す「灯ったマス」をブランドの印にする
+ * 学習した日を表す「灯ったマス」をブランドの印にする
  */
 export function Wordmark() {
   return (

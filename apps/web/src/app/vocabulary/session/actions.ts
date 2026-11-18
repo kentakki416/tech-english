@@ -12,7 +12,7 @@ export type ReviewVocabularyCardActionResult =
   | { status: "failed" }
 
 /**
- * 1 枚の答えを保存する。revalidatePath は呼ばない（1 枚ごとに 1 回分の画面を描き直さないため。
+ * revalidatePath は呼ばない（1 枚ごとに 1 回分の画面を描き直さないため。
  * トップとマイページは cookie を読む動的な画面なので、開き直せば新しい数になる）
  */
 export const reviewVocabularyCardAction = async (input: ReviewVocabularyCardRequest): Promise<ReviewVocabularyCardActionResult> => {

@@ -3,9 +3,6 @@ import { Tabs } from "expo-router"
 
 import { MOCK_COLORS } from "@/const/mock-theme"
 
-/**
- * モックのタブ（マイページ / 問題 / 単語帳 / 設定）
- */
 export default function MockTabLayout() {
   return (
     <Tabs

@@ -22,7 +22,6 @@ type VocabularyTopData = {
 }
 
 /**
- * 束になったカードの見本。一番上は今日の 1 枚目の語句と 1 文。今日の分が無ければ「All done.」で薄くする（web と同じ）。
  * 今日の分があるのに 1 枚目を取れなかったときは、何も書いていない紙にする
  */
 function DeckPreview({ card, isDimmed }: { card: VocabularyCard | undefined, isDimmed: boolean }) {
@@ -55,11 +54,6 @@ function CountStat({ label, unit, value }: { label: string, unit: string, value:
   )
 }
 
-/**
- * 単語帳のトップ（タブ）。今日の分がある / 今日の分が終わった / まだ単語が無い、の 3 つの状態で出し分ける（web の VocabularySummaryPanel と同じ）。
- * 1 回分から戻ったときに数が変わるので、フォーカスのたびに取り直す（フォーカス中にアプリが前面に戻ったときも）。
- * 束の見本に今日の 1 枚目を出すため、1 回分も一緒に取る（読み取りだけで何も書き込まない）。1 回分の取得に失敗しても見本の 1 枚目を出さないだけ（web と同じ）
- */
 export default function VocabularyScreen() {
   const router = useRouter()
   const [data, setData] = useState<VocabularyTopData | null>(null)
@@ -73,6 +67,9 @@ export default function VocabularyScreen() {
   const load = useCallback(async () => {
     const seq = ++requestSeqRef.current
     try {
+      /**
+       * 束の見本に今日の 1 枚目を出すため、1 回分も一緒に取る（読み取りだけで何も書き込まない）。1 回分の取得に失敗しても見本の 1 枚目を出さないだけ（web と同じ）
+       */
       const [summary, session] = await Promise.all([
         vocabularyApi.getSummary(),
         vocabularyApi.getSession().catch((error: unknown) => {
@@ -93,6 +90,9 @@ export default function VocabularyScreen() {
     }
   }, [])
 
+  /**
+   * 1 回分から戻ったときに数が変わるので、フォーカスのたびに取り直す（フォーカス中にアプリが前面に戻ったときも）
+   */
   useFocusEffect(
     useCallback(() => {
       void load()

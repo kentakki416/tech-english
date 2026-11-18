@@ -17,8 +17,10 @@ type Props = {
  * キャッシュヒットでも記録され、実際には見ていない閲覧が混入するため。
  */
 export function TrackEvent({ name, properties }: Props) {
-  /** Strict Mode は useEffect を 2 回実行するため、ref でガードしないと 2 件記録される */
   const key = JSON.stringify({ name, properties })
+  /**
+   * Strict Mode は useEffect を 2 回実行するため、ref でガードしないと 2 件記録される
+   */
   const sentKey = useRef<string | null>(null)
 
   useEffect(() => {

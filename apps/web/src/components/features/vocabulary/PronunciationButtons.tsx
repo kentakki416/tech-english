@@ -29,10 +29,6 @@ function SpeakerIcon({ className, isPlaying }: { className: string, isPlaying: b
   )
 }
 
-/**
- * 語句のすぐ右の、単語の発音のボタン（見出し語を読む）。音声がまだできていなければ「準備中」で押せない。
- * カードのクリック（めくる）と重ならないよう、クリックの伝播を止める
- */
 export function WordSoundButton({
   controls,
   isReady,
@@ -60,6 +56,9 @@ export function WordSoundButton({
       }`}
       disabled={!isReady}
       onClick={(event) => {
+        /**
+         * カードのクリック（めくる）と重ならないよう、クリックの伝播を止める
+         */
         event.stopPropagation()
         controls.onToggle("word")
       }}
@@ -73,8 +72,8 @@ export function WordSoundButton({
 }
 
 /**
- * 1 文のすぐ下の、1 文の読み上げのボタン（1 文の音声があるときだけ置く）。表は中央、裏は左寄せで三角を 1 文の頭にそろえる。
- * 文字は再生中も「この文を聞く」のまま（見えている文字と読み上げの名前をそろえる）。再生中は琥珀の地・動く波・aria-pressed で示す
+ * 表は中央、裏は左寄せで三角を 1 文の頭にそろえる。
+ * 文字は再生中も「この文を聞く」のまま（見えている文字と読み上げの名前をそろえる）
  */
 export function SentenceSoundButton({ align, controls }: { align: "center" | "start", controls: PronunciationControls }) {
   const isPlaying = controls.playing === "sentence"

@@ -11,11 +11,8 @@ import { STUDY_REMINDER_HREF } from "@/features/study-reminder/study-reminder.sc
 import { useStudyReminderStore } from "@/features/study-reminder/study-reminder.store"
 
 /**
- * ランダムに 1 問（web の `/passages/random` と同じ役割）。マイページの「ランダムに 1 問解く」と
- * リマインダーの通知（`techenglish://passages/random`）の入口。絞り込みなしで API に選ばせて開始確認に置き換える。
  * 公開中の問題が無い・取得に失敗したときは問題タブへ戻す（`replace` だとルートのスタックにタブがもう 1 つ積まれるので `dismissTo`。
- * 通知から開いてスタックにタブが無いときは、dismissTo が置き換えにしてくれる）。取得でログインが切れていたと分かったときは、
- * ログイン後にここをもう一度開く。
+ * 通知から開いてスタックにタブが無いときは、dismissTo が置き換えにしてくれる）。
  * 静的なルートの `passages/random` は動的な `passages/[id]` より優先して照合される（expo-router の仕様）
  */
 export default function RandomPassageScreen() {

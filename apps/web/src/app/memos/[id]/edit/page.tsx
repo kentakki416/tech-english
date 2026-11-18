@@ -12,9 +12,6 @@ type Props = { params: Promise<{ id: string }> }
 
 export const metadata: Metadata = { title: "メモを編集" }
 
-/**
- * メモ編集ページ
- */
 export default async function EditMemoPage({ params }: Props) {
   const parsed = getMemoPathParamSchema.safeParse(await params)
   if (!parsed.success) notFound()

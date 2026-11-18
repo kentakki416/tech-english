@@ -7,9 +7,6 @@ import { buildPassageListPath, type PassageFilterQuery } from "@/features/passag
 
 import { DIFFICULTY_LABELS, DIFFICULTY_ORDER, type PassageDifficulty } from "./labels"
 
-/**
- * 配列に値があれば除き、無ければ足す
- */
 const toggleItem = <T,>(items: T[], item: T): T[] =>
   items.includes(item) ? items.filter(value => value !== item) : [...items, item]
 
@@ -29,8 +26,7 @@ function FilterChip({ children, isActive, onClick }: { children: React.ReactNode
 }
 
 /**
- * 問題一覧の絞り込み（難易度・技術タグ・未挑戦のみ）。
- * 押したらすぐ URL のクエリを書き換え、Server Component が一覧を取り直す（適用ボタンは無い）。
+ * 押したらすぐ URL のクエリを書き換える（適用ボタンは無い）。
  * 取り直している間は children（件数と一覧）を薄くする
  */
 export function PassageFilters({

@@ -16,7 +16,7 @@ const WEEKDAYS = [
 ] as const
 
 /**
- * 曜日の丸いボタン。選択中は琥珀の塗り。外せるかどうか（最後の 1 つ）は親が決める
+ * 外せるかどうか（最後の 1 つ）は親が決める
  */
 export function WeekdaySelector({ weekdays, onToggle }: { weekdays: number[], onToggle: (isoWeekday: number) => void }) {
   return (

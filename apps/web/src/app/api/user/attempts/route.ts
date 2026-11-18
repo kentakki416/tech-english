@@ -6,8 +6,6 @@ import { learningRecordApi } from "@/features/learning-record/learning-record.ap
 import { ApiClientError } from "@/libs/api-client"
 
 /**
- * GET /api/user/attempts?cursor=&date=
- *
  * 学習履歴の「さらに表示」と、学習カレンダーで選んだ日の挑戦を Client Component から取得する BFF。
  * 件数は API の既定（20 件）に任せる
  */

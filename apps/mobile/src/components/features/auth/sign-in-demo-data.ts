@@ -3,8 +3,6 @@ import type { AttemptBlock, AttemptGlossaryEntry } from "@repo/api-schema"
 import type { DictionaryLookupResult } from "@/features/dictionary/use-dictionary-lookup"
 
 /**
- * ログイン画面の体験デモで使う本文・用語集・英和辞書
- *
  * API を呼ばずに描画するための固定値で（未ログインでは API を呼べないため）、解答画面と同じ形（API のレスポンスの型）にしてある。
  * セグメントは api の分割（apps/api/src/lib/segment-passage.ts）が返すものと同じ（web の `sign-in-demo-data.ts` の段落と同じ値）。
  * 本文の英文はデモ用に書いたもので、実在の文書の引用ではない。
@@ -193,7 +191,7 @@ const DEMO_DICTIONARY: Record<string, string> = {
 }
 
 /**
- * デモの英和辞書を引く（PassageReader の onLookupDictionary）。見出し語そのまま → 語尾の規則を外した候補の順に試す。
+ * デモの英和辞書を引く。見出し語そのまま → 語尾の規則を外した候補の順に試す。
  * 本番は api が引く（ログイン前は api を呼べないため、デモだけ手元の抜粋で引く）
  */
 export const lookUpDemoDictionary = async (word: string): Promise<DictionaryLookupResult | null> => {

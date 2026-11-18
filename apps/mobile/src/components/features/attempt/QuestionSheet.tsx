@@ -24,9 +24,6 @@ const SHEET_ANIMATION_MS = 300
 
 const CHOICE_LETTERS = ["A", "B", "C", "D"]
 
-/**
- * 閉じた状態のシートの高さ。画面は本文の下の余白と単語のカードの位置に使う
- */
 export const calculateClosedSheetHeight = (bottomInset: number): number => SHEET_BAR_HEIGHT + bottomInset
 
 /**
@@ -54,9 +51,6 @@ function QuestionSheet({
   currentIndex: number
   isOpen: boolean
   questions: AttemptQuestion[]
-  /**
-   * 和訳を出している設問の ID
-   */
   translatedQuestionIds: Set<number>
   onChoose: (questionId: number, choiceIndex: number) => void
   onMove: (index: number) => void

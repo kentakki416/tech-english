@@ -1,5 +1,4 @@
 /**
- * 読み上げの時刻表。マニフェストとブロックのセグメントから、再生とハイライトに使う形を作る。
  * web（apps/web/src/features/read-aloud/read-aloud-timeline.ts）と同じ。変えるときは両方を変える
  * （web と mobile で共有するクライアントのパッケージが無いので写している）
  */
@@ -50,7 +49,7 @@ export type ReadAloudTimeline = {
 }
 
 /**
- * 再生位置。positionMs はパートの先頭からのミリ秒
+ * positionMs はパートの先頭からのミリ秒
  */
 export type ReadAloudPosition = {
   blockIndex: number
@@ -142,9 +141,6 @@ export const findWordIndexAt = (words: TimelineWord[], positionMs: number): numb
   return found
 }
 
-/**
- * ブロックの中の再生位置（前のパートの長さの合計 + パートの中の位置）
- */
 export const calculateBlockPositionMs = (block: TimelineBlock, partIndex: number, positionMs: number): number =>
   sumDurations(block.parts.slice(0, partIndex)) + positionMs
 

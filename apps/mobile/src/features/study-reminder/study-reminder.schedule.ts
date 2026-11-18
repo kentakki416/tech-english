@@ -8,9 +8,6 @@ export const STUDY_REMINDER_HREF = "/passages/random"
 const STUDY_REMINDER_ID_PREFIX = "study-reminder-"
 const MINUTES_PER_DAY = 24 * 60
 
-/**
- * 通知をタップしたときの遷移先（ランダムに 1 問の開始確認）
- */
 export type StudyReminderHref = typeof STUDY_REMINDER_HREF
 
 const STUDY_REMINDER_MESSAGES = [

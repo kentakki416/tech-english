@@ -13,12 +13,6 @@ const CHOICE_SOUND = require("../../../assets/sounds/choice-pop.wav")
 const FLIP_SOUND = require("../../../assets/sounds/page-flip.wav")
 
 /**
- * 効果音（単語帳のめくる音・解答画面のポキン）。expo-audio で同梱の音声を鳴らし、オン / オフは画面をまたいで 1 つの設定に覚える。
- *
- * 鳴らすたびに、消音モードでは鳴らさず・ほかのアプリの音楽を止めない音声のモード（iOS の ambient）を頼み、その設定を待ってから鳴らす
- * （発音・読み上げは消音モードでも鳴らすモードにするので、その後の効果音が消音モードで鳴らないように。同じモードなら待つだけ）。
- * 画面を開いたときにも先に頼んでおき、最初の 1 回で設定を待たないようにする。
- * ambient はカテゴリを変えるだけで音声のセッションを有効にしないので、ほかのアプリの音楽は止まらない。
  * 返す関数は、オン / オフが変わるまで同じ参照
  */
 export function useSoundEffects() {
@@ -26,6 +20,10 @@ export function useSoundEffects() {
   const choicePlayer = useAudioPlayer(CHOICE_SOUND)
   const isEnabled = useSyncExternalStore(subscribeSoundEffectSetting, readSoundEffectSetting, () => true)
 
+  /**
+   * 画面を開いたときにも効果音の音声のモード（iOS の ambient）を先に頼んでおき、最初の 1 回で設定を待たないようにする。
+   * ambient はカテゴリを変えるだけで音声のセッションを有効にしないので、ほかのアプリの音楽は止まらない
+   */
   useEffect(() => {
     void requestAudioMode("effect")
   }, [])

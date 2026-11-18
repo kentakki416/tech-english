@@ -1,6 +1,3 @@
-/**
- * /memos配下の読み込み中に自動で表示される
- */
 export default function Loading() {
   return (
     <main className="mx-auto max-w-2xl p-6">

@@ -11,9 +11,6 @@ import { QuestionTranslationToggle } from "./QuestionTranslationToggle"
 
 const CHOICE_LETTERS = ["A", "B", "C", "D"]
 
-/**
- * 提出後に正解が直された設問の注記
- */
 const ANSWER_KEY_CHANGED_NOTE = "提出後にこの設問の正解が修正されました（正誤は提出したときの採点のままです）"
 
 type ResultQuestionItemProps = {
@@ -36,9 +33,6 @@ type ResultQuestionItemProps = {
   onToggleTranslation: (questionId: number) => void
 }
 
-/**
- * 選択肢の 1 行。正解はミントの枠と「正解」、選んだ選択肢は「あなたの回答」（誤りならローズの枠）
- */
 function ChoiceRow({
   choice,
   index,
@@ -74,9 +68,7 @@ function ChoiceRow({
 }
 
 /**
- * 設問ごとの結果の 1 件。番号・種類のバッジ・正誤の行を押すと開閉し、開くと設問文・選択肢・解説・「本文の根拠を見る」を出す。
- * 設問文の右の「訳」で、設問文と選択肢の下に和訳を出せる（和訳の無い設問には出さない）。
- * 根拠が本文に見つからなかった設問（evidence が null）はボタンを出さない。
+ * 根拠が本文に見つからなかった設問（evidence が null）は「本文の根拠を見る」を出さない。
  * 正解はいまの値、正誤は提出時の値なので、提出後に正解が直された設問（is_answer_key_changed）は選択肢の下に注記する
  */
 export function ResultQuestionItem({

@@ -52,8 +52,6 @@ const numberWords = (segments: Segment[], offset: number): (number | null)[] => 
 const countWords = (segments: Segment[]) => segments.filter(segment => segment.kind === "word").length
 
 /**
- * 本文を表示する。段落番号の列・段落ごとの「訳」・長押しで和訳の一時表示・単語のタップ・根拠のハイライトを持つ
- *
  * 単語は入れ子の <Text onPress> にする（RN の Text は選択範囲を取得できないため、単語単位で押させる）。
  */
 export function PassageReader({
@@ -253,9 +251,6 @@ function QuotedSegments({
   )
 }
 
-/**
- * 単語のカード（画面の下端に全幅で出す）
- */
 export function WordCard({ content, onClose }: { content: WordCardContent, onClose: () => void }) {
   return (
     <View style={styles.card}>

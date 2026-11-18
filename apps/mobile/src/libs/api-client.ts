@@ -27,7 +27,7 @@ const REQUEST_TIMEOUT_MS = 15_000
 type RetryableRequestConfig = InternalAxiosRequestConfig & { isRetry?: boolean }
 
 /**
- * api を呼ぶ HTTP クライアント。各機能の `*.api.ts` はこれを使う
+ * api を呼ぶ HTTP クライアント
  *
  * - 保存済みの access token を Bearer で付ける
  * - 401 なら refresh token でトークンを更新し、同じリクエストを 1 回だけ再送する
@@ -72,14 +72,18 @@ const tryRefresh = async (): Promise<boolean> => {
   const tokens = await getStoredTokens()
   if (!tokens) return false
   try {
-    /** interceptor を通さないよう素の axios で呼ぶ */
     const body: AuthRefreshRequest = { refresh_token: tokens.refreshToken }
+    /**
+     * interceptor を通さないよう素の axios で呼ぶ
+     */
     const res = await axios.post(`${env.EXPO_PUBLIC_API_URL}/api/auth/refresh`, body, { timeout: REFRESH_TIMEOUT_MS })
     const data = authRefreshResponseSchema.parse(res.data)
     await saveTokens({ accessToken: data.access_token, refreshToken: data.refresh_token })
     return true
   } catch (error) {
-    /** 401 のときだけログアウトする（通信エラー・timeout ではログイン状態を消さない） */
+    /**
+     * 401 のときだけログアウトする（通信エラー・timeout ではログイン状態を消さない）
+     */
     if (isAxiosError(error) && error.response?.status === 401) {
       await expireSession()
     }
@@ -91,7 +95,7 @@ const tryRefresh = async (): Promise<boolean> => {
  * refresh token が失効したときの強制ログアウト。トークンとメモリに持つ挑戦（attempt.store）を消してログイン画面に戻す
  *
  * ユーザーが押すログアウト（`src/features/auth/auth.session.ts` の `signOut`）とは別の経路にしている。
- * 強制ログアウトでは通知の予約を取り消さない（ログインが切れても通知は届き、タップでログイン画面に進む仕様。study-reminder）。
+ * 強制ログアウトでは通知の予約を取り消さない（ログインが切れても通知は届き、タップでログイン画面に進む仕様）。
  * リマインダーの設定の store は、ログイン状態の変化を見て useStudyReminderSync が空にする
  */
 const expireSession = async (): Promise<void> => {

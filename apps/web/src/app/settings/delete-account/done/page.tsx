@@ -6,7 +6,7 @@ export const metadata: Metadata = {
 }
 
 /**
- * アカウント削除の完了。cookie を消した後に開くので、データを取得せず共通ヘッダーも出さない（proxy.ts の PUBLIC_PATHS に含める）
+ * cookie を消した後に開くので、データを取得せず共通ヘッダーも出さない
  */
 export default function DeleteAccountDonePage() {
   return (

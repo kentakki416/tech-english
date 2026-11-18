@@ -9,12 +9,11 @@ export const metadata: Metadata = {
   title: "単語帳",
 }
 
-/**
- * 単語帳のトップ。今日の分（今日の復習・新しい単語）と単語の数、今日の分が無ければ次の復習の日。
- * カードの束の見本に今日の 1 枚目の表を出すため、1 回分も一緒に取る（読み取りだけで何も書き込まない）。
- * 1 回分の取得に失敗しても、見本の 1 枚目を出さないだけでトップは出す
- */
 export default async function VocabularyPage() {
+  /**
+   * カードの束の見本に今日の 1 枚目の表を出すため、1 回分も一緒に取る（読み取りだけで何も書き込まない）。
+   * 1 回分の取得に失敗しても、見本の 1 枚目を出さないだけでトップは出す
+   */
   const [summary, session] = await Promise.all([
     vocabularyApi.getSummary().catch(redirectIfSessionRejected),
     vocabularyApi.getSession().catch(() => null),

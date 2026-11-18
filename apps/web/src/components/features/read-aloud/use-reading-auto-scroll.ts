@@ -52,9 +52,6 @@ export function useReadingAutoScroll(activeBlockIndex: number | null): {
     if (activeBlockIndex === null) setIsFollowing(true)
   }
 
-  /**
-   * 読み上げ中の段落が変わったとき・追うのを再開したときに、その段落までスクロールする
-   */
   useEffect(() => {
     if (activeBlockIndex === null || !isFollowing) return
     scrollToBlock(activeBlockIndex)

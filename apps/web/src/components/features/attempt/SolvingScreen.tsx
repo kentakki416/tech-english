@@ -55,9 +55,6 @@ const FONT_SIZE_OPTIONS: { key: ReaderFontSize, label: string, sizeClass: string
   { key: "lg", label: "大", sizeClass: "text-[15px]" },
 ]
 
-/**
- * 期限（開始から 24 時間）を確かめる間隔
- */
 const EXPIRY_CHECK_INTERVAL_MS = 60 * 1000
 
 const SUBMIT_FAILED_MESSAGE = "提出できませんでした。時間をおいて再度お試しください。"
@@ -112,9 +109,6 @@ const restoreProgress = (
 }
 
 /**
- * 問題を解く画面。上部バー・本文・設問パネル（スマホ幅は設問シート）・ステータスバー・ダイアログを並べる。
- * 全画面共通の背景の光（`.app-backdrop`）は本文の後ろにあると読みにくいため、画面全体を `canvas` の単色で覆う。
- *
  * 端末（localStorage）の途中経過は hydration が終わってから読む（サーバーの HTML とのずれを防ぐ）。
  * 読めるようになったら key を変えて作り直し、保存していた回答・経過秒数・アシストの記録を初期値にする（それまでタイマーは動かさない）
  */
@@ -265,10 +259,10 @@ function SolvingSession({
   const { playChoice } = sound
   const isReadAloudPlaying = readAloud.playback?.isPlaying ?? false
 
-  /**
-   * 読み上げの再生中は鳴らさない（読み上げと重なって聞き取りにくくなるため）
-   */
   const chooseAnswer = useCallback((questionId: number, choiceIndex: number) => {
+    /**
+     * 読み上げの再生中は鳴らさない（読み上げと重なって聞き取りにくくなるため）
+     */
     if (answers[questionId] !== choiceIndex && !isReadAloudPlaying) playChoice()
     setAnswers(current => ({ ...current, [questionId]: choiceIndex }))
   }, [answers, isReadAloudPlaying, playChoice])
@@ -318,9 +312,6 @@ function SolvingSession({
     readAloud.togglePlay()
   }
 
-  /**
-   * 本文のブロックは memo されているので、参照を変えないよう useCallback にする
-   */
   const playBlock = useCallback((blockIndex: number) => {
     resumeFollowing()
     playReadAloudBlock(blockIndex)
@@ -410,6 +401,9 @@ function SolvingSession({
 
   return (
     <>
+      {/**
+        * 全画面共通の背景の光（`.app-backdrop`）は本文の後ろにあると読みにくいため、画面全体を `canvas` の単色で覆う
+        */}
       <div className="flex h-dvh flex-col overflow-hidden bg-canvas" inert={isModalOpen}>
         <header className="relative z-20 flex h-14 shrink-0 items-center gap-3 border-b border-line bg-canvas px-3 sm:px-4">
           <Link

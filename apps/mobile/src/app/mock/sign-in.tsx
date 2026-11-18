@@ -14,7 +14,7 @@ const DEMO_BLOCKS = [MOCK_BLOCKS[5]]
 const DEMO_GLOSSARY = MOCK_GLOSSARY.filter(entry => entry.blockIndex === 5).map(entry => ({ ...entry, blockIndex: 0 }))
 
 /**
- * ログイン（モック）。最初の画面で、単語の意味が出る体験をそのまま試せるようにする
+ * 最初の画面で、単語の意味が出る体験をそのまま試せるようにする
  */
 export default function MockSignInScreen() {
   const router = useRouter()

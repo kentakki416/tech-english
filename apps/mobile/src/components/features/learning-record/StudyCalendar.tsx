@@ -14,9 +14,6 @@ type CalendarDay = GetUserCalendarResponse["days"][number]
 
 type CalendarView = "month" | "year"
 
-/**
- * 月表示で取得した月の日（取得に失敗したら "error"）
- */
 type FetchedMonth = CalendarDay[] | "error"
 
 /**
@@ -36,9 +33,6 @@ const LOAD_FAILED_MESSAGE = "読み込めませんでした。"
 const CELL = 11
 const GAP = 3
 
-/**
- * 月曜を 0 とした曜日
- */
 const getMondayBasedWeekday = (date: string): number => (new Date(`${date}T00:00:00Z`).getUTCDay() + 6) % 7
 
 /**

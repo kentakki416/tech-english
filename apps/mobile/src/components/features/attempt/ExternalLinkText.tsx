@@ -3,8 +3,7 @@ import { Linking, type StyleProp, StyleSheet, Text, type TextStyle } from "react
 import { THEME_COLORS } from "@/const/design-theme"
 
 /**
- * 文中の外部リンク（出典のページ・コミット・ライセンス）。OS のブラウザで開く。
- * 解答画面ではアプリを離れている間はタイマーが止まる（AppState が active でなくなるため）
+ * OS のブラウザで開くのでアプリを離れる。解答画面では、その間タイマーが止まる（AppState が active でなくなるため）
  */
 export function ExternalLinkText({ children, style, url }: { children: React.ReactNode, style?: StyleProp<TextStyle>, url: string }) {
   return (

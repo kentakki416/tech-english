@@ -7,15 +7,8 @@ import { MOCK_VOCABULARY_SUMMARY, type MockVocabularyCard } from "@/libs/mock-da
 import { CardStackBehind, PaperSheet } from "./PaperCard"
 import { Keycap } from "./parts"
 
-/**
- * 単語帳の 1 回分のモックの部品（上部バー・進み具合・答えのボタン・ふりかえり）
- */
-
 export type Grade = "forgot" | "remembered"
 
-/**
- * ふりかえりの状態で使う答え（覚えた 7 / まだ 3）
- */
 export const REVIEWED_GRADES: Grade[] = ["remembered", "forgot", "remembered", "remembered", "forgot", "remembered", "remembered", "remembered", "forgot", "remembered"]
 
 const WEEKDAY_LABELS = ["日", "月", "火", "水", "木", "金", "土"]
@@ -25,14 +18,8 @@ const formatDayLabel = (date: string): string => {
   return `${value.getUTCMonth() + 1}月${value.getUTCDate()}日（${WEEKDAY_LABELS[value.getUTCDay()]}）`
 }
 
-/**
- * 視差効果を減らす設定のときは、めくる・飛ばす動きを省く
- */
 export const isReducedMotion = (): boolean => window.matchMedia("(prefers-reduced-motion: reduce)").matches
 
-/**
- * 進み具合のマス。覚えたは琥珀に灯り、まだはローズの枠、今のカードは白い輪
- */
 export function ProgressSquares({ answers, total }: { answers: Grade[], total: number }) {
   return (
     <span aria-hidden className="flex gap-1">
@@ -57,9 +44,6 @@ export function ProgressSquares({ answers, total }: { answers: Grade[], total: n
   )
 }
 
-/**
- * 効果音のオン / オフ
- */
 function SoundToggle({ isEnabled, onToggle }: { isEnabled: boolean, onToggle: () => void }) {
   return (
     <button
@@ -78,9 +62,6 @@ function SoundToggle({ isEnabled, onToggle }: { isEnabled: boolean, onToggle: ()
   )
 }
 
-/**
- * 1 回分の上部バー（「‹ 単語帳」・進み具合・効果音）
- */
 export function SessionTopBar({
   answers,
   isSoundEnabled,
@@ -111,9 +92,6 @@ export function SessionTopBar({
   )
 }
 
-/**
- * 「まだ」「覚えた」のボタン（めくった後だけ出す）
- */
 export function AnswerButtons({ onAnswer }: { onAnswer: (grade: Grade) => void }) {
   return (
     <>
@@ -135,9 +113,6 @@ export function AnswerButtons({ onAnswer }: { onAnswer: (grade: Grade) => void }
   )
 }
 
-/**
- * 「めくる」のボタンと案内
- */
 export function FlipButton({ hint, onFlip }: { hint: string, onFlip: () => void }) {
   return (
     <div className="text-center">
@@ -153,9 +128,6 @@ export function FlipButton({ hint, onFlip }: { hint: string, onFlip: () => void 
   )
 }
 
-/**
- * ふりかえり。覚えた / まだの数と、まだの単語の一覧
- */
 export function SessionReview({ answers, cards, hasSaveFailure }: { answers: Grade[], cards: MockVocabularyCard[], hasSaveFailure: boolean }) {
   const rememberedCount = answers.filter(grade => grade === "remembered").length
   const forgotCards = cards.filter((_, index) => answers[index] === "forgot")
@@ -206,9 +178,6 @@ export function SessionReview({ answers, cards, hasSaveFailure }: { answers: Gra
   )
 }
 
-/**
- * 今日の分が無いとき
- */
 export function SessionDone() {
   return (
     <div className="mx-auto max-w-md text-center">

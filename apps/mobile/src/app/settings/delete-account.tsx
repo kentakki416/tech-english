@@ -20,8 +20,7 @@ const DELETED_ITEMS = [
 ]
 
 /**
- * アカウント削除の確認（設定タブの「危険な操作」から開くスタックの画面）。App Store の要件どおり、web に誘導せずアプリ内で完結させる。
- * 削除が成功したら上部バーを消して完了の表示にし、「ログイン画面へ」で初めてログイン状態を変える（Stack.Protected がログイン画面へ移す）
+ * App Store の要件どおり、web に誘導せずアプリ内で完結させる
  */
 export default function DeleteAccountScreen() {
   const router = useRouter()
@@ -50,9 +49,6 @@ export default function DeleteAccountScreen() {
       await deleteAccount()
       setIsDone(true)
     } catch (error) {
-      /**
-       * トークンもデータも消していないので、そのまま再試行できる
-       */
       console.warn("Failed to delete account:", error)
       setIsFailed(true)
     } finally {

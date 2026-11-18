@@ -6,9 +6,6 @@ export type ReadAloudRate = 0.75 | 1 | 1.25
 
 export const READ_ALOUD_RATES: readonly ReadAloudRate[] = [0.75, 1, 1.25]
 
-/**
- * 読み上げの速度の設定。端末（localStorage）に保存し、次の挑戦や結果画面でも使う
- */
 const RATE_STORAGE_KEY = "read-aloud-rate"
 
 const DEFAULT_RATE: ReadAloudRate = 1
@@ -50,9 +47,6 @@ const subscribeRate = (listener: () => void) => {
   }
 }
 
-/**
- * 読み上げの速度と、それを変えて保存する関数。サーバーと hydration 中・保存が無い・読めないときは 1 倍
- */
 export function useReadAloudRate(): [ReadAloudRate, (rate: ReadAloudRate) => void] {
   const rate = useSyncExternalStore(subscribeRate, readRate, readServerRate)
 

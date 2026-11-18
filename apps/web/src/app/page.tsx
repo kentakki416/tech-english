@@ -12,10 +12,6 @@ import { learningRecordApi } from "@/features/learning-record/learning-record.ap
 import { getUser } from "@/features/user/get-user"
 import { redirectIfSessionRejected } from "@/libs/session"
 
-/**
- * マイページ（ログイン後の最初の画面）。PC は左に学習カレンダーと統計、右に囲みのパネル。
- * 1024px 未満ではパネルを先に並べる（続ける動機になる連続日数と目標を先に見せる）
- */
 export default async function HomePage() {
   /**
    * 削除済みユーザーの access token では stats / calendar も 401 になる。getUser より先に返っても、ログイン画面へ移す
@@ -52,6 +48,9 @@ export default async function HomePage() {
             )}
           </div>
 
+          {/**
+            * 1024px 未満ではパネルを先に並べる（続ける動機になる連続日数と目標を先に見せる）
+            */}
           <aside className="order-first divide-y divide-line self-start rounded-xl border border-line bg-surface lg:order-none">
             <StreakPanel isEmpty={isEmpty} streak={stats.streak} />
             <GoalPanel goal={stats.goal} />

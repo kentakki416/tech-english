@@ -20,9 +20,6 @@ import { useAttemptStore } from "@/features/attempt/attempt.store"
 import { passageApi } from "@/features/passage/passage.api"
 import { formatSeconds } from "@/libs/format"
 
-/**
- * 再開の囲みに出す数字
- */
 type ResumeSummary = {
   answeredCount: number
   elapsedSeconds: number
@@ -35,9 +32,6 @@ type LoadState =
   | { kind: "notFound" }
   | { kind: "ready", passage: GetPassageResponse, resume: ResumeSummary | null }
 
-/**
- * 期限内の挑戦中があれば、端末に保存した途中経過から再開の囲みの数字を作る（web の ResumeNotice と同じ計算）
- */
 const buildResumeSummary = async (passage: GetPassageResponse): Promise<ResumeSummary | null> => {
   const attempt = passage.in_progress_attempt
   if (!attempt) return null
@@ -54,7 +48,7 @@ const buildResumeSummary = async (passage: GetPassageResponse): Promise<ResumeSu
 }
 
 /**
- * 開始確認（下から出るモーダル）。本文はまだ見せない。期限内の挑戦中があれば再開の表示にする。
+ * 本文はまだ見せない。
  * 公開を終了した問題（can_start が false。API は自分の挑戦中があるときだけ返す）は「再開する」だけを出し、開始のボタンは出さない
  */
 export default function PassageStartScreen() {

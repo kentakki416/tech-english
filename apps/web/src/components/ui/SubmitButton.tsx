@@ -8,20 +8,14 @@ const DEFAULT_CLASS_NAME = "rounded-lg bg-blue-600 px-4 py-2 text-sm text-white 
 type SubmitButtonProps = {
   children: ReactNode
   /**
-   * 見た目を差し替える（省略時はメモのサンプルの青いボタン）。送信中は disabled になるので `disabled:` で表す
+   * 送信中は disabled になるので `disabled:` で表す
    */
   className?: string
   pendingLabel?: ReactNode
 }
 
 /**
- * form 送信ボタン。useFormStatus で親 form の pending を取り、送信中は無効化する。
- *
- * useFormStatus の制約上、必ず <form> の子孫として描画すること
- * （form の外に置くと pending が常に false になる）。
- *
- * ラベルはドメイン非依存にするため props で受け取る:
- *   <SubmitButton pendingLabel="作成中…">作成する</SubmitButton>
+ * <form> の子孫として描画する。form の外に置くと、useFormStatus の pending が常に false になる
  */
 export function SubmitButton({ children, className = DEFAULT_CLASS_NAME, pendingLabel = "送信中..." }: SubmitButtonProps) {
   const { pending } = useFormStatus()

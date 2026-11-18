@@ -30,9 +30,6 @@ const STATES: { href: Href, key: MockState, label: string }[] = [
   { href: "/mock/vocabulary/session?state=done", key: "done", label: "今日の分が終わった" },
 ]
 
-/**
- * ふりかえりの状態で使う答え（覚えた 7 / まだ 3）
- */
 const REVIEWED_GRADES: Grade[] = ["remembered", "forgot", "remembered", "remembered", "forgot", "remembered", "remembered", "remembered", "forgot", "remembered"]
 
 /**
@@ -225,9 +222,6 @@ function FlipCard({
   )
 }
 
-/**
- * ふりかえり。覚えた / まだの数と、まだの単語の一覧
- */
 function SessionReview({ answers, cards, hasSaveFailure, onRetry }: { answers: Grade[], cards: MockVocabularyCard[], hasSaveFailure: boolean, onRetry: () => void }) {
   const router = useRouter()
   const rememberedCount = answers.filter(grade => grade === "remembered").length
@@ -299,8 +293,6 @@ function SessionDone() {
 }
 
 /**
- * 単語帳の 1 回分（モック）。スタックの全画面
- *
  * カードをタップしてめくり、めくった後はボタンか左右のスワイプ（右が覚えた、左がまだ）で答える。
  * 答えると軽く振動し、カードが横に飛んで次のカードが束から上がってくる。めくるたびに紙の音を鳴らす（上部バーで消せる）。
  * 語句の右のスピーカーで単語の発音、1 文の下のボタンで 1 文を再生する（めくる・答えると止める）

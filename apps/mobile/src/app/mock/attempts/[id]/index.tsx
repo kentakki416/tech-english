@@ -49,9 +49,6 @@ const CHOICE_LETTERS = ["A", "B", "C", "D"]
 
 const VISIBLE_GLOSSARY = MOCK_GLOSSARY.filter(entry => !MOCK_HIDDEN_GLOSSARY_IDS.includes(entry.id))
 
-/**
- * 問題を解く画面（モック）
- */
 export default function MockAttemptScreen() {
   const router = useRouter()
   const params = useLocalSearchParams<{ state?: string }>()

@@ -18,7 +18,9 @@ export const restoreSession = async (): Promise<void> => {
     const tokens = await getStoredTokens()
     useAuthStore.getState().setStatus(tokens ? "signedIn" : "signedOut")
   } catch (error) {
-    /** secure-store を読めない（端末の Keystore の不具合など）ときはログインし直してもらう */
+    /**
+     * secure-store を読めない（端末の Keystore の不具合など）ときはログインし直してもらう
+     */
     console.warn("Failed to restore session:", error)
     useAuthStore.getState().setStatus("signedOut")
   }
@@ -70,11 +72,6 @@ export const signInAsDevUser = async (email: string): Promise<SignInResult> => {
 
 /**
  * ユーザーが押したログアウト。この端末のログイン状態と、リマインダーの予約・通知センターに届き済みのリマインダーを消す（他の端末はログインしたまま）
- *
- * refresh の失敗による強制ログアウト（`src/libs/api-client.ts` の `expireSession`）はここを通らない。
- * 強制ログアウトでは予約も届き済みの通知も消さない（ログインが切れても通知は届き、タップでログイン画面に進む仕様。study-reminder）。
- * 予約は次にログインしたときに取り消す（cancelStudyRemindersBeforeSync）。
- * メモリに持つ挑戦（attempt.store）は強制ログアウトと同じく空にする
  */
 export const signOut = async (): Promise<void> => {
   await revokeRefreshToken()
@@ -85,8 +82,7 @@ export const signOut = async (): Promise<void> => {
 }
 
 /**
- * この端末のリマインダーの予約と届き済みの通知を消し、設定の store を空にする。失敗してもログアウトは続ける
- * （次にログインしたときの同期で、そのユーザーの設定に作り直される）
+ * 失敗してもログアウトは続ける（次にログインしたときの同期で、そのユーザーの設定に作り直される）
  */
 const cancelStudyReminders = async (): Promise<void> => {
   try {
@@ -97,9 +93,7 @@ const cancelStudyReminders = async (): Promise<void> => {
 }
 
 /**
- * ログインの成功時、ログイン中にする前に（リマインダーの同期より先に）この端末の予約を取り消す。失敗してもログインは続ける。
- * 強制ログアウトでは予約を残すので、別のユーザーがログインして最初の同期の取得に失敗したときに前のユーザーの予約を残さないため
- * （同じユーザーでも次の同期で作り直される）
+ * ログインの成功時、ログイン中にする前に（リマインダーの同期より先に）この端末の予約を取り消す。失敗してもログインは続ける
  */
 const cancelStudyRemindersBeforeSync = async (): Promise<void> => {
   try {

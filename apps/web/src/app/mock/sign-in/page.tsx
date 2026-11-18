@@ -2,9 +2,6 @@ import { Wordmark } from "../_components/Wordmark"
 
 import { SignInDemo } from "./SignInDemo"
 
-/**
- * ログイン画面（モック）
- */
 export default function MockSignInPage() {
   return (
     <div className="flex min-h-dvh flex-col">

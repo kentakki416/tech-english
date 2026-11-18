@@ -1,8 +1,7 @@
 import Link from "next/link"
 
 /**
- * 404 ページ。存在しない URL や notFound() 呼び出し時に表示する。
- * error.tsx と同じトーンで揃える（Server Component で良い）。
+ * 見た目は error.tsx と揃える
  */
 export default function NotFound() {
   return (

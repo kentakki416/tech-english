@@ -3,7 +3,6 @@ import Link from "next/link"
 import { Dialog } from "@/components/ui/Dialog"
 
 /**
- * 解答中に期限（開始から 24 時間）を過ぎたとき・提出が期限切れで断られたときのダイアログ。
  * この挑戦はもう提出できないので閉じるボタンは置かず、問題の開始確認から新しく始めてもらう
  */
 export function ExpiredDialog({ passageId }: { passageId: number }) {

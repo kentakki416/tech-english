@@ -9,9 +9,6 @@ import { View } from "react-native"
 
 import { MOCK_COLORS } from "@/const/mock-theme"
 
-/**
- * デザインモック共通のレイアウト。英文とコードのフォントを読み込み、ダークテーマのスタックを作る
- */
 export default function MockLayout() {
   const [isFontLoaded] = useFonts({
     IBMPlexMono_400Regular,

@@ -60,9 +60,6 @@ const listAttemptsOfDay = (day: MockCalendarDay) => {
   })
 }
 
-/**
- * 学習カレンダー。年表示（草）と月表示を切り替え、日付を選ぶとその日の挑戦を出す
- */
 export function StudyCalendar({ days, isEmpty = false }: { days: MockCalendarDay[], isEmpty?: boolean }) {
   const [view, setView] = useState<"month" | "year">("year")
   const [selectedDate, setSelectedDate] = useState<string>(MOCK_TODAY)

@@ -1,7 +1,7 @@
 import type { AttemptQuestion, PassageListItemResponse } from "@repo/api-schema"
 
 /**
- * 問題の表示ラベル。Client Component からも使うので `server-only` を付けない。
+ * Client Component からも使うので `server-only` を付けない。
  * 値の集合は `@repo/api-schema` の型で網羅を検査する（Zod のスキーマは bundle に入れないため import しない）
  */
 
@@ -15,9 +15,6 @@ export const DIFFICULTY_LABELS: Record<PassageDifficulty, string> = {
   3: "Hard",
 }
 
-/**
- * 難易度の並び（絞り込みのチップ）
- */
 export const DIFFICULTY_ORDER = [1, 2, 3] as const satisfies readonly PassageDifficulty[]
 
 export const QUESTION_TYPE_LABELS: Record<QuestionType, string> = {

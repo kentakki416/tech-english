@@ -12,12 +12,9 @@ import {
 
 import { apiClient } from "@/libs/api-client"
 
-/**
- * 挑戦の API 通信層
- */
 export const attemptApi = {
   /**
-   * GET /api/attempt/:id/audio。挑戦の問題の読み上げの音声。準備中・失敗は status だけ。他人の挑戦・存在しない ID は API が 404
+   * 挑戦の問題の読み上げの音声。準備中・失敗は status だけ。他人の挑戦・存在しない ID は API が 404
    */
   getAudio: async (id: number): Promise<GetAttemptAudioResponse> => {
     const result = await apiClient.get(`/api/attempt/${id}/audio`)
@@ -25,7 +22,7 @@ export const attemptApi = {
   },
 
   /**
-   * GET /api/attempt/:id。status で形が変わる（in_progress は開始時と同じ形、submitted は結果の形、expired は概要だけ）。
+   * status で形が変わる（in_progress は開始時と同じ形、submitted は結果の形、expired は概要だけ）。
    * 他人の挑戦・存在しない ID は API が 404
    */
   getDetail: async (id: number): Promise<GetAttemptResponse> => {
@@ -34,7 +31,7 @@ export const attemptApi = {
   },
 
   /**
-   * POST /api/passage/:id/attempt。期限内の挑戦中があれば API は新しく作らずにそれを返す
+   * 期限内の挑戦中があれば API は新しく作らずにそれを返す
    */
   start: async (passageId: number): Promise<StartAttemptResponse> => {
     const result = await apiClient.post(`/api/passage/${passageId}/attempt`, {})
@@ -42,7 +39,7 @@ export const attemptApi = {
   },
 
   /**
-   * POST /api/attempt/:id/submit。提出済みなら API は保存済みの結果を返す（冪等なので再送してよい）。期限切れは 409
+   * 提出済みなら API は保存済みの結果を返す（冪等なので再送してよい）。期限切れは 409
    */
   submit: async (id: number, input: SubmitAttemptRequest): Promise<SubmitAttemptResponse> => {
     const result = await apiClient.post(`/api/attempt/${id}/submit`, input)

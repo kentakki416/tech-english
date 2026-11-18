@@ -5,8 +5,6 @@ import { Pressable, StyleSheet, Text, View } from "react-native"
 import { MOCK_COLORS } from "@/const/mock-theme"
 
 /**
- * モック専用：画面の状態を切り替えるパネル
- *
  * 製品の UI ではないことが分かるよう破線の枠にし、普段は畳んで画面の隅に置く。
  */
 export function MockStatePanel({

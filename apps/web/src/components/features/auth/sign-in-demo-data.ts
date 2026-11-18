@@ -3,8 +3,6 @@ import type { AttemptBlock, AttemptGlossaryEntry } from "@repo/api-schema"
 import type { DictionaryLookupResult } from "@/components/features/passage/use-dictionary-lookup"
 
 /**
- * ログイン画面の体験デモで使う本文・用語集・英和辞書
- *
  * API を呼ばずに描画するための固定値で、解答画面と同じ形（API のレスポンスの型）にしてある。
  * セグメントは api の分割（apps/api/src/lib/segment-passage.ts）が返すものと同じ。
  * 本文の英文はデモ用に書いたもので、実在の文書の引用ではない。
@@ -162,7 +160,7 @@ export const DEMO_BLOCKS: AttemptBlock[] = [
 ]
 
 /**
- * 用語集。本文中の位置は DEMO_BLOCKS のセグメントの glossary_entry_id で示す
+ * 本文中の位置は DEMO_BLOCKS のセグメントの glossary_entry_id で示す
  */
 export const DEMO_GLOSSARY: AttemptGlossaryEntry[] = [
   {
@@ -207,7 +205,7 @@ const DEMO_DICTIONARY: Record<string, string> = {
 }
 
 /**
- * デモの英和辞書を引く（PassageReader の onLookupDictionary）。見出し語そのまま → 語尾の規則を外した候補の順に試す。
+ * 見出し語そのまま → 語尾の規則を外した候補の順に試す。
  * 本番は api が引く（ログイン前は api を呼べないため、デモだけ手元の抜粋で引く）
  */
 export const lookUpDemoDictionary = async (word: string): Promise<DictionaryLookupResult | null> => {

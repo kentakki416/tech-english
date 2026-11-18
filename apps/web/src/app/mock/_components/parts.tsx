@@ -1,8 +1,5 @@
 import { DIFFICULTY_LABELS, type MockDifficulty, type MockSourceKind, SOURCE_KIND_LABELS } from "@/libs/mock-data"
 
-/**
- * キーボードショートカットのキー表示
- */
 export function Keycap({ children }: { children: React.ReactNode }) {
   return (
     <kbd className="inline-grid h-5 min-w-5 place-items-center rounded border border-b-2 border-line-strong bg-raised px-1 font-code text-[11px] leading-none text-fg-muted">
@@ -11,9 +8,6 @@ export function Keycap({ children }: { children: React.ReactNode }) {
   )
 }
 
-/**
- * 取得元の種別（GitHub / Docs）とソース名
- */
 export function SourceMeta({ kind, name }: { kind: MockSourceKind, name: string }) {
   return (
     <span className="inline-flex min-w-0 items-center gap-2 text-sm text-fg-muted">
@@ -29,9 +23,6 @@ export function SourceMeta({ kind, name }: { kind: MockSourceKind, name: string 
   )
 }
 
-/**
- * 難易度。3 本のバーのうち難易度の数だけ灯す
- */
 export function DifficultyMeter({ level, showLabel = true }: { level: MockDifficulty, showLabel?: boolean }) {
   return (
     <span className="inline-flex items-center gap-1.5 text-sm text-fg-muted">
@@ -49,9 +40,6 @@ export function DifficultyMeter({ level, showLabel = true }: { level: MockDiffic
   )
 }
 
-/**
- * 設問ごとの正誤を並べたマス。結果画面では順に灯す
- */
 export function ScoreSquares({
   animate = false,
   results,

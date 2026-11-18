@@ -33,7 +33,7 @@ export type ReaderHighlight = {
 }
 
 /**
- * 読み上げ（解答画面・結果画面だけ渡す。ログイン画面のデモは渡さない）。形は web の PassageReader と同じ
+ * 形は web の PassageReader と同じ
  */
 export type ReaderReadAloud = {
   /**
@@ -66,15 +66,12 @@ type PassageReaderProps = {
   contentContainerStyle?: StyleProp<ViewStyle>
   fontSize?: number
   glossary: AttemptGlossaryEntry[]
-  /**
-   * 結果画面の根拠。セグメントの添字の範囲
-   */
   highlight?: ReaderHighlight | null
   ListFooterComponent?: React.ReactElement
   ListHeaderComponent?: React.ReactElement
   peekBlock?: number | null
   /**
-   * 渡すと段落の再生ボタンと読み上げ中の単語の印を出す。読み上げ中の段落は、和訳中・全文訳でも英文で出す
+   * 渡すと段落の再生ボタンと読み上げ中の単語の印を出す
    */
   readAloud?: ReaderReadAloud | null
   /**
@@ -87,9 +84,6 @@ type PassageReaderProps = {
   scrollEnabled?: boolean
   showAllTranslations?: boolean
   translatedBlocks: Set<number>
-  /**
-   * 用語集に無い単語を引く。親がキャッシュと通信を持つ（useDictionaryLookup）
-   */
   onLookupDictionary: LookupDictionary
   /**
    * 意味が見つかったときだけ呼ぶ（解答画面が調べた単語として記録する）
@@ -179,9 +173,6 @@ const LONG_PRESS_DELAY_MS = 300
 
 const CODE_TOKEN_PATTERN = /(\/\/.*$)|("[^"]*")|\b(function|const|let|return|import|from|export)\b|\b([A-Za-z_]\w*)(?=\()/gm
 
-/**
- * コードブロックの簡易シンタックスハイライト
- */
 function HighlightedCode({ code }: { code: string }) {
   const nodes: React.ReactNode[] = []
   let cursor = 0
@@ -196,9 +187,6 @@ function HighlightedCode({ code }: { code: string }) {
   return <Text style={styles.code}>{nodes}</Text>
 }
 
-/**
- * 和訳。インラインコードはバッククォートで分けて等幅にする（表示だけの処理）
- */
 function TranslationText({ fontSize, isHeading, text }: { fontSize: number, isHeading: boolean, text: string }) {
   return (
     <Text style={[styles.translation, isHeading && styles.translationHeading, { fontSize: fontSize * 0.92, lineHeight: Math.round(fontSize * 1.8) }]}>
@@ -243,7 +231,6 @@ function SegmentText({ blockIndex, fontSize, isHighlighted, isReading, segment, 
 const MemoizedSegmentText = memo(SegmentText)
 
 /**
- * 本文の 1 ブロック（FlatList の 1 行）。左に段落番号の列と「訳」・段落の再生ボタン、右に英文 / 和訳 / コード。
  * 行ごとの値だけを受け取り memo する（1 段落の切り替えや毎秒のタイマーで全行を描き直さないため）。
  * 読み上げもブロックごとの値だけを受け取るので、単語が変わっても描き直すのは読み上げ中の行だけになる
  */
@@ -363,13 +350,11 @@ const MemoizedBlockRow = memo(BlockRow)
 const extractBlockKey = (_block: AttemptBlock, index: number): string => String(index)
 
 /**
- * 本文を表示する。段落番号の列・段落ごとの「訳」・長押しで和訳の一時表示・単語の意味・根拠のハイライトを持つ。
  * セグメントは api が分割したもの（blocks[].segments）をそのまま描画する（分割は api の 1 か所だけ）
  *
  * - ブロックごとに FlatList の 1 行にして、画面外のブロックは描画しない（600 語で入れ子の <Text> が 1,500 程度になるため）
  * - 単語を押すと、用語集の語句（glossary_entry_id）は「この文での意味」、それ以外は onLookupDictionary で英和辞書を引く
  * - 長押しはブロックの本文を包む Pressable と単語の <Text> の両方で受け、押している間だけ和訳を重ねる。読み上げ中の段落でも重ねる
- * - readAloud を渡すと段落の再生ボタンと読み上げ中の単語の印を出す。読み上げ中の段落は、和訳中・全文訳でも英文で出す
  */
 export function PassageReader({
   blocks,

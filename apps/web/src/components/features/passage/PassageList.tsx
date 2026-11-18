@@ -13,9 +13,6 @@ import { formatSeconds } from "@/libs/format"
 import { DifficultyMeter } from "./DifficultyMeter"
 import { SourceMeta } from "./SourceMeta"
 
-/**
- * 行の右端の挑戦状況（挑戦中 / 未挑戦 / 最高正答数）
- */
 function MyStatus({ passage }: { passage: PassageListItemResponse }) {
   const { attempt_count: attemptCount, best_correct_count: bestCorrectCount, in_progress_attempt_id: inProgressAttemptId } = passage.my_status
   if (inProgressAttemptId !== null) {
@@ -37,7 +34,7 @@ function MyStatus({ passage }: { passage: PassageListItemResponse }) {
 }
 
 /**
- * 問題一覧。1 ページ目は Server Component から受け取り、2 ページ目以降は「さらに表示」で
+ * 1 ページ目は Server Component から受け取り、2 ページ目以降は「さらに表示」で
  * Route Handler（`/api/passages`）から取得して後ろに足す。絞り込みが変わったら親が key を変えて状態を捨てる
  */
 export function PassageList({ initialPage, query }: { initialPage: GetPassageListResponse, query: PassageFilterQuery }) {

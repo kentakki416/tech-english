@@ -45,7 +45,6 @@ const requestPermission = async (): Promise<NotificationPermission | null> => {
 }
 
 /**
- * 設定画面のリマインダーの区画。オン / オフ、曜日、時刻。オンなのに通知が許可されていなければ案内を出す。
  * 値はログイン直後・前面復帰の同期（useStudyReminderSync）で取得済みの store から読む。取得前はスイッチを押せない
  */
 export function ReminderSection() {

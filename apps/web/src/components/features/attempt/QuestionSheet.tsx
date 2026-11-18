@@ -1,7 +1,3 @@
-/**
- * スマホ幅（1024px 未満）の設問シート。閉じた状態は下端のバー（高さ 64px）、バーを押すと画面の 78% まで開く。
- * 開くと設問パネル（children）と「提出する」を出す
- */
 export function QuestionSheet({
   answeredCount,
   children,

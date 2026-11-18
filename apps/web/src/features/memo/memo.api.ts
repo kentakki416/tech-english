@@ -4,9 +4,6 @@ import { CreateMemoRequest, CreateMemoResponse, createMemoResponseSchema, getMem
 
 import { apiClient } from "@/libs/api-client"
 
-/**
- * メモのAPI通信層
- */
 export const memoApi = {
   getList: async (): Promise<GetMemoListResponse> => {
     const raw = await apiClient.get<unknown>("/api/memo")

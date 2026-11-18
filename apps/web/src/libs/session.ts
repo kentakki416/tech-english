@@ -6,9 +6,6 @@ import { ApiClientError } from "./api-client"
 import { getAccessToken } from "./auth"
 import { isAccessTokenUsable } from "./token-refresh"
 
-/**
- * cookie を消してからログイン画面へ移す Route Handler（src/app/api/auth/session-expired/route.ts）
- */
 const SESSION_EXPIRED_PATH = "/api/auth/session-expired"
 
 /**

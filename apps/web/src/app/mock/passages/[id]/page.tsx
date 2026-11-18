@@ -12,7 +12,7 @@ const STATES = [
 ]
 
 /**
- * 開始確認（モック）。本文はまだ見せない
+ * 本文はまだ見せない
  */
 export default async function MockPassageStartPage({ searchParams }: { searchParams: Promise<{ state?: string }> }) {
   const { state } = await searchParams

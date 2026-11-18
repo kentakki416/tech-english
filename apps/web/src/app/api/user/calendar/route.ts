@@ -11,8 +11,6 @@ import { ApiClientError } from "@/libs/api-client"
 const calendarRangeSchema = getUserCalendarQueryStringSchema.required()
 
 /**
- * GET /api/user/calendar?from=&to=
- *
  * 学習カレンダーの月表示で、年表示のデータより前の月を Client Component から取得する BFF
  */
 export const GET = async (req: NextRequest) => {

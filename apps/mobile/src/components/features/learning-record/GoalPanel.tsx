@@ -18,9 +18,6 @@ const SEGMENTED_TARGET_MAX = 10
 const hasGoalContent = (goal: GoalProgress): boolean =>
   goal.goal_text !== null || goal.target_date !== null || goal.weekly_metric !== null
 
-/**
- * 今週の進捗（`3 / 5 問` と線、達成までの残り）。週の目標が無ければ出さない
- */
 function WeeklyProgress({ goal }: { goal: GoalProgress }) {
   const { is_weekly_achieved: isAchieved, weekly_metric: metric, weekly_progress: progress, weekly_target: target } = goal
   if (metric === null || target === null || progress === null) return null
@@ -52,9 +49,6 @@ function WeeklyProgress({ goal }: { goal: GoalProgress }) {
   )
 }
 
-/**
- * 目標のパネル。値のある項目だけ出し、目標が無ければ設定を促す。「編集」「目標を設定する」で設定タブへ
- */
 export function GoalPanel({ goal, onEdit }: { goal: GetUserStatsResponse["goal"], onEdit: () => void }) {
   return (
     <View style={styles.section}>

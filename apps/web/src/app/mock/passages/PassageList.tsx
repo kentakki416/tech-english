@@ -38,9 +38,6 @@ function FilterChip({ children, isActive, onClick }: { children: React.ReactNode
   )
 }
 
-/**
- * 問題一覧と絞り込み（モック）
- */
 export function PassageList({ initialNoResults }: { initialNoResults: boolean }) {
   const [kind, setKind] = useState<KindFilter>("all")
   const [difficulties, setDifficulties] = useState<MockDifficulty[]>(initialNoResults ? [3] : [])

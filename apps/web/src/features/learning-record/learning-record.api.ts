@@ -27,9 +27,6 @@ const buildSearchParams = (query: Record<string, number | string | undefined>): 
   return params
 }
 
-/**
- * 学習記録と目標の API 通信層
- */
 export const learningRecordApi = {
   /**
    * 提出した挑戦の一覧（新しい順・20 件ずつ）。date を渡すとその日の挑戦だけ

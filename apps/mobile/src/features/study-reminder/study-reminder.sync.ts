@@ -68,7 +68,7 @@ const rescheduleWithSavedSetting = async (permission: NotificationPermission | n
 }
 
 /**
- * ログイン直後・前面復帰。権限は取得より先に読んで反映する（オフラインで取得に失敗しても、OS の設定で許可したら案内を消す）。
+ * 権限は取得より先に読んで反映する（オフラインで取得に失敗しても、OS の設定で許可したら案内を消す）。
  * 取得に失敗したら（オフライン・timeout）、savedSetting で予約を作り直してから取得のエラーを投げる（rescheduleWithSavedSetting）
  */
 export const refreshStudyReminders = async (): Promise<void> => {
@@ -89,7 +89,7 @@ export const refreshStudyReminders = async (): Promise<void> => {
 }
 
 /**
- * 設定画面の変更。画面の値を先に変え、キューの順番が来たら最後の値だけを PUT する（キューに積まれた古い保存は何もしない）
+ * 画面の値を先に変え、キューの順番が来たら最後の値だけを PUT する（キューに積まれた古い保存は何もしない）
  */
 export const saveStudyReminder = async (setting: UpdateUserReminderRequest): Promise<void> => {
   useStudyReminderStore.getState().editSetting(setting)
@@ -138,7 +138,7 @@ export const runWhileAwaitingPermission = async <T>(task: () => Promise<T>): Pro
 }
 
 /**
- * ログアウト・アカウント削除。この端末の予約と、通知センターに届き済みのリマインダーをすべて消して store を空にする
+ * この端末の予約と、通知センターに届き済みのリマインダーをすべて消して store を空にする
  * （別のユーザーがこの端末でログインしたとき、前のユーザーのリマインダーを残さない）。
  * キューの前の処理は待たない（応答の無い通信の後ろで待つと、ログアウト・アカウント削除が終わらない）。
  * 前の処理は世代が変わるので結果を反映しないが、予約し直している途中だった処理が後から足した予約も消えるよう、

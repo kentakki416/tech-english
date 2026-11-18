@@ -2,18 +2,9 @@ import "server-only"
 
 import { z } from "zod"
 
-/**
- * apps/web の server-side 環境変数スキーマ
- *
- * Server Action / Route Handler / middleware など server で動く箇所から参照する。
- * `server-only` で client component からの import を防ぐ。
- *
- * import 時点で safeParse が走り、不正な env の場合は process.exit(1) で停止する。
- * 各 app は src/env.ts に Zod スキーマと検証ロジックをインラインで定義する方針。
- */
 const webEnvSchema = z.object({
   /**
-   * Express API の origin（Server Action / Route Handler から API を叩く際に使用）
+   * Express API の origin
    */
   API_URL: z.string().url().default("http://localhost:8080"),
 
@@ -25,7 +16,7 @@ const webEnvSchema = z.object({
   GOOGLE_CLIENT_ID: z.string().default("dummy"),
 
   /**
-   * フロント自身の origin（OAuth redirect_uri 構築に使用）
+   * web 自身の origin（OAuth の redirect_uri を組み立てるのに使う）
    */
   NEXT_PUBLIC_APP_URL: z.string().url(),
 

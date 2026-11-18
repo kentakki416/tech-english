@@ -22,9 +22,6 @@ export type CardAnswer = {
   saveStatus: "failed" | "saved" | "saving"
 }
 
-/**
- * 進み具合のマス。覚えたは琥珀、まだはローズの枠、今のカードは白い輪
- */
 export function ProgressSquares({ answers, total }: { answers: Pick<CardAnswer, "grade">[], total: number }) {
   return (
     <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.squares}>
@@ -47,7 +44,6 @@ export function ProgressSquares({ answers, total }: { answers: Pick<CardAnswer, 
 }
 
 /**
- * ふりかえり。覚えた / まだの数と、まだの単語の一覧。保存できなかったカードは同じ clientReviewId で送り直せる。
  * 保存中のカードが残っている間は「もう 1 回」を押せない（取り直した 1 回分に、保存前のカードがまた出ないように）。
  * 出たときに読み上げのフォーカスを見出しへ移し、保存できなかったカードが増えたら iOS でも読み上げる（Android は accessibilityLiveRegion）
  */

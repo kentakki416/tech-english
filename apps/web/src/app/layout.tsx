@@ -6,7 +6,7 @@ import { IBM_Plex_Mono, IBM_Plex_Sans_JP, Literata } from "next/font/google"
 import { EventFlushOnHide } from "@/components/ui/EventFlushOnHide"
 
 /**
- * 本文（英文）の書体。globals.css の `--font-reading` が参照する
+ * 本文（英文）の書体
  */
 const literata = Literata({
   display: "swap",
@@ -16,7 +16,7 @@ const literata = Literata({
 })
 
 /**
- * UI の書体。日本語のサブセットは大きいため preload しない。globals.css の `--font-ui` が参照する
+ * UI の書体。日本語のサブセットは大きいため preload しない
  */
 const plexSansJp = IBM_Plex_Sans_JP({
   display: "swap",
@@ -26,7 +26,7 @@ const plexSansJp = IBM_Plex_Sans_JP({
 })
 
 /**
- * コードの書体。globals.css の `--font-code` が参照する
+ * コードの書体
  */
 const plexMono = IBM_Plex_Mono({
   display: "swap",

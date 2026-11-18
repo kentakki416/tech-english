@@ -21,7 +21,7 @@ const RECENT_DAYS = CALENDAR.slice(-14)
 const formatStudyTime = (minutes: number): string => `${Math.floor(minutes / 60)}時間${minutes % 60}分`
 
 /**
- * マイページ（モック）。続ける動機になる連続日数と目標を先に、次にカレンダーと統計を並べる
+ * 続ける動機になる連続日数と目標を先に、次にカレンダーと統計を並べる
  */
 export default function MockHomeScreen() {
   const router = useRouter()

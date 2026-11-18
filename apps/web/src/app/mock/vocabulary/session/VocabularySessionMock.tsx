@@ -50,9 +50,6 @@ const buildInitialProgress = (state: VocabularySessionMockState): { answers: Gra
 const isInteractiveTarget = (target: EventTarget | null): boolean =>
   target instanceof HTMLElement && ["A", "BUTTON", "INPUT", "SELECT", "TEXTAREA"].includes(target.tagName)
 
-/**
- * ブラウザの音声合成（無い環境では null）
- */
 const getSpeechSynthesis = (): SpeechSynthesis | null => (typeof window.speechSynthesis === "undefined" ? null : window.speechSynthesis)
 
 /**
@@ -124,8 +121,6 @@ function FlipCard({
 }
 
 /**
- * 単語帳の 1 回分（モック）。1 枚のカードを横に裏返して覚えた / まだを付け、全部答えるとふりかえり
- *
  * Space / Enter でめくり、めくった後は → で覚えた、← でまだ。答えたカードは横に飛んで、次のカードが束から上がってくる。
  * めくるたびに紙をめくる音を鳴らす（上部バーで消せる）
  */

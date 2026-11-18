@@ -5,11 +5,6 @@ import { authRefreshResponseSchema } from "@repo/api-schema"
 import { env } from "@/env"
 
 /**
- * proxy が行う access token の更新。Server Component は cookie を書き換えられないので、
- * ページの描画より前（proxy）で更新し、新しい cookie をそのリクエストとブラウザの両方に渡す
- */
-
-/**
  * 期限までこれより短い access token は、描画中に切れないよう先に更新する
  */
 const ACCESS_TOKEN_REFRESH_MARGIN_MS = 60_000
@@ -85,8 +80,7 @@ const requestRefresh = async (refreshToken: string): Promise<RefreshResult> => {
 }
 
 /**
- * refresh token で access / refresh token を更新する。同じ refresh token の更新は RECENT_REFRESH_TTL_MS の間 1 回にまとめる。
- * unavailable（api の障害・レート制限）は使い回さず、次のリクエストで再試行する（api の猶予の間なら、打ち切った更新と同じペアが返る）
+ * 同じ refresh token の更新は RECENT_REFRESH_TTL_MS の間 1 回にまとめる
  */
 export const refreshAuthTokens = async (refreshToken: string, now: number): Promise<RefreshResult> => {
   for (const [token, entry] of recentRefreshes) {
@@ -98,6 +92,9 @@ export const refreshAuthTokens = async (refreshToken: string, now: number): Prom
 
   const promise = requestRefresh(refreshToken)
   recentRefreshes.set(refreshToken, { expiresAt: now + RECENT_REFRESH_TTL_MS, promise })
+  /**
+   * unavailable（api の障害・レート制限）は使い回さず、次のリクエストで再試行する
+   */
   void promise.then((result) => {
     if (result.kind === "unavailable") recentRefreshes.delete(refreshToken)
   })

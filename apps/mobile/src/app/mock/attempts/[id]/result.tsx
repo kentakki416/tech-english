@@ -28,9 +28,6 @@ const STATES: { href: Href, key: string, label: string }[] = [
 
 const CHOICE_LETTERS = ["A", "B", "C", "D"]
 
-/**
- * 結果・解説（モック）。スコアと時間 → 設問ごとの結果 → 調べた単語 → 出典 → 本文、の順に縦に並べる
- */
 export default function MockResultScreen() {
   const router = useRouter()
   const params = useLocalSearchParams<{ state?: string }>()

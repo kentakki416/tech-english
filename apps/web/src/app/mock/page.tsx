@@ -77,9 +77,6 @@ const SCREENS: { description: string, href: string, spec: string, states?: { hre
   },
 ]
 
-/**
- * モックの画面一覧（レビュー用。製品の画面ではない）
- */
 export default function MockIndexPage() {
   return (
     <main className="mx-auto max-w-3xl px-4 py-10 sm:px-6">

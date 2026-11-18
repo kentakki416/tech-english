@@ -27,14 +27,8 @@ type HomeData = {
   user: GetUserResponse
 }
 
-/**
- * パネルに出す最近の挑戦の件数（web は 5 件）
- */
 const RECENT_ATTEMPT_COUNT = 3
 
-/**
- * 上部のアイコン。GitHub のアバター（無ければ名前の頭文字）
- */
 function UserAvatar({ user }: { user: GetUserResponse | null }) {
   const label = user?.name ?? "ユーザー"
   if (user?.avatar_url) {
@@ -48,8 +42,7 @@ function UserAvatar({ user }: { user: GetUserResponse | null }) {
 }
 
 /**
- * マイページ（タブ）。続ける動機になる連続日数と目標のパネルを先に、次にカレンダー・累計・種類別を縦に並べる。
- * 問題を解いて戻ったときに反映させるため、フォーカスのたびに取り直す（フォーカス中にアプリが前面に戻ったときも）
+ * 続ける動機になる連続日数と目標のパネルを先に、次にカレンダー・累計・種類別を縦に並べる
  */
 export default function HomeScreen() {
   const router = useRouter()
@@ -82,7 +75,7 @@ export default function HomeScreen() {
   }, [])
 
   /**
-   * フォーカスのたびと、フォーカス中にアプリが前面に戻ったときに取り直す
+   * 問題を解いて戻ったときに反映させるため、フォーカスのたびに取り直す。フォーカス中にアプリが前面に戻ったときにも取り直す
    * （タブの画面はアンマウントされないので、バックグラウンドのまま日付をまたいで戻ったときに古い「今日」のままにしない）
    */
   useFocusEffect(

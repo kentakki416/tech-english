@@ -1,8 +1,7 @@
 import { Dialog } from "@/components/ui/Dialog"
 
 /**
- * 提出の確認。未回答があれば件数と「不正解として採点」を伝える。
- * 送信中は両方のボタンを無効にし、失敗したらダイアログの中に理由を出す（回答は端末に残っているので再送できる）
+ * 失敗したらダイアログの中に理由を出す（回答は端末に残っているので再送できる）
  */
 export function SubmitConfirmDialog({
   errorMessage,

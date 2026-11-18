@@ -59,9 +59,6 @@ const PLAY_SENTENCE_ACTION = "この文を聞く"
  */
 const FOCUS_DELAY_MS = 100
 
-/**
- * 読み上げで伝える表の中身（何枚目か・新しい単語・語句・バッククォートを除いた本文の 1 文・出典）
- */
 const buildFrontLabel = (card: VocabularyCard, positionLabel: string): string =>
   [
     positionLabel,
@@ -71,9 +68,6 @@ const buildFrontLabel = (card: VocabularyCard, positionLabel: string): string =>
     `${card.passage.title} より`,
   ].filter((item): item is string => item !== null).join("。")
 
-/**
- * 読み上げで伝える裏の中身（意味・補足・出どころ）。辞書の意味の区切りの「/」は読点にする
- */
 const buildMeaningLabel = (card: VocabularyCard): string =>
   [
     card.meaning_source === "dictionary" ? splitDictionarySenses(card.meaning_ja).join("、") : card.meaning_ja,
@@ -82,7 +76,7 @@ const buildMeaningLabel = (card: VocabularyCard): string =>
   ].filter((item): item is string => item !== null).join("。")
 
 /**
- * 1 枚分（key でカードごとに作り直す）。めくる・答える・見ていた秒数・スワイプを持つ。
+ * 1 枚分（key でカードごとに作り直す）。
  *
  * タップでめくり（横に回って真横で面を差し替える）、めくった後はボタンか左右のスワイプ（右が覚えた、左がまだ）で答える。
  * 答えると軽く振動し、カードが横に飛んでから onAnswer を呼ぶ。視差効果を減らす設定では動きを省いて切り替えだけにする。

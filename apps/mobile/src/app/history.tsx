@@ -24,7 +24,7 @@ type HistorySection = { data: LearningRecordAttemptResponse[], date: string }
 const HEADER_SIDE_WIDTH = 100
 
 /**
- * 学習した日（study_date）ごとにまとめる。並びは受け取った順（提出日時の新しい順）のまま
+ * 並びは受け取った順（提出日時の新しい順）のまま
  */
 const groupAttemptsByStudyDate = (attempts: LearningRecordAttemptResponse[]): HistorySection[] => {
   const groups = new Map<string, LearningRecordAttemptResponse[]>()
@@ -36,10 +36,6 @@ const groupAttemptsByStudyDate = (attempts: LearningRecordAttemptResponse[]): Hi
   return Array.from(groups, ([date, data]) => ({ data, date }))
 }
 
-/**
- * 学習履歴（マイページの「すべて見る」から開くスタックの画面）。提出した挑戦を日付ごとに並べ、
- * 下端までスクロールすると続き（next_cursor）を取得して後ろに足す
- */
 export default function HistoryScreen() {
   const router = useRouter()
   const [attempts, setAttempts] = useState<LearningRecordAttemptResponse[]>([])

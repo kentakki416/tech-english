@@ -8,9 +8,6 @@ import { THEME_COLORS, THEME_FONTS } from "@/const/design-theme"
 import type { ReadAloudRate } from "@/features/read-aloud/read-aloud-rate"
 import type { ReadAloudAvailability, ReadAloudPlayback } from "@/features/read-aloud/use-read-aloud"
 
-/**
- * ミニプレーヤーの高さ
- */
 export const READ_ALOUD_BAR_HEIGHT = 52
 
 /**
@@ -23,17 +20,12 @@ export const READ_ALOUD_BAR_GAP = 12
  */
 export const READ_ALOUD_BAR_SPACE = READ_ALOUD_BAR_GAP + READ_ALOUD_BAR_HEIGHT + READ_ALOUD_BAR_GAP
 
-/**
- * 準備中・失敗の文言（再生ボタン・停止・速度は出さない）
- */
 const UNAVAILABLE_MESSAGES: Record<Extract<ReadAloudAvailability, "failed" | "pending">, string> = {
   failed: "この問題の読み上げは利用できません",
   pending: "読み上げの音声を準備中です",
 }
 
 /**
- * 本文の下端（解答画面は閉じた設問シートの上、結果画面は下端の操作の上）に浮かべる読み上げのミニプレーヤー（再生・停止・速度）。
- * 待機中は「全文を読み上げ」、再生中・一時停止中は読み上げ中の位置（段落番号の列と同じ番号）と全文 / この段落だけ。
  * 速度はメニューを開かず、押すたびに切り替わる
  */
 export function ReadAloudBar({
@@ -120,9 +112,6 @@ export function ReadAloudBar({
   )
 }
 
-/**
- * 自動スクロールを止めた後に、ミニプレーヤーの上に出す「読み上げ中の位置に戻る」
- */
 export function ReturnToReadingButton({ onPress }: { onPress: () => void }) {
   return (
     <Pressable accessibilityRole="button" style={styles.returnButton} onPress={onPress}>

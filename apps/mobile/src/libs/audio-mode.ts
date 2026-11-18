@@ -1,8 +1,5 @@
 import { type AudioMode, setAudioModeAsync } from "expo-audio"
 
-/**
- * 鳴らすものごとの音声のモード
- */
 const AUDIO_MODES = {
   /**
    * 効果音（単語帳のめくる音・解答画面の選択肢の音）。消音モードでは鳴らさず、ほかのアプリの音楽と混ぜる（iOS の ambient）

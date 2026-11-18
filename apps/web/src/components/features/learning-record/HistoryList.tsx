@@ -9,7 +9,7 @@ import { ScoreSquares } from "@/components/ui/ScoreSquares"
 import { formatDateHeading, formatSeconds } from "@/libs/format"
 
 /**
- * 学習した日（study_date）ごとにまとめる。並びは受け取った順（提出日時の新しい順）のまま
+ * 並びは受け取った順（提出日時の新しい順）のまま
  */
 const groupAttemptsByStudyDate = (attempts: LearningRecordAttemptResponse[]): { attempts: LearningRecordAttemptResponse[], date: string }[] => {
   const groups = new Map<string, LearningRecordAttemptResponse[]>()
@@ -22,7 +22,7 @@ const groupAttemptsByStudyDate = (attempts: LearningRecordAttemptResponse[]): { 
 }
 
 /**
- * 学習履歴の一覧。1 ページ目は Server Component から受け取り、続きは「さらに表示」で
+ * 1 ページ目は Server Component から受け取り、続きは「さらに表示」で
  * Route Handler（`/api/user/attempts`）から取得して後ろに足す
  */
 export function HistoryList({

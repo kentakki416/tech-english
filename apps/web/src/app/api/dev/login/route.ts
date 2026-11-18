@@ -8,7 +8,6 @@ import { setAuthCookies } from "@/libs/auth"
 const API_BASE_URL = env.API_URL
 
 /**
- * dev-login で使えるショートネーム → email のマッピング
  * packages/db/drizzle/seed.ts の dev ユーザーと一致させる
  */
 const DEV_USERS: Record<string, string> = {
@@ -17,23 +16,14 @@ const DEV_USERS: Record<string, string> = {
 }
 
 /**
- * 開発環境専用ログイン Route Handler
- *
- * 使い方:
- *   GET /api/dev/login?as=alice → alice@dev.local で API の dev-login を叩いて
- *   Access/Refresh Token を Cookie に保存して / にリダイレクトする
- *
- * Server Component から cookies().set() できない制約があるため Route Handler
- * として実装している。production では 404 を返す。
- *
- * 配置方針: route handler は例外なく `app/api/*` 配下に置く（dev 専用も含む）。
- *
- * 多重ガード:
- * 1. ここで NODE_ENV === "production" なら 404
- * 2. proxy.ts で /api/dev/login は production 以外のみ PUBLIC_PATHS に含める
- * 3. API 側でも production では dev-login 自体が存在しない
+ * 開発環境専用のログイン。`?as=alice` のように DEV_USERS のキーを渡すと、そのユーザーで
+ * api の dev-login を呼び、access / refresh token を cookie に保存して / に redirect する
  */
 export const GET = async (req: NextRequest) => {
+  /**
+   * proxy（production では公開パスに含めない）と api（production では dev-login が無い）でも
+   * 塞いでいるが、どちらかの設定を誤っても開かないように、ここでも 404 を返す
+   */
   if (env.NODE_ENV === "production") {
     return new NextResponse("Not Found", { status: 404 })
   }

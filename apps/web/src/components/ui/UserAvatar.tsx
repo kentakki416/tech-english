@@ -1,7 +1,6 @@
 import Image from "next/image"
 
 /**
- * GitHub のアバター。avatar_url が無ければ名前の頭文字（名前も無ければ空の丸）。
  * 表示の大きさは className の size-* で、size（px）は画像の取得サイズ
  */
 export function UserAvatar({

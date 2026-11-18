@@ -174,9 +174,6 @@ function SpeedMenu({ rate, onChange }: { rate: ReadAloudRate, onChange: (rate: R
   )
 }
 
-/**
- * 本文の列の下端に固定する読み上げのミニプレーヤー
- */
 export function ReadAloudBar({
   blocks,
   isAvailable,
@@ -259,9 +256,6 @@ export function ReadAloudBar({
   )
 }
 
-/**
- * 自動スクロールを止めた後に出す「読み上げ中の位置に戻る」
- */
 export function ReturnToReadingButton({ onClick }: { onClick: () => void }) {
   return (
     <button

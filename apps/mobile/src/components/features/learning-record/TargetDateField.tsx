@@ -12,9 +12,6 @@ const convertDateStringToLocalDate = (value: string): Date => {
   return new Date(year, month - 1, day)
 }
 
-/**
- * Date を端末のローカル時刻の `YYYY-MM-DD` にする
- */
 const convertLocalDateToDateString = (value: Date): string =>
   `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, "0")}-${String(value.getDate()).padStart(2, "0")}`
 

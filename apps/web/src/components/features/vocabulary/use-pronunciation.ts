@@ -90,9 +90,6 @@ export function usePronunciation(): Pronunciation {
     return audio
   }, [])
 
-  /**
-   * 単語の URL の Audio を返す（無ければ作って覚える）
-   */
   const ensureWordAudio = useCallback((url: string): HTMLAudioElement => {
     const existing = wordAudiosRef.current.get(url)
     if (existing) return existing

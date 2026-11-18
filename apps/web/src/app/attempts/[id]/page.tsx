@@ -19,7 +19,7 @@ type Props = {
 }
 
 /**
- * URL の id を検証して挑戦を取る。不正な id と API の 404（他人の挑戦・存在しない）は null。
+ * 不正な id と API の 404（他人の挑戦・存在しない）は null。
  * cache で包み、generateMetadata とページで 1 回の取得にする
  */
 const loadAttempt = cache(async (rawId: string): Promise<GetAttemptResponse | null> => {
@@ -67,10 +67,6 @@ function ExpiredAttemptNotice({ attempt }: { attempt: ExpiredAttempt }) {
   )
 }
 
-/**
- * 問題を解く画面。解答中は共通ヘッダーを出さず、専用の上部バーとステータスバーで挟む（SolvingScreen）。
- * 提出済みなら結果画面へ、期限切れなら案内を出す
- */
 export default async function AttemptPage({ params }: Props) {
   const attempt = await loadAttempt((await params).id).catch(redirectIfSessionRejected)
   if (attempt === null) notFound()

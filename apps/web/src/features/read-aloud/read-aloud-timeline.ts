@@ -1,7 +1,6 @@
 import type { AttemptBlock, GetAttemptAudioResponse, PassageSegmentResponse } from "@repo/api-schema"
 
 /**
- * 読み上げの時刻表。マニフェストとブロックのセグメントから、再生とハイライトに使う形を作る。
  * ブラウザでだけ使うが、DOM に触れない純関数なので `server-only` も `"use client"` も付けない
  */
 
@@ -49,7 +48,7 @@ export type ReadAloudTimeline = {
 }
 
 /**
- * 再生位置。positionMs はパートの先頭からのミリ秒
+ * positionMs はパートの先頭からのミリ秒
  */
 export type ReadAloudPosition = {
   blockIndex: number
@@ -141,9 +140,6 @@ export const findWordIndexAt = (words: TimelineWord[], positionMs: number): numb
   return found
 }
 
-/**
- * ブロックの中の再生位置（前のパートの長さの合計 + パートの中の位置）
- */
 export const calculateBlockPositionMs = (block: TimelineBlock, partIndex: number, positionMs: number): number =>
   sumDurations(block.parts.slice(0, partIndex)) + positionMs
 

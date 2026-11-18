@@ -1,8 +1,5 @@
 import Link from "next/link"
 
-/**
- * マイページの主要な導線（問題一覧・ランダムに 1 問）。ランダムは study-reminder の通知と同じ入口
- */
 export function PrimaryActions() {
   return (
     <div className="flex flex-wrap gap-2">

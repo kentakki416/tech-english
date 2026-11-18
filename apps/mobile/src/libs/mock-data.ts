@@ -1,5 +1,5 @@
 /**
- * デザインモック（/mock 配下）用のダミーデータ（web のモックと同じ内容）
+ * web のモックと同じ内容
  *
  * API を呼ばずに画面を表現するためのハードコード値。本実装では `@repo/api-schema` の
  * レスポンス型に置き換わる。本文の英文はモック用に書いたもので、実在の文書の引用ではない。
@@ -70,9 +70,6 @@ export const SOURCE_KIND_LABELS: Record<MockSourceKind, string> = {
   github: "GitHub",
 }
 
-/**
- * 解答画面・結果画面で使う問題
- */
 export const MOCK_PASSAGE = {
   id: 42,
   difficulty: 2 as MockDifficulty,
@@ -218,7 +215,7 @@ export const MOCK_GLOSSARY: MockGlossaryEntry[] = [
 export const MOCK_HIDDEN_GLOSSARY_IDS = [2]
 
 /**
- * 英和辞書（EJDict-hand 相当）のダミー。用語集に無い単語をタップしたときに引く
+ * 英和辞書（EJDict-hand 相当）のダミー
  */
 export const MOCK_DICTIONARY: Record<string, string> = {
   api: "アプリケーション・プログラミング・インターフェース",
@@ -318,7 +315,7 @@ export const MOCK_QUESTIONS: MockQuestion[] = [
 ]
 
 /**
- * 結果画面で使う、提出済みの回答（Q3 だけ不正解）
+ * 提出済みの回答（Q3 だけ不正解）
  */
 export const MOCK_SUBMITTED_ANSWERS: Record<number, number | null> = {
   1: 1,
@@ -525,7 +522,7 @@ export type MockCalendarLevel = 0 | 1 | 2 | 3 | 4
 export type MockCalendarDay = {
   attemptCount: number
   /**
-   * 単語帳で答えた枚数（vocabulary-cards spec）
+   * 単語帳で答えた枚数
    */
   cardCount: number
   date: string
@@ -540,9 +537,6 @@ export type MockCalendarDay = {
   studyMinutes: number
 }
 
-/**
- * モックの「今日」
- */
 export const MOCK_TODAY = "2026-10-10"
 
 const STUDY_MINUTES_BY_LEVEL: Record<MockCalendarLevel, number> = {
@@ -563,9 +557,6 @@ const MOCK_VOCABULARY_DAYS: Record<string, { cardCount: number, minutes: number,
   "2026-10-10": { cardCount: 12, minutes: 2, rememberedCount: 9 },
 }
 
-/**
- * 学習時間（分）をカレンダーの色の段階にする（learning-record spec の段階）
- */
 const convertMinutesToLevel = (minutes: number): MockCalendarLevel =>
   minutes === 0 ? 0 : minutes <= 5 ? 1 : minutes <= 15 ? 2 : minutes <= 30 ? 3 : 4
 
@@ -652,7 +643,7 @@ export const formatSeconds = (totalSeconds: number): string => {
 }
 
 /**
- * リマインダーの設定（study-reminder spec）。曜日は ISO（1 = 月曜 〜 7 = 日曜）
+ * 曜日は ISO（1 = 月曜 〜 7 = 日曜）
  */
 export const MOCK_REMINDER = {
   isEnabled: true,
@@ -661,7 +652,7 @@ export const MOCK_REMINDER = {
 }
 
 /**
- * 単語帳のカード（vocabulary-cards spec。GET /api/vocabulary/session の 1 枚に相当）
+ * GET /api/vocabulary/session の 1 枚に相当
  */
 export type MockVocabularyCard = {
   lemma: string
@@ -836,7 +827,7 @@ export const MOCK_VOCABULARY_CARDS: MockVocabularyCard[] = [
 ]
 
 /**
- * 単語帳のトップの数（GET /api/vocabulary/summary に相当）
+ * GET /api/vocabulary/summary に相当
  */
 export const MOCK_VOCABULARY_SUMMARY = {
   dueCount: 4,

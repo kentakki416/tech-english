@@ -1,9 +1,5 @@
 "use client"
 
-/**
- * モック：単語帳のカードの発音のボタン（vocabulary-pronunciation）。本番は mp3 を鳴らすが、モックはブラウザの音声合成で代わりに読む
- */
-
 export type PronunciationTarget = "sentence" | "word"
 
 export type MockPronunciation = {
@@ -37,9 +33,6 @@ function SpeakerIcon({ className = "", isPlaying }: { className?: string, isPlay
  */
 const preventMouseFocus = (event: React.MouseEvent) => event.preventDefault()
 
-/**
- * 語句のすぐ右の、単語の発音のボタン（見出し語を読む）。カードのクリック（めくる）と重ならないよう伝播を止める
- */
 export function WordSoundButton({ lemma, pronunciation, size }: { lemma: string, pronunciation: MockPronunciation, size: "lg" | "sm" }) {
   const isPlaying = pronunciation.playing === "word"
   const label = pronunciation.isWordReady ? `${lemma} の発音を聞く` : `${lemma} の発音は準備中です`
@@ -58,6 +51,9 @@ export function WordSoundButton({ lemma, pronunciation, size }: { lemma: string,
       }`}
       disabled={!pronunciation.isWordReady}
       onClick={(event) => {
+        /**
+         * カードのクリック（めくる）と重ならないよう伝播を止める
+         */
         event.stopPropagation()
         pronunciation.onToggle("word")
       }}
@@ -71,7 +67,7 @@ export function WordSoundButton({ lemma, pronunciation, size }: { lemma: string,
 }
 
 /**
- * 1 文のすぐ下の、1 文の読み上げのボタン。1 文の音声が無ければ何も出さない。文字は再生中も「この文を聞く」のまま
+ * 文字は再生中も「この文を聞く」のまま
  */
 export function SentenceSoundButton({ align, pronunciation }: { align: "center" | "start", pronunciation: MockPronunciation }) {
   if (!pronunciation.hasSentence) return null

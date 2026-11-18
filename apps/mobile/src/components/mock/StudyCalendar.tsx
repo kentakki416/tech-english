@@ -33,9 +33,6 @@ const formatDaySummary = (day: MockCalendarDay): string => {
   return items.length === 0 ? "" : [...items, `${day.studyMinutes} 分`].join("、")
 }
 
-/**
- * 学習カレンダー。年表示（草）と今月の表示を切り替え、日付を選ぶとその日の挑戦を出す
- */
 export function StudyCalendar({ days, isEmpty = false }: { days: MockCalendarDay[], isEmpty?: boolean }) {
   const router = useRouter()
   const scrollRef = useRef<ScrollView>(null)

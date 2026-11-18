@@ -6,8 +6,6 @@ import { attemptApi } from "@/features/attempt/attempt.api"
 import { ApiClientError } from "@/libs/api-client"
 
 /**
- * GET /api/attempts/:id/audio
- *
  * 解答画面・結果画面が、開いた後に読み上げの音声のマニフェストを取得する BFF（挑戦の取得のレスポンスを重くしないため別にする）。
  * mp3 そのものはブラウザが url（本番は CloudFront、開発は api の /media/*）から直接読む
  */
