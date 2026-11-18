@@ -9,7 +9,7 @@ export type StatsPeriodRange = {
   bucket: "day" | "week"
   from: Date | null
   /**
-   * 全期間は null（呼び出し側が最初のユーザーの登録日で埋める）
+   * 全期間は null
    */
   fromDate: string | null
   to: Date

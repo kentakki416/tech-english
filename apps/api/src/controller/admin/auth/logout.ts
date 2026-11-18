@@ -9,9 +9,6 @@ import { sendError } from "../../../lib/send-error"
 import { RefreshTokenRepository } from "../../../repository"
 import * as service from "../../../service"
 
-/**
- * admin の Refresh Token を無効化してログアウトする API
- */
 export class AdminAuthLogoutController {
   constructor(private _adminRefreshTokenRepository: RefreshTokenRepository) {}
 

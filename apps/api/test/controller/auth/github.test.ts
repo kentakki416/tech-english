@@ -20,9 +20,6 @@ import {
   testRedis,
 } from "../setup"
 
-/**
- * 外部 SaaS（GitHub）だけをモックする。DB / Redis は実物を使う
- */
 const mockGetUserInfo = vi.fn<(_0: GetGitHubUserInfoInput) => Promise<GitHubUserInfo | null>>()
 const mockGitHubOAuthClient: IGitHubOAuthClient = {
   getUserInfo: mockGetUserInfo,
@@ -79,7 +76,6 @@ describe("POST /api/auth/github", () => {
         .post("/api/auth/github")
         .send({ code: "auth-code", code_verifier: CODE_VERIFIER, redirect_uri: REDIRECT_URI, timezone: "America/New_York" })
 
-      /** API レスポンス契約を全フィールドで検証 */
       expect(res.status).toBe(200)
       expect(res.body).toEqual({
         access_token: expect.any(String),
@@ -150,7 +146,9 @@ describe("POST /api/auth/github", () => {
           avatar_url: "https://avatars.githubusercontent.com/u/12345",
           email: "octocat@example.com",
           name: "The Octocat",
-          /** timezone は初回作成時だけ使うので、既存ユーザーの値は変わらない */
+          /**
+           * timezone は初回作成時だけ使うので、既存ユーザーの値は変わらない
+           */
           timezone: "UTC",
           created_at: expect.any(String),
         },

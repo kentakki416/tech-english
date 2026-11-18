@@ -17,8 +17,7 @@ import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb } from "
 
 /**
  * reading_attempts / attempt_answers / attempt_word_lookups / dictionary_entries の制約を実 DB で確かめる。
- * 定数に無い値は Drizzle の型で弾かれるので、sql の生 insert / update で入れる。
- * users の削除で消えることは test/repository/user-delete-cascade.test.ts と test/controller/user/delete.test.ts が確かめる
+ * 定数に無い値は Drizzle の型で弾かれるので、sql の生 insert / update で入れる
  */
 
 type ReadingAttemptInsert = typeof readingAttempts.$inferInsert
@@ -38,9 +37,6 @@ const buildViolationMatcher = (code: string, constraint: string) => ({
   cause: expect.objectContaining({ code, constraint }),
 })
 
-/**
- * 提出済みの挑戦が持つ列
- */
 const SUBMITTED_COLUMNS = {
   correctCount: 2,
   elapsedSeconds: 280,

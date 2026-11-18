@@ -18,9 +18,6 @@ import type { TransactionContext } from "./transaction"
  */
 export type AdminPassageListCursor = { id: number; needsAttention: boolean; updatedAt: Date }
 
-/**
- * admin の問題一覧の条件
- */
 export type AdminPassageListQuery = {
   cursor: AdminPassageListCursor | null
   /**
@@ -32,14 +29,8 @@ export type AdminPassageListQuery = {
   status: PassageStatus
 }
 
-/**
- * 問題のソース（sources）の表示に使う列
- */
 export type AdminPassageSource = { id: number; name: string }
 
-/**
- * admin の問題一覧の 1 行
- */
 export type AdminPassageListItem = {
   /**
    * 挑戦の件数（状態を問わない）
@@ -51,7 +42,7 @@ export type AdminPassageListItem = {
 }
 
 /**
- * admin の問題の詳細。用語集は blockIndex → startOffset → id の順、設問は orderIndex の順
+ * 用語集は blockIndex → startOffset → id の順、設問は orderIndex の順
  */
 export type AdminPassageDetail = {
   /**
@@ -69,7 +60,7 @@ export type AdminPassageDetail = {
 }
 
 /**
- * 下書きの保存で置き換える内容。id が null の用語集・設問は新規
+ * id が null の用語集・設問は新規
  */
 export type DraftEditContent = {
   blocks: PassageBlock[]
@@ -102,7 +93,7 @@ export type DraftEditContent = {
 }
 
 /**
- * 問題の状態を遷移させるときに書く値。省略した列は変えない
+ * 省略した列は変えない
  */
 export type PassageTransition = {
   /**
@@ -121,7 +112,7 @@ export type PassageTransition = {
 export type RestoredPassageStatus = Extract<PassageStatus, "collected" | "draft">
 
 /**
- * ユーザー向けの公開中の問題の絞り込み。difficulties / tags は空なら絞り込まず、指定したらどれかに当てはまるもの（OR）
+ * difficulties / tags は空なら絞り込まず、指定したらどれかに当てはまるもの（OR）
  */
 export type PublishedPassageFilter = {
   difficulties: PassageDifficulty[]
@@ -136,7 +127,7 @@ export type PublishedPassageFilter = {
 }
 
 /**
- * ユーザー向けの問題一覧のカーソル。published_at DESC, id DESC の並びで、この行より後ろを返す
+ * published_at DESC, id DESC の並びで、この行より後ろを返す
  */
 export type PassageCursor = { id: number; publishedAt: Date }
 
@@ -148,7 +139,7 @@ type PassageSourceTags = {
 }
 
 /**
- * 出典と一覧の表示に使うソースの列（取得方法ごとに持つ列が違う）
+ * 取得方法ごとに持つ列が違う
  */
 export type PassageSource =
   | (Pick<
@@ -166,19 +157,13 @@ export type PassageOverview = Pick<Passage, "id" | "sourceCommitSha" | "sourcePa
   timeLimitSeconds: number
 }
 
-/**
- * 公開中の問題の一覧・概要の 1 件
- */
 export type PublishedPassageSummary = { passage: PassageOverview; questionCount: number; source: PassageSource }
 
 /**
- * 挑戦の画面（解答中・結果）に出す問題の内容。用語集は blockIndex → startOffset → id の順、設問は orderIndex の順
+ * 用語集は blockIndex → startOffset → id の順、設問は orderIndex の順
  */
 export type AttemptContent = { glossary: GlossaryEntry[]; passage: Passage; questions: Question[]; source: PassageSource }
 
-/**
- * 問題（passages と、その設問・用語集）のリポジトリ。admin の API（findAdmin* など）と reading-practice のユーザー向け API（*Published*）で共有する
- */
 export interface PassageRepository {
   /**
    * 要確認の印を外す（needs_attention = false、attention_reasons = []）。状態は問わず、外れていても書く。行が無ければ false
@@ -188,9 +173,6 @@ export interface PassageRepository {
    * 状態ごとの件数（絞り込みなしの全体）。行が無い状態は 0 で埋める
    */
   countByStatus(): Promise<Record<PassageStatus, number>>
-  /**
-   * 絞り込みに当てはまる公開中の問題の件数
-   */
   countPublished(filter: PublishedPassageFilter): Promise<number>
   /**
    * admin の問題の詳細（読み上げの音声の行も読む）。存在しなければ null
@@ -205,7 +187,7 @@ export interface PassageRepository {
    */
   findAttemptContentById(passageId: number): Promise<AttemptContent | null>
   /**
-   * 公開中の問題の概要。公開中でなければ null
+   * 公開中でなければ null
    */
   findPublishedById(id: number): Promise<PublishedPassageSummary | null>
   /**
@@ -216,9 +198,6 @@ export interface PassageRepository {
    * 公開中の問題があるソースのタグの名前を、重複なしで lower(name) → id の順に返す
    */
   findPublishedTags(): Promise<string[]>
-  /**
-   * 絞り込みに当てはまる公開中の問題からランダムに 1 つの id を返す。無ければ null
-   */
   findRandomPublishedId(filter: PublishedPassageFilter): Promise<number | null>
   /**
    * 生成した内容（設問・用語集・和訳・難易度・制限時間・生成の記録・却下の理由・確認の記録・要確認）を消して collected に戻し、

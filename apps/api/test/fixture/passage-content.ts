@@ -4,8 +4,7 @@ import type { AdminPassageEditInput } from "../../src/lib/admin-passage-edit"
 import type { AdminPassageDetail } from "../../src/repository"
 
 /**
- * 問題の本文・用語集・設問のテスト用の値（DB を使わない）。公開の条件をすべて満たす。
- * lib / service のユニットテストと、test/fixture/passage.ts（DB への投入）が共有する
+ * 問題の本文・用語集・設問のテスト用の値（DB を使わない）。公開の条件をすべて満たす
  */
 
 export const PASSAGE_BLOCKS: PassageBlock[] = [

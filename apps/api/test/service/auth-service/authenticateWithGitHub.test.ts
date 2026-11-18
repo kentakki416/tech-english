@@ -53,7 +53,7 @@ const mockRefreshTokenRepository: RefreshTokenRepository = {
 }
 
 /**
- * Fake TransactionRunner: tx を渡さずそのまま callback を実行する（authenticateWithGoogle のテストと同じ）
+ * 単体テストでは実際のトランザクションの atomicity を検証しないので、tx に undefined を渡して callback をそのまま実行する
  */
 const mockTransactionRunner: TransactionRunner = {
   run: vi.fn(async (fn) => fn(undefined as unknown as TransactionContext)),
@@ -184,7 +184,9 @@ describe("authenticateWithGitHub", () => {
       }
       expect(mockFindByEmail).toHaveBeenCalledWith("octocat@example.com")
       expect(mockTransactionRunner.run).toHaveBeenCalledTimes(1)
-      /** fake runner は tx として undefined を渡すので、第2引数は undefined */
+      /**
+       * fake runner は tx として undefined を渡すので、第2引数は undefined
+       */
       expect(mockUserCreate).toHaveBeenCalledWith(
         {
           avatarUrl: "https://avatars.githubusercontent.com/u/12345",

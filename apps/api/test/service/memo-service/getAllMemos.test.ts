@@ -3,7 +3,6 @@ import { Memo } from "@repo/domain"
 import { MemoRepository } from "../../../src/repository"
 import { getAllMemos } from "../../../src/service/memo-service"
 
-// モック
 const mockFindAll = vi.fn<() => Promise<Memo[]>>()
 
 const mockMemoRepository: MemoRepository = {
@@ -20,7 +19,6 @@ describe("getAllMemos", () => {
   })
 
   it("成功時は ok: true とメモ一覧を返す", async () => {
-    // Arrange
     const mockMemos: Memo[] = [
       {
         body: "Body 1",
@@ -40,10 +38,8 @@ describe("getAllMemos", () => {
 
     mockFindAll.mockResolvedValue(mockMemos)
 
-    // Act
     const result = await getAllMemos({ memoRepository: mockMemoRepository })
 
-    // Assert
     expect(result.ok).toBe(true)
     if (result.ok) {
       expect(result.value).toEqual(mockMemos)
@@ -53,13 +49,10 @@ describe("getAllMemos", () => {
   })
 
   it("メモが存在しない場合、ok: true と空配列を返す", async () => {
-    // Arrange
     mockFindAll.mockResolvedValue([])
 
-    // Act
     const result = await getAllMemos({ memoRepository: mockMemoRepository })
 
-    // Assert
     expect(result.ok).toBe(true)
     if (result.ok) {
       expect(result.value).toEqual([])
@@ -69,11 +62,9 @@ describe("getAllMemos", () => {
   })
 
   it("データベースエラー時にエラーをスローする", async () => {
-    // Arrange
     const mockError = new Error("Database connection failed")
     mockFindAll.mockRejectedValue(mockError)
 
-    // Act & Assert
     await expect(getAllMemos({ memoRepository: mockMemoRepository })).rejects.toThrow(
       "Database connection failed"
     )

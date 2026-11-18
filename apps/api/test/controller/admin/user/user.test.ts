@@ -50,9 +50,6 @@ const userApp = createTestApp()
 userApp.use("/api/user", userRouter({ stats: new UserStatsController(learningRecordRepository, userGoalRepository, userRepository) }))
 attachUnhandledExceptionHandler(userApp)
 
-/**
- * 問題を 1 回解いた、GitHub でログインしたユーザー
- */
 const insertLearner = async () => {
   const user = await insertAttemptUser()
   await testDb.insert(authAccounts).values({ provider: "github", providerAccountId: `gh-${user.id}`, userId: user.id })

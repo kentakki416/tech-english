@@ -59,7 +59,6 @@ describe("POST /api/events", () => {
 
     /**
      * クライアントが他人の ID を詐称できないことの確認。
-     * userId は必ず認証済みユーザーから server 側で解決する。
      */
     it("ボディに userId を混ぜても無視し、認証済みユーザーの ID を使う", async () => {
       const { token, user } = await createTestUser()

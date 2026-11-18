@@ -140,9 +140,6 @@ const redis = createRedisClient({
   },
 })
 
-/**
- * Repository の DI assembly
- */
 const userRepository = new DrizzleUserRepository(db)
 const authAccountRepository = new DrizzleAuthAccountRepository(db)
 const transactionRunner = new DrizzleTransactionRunner(db)
@@ -150,54 +147,24 @@ const memoRepository = new DrizzleMemoRepository(db)
 const sourceRepository = new DrizzleSourceRepository(db)
 const sourceCollectionRunRepository = new DrizzleSourceCollectionRunRepository(db)
 const tagRepository = new DrizzleTagRepository(db)
-/**
- * reading-practice のユーザー向け API と共有する
- */
 const passageRepository = new DrizzlePassageRepository(db)
 const readingAttemptRepository = new DrizzleReadingAttemptRepository(db)
-/**
- * 読み上げ（read-aloud）の音声。挑戦の音声 API・admin の公開・再試行・作り直しと、単語帳のカードの 1 文の読み上げで共有する
- */
 const passageAudioRepository = new DrizzlePassageAudioRepository(db)
 const dictionaryRepository = new DrizzleDictionaryRepository(db)
-/**
- * 学習記録（learning-record）の集計と目標
- */
 const learningRecordRepository = new DrizzleLearningRecordRepository(db)
 const userGoalRepository = new DrizzleUserGoalRepository(db)
-/**
- * 学習リマインダー（study-reminder）の設定
- */
 const reminderSettingRepository = new DrizzleReminderSettingRepository(db)
-/**
- * 単語帳（vocabulary-cards）のカードと答え、出題の候補
- */
 const vocabularyRepository = new DrizzleVocabularyRepository(db)
-/**
- * 単語帳のカードの発音の音声（vocabulary-pronunciation。読み取りだけ）
- */
 const wordAudioRepository = new DrizzleWordAudioRepository(db)
-/**
- * admin のダッシュボード（admin-dashboard）の集計。読み取りだけ
- */
 const adminStatsRepository = new DrizzleAdminStatsRepository(db)
-/**
- * admin の URL の取り込み（url-import）
- */
 const urlImportRepository = new DrizzleUrlImportRepository(db)
 const urlImportPageCacheRepository = new IoRedisUrlImportPageCacheRepository(redis)
-/**
- * admin の認証（admin-template）
- */
 const adminRepository = new DrizzleAdminRepository(db)
 const adminRefreshTokenRepository = new IoRedisRefreshTokenRepository(redis, "admin_refresh_token")
 const databaseHealthRepository = new DrizzleDatabaseHealthRepository(db)
 const redisHealthRepository = new IoRedisHealthRepository(redis)
 const refreshTokenRepository = new IoRedisRefreshTokenRepository(redis)
 
-/**
- * 外部 SaaS client の DI assembly
- */
 const gitHubOAuthClient = new GitHubOAuthClient(env.GITHUB_OAUTH_CLIENT_ID, env.GITHUB_OAUTH_CLIENT_SECRET)
 const googleOAuthClient = new GoogleOAuthClient(env.GOOGLE_CLIENT_ID, env.GOOGLE_CLIENT_SECRET)
 const gitHubRepositoryClient = new GitHubRepositoryClient(env.GITHUB_LICENSE_TOKEN)
@@ -206,10 +173,6 @@ const gitHubRepositoryClient = new GitHubRepositoryClient(env.GITHUB_LICENSE_TOK
  */
 const pageFetcher = new PageFetcher(env.COLLECT_WEB_CONTACT_URL ?? env.FRONTEND_URL)
 
-/**
- * 読み上げの音声の URL の base。production で AUDIO_PUBLIC_URL_BASE が無ければローカルにフォールバックせず null にする
- * （音声 API は pending を返す。infra の設定〈read-aloud step8〉より先に api を出しても起動は止めない）
- */
 const audioPublicUrlBase = resolveAudioPublicUrlBase({
   audioPublicUrlBase: env.AUDIO_PUBLIC_URL_BASE,
   nodeEnv: env.NODE_ENV,
@@ -219,15 +182,9 @@ if (audioPublicUrlBase === null) {
   logger.warn("AUDIO_PUBLIC_URL_BASE is not set; read-aloud audio is reported as pending")
 }
 
-/**
- * Health Controller のインスタンス化
- */
 const healthLivenessController = new HealthLivenessController()
 const healthReadinessController = new HealthReadinessController(databaseHealthRepository, redisHealthRepository)
 
-/**
- * Auth Controller のインスタンス化
- */
 const authGitHubController = new AuthGitHubController(
   authAccountRepository,
   userRepository,
@@ -245,47 +202,26 @@ const authGoogleController = new AuthGoogleController(
 const authRefreshController = new AuthRefreshController(refreshTokenRepository, userRepository)
 const authLogoutController = new AuthLogoutController(refreshTokenRepository)
 
-/**
- * User Controller のインスタンス化（認証中ユーザー自身の取得・更新・削除）
- */
 const userDeleteController = new UserDeleteController(userRepository, refreshTokenRepository)
 const userGetController = new UserGetController(userRepository)
 const userUpdateController = new UserUpdateController(userRepository)
 
-/**
- * 学習記録（マイページの統計・学習カレンダー・提出した挑戦の一覧）Controller のインスタンス化
- */
 const userAttemptsController = new UserAttemptsController(learningRecordRepository, userRepository)
 const userCalendarController = new UserCalendarController(learningRecordRepository, userRepository)
 const userStatsController = new UserStatsController(learningRecordRepository, userGoalRepository, userRepository)
 
-/**
- * 目標（取得・保存）Controller のインスタンス化
- */
 const userGetGoalController = new UserGetGoalController(userGoalRepository)
 const userPutGoalController = new UserPutGoalController(userGoalRepository, userRepository)
 
-/**
- * 学習リマインダーの設定（取得・保存）Controller のインスタンス化
- */
 const userGetReminderController = new UserGetReminderController(reminderSettingRepository)
 const userPutReminderController = new UserPutReminderController(reminderSettingRepository, userRepository)
 
-/**
- * dev-login Controller は production 以外でのみ生成する
- */
 const authDevLoginController = process.env.NODE_ENV !== "production"
   ? new AuthDevLoginController(userRepository, refreshTokenRepository)
   : undefined
 
-/**
- * Memo Controller のインスタンス化
- */
 const memoListController = new MemoListController(memoRepository)
 const memoDetailController = new MemoDetailController(memoRepository)
-/**
- * 行動イベントの送出先は EVENT_TRACKER_TYPE で選ぶ。
- */
 const eventTracker: EventTracker = env.EVENT_TRACKER_TYPE === "queue"
   ? new QueueEventTracker(new BullMQJobQueue(redis, TRACK_EVENT_QUEUE_NAME))
   : new NoopEventTracker()
@@ -296,9 +232,6 @@ const memoCreateController = new MemoCreateController(memoRepository, eventTrack
 const memoUpdateController = new MemoUpdateController(memoRepository, eventTracker)
 const memoDeleteController = new MemoDeleteController(memoRepository, eventTracker)
 
-/**
- * Admin の認証（サインイン・トークンの更新・ログアウト）とサインイン中の admin の Controller のインスタンス化
- */
 const adminAuthDevLoginController = process.env.NODE_ENV !== "production"
   ? new AdminAuthDevLoginController(adminRepository, adminRefreshTokenRepository)
   : undefined
@@ -314,9 +247,6 @@ const isLocalEnvironment = env.NODE_ENV !== "production"
 
 const sourceWritePolicy = { isWebsiteSourceAllowed: isLocalEnvironment }
 
-/**
- * Admin のソース管理 Controller のインスタンス化
- */
 const adminSourceCreateController = new AdminSourceCreateController(sourceRepository, tagRepository, sourceWritePolicy)
 const adminSourceDeleteController = new AdminSourceDeleteController(sourceRepository, sourceCollectionRunRepository)
 const adminSourceDetailController = new AdminSourceDetailController(sourceRepository, sourceCollectionRunRepository)
@@ -335,9 +265,6 @@ const adminSourceCollectController = env.SOURCE_COLLECTION_TYPE === "queue"
   )
   : undefined
 
-/**
- * Admin の問題の確認・公開 Controller のインスタンス化
- */
 const adminPassageDetailController = new AdminPassageDetailController(passageRepository)
 const adminPassageListController = new AdminPassageListController(passageRepository)
 const adminPassagePublishController = new AdminPassagePublishController(passageRepository, passageAudioRepository, transactionRunner)
@@ -355,7 +282,7 @@ const adminTagListController = new AdminTagListController(tagRepository)
 const adminTagUpdateController = new AdminTagUpdateController(tagRepository)
 
 /**
- * Admin の URL の取り込み（url-import）Controller のインスタンス化。ローカルでだけ生成する（router は渡されたものだけを登録するので、production では 404）
+ * ローカルでだけ生成する（router は渡されたものだけを登録するので、production では 404）
  */
 const adminUrlImportCreateController = isLocalEnvironment
   ? new AdminUrlImportCreateController(
@@ -375,9 +302,6 @@ const adminUrlImportPreviewController = isLocalEnvironment
   )
   : undefined
 
-/**
- * admin のダッシュボード（admin-dashboard）と、ユーザー管理（admin-users。マイページと同じ Repository を使う）の Controller のインスタンス化
- */
 const adminStatsOverviewController = new AdminStatsOverviewController(adminStatsRepository)
 const adminPassageStatsListController = new AdminPassageStatsListController(adminStatsRepository)
 const adminPassageStatsDetailController = new AdminPassageStatsDetailController(adminStatsRepository)
@@ -392,16 +316,10 @@ const adminUserDetailController = new AdminUserDetailController(
 const adminUserCalendarController = new AdminUserCalendarController(learningRecordRepository, userRepository)
 const adminUserAttemptsController = new AdminUserAttemptsController(learningRecordRepository, userRepository)
 
-/**
- * ユーザー向けの問題（一覧・ランダムに 1 問・開始確認の概要）Controller のインスタンス化
- */
 const passageDetailController = new PassageDetailController(passageRepository, readingAttemptRepository)
 const passageListController = new PassageListController(passageRepository, readingAttemptRepository)
 const passageRandomController = new PassageRandomController(passageRepository, readingAttemptRepository)
 
-/**
- * ユーザー向けの挑戦（開始・取得・提出・読み上げの音声）Controller のインスタンス化
- */
 const attemptAudioController = new AttemptAudioController(passageAudioRepository, readingAttemptRepository, audioPublicUrlBase)
 const attemptDetailController = new AttemptDetailController(passageRepository, readingAttemptRepository)
 const attemptStartController = new AttemptStartController(passageRepository, readingAttemptRepository, userRepository)
@@ -412,14 +330,8 @@ const attemptSubmitController = new AttemptSubmitController(
   userRepository,
 )
 
-/**
- * 英和辞書（解答中の単語の意味）Controller のインスタンス化
- */
 const dictionaryLookupController = new DictionaryLookupController(dictionaryRepository)
 
-/**
- * 単語帳（1 回分のカード・トップの数・答えの保存）Controller のインスタンス化
- */
 const vocabularyReviewController = new VocabularyReviewController(transactionRunner, userRepository, vocabularyRepository)
 const vocabularySessionController = new VocabularySessionController(
   userRepository,
@@ -445,9 +357,6 @@ app.set("trust proxy", 1)
  */
 app.use(helmet())
 
-/**
- * cors設定のミドルウェア
- */
 app.use(
   cors({
     credentials: true,
@@ -455,31 +364,16 @@ app.use(
   })
 )
 
-/**
- * jsonを変換するミドルウェア
- */
 app.use(express.json())
 
-/**
- * 認証ミドルウェア
- */
 app.use(authMiddleware)
 
-/**
- * リクエストのロギングミドルウェア
- */
 app.use(requestLogger)
 
-/**
- * Lambda ではレスポンス後に実行環境が凍結されるため、送出中のイベントを先に送り切る
- */
 if (env.FLUSH_EVENTS_BEFORE_RESPONSE) {
   app.use(flushEventsBeforeResponse(eventTracker))
 }
 
-/**
- * ルーティング
- */
 app.use(
   "/api/health",
   healthRouter({
@@ -629,13 +523,10 @@ app.use(
 )
 
 /**
- * ルーティング定義の最後に登録する必要がある
+ * すべてのルートの後に登録しないと、ルートで投げられた例外を受け取れない
  */
 app.use(unhandledExceptionHandler)
 
-/**
- * サーバー起動
- */
 const server = app.listen(env.PORT, () => {
   logger.info("API server running", {
     environment: env.NODE_ENV,
@@ -644,10 +535,6 @@ const server = app.listen(env.PORT, () => {
   })
 })
 
-/**
- * Graceful shutdown
- * SIGTERM / SIGINT を受けたら HTTP server を閉じてから DB / Redis を切断
- */
 const shutdown = async (signal: string): Promise<void> => {
   logger.info("Shutdown initiated", { signal })
   server.close(async () => {
@@ -662,9 +549,6 @@ const shutdown = async (signal: string): Promise<void> => {
 process.on("SIGTERM", () => void shutdown("SIGTERM"))
 process.on("SIGINT", () => void shutdown("SIGINT"))
 
-/**
- * 予期しない例外をキャッチ（念のため）
- */
 process.on("uncaughtException", (error) => {
   logger.error("Uncaught exception", error)
   process.exit(1)

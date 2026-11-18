@@ -188,9 +188,6 @@ describe("LearningRecordRepository", () => {
         const passage = await insertPassageWithQuestions()
         const user = await insertAttemptUser()
         await insertNoiseAttempts(passage.id, passage.questionIds, user.id, "2026-10-10")
-        /**
-         * 設問は要旨・詳細・語義の順
-         */
         await createSubmittedAttempt({
           correctness: [true, false, false],
           passageId: passage.id,

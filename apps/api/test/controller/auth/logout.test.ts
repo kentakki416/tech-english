@@ -57,7 +57,6 @@ describe("POST /api/auth/logout", () => {
       .set("Authorization", `Bearer ${accessToken}`)
       .send({ refresh_token: refreshToken })
 
-    /** Redis から消えていることを直接確認（/refresh の挙動は refresh.test.ts 側で網羅済み） */
     expect(await refreshTokenRepository.findUserId(jti)).toBeNull()
   })
 
@@ -65,7 +64,6 @@ describe("POST /api/auth/logout", () => {
     const userId = 1
     const accessToken = generateAccessToken(userId)
 
-    /** 別ユーザーの jti が Redis に残っていても影響しないこと */
     const { jti: otherJti } = generateRefreshToken(2)
     await refreshTokenRepository.save(otherJti, 2, REFRESH_TTL_SECONDS)
 

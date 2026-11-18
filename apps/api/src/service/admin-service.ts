@@ -5,10 +5,8 @@ import { logger } from "@repo/logger"
 import { AdminRepository } from "../repository"
 
 /**
- * admin を ID で取得する（GET /api/admin/me）
- *
- * トークンの admin が admins にいなければ 404 ではなく 401。admins から消された admin のトークンは、
- * 署名が正しくても使えないものとして扱う（admin の画面はサインイン画面に戻す）
+ * admins にいなければ 404 ではなく 401 を返す。admins から消された admin のトークンは、
+ * 署名が正しくても使えないものとして扱う
  */
 export const getAdminById = async (
   adminId: number,

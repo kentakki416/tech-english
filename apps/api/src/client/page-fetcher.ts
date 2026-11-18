@@ -46,9 +46,6 @@ export type PageFetchResult =
    */
   | { code: PageFetchErrorCode; detail: string | null; kind: "failed" }
 
-/**
- * サイトのソースの 1 ページを取得して本文を抽出するクライアントのインターフェース
- */
 export interface IPageFetcher {
   /**
    * 取り込めない理由は failed で返す。それ以外の想定外のエラーは throw する
@@ -73,7 +70,7 @@ const findThrownErrorCode = (error: unknown, extractor: ContentExtractorModule):
 }
 
 /**
- * robots.txt を読む。読めなければ（5xx・ネットワークエラーなど）robots_unavailable
+ * robots.txt を読めなければ（5xx・ネットワークエラーなど）robots_unavailable
  */
 const loadRobotsOrFailure = async (
   client: ContentExtractor.IWebPageClient,
@@ -105,8 +102,7 @@ const fetchPageOrFailure = async (
 }
 
 /**
- * `@repo/content-extractor` で、サイトのソースの 1 ページを取得して抽出する（取得先の制限・robots.txt・本文の抽出は `@repo/content-extractor` の規則）。
- * 取得は始めてから URL_IMPORT_FETCH_DEADLINE_MS で打ち切る
+ * `@repo/content-extractor` で、サイトのソースの 1 ページを取得して抽出する（取得先の制限・robots.txt・本文の抽出は `@repo/content-extractor` の規則）
  */
 export class PageFetcher implements IPageFetcher {
   private _contactUrl: string | undefined
@@ -115,10 +111,10 @@ export class PageFetcher implements IPageFetcher {
     this._contactUrl = contactUrl
   }
 
-  /**
-   * パッケージは使うときに import() で読む。jsdom などが重く、ほかの API のコールドスタートを遅くしないため
-   */
   public async fetchAndExtractPage(input: { now: Date; source: WebsiteSource; url: string }): Promise<PageFetchResult> {
+    /**
+     * パッケージは使うときに import() で読む。jsdom などが重く、ほかの API のコールドスタートを遅くしないため
+     */
     const extractor = await import("@repo/content-extractor")
     const { source } = input
     const normalizedUrl = extractor.normalizePageUrl(input.url, source.siteUrl)

@@ -4,7 +4,6 @@ import { FakeEventTracker } from "@repo/events"
 import { MemoRepository, UpdateMemoInput } from "../../../src/repository"
 import { updateMemo } from "../../../src/service/memo-service"
 
-// モック
 const mockFindById = vi.fn<(_0: number) => Promise<Memo | null>>()
 const mockUpdate = vi.fn<(_0: number, _1: UpdateMemoInput) => Promise<Memo>>()
 
@@ -24,7 +23,6 @@ describe("updateMemo", () => {
   })
 
   it("メモが存在する場合、更新して ok: true で返す", async () => {
-    // Arrange
     const existingMemo: Memo = {
       body: "Old Body",
       createdAt: new Date(),
@@ -49,10 +47,8 @@ describe("updateMemo", () => {
     mockFindById.mockResolvedValue(existingMemo)
     mockUpdate.mockResolvedValue(updatedMemo)
 
-    // Act
     const result = await updateMemo(1, input, { memoRepository: mockMemoRepository }, { eventTracker, userId: 1 })
 
-    // Assert
     expect(result.ok).toBe(true)
     if (result.ok) {
       expect(result.value).toEqual(updatedMemo)
@@ -62,7 +58,6 @@ describe("updateMemo", () => {
   })
 
   it("メモが存在しない場合、ok: false と NOT_FOUND エラーを返す", async () => {
-    // Arrange
     const input: UpdateMemoInput = {
       body: "Updated Body",
       title: "Updated Title",
@@ -70,10 +65,8 @@ describe("updateMemo", () => {
 
     mockFindById.mockResolvedValue(null)
 
-    // Act
     const result = await updateMemo(999, input, { memoRepository: mockMemoRepository }, { eventTracker, userId: 1 })
 
-    // Assert
     expect(result.ok).toBe(false)
     if (!result.ok) {
       expect(result.error.type).toBe("NOT_FOUND")
@@ -85,7 +78,6 @@ describe("updateMemo", () => {
   })
 
   it("データベースエラー時にエラーをスローする", async () => {
-    // Arrange
     const input: UpdateMemoInput = {
       body: "Updated Body",
       title: "Updated Title",
@@ -94,7 +86,6 @@ describe("updateMemo", () => {
     const mockError = new Error("Database connection failed")
     mockFindById.mockRejectedValue(mockError)
 
-    // Act & Assert
     await expect(updateMemo(1, input, { memoRepository: mockMemoRepository }, { eventTracker, userId: 1 })).rejects.toThrow(
       "Database connection failed"
     )

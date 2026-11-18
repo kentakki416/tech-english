@@ -14,9 +14,6 @@ import type { SourceWritePolicy } from "../../../service/source-service"
 
 import { convertSourceToResponse, convertUpdateSourceRequestToInput } from "./source-mapper"
 
-/**
- * admin のソース更新API（編集で変えられる項目だけ。GitHub は有効 / 無効の切り替えを含み、website はローカルでだけ受け付ける）。取得方法は変えられない
- */
 export class AdminSourceUpdateController {
   constructor(
     private _sourceRepository: SourceRepository,

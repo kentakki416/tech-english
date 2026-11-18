@@ -8,18 +8,12 @@ import { flushEventsBeforeResponse, forTesting } from "../../src/middleware/flus
 
 const { FLUSH_TIMEOUT_MS, waitForFlush } = forTesting
 
-/**
- * flush の挙動だけを差し替えられる EventTracker
- */
 const buildTracker = (flush: () => Promise<void>): EventTracker => ({
   flush: vi.fn(flush),
   track: vi.fn(),
   trackAll: vi.fn(),
 })
 
-/**
- * resolve のタイミングをテスト側で制御できる Promise
- */
 const createDeferred = (): { promise: Promise<void>; resolve: () => void } => {
   let resolve: () => void = () => undefined
   const promise = new Promise<void>((r) => {

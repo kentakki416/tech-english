@@ -5,9 +5,6 @@ import { testDb } from "../../setup"
 
 type SourceInsert = typeof sources.$inferInsert
 
-/**
- * admin のソース API のインテグレーションテストで共有するリクエストと DB への投入
- */
 export const GITHUB_REQUEST = {
   branch: "main",
   exclude_globs: ["src/content/blog/**"],

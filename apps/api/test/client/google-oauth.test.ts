@@ -16,9 +16,6 @@ const GOOGLE_USER = {
 const createJsonResponse = (body: unknown, status = 200): Response =>
   new Response(JSON.stringify(body), { headers: { "Content-Type": "application/json" }, status })
 
-/**
- * code の交換（OAuth2Client.getToken）と userinfo の fetch を差し替える
- */
 const stubGoogle = (userInfo: Response) => {
   vi.spyOn(OAuth2Client.prototype, "getToken").mockImplementation(async () => ({
     res: null,

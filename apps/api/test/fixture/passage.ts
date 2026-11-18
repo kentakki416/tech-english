@@ -15,11 +15,6 @@ import { AUDIO_TEXT_HASH, buildAudioManifest } from "./passage-audio"
 import { GLOSSARY_ITEMS, locateGlossaryItem, PASSAGE_BLOCKS, QUESTION_ITEMS } from "./passage-content"
 import { insertSourceTags } from "./source-tag"
 
-/**
- * 問題（ソース・取得文書・passages・用語集・設問）と挑戦を DB に入れるテスト用のヘルパー。
- * Repository のテストと Controller のインテグレーションテストで使う（reading-practice の API のテストでも使う想定）
- */
-
 type SourceInsert = typeof sources.$inferInsert
 type PassageAudioInsert = typeof passageAudios.$inferInsert
 type PassageInsert = typeof passages.$inferInsert
@@ -165,9 +160,6 @@ export const insertPublishedPassage = async (sourceDocumentId: number, overrides
     ...overrides,
   })
 
-/**
- * 挑戦するユーザーを入れる
- */
 export const insertAttemptUser = async () => {
   const [user] = await testDb
     .insert(users)
@@ -188,9 +180,6 @@ export const insertReadingAttempt = async (passageId: number, overrides: Partial
   return attempt
 }
 
-/**
- * 提出済みの挑戦を入れる
- */
 export const insertSubmittedAttempt = async (
   passageId: number,
   userId: number,

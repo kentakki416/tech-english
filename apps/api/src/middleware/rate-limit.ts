@@ -49,9 +49,6 @@ const resolveRateLimitKey = (req: Request): string => {
   return userId === undefined ? `ip:${req.ip ?? "unknown"}` : `user:${userId}`
 }
 
-/**
- * 1 分あたり limit 回までのレート制限。上限を超えたら 429 を返す
- */
 const createApiRateLimiter = (limit: number): RateLimitRequestHandler =>
   rateLimit({
     keyGenerator: resolveRateLimitKey,
@@ -63,15 +60,7 @@ const createApiRateLimiter = (limit: number): RateLimitRequestHandler =>
   })
 
 /**
- * API 全体のレート制限。
- *
- * 同一の利用者（検証できたトークンのユーザー、無ければ IP）が一定時間内に送れるリクエスト数に上限を設け、
- * ブルートフォースやアプリ層 DoS を緩和する。全エンドポイントに同じ上限（1 分あたり 300 リクエスト）を適用する。
- * 数え方は resolveRateLimitKey を参照。
- *
- * refresh の body を読むため、express.json() より後に登録する。
- *
- * 注意: カウントは in-memory（インスタンス単位）。複数インスタンス構成では実効上限が
+ * カウントは in-memory（インスタンス単位）。複数インスタンス構成では実効上限が
  * インスタンス数倍になるため、厳密な分散制限が要る場合は Redis ストア化や WAF を検討する。
  */
 export const apiRateLimiter = createApiRateLimiter(API_RATE_LIMIT_PER_MINUTE)

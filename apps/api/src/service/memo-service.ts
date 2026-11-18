@@ -8,23 +8,18 @@ import { CreateMemoInput, MemoRepository, UpdateMemoInput } from "../repository"
 type MemoRepo = { memoRepository: MemoRepository }
 
 /**
- * 行動イベントの送出に必要な依存。
- *
- * 送出は fire-and-forget で、失敗しても Result には影響しない。
- * **操作が成功したときだけ記録する**（失敗を記録したい場合は別イベントにする。
- * 成功イベントに成否フラグを混ぜると集計時に必ず事故る）。
- *
- * `userId` が undefined なのは `/api/memo` が PUBLIC_PATHS に含まれ
- * 未ログインでも呼べるため。**匿名ユーザーは追跡しない方針**なので、
- * その場合は送出そのものをスキップする。
+ * 操作が成功したときだけ記録する。失敗を記録したいときは別のイベントにする
+ * （成功イベントに成否フラグを混ぜると、集計で成功と失敗を取り違える）
  */
 type EventDeps = { eventTracker: EventTracker; userId: number | undefined }
 
-/** 未ログイン時は記録しない（匿名追跡をしない方針） */
 const trackIfSignedIn = (
   deps: EventDeps,
   event: { name: "memo_created" | "memo_deleted" | "memo_updated"; memoId: number },
 ): void => {
+  /**
+   * 匿名ユーザーは追跡しない方針なので、未ログインなら記録しない
+   */
   if (deps.userId === undefined) return
   deps.eventTracker.track({
     name: event.name,
@@ -34,9 +29,6 @@ const trackIfSignedIn = (
   })
 }
 
-/**
- * メモ一覧を取得
- */
 export const getAllMemos = async (
   repo: MemoRepo
 ): Promise<Result<Memo[]>> => {
@@ -46,9 +38,6 @@ export const getAllMemos = async (
   return ok(memos)
 }
 
-/**
- * メモをIDで取得
- */
 export const getMemoById = async (
   id: number,
   repo: MemoRepo
@@ -62,9 +51,6 @@ export const getMemoById = async (
   return ok(memo)
 }
 
-/**
- * メモを作成
- */
 export const createMemo = async (
   data: CreateMemoInput,
   repo: MemoRepo,
@@ -79,9 +65,6 @@ export const createMemo = async (
   return ok(memo)
 }
 
-/**
- * メモを更新
- */
 export const updateMemo = async (
   id: number,
   data: UpdateMemoInput,
@@ -102,9 +85,6 @@ export const updateMemo = async (
   return ok(memo)
 }
 
-/**
- * メモを削除
- */
 export const deleteMemo = async (
   id: number,
   repo: MemoRepo,
@@ -119,7 +99,9 @@ export const deleteMemo = async (
   await repo.memoRepository.deleteById(id)
   logger.debug("MemoService: Memo deleted", { id })
 
-  /** 物理削除なので DB からは復元できない。ここで記録しないと永久に失われる */
+  /**
+   * 物理削除なので DB からは復元できない。ここで記録しないと永久に失われる
+   */
   trackIfSignedIn(deps, { memoId: id, name: "memo_deleted" })
 
   return ok({ deleted: true })

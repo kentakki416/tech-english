@@ -17,9 +17,6 @@ import { convertVocabularySummaryToResponse } from "../../vocabulary/vocabulary-
 
 import { convertAdminUserToResponse } from "./convert-user-to-response"
 
-/**
- * admin のユーザーの詳細API（基本の情報・ログイン方法・最後に学習した日と、マイページと同じ学習のまとめ・単語帳の数）。ユーザーが居なければ 404
- */
 export class AdminUserDetailController {
   constructor(
     private _authAccountRepository: AuthAccountRepository,

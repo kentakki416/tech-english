@@ -3,9 +3,6 @@ import { admins } from "@repo/db"
 import { DrizzleAdminRepository } from "../../src/repository/drizzle/admin-repository"
 import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb } from "../controller/setup"
 
-/**
- * Drizzle 実装の AdminRepository を実 DB で確かめる。列の対応・CHECK 制約・updated_at の更新は mock では検出できないため
- */
 const adminRepository = new DrizzleAdminRepository(testDb)
 
 const OLD_UPDATED_AT = new Date("2026-01-01T00:00:00.000Z")

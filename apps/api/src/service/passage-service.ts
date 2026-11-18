@@ -20,18 +20,12 @@ type PassageRepo = { passageRepository: PassageRepository; readingAttemptReposit
  */
 export type PassageFilterInput = Omit<PublishedPassageFilter, "unattemptedByUserId">
 
-/**
- * 自分の挑戦状況
- */
 export type PassageMyStatus = Omit<PassageAttemptSummary, "passageId">
 
-/**
- * 問題一覧の 1 件
- */
 export type PassageListItem = PublishedPassageSummary & { myStatus: PassageMyStatus }
 
 /**
- * 問題一覧の結果。tags は公開中の問題があるソースのタグ全件、totalCount は絞り込み後の件数（cursor は無視）
+ * tags は公開中の問題があるソースのタグ全件、totalCount は絞り込み後の件数（cursor は無視）
  */
 export type PassageListView = {
   items: PassageListItem[]
@@ -40,9 +34,6 @@ export type PassageListView = {
   totalCount: number
 }
 
-/**
- * 開始確認の概要（本文は含まない）
- */
 export type PassageOverviewView = {
   attribution: PassageAttribution
   /**
@@ -61,14 +52,8 @@ export type PassageOverviewView = {
   serverNow: Date
 }
 
-/**
- * 挑戦の集計が無い問題の挑戦状況（未挑戦）
- */
 const UNATTEMPTED_STATUS: PassageMyStatus = { attemptCount: 0, bestCorrectCount: null, inProgressAttemptId: null }
 
-/**
- * 公開中の問題の一覧（絞り込み、cursor ページング）と自分の挑戦状況。並びは公開日時の新しい順
- */
 export const getPassageList = async (
   input: {
     cursor: string | undefined
@@ -114,7 +99,7 @@ export const getPassageList = async (
 }
 
 /**
- * 絞り込みに合う問題からランダムに 1 つ選ぶ。未挑戦（提出済みが 0 件）から選び、無ければ挑戦済みも含めて選ぶ
+ * 未挑戦（提出済みが 0 件）から選び、無ければ挑戦済みも含めて選ぶ
  */
 export const getRandomPassageId = async (
   input: { filter: PassageFilterInput; userId: number },
@@ -132,7 +117,6 @@ export const getRandomPassageId = async (
 }
 
 /**
- * 開始確認の概要。期限内の挑戦中があれば、その期限を付ける。
  * 公開中でない問題（非公開に戻された問題）は、そのユーザーの期限内の挑戦中があるときだけ再開用に返し（canStart: false）、
  * 無ければ 404（挑戦の開始 API は非公開に戻された問題の挑戦中を再開できるので、その入口を残す）
  */

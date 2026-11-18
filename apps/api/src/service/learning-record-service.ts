@@ -23,9 +23,6 @@ import type {
   UserRepository,
 } from "../repository"
 
-/**
- * カレンダーで一度に取れる日数（最大 366 日）
- */
 const CALENDAR_MAX_DAYS = 366
 
 /**
@@ -38,9 +35,6 @@ const CALENDAR_YEAR_WEEK_COUNT = 53
  */
 const MIN_COMPARED_QUESTION_TYPE_COUNT = 2
 
-/**
- * マイページの最近の挑戦の件数
- */
 const RECENT_ATTEMPT_LIMIT = 5
 
 /**
@@ -51,13 +45,10 @@ const RECENT_DAY_COUNT = 14
 const SECONDS_PER_MINUTE = 60
 
 /**
- * 正答率。設問が 0 問なら accuracyPercent は null（四捨五入した整数 %）
+ * 設問が 0 問なら accuracyPercent は null（四捨五入した整数 %）
  */
 export type Accuracy = AccuracyCount & { accuracyPercent: number | null }
 
-/**
- * 提出した挑戦の一覧の 1 行
- */
 export type LearningRecordAttemptView = {
   id: number
   correctCount: number
@@ -78,9 +69,6 @@ export type LearningRecordAttemptView = {
   usedAssist: boolean
 }
 
-/**
- * 目標と今週の進捗
- */
 export type GoalProgressView = {
   /**
    * targetDate − 今日。過ぎていれば負、目標日が無ければ null
@@ -97,9 +85,6 @@ export type GoalProgressView = {
   weeklyTarget: number | null
 }
 
-/**
- * マイページの統計
- */
 export type UserStats = {
   goal: GoalProgressView | null
   noAssist: Accuracy
@@ -121,14 +106,8 @@ export type UserStats = {
   weakestQuestionType: QuestionType | null
 }
 
-/**
- * カレンダーの 1 日
- */
 export type CalendarDayView = DailyStudySummary & { level: CalendarLevel }
 
-/**
- * 学習カレンダー（from〜to の全日）
- */
 export type UserCalendar = {
   days: CalendarDayView[]
   from: string
@@ -136,9 +115,6 @@ export type UserCalendar = {
   today: string
 }
 
-/**
- * 提出した挑戦の一覧の 1 ページ
- */
 export type UserAttempts = {
   attempts: LearningRecordAttemptView[]
   nextCursor: number | null
@@ -152,7 +128,7 @@ type LearningRecordRepo = {
 
 /**
  * 「今日」を求めるのにタイムゾーンが要るため、読み取りの API でもユーザーが無ければ 401 にする
- * （削除済みユーザーの access token。クライアントは refresh に失敗してログイン画面へ戻る）
+ * （削除済みユーザーの access token）
  */
 const findUser = async (userId: number, repo: { userRepository: UserRepository }): Promise<Result<User>> => {
   const user = await repo.userRepository.findById(userId)
@@ -184,9 +160,6 @@ const convertSubmittedAttemptToView = (attempt: SubmittedAttempt, timeZone: stri
     || attempt.listenedBlockCount > 0,
 })
 
-/**
- * 今週の進捗。週の目標が無ければ進捗は null で未達成
- */
 const calculateGoalProgress = (goal: UserGoal, weekDays: DailyStudySummary[], today: string): GoalProgressView => {
   const daysLeft = goal.targetDate === null ? null : countDaysBetween(today, goal.targetDate)
   const base = {
@@ -215,7 +188,7 @@ const calculateGoalProgress = (goal: UserGoal, weekDays: DailyStudySummary[], to
 }
 
 /**
- * 正答率が一番低い種類。設問のある種類だけを丸める前の比で比べ、一番低い比の種類が複数あれば QUESTION_TYPES の順で先のもの。
+ * 設問のある種類だけを丸める前の比で比べ、一番低い比の種類が複数あれば QUESTION_TYPES の順で先のもの。
  * 他の種類より低いと言えないときは null（設問のある種類が 2 つ未満・設問のある種類がすべて同率。すべて 100% もここに入る）
  */
 const findWeakestQuestionType = (counts: (AccuracyCount & { type: QuestionType })[]): QuestionType | null => {
@@ -230,8 +203,6 @@ const findWeakestQuestionType = (counts: (AccuracyCount & { type: QuestionType }
 }
 
 /**
- * マイページの統計（連続学習日数・目標の進捗・累計・設問の種類別の正答率・最近の挑戦）
- *
  * 「今日」「今週」はリクエスト時点の users.timezone で求める。集計そのものは study_date だけで決まり、タイムゾーン変換はしない
  */
 export const getUserStats = async (
@@ -298,10 +269,7 @@ const resolveDefaultCalendarRange = (today: string): { from: string; to: string 
 }
 
 /**
- * 学習カレンダー。from〜to の全日を、学習していない日も level 0 で返す（to が未来でもよい。月表示が月末まで要求するため）。
- * 学習した日は秒数が 0 でも level 1 以上
- *
- * from と to は両方指定か両方省略。片方だけ・from > to・366 日を超える期間は 400
+ * from〜to の全日を、学習していない日も level 0 で返す（to が未来でもよい。月表示が月末まで要求するため）
  */
 export const getUserCalendar = async (
   userId: number,
@@ -351,9 +319,6 @@ export const getUserCalendar = async (
   return ok({ days, from, to, today })
 }
 
-/**
- * 提出した挑戦の一覧（新しい順）。limit + 1 件読み、余りがあれば最後に返した行の id を nextCursor にする
- */
 export const getUserAttempts = async (
   userId: number,
   query: { cursor?: number; date?: string; limit: number },

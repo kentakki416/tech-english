@@ -3,7 +3,6 @@ import { Memo } from "@repo/domain"
 import { MemoRepository } from "../../../src/repository"
 import { getMemoById } from "../../../src/service/memo-service"
 
-// モック
 const mockFindById = vi.fn<(_0: number) => Promise<Memo | null>>()
 
 const mockMemoRepository: MemoRepository = {
@@ -20,7 +19,6 @@ describe("getMemoById", () => {
   })
 
   it("メモが存在する場合、ok: true とメモを返す", async () => {
-    // Arrange
     const mockMemo: Memo = {
       body: "Test Body",
       createdAt: new Date(),
@@ -31,10 +29,8 @@ describe("getMemoById", () => {
 
     mockFindById.mockResolvedValue(mockMemo)
 
-    // Act
     const result = await getMemoById(1, { memoRepository: mockMemoRepository })
 
-    // Assert
     expect(result.ok).toBe(true)
     if (result.ok) {
       expect(result.value).toEqual(mockMemo)
@@ -44,13 +40,10 @@ describe("getMemoById", () => {
   })
 
   it("メモが存在しない場合、ok: false と NOT_FOUND エラーを返す", async () => {
-    // Arrange
     mockFindById.mockResolvedValue(null)
 
-    // Act
     const result = await getMemoById(999, { memoRepository: mockMemoRepository })
 
-    // Assert
     expect(result.ok).toBe(false)
     if (!result.ok) {
       expect(result.error.type).toBe("NOT_FOUND")
@@ -62,11 +55,9 @@ describe("getMemoById", () => {
   })
 
   it("データベースエラー時にエラーをスローする", async () => {
-    // Arrange
     const mockError = new Error("Database connection failed")
     mockFindById.mockRejectedValue(mockError)
 
-    // Act & Assert
     await expect(getMemoById(1, { memoRepository: mockMemoRepository })).rejects.toThrow(
       "Database connection failed"
     )

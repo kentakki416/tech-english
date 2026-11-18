@@ -3,9 +3,6 @@ import type { AttemptAnswer, AttemptWordLookup, ReadingAttempt } from "@repo/dom
 import type { ReadOptions } from "./read-options"
 import type { TransactionContext } from "./transaction"
 
-/**
- * 1 つの問題についての、あるユーザーの挑戦の集計
- */
 export type PassageAttemptSummary = {
   /**
    * 提出済みの挑戦の数
@@ -22,9 +19,6 @@ export type PassageAttemptSummary = {
   passageId: number
 }
 
-/**
- * 挑戦中の挑戦を作るときの入力
- */
 export type CreateReadingAttemptInput = {
   passageId: number
   startedAt: Date
@@ -35,9 +29,6 @@ export type CreateReadingAttemptInput = {
   userId: number
 }
 
-/**
- * 提出で挑戦に書く値（採点結果・時間・アシストの使用）
- */
 export type SubmitReadingAttemptInput = {
   attemptId: number
   correctCount: number
@@ -61,14 +52,8 @@ export type SubmitReadingAttemptInput = {
   wordLookupCount: number
 }
 
-/**
- * 保存する回答
- */
 export type InsertAttemptAnswerInput = Omit<AttemptAnswer, "createdAt" | "id" | "updatedAt">
 
-/**
- * 保存する調べた単語
- */
 export type InsertAttemptWordLookupInput = Omit<AttemptWordLookup, "createdAt" | "id" | "updatedAt">
 
 /**
@@ -89,9 +74,6 @@ export interface ReadingAttemptRepository {
    * そのユーザーの started_at <= aliveSince の in_progress を expired にし、更新した件数を返す
    */
   expireStale(userId: number, aliveSince: Date): Promise<number>
-  /**
-   * そのユーザーのその問題の期限内の挑戦中。無ければ null
-   */
   findAliveInProgress(userId: number, passageId: number, aliveSince: Date, options?: ReadOptions): Promise<ReadingAttempt | null>
   /**
    * 挑戦の回答を id の昇順で返す
@@ -107,11 +89,11 @@ export interface ReadingAttemptRepository {
    */
   findWordLookupsWithMeaning(attemptId: number, options?: ReadOptions): Promise<WordLookupWithMeaning[]>
   /**
-   * 回答をまとめて保存する。空配列なら何もしない
+   * 空配列なら何もしない
    */
   insertAnswers(answers: InsertAttemptAnswerInput[], tx?: TransactionContext): Promise<void>
   /**
-   * 調べた単語をまとめて保存する。空配列なら何もしない
+   * 空配列なら何もしない
    */
   insertWordLookups(lookups: InsertAttemptWordLookupInput[], tx?: TransactionContext): Promise<void>
   /**

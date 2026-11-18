@@ -7,11 +7,13 @@ import { ADMIN_PUBLIC_PATHS } from "../const"
 import { verifyAdminAccessToken } from "../lib/admin-jwt"
 
 export interface AdminAuthRequest extends Request {
+  /**
+   * ADMIN_PUBLIC_PATHS に無いパスでは、adminAuthMiddleware を通った時点で必ずある
+   */
   adminId?: number
 }
 
 /**
- * mount からの相対パスが ADMIN_PUBLIC_PATHS のどれかと完全に一致するか。
  * 大文字小文字と末尾の `/` は区別しない（Express 5 の Router もこれらを区別せずにルートへ届けるため）。
  * 下の階層は公開しない（`/auth/google/x` は公開のパスではない）
  */
@@ -32,12 +34,10 @@ const rejectAdminRequest = (req: Request, res: Response, error: string) => {
   return res.status(401).json(errorResponse)
 }
 
-/**
- * admin の Access Token（Authorization: Bearer）で認証する。
- *
- * ここでの req.path は mount からの相対（/auth/google など）。
- */
 export const adminAuthMiddleware = (req: AdminAuthRequest, res: Response, next: NextFunction) => {
+  /**
+   * ここでの req.path は mount からの相対（/auth/google など）
+   */
   if (isAdminPublicPath(req.path)) {
     return next()
   }

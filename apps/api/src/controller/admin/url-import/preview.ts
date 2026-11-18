@@ -8,9 +8,6 @@ import { sendError } from "../../../lib/send-error"
 import { SourceRepository, UrlImportPageCacheRepository, UrlImportRepository } from "../../../repository"
 import * as service from "../../../service"
 
-/**
- * admin の URL の取り込みの確認API。ページを取得・抽出して、塊ごとに保存したときにどうなるかを返す（DB には書かない）
- */
 export class AdminUrlImportPreviewController {
   constructor(
     private _sourceRepository: SourceRepository,

@@ -7,8 +7,6 @@ export type RotatedTokens = {
 }
 
 /**
- * Refresh Token リポジトリのインターフェース
- * Refresh Token は jti（JWT ID）をキーに userId を保存する。
  * ローテーション時は新 jti を save し、旧 jti → 発行したペアを短い猶予の間だけ saveRotatedTokens で残してから、旧 jti を delete する。
  */
 export interface RefreshTokenRepository {

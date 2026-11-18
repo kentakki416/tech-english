@@ -17,7 +17,7 @@ import type {
 type PassageRepo = { passageRepository: PassageRepository }
 
 /**
- * 問題一覧の条件（cursor は前のページの nextCursor）
+ * cursor は前のページの nextCursor
  */
 export type AdminPassageListInput = {
   cursor?: string
@@ -28,7 +28,7 @@ export type AdminPassageListInput = {
 }
 
 /**
- * 問題一覧の結果。statusCounts は絞り込みを無視した全体の状態ごとの件数
+ * statusCounts は絞り込みを無視した全体の状態ごとの件数
  */
 export type AdminPassageList = {
   hasMore: boolean
@@ -37,24 +37,15 @@ export type AdminPassageList = {
   statusCounts: Record<PassageStatus, number>
 }
 
-/**
- * 状態を変える操作の結果
- */
 export type AdminPassageStatusChange = { id: number; status: PassageStatus }
 
-/**
- * 要確認を解除した結果
- */
 export type AdminPassageAttentionResolution = { id: number; attentionReasons: string[]; needsAttention: boolean }
 
 /**
- * 再生成できる状態（生成済みで、公開中でないもの）
+ * 生成済みで、公開中でないもの
  */
 const REGENERATABLE_STATUSES: PassageStatus[] = ["draft", "rejected", "failed"]
 
-/**
- * 設問の id の集合が保存済みと完全に同じか（数の変更・削除・追加・別の id への差し替えが無い）
- */
 const hasSameQuestionIds = (existing: Question[], requestedIds: (number | null)[]): boolean => {
   const existingIds = new Set(existing.map((question) => question.id))
   return requestedIds.length === existingIds.size
@@ -62,9 +53,6 @@ const hasSameQuestionIds = (existing: Question[], requestedIds: (number | null)[
     && requestedIds.every((id) => id !== null && existingIds.has(id))
 }
 
-/**
- * 問題を取得し、無ければ 404、状態が allowedStatuses に無ければ 409 にする
- */
 const findDetailInStatus = async (
   id: number,
   allowedStatuses: PassageStatus[],
@@ -86,9 +74,6 @@ const findDetailInStatus = async (
   return ok(detail)
 }
 
-/**
- * 問題一覧（状態・ソース・要確認で絞り込み、cursor ページング）と状態ごとの件数
- */
 export const getAdminPassageList = async (
   input: AdminPassageListInput,
   repo: PassageRepo,
@@ -107,7 +92,7 @@ export const getAdminPassageList = async (
     repo.passageRepository.countByStatus(),
   ])
   /**
-   * Repository は limit + 1 件まで返す。余った 1 件があれば次のページがある
+   * 余った 1 件があれば次のページがある
    */
   const hasMore = rows.length > input.limit
   const items = rows.slice(0, input.limit)
@@ -122,9 +107,6 @@ export const getAdminPassageList = async (
   return ok({ hasMore, items, nextCursor, statusCounts })
 }
 
-/**
- * 問題の全情報
- */
 export const getAdminPassageDetail = async (id: number, repo: PassageRepo): Promise<Result<AdminPassageDetail>> => {
   const detail = await repo.passageRepository.findAdminDetail(id)
   if (!detail) {
@@ -134,10 +116,6 @@ export const getAdminPassageDetail = async (id: number, repo: PassageRepo): Prom
   return ok(detail)
 }
 
-/**
- * 下書きを保存する（draft のときだけ）。用語集の位置は新しい英文から求め直す。
- * 挑戦がある問題は設問の id の集合を変えられない（過去の回答が指す設問を消さないため。数の変更・削除・追加はすべて 409）
- */
 export const updateAdminPassage = async (
   id: number,
   input: AdminPassageEditInput,
@@ -147,6 +125,9 @@ export const updateAdminPassage = async (
   if (!found.ok) return found
   const detail = found.value
 
+  /**
+   * 挑戦がある問題は設問の id の集合を変えられない（過去の回答が指す設問を消さないため。数の変更・削除・追加はすべて 409）
+   */
   if (detail.attemptCount > 0 && !hasSameQuestionIds(detail.questions, input.questions.map((question) => question.id))) {
     logger.debug("AdminPassageService: Questions of an attempted passage cannot be added or removed", {
       attemptCount: detail.attemptCount,
@@ -172,11 +153,6 @@ export const updateAdminPassage = async (
   return ok(updated)
 }
 
-/**
- * 公開する（draft のときだけ）。公開の条件を満たさなければ 400 で、満たしていない条件を details に返す。
- * 読み上げの音声が failed なら、同じトランザクションで pending に戻す（失敗の回数とエラーも消す。admin の再試行と同じ処理）。
- * 本文を直して再公開したのに failed のまま作り直されない、ということが無いように
- */
 export const publishAdminPassage = async (
   id: number,
   now: Date,
@@ -198,6 +174,10 @@ export const publishAdminPassage = async (
     if (!await repo.passageRepository.transitionStatus(id, { from: ["draft"], publishedAt: now, reviewedAt: now, to: "published" }, tx)) {
       return { isAudioReset: false, isPublished: false }
     }
+    /**
+     * 読み上げの音声が failed なら、同じトランザクションで pending に戻す。
+     * 本文を直して再公開したのに failed のまま作り直されない、ということが無いように
+     */
     return { isAudioReset: await repo.passageAudioRepository.resetFailed(id, tx), isPublished: true }
   })
   if (!published.isPublished) {
@@ -208,9 +188,6 @@ export const publishAdminPassage = async (
   return ok({ id, status: "published" })
 }
 
-/**
- * 却下する（draft のときだけ）。理由を残す
- */
 export const rejectAdminPassage = async (
   id: number,
   reason: string,
@@ -229,7 +206,7 @@ export const rejectAdminPassage = async (
 }
 
 /**
- * 公開中の問題を下書きに戻す（published のときだけ）。published_at は残す
+ * published_at は残す
  */
 export const unpublishAdminPassage = async (id: number, repo: PassageRepo): Promise<Result<AdminPassageStatusChange>> => {
   const found = await findDetailInStatus(id, ["published"], repo)
@@ -244,7 +221,7 @@ export const unpublishAdminPassage = async (id: number, repo: PassageRepo): Prom
 }
 
 /**
- * 生成した内容を消して生成待ち（collected）に戻す（draft / rejected / failed のときだけ）。挑戦が 1 件でもあれば 409
+ * 生成した内容を消して生成待ち（collected）に戻す
  */
 export const regenerateAdminPassage = async (id: number, repo: PassageRepo): Promise<Result<AdminPassageStatusChange>> => {
   const found = await findDetailInStatus(id, REGENERATABLE_STATUSES, repo)
@@ -264,7 +241,6 @@ export const regenerateAdminPassage = async (id: number, repo: PassageRepo): Pro
 }
 
 /**
- * 却下を取り消す（rejected のときだけ）。設問があれば draft、無ければ（LLM が不向きと判定したもの）collected に戻す。
  * 挑戦があっても取り消せる（設問は消さない）
  */
 export const restoreAdminPassage = async (id: number, repo: PassageRepo): Promise<Result<AdminPassageStatusChange>> => {
@@ -296,7 +272,7 @@ export const resolveAdminPassageAttention = async (
 }
 
 /**
- * 読み上げの音声の再試行。failed のときだけ pending に戻す（attempt_count = 0）。生成タスクが次の実行で作り直す。
+ * 生成タスクが次の実行で作り直す。
  * 問題が無ければ 404、音声の行が無い・failed でない（pending・generating・ready）・同時に状態が変わったときは 409
  */
 export const retryAdminPassageAudio = async (
@@ -322,7 +298,7 @@ export const retryAdminPassageAudio = async (
 }
 
 /**
- * 読み上げの音声の作り直しを依頼する。表示上 ready（作成済み）のときだけ regenerate_requested_at を入れる（失敗の回数とエラーも消す）。
+ * 読み上げの音声の作り直しを依頼する。表示上 ready（作成済み）のときだけ regenerate_requested_at を入れる。
  * 生成タスクは次の実行で、本文の hash が同じでも Polly で作り直す（作り直す間も前の音声を返し続ける）。
  * 問題が無ければ 404、音声の行が無い・ready でない（pending・generating・failed、非公開に戻した・公開し直した後の確認待ち）・同時に状態が変わったときは 409
  */

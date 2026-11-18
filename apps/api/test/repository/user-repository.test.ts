@@ -109,7 +109,6 @@ describe("UserRepository", () => {
 
       expect(await userRepository.findById(created.id)).toBeNull()
       expect(await testDb.select().from(authAccounts).where(eq(authAccounts.userId, created.id))).toEqual([])
-      /** 別のユーザーと、その auth_accounts は残る */
       expect(await userRepository.findById(other.id)).toEqual(other)
       expect(await testDb.select().from(authAccounts).where(eq(authAccounts.userId, other.id))).toHaveLength(1)
     })
@@ -141,9 +140,6 @@ describe("UserRepository", () => {
 describe("UserRepository.findForAdmin", () => {
   const query = { limit: 50, offset: 0, order: "desc" as const, sort: "created_at" as const }
 
-  /**
-   * 登録日時を決めてユーザーを入れる
-   */
   const insertUser = async (values: { createdAt: string; email?: string | null; name?: string | null }) => {
     const [user] = await testDb
       .insert(users)

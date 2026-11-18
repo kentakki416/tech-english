@@ -98,33 +98,21 @@ const WEBSITE_UPDATE_INPUT: WebsiteUpdateInput = {
   tagIds: [],
 }
 
-/**
- * 収集の状態を何も戻さない update の options
- */
 const NO_RESET: SourceUpdateOptions = { shouldResetCollectedCommit: false }
 
-/**
- * 入力から tagIds を外したもの（ソースの列）。期待値を組み立てるのに使う
- */
 const omitTagIds = ({ tagIds, ...columns }: SourceCreateInput) => columns
 
 /**
- * 編集の入力のうち、書き換わるソースの列（tagIds と、変わらない fetchType を外したもの）。期待値を組み立てるのに使う
+ * 編集の入力のうち、書き換わるソースの列（tagIds と、変わらない fetchType を外したもの）
  */
 const pickUpdatedColumns = ({ fetchType, tagIds, ...columns }: SourceUpdateInput) => columns
 
-/**
- * create して作ったソースを返す（duplicate / missing_tags なら throw する）
- */
 const createSource = async (repository: SourceRepository, input: SourceCreateInput): Promise<SourceWithTags> => {
   const result = await repository.create(input)
   if (result.kind !== "saved") throw new Error(`Unexpected ${result.kind}: ${input.name}`)
   return result.source
 }
 
-/**
- * update して更新したソースを返す（missing_tags なら throw する）
- */
 const updateSource = async (
   repository: SourceRepository,
   id: number,
@@ -141,9 +129,6 @@ const insertTag = async (name: string, color: TagColor = "blue") => {
   return row
 }
 
-/**
- * ソースに付いているタグの id（昇順）
- */
 const selectSourceTagIds = async (sourceId: number): Promise<number[]> => {
   const rows = await testDb
     .select({ tagId: sourceTags.tagId })

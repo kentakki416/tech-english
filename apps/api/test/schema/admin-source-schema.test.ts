@@ -60,9 +60,6 @@ const WEBSITE_UPDATE_REQUEST = {
   tag_ids: [],
 }
 
-/**
- * 1〜count の連番
- */
 const buildSequence = (count: number): number[] => Array.from({ length: count }, (_, index) => index + 1)
 
 describe("admin source schema", () => {

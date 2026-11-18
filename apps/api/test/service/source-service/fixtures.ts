@@ -17,9 +17,6 @@ type WebsiteUpdateInput = Extract<SourceUpdateInput, { fetchType: "website" }>
 type GitHubRepositorySourceWithTags = Extract<SourceWithTags, { fetchType: "github_repository" }>
 type WebsiteSourceWithTags = Extract<SourceWithTags, { fetchType: "website" }>
 
-/**
- * source-service のユニットテストで共有する Repository のモックと値
- */
 export const createMockSourceRepository = () => ({
   countPassagesBySource: vi.fn<SourceRepository["countPassagesBySource"]>(),
   create: vi.fn<SourceRepository["create"]>(),

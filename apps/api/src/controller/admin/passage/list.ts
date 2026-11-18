@@ -9,9 +9,6 @@ import * as service from "../../../service"
 
 import { convertAdminPassageListItemToResponse } from "./convert-detail-to-response"
 
-/**
- * admin の問題一覧API（状態・ソース・要確認の絞り込み、cursor ページング、状態ごとの件数）
- */
 export class AdminPassageListController {
   constructor(private _passageRepository: PassageRepository) {}
 

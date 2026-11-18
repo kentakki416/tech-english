@@ -32,9 +32,6 @@ export type TokenGenerators = {
 
 export const REFRESH_TTL_SECONDS = 60 * 60 * 24 * 7
 
-/**
- * Access Token / Refresh Token を発行し、Refresh Token の jti を保存する
- */
 const issueTokens = async (
   userId: number,
   repo: { refreshTokenRepository: RefreshTokenRepository },
@@ -49,14 +46,6 @@ const issueTokens = async (
   return { accessToken, refreshToken }
 }
 
-/**
- * Google アカウントでの認証
- *
- * Next.js 側で取得した Authorization Code を Google で検証し、UserInfo を取得する。
- * 既存ユーザーが居なければ User + AuthAccount を作成し、Access/Refresh Token を発行する。
- *
- * 業務エラー（現状なし）は Result.err として返し、外部サービス障害などの予期しないエラーは throw する。
- */
 export const authenticateWithGoogle = async (
   input: { code: string; redirectUri: string },
   repo: Repositories,
@@ -126,16 +115,6 @@ export type AuthenticateWithGitHubSuccess = {
   user: User
 }
 
-/**
- * GitHub アカウントでの認証
- *
- * web / mobile が受け取った Authorization Code（+ PKCE の code_verifier）を GitHub で検証し、ユーザー情報を取得する。
- * GitHub の id で既存ユーザーが見つかれば表示名とアイコンを最新化し、見つからなければ User + AuthAccount を作成して
- * Access/Refresh Token を発行する。
- *
- * code が使えない（期限切れ・使用済み・verifier 不一致）ときは 401 を Result.err で返し、
- * 外部サービス障害などの予期しないエラーは throw する。
- */
 export const authenticateWithGitHub = async (
   input: { code: string; codeVerifier: string; redirectUri: string; timezone?: string },
   repo: Repositories,
@@ -216,13 +195,6 @@ export type LoginAsDevUserSuccess = {
   user: User
 }
 
-/**
- * 開発環境専用ログイン
- *
- * email で seed 済みの dev ユーザーを引き当てて Access/Refresh Token を発行する。
- * production での誤実行を防ぐためのガードは呼び出し側（controller / index.ts / PUBLIC_PATHS）で行う。
- * このサービス関数自体は環境非依存。
- */
 export const loginAsDevUser = async (
   input: { email: string },
   repo: {
@@ -259,7 +231,7 @@ export type RefreshTokensSuccess = {
 export type RefreshVerifier = (token: string) => { jti: string; userId: number } | null
 
 /**
- * refresh token の持ち主を引く Repository。持ち主がまだ居るかを確かめるのに findById だけを使う。
+ * 持ち主がまだ居るかを確かめるのに findById だけを使う。
  * 一般ユーザーは UserRepository、admin は AdminRepository を渡し、admin の refresh でも同じ持ち主の確かめと猶予を使う
  */
 export type TokenOwnerRepository = {
@@ -307,15 +279,6 @@ const reuseRotatedTokens = async (
   return ok({ accessToken: rotated.accessToken, refreshToken: rotated.refreshToken })
 }
 
-/**
- * Refresh Token のローテーション
- *
- * 受け取った Refresh Token を検証し、Redis 上の jti と一致する場合は旧 jti を破棄して
- * 新しい Access Token + Refresh Token を発行する（1 回使用で無効化）。
- * ローテーション後 ROTATION_GRACE_SECONDS の間は、同じ旧 Refresh Token に発行済みの同じペアを返す（reuseRotatedTokens）。
- *
- * 検証失敗・既に無効化済み（猶予の外）・userId 不一致・ユーザーが削除済みはすべて 401 で返す。
- */
 export const refreshTokens = async (
   input: { refreshToken: string },
   repo: { refreshTokenRepository: RefreshTokenRepository; tokenOwnerRepository: TokenOwnerRepository },
@@ -352,7 +315,6 @@ export const refreshTokens = async (
   await repo.refreshTokenRepository.save(jti, userId, REFRESH_TTL_SECONDS)
 
   /**
-   * ローテーション: 旧 jti → 発行したペアを猶予の間だけ残してから、旧 jti を破棄する。
    * 先に残すので、旧 jti が消えて見えるリクエストは（猶予の間なら）必ず猶予の記録を見つける
    */
   await repo.refreshTokenRepository.saveRotatedTokens(payload.jti, { accessToken, refreshToken }, ROTATION_GRACE_SECONDS)
@@ -363,12 +325,6 @@ export const refreshTokens = async (
   return ok({ accessToken, refreshToken })
 }
 
-/**
- * ログアウト
- *
- * Refresh Token を検証して Redis から jti を削除する。冪等性を保つため、
- * 検証失敗時もエラーにせず 200 を返す（呼び出し元の Result.ok = true）。
- */
 export const logout = async (
   input: { refreshToken: string },
   repo: { refreshTokenRepository: RefreshTokenRepository },
@@ -378,7 +334,9 @@ export const logout = async (
 
   const payload = verifier(input.refreshToken)
   if (!payload) {
-    /** 無効なトークンでも成功扱いにして冪等性を保つ */
+    /**
+     * 無効なトークンでも成功扱いにして冪等性を保つ
+     */
     return ok({ ok: true })
   }
   await repo.refreshTokenRepository.delete(payload.jti)

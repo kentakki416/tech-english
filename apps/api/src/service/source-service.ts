@@ -42,14 +42,8 @@ import {
 
 type SourceRepo = { sourceRepository: SourceRepository }
 
-/**
- * 収集の実行の記録も読み書きする Repository（一覧・詳細・今すぐ収集の依頼）
- */
 type SourceCollectionRepo = SourceRepo & { sourceCollectionRunRepository: SourceCollectionRunRepository }
 
-/**
- * 登録・更新で使う Repository。タグは存在の確認にだけ使う
- */
 type SourceWriteRepo = SourceRepo & { tagRepository: Pick<TagRepository, "findByIds"> }
 
 type GitHubRepositoryUpdateInput = Extract<SourceUpdateInput, { fetchType: "github_repository" }>
@@ -75,7 +69,7 @@ const SOURCE_COLLECTION_ENQUEUE_FAILED_ERROR = "収集を始められなかっ�
 const TAG_NOT_FOUND_CODE = "tag_not_found"
 
 /**
- * 登録・更新で、取得方法ごとに受け付けるかの設定。サイトのソースはローカル（NODE_ENV !== "production"）でだけ受け付ける。
+ * サイトのソースはローカル（NODE_ENV !== "production"）でだけ受け付ける。
  * env を service で読まず index.ts が値を渡す（テストで切り替えるため）
  */
 export type SourceWritePolicy = {
@@ -85,14 +79,8 @@ export type SourceWritePolicy = {
 const disableWebsiteSource = (input: SourceCreateInput): SourceCreateInput =>
   input.fetchType === "website" ? { ...input, isEnabled: false } : input
 
-/**
- * 本文候補の状態ごとの件数
- */
 export type PassageCounts = Record<PassageStatus, number>
 
-/**
- * 1 ソースの状態ごとの件数。行が無い状態は 0 で埋める
- */
 const buildPassageCounts = (rows: PassageCountRow[], sourceId: number): PassageCounts => {
   const counts = Object.fromEntries(PASSAGE_STATUSES.map((status) => [status, 0])) as PassageCounts
   for (const row of rows) {
@@ -101,9 +89,6 @@ const buildPassageCounts = (rows: PassageCountRow[], sourceId: number): PassageC
   return counts
 }
 
-/**
- * 同じ取得元（github は repository、website は site_url）で登録済みのソース
- */
 const findDuplicateSource = async (
   input: SourceCreateInput,
   repo: SourceRepo,
@@ -113,13 +98,12 @@ const findDuplicateSource = async (
     : repo.sourceRepository.findBySiteUrl(input.siteUrl)
 
 /**
- * 存在しないタグの id の 400。admin は details の path（["tag_ids"]）で見分けてタグの欄に出す
+ * admin は details の path（["tag_ids"]）で見分けてタグの欄に出す
  */
 const buildTagNotFoundError = (message: string) =>
   badRequestError(TAG_NOT_FOUND_MESSAGE, [{ code: TAG_NOT_FOUND_CODE, message, path: ["tag_ids"] }])
 
 /**
- * tagIds のうち tags に無い id（入力の順）。全部あれば空。
  * admin のフォームは登録済みのタグしか出さないが、送信までの間にタグの画面で消されることがある
  */
 const findMissingTagIds = async (tagIds: number[], repo: SourceWriteRepo): Promise<number[]> => {
@@ -128,23 +112,15 @@ const findMissingTagIds = async (tagIds: number[], repo: SourceWriteRepo): Promi
   return tagIds.filter((tagId) => !existingIds.has(tagId))
 }
 
-/**
- * 2 つの文字列の配列が同じ順で同じ値を持つか
- */
 const isSameStringList = (left: string[], right: string[]): boolean =>
   left.length === right.length && left.every((value, index) => value === right[index])
 
-/**
- * 収集の範囲（対象パス / 除外パス）が変わったか
- */
 const hasCollectionScopeChanged = (existing: GitHubRepositorySource, input: GitHubRepositoryUpdateInput): boolean =>
   !isSameStringList(existing.includeGlobs, input.includeGlobs)
   || !isSameStringList(existing.excludeGlobs, input.excludeGlobs)
 
 /**
- * 収集中のまま時間切れ（SOURCE_COLLECTION_RUN_TIMEOUT_MINUTES）を過ぎた記録を failed にする。
- * worker が止まって記録が収集中のまま残っても、次に一覧・詳細を読む・依頼するときに片付けて、もう一度依頼できるようにする。
- * sourceId を省くと、すべてのソースの記録を片付ける
+ * worker が止まって記録が収集中のまま残っても、次に一覧・詳細を読む・依頼するときに片付けて、もう一度依頼できるようにする
  */
 const failTimedOutCollectionRuns = async (now: Date, repo: SourceCollectionRepo, sourceId?: number): Promise<void> => {
   const count = await repo.sourceCollectionRunRepository.failTimedOut({
@@ -156,9 +132,6 @@ const failTimedOutCollectionRuns = async (now: Date, repo: SourceCollectionRepo,
   if (count > 0) logger.warn("SourceService: Timed out source collection runs were failed", { count, sourceId })
 }
 
-/**
- * ソース一覧（状態別の本文候補件数と、最後の収集の記録つき）
- */
 export const getSources = async (
   repo: SourceCollectionRepo,
   deps: { now: Date },
@@ -180,9 +153,6 @@ export const getSources = async (
   })))
 }
 
-/**
- * ソース詳細（状態別の本文候補件数と、最後の収集の記録つき）
- */
 export const getSourceById = async (
   id: number,
   repo: SourceCollectionRepo,
@@ -205,9 +175,6 @@ export const getSourceById = async (
   return ok({ latestCollectionRun, passageCounts: buildPassageCounts(passageCountRows, id), source })
 }
 
-/**
- * ソースを登録する
- */
 export const createSource = async (
   input: SourceCreateInput,
   repo: SourceWriteRepo,
@@ -249,7 +216,6 @@ export const createSource = async (
 }
 
 /**
- * ソースを更新する（GitHub は有効 / 無効の切り替えを含む）。取得方法は変えられない。
  * 取得元は入力に含まない（編集では変えない）ので、createSource と違って重複は確かめない
  */
 export const updateSource = async (
@@ -334,7 +300,7 @@ const SOURCE_SUGGESTION_ERROR_MESSAGE = "Cannot suggest a source from the URL"
 const LICENSE_FILE_NAME_PATTERN = /^(LICENSE|LICENCE|COPYING)([-._].*)?$/
 
 /**
- * URL から初期値を作れない理由の 400。admin は details[0].code で文言を分ける
+ * admin は details[0].code で文言を分ける
  */
 const buildSourceSuggestionError = (code: SourceSuggestionErrorCode) =>
   badRequestError(SOURCE_SUGGESTION_ERROR_MESSAGE, [{ code, message: code, path: ["url"] }])
@@ -350,9 +316,6 @@ const buildRepositoryLicense = (detected: DetectedLicense | null, conflictUrl: s
   }
 }
 
-/**
- * サイトのライセンスは自動で判定できないので、ローカルの用途（個人の学習用）にそろえる
- */
 const suggestWebsiteSource = (url: string, policy: SourceWritePolicy): Result<SourceSuggestion> => {
   if (!policy.isWebsiteSourceAllowed) {
     logger.debug("SourceService: Website source is not available")
@@ -366,6 +329,9 @@ const suggestWebsiteSource = (url: string, policy: SourceWritePolicy): Result<So
   return ok({
     fetchType: "website",
     includeGlobs: [buildWebsiteIncludeGlob(sourceUrl.path)],
+    /**
+     * サイトのライセンスは自動で判定できないので、ローカルの用途（個人の学習用）にそろえる
+     */
     licenseSpdx: PERSONAL_USE_LICENSE,
     licenseUrl: sourceUrl.siteUrl,
     siteUrl: sourceUrl.siteUrl,
@@ -463,8 +429,7 @@ const suggestGitHubRepositorySource = async (
 }
 
 /**
- * 登録の画面の取得方法と URL から、ソースの登録のフォームの初期値を作る。登録の検証は createSource が行うので、
- * ここでは許可リストのライセンスかどうかを返すだけで拒否しない
+ * 登録の検証は createSource が行うので、ここでは許可リストのライセンスかどうかを返すだけで拒否しない
  */
 export const suggestSourceFromUrl = async (
   input: { fetchType: SourceFetchType; url: string },
@@ -476,14 +441,16 @@ export const suggestSourceFromUrl = async (
     : suggestGitHubRepositorySource(input.url, deps)
 
 /**
- * ソースを、公開中の問題と解答の記録も含めて削除する。音声の mp3 は generate:audio が消す。収集中のソースは 409 で何も消さない。
- * 時間切れの収集の記録が残っていると削除できないままになるので、先に片付ける
+ * 音声の mp3 は generate:audio が消す
  */
 export const deleteSource = async (
   id: number,
   repo: SourceCollectionRepo,
   deps: { now: Date },
 ): Promise<Result<{ deleted: true }>> => {
+  /**
+   * 時間切れの収集の記録が残っていると削除できないままになるので、先に片付ける
+   */
   await failTimedOutCollectionRuns(deps.now, repo, id)
   const result = await repo.sourceRepository.deleteWithContent(id)
   if (result.kind === "not_found") {
@@ -502,19 +469,12 @@ export const deleteSource = async (
   return ok({ deleted: true })
 }
 
-/**
- * 収集できないソースの理由を、api のエラーにする（ソースが無いときだけ 404）
- */
 const buildSourceNotCollectableError = (reason: SourceNotCollectableReason) => {
   if (reason === "not_found") return notFoundError("Source not found")
   if (reason === "website") return badRequestError("Website sources are not collected")
   return badRequestError("Disabled sources are not collected")
 }
 
-/**
- * 今すぐ収集を依頼する。queued の記録を作ってから Queue に積み、worker が収集する。
- * 有効な GitHub のソースだけを受け付け、同じソースの収集中に依頼されたら 409（部分 unique index で判定する）
- */
 export const requestSourceCollection = async (
   sourceId: number,
   repo: SourceCollectionRepo,

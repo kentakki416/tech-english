@@ -25,7 +25,7 @@ export type AttemptRates = {
 }
 
 /**
- * 全体の利用状況。平均の解答時間・時間超過の割合は問題ごとの成績でだけ出す
+ * 平均の解答時間・時間超過の割合は問題ごとの成績でだけ出す
  */
 export type AdminStatsOverview = Omit<AttemptRates, "averageElapsedSeconds" | "overtimeRate"> & {
   activeUsers: number
@@ -69,14 +69,8 @@ export type AdminQuestionStats = {
 
 export type AdminPassageStatsDetail = { passage: AdminPassageStats; period: AdminStatsPeriod; questions: AdminQuestionStats[] }
 
-/**
- * 分母が 0 なら null
- */
 const divideOrNull = (numerator: number, denominator: number): number | null => (denominator === 0 ? null : numerator / denominator)
 
-/**
- * 解いた挑戦の合計を、正答率・平均の解答時間・時間超過の割合・アシストの利用率にする
- */
 const convertAttemptTotalsToRates = (totals: AttemptTotals): AttemptRates => ({
   assistRates: {
     listened: divideOrNull(totals.listenedAttempts, totals.solvedAttempts),
@@ -103,7 +97,7 @@ const convertPassageStatsRowToStats = (row: PassageStatsRow): AdminPassageStats 
 })
 
 /**
- * 全体の利用状況。全期間の始まりは最初のユーザーの登録日（いなければ今日）。週ごとの推移は始まりと終わりを月曜にそろえる
+ * 全期間の始まりは最初のユーザーの登録日（いなければ今日）。週ごとの推移は始まりと終わりを月曜にそろえる
  * （date_trunc('week') の月曜と系列の日付を合わせるため）
  */
 export const getAdminStatsOverview = async (
@@ -142,7 +136,7 @@ export const getAdminStatsOverview = async (
 }
 
 /**
- * 問題ごとの成績（page は 1 始まり。範囲外のページは空の配列で、total は全体の件数）
+ * page は 1 始まり。範囲外のページは空の配列で、total は全体の件数
  */
 export const getAdminPassageStatsList = async (
   query: { limit: number; order: "asc" | "desc"; page: number; period: AdminStatsPeriod; q?: string; sort: AdminPassageStatsSort },
@@ -162,9 +156,6 @@ export const getAdminPassageStatsList = async (
   return ok({ items: items.map(convertPassageStatsRowToStats), limit: query.limit, page: query.page, total })
 }
 
-/**
- * 問題の分析（問題の数字と設問ごとの数字）。問題が無ければ notFoundError
- */
 export const getAdminPassageStats = async (
   passageId: number,
   period: AdminStatsPeriod,

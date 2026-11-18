@@ -13,9 +13,6 @@ import * as service from "../../../service"
 
 import { convertAdminPassageDetailToResponse, convertUpdateAdminPassageRequestToInput } from "./convert-detail-to-response"
 
-/**
- * admin の下書き保存API（draft のときだけ）。保存後の全情報（再計算した用語集の位置を含む）を返す
- */
 export class AdminPassageUpdateController {
   constructor(private _passageRepository: PassageRepository) {}
 

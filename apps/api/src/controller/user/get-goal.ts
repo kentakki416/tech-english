@@ -8,9 +8,6 @@ import { AuthRequest } from "../../middleware/auth"
 import { UserGoalRepository } from "../../repository"
 import * as service from "../../service"
 
-/**
- * 目標の取得API（GET /api/user/goal）。未設定なら goal は null
- */
 export class UserGetGoalController {
   constructor(private _userGoalRepository: UserGoalRepository) {}
 

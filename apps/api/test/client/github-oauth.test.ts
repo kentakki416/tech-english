@@ -57,7 +57,6 @@ describe("GitHubOAuthClient.getUserInfo", () => {
         name: "The Octocat",
       })
 
-      /** token の交換: client の資格情報・code・PKCE の code_verifier・redirect_uri をフォームで送る */
       const [tokenUrl, tokenInit] = fetchSpy.mock.calls.find(([url]) => url === ACCESS_TOKEN_URL)!
       expect(tokenUrl).toBe(ACCESS_TOKEN_URL)
       expect(tokenInit?.method).toBe("POST")
@@ -70,7 +69,9 @@ describe("GitHubOAuthClient.getUserInfo", () => {
         redirect_uri: INPUT.redirectUri,
       })
 
-      /** /user と /user/emails: 交換した token と GitHub が必須とする User-Agent を付ける */
+      /**
+       * /user と /user/emails: 交換した token と GitHub が必須とする User-Agent を付ける
+       */
       const expectedHeaders = {
         Accept: "application/vnd.github+json",
         Authorization: "Bearer gho_token",

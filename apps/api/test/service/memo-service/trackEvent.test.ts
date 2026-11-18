@@ -46,7 +46,6 @@ describe("memo-service の行動イベント送出", () => {
       expect(eventTracker.inputs.map((i) => i.name)).toEqual(["memo_updated"])
     })
 
-    /** 物理削除なので DB から復元できない。ここで記録しないと永久に失われる */
     it("deleteMemo 成功時に memo_deleted を記録する", async () => {
       const eventTracker = new FakeEventTracker()
 
@@ -59,10 +58,6 @@ describe("memo-service の行動イベント送出", () => {
   })
 
   describe("異常系", () => {
-    /**
-     * /api/memo は PUBLIC_PATHS に含まれ未ログインでも呼べる。
-     * 匿名ユーザーは追跡しない方針なので、userId が無いときは記録しない。
-     */
     it("未ログイン（userId が undefined）のときイベントを記録しない", async () => {
       const eventTracker = new FakeEventTracker()
 

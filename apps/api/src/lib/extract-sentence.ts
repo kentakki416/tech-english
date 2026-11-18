@@ -1,13 +1,12 @@
-/**
- * 切り出した 1 文。highlightStart / highlightEnd は text の中での単語の位置 [start, end)
- */
 export type ExtractedSentence = {
   /**
-   * カードに出す範囲（前後の … を除く）の、ブロックの本文上の位置 [blockStartOffset, blockEndOffset)。
-   * 1 文の読み上げの区間を求めるのに使う（vocabulary-pronunciation）。レスポンスには出さない
+   * カードに出す範囲（前後の … を除く）の、ブロックの本文上の位置 [blockStartOffset, blockEndOffset)
    */
   blockEndOffset: number
   blockStartOffset: number
+  /**
+   * highlightStart / highlightEnd は text の中での単語の位置 [start, end)
+   */
   highlightEnd: number
   highlightStart: number
   text: string

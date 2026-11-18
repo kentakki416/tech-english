@@ -13,15 +13,11 @@ type PassageRouterControllers = {
 }
 
 /**
- * ユーザー向けの問題のルーター（/api/passage にマウントする）。認証必須（PUBLIC_PATHS に入れない）。
- * 渡されたコントローラーのルートのみ登録する
+ * 認証必須（PUBLIC_PATHS に入れない）
  */
 export const passageRouter = (controllers: PassageRouterControllers): Router => {
   const router = Router()
 
-  /**
-   * GET /api/passage
-   */
   if (controllers.list) {
     const controller = controllers.list
     router.get("/", async (req, res) => controller.execute(req, res))
@@ -35,17 +31,11 @@ export const passageRouter = (controllers: PassageRouterControllers): Router => 
     router.get("/random", async (req, res) => controller.execute(req, res))
   }
 
-  /**
-   * GET /api/passage/:id
-   */
   if (controllers.detail) {
     const controller = controllers.detail
     router.get("/:id", async (req, res) => controller.execute(req, res))
   }
 
-  /**
-   * POST /api/passage/:id/attempt（挑戦の開始）
-   */
   if (controllers.start) {
     const controller = controllers.start
     router.post("/:id/attempt", async (req, res) => controller.execute(req, res))

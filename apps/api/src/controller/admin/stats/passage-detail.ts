@@ -13,9 +13,6 @@ import * as service from "../../../service"
 
 import { convertPassageStatsToResponse } from "./convert-stats-to-response"
 
-/**
- * admin の問題の分析API（問題の数字と、設問ごとの正答率・選択肢の割合・要確認の印）。問題が無ければ 404
- */
 export class AdminPassageStatsDetailController {
   constructor(private _adminStatsRepository: AdminStatsRepository) {}
 

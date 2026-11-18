@@ -8,9 +8,6 @@ import { AdminAuthRequest } from "../../src/middleware/admin-auth"
 import { authMiddleware } from "../../src/middleware/auth"
 import { mountAdminApi } from "../../src/routes/admin-router"
 
-/**
- * adminAuthMiddleware を通ったら adminId を返すだけの Router
- */
 const echoRouter = Router()
 echoRouter.all(/.*/, (req: AdminAuthRequest, res: express.Response) => {
   res.status(200).json({ adminId: req.adminId ?? null })

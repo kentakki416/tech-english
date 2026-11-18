@@ -1,17 +1,10 @@
 import type { Question } from "@repo/domain"
 
 /**
- * 提出の採点と時間の計算。DB を知らない純関数
- */
-
-/**
  * 設問ごとの回答（null は未回答）
  */
 export type AnswerInput = { questionId: number; selectedChoiceIndex: number | null }
 
-/**
- * 採点した回答
- */
 export type GradedAnswer = AnswerInput & { isCorrect: boolean }
 
 /**

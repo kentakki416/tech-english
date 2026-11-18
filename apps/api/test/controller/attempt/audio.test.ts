@@ -34,9 +34,6 @@ attachUnhandledExceptionHandler(appWithoutBase)
 
 const PUBLISHED_AT = new Date("2026-10-12T03:00:00.000Z")
 
-/**
- * 公開中の問題と、ログインしたユーザーの挑戦中を入れる
- */
 const setupAttempt = async () => {
   const { passage } = await insertGeneratedPassage({ publishedAt: PUBLISHED_AT, status: "published" })
   const { token, user } = await createTestUser()

@@ -10,9 +10,6 @@ import type { SourceWritePolicy } from "../../../service/source-service"
 
 import { convertCreateSourceRequestToInput, convertSourceToResponse } from "./source-mapper"
 
-/**
- * admin のソース登録API。website はローカルでだけ受け付け、無効の状態で作る
- */
 export class AdminSourceCreateController {
   constructor(
     private _sourceRepository: SourceRepository,

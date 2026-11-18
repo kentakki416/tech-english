@@ -1,9 +1,6 @@
 import { IoRedisRefreshTokenRepository } from "../../src/repository/redis"
 import { cleanupTestRedis, disconnectTestDb, disconnectTestRedis, testRedis } from "../controller/setup"
 
-/**
- * Redis 実装の RefreshTokenRepository を実 Redis（テスト用 DB 1）で確かめる。キー名・TTL・値の変換は mock では検出できないため
- */
 const refreshTokenRepository = new IoRedisRefreshTokenRepository(testRedis)
 const adminRefreshTokenRepository = new IoRedisRefreshTokenRepository(testRedis, "admin_refresh_token")
 

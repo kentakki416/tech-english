@@ -37,7 +37,6 @@ describe("POST /api/memo", () => {
     expect(res.body.body).toBe("New Body")
     expect(res.body.id).toBeDefined()
 
-    // DBに実際に保存されていることを確認
     const [memo] = await testDb.select().from(memos).where(eq(memos.id, res.body.id))
     expect(memo).toBeDefined()
     expect(memo.title).toBe("New Title")

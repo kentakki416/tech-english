@@ -25,7 +25,7 @@ export type AttemptTotals = {
 }
 
 /**
- * 全体の利用状況の数。totalUsers だけは期間に関係しない今の総数
+ * totalUsers だけは期間に関係しない今の総数
  */
 export type OverviewTotals = AttemptTotals & {
   activeUsers: number
@@ -34,7 +34,7 @@ export type OverviewTotals = AttemptTotals & {
 }
 
 /**
- * 推移の 1 点。date は日本時間の日（週ごとなら、その週の月曜）
+ * date は日本時間の日（週ごとなら、その週の月曜）
  */
 export type SeriesPoint = {
   activeUsers: number
@@ -44,7 +44,7 @@ export type SeriesPoint = {
 }
 
 /**
- * 問題ごとの成績の 1 行（解かれていなければ合計はすべて 0）
+ * 解かれていなければ合計はすべて 0
  */
 export type PassageStatsRow = AttemptTotals & {
   id: number

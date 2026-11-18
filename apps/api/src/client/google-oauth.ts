@@ -4,7 +4,7 @@ import { z } from "zod"
 export type GoogleUserInfo = {
   email: string
   /**
-   * Google で email が確認済みか。userinfo に項目が無いときは false（未確認として扱う）
+   * userinfo に verified_email が無いときは false（未確認として扱う）
    */
   emailVerified: boolean
   id: string
@@ -13,10 +13,8 @@ export type GoogleUserInfo = {
 }
 
 /**
- * Google userinfo エンドポイントのレスポンス検証スキーマ。
- * 外部 API のレスポンスは無検証キャストせず Zod で検証し、想定外の形（id/email
- * 欠落、エラー JSON 等）が後段の findByProvider / ユーザー作成へ流れるのを防ぐ。
- * 利用しないフィールド（family_name 等）は検証対象に含めない（余剰は無視）。
+ * 外部 API のレスポンスはキャストせずに検証し、想定外の形（id / email の欠落、エラーの JSON など）を
+ * 後続の処理へ流さない
  */
 const googleUserInfoResponseSchema = z.object({
   email: z.string().email(),
@@ -24,16 +22,14 @@ const googleUserInfoResponseSchema = z.object({
   name: z.string(),
   picture: z.string().optional(),
   /**
-   * 必須にすると、Google が項目を返さなかったときに一般ユーザーの POST /api/auth/google まで 500 になるので任意にする
+   * 必須にすると、Google が項目を返さなかったときに一般ユーザーのサインインまで 500 になるので任意にする
    */
   verified_email: z.boolean().optional(),
 })
 
 /**
- * GoogleOAuthクライアントのインターフェース
- *
- * code を token に交換する際の redirect_uri は Google OAuth の仕様上
- * 認証時に使った URL と完全一致する必要があるため、getUserInfo の引数で受け取る。
+ * Google OAuth は、code を token に交換するときの redirect_uri が認証時の URL と完全に一致することを
+ * 求めるので、getUserInfo の引数で受け取る
  */
 export interface IGoogleOAuthClient {
   getUserInfo(code: string, redirectUri: string): Promise<GoogleUserInfo>
@@ -50,8 +46,7 @@ export class GoogleOAuthClient implements IGoogleOAuthClient {
 
   public async getUserInfo(code: string, redirectUri: string): Promise<GoogleUserInfo> {
     /**
-     * リクエスト毎に OAuth2Client を生成する。
-     * テスト容易性と、redirect_uri をリクエスト単位で切り替える要件のため。
+     * redirect_uri がリクエストごとに変わるので、OAuth2Client はリクエストごとに作る
      */
     const oauth2Client = new OAuth2Client(this._clientId, this._clientSecret, redirectUri)
     const { tokens } = await oauth2Client.getToken(code)

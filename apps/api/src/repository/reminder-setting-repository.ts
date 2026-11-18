@@ -1,7 +1,7 @@
 import type { ReminderSetting } from "@repo/domain"
 
 /**
- * リマインダーの設定の保存（upsert）の入力。すべての項目を上書きする。
+ * すべての項目を上書きする。
  * time は "HH:mm"、weekdays は ISO の曜日番号（1〜7）の配列（値域・並び順は呼び出し側で整える）
  */
 export type UpsertReminderSettingInput = Pick<ReminderSetting, "isEnabled" | "time" | "weekdays">

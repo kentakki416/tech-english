@@ -3,14 +3,8 @@ import type { ReminderSetting } from "@repo/domain"
 
 import type { ReminderSettingRepository, UpsertReminderSettingInput } from "../reminder-setting-repository"
 
-/**
- * Drizzleの型
- */
 type ReminderSettingRow = typeof reminderSettings.$inferSelect
 
-/**
- * Drizzle 実装の ReminderSettingRepository
- */
 export class DrizzleReminderSettingRepository implements ReminderSettingRepository {
   private _db: DrizzleClient
 
@@ -38,7 +32,7 @@ export class DrizzleReminderSettingRepository implements ReminderSettingReposito
   }
 
   /**
-   * Drizzleの型 → ドメインの型に変換。time は Postgres が "21:00:00" で返すので "HH:mm" にする
+   * time は Postgres が "21:00:00" で返すので "HH:mm" にする
    */
   private _toDomainReminderSetting(row: ReminderSettingRow): ReminderSetting {
     return {

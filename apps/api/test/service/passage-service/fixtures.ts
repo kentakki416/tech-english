@@ -3,15 +3,8 @@ import type { Passage, ReadingAttempt } from "@repo/domain"
 import type { AttemptContent, PassageOverview, PassageSource, PublishedPassageSummary } from "../../../src/repository"
 import { buildGlossaryEntries, buildPassage, buildQuestions } from "../../fixture/passage-content"
 
-/**
- * passage-service のユニットテストで共有する値。Repository のモックは test/fixture/passage-repository-mock.ts を使う
- */
-
 export const FIXED_NOW = new Date("2026-10-13T00:00:00.000Z")
 
-/**
- * 問題のソース（React 公式ドキュメント）
- */
 const PASSAGE_SOURCE: PassageSource = {
   branch: "main",
   fetchType: "github_repository",
@@ -67,9 +60,6 @@ export const buildUnpublishedAttemptContent = (overrides: Partial<Passage> = {})
   }
 }
 
-/**
- * 挑戦中の挑戦
- */
 export const buildInProgressAttempt = (overrides: Partial<ReadingAttempt> = {}): ReadingAttempt => ({
   id: 301,
   correctCount: null,

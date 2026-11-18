@@ -9,9 +9,6 @@ import * as service from "../../../service"
 
 import { convertAdminUserToResponse } from "./convert-user-to-response"
 
-/**
- * admin のユーザー一覧API（名前・メールアドレスの絞り込み、並べ替え、offset のページ分け）
- */
 export class AdminUserListController {
   constructor(private _userRepository: UserRepository) {}
 

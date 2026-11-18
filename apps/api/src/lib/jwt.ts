@@ -27,26 +27,16 @@ export type RefreshTokenPayload = {
   userId: number
 }
 
-/**
- * Access Token を生成する
- */
 export const generateAccessToken = (userId: number): string => {
   return jwt.sign({ userId }, JWT_ACCESS_SECRET, { expiresIn: JWT_ACCESS_EXPIRATION })
 }
 
-/**
- * Refresh Token を生成する
- * jti は Redis に保存し、ローテーション・ログアウト時に当該 jti を破棄する
- */
 export const generateRefreshToken = (userId: number): { jti: string; token: string } => {
   const jti = randomUUID()
   const token = jwt.sign({ jti, userId }, JWT_REFRESH_SECRET, { expiresIn: JWT_REFRESH_EXPIRATION })
   return { jti, token }
 }
 
-/**
- * Access Token を検証する
- */
 export const verifyAccessToken = (token: string): AccessTokenPayload | null => {
   try {
     return jwt.verify(token, JWT_ACCESS_SECRET) as AccessTokenPayload
@@ -55,9 +45,6 @@ export const verifyAccessToken = (token: string): AccessTokenPayload | null => {
   }
 }
 
-/**
- * Refresh Token を検証する
- */
 export const verifyRefreshToken = (token: string): RefreshTokenPayload | null => {
   try {
     return jwt.verify(token, JWT_REFRESH_SECRET) as RefreshTokenPayload

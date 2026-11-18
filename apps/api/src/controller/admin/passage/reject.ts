@@ -11,9 +11,6 @@ import { sendError } from "../../../lib/send-error"
 import { PassageRepository } from "../../../repository"
 import * as service from "../../../service"
 
-/**
- * admin の問題却下API（draft のときだけ。理由は必須）
- */
 export class AdminPassageRejectController {
   constructor(private _passageRepository: PassageRepository) {}
 

@@ -83,7 +83,7 @@ const convertVocabularyCardRowToDomain = (row: VocabularyCardRow): VocabularyCar
 })
 
 /**
- * Drizzle 実装の VocabularyRepository。候補の集め方が DISTINCT ON と UNION ALL を重ねる形なので、クエリビルダではなく sql で書く。
+ * 候補の集め方が DISTINCT ON と UNION ALL を重ねる形なので、クエリビルダではなく sql で書く。
  * 日付は ::text、件数は ::int で受け取る（execute の結果はドライバの既定の変換を通るため、date が Date に、count が文字列になるのを避ける）
  */
 export class DrizzleVocabularyRepository implements VocabularyRepository {

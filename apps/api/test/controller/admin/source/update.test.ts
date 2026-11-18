@@ -45,9 +45,6 @@ const selectSource = async (id: number) => {
   return row
 }
 
-/**
- * 取得済みのページ（本文のハッシュつき）を入れる
- */
 const insertFetchedDocument = async (sourceId: number, path: string) => {
   const [row] = await testDb.insert(sourceDocuments).values({
     contentHash: "content-hash",

@@ -71,7 +71,7 @@ const URL_IMPORT_ERROR_MESSAGE = "URL could not be imported"
 const GENERATED_OR_GENERATING_STATUSES: readonly PassageStatus[] = ["draft", "generating", "published"]
 
 /**
- * 取り込めない理由の 400。admin は details[0].code で文言を分ける
+ * admin は details[0].code で文言を分ける
  */
 const buildUrlImportError = (code: UrlImportErrorCode, detail: string | null) =>
   badRequestError(URL_IMPORT_ERROR_MESSAGE, [{ code, message: detail ?? code, path: ["url"] }])
@@ -123,8 +123,7 @@ const findSameContentPassage = (
 }
 
 /**
- * URL のオリジンのサイトのソース（無効のソースも含む）。site_url はオリジンに正規化して unique なので 1 つだけ当たる。
- * 無ければ、GitHub のソースの公開ページのオリジンなら github_source、それも無ければ source_not_found
+ * URL のオリジンのサイトのソース（無効のソースも含む）。site_url はオリジンに正規化して unique なので 1 つだけ当たる
  */
 const findImportSource = async (url: string, repo: UrlImportRepo): Promise<Result<WebsiteSource>> => {
   const origin = new URL(url).origin
@@ -183,7 +182,7 @@ const cachePage = async (key: UrlImportPageCacheKey, page: FetchedPage, repo: Ur
 }
 
 /**
- * キャッシュのキーにする URL。取得のときの正規化と同じくクエリとフラグメントを除き、#... だけが違う同じページで取り直さない
+ * 取得のときの正規化と同じくクエリとフラグメントを除き、#... だけが違う同じページで取り直さない
  */
 const buildPageCacheUrl = (url: string): string => {
   const parsed = new URL(url)
@@ -191,7 +190,7 @@ const buildPageCacheUrl = (url: string): string => {
 }
 
 /**
- * ソースを決め、ページを取得・抽出する。確認と保存で同じページを取り直さないよう、取得・抽出したページはキャッシュに置いて使い回す
+ * 確認と保存で同じページを取り直さないよう、取得・抽出したページはキャッシュに置いて使い回す
  * （Crawl-delay を守り、保存の内容を確認した内容とそろえるため。取得に失敗したときは置かない）
  */
 const fetchImportPage = async (
@@ -219,7 +218,7 @@ const fetchImportPage = async (
 }
 
 /**
- * URL のページを取得・抽出し、塊ごとに保存したときにどうなるかを返す。DB には書かない
+ * DB には書かない
  */
 export const previewUrlImport = async (
   url: string,

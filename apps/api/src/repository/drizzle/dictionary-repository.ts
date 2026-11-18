@@ -3,14 +3,8 @@ import type { DictionaryEntry } from "@repo/domain"
 
 import type { DictionaryRepository } from "../dictionary-repository"
 
-/**
- * Drizzleの型
- */
 type DictionaryEntryRow = typeof dictionaryEntries.$inferSelect
 
-/**
- * Drizzleの型 → ドメインの型
- */
 const convertDictionaryEntryRowToDomain = (row: DictionaryEntryRow): DictionaryEntry => ({
   id: row.id,
   headword: row.headword,
@@ -19,9 +13,6 @@ const convertDictionaryEntryRowToDomain = (row: DictionaryEntryRow): DictionaryE
   updatedAt: row.updatedAt,
 })
 
-/**
- * Drizzle 実装の DictionaryRepository
- */
 export class DrizzleDictionaryRepository implements DictionaryRepository {
   private _db: DrizzleClient
 

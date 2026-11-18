@@ -8,9 +8,6 @@ import { LearningRecordRepository, UserRepository } from "../../../repository"
 import * as service from "../../../service"
 import { convertUserAttemptsToResponse } from "../../user/learning-record-mapper"
 
-/**
- * admin のユーザーの学習履歴API（GET /api/user/attempts と同じ形。新しい順、cursor ページング）。ユーザーが居なければ 404
- */
 export class AdminUserAttemptsController {
   constructor(
     private _learningRecordRepository: LearningRecordRepository,

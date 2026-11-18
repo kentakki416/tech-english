@@ -10,10 +10,6 @@ import * as service from "../../service"
 
 import { convertUserAttemptsToResponse } from "./learning-record-mapper"
 
-/**
- * 提出した挑戦の一覧API（GET /api/user/attempts?date=&cursor=&limit=）。新しい順、cursor ページング。
- * date を指定するとその日（学習した日）だけ。ユーザーが存在しなければ 401
- */
 export class UserAttemptsController {
   constructor(
     private _learningRecordRepository: LearningRecordRepository,

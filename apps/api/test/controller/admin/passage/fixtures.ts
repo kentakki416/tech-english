@@ -1,10 +1,6 @@
 import type { AdminPassageDetailResponse, UpdateAdminPassageRequest } from "@repo/api-schema"
 
 /**
- * admin の問題 API のインテグレーションテストで共有する変換。DB への投入は test/fixture/passage.ts を使う
- */
-
-/**
  * 詳細のレスポンスを、そのまま保存し直す PUT のボディにする（対象の語句は glossary の index で指す）
  */
 export const convertDetailResponseToUpdateBody = (detail: AdminPassageDetailResponse): UpdateAdminPassageRequest => ({

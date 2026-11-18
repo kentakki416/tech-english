@@ -22,9 +22,6 @@ export type GetGitHubUserInfoInput = {
   redirectUri: string
 }
 
-/**
- * GitHubOAuthクライアントのインターフェース
- */
 export interface IGitHubOAuthClient {
   /**
    * code が使えない（期限切れ・使用済み・verifier 不一致）ときは null。通信障害や設定ミスは throw
@@ -114,7 +111,7 @@ export class GitHubOAuthClient implements IGitHubOAuthClient {
   }
 
   /**
-   * code（+ PKCE の code_verifier）を GitHub の access token に交換する。code が使えないときは null
+   * code が使えないときは null
    */
   private async _exchangeCodeForAccessToken(input: GetGitHubUserInfoInput): Promise<string | null> {
     const response = await fetch(GITHUB_ACCESS_TOKEN_URL, {

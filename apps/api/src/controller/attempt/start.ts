@@ -10,10 +10,6 @@ import * as service from "../../service"
 
 import { convertInProgressAttemptToResponse } from "./mapper"
 
-/**
- * 挑戦の開始API（POST /api/passage/:id/attempt）。新しく始めたら 201、期限内の挑戦中を再開したら 200。
- * 本文・和訳・用語集・設問（正解なし）・出典・サーバーの現在時刻を返す
- */
 export class AttemptStartController {
   constructor(
     private _passageRepository: PassageRepository,

@@ -5,10 +5,6 @@ import { testDb } from "../controller/setup"
 import { createSubmittedAttempt } from "./learning-record"
 import { insertGeneratedPassage } from "./passage"
 
-/**
- * 単語帳（vocabulary-cards）のテスト用のヘルパー。Repository のテストと Controller のインテグレーションテストで使う
- */
-
 type WordLookupInsert = typeof attemptWordLookups.$inferInsert
 type VocabularyCardInsert = typeof vocabularyCards.$inferInsert
 type VocabularyReviewInsert = typeof vocabularyReviews.$inferInsert
@@ -85,7 +81,7 @@ export const insertVocabularyReview = async (userId: number, cardId: number, val
 }
 
 /**
- * 見出し語の発音の音声を入れる（vocabulary-pronunciation）。既定は作成済み（ready）で、キーは words/{lemma の空白を - にしたもの}.mp3
+ * 見出し語の発音の音声を入れる。既定は作成済み（ready）で、キーは words/{lemma の空白を - にしたもの}.mp3
  */
 export const insertWordAudio = async (lemma: string, values: Partial<WordAudioInsert> = {}) => {
   const [row] = await testDb

@@ -9,9 +9,6 @@ import * as service from "../../../service"
 
 import { convertPassageStatsToResponse } from "./convert-stats-to-response"
 
-/**
- * admin のダッシュボードの問題ごとの成績API（並べ替え・タイトルの絞り込み・offset のページ分け）
- */
 export class AdminPassageStatsListController {
   constructor(private _adminStatsRepository: AdminStatsRepository) {}
 

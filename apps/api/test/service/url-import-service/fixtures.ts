@@ -1,9 +1,6 @@
 import type { IPageFetcher } from "../../../src/client/page-fetcher"
 import type { ImportPassage, UrlImportPageCacheRepository, UrlImportRepository } from "../../../src/repository"
 
-/**
- * url-import-service のユニットテストで共有する Repository・クライアントのモックと値
- */
 export const createMockUrlImportRepository = () => ({
   findDocumentPassages: vi.fn<UrlImportRepository["findDocumentPassages"]>(),
   findPassagesByContentHashes: vi.fn<UrlImportRepository["findPassagesByContentHashes"]>(),

@@ -7,8 +7,6 @@ import { RefreshTokenRepository, UserRepository } from "../repository"
 type RefreshVerifier = (token: string) => { jti: string; userId: number } | null
 
 /**
- * ユーザーIDからユーザー情報を取得
- *
  * ユーザーが無いときは 401 にする。access token は JWT なので、アカウント削除後も最長 15 分は残る。
  * 401 を返せば、mobile は refresh を試みて refresh も 401 になり、web は cookie を消して（/api/auth/session-expired）ログイン画面に戻る
  */
@@ -33,9 +31,7 @@ export const getUserById = async (
 }
 
 /**
- * 認証中ユーザーのタイムゾーンを変更する
- *
- * タイムゾーン名の検証は API の入力時（api-schema の timezoneSchema）に済んでいる前提。
+ * タイムゾーン名の検証は API の入力時に済んでいる前提。
  */
 export const updateUserTimezone = async (
   userId: number,
@@ -61,7 +57,6 @@ export const updateUserTimezone = async (
 }
 
 /**
- * アカウントの削除。users の行を消し、関連データは外部キーの cascade で消す。
  * 既に無いユーザーでも成功にする（二重送信・削除済みの端末から呼ばれても同じ結果になる）
  *
  * DB の削除を先に行う。Redis の失敗で 500 になっても、再送すれば（ユーザーは消えているので）jti の失効だけが行われる。

@@ -8,9 +8,6 @@ import { LearningRecordRepository, UserRepository } from "../../../repository"
 import * as service from "../../../service"
 import { convertUserCalendarToResponse } from "../../user/learning-record-mapper"
 
-/**
- * admin のユーザーの学習カレンダーAPI（GET /api/user/calendar と同じ形）。ユーザーが居なければ 404
- */
 export class AdminUserCalendarController {
   constructor(
     private _learningRecordRepository: LearningRecordRepository,

@@ -9,9 +9,6 @@ import * as service from "../../../service"
 
 import { convertTagWithSourceCountToResponse } from "./tag-mapper"
 
-/**
- * admin のタグの一覧API。使っているソースの数つき
- */
 export class AdminTagListController {
   constructor(private _tagRepository: TagRepository) {}
 

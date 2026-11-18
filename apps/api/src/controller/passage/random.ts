@@ -8,9 +8,6 @@ import { AuthRequest } from "../../middleware/auth"
 import { PassageRepository, ReadingAttemptRepository } from "../../repository"
 import * as service from "../../service"
 
-/**
- * ランダムに 1 問API（絞り込みに合う未挑戦の問題から選び、無ければ挑戦済みから選ぶ）
- */
 export class PassageRandomController {
   constructor(
     private _passageRepository: PassageRepository,

@@ -39,9 +39,6 @@ import { AdminUserDetailController } from "../controller/admin/user/detail"
 import { AdminUserListController } from "../controller/admin/user/list"
 import { adminAuthMiddleware } from "../middleware/admin-auth"
 
-/**
- * admin のコントローラー。リソースごとにネストし、渡されたものだけルートを登録する
- */
 type AdminRouterControllers = {
   auth?: {
     devLogin?: AdminAuthDevLoginController
@@ -98,8 +95,6 @@ type AdminRouterControllers = {
 }
 
 /**
- * admin 向けのルーター。
- *
  * /api/admin の下のルートは必ずこのルーターに足し、mountAdminApi で mount する（adminAuthMiddleware を通すため）。
  * ルートを足すときは、既存の router と同じく optional なコントローラーを受け取り、渡されたものだけを登録する。
  */
@@ -108,33 +103,21 @@ export const adminRouter = (controllers: AdminRouterControllers): Router => {
 
   const auth = controllers.auth ?? {}
 
-  /**
-   * POST /api/admin/auth/google
-   */
   if (auth.google) {
     const controller = auth.google
     router.post("/auth/google", async (req, res) => controller.execute(req, res))
   }
 
-  /**
-   * POST /api/admin/auth/dev-login（NODE_ENV !== "production" のみ）
-   */
   if (auth.devLogin) {
     const controller = auth.devLogin
     router.post("/auth/dev-login", async (req, res) => controller.execute(req, res))
   }
 
-  /**
-   * POST /api/admin/auth/refresh
-   */
   if (auth.refresh) {
     const controller = auth.refresh
     router.post("/auth/refresh", async (req, res) => controller.execute(req, res))
   }
 
-  /**
-   * POST /api/admin/auth/logout
-   */
   if (auth.logout) {
     const controller = auth.logout
     router.post("/auth/logout", async (req, res) => controller.execute(req, res))
@@ -142,9 +125,6 @@ export const adminRouter = (controllers: AdminRouterControllers): Router => {
 
   const me = controllers.me ?? {}
 
-  /**
-   * GET /api/admin/me
-   */
   if (me.get) {
     const controller = me.get
     router.get("/me", async (req, res) => controller.execute(req, res))
@@ -152,9 +132,6 @@ export const adminRouter = (controllers: AdminRouterControllers): Router => {
 
   const source = controllers.source ?? {}
 
-  /**
-   * GET /api/admin/source
-   */
   if (source.list) {
     const controller = source.list
     router.get("/source", async (req, res) => controller.execute(req, res))
@@ -168,41 +145,26 @@ export const adminRouter = (controllers: AdminRouterControllers): Router => {
     router.get("/source/suggestion", async (req, res) => controller.execute(req, res))
   }
 
-  /**
-   * GET /api/admin/source/:id
-   */
   if (source.detail) {
     const controller = source.detail
     router.get("/source/:id", async (req, res) => controller.execute(req, res))
   }
 
-  /**
-   * POST /api/admin/source
-   */
   if (source.create) {
     const controller = source.create
     router.post("/source", async (req, res) => controller.execute(req, res))
   }
 
-  /**
-   * PUT /api/admin/source/:id
-   */
   if (source.update) {
     const controller = source.update
     router.put("/source/:id", async (req, res) => controller.execute(req, res))
   }
 
-  /**
-   * DELETE /api/admin/source/:id
-   */
   if (source.delete) {
     const controller = source.delete
     router.delete("/source/:id", async (req, res) => controller.execute(req, res))
   }
 
-  /**
-   * POST /api/admin/source/:id/collection-runs（SOURCE_COLLECTION_TYPE=none なら Controller が無く、ルートを登録しない）
-   */
   if (source.collect) {
     const controller = source.collect
     router.post("/source/:id/collection-runs", async (req, res) => controller.execute(req, res))
@@ -210,89 +172,56 @@ export const adminRouter = (controllers: AdminRouterControllers): Router => {
 
   const passage = controllers.passage ?? {}
 
-  /**
-   * GET /api/admin/passage
-   */
   if (passage.list) {
     const controller = passage.list
     router.get("/passage", async (req, res) => controller.execute(req, res))
   }
 
-  /**
-   * GET /api/admin/passage/:id
-   */
   if (passage.detail) {
     const controller = passage.detail
     router.get("/passage/:id", async (req, res) => controller.execute(req, res))
   }
 
-  /**
-   * PUT /api/admin/passage/:id
-   */
   if (passage.update) {
     const controller = passage.update
     router.put("/passage/:id", async (req, res) => controller.execute(req, res))
   }
 
-  /**
-   * POST /api/admin/passage/:id/publish
-   */
   if (passage.publish) {
     const controller = passage.publish
     router.post("/passage/:id/publish", async (req, res) => controller.execute(req, res))
   }
 
-  /**
-   * POST /api/admin/passage/:id/reject
-   */
   if (passage.reject) {
     const controller = passage.reject
     router.post("/passage/:id/reject", async (req, res) => controller.execute(req, res))
   }
 
-  /**
-   * POST /api/admin/passage/:id/unpublish
-   */
   if (passage.unpublish) {
     const controller = passage.unpublish
     router.post("/passage/:id/unpublish", async (req, res) => controller.execute(req, res))
   }
 
-  /**
-   * POST /api/admin/passage/:id/regenerate
-   */
   if (passage.regenerate) {
     const controller = passage.regenerate
     router.post("/passage/:id/regenerate", async (req, res) => controller.execute(req, res))
   }
 
-  /**
-   * POST /api/admin/passage/:id/restore
-   */
   if (passage.restore) {
     const controller = passage.restore
     router.post("/passage/:id/restore", async (req, res) => controller.execute(req, res))
   }
 
-  /**
-   * POST /api/admin/passage/:id/attention/resolve
-   */
   if (passage.resolveAttention) {
     const controller = passage.resolveAttention
     router.post("/passage/:id/attention/resolve", async (req, res) => controller.execute(req, res))
   }
 
-  /**
-   * POST /api/admin/passage/:id/audio/retry
-   */
   if (passage.retryAudio) {
     const controller = passage.retryAudio
     router.post("/passage/:id/audio/retry", async (req, res) => controller.execute(req, res))
   }
 
-  /**
-   * POST /api/admin/passage/:id/audio/regenerate
-   */
   if (passage.regenerateAudio) {
     const controller = passage.regenerateAudio
     router.post("/passage/:id/audio/regenerate", async (req, res) => controller.execute(req, res))
@@ -300,25 +229,16 @@ export const adminRouter = (controllers: AdminRouterControllers): Router => {
 
   const stats = controllers.stats ?? {}
 
-  /**
-   * GET /api/admin/stats/overview
-   */
   if (stats.overview) {
     const controller = stats.overview
     router.get("/stats/overview", async (req, res) => controller.execute(req, res))
   }
 
-  /**
-   * GET /api/admin/stats/passage
-   */
   if (stats.passageList) {
     const controller = stats.passageList
     router.get("/stats/passage", async (req, res) => controller.execute(req, res))
   }
 
-  /**
-   * GET /api/admin/stats/passage/:id
-   */
   if (stats.passageDetail) {
     const controller = stats.passageDetail
     router.get("/stats/passage/:id", async (req, res) => controller.execute(req, res))
@@ -326,33 +246,21 @@ export const adminRouter = (controllers: AdminRouterControllers): Router => {
 
   const tag = controllers.tag ?? {}
 
-  /**
-   * GET /api/admin/tag
-   */
   if (tag.list) {
     const controller = tag.list
     router.get("/tag", async (req, res) => controller.execute(req, res))
   }
 
-  /**
-   * POST /api/admin/tag
-   */
   if (tag.create) {
     const controller = tag.create
     router.post("/tag", async (req, res) => controller.execute(req, res))
   }
 
-  /**
-   * PUT /api/admin/tag/:id
-   */
   if (tag.update) {
     const controller = tag.update
     router.put("/tag/:id", async (req, res) => controller.execute(req, res))
   }
 
-  /**
-   * DELETE /api/admin/tag/:id
-   */
   if (tag.delete) {
     const controller = tag.delete
     router.delete("/tag/:id", async (req, res) => controller.execute(req, res))
@@ -360,17 +268,11 @@ export const adminRouter = (controllers: AdminRouterControllers): Router => {
 
   const urlImport = controllers.urlImport ?? {}
 
-  /**
-   * POST /api/admin/url-import/preview
-   */
   if (urlImport.preview) {
     const controller = urlImport.preview
     router.post("/url-import/preview", async (req, res) => controller.execute(req, res))
   }
 
-  /**
-   * POST /api/admin/url-import
-   */
   if (urlImport.create) {
     const controller = urlImport.create
     router.post("/url-import", async (req, res) => controller.execute(req, res))
@@ -378,33 +280,21 @@ export const adminRouter = (controllers: AdminRouterControllers): Router => {
 
   const user = controllers.user ?? {}
 
-  /**
-   * GET /api/admin/user
-   */
   if (user.list) {
     const controller = user.list
     router.get("/user", async (req, res) => controller.execute(req, res))
   }
 
-  /**
-   * GET /api/admin/user/:id
-   */
   if (user.detail) {
     const controller = user.detail
     router.get("/user/:id", async (req, res) => controller.execute(req, res))
   }
 
-  /**
-   * GET /api/admin/user/:id/calendar
-   */
   if (user.calendar) {
     const controller = user.calendar
     router.get("/user/:id/calendar", async (req, res) => controller.execute(req, res))
   }
 
-  /**
-   * GET /api/admin/user/:id/attempts
-   */
   if (user.attempts) {
     const controller = user.attempts
     router.get("/user/:id/attempts", async (req, res) => controller.execute(req, res))
@@ -414,8 +304,6 @@ export const adminRouter = (controllers: AdminRouterControllers): Router => {
 }
 
 /**
- * admin の API を /api/admin に mount する。index.ts とテストで同じ組み方にするため、ここにまとめる。
- *
  * adminAuthMiddleware は全体ではなく mount の中に置く。Express 5 の mount と Router は大文字小文字を区別しないので、
  * 全体に適用して req.path を文字列で比べると、/API/Admin/... が admin の判定をすり抜けて Router に届くため。
  * mount の中なら、Router に届くリクエストは必ず adminAuthMiddleware を通る

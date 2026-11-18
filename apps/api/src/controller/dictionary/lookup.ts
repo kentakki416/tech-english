@@ -8,9 +8,6 @@ import { AuthRequest } from "../../middleware/auth"
 import { DictionaryRepository } from "../../repository"
 import * as service from "../../service"
 
-/**
- * 英和辞書の検索API（GET /api/dictionary?word=）。見つかった見出し語と意味を返し、見つからなければ 404
- */
 export class DictionaryLookupController {
   constructor(private _dictionaryRepository: DictionaryRepository) {}
 

@@ -21,9 +21,6 @@ const hasValidChoices = (choices: string[]): boolean => {
   return normalized.every((choice) => choice.length > 0) && new Set(normalized).size === normalized.length
 }
 
-/**
- * 正解の選択肢の位置が 0〜3 か
- */
 const isCorrectChoiceIndex = (index: number): boolean =>
   Number.isInteger(index) && index >= 0 && index < QUESTION_CHOICE_COUNT
 
@@ -32,9 +29,6 @@ const isCorrectChoiceIndex = (index: number): boolean =>
  */
 const isBlank = (value: string | null | undefined): boolean => (value ?? "").trim().length === 0
 
-/**
- * 選択肢の和訳が 4 つそろい、空白だけのものが無い
- */
 const hasChoiceTranslations = (choicesJa: string[] | null): boolean =>
   choicesJa !== null && choicesJa.length === QUESTION_CHOICE_COUNT && choicesJa.every((choice) => !isBlank(choice))
 

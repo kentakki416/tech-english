@@ -7,9 +7,6 @@ import { sendError } from "../../../lib/send-error"
 import { PassageRepository } from "../../../repository"
 import * as service from "../../../service"
 
-/**
- * admin の問題再生成API（draft / rejected / failed → collected。挑戦が 1 件でもあれば 409）
- */
 export class AdminPassageRegenerateController {
   constructor(private _passageRepository: PassageRepository) {}
 

@@ -6,7 +6,6 @@ import type { AdminPassageDetail, DraftEditContent } from "../repository"
 import { formatBlockLabel, joinBlockLabel } from "./passage-block-label"
 
 /**
- * 下書きの保存の入力（PUT /api/admin/passage/:id のリクエストを camelCase にしたもの）。
  * ブロックは英文と和訳だけ、用語集は位置を持たず、設問の対象の語句は同じ入力の glossary の index で指す
  */
 export type AdminPassageEditInput = {
@@ -42,9 +41,6 @@ export type BuildDraftEditContentResult =
   | { content: DraftEditContent; ok: true }
   | { details: ApiErrorDetail[]; ok: false }
 
-/**
- * 空白だけの文字列は null にする（補足・品詞の未入力）
- */
 const convertBlankToNull = (value: string | null): string | null =>
   (value === null || value.trim().length === 0 ? null : value)
 
@@ -98,13 +94,9 @@ const checkExistingIds = (
 }
 
 /**
- * 保存のリクエストを DraftEditContent にする。
- *
- * - ブロック：数は変えられない。type / lang は保存済みのまま、code の和訳は持たない
  * - 用語集：新しい英文に対して findSurfaceRange で位置を求め直す（見つからなければ glossary_surface_not_found）。
  *   code のブロックは指せない（cron の生成と同じく、用語集は文章のブロックだけ）
  * - 設問：配列の順を orderIndex にする。vocabulary 以外の対象の語句は null。根拠は位置を持たない列なので、引用をそのまま保存する（公開時に検査）
- * - id は保存済みのものだけを受け付ける（設問・用語集とも）
  *
  * 途中の状態（空の選択肢・解説・和訳）は不合格にしない。正しさは公開の検査（listPublishViolations）で見る
  */

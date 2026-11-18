@@ -23,10 +23,6 @@ import type {
 } from "../../service/attempt-service"
 import { convertAttributionToResponse } from "../passage/mapper"
 
-/**
- * 挑戦の domain の形 → API の snake_case の形。開始・取得・提出（reading-practice step4）で共有する
- */
-
 const convertAttemptPassageToResponse = (passage: AttemptPassageView): AttemptPassage => ({
   id: passage.id,
   difficulty: passage.difficulty,
@@ -75,9 +71,6 @@ const convertQuestionToResponse = (question: AttemptQuestionView): AttemptQuesti
   type: question.type,
 })
 
-/**
- * 解答中の挑戦
- */
 export const convertInProgressAttemptToResponse = (view: InProgressAttemptView): InProgressAttempt => ({
   id: view.id,
   attribution: convertAttributionToResponse(view.attribution),
@@ -92,9 +85,6 @@ export const convertInProgressAttemptToResponse = (view: InProgressAttemptView):
   time_limit_seconds: view.timeLimitSeconds,
 })
 
-/**
- * 提出済みの挑戦（結果の形）。提出 API と、提出済みの挑戦の取得で共有する
- */
 export const convertSubmittedAttemptToResponse = (view: SubmittedAttemptView): SubmittedAttempt => ({
   id: view.id,
   attribution: convertAttributionToResponse(view.attribution),
@@ -139,9 +129,6 @@ export const convertSubmittedAttemptToResponse = (view: SubmittedAttemptView): S
   words_per_minute: view.wordsPerMinute,
 })
 
-/**
- * 期限切れの挑戦
- */
 export const convertExpiredAttemptToResponse = (view: ExpiredAttemptView): ExpiredAttempt => ({
   id: view.id,
   passage: convertAttemptPassageToResponse(view.passage),
@@ -149,14 +136,14 @@ export const convertExpiredAttemptToResponse = (view: ExpiredAttemptView): Expir
   status: view.status,
 })
 
-/**
- * 挑戦の問題の読み上げの音声（単語の時刻のタプルはそのまま返す）
- */
 export const convertAttemptAudioToResponse = (view: AttemptAudioView): GetAttemptAudioResponse =>
   view.status === "ready"
     ? {
       blocks: view.blocks.map((block) => ({
         block_index: block.blockIndex,
+        /**
+         * 単語の時刻のタプルはそのまま返す
+         */
         parts: block.parts.map((part) => ({ duration_ms: part.durationMs, url: part.url, words: part.words })),
       })),
       status: view.status,

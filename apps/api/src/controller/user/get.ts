@@ -9,11 +9,6 @@ import { AuthRequest } from "../../middleware/auth"
 import { UserRepository } from "../../repository"
 import * as service from "../../service"
 
-/**
- * GET /api/user
- *
- * 認証中ユーザー自身の情報を返す。req.userId は authMiddleware が確定済みの前提。
- */
 export class UserGetController {
   constructor(private _userRepository: UserRepository) {}
 

@@ -2,10 +2,6 @@ import type { ReminderSetting, User } from "@repo/domain"
 
 import type { ReminderSettingRepository, UpsertReminderSettingInput, UserRepository } from "../../../src/repository"
 
-/**
- * reminder-service のユニットテストで共有する値とモック
- */
-
 export const USER: User = {
   id: 7,
   avatarUrl: null,

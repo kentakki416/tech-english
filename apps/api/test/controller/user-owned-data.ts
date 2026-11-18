@@ -22,9 +22,6 @@ import { testDb } from "./setup"
  * users から cascade でたどれるテーブル（users 自身を除く）1 つ分の、テストデータの入れ方と数え方
  */
 type UserOwnedTable = {
-  /**
-   * そのユーザーに紐づく行数
-   */
   countRows: (userId: number) => Promise<number>
   /**
    * そのユーザーに紐づく行を 1 行以上入れる
@@ -230,7 +227,6 @@ export const USER_OWNED_TABLES: readonly UserOwnedTable[] = [
 ]
 
 /**
- * USER_OWNED_TABLES のすべてのテーブルに、そのユーザーの行を入れる。
  * 後のテーブルが前のテーブルの行に依存できるよう、順番に入れる
  */
 export const seedUserOwnedData = async (userId: number): Promise<void> => {

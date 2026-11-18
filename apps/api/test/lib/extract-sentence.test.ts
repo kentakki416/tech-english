@@ -8,9 +8,6 @@ const extract = (text: string, surface: string) => {
   return extractSentence(text, { end: start + surface.length, start })
 }
 
-/**
- * 切り出した文の中で強調される語句
- */
 const highlighted = (result: ReturnType<typeof extractSentence>) => result.text.slice(result.highlightStart, result.highlightEnd)
 
 describe("extractSentence", () => {

@@ -72,7 +72,6 @@ describe("POST /api/auth/google", () => {
       .post("/api/auth/google")
       .send({ code: "auth-code", redirect_uri: REDIRECT_URI })
 
-    /** API レスポンス契約を全フィールドで検証 */
     expect(res.status).toBe(200)
     expect(res.body).toEqual({
       access_token: expect.any(String),
@@ -87,7 +86,6 @@ describe("POST /api/auth/google", () => {
       },
     })
 
-    /** Postgres に User が作成されている（id/timestamp は省略） */
     const [createdUser] = await testDb.select().from(users).where(eq(users.email, "new@example.com"))
     expect(createdUser).toMatchObject({
       avatarUrl: "https://example.com/new-avatar.jpg",
@@ -95,7 +93,6 @@ describe("POST /api/auth/google", () => {
       name: "New User",
     })
 
-    /** Postgres に AuthAccount が作成され、User と同じトランザクションで紐付いている */
     const [createdAuthAccount] = await testDb
       .select()
       .from(authAccounts)
@@ -106,7 +103,6 @@ describe("POST /api/auth/google", () => {
       userId: createdUser.id,
     })
 
-    /** Redis に Refresh Token が保存され、userId が紐付いている */
     const payload = verifyRefreshToken(res.body.refresh_token)
     expect(payload).not.toBeNull()
     expect(await refreshTokenRepository.findUserId(payload!.jti)).toBe(createdUser.id)
