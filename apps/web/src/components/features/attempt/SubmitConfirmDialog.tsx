@@ -1,5 +1,8 @@
 import { Dialog } from "@/components/ui/Dialog"
 
+/**
+ * 失敗したらダイアログの中に理由を出す（回答は端末に残っているので再送できる）
+ */
 export function SubmitConfirmDialog({
   errorMessage,
   isSubmitting,

@@ -17,8 +17,7 @@ const DEV_USERS: Record<string, string> = {
 
 /**
  * 開発環境専用のログイン。`?as=alice` のように DEV_USERS のキーを渡すと、そのユーザーで
- * api の dev-login を呼び、access / refresh token を cookie に保存して / に redirect する。
- * Server Component から cookies().set() できない制約があるため Route Handler として実装している
+ * api の dev-login を呼び、access / refresh token を cookie に保存して / に redirect する
  */
 export const GET = async (req: NextRequest) => {
   /**
