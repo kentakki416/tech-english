@@ -3,7 +3,7 @@ import type { GetTagListResponse } from "@repo/api-schema"
 export type TagColor = GetTagListResponse["tags"][number]["color"]
 
 /**
- * 色ごとのクラス。chip はタグ（ライト：薄い背景と濃い文字、ダーク：半透明の背景と明るい文字）、swatch は色の見本の丸。
+ * chip はタグ（ライト：薄い背景と濃い文字、ダーク：半透明の背景と明るい文字）、swatch は色の見本の丸。
  * Tailwind はソースに書かれたクラス名しか CSS にしないため、色ごとにクラス名をそのまま書く
  */
 export const TAG_COLOR_CLASSES: Record<TagColor, { chip: string, swatch: string }> = {
@@ -20,7 +20,7 @@ export const TAG_COLOR_CLASSES: Record<TagColor, { chip: string, swatch: string 
 }
 
 /**
- * 色付きのタグ。isMuted は選んでいないタグ（ソースのタグの選択）を薄く出す
+ * isMuted は選んでいないタグ（ソースのタグの選択）を薄く出す
  */
 export function TagChip({ color, isMuted = false, name }: { color: TagColor, isMuted?: boolean, name: string }) {
   return (

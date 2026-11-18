@@ -9,9 +9,6 @@ export const metadata: Metadata = {
   title: "URL から追加",
 }
 
-/**
- * URL を入れてページを確認し、本文候補として保存する。ローカルだけ
- */
 export default function UrlImportPage() {
   if (!isLocalEnvironment) notFound()
 

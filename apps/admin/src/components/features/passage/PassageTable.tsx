@@ -19,18 +19,12 @@ import { formatDateTime } from "@/libs/date"
 
 type PassageListItem = GetAdminPassageListResponse["passages"][number]
 
-/**
- * 表の 1 行。API のレスポンスに、検索・Filter・表示に使う値を足す
- */
 type PassageRow = PassageListItem & {
   attentionLabel: "あり" | "なし"
   sourceName: string
   updatedAtLabel: string
 }
 
-/**
- * 状態ごとの列の見出し
- */
 const NOTE_HEADERS: Record<AdminPassageStatus, string> = {
   collected: "メモ",
   draft: "要確認",
@@ -114,9 +108,6 @@ const createFilters = (status: AdminPassageStatus, rows: PassageRow[]): FilterCo
   ]
 }
 
-/**
- * API の 1 行を表の行にする
- */
 const convertPassageToRow = (passage: PassageListItem): PassageRow => ({
   ...passage,
   attentionLabel: passage.needs_attention ? "あり" : "なし",

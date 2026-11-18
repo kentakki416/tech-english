@@ -8,7 +8,7 @@ import { formatBlockLabel, type PassageErrorMarks, type PassageForm } from "@/fe
 import { labelClass, textareaClass } from "@/libs/ui-classes"
 
 /**
- * 本文タブ。ブロックごとの英文のテキストエリア（コードは等幅）。ブロックの数と種類は変えられない
+ * ブロックの数と種類は変えられない
  */
 export function BodyTab({
   blocks,

@@ -24,9 +24,6 @@ function StatCard({ label, note, value }: { label: string, note: string, value: 
   )
 }
 
-/**
- * 見出し付きのカード（種類ごとの正答率・週の目標・単語帳）
- */
 function SectionCard({ children, title }: { children: ReactNode, title: string }) {
   return (
     <section className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3">
@@ -50,9 +47,6 @@ export function UserStatCards({ stats }: { stats: UserStats }) {
   )
 }
 
-/**
- * 設問の種類ごとの正答率の横棒
- */
 export function UserTypeAccuracyCard({ typeAccuracy }: { typeAccuracy: UserStats["type_accuracy"] }) {
   return (
     <SectionCard title="設問の種類ごとの正答率">
@@ -103,9 +97,6 @@ export function UserGoalCard({ goal }: { goal: UserStats["goal"] }) {
   )
 }
 
-/**
- * 単語帳の枚数（今日やる・学習中・覚えた・まだ出ていない）と次に出る日
- */
 export function UserVocabularyCard({ vocabulary }: { vocabulary: GetAdminUserResponse["vocabulary"] }) {
   const items = [
     { label: "今日やる", value: vocabulary.due_count },

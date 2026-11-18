@@ -6,9 +6,6 @@ import { formatRate } from "@/libs/format-stats"
 
 type QuestionStats = GetAdminPassageStatsResponse["questions"][number]
 
-/**
- * 選択肢 1 つの行。正解は緑、正解と同じかそれ以上選ばれた誤りは橙、ほかは灰色の横棒
- */
 function ChoiceRow({ isCorrect, isMisleading, label, rate, text }: { isCorrect: boolean, isMisleading: boolean, label: string, rate: number | null, text: string }) {
   const barColor = isCorrect ? "bg-success-500" : isMisleading ? "bg-warning-500" : "bg-gray-300 dark:bg-gray-600"
   return (
@@ -29,7 +26,6 @@ function ChoiceRow({ isCorrect, isMisleading, label, rate, text }: { isCorrect: 
 }
 
 /**
- * 設問 1 つの分析（種類・設問文・正答率・選択肢ごとの割合・未回答・要確認の印）。
  * 要確認と橙にする選択肢の判定は API（needs_review・misleading_choice_indexes。ルールは domain）で、ここでは書き直さない
  */
 export function QuestionStatsCard({ question }: { question: QuestionStats }) {

@@ -20,7 +20,6 @@ const convertApiErrorToFailureReason = (error: ApiClientError): SourceSuggestion
 const respondFailure = (reason: SourceSuggestionFailureReason, status: number) => NextResponse.json({ reason }, { status })
 
 /**
- * 登録の画面の取得方法と URL から登録の初期値（GitHub・サイトの登録フォームの「読み込む」用）。
  * GET 相当なので Server Action ではなく Route Handler にする。ブラウザから api を直接呼ばないための中継。
  * 失敗は理由（reason）で返し、文言はフォームが決める
  */

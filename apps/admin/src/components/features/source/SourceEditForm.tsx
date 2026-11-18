@@ -51,7 +51,7 @@ const serializeFormValues = (form: HTMLFormElement | null): string =>
   form === null ? "" : JSON.stringify([...new FormData(form).entries()].map(String).sort())
 
 /**
- * ソースの編集フォーム。取得方法・取得元（リポジトリとブランチ・サイトの URL）・GitHub のライセンスは登録で決まって変えられないので、
+ * 取得方法・取得元（リポジトリとブランチ・サイトの URL）・GitHub のライセンスは登録で決まって変えられないので、
  * 欄にせず「収集の状況」に出す。
  *
  * allowedLicenses と personalUseLicense はサイトのライセンス欄の選択肢（@repo/api-schema の許可リストと個人の学習用）、

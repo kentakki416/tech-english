@@ -25,7 +25,6 @@ interface Order {
   budget: string;
 }
 
-// Define the table data using the interface
 const tableData: Order[] = [
   {
     id: 1,
@@ -117,7 +116,6 @@ export default function BasicTableOne() {
       <div className="max-w-full overflow-x-auto">
         <div className="min-w-[1102px]">
           <Table>
-            {/* Table Header */}
             <TableHeader className="border-b border-gray-100 dark:border-white/5">
               <TableRow>
                 <TableCell
@@ -153,7 +151,6 @@ export default function BasicTableOne() {
               </TableRow>
             </TableHeader>
 
-            {/* Table Body */}
             <TableBody className="divide-y divide-gray-100 dark:divide-white/5">
               {tableData.map((order) => (
                 <TableRow key={order.id}>

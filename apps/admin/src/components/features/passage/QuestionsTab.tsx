@@ -24,7 +24,7 @@ const MAX_QUESTIONS = 5
 const MIN_SAVABLE_QUESTIONS = 1
 
 /**
- * 追加する設問の初期値。根拠の段落は最初の段落（無ければ先頭のブロック）
+ * 根拠の段落は最初の段落（無ければ先頭のブロック）
  */
 const createEmptyQuestion = (clientKey: string, evidenceBlockIndex: number): PassageFormQuestion => ({
   id: null,
@@ -42,16 +42,13 @@ const createEmptyQuestion = (clientKey: string, evidenceBlockIndex: number): Pas
 })
 
 /**
- * 選択肢の和訳の 1 つを書き換える。和訳がまだ無い（null）なら、選択肢と同じ数の空の和訳から始める
+ * 和訳がまだ無い（null）なら、選択肢と同じ数の空の和訳から始める
  */
 const updateChoiceTranslation = (question: PassageFormQuestion, choiceIndex: number, value: string): PassageFormQuestion => {
   const choicesJa = question.choices_ja ?? question.choices.map(() => "")
   return { ...question, choices_ja: choicesJa.map((current, index) => (index === choiceIndex ? value : current)) }
 }
 
-/**
- * 設問タブ。設問ごとの開閉できるカード（開くとプレビューがその根拠までスクロールしてハイライトする）
- */
 export function QuestionsTab({
   attemptCount,
   blocks,
@@ -75,14 +72,11 @@ export function QuestionsTab({
    * 英単語数から決まる目安の設問数（詳細の recommended_question_count。境界は API の domain が持つ）
    */
   recommendedQuestionCount: number
-  /**
-   * 検証モデルとの食い違いのバッジを出すか（公開中は出さない）
-   */
   showVerificationMismatch: boolean
   wordCount: number
   onChange: Dispatch<SetStateAction<PassageForm>>
   /**
-   * 設問を開く・閉じる。evidenceBlockIndex を渡したら、プレビューをその根拠までスクロールする
+   * evidenceBlockIndex を渡したら、プレビューをその根拠までスクロールする
    */
   onOpenQuestionChange: (key: string | null, evidenceBlockIndex?: number) => void
 }) {

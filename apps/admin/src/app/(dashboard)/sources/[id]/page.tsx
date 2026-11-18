@@ -23,7 +23,7 @@ type Props = {
 }
 
 /**
- * URL の id でソースを取る。正の整数でない id（`abc`・`0`・`1e3` など）と、API が 404 を返す id は notFound
+ * 正の整数でない id（`abc`・`0`・`1e3` など）と、API が 404 を返す id は notFound
  */
 const loadSource = async (id: string) => {
   if (!/^\d+$/.test(id)) notFound()
@@ -39,9 +39,6 @@ const loadSource = async (id: string) => {
   }
 }
 
-/**
- * ソースの編集。右に収集の状況と、GitHub のソースは今すぐ収集を出す
- */
 export default async function EditSourcePage({ params }: Props) {
   const { id } = await params
   const [detail, { tags }] = await Promise.all([loadSource(id), tagApi.getList()])

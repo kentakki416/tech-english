@@ -3,7 +3,7 @@ import { appConfig } from "@/config/app"
 const dateTimeFormats = new Map<string, Intl.DateTimeFormat>()
 
 /**
- * タイムゾーンごとの書式。作るのが重いので使い回す
+ * 作るのが重いので使い回す
  */
 const getDateTimeFormat = (timeZone: string): Intl.DateTimeFormat => {
   const cached = dateTimeFormats.get(timeZone)
@@ -57,7 +57,7 @@ const SECONDS_PER_DAY = 60 * 60 * 24
 const RELATIVE_TIME_LIMIT_DAYS = 30
 
 /**
- * 今からの経過時間を「5 分前」「3 時間前」「2 日前」の形で出す。30 日より前は日時で出す。日時として読めなければ「-」
+ * 今からの経過時間を「5 分前」「3 時間前」「2 日前」の形で出す。日時として読めなければ「-」を返す
  */
 export const formatRelativeTime = (value: string | Date, now: Date = new Date()): string => {
   const date = typeof value === "string" ? new Date(value) : value

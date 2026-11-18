@@ -16,7 +16,7 @@ type Props = {
 }
 
 /**
- * URL の id で問題を取る。正の整数でない id（`abc`・`0`・`1e3` など）、DB の ID の上限を超える id と、API が 404 を返す id は notFound
+ * 正の整数でない id（`abc`・`0`・`1e3` など）、DB の ID の上限を超える id と、API が 404 を返す id は notFound
  */
 const loadPassage = async (id: string) => {
   if (!/^\d+$/.test(id)) notFound()
@@ -28,9 +28,6 @@ const loadPassage = async (id: string) => {
   return detail
 }
 
-/**
- * 問題の確認・修正。左にユーザーと同じ見た目のプレビュー、右に設問・和訳・用語集・本文・基本情報のタブ
- */
 export default async function PassageReviewPage({ params }: Props) {
   const { id } = await params
   const detail = await loadPassage(id)

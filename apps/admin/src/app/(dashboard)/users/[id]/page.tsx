@@ -21,7 +21,7 @@ type Props = {
 }
 
 /**
- * URL の id をユーザーの ID にする。正の整数でない id（`abc`・`0`・`1e3`・`0x10` など）と、DB の ID の上限を超える id は null（問題の確認・修正の画面と同じ読み方）
+ * 正の整数でない id（`abc`・`0`・`1e3`・`0x10` など）と、DB の ID の上限を超える id は null（問題の確認・修正の画面と同じ読み方）
  */
 const convertPathIdToUserId = (id: string): number | null => {
   if (!/^\d+$/.test(id)) return null
@@ -30,7 +30,7 @@ const convertPathIdToUserId = (id: string): number | null => {
 }
 
 /**
- * ユーザーの詳細。学習のまとめ・カレンダー・学習履歴・単語帳はマイページと同じ数字。ユーザーが居なければ 404
+ * 学習のまとめ・カレンダー・学習履歴・単語帳はマイページと同じ数字
  */
 export default async function UserDetailPage({ params }: Props) {
   await connection()

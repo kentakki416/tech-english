@@ -13,14 +13,14 @@ import {
 import { USER_ATTEMPTS_PAGE_SIZE, userApi } from "@/features/user/user.api"
 
 /**
- * 失敗の理由。not_found はユーザーが居ない（退会・不正な引数）で押し直しても直らない、unavailable は API の一時的な失敗で押し直せば直りうる
+ * not_found はユーザーが居ない（退会・不正な引数）で押し直しても直らない、unavailable は API の一時的な失敗で押し直せば直りうる
  */
 export type LoadMoreUserAttemptsFailureReason = "not_found" | "unavailable"
 
 export type LoadMoreUserAttemptsResult = { ok: false, reason: LoadMoreUserAttemptsFailureReason } | { ok: true, page: GetAdminUserAttemptsResponse }
 
 /**
- * 学習履歴の次のページを読む（「さらに読み込む」）。引数はブラウザから届くので、API と同じスキーマで検証する。
+ * 引数はブラウザから届くので、API と同じスキーマで検証する。
  * 読むだけだが、admin の API はトークンが要りブラウザから直接呼べないので Server Action にする
  */
 export const loadMoreUserAttemptsAction = async (userId: number, cursor: number): Promise<LoadMoreUserAttemptsResult> => {

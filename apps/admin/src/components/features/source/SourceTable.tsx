@@ -17,9 +17,6 @@ type SourceListItem = GetSourceListResponse["sources"][number]
 
 type SourceFetchType = SourceListItem["fetch_type"]
 
-/**
- * 表の 1 行。API のレスポンスに、検索・Filter・表示に使う値を足す
- */
 type SourceRow = SourceListItem & {
   lastCollectedLabel: string | null
   origin: string
@@ -138,7 +135,7 @@ const buildStatusLabel = (source: SourceListItem): string => {
 }
 
 /**
- * API の 1 ソースを表の行にする。取得元は取得方法でないほうが null なので、ある方を使う
+ * 取得元は取得方法でないほうが null なので、ある方を使う
  */
 const convertSourceToRow = (source: SourceListItem): SourceRow => ({
   ...source,

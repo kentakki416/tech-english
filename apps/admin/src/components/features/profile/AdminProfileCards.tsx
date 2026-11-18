@@ -11,7 +11,7 @@ type Props = {
 }
 
 /**
- * マイページのカード。見た目は TailAdmin のデモのプロフィール画面に合わせる（編集のボタンとモーダルは置かない）
+ * 見た目は TailAdmin のデモのプロフィール画面に合わせる（編集のボタンとモーダルは置かない）
  */
 export default function AdminProfileCards({ admin }: Props) {
   const displayName = resolveAdminDisplayName(admin)

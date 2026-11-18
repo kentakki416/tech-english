@@ -20,12 +20,12 @@ import { convertRateToPercent, EMPTY_VALUE, formatAssistRates, formatCount, form
 import { PassageStatsStatusBadge } from "./PassageStatsStatusBadge"
 
 /**
- * 正答率（表示の整数の %）がこれより低い問題は橙で示す（難しすぎる問題を見つけやすくする。UI 設計）
+ * 正答率（表示の整数の %）がこれより低い問題は橙で示す（難しすぎる問題を見つけやすくする）
  */
 const LOW_CORRECT_RATE_PERCENT = 50
 
 /**
- * 正答率が低いか。表示と同じく丸めた % で比べる（49.5% は「50%」と出るので橙にしない）
+ * 表示と同じく丸めた % で比べる（49.5% は「50%」と出るので橙にしない）
  */
 const isLowCorrectRate = (rate: number | null): boolean => rate !== null && convertRateToPercent(rate) < LOW_CORRECT_RATE_PERCENT
 
@@ -40,9 +40,6 @@ const SORTABLE_COLUMNS: { label: string, sort: AdminPassageStatsSort }[] = [
   { label: PASSAGE_STATS_LABELS.overtimeRate, sort: "overtime_rate" },
 ]
 
-/**
- * 表が空のときの見出しと補足（範囲外のページ・絞り込みで 0 件・問題がまだ無い）
- */
 const buildEmptyMessage = (total: number, q: string | undefined): { description: string, title: string } => {
   if (total > 0) return { description: "Previous で最後のページに戻れます。", title: "このページには問題がありません" }
   if (q) return { description: "絞り込みの文字を変えてください。", title: "条件に合う問題がありません" }
@@ -50,7 +47,7 @@ const buildEmptyMessage = (total: number, q: string | undefined): { description:
 }
 
 /**
- * 問題ごとの成績の表。並べ替え・絞り込み・ページ送りは URL のクエリを変えて API に任せる
+ * 並べ替え・絞り込み・ページ送りは URL のクエリを変えて API に任せる
  */
 export function PassageStatsTable({ list, query }: { list: GetAdminPassageStatsListResponse, query: DashboardQuery }) {
   const totalPages = Math.max(1, Math.ceil(list.total / list.limit))

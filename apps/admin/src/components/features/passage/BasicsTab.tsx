@@ -23,7 +23,7 @@ const errorBorderClass = "border-error-500 dark:border-error-500"
 const formatRawSeconds = (seconds: number): string => (Number.isInteger(seconds) ? String(seconds) : seconds.toFixed(1))
 
 /**
- * 基本情報タブ。タイトル・難易度・制限時間（`m:ss`）。「計算式で再計算」は API から受け取った式の定数で計算し、過程を出す
+ * 「計算式で再計算」は API から受け取った式の定数で計算し、過程を出す
  */
 export function BasicsTab({
   form,

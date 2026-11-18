@@ -1,9 +1,5 @@
 import type { AdminStatsPeriod } from "@repo/api-schema"
 
-/**
- * ダッシュボードの表示ラベル
- */
-
 const STATS_PERIOD_LABELS: Record<AdminStatsPeriod, string> = {
   "30d": "直近 30 日",
   "7d": "直近 7 日",
@@ -18,7 +14,7 @@ export const STATS_PERIOD_ORDER = ["7d", "30d", "all"] as const satisfies readon
 export const formatPeriodLabel = (period: AdminStatsPeriod): string => STATS_PERIOD_LABELS[period]
 
 /**
- * 問題ごとの成績の項目名。表の見出しと問題の分析の数字で同じ名前にする
+ * 表の見出しと問題の分析の数字で同じ名前にする
  */
 export const PASSAGE_STATS_LABELS = {
   assistRates: "アシスト（和訳 / 設問訳 / 単語 / 読み上げ）",

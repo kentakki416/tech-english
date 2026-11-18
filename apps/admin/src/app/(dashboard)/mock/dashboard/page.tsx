@@ -16,9 +16,6 @@ const STATES = [
   { href: "/mock/dashboard?state=empty", key: "empty", label: "まだ誰も学習していない" },
 ]
 
-/**
- * ダッシュボード（モック）。本実装では admin のトップ（/）に置く
- */
 export default async function MockDashboardPage({ searchParams }: { searchParams: Promise<{ period?: string, state?: string }> }) {
   const { period: rawPeriod, state } = await searchParams
   const isEmpty = state === "empty"

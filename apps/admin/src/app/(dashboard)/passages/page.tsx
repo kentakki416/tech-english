@@ -17,9 +17,6 @@ type Props = {
   searchParams: Promise<{ status?: string | string[] }>
 }
 
-/**
- * 問題一覧。状態ごとの件数のカードと、選んだ状態の表（ComponentCard ＋ DataTable）。状態は `?status=`（不正・未指定は下書き）
- */
 export default async function PassagesPage({ searchParams }: Props) {
   const { status: rawStatus } = await searchParams
   const parsed = adminPassageStatusSchema.safeParse(rawStatus)

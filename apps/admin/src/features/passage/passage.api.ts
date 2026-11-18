@@ -39,7 +39,7 @@ const BASE_PATH = "/api/admin/passage"
 const LIST_PAGE_SIZE = 200
 
 /**
- * 一覧で取る最大の行数。表（DataTable）は検索・Filter・ページ送りを画面内で行うため、1 つの状態の行をまとめて取る
+ * 表（DataTable）は検索・Filter・ページ送りを画面内で行うため、1 つの状態の行をまとめて取る
  */
 const MAX_LIST_ROWS = 1000
 
@@ -53,11 +53,11 @@ export type AdminPassageList = {
 }
 
 /**
- * 問題の API 通信層。400 / 404 / 409 は apiClient の ApiClientError（status / body）で呼び出し側が見分ける
+ * 400 / 404 / 409 は apiClient の ApiClientError（status / body）で呼び出し側が見分ける
  */
 export const passageApi = {
   /**
-   * 問題の全情報。404 は null
+   * 404 は null
    */
   getDetail: async (id: number): Promise<GetAdminPassageResponse | null> => {
     try {
@@ -110,7 +110,8 @@ export const passageApi = {
   },
 
   /**
-   * 作成済みの読み上げの音声の作り直しを依頼する（ready のときだけ。それ以外の状態・音声の行が無ければ 409）
+   * 作成済みの読み上げの音声の作り直しを依頼する（ready のときだけ。それ以外の状態・音声の行が無ければ 409）。
+   * 作り直すまでは前の音声のまま
    */
   regenerateAudio: async (id: number): Promise<RegenerateAdminPassageAudioResponse> => {
     const raw = await apiClient.post<unknown>(`${BASE_PATH}/${id}/audio/regenerate`, {})

@@ -12,14 +12,8 @@ const LEVEL_CLASSES = [
   "bg-brand-700 dark:bg-brand-400",
 ]
 
-/**
- * 左の曜日のラベル（月曜始まりの 7 段のうち、月・水・金だけ）
- */
 const WEEKDAY_LABELS = ["月", "", "水", "", "金", "", ""]
 
-/**
- * 月曜を 0 とした曜日（web のマイページの学習カレンダーと同じ）
- */
 const getMondayBasedWeekday = (date: string): number => (new Date(`${date}T00:00:00Z`).getUTCDay() + 6) % 7
 
 /**
@@ -38,7 +32,6 @@ const formatDayTitle = (day: CalendarDay): string => `${day.date}・${day.attemp
 
 /**
  * 学習カレンダーの草（マイページと同じ範囲・段階。月曜始まり）を admin の色で出す。月のラベル・今日の強調・日を選ぶ操作は出さない。
- * 幅が足りないときに直近の週が見えるよう、横スクロールの始まりを右端にする（dir="rtl"。中の並びは左から右のまま）
  */
 export function UserCalendar({ calendar }: { calendar: GetAdminUserCalendarResponse }) {
   const weeks = groupDaysIntoWeeks(calendar.days)
@@ -52,6 +45,9 @@ export function UserCalendar({ calendar }: { calendar: GetAdminUserCalendarRespo
           直近 1 年で {studiedDayCount} 日
         </span>
       </div>
+      {/**
+       * 幅が足りないときに直近の週が見えるよう、横スクロールの始まりを右端にする（dir="rtl"。中の並びは左から右のまま）
+       */}
       <div className="custom-scrollbar mt-4 overflow-x-auto pb-1" dir="rtl">
         <div className="mr-auto flex w-max gap-[3px]" dir="ltr">
           <div className="mr-1 grid grid-rows-7 gap-[3px] text-[10px] leading-[11px] text-gray-400">

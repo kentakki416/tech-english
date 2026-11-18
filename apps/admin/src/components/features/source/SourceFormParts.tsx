@@ -72,9 +72,6 @@ export function Field({
   )
 }
 
-/**
- * GitHub の取得元の欄（対象パス・除外パス）
- */
 export function GitHubTargetFields({
   defaults,
   getFieldError,
@@ -97,9 +94,6 @@ export function GitHubTargetFields({
   )
 }
 
-/**
- * サイトの取得元の欄（対象パス・除外パス・CSS セレクタ）
- */
 export function WebsiteTargetFields({
   defaults,
   getFieldError,

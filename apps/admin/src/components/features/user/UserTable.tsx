@@ -20,9 +20,6 @@ import { EMPTY_VALUE, formatCount, formatRowRange } from "@/libs/format-stats"
 import { LoginMethodColumnLabel } from "./LoginMethodColumnLabel"
 import { UserAvatar } from "./UserAvatar"
 
-/**
- * 表が空のときの見出しと補足（範囲外のページ・絞り込みで 0 件・ユーザーがまだいない）
- */
 const buildEmptyMessage = (total: number, q: string | undefined): { description: string, title: string } => {
   if (total > 0) return { description: "Previous で最後のページに戻れます。", title: "このページにはユーザーがいません" }
   if (q) return { description: "名前かメールアドレスの一部で絞り込めます。", title: "条件に合うユーザーがいません" }
@@ -30,7 +27,7 @@ const buildEmptyMessage = (total: number, q: string | undefined): { description:
 }
 
 /**
- * ユーザー一覧の表。並べ替え・絞り込み・ページ送りは URL のクエリを変えて API に任せる
+ * 並べ替え・絞り込み・ページ送りは URL のクエリを変えて API に任せる
  */
 export function UserTable({ list, query }: { list: GetAdminUserListResponse, query: UserListQuery }) {
   const totalPages = Math.max(1, Math.ceil(list.total / list.limit))

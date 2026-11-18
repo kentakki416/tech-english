@@ -109,9 +109,6 @@ function Notice({ items, title, tone }: { items: string[], title: string, tone: 
   )
 }
 
-/**
- * 問題の確認・修正（モック）
- */
 export function PassageReview({ initialState }: { initialState: ReviewMockState }) {
   const isPublished = initialState === "published"
   const [tab, setTab] = useState<TabKey>("questions")

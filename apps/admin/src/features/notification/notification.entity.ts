@@ -1,5 +1,5 @@
 /**
- * ヘッダーに出す通知。中身（何を通知するか）はプロジェクトごとに決める
+ * 中身（何を通知するか）はプロジェクトごとに決める
  */
 export type AdminNotification = {
   id: string
@@ -9,7 +9,7 @@ export type AdminNotification = {
   avatarUrl?: string
   body: string
   /**
-   * クリックしたときの遷移先。無ければ遷移しない
+   * 無ければ遷移しない
    */
   href?: string
   isRead: boolean

@@ -23,7 +23,7 @@ const buildPassageImpactMessage = (counts: SourceListItem["passage_counts"]): st
 }
 
 /**
- * ソースの削除の確認のモーダル。収集中は理由を出し、「削除する」を出さない
+ * 収集中は理由を出し、「削除する」を出さない
  */
 export function SourceDeleteModal({ activeStatuses, onClose, source }: {
   activeStatuses: readonly SourceCollectionRunStatus[]

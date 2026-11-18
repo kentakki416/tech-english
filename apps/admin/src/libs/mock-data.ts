@@ -465,7 +465,7 @@ export const MOCK_QUESTIONS: AdminQuestion[] = [
 ]
 
 /**
- * 制限時間の計算式（question-generation spec）：英単語数 ÷ 想定 WPM × 60 ＋ 設問数 × 40 を 30 秒単位に切り上げ
+ * 制限時間の計算式：英単語数 ÷ 想定 WPM × 60 ＋ 設問数 × 40 を 30 秒単位に切り上げ
  */
 export const calculateTimeLimitSeconds = (wordCount: number, difficulty: 1 | 2 | 3, questionCount: number): number => {
   const wpm = { 1: 100, 2: 120, 3: 140 }[difficulty]
@@ -475,10 +475,6 @@ export const calculateTimeLimitSeconds = (wordCount: number, difficulty: 1 | 2 |
 
 export const formatSeconds = (totalSeconds: number): string =>
   `${Math.floor(totalSeconds / 60)}:${String(totalSeconds % 60).padStart(2, "0")}`
-
-// ========================================================
-// ダッシュボード（admin-dashboard）
-// ========================================================
 
 export type AdminStatsPeriod = "30d" | "7d" | "all"
 
@@ -869,10 +865,6 @@ export const MOCK_QUESTION_STATS: QuestionStats[] = [
     unansweredRate: 0.11,
   },
 ]
-
-// ========================================================
-// ユーザー管理（admin-users）
-// ========================================================
 
 export type MockUser = {
   id: number

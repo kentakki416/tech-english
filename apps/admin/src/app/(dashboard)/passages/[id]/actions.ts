@@ -20,7 +20,7 @@ import { passageApi } from "@/features/passage/passage.api"
 import { ApiClientError } from "@/libs/api-client"
 
 /**
- * 操作の失敗。error は画面の囲みの見出し、details は API の 400 の details（公開の条件・保存できない語句など）
+ * error は画面の囲みの見出し、details は API の 400 の details（公開の条件・保存できない語句など）
  */
 export type PassageActionFailure = {
   details: ErrorDetail[] | undefined
@@ -82,9 +82,6 @@ const revalidatePassagePaths = (id: number) => {
   revalidatePath(`/passages/${id}`)
 }
 
-/**
- * 下書きを保存する。400 の details（["glossary", i, "surface"] など）は画面が該当の項目に出す
- */
 export const savePassageAction = async (id: number, request: UpdateAdminPassageRequest): Promise<SavePassageActionResult> => {
   const passageId = parsePassageId(id)
   if (passageId === null) return INVALID_ID_FAILURE
@@ -111,7 +108,7 @@ export const savePassageAction = async (id: number, request: UpdateAdminPassageR
 }
 
 /**
- * 公開する。公開の条件を満たさなければ 400 で、満たしていない条件を details に返す
+ * 公開の条件を満たさなければ 400 で、満たしていない条件を details に返す
  */
 export const publishPassageAction = async (id: number): Promise<PassageActionResult> => {
   const passageId = parsePassageId(id)
@@ -127,9 +124,6 @@ export const publishPassageAction = async (id: number): Promise<PassageActionRes
   return { ok: true }
 }
 
-/**
- * 却下する（理由は必須）
- */
 export const rejectPassageAction = async (id: number, reason: string): Promise<PassageActionResult> => {
   const passageId = parsePassageId(id)
   if (passageId === null) return INVALID_ID_FAILURE
@@ -181,9 +175,6 @@ export const regeneratePassageAction = async (id: number): Promise<PassageAction
   return { ok: true }
 }
 
-/**
- * 却下を取り消す（設問があれば下書き、無ければ生成待ちに戻る）
- */
 export const restorePassageAction = async (id: number): Promise<PassageActionResult> => {
   const passageId = parsePassageId(id)
   if (passageId === null) return INVALID_ID_FAILURE
@@ -198,9 +189,6 @@ export const restorePassageAction = async (id: number): Promise<PassageActionRes
   return { ok: true }
 }
 
-/**
- * 要確認の印を外す（一覧の要確認の先頭から外れる）
- */
 export const resolvePassageAttentionAction = async (id: number): Promise<PassageActionResult> => {
   const passageId = parsePassageId(id)
   if (passageId === null) return INVALID_ID_FAILURE
@@ -224,9 +212,6 @@ const convertAudioApiErrorToFailure = (error: unknown): PassageActionFailure => 
   return { details: undefined, error: message, ok: false, status: error.status }
 }
 
-/**
- * 失敗した読み上げの音声を再試行する（pending に戻し、次回の生成タスクで作り直す）
- */
 export const retryPassageAudioAction = async (id: number): Promise<PassageActionResult> => {
   const passageId = parsePassageId(id)
   if (passageId === null) return INVALID_ID_FAILURE
@@ -241,9 +226,6 @@ export const retryPassageAudioAction = async (id: number): Promise<PassageAction
   return { ok: true }
 }
 
-/**
- * 作成済みの読み上げの音声の作り直しを依頼する（次回の生成タスクが Polly で作り直す。作り直すまでは前の音声のまま）
- */
 export const regeneratePassageAudioAction = async (id: number): Promise<PassageActionResult> => {
   const passageId = parsePassageId(id)
   if (passageId === null) return INVALID_ID_FAILURE

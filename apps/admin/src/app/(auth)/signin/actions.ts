@@ -13,7 +13,7 @@ import { OAUTH_COOKIE_OPTIONS, OAUTH_REDIRECT_COOKIE, OAUTH_STATE_COOKIE } from 
 import { resolveSafeRedirectPath } from "@/libs/safe-redirect"
 
 /**
- * Google OAuth の開始。state（CSRF 対策）とサインイン後の戻り先を cookie に保存して、Google の認可画面へ送る
+ * state（CSRF 対策）とサインイン後の戻り先を cookie に保存して、Google の認可画面へ送る
  */
 export const startGoogleOAuth = async (formData: FormData) => {
   const state = randomBytes(16).toString("hex")

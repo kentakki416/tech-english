@@ -23,6 +23,9 @@ export function DropdownItem({
   const combinedClasses = `${baseClassName} ${className}`.trim()
 
   const handleClick = (event: React.MouseEvent) => {
+    /**
+     * button は既定の動作を止めるので、form の submit には使えない（submit は素の button にする）
+     */
     if (tag === "button") {
       event.preventDefault()
     }

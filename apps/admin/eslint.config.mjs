@@ -19,7 +19,6 @@ const eslintConfig = defineConfig([
   ...nextTs,
   ...tailwindcss.configs["flat/recommended"],
   {
-    /** Tailwind CSS プラグイン設定（全ファイル共通） */
     settings: {
       tailwindcss: {
         config: path.resolve(__dirname, "src/app/globals.css"),
@@ -27,7 +26,9 @@ const eslintConfig = defineConfig([
       },
     },
   },
-  /** Override default ignores of eslint-config-next. */
+  /**
+   * eslint-config-next の既定の ignore を上書きする
+   */
   globalIgnores([
     ".next/**",
     "out/**",
@@ -55,11 +56,9 @@ const eslintConfig = defineConfig([
     rules: {
       ...commonRules,
 
-      /** React: JSX インデント */
       "react/jsx-indent": ["error", 2],
       "react/jsx-indent-props": ["error", 2],
 
-      /** React: JSX タグのスペース */
       "react/jsx-tag-spacing": ["error", {
         "afterOpening": "never",
         "beforeClosing": "never",
@@ -67,7 +66,6 @@ const eslintConfig = defineConfig([
         "closingSlash": "never",
       }],
 
-      /** Tailwind CSS */
       "tailwindcss/classnames-order": "off",
     },
   },

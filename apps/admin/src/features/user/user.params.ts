@@ -20,7 +20,7 @@ const USER_LIST_KEYWORD_MAX_LENGTH = QUERY_FIELDS.q.unwrap().maxLength
 const DEFAULT_QUERY: UserListQuery = getAdminUserListQueryStringSchema.omit({ limit: true }).parse({})
 
 /**
- * URL のクエリを読む。不正・未指定は既定値、絞り込みの文字は API の上限で切り詰める
+ * 不正・未指定は既定値、絞り込みの文字は API の上限で切り詰める
  */
 export const convertSearchParamsToUserListQuery = (params: SearchParams): UserListQuery => ({
   order: convertSearchParamBySchema(QUERY_FIELDS.order, params.order, DEFAULT_QUERY.order),
@@ -30,7 +30,7 @@ export const convertSearchParamsToUserListQuery = (params: SearchParams): UserLi
 })
 
 /**
- * ユーザー一覧の URL のクエリ。既定値の項目は省く
+ * 既定値の項目は省く
  */
 const buildUserListSearchParams = (query: UserListQuery): URLSearchParams => {
   const params = new URLSearchParams()
@@ -41,9 +41,6 @@ const buildUserListSearchParams = (query: UserListQuery): URLSearchParams => {
   return params
 }
 
-/**
- * ユーザー一覧の URL（`/users?sort=solved_attempts`）。既定値の項目は省く
- */
 export const buildUserListHref = (query: UserListQuery): string => {
   const search = buildUserListSearchParams(query).toString()
   return search ? `/users?${search}` : "/users"

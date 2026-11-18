@@ -27,16 +27,13 @@ const API_PATH_PREFIX = "/api/"
 const SERVER_ACTION_HEADER = "next-action"
 
 /**
- * サインインせずに開けるパス。サインイン画面（SIGN_IN_PATH）以外は token の更新もしない
+ * サインイン画面（SIGN_IN_PATH）以外は token の更新もしない
  * （callback・signout・dev login は自分で cookie を書き換えるので、先に更新すると書き換える前の refresh token を無効にする）
  */
 const PUBLIC_PATHS = [
   SIGN_IN_PATH,
   "/api/auth/callback/google",
   "/api/auth/signout",
-  /**
-   * サインイン・サインアップのフォームの見本（デモ）。サインインしなくても見られる
-   */
   "/demo/signin",
   "/demo/signup",
   ...DEV_ONLY_PUBLIC_PATHS,
@@ -50,7 +47,7 @@ const isPathUnderPrefix = (pathname: string, prefix: string): boolean =>
   pathname === prefix || pathname.startsWith(`${prefix}/`)
 
 /**
- * refresh の api を待つ上限。api が応答しないときに、画面の描画を長く止めない
+ * api が応答しないときに、画面の描画を長く止めない
  */
 const REFRESH_TIMEOUT_MS = 5_000
 
@@ -60,7 +57,6 @@ type RefreshResult =
   | { status: "failed" }
 
 /**
- * api に refresh token を渡して、新しい access / refresh token を受け取る。
  * 401（refresh token が無効・使用済み、admin が消された）と、それ以外の失敗（api の障害など）を分けて返す
  */
 const requestTokenRefresh = async (refreshToken: string): Promise<RefreshResult> => {

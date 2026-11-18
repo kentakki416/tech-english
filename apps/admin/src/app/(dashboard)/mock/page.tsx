@@ -85,9 +85,6 @@ const SCREENS: { description: string, href: string, spec: string, states: { href
   },
 ]
 
-/**
- * admin モックの画面一覧（レビュー用。製品の画面ではない）
- */
 export default function MockIndexPage() {
   return (
     <>

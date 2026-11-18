@@ -91,9 +91,6 @@ const buildStatusLabel = (source: AdminSource): string => {
   return source.isEnabled ? "有効" : "無効"
 }
 
-/**
- * ソース一覧の表（モック）。Basic Table と同じ DataTable を使う
- */
 export function SourceTable({ sources }: { sources: AdminSource[] }) {
   const rows: SourceRow[] = sources.map(source => ({
     ...source,

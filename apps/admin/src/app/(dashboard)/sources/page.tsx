@@ -32,9 +32,6 @@ const LIST_TITLE_TOOLTIPS = {
   ],
 }
 
-/**
- * ソース一覧。上の [GitHub] [サイト]（`?fetch_type=`）で取得方法ごとに分ける。Basic Tables と同じ構成（ComponentCard ＋ DataTable）
- */
 export default async function SourcesPage({ searchParams }: Props) {
   /**
    * リクエストごとに API から取る（build 時に静的生成させない）

@@ -36,9 +36,6 @@ const fetchOrNullOnNotFound = async <T>(path: string, parse: (raw: unknown) => T
   }
 }
 
-/**
- * ユーザー管理の API 通信層（admin-users）
- */
 export const userApi = {
   /**
    * 学習履歴の 1 ページ（新しい順）。ユーザーが居なければ null

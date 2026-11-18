@@ -11,9 +11,6 @@ import { dangerOutlineButtonClass, outlineButtonClass } from "@/libs/ui-classes"
 
 type TagListItem = GetTagListResponse["tags"][number]
 
-/**
- * タグの削除の確認のモーダル
- */
 export function TagDeleteModal({ onClose, tag }: { onClose: () => void, tag: TagListItem }) {
   const [message, setMessage] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()

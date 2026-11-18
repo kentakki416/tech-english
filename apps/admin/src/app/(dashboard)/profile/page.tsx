@@ -9,9 +9,6 @@ export const metadata: Metadata = {
   title: "マイページ",
 }
 
-/**
- * マイページ。サインイン中の admin の情報を出す
- */
 export default async function ProfilePage() {
   const admin = await adminApi.getMe()
 

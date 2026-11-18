@@ -1,5 +1,5 @@
 /**
- * ダッシュボード・ユーザー管理の数字の表示。Client Component からも使うので server-only にしない
+ * Client Component からも使うので server-only にしない
  */
 
 /**

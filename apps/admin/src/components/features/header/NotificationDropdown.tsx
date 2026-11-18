@@ -9,7 +9,7 @@ import { formatRelativeTime } from "@/libs/date"
 
 type NotificationDropdownProps = {
   /**
-   * すべて既読にする処理。省略すると「すべて既読にする」を出さない
+   * 省略すると「すべて既読にする」を出さない
    */
   markAllAsReadAction?: () => Promise<void>
   notifications: AdminNotification[]
@@ -31,9 +31,6 @@ function BellIcon({ className, size }: { className?: string; size: number }) {
   )
 }
 
-/**
- * ヘッダーの通知。未読が 1 件以上あればベルに印を付ける
- */
 export default function NotificationDropdown({ markAllAsReadAction, notifications }: NotificationDropdownProps) {
   const [isOpen, setIsOpen] = useState(false)
   const hasUnread = notifications.some((notification) => !notification.isRead)

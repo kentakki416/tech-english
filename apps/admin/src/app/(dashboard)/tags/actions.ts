@@ -11,7 +11,7 @@ import { tagApi } from "@/features/tag/tag.api"
 import { ApiClientError } from "@/libs/api-client"
 
 /**
- * モーダルに返す結果。errors はリクエストのフィールド名ごと
+ * errors はリクエストのフィールド名ごと
  */
 export type TagActionResult =
   | { ok: true }
@@ -24,7 +24,7 @@ const NOT_FOUND_MESSAGE = "このタグは見つかりませんでした。画�
 const NAME_ERROR = "名前は 1〜30 文字で、カンマを含めずに入力してください。"
 
 /**
- * API の失敗をモーダルの文言にする。409 は重複、404 は削除済み、それ以外は再試行を促す
+ * 409 は重複、404 は削除済み、それ以外は再試行を促す
  */
 const convertApiErrorToResult = (error: unknown, fallbackMessage: string): TagActionResult => {
   if (error instanceof ApiClientError && error.status === 409) return { errors: { name: [DUPLICATE_MESSAGE] }, ok: false }
@@ -42,7 +42,7 @@ const revalidateTagPaths = () => {
 }
 
 /**
- * タグの作成。color が null（「自動」）なら送らず、api に割り当てさせる
+ * color が null（「自動」）なら送らず、api に割り当てさせる
  */
 export const createTagAction = async (input: { color: string | null, name: string }): Promise<TagActionResult> => {
   /**
@@ -63,7 +63,7 @@ export const createTagAction = async (input: { color: string | null, name: strin
 }
 
 /**
- * タグの名前と色の変更。Server Action の引数はブラウザから届くので、id も検証する
+ * Server Action の引数はブラウザから届くので、id も検証する
  */
 export const updateTagAction = async (id: number, input: { color: string, name: string }): Promise<TagActionResult> => {
   const params = updateTagPathParamSchema.safeParse({ id })
@@ -82,7 +82,7 @@ export const updateTagAction = async (id: number, input: { color: string, name: 
 }
 
 /**
- * タグの削除。紐付いたソースからも外れる（api の ON DELETE CASCADE）
+ * 紐付いたソースからも外れる（api の ON DELETE CASCADE）
  */
 export const deleteTagAction = async (id: number): Promise<TagActionResult> => {
   const params = deleteTagPathParamSchema.safeParse({ id })

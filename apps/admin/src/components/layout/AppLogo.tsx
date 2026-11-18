@@ -17,7 +17,6 @@ type AppLogoProps = {
 }
 
 /**
- * アプリのロゴ（押すとダッシュボードへ）。
  * 画像のロゴにしたいときは、この部品の中身を <Image> に差し替える（呼び出し側は変えない）
  */
 export function AppLogo({ className, isCompact = false, tone = "default" }: AppLogoProps) {

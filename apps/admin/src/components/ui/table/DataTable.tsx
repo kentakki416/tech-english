@@ -6,67 +6,50 @@ import Pagination from "./Pagination"
 
 import { Table, TableBody, TableCell, TableHeader, TableRow } from "./index"
 
-/**
- * テーブルカラム定義
- */
 export type Column<T> = {
-  /** セルのカスタムクラス名 */
   className?: string
-  /** カラムヘッダーに表示するラベル */
   header: string
-  /** T のキーを指定して単純にテキスト表示する場合 */
   key?: keyof T
-  /** カスタム描画関数。key より優先される */
+  /**
+   * key より優先される
+   */
   render?: (row: T) => ReactNode
 }
 
-/**
- * 検索設定
- */
 type SearchConfig<T> = {
-  /** 検索対象のフィールド（T のキー配列） */
   filterKeys: (keyof T)[]
-  /** プレースホルダーテキスト */
   placeholder?: string
 }
 
-/**
- * ページネーション設定
- */
 type PaginationConfig = {
-  /** 1ページあたりの表示件数の選択肢 */
   pageSizeOptions?: number[]
 }
 
-/**
- * フィルタ定義
- */
 export type FilterConfig<T> = {
-  /** フィルタ対象のフィールド */
   key: keyof T
-  /** フィルタのラベル */
   label: string
-  /** 選択肢 */
   options: { label: string; value: string }[]
 }
 
-/**
- * DataTable の Props
- */
 type DataTableProps<T> = {
-  /** カラム定義 */
   columns: Column<T>[]
-  /** テーブルに表示するデータ配列 */
   data: T[]
-  /** フィルタ定義。指定するとフィルタアイコンを表示 */
+  /**
+   * 指定するとフィルタアイコンを表示
+   */
   filters?: FilterConfig<T>[]
-  /** 各行のユニークキーを取得する関数 */
   getRowKey: (row: T) => string | number
-  /** ページネーション設定。指定するとページネーションを表示 */
+  /**
+   * 指定するとページネーションを表示
+   */
   pagination?: PaginationConfig
-  /** 検索設定。指定すると検索バーを表示 */
+  /**
+   * 指定すると検索バーを表示
+   */
   search?: SearchConfig<T>
-  /** 表示するデータが 0 件のときにテーブルの下に表示する内容 */
+  /**
+   * 表示するデータが 0 件のときにテーブルの下に表示する内容
+   */
   emptyMessage?: ReactNode
 }
 
@@ -93,9 +76,6 @@ export default function DataTable<T>({
   const hasToolbar = search || pagination || (filters && filters.length > 0)
   const activeFilterCount = Object.values(filterValues).filter(Boolean).length
 
-  /**
-   * フィルタパネル外クリックで閉じる
-   */
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (
@@ -111,9 +91,6 @@ export default function DataTable<T>({
     return () => document.removeEventListener("mousedown", handleClickOutside)
   }, [isFilterOpen])
 
-  /**
-   * フィルタ適用
-   */
   const filterAppliedData = useMemo(() => {
     if (!filters) return data
     return data.filter((row) =>
@@ -125,9 +102,6 @@ export default function DataTable<T>({
     )
   }, [data, filters, filterValues])
 
-  /**
-   * 検索フィルタ
-   */
   const filteredData = useMemo(() => {
     if (!search || !searchQuery) return filterAppliedData
     const lower = searchQuery.toLowerCase()
@@ -143,9 +117,6 @@ export default function DataTable<T>({
     )
   }, [filterAppliedData, search, searchQuery])
 
-  /**
-   * ページネーション
-   */
   const totalPages = pagination
     ? Math.max(1, Math.ceil(filteredData.length / perPage))
     : 1
@@ -181,7 +152,6 @@ export default function DataTable<T>({
 
   return (
     <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/5 dark:bg-white/3">
-      {/* ヘッダー: Show entries（左） + 検索バー・フィルタアイコン（右） */}
       {hasToolbar && (
         <div className="flex flex-col items-start justify-between gap-4 border-b border-gray-100 px-5 py-4 sm:flex-row sm:items-center dark:border-white/5">
           {pagination ? (
@@ -263,7 +233,6 @@ export default function DataTable<T>({
                   )}
                 </button>
 
-                {/* フィルタパネル（ポップオーバー） */}
                 {isFilterOpen && (
                   <div className="absolute right-0 top-12 z-50 w-64 rounded-lg border border-gray-200 bg-white p-4 shadow-lg dark:border-gray-700 dark:bg-gray-800">
                     <div className="mb-3 flex items-center justify-between">
@@ -313,7 +282,6 @@ export default function DataTable<T>({
         </div>
       )}
 
-      {/* テーブル */}
       <div className="overflow-x-auto">
         <Table>
           <TableHeader className="border-b border-gray-100 dark:border-white/5">
@@ -357,7 +325,6 @@ export default function DataTable<T>({
         <div className="px-5 py-12 text-center">{emptyMessage}</div>
       )}
 
-      {/* フッター: Showing X to Y of Z（左） + ページネーション（右） */}
       {pagination && (
         <div className="flex flex-col items-center justify-between gap-4 border-t border-gray-100 px-5 py-4 xl:flex-row dark:border-white/5">
           <span className="text-theme-sm text-gray-500 dark:text-gray-400">

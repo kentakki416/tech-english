@@ -22,7 +22,6 @@ export default function BadgePage() {
           </div>
           <div className="p-6 border-t border-gray-100 dark:border-gray-800 xl:p-10">
             <div className="flex flex-wrap gap-4 sm:items-center sm:justify-center">
-              {/* Light Variant */}
               <Badge variant="light" color="primary">
                 Primary
               </Badge>
@@ -56,7 +55,6 @@ export default function BadgePage() {
           </div>
           <div className="p-6 border-t border-gray-100 dark:border-gray-800 xl:p-10">
             <div className="flex flex-wrap gap-4 sm:items-center sm:justify-center">
-              {/* Light Variant */}
               <Badge variant="solid" color="primary">
                 Primary
               </Badge>

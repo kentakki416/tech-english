@@ -3,7 +3,7 @@ import type { AdminPassageStatus, GetAdminPassageResponse } from "@repo/api-sche
 import type { BadgeColor } from "@/components/ui/badge/Badge"
 
 /**
- * 問題の表示ラベル。Client Component からも使うので `server-only` を付けない。
+ * Client Component からも使うので `server-only` を付けない。
  * 値の集合は `@repo/api-schema` の型で網羅を検査する（Zod のスキーマは bundle に入れないため import しない）
  */
 
@@ -12,7 +12,7 @@ export type AdminPassageDifficulty = NonNullable<GetAdminPassageResponse["diffic
 export type AdminQuestionType = GetAdminPassageResponse["questions"][number]["type"]
 
 /**
- * 読み上げの音声（詳細の audio）。下書きなどで音声の行も無ければ詳細の audio が null なので、ここでは null を除く
+ * 下書きなどで音声の行も無ければ詳細の audio が null なので、ここでは null を除く
  */
 export type AdminPassageAudio = NonNullable<GetAdminPassageResponse["audio"]>
 
@@ -27,9 +27,6 @@ export const PASSAGE_STATUS_LABELS: Record<AdminPassageStatus, string> = {
   rejected: "却下",
 }
 
-/**
- * 状態のバッジの色
- */
 export const PASSAGE_STATUS_BADGE_COLORS: Record<AdminPassageStatus, BadgeColor> = {
   collected: "light",
   draft: "primary",

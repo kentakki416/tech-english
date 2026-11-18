@@ -1,10 +1,6 @@
 import { formatSeconds } from "@/libs/mock-data"
 
 /**
- * ダッシュボード・ユーザー管理のモックの表示の整形
- */
-
-/**
  * 値が無い（分母が 0・未設定）ときに出す文字。既存の admin の画面（問題一覧など）と同じ
  */
 export const EMPTY_VALUE = "―"

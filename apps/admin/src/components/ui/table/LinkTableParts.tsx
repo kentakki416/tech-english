@@ -3,7 +3,7 @@ import Link from "next/link"
 import type { ReactNode } from "react"
 
 /**
- * 並べ替え・絞り込み・ページ送りを URL のクエリで行う表の部品（Server Component。ダッシュボードとユーザー一覧）。
+ * 並べ替え・絞り込み・ページ送りを URL のクエリで行う表の部品（Server Component）。
  * 見た目はテンプレートの DataTable にそろえる
  */
 
@@ -18,7 +18,7 @@ export const tableCellClass = "px-5 py-4 text-theme-sm whitespace-nowrap text-gr
 const searchInputClass = "h-10 w-full rounded-lg border border-gray-300 bg-white pr-4 pl-10 text-sm text-gray-700 focus:border-brand-500 focus:outline-none sm:w-[250px] dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400"
 
 /**
- * 並べ替えのできる列の見出しのセル（th）。中身は href へのリンク（並べ替えの向きは呼び出し側が href で決める）。今の列には向きの矢印と aria-sort を付ける
+ * 中身は href へのリンク（並べ替えの向きは呼び出し側が href で決める）
  */
 export function SortableHeaderCell({ href, isActive, label, order }: { href: string, isActive: boolean, label: string, order: "asc" | "desc" }) {
   return (
@@ -38,7 +38,7 @@ export function SortableHeaderCell({ href, isActive, label, order }: { href: str
 }
 
 /**
- * 表の上の絞り込みの入力欄。next/form で action の URL にクエリを付けて移る（ページ全体は読み直さない）。
+ * next/form で action の URL にクエリを付けて移る（ページ全体は読み直さない）。
  * 今の期間・並べ替えは hiddenValues で残し、ページは送らない（1 ページ目に戻る）
  */
 export function TableSearchForm({ action, hiddenValues, placeholder, query }: { action: string, hiddenValues: Record<string, string>, placeholder: string, query?: string }) {
@@ -58,7 +58,7 @@ export function TableSearchForm({ action, hiddenValues, placeholder, query }: { 
 const pageButtonClass = "flex h-10 min-w-10 items-center justify-center rounded-lg px-3 text-sm font-medium"
 
 /**
- * ページ送り（テンプレートの Pagination と同じ見た目のリンク）。今のページの前後 1 ページずつを出す。
+ * テンプレートの Pagination と同じ見た目のリンク。
  * 範囲外のページ（件数が減った後の古い URL など）では、Previous を最後のページへのリンクにする
  */
 export function PaginationLinks({ buildHref, page, totalPages }: { buildHref: (page: number) => string, page: number, totalPages: number }) {

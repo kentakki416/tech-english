@@ -14,7 +14,7 @@ import { getErrorName } from "@/libs/error-name"
 import { resolveSafeRedirectPath } from "@/libs/safe-redirect"
 
 /**
- * サインイン画面にエラーを出して戻す。サインインし直した後に元の画面へ戻れるよう、戻り先も付ける
+ * サインインし直した後に元の画面へ戻れるよう、戻り先も付ける
  */
 const redirectToSignInWithError = (req: NextRequest, error: SignInError, redirectTo: string): NextResponse => {
   const url = new URL("/signin", req.url)
@@ -24,7 +24,7 @@ const redirectToSignInWithError = (req: NextRequest, error: SignInError, redirec
 }
 
 /**
- * Google OAuth の callback。api の admin の Google 認証で code を検証し、
+ * api の admin の Google 認証で code を検証し、
  * access / refresh token を cookie に保存して、サインイン前に開こうとしていた画面に戻す。
  * admins に登録されていない Google アカウント（api が 403）は、サインイン画面に権限が無い旨を出す
  */

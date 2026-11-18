@@ -49,9 +49,6 @@ function Field({ children, hint, htmlFor, label }: { children: React.ReactNode, 
   )
 }
 
-/**
- * ソースの登録・編集フォーム（モック）
- */
 export function SourceForm({ initialFetchType, source }: { initialFetchType: AdminFetchType, source: AdminSource | null }) {
   const isEdit = source !== null
   const [fetchType, setFetchType] = useState<AdminFetchType>(source?.fetchType ?? initialFetchType)

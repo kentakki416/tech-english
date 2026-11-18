@@ -11,7 +11,6 @@ import { useModal } from "@/hooks/useModal"
 export default function UserMetaCard() {
   const { isOpen, openModal, closeModal } = useModal()
   const handleSave = () => {
-    // Handle save logic here
     console.log("Saving changes...")
     closeModal()
   }

@@ -1,5 +1,5 @@
 /**
- * 「Google でサインイン」の submit ボタン。TailAdmin のサインイン画面の Google のボタンと同じ見た目。
+ * TailAdmin のサインイン画面の Google のボタンと同じ見た目。
  * Google OAuth を始める Server Action の form の中に置く
  */
 export default function GoogleSignInButton() {

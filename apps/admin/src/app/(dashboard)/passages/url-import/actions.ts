@@ -19,12 +19,12 @@ import { urlImportApi } from "@/features/url-import/url-import.api"
 import { ApiClientError } from "@/libs/api-client"
 
 /**
- * 取り込めなかったとき。errorCode は api が返した取り込めない理由（URL の形の誤り・想定外の失敗は null）
+ * errorCode は api が返した取り込めない理由（URL の形の誤り・想定外の失敗は null）
  */
 export type UrlImportFailure = { errorCode: UrlImportErrorCode | null, message: string }
 
 /**
- * useActionState に返す状態。previewed の url は確認した URL（保存するときに hidden で送り直す）、
+ * previewed の url は確認した URL（保存するときに hidden で送り直す）、
  * saveFailure は確認の結果を残したまま出す保存の失敗
  */
 export type UrlImportState =
@@ -88,7 +88,7 @@ const readUrlField = (formData: FormData): string => {
 }
 
 /**
- * URL のページの取り込みを確認する Server Action（DB には書かない）
+ * DB には書かない
  */
 export const previewUrlImportAction = async (_state: UrlImportState, formData: FormData): Promise<UrlImportState> => {
   const url = readUrlField(formData)
@@ -105,13 +105,13 @@ export const previewUrlImportAction = async (_state: UrlImportState, formData: F
 }
 
 /**
- * 保存の失敗を状態にする。確認の結果を出しているときはそれを残す（一時的な失敗なら、もう一度保存を押せばよい）
+ * 確認の結果を出しているときはそれを残す（一時的な失敗なら、もう一度保存を押せばよい）
  */
 const buildSaveFailureState = (state: UrlImportState, failure: UrlImportFailure): UrlImportState =>
   state.status === "previewed" ? { ...state, saveFailure: failure } : { ...failure, status: "error" }
 
 /**
- * URL のページを本文候補として保存する Server Action。保存できたら問題一覧（収集済み）を作り直させる
+ * 保存できたら問題一覧（収集済み）を作り直させる
  */
 export const createUrlImportAction = async (state: UrlImportState, formData: FormData): Promise<UrlImportState> => {
   const url = readUrlField(formData)

@@ -1,8 +1,5 @@
 "use client"
 
-/**
- * 並べ替えの向き。null（値が無い行）はどちらの向きでも最後に置く
- */
 export type SortOrder = "asc" | "desc"
 
 /**
@@ -33,7 +30,7 @@ export const tableCellClass = "px-5 py-4 text-theme-sm whitespace-nowrap text-gr
 const searchInputClass = "h-10 w-full rounded-lg border border-gray-300 bg-white pr-4 pl-10 text-sm text-gray-700 focus:border-brand-500 focus:outline-none sm:w-[250px] dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400"
 
 /**
- * 並べ替えのできる列の見出し。押すと、その列で並べ替える（同じ列なら向きを逆にする）。
+ * 押すと、その列で並べ替える（同じ列なら向きを逆にする）。
  * 今の列には向きの矢印と aria-sort を付け、読み上げにも並べ替えの状態を伝える
  */
 export function SortableHeaderCell({ isActive, label, order, onClick }: { isActive: boolean, label: string, order: SortOrder, onClick: () => void }) {
@@ -53,9 +50,6 @@ export function SortableHeaderCell({ isActive, label, order, onClick }: { isActi
   )
 }
 
-/**
- * 表の上の絞り込みの入力欄（虫めがねのアイコン付き）
- */
 export function SearchField({ placeholder, value, onChange }: { placeholder: string, value: string, onChange: (value: string) => void }) {
   return (
     <div className="relative w-full sm:w-auto">

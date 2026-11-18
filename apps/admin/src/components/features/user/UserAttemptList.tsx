@@ -13,18 +13,11 @@ import { outlineButtonClass } from "@/libs/ui-classes"
 
 type Attempt = GetAdminUserAttemptsResponse["attempts"][number]
 
-/**
- * 続きを読めなかったときの文言。押し直しても直らないとき（ユーザーが居ない）は開き直しを促す
- */
 const LOAD_FAILURE_MESSAGES: Record<LoadMoreUserAttemptsFailureReason, string> = {
   not_found: "ユーザーが見つかりませんでした。一覧から開き直してください。",
   unavailable: "続きを読み込めませんでした。もう一度押してください。",
 }
 
-/**
- * 学習履歴（新しい順）。「さらに読み込む」で次のページを Server Action で読む（cursor）。
- * 提出日時は提出した瞬間（submitted_at）をユーザーの今のタイムゾーンで出す
- */
 export function UserAttemptList({ initialPage, timeZone, userId }: { initialPage: GetAdminUserAttemptsResponse, timeZone: string, userId: number }) {
   const [attempts, setAttempts] = useState<Attempt[]>(initialPage.attempts)
   const [nextCursor, setNextCursor] = useState<number | null>(initialPage.next_cursor)
@@ -71,6 +64,9 @@ export function UserAttemptList({ initialPage, timeZone, userId }: { initialPage
             <tbody className="divide-y divide-gray-100 text-theme-sm text-gray-500 dark:divide-white/5 dark:text-gray-400">
               {attempts.map(attempt => (
                 <tr key={attempt.id}>
+                  {/**
+                   * 提出日時は提出した瞬間（submitted_at）をユーザーの今のタイムゾーンで出す
+                   */}
                   <td className="px-5 py-3 whitespace-nowrap tabular-nums sm:px-6">{formatDateTime(attempt.submitted_at, timeZone)}</td>
                   <td className="min-w-56 px-5 py-3">
                     <Link className="font-medium text-gray-800 hover:text-brand-500 dark:text-white/90" href={`/passages/${attempt.passage_id}`}>{attempt.title}</Link>

@@ -1,9 +1,5 @@
 import type { GetAdminUserResponse } from "@repo/api-schema"
 
-/**
- * ユーザー管理の表示ラベル（一覧・詳細で使う）
- */
-
 const AUTH_PROVIDER_LABELS: Record<string, string> = {
   dev: "dev",
   github: "GitHub",
@@ -25,9 +21,6 @@ const NO_NAME_LABEL = "（名前なし）"
  */
 export const hasUserName = (name: string | null): name is string => (name?.trim() ?? "") !== ""
 
-/**
- * ユーザーの名前の表示。無ければ「（名前なし）」
- */
 export const formatUserName = (name: string | null): string => (hasUserName(name) ? name.trim() : NO_NAME_LABEL)
 
 type GoalMetric = NonNullable<NonNullable<GetAdminUserResponse["stats"]["goal"]>["weekly_metric"]>

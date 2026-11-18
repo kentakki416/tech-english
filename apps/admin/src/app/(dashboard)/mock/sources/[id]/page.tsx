@@ -12,9 +12,6 @@ const STATES = [
   { href: "/mock/sources/7", key: "edit-website", label: "編集（サイト）" },
 ]
 
-/**
- * ソースの登録・編集（モック）。`/mock/sources/new` は新規、数値の id は編集
- */
 export default async function MockSourceFormPage({
   params,
   searchParams,

@@ -1,5 +1,5 @@
 /**
- * admin の画面で使う共通クラス。既存テンプレート（InputField / TextArea / Select / ComponentCard）と同じ見た目にそろえる
+ * 既存テンプレート（InputField / TextArea / Select / ComponentCard）と同じ見た目にそろえる
  *
  * デザインモック（`app/(dashboard)/mock/_components/ui.ts`）と同じ値。モックは本実装の後に消すので、本番の画面はこちらを使う
  */

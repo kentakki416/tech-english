@@ -12,9 +12,6 @@ export const metadata: Metadata = {
   title: "タグ",
 }
 
-/**
- * タグの一覧。追加・編集・削除はモーダルで行う
- */
 export default async function TagsPage() {
   /**
    * リクエストごとに API から取る（build 時に静的生成させない）

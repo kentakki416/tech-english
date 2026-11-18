@@ -1,5 +1,5 @@
 /**
- * admin モック用の共通クラス。既存テンプレート（InputField / TextArea / Select / ComponentCard）と同じ見た目にそろえる
+ * 既存テンプレート（InputField / TextArea / Select / ComponentCard）と同じ見た目にそろえる
  */
 
 export const cardClass = "rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/3"

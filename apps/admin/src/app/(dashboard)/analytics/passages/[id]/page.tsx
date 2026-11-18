@@ -29,7 +29,7 @@ type Props = {
 }
 
 /**
- * URL の id を問題の ID にする。正の整数でない id（`abc`・`0`・`1e3`・`0x10` など）と、DB の ID の上限を超える id は null（問題の確認・修正の画面と同じ読み方）
+ * 正の整数でない id（`abc`・`0`・`1e3`・`0x10` など）と、DB の ID の上限を超える id は null（問題の確認・修正の画面と同じ読み方）
  */
 const convertPathIdToPassageId = (id: string): number | null => {
   if (!/^\d+$/.test(id)) return null
@@ -37,10 +37,6 @@ const convertPathIdToPassageId = (id: string): number | null => {
   return parsed.success ? parsed.data.id : null
 }
 
-/**
- * 問題の分析。問題の数字と、設問ごとの正答率・選択肢の割合・要確認の印。問題が無ければ 404。
- * 「ダッシュボードに戻る」は同じ期間のダッシュボードへ（URL には期間しか持たないので、表の並べ替え・絞り込み・ページは戻さない）
- */
 export default async function PassageAnalyticsPage({ params, searchParams }: Props) {
   await connection()
   const passageId = convertPathIdToPassageId((await params).id)
@@ -64,6 +60,9 @@ export default async function PassageAnalyticsPage({ params, searchParams }: Pro
       <PageBreadcrumb pageTitle="問題の分析" />
       <div className="space-y-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          {/**
+           * 「ダッシュボードに戻る」は同じ期間のダッシュボードへ（URL には期間しか持たないので、表の並べ替え・絞り込み・ページは戻さない）
+           */}
           <Link className="text-theme-sm font-medium text-brand-500 hover:text-brand-600" href={buildDashboardHref({ period })}>
             ← ダッシュボードに戻る
           </Link>
