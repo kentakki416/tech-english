@@ -7,10 +7,9 @@ import { AppHeader } from "@/components/ui/AppHeader"
 import { SubmitButton } from "@/components/ui/SubmitButton"
 import { learningRecordApi } from "@/features/learning-record/learning-record.api"
 import { getUser } from "@/features/user/get-user"
-import { logoutAction } from "@/libs/auth-actions"
 import { redirectIfSessionRejected } from "@/libs/session"
 
-import { saveGoalAction, updateTimezoneAction } from "./actions"
+import { logoutAction, saveGoalAction, updateTimezoneAction } from "./actions"
 
 export const metadata: Metadata = {
   title: "設定",

@@ -1,11 +1,14 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
+import { redirect } from "next/navigation"
 
 import { updateUserGoalRequestSchema, updateUserRequestSchema } from "@repo/api-schema"
 
 import { learningRecordApi } from "@/features/learning-record/learning-record.api"
 import { userApi } from "@/features/user/user.api"
+import { apiClient } from "@/libs/api-client"
+import { clearAuthCookies, getRefreshToken } from "@/libs/auth"
 
 export type GoalFormState = { message?: string, status: "error" | "idle" | "saved" }
 
@@ -58,4 +61,19 @@ export const updateTimezoneAction = async (timezone: string): Promise<UpdateTime
   revalidatePath("/")
   revalidatePath("/settings")
   return { status: "saved" }
+}
+
+export const logoutAction = async () => {
+  const refreshToken = await getRefreshToken()
+  if (refreshToken) {
+    try {
+      await apiClient.post("/api/auth/logout", { refresh_token: refreshToken })
+    } catch {
+      /**
+       * API 失敗時も Cookie はクリアする
+       */
+    }
+  }
+  await clearAuthCookies()
+  redirect("/sign-in")
 }
