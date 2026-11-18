@@ -99,6 +99,7 @@ type User = {
 ### Server Action の配置
 
 - 対応するページと同じディレクトリに `actions.ts` として置く（例: `app/(dashboard)/categories/actions.ts`）。中身は 検証 → `features/*.api.ts` に委譲 → revalidate/redirect のみの薄いグルーに保つ。
+- 複数ページで完全に同一の action だけは `features/{feature}/{feature}.actions.ts` に置いて import する。
 - **グローバルな共通 actions ディレクトリ（`src/actions/` / `app/actions/`）は作らない。** 再利用したいロジックは `features/*.api.ts` にあり、action は revalidate/redirect が route 固有の薄いグルーなので、共通化しても feature の凝集を横断で割るだけでメリットが無い。
 
 ### hooks の配置
