@@ -91,7 +91,8 @@ const requestTokenRefresh = async (refreshToken: string): Promise<RefreshResult>
  * 認証の境界は api なので、通しても守りは変わらない。admin の Server Action は api を中継するだけで、
  * token が無ければ api の 401 で apiClient が /api/auth/signout に redirect し、そこからサインイン画面に移る
  * （Server Action の中の redirect は、Next.js のクライアントが画面の遷移として扱える）。
- * api を呼ばない Server Action（logoutAction・startGoogleOAuth）は、サインインしていなくても動いて困らない。
+ * access token が要らない Server Action（logoutAction が呼ぶ api の logout は access token を求めない。
+ * startGoogleOAuth は api を呼ばない）は、サインインしていなくても動いて困らない。
  * その代わり、更新の競合や api の一時的な障害で token を取れなかったときも、Server Action では api の 401 で
  * cookie が消え、サインインし直しになる
  */
