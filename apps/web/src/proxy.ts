@@ -139,7 +139,7 @@ export const proxy = async (req: NextRequest) => {
 
 export const config = {
   /**
-   * _next/static, _next/image, favicon.ico, public/ 配下を除外
+   * public ディレクトリのファイルは `/` 直下の URL で配信されるので、`public/` では除外されず proxy を通る
    */
   matcher: [
     "/((?!_next/static|_next/image|favicon.ico|public/).*)",

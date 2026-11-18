@@ -10,9 +10,6 @@ export const metadata: Metadata = {
   title: "単語帳",
 }
 
-/**
- * 描くたびに key を変えて、「もう 1 回」の router.refresh() で VocabularySession を作り直す（前の回の state を持ち越さない）
- */
 export default async function VocabularySessionPage() {
   const session = await vocabularyApi.getSession().catch(redirectIfSessionRejected)
   /**
@@ -22,6 +19,9 @@ export default async function VocabularySessionPage() {
 
   return (
     <VocabularySession
+      /**
+       * 描くたびに変えて、「もう 1 回」の router.refresh() で VocabularySession を作り直す（前の回の state を持ち越さない）
+       */
       key={crypto.randomUUID()}
       cards={session.cards}
       nextDueDate={summary?.next_due_date ?? null}

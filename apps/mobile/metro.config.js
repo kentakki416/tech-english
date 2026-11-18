@@ -20,8 +20,6 @@ config.resolver.nodeModulesPaths = [
 config.resolver.unstable_conditionNames = ['react-native', 'require', 'default']
 
 /**
- * どのモジュールから require しても同じ実体のファイルに解決されるように、
- * ファイルのパスをそのまま返す。
  * pnpm の isolated な配置では node_modules/<pkg> が .pnpm への symlink なので、realpath にして、
  * パッケージ自身の依存（@react-native/assets-registry など）を実体の場所から解決できるようにする
  */
@@ -30,6 +28,9 @@ const singletonPkgs = {
   'react-native': fs.realpathSync(path.resolve(projectRoot, 'node_modules/react-native')),
 }
 
+/**
+ * react・react-native は、どのモジュールから require しても同じ実体のファイルに解決されるように、ファイルのパスをそのまま返す
+ */
 config.resolver.resolveRequest = (context, moduleName, platform) => {
   if (singletonPkgs[moduleName]) {
     const pkgDir = singletonPkgs[moduleName]

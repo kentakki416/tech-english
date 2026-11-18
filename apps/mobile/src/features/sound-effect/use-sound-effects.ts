@@ -13,8 +13,6 @@ const CHOICE_SOUND = require("../../../assets/sounds/choice-pop.wav")
 const FLIP_SOUND = require("../../../assets/sounds/page-flip.wav")
 
 /**
- * 画面を開いたときにも効果音の音声のモード（iOS の ambient）を先に頼んでおき、最初の 1 回で設定を待たないようにする。
- * ambient はカテゴリを変えるだけで音声のセッションを有効にしないので、ほかのアプリの音楽は止まらない。
  * 返す関数は、オン / オフが変わるまで同じ参照
  */
 export function useSoundEffects() {
@@ -22,6 +20,10 @@ export function useSoundEffects() {
   const choicePlayer = useAudioPlayer(CHOICE_SOUND)
   const isEnabled = useSyncExternalStore(subscribeSoundEffectSetting, readSoundEffectSetting, () => true)
 
+  /**
+   * 画面を開いたときにも効果音の音声のモード（iOS の ambient）を先に頼んでおき、最初の 1 回で設定を待たないようにする。
+   * ambient はカテゴリを変えるだけで音声のセッションを有効にしないので、ほかのアプリの音楽は止まらない
+   */
   useEffect(() => {
     void requestAudioMode("effect")
   }, [])

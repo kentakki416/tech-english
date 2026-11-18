@@ -54,10 +54,6 @@ function CountStat({ label, unit, value }: { label: string, unit: string, value:
   )
 }
 
-/**
- * 1 回分から戻ったときに数が変わるので、フォーカスのたびに取り直す（フォーカス中にアプリが前面に戻ったときも）。
- * 束の見本に今日の 1 枚目を出すため、1 回分も一緒に取る（読み取りだけで何も書き込まない）。1 回分の取得に失敗しても見本の 1 枚目を出さないだけ（web と同じ）
- */
 export default function VocabularyScreen() {
   const router = useRouter()
   const [data, setData] = useState<VocabularyTopData | null>(null)
@@ -71,6 +67,9 @@ export default function VocabularyScreen() {
   const load = useCallback(async () => {
     const seq = ++requestSeqRef.current
     try {
+      /**
+       * 束の見本に今日の 1 枚目を出すため、1 回分も一緒に取る（読み取りだけで何も書き込まない）。1 回分の取得に失敗しても見本の 1 枚目を出さないだけ（web と同じ）
+       */
       const [summary, session] = await Promise.all([
         vocabularyApi.getSummary(),
         vocabularyApi.getSession().catch((error: unknown) => {
@@ -91,6 +90,9 @@ export default function VocabularyScreen() {
     }
   }, [])
 
+  /**
+   * 1 回分から戻ったときに数が変わるので、フォーカスのたびに取り直す（フォーカス中にアプリが前面に戻ったときも）
+   */
   useFocusEffect(
     useCallback(() => {
       void load()
