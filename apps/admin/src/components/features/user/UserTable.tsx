@@ -30,7 +30,7 @@ const buildEmptyMessage = (total: number, q: string | undefined): { description:
 }
 
 /**
- * ユーザー一覧の表。並べ替え・絞り込み・ページ送りは URL のクエリを変えて API に任せる（admin-users の UI 設計）
+ * ユーザー一覧の表。並べ替え・絞り込み・ページ送りは URL のクエリを変えて API に任せる
  */
 export function UserTable({ list, query }: { list: GetAdminUserListResponse, query: UserListQuery }) {
   const totalPages = Math.max(1, Math.ceil(list.total / list.limit))

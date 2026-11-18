@@ -100,7 +100,7 @@ const fetchAudio = async (attemptId: number, blocks: AttemptBlock[], signal: Abo
 }
 
 /**
- * HTMLAudioElement での再生（docs/spec/read-aloud/README.md「再生の実装」）。
+ * HTMLAudioElement での再生。
  * audio を 1 つ使い回してパートごとに src を差し替え、再生中だけ requestAnimationFrame で読み上げ中の単語を追う。
  * React の state は events.onPlaybackChange で更新し、単語が変わったときだけ呼ぶ（画面全体を毎フレーム描き直さない）
  */

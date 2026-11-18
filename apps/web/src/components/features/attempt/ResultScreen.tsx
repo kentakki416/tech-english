@@ -93,7 +93,7 @@ function ExternalLink({ children, href }: { children: React.ReactNode, href: str
 }
 
 /**
- * 出典（content-collection README「出典表示」）。取得時点は GitHub ならコミットへの固定リンク、サイトなら取得日
+ * 出典。取得時点は GitHub ならコミットへの固定リンク、サイトなら取得日
  */
 function AttributionSection({ attribution }: { attribution: PassageAttributionResponse }) {
   const { commit_sha: commitSha, permalink_url: permalinkUrl } = attribution

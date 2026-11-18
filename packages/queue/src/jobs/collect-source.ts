@@ -3,8 +3,6 @@
  *
  * Producer (apps/api) が収集の実行の記録（source_collection_runs）を queued で作ってから enqueue し、
  * Consumer (apps/worker) がその記録を running にして収集し、結果を書く。
- *
- * 設計: docs/spec/manual-collection/README.md
  */
 export const COLLECT_SOURCE_QUEUE_NAME = "collect-source"
 

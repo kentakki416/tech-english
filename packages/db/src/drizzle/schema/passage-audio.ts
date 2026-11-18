@@ -18,7 +18,7 @@ import { timestamps } from "./columns"
 import { joinSqlValues } from "./sql-values"
 
 /**
- * 問題ごとの読み上げの音声（1 問 1 行）。列の正本は docs/spec/read-aloud/README.md の「必要な DB 設計」。
+ * 問題ごとの読み上げの音声（1 問 1 行）。
  * ユーザーに紐づかないので、アカウント削除の cascade の対象外。制約・index 名は `{table}_{columns}_key` / `_idx` / `_fkey` の命名にそろえている。
  * passage_id に外部キーを張らないのは、問題を消しても mp3 のキー（manifest）を残すため。行は generate:audio が mp3 を消してから消す
  */

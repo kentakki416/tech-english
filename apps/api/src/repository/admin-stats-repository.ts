@@ -93,7 +93,7 @@ export type FindPassageStatsQuery = StatsTimeRange & {
 }
 
 /**
- * admin のダッシュボードの集計（読み取りだけ）。Postgres の学習の記録をその場で集計する（admin-dashboard README「集計の方法」）
+ * admin のダッシュボードの集計（読み取りだけ）。Postgres の学習の記録をその場で集計する
  */
 export interface AdminStatsRepository {
   /**

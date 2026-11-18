@@ -20,7 +20,7 @@ const formatDayLabel = (date: string): string => {
 }
 
 /**
- * 復習の間隔（README「復習の間隔」）を 1 行で示す
+ * 復習の間隔を 1 行で示す
  */
 const INTERVAL_STEPS = ["翌日", "3 日後", "7 日後", "30 日後"]
 

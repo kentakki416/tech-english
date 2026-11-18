@@ -4,7 +4,7 @@ import type { PassageBlock } from "@repo/domain"
 import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb } from "../controller/setup"
 
 /**
- * sources / source_documents / passages の制約を実 DB で確かめる（docs/spec/content-collection/tasks/step1-db-sources.md）。
+ * sources / source_documents / passages の制約を実 DB で確かめる。
  * 定数に無い値は Drizzle の型で弾かれるので、sql の生 insert で入れる
  */
 

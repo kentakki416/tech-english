@@ -16,7 +16,7 @@ type Props = {
 }
 
 /**
- * ユーザー一覧（admin-users の UI 設計）。絞り込み・並べ替え・ページ送りは URL のクエリ
+ * ユーザー一覧。絞り込み・並べ替え・ページ送りは URL のクエリ
  */
 export default async function UsersPage({ searchParams }: Props) {
   await connection()

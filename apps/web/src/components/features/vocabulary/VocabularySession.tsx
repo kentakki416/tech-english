@@ -84,7 +84,7 @@ function SessionDone({ nextDueDate }: { nextDueDate: string | null }) {
 }
 
 /**
- * 単語帳の 1 回分。カードをめくって覚えた / まだを付け、全部答えるとふりかえり（vocabulary-cards README「UI 設計 > 1 回分」）。
+ * 単語帳の 1 回分。カードをめくって覚えた / まだを付け、全部答えるとふりかえり。
  *
  * 答えたら保存を待たずに次のカードへ進む。保存は Server Action で 1 枚ずつ行い、失敗したカードはふりかえりで送り直せる。
  * Server Action の呼び出し自体が失敗した（通信が切れた・デプロイで action が変わった）ときも失敗として扱い、エラー画面にしない。

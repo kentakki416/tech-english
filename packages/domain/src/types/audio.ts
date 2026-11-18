@@ -71,7 +71,7 @@ export type PassageAudio = {
 }
 
 /**
- * 見出し語ごとの発音の音声（1 語 1 行。vocabulary-pronunciation README「必要な DB 設計」）。ユーザーに紐づかない
+ * 見出し語ごとの発音の音声（1 語 1 行）。ユーザーに紐づかない
  */
 export type WordAudio = {
   id: number

@@ -147,7 +147,7 @@ const convertCardToReviewResult = (card: VocabularyCard): VocabularyReviewResult
 })
 
 /**
- * 1 枚の答えを保存する。次の段階と次に出す日は users.timezone での今日から求める（vocabulary-cards README「復習の間隔」）。
+ * 1 枚の答えを保存する。次の段階と次に出す日は users.timezone での今日から求める。
  *
  * - 同じ client_review_id の答えが保存済みなら何もせず、そのカードの今の状態を返す（冪等）
  * - 今日の分ではないカード（次に出す日が今日より後・覚えた単語）への答えは保存せず、そのカードの今の状態を返す。

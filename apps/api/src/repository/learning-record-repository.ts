@@ -1,7 +1,7 @@
 import type { QuestionType } from "@repo/domain"
 
 /**
- * 1 日（学習した日）の集計。学習した日は挑戦を提出した日か、単語帳で答えた日（vocabulary-cards README「学習記録への反映」）
+ * 1 日（学習した日）の集計。学習した日は挑戦を提出した日か、単語帳で答えた日
  */
 export type DailyStudySummary = {
   attemptCount: number
@@ -80,7 +80,7 @@ export type FindSubmittedAttemptsOptions = { cursor?: number; date?: string; lim
  * 学習記録の集計（読み取りのみ）のリポジトリ。数えるのは status = 'submitted' の挑戦と、単語帳の答え（vocabulary_reviews）だけで、
  * 他のユーザーの行は含めない。
  *
- * reading_attempts と vocabulary_reviews から都度集計し、日付で合わせる（learning-record README「集計の方法」）。遅くなったら日ごとの集計テーブルに
+ * reading_attempts と vocabulary_reviews から都度集計し、日付で合わせる。遅くなったら日ごとの集計テーブルに
  * 切り替える想定で、そのときはこの実装だけを差し替える（API の形は変えない）
  */
 export interface LearningRecordRepository {

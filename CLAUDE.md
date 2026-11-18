@@ -98,7 +98,7 @@ lint 設定自体を触るときの注意:
 
 ## Documentation Guidelines
 
-- 仕様書・設計書は `docs/spec/{feature}/` に置き、**実装前に必ず `design-feature` skill で作成する**（構成・テンプレート・step の書き方は同 skill が持つ）。デザインモックは `design-mock` skill
+- 仕様書・設計書は **main には置かず、`kentakki416` ブランチの `docs/kentakki416/tasks/{feature}/` にだけ置く**（main に merge しないブランチ。読むときは `git fetch origin kentakki416` してから `git show origin/kentakki416:docs/kentakki416/tasks/...`）。**コードのコメントや main のドキュメントから、設計書へのリンク・パスと、設計書の名前・節名での参照（「〜 README「〜」」など）を書かない**（設計書が変わったときに更新漏れが起きるため。辿り方はルートの `README.md` に 1 か所だけ書いてある）。**実装前に必ず `design-feature` skill で作成する**（構成・テンプレート・step の書き方は同 skill が持つ）。デザインモックは `design-mock` skill
 - ドキュメントは日本語で書く
 - **図は Mermaid で書く**（フロー図 / シーケンス図 / ER 図 / 状態遷移図）。ASCII アートは使わない
 

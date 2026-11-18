@@ -15,7 +15,7 @@ import { buildPassagePrompt } from "./passage"
 export const PROMPT_VERSION = "2026-10-19.2"
 
 /**
- * 設問の種類ごとの説明と例（README の「設問のルール」）。QUESTION_TYPES の全種類を持つことを型で強制する
+ * 設問の種類ごとの説明と例。QUESTION_TYPES の全種類を持つことを型で強制する
  */
 const QUESTION_TYPE_GUIDES: Record<QuestionType, string> = {
   detail: "a specific fact stated in the passage. e.g. \"According to the passage, what happens when the cache is full?\"",
@@ -26,7 +26,7 @@ const QUESTION_TYPE_GUIDES: Record<QuestionType, string> = {
 }
 
 /**
- * 難易度の目安（README の「難易度と制限時間」）
+ * 難易度の目安
  */
 const DIFFICULTY_GUIDES: Record<PassageDifficulty, string> = {
   1: "Easy: plain sentences, such as a tutorial or the introduction of a README",

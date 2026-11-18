@@ -4,7 +4,6 @@
 # ClickPipes は VPC の外から RDS に繋ぐため、SSH トンネルの踏み台を public subnet に置く。
 # - SSH は ClickPipes の固定 IP からだけ受け、bastion からは RDS の 5432 にだけ出る
 # - ログインできるのは ClickPipes の鍵を持つ clickpipes ユーザーだけで、RDS へのポートフォワード以外はできない
-# 設計: docs/spec/clickhouse-migration/README.md
 
 /** 鍵の接続先に bastion の IP が要り、bastion の user_data に公開鍵が要るため、EIP を先に作って循環を切る */
 resource "aws_eip" "bastion" {

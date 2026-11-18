@@ -33,7 +33,7 @@ const commaSeparatedSchema = z
 const difficultyFilterSchema = commaSeparatedSchema.pipe(z.array(z.coerce.number().pipe(passageDifficultySchema)))
 
 /**
- * 出典表示（content-collection の「出典表示」）。attempt.ts からも使う
+ * 出典表示。attempt.ts からも使う
  */
 export const passageAttributionSchema = z.object({
   /**

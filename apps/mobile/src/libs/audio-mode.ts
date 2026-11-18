@@ -1,7 +1,7 @@
 import { type AudioMode, setAudioModeAsync } from "expo-audio"
 
 /**
- * 鳴らすものごとの音声のモード（vocabulary-pronunciation README「再生の実装」）
+ * 鳴らすものごとの音声のモード
  */
 const AUDIO_MODES = {
   /**

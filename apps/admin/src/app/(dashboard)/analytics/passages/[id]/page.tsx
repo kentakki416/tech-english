@@ -38,7 +38,7 @@ const convertPathIdToPassageId = (id: string): number | null => {
 }
 
 /**
- * 問題の分析。問題の数字と、設問ごとの正答率・選択肢の割合・要確認の印（admin-dashboard の UI 設計）。問題が無ければ 404。
+ * 問題の分析。問題の数字と、設問ごとの正答率・選択肢の割合・要確認の印。問題が無ければ 404。
  * 「ダッシュボードに戻る」は同じ期間のダッシュボードへ（URL には期間しか持たないので、表の並べ替え・絞り込み・ページは戻さない）
  */
 export default async function PassageAnalyticsPage({ params, searchParams }: Props) {

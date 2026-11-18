@@ -21,7 +21,7 @@ export const isVocabularyGrade = (value: string): value is VocabularyGrade =>
 export const normalizeVocabularyLemma = (lemma: string): string => lemma.trim().toLowerCase()
 
 /**
- * 答えから、次の段階と次に出す日を求める（vocabulary-cards README「復習の間隔」）。
+ * 答えから、次の段階と次に出す日を求める。
  * stageBefore は答える前の段階（新しい単語は null）、today は users.timezone での今日（YYYY-MM-DD）。
  * 「まだ」はどの段階からでも段階 0・翌日。「覚えた」は 1 段階進め、段階 4 に届いたら覚えた単語（次に出す日なし）
  */

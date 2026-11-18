@@ -66,7 +66,6 @@ COPY --chown=node:node --from=installer-builder /app/apps/api/dist ./dist
 
 # Lambda Web Adapter: minimal 構成（Lambda）で Express をそのまま動かすための extension。
 # Lambda の実行環境だけが /opt/extensions を読むので、ECS では起動せず何もしない。
-# 設計: docs/spec/minimal-deploy/README.md「api を Lambda で動かす」
 COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:1.1.0@sha256:17cfd08eff1dfea3f6a9a1e9c65fdac80aa4919b6085e746615530f43f57d2f1 /lambda-adapter /opt/extensions/lambda-adapter
 
 EXPOSE 8080

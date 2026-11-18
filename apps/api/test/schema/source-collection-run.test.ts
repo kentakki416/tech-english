@@ -5,7 +5,7 @@ import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb } from "
 import { insertSourceCollectionRun } from "../fixture/source-collection-run"
 
 /**
- * source_collection_runs の制約を実 DB で確かめる（docs/spec/manual-collection/tasks/step1-db-source-collection-runs.md）。
+ * source_collection_runs の制約を実 DB で確かめる。
  * 定数に無い値は Drizzle の型で弾かれるので、sql の生 insert で入れる
  */
 

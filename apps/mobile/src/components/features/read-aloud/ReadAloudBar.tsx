@@ -9,7 +9,7 @@ import type { ReadAloudRate } from "@/features/read-aloud/read-aloud-rate"
 import type { ReadAloudAvailability, ReadAloudPlayback } from "@/features/read-aloud/use-read-aloud"
 
 /**
- * ミニプレーヤーの高さ（docs/spec/read-aloud/README.md「見た目の決まり」）
+ * ミニプレーヤーの高さ
  */
 export const READ_ALOUD_BAR_HEIGHT = 52
 

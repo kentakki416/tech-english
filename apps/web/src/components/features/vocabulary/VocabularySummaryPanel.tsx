@@ -42,7 +42,7 @@ function CountStat({ label, unit, value }: { label: string, unit: string, value:
 }
 
 /**
- * 単語帳のトップの中身（vocabulary-cards README「UI 設計 > 単語帳のトップ」）。
+ * 単語帳のトップの中身。
  * 今日の分がある / 今日の分が終わった / まだ単語が無い、の 3 つの状態で出し分ける
  */
 export function VocabularySummaryPanel({ firstCard, summary }: { firstCard: VocabularyCard | undefined, summary: GetVocabularySummaryResponse }) {

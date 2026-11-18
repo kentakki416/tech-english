@@ -1,6 +1,5 @@
 /**
  * 見出し語の発音の音声（word_audios）のリポジトリ。行を作る・生成の結果を書くのは cron の generate:word-audio で、api は読み取りだけを行う
- * （vocabulary-pronunciation README「単語の音声の保存と配信」）
  */
 export interface WordAudioRepository {
   /**

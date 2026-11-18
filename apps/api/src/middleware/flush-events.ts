@@ -30,7 +30,6 @@ const waitForFlush = async (eventTracker: EventTracker): Promise<void> => {
  * service 側の「送出は await しない」という規約はそのまま（待つのはここだけ）。
  *
  * FLUSH_EVENTS_BEFORE_RESPONSE=true のときだけ登録する（ECS ではプロセスが動き続けるので不要）。
- * 設計: docs/spec/minimal-deploy/README.md「Lambda の凍結とイベント送出」
  */
 export const flushEventsBeforeResponse = (eventTracker: EventTracker) =>
   (_req: Request, res: Response, next: NextFunction): void => {

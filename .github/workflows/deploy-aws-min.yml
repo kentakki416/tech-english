@@ -18,9 +18,7 @@ name: Deploy to AWS min
 # worker を作るかどうかの正本は Terraform の enable_worker (env/min/variables.tf) だけ。
 # detect が Service の有無を見て、api の EVENT_TRACKER_TYPE・SOURCE_COLLECTION_TYPE (queue / none) と worker の build / deploy を切り替える。
 # ClickHouse も同じく、正本は Terraform の enable_data_warehouse だけ。detect-dwh が接続情報の secret の有無を見て
-# migrate-dwh を切り替える (設計: docs/spec/clickhouse-migration/README.md)。
-#
-# 設計: docs/spec/minimal-deploy/README.md / docs/spec/minimal-deploy/tasks/step4-ci-deploy-min.md
+# migrate-dwh を切り替える。
 # =============================================================================
 
 on:

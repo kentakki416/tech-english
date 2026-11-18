@@ -106,7 +106,6 @@ resource "aws_iam_role" "github_actions_prd" {
  * AWS アカウント全体を変更できないよう、admin は付けずデプロイに必要な権限だけを持たせる。
  * terraform plan / apply は別の role（github_actions_min_terraform）を使う。
  * GitHub Environment が min のワークフローからのみ assume できるよう sub claim を限定する。
- * 設計: docs/spec/minimal-deploy/README.md
  */
 data "aws_iam_policy_document" "github_actions_min_trust" {
   statement {

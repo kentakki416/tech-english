@@ -11,7 +11,7 @@ const isInteractiveTarget = (target: EventTarget | null): boolean =>
   target instanceof HTMLElement && (target.isContentEditable || ["A", "BUTTON", "INPUT", "SELECT", "TEXTAREA"].includes(target.tagName))
 
 /**
- * 単語帳の 1 枚のキーボード操作（vocabulary-cards README「UI 設計 > 1 回分」）。
+ * 単語帳の 1 枚のキーボード操作。
  * `Space` / `Enter` めくる（めくった後なら表に戻す）、`→` 覚えた、`←` まだ（答えは呼ばれた側がめくった後だけ受け付ける）。
  * IME の変換中・修飾キーつき・押しっぱなしの繰り返しは無視する
  */

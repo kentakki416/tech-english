@@ -80,7 +80,7 @@ export const attemptQuestionSchema = z.object({
   order_index: z.number().int(),
   prompt: z.string(),
   /**
-   * 設問文の和訳。和訳の無い設問（docs/spec/question-translation/README.md の「これまでの問題」）は null
+   * 設問文の和訳。和訳の無い設問は null
    */
   prompt_ja: z.string().nullable(),
   type: z.enum(QUESTION_TYPES),

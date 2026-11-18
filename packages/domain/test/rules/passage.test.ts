@@ -70,7 +70,7 @@ describe("calculateQuestionCount", () => {
 
 describe("calculateTimeLimitSeconds", () => {
   describe("正常系", () => {
-    it("難易度 2・400 語・4 問は 360 秒（README の例。ちょうど 30 の倍数は切り上げない）", () => {
+    it("難易度 2・400 語・4 問は 360 秒（ちょうど 30 の倍数は切り上げない）", () => {
       /**
        * 400 ÷ 120 × 60 = 200 秒 + 4 × 40 = 160 秒
        */

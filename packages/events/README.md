@@ -30,10 +30,10 @@ export interface EventTracker {
 ```
 
 > 💡 **`flush()` は service から呼ばない**
-> 送出中のイベントが終わるまで待つメソッドで、reject しない。レスポンスを返した時点で実行環境が凍結される Lambda で、送出が途中で止まらないようにするためのもの。api の middleware（`FLUSH_EVENTS_BEFORE_RESPONSE=true` のときだけ登録）がレスポンスの直前に待つ。service の「await しない」は変わらない（[minimal-deploy](../../docs/spec/minimal-deploy/README.md#lambda-の凍結とイベント送出)）。
+> 送出中のイベントが終わるまで待つメソッドで、reject しない。レスポンスを返した時点で実行環境が凍結される Lambda で、送出が途中で止まらないようにするためのもの。api の middleware（`FLUSH_EVENTS_BEFORE_RESPONSE=true` のときだけ登録）がレスポンスの直前に待つ。service の「await しない」は変わらない。
 
 > 💡 **なぜ interface を挟むのか**
-> service 層を transport から切り離すため。現状は Queue 経由だが、「アプリケーションログに吐いてログ基盤で ClickHouse に流す」方式へ切り替えても **service 層は無変更**で済む。検討の経緯は [deferred-event-delivery.md](../../docs/spec/user-behavior-events/deferred-event-delivery.md) を参照。
+> service 層を transport から切り離すため。現状は Queue 経由だが、「アプリケーションログに吐いてログ基盤で ClickHouse に流す」方式へ切り替えても **service 層は無変更**で済む。
 
 ## 役割
 
@@ -98,7 +98,6 @@ export const deleteMemo = async (id: number, repo: MemoRepo, deps: EventDeps) =>
 
 ## 関連
 
-- [`docs/spec/user-behavior-events/README.md`](../../docs/spec/user-behavior-events/README.md) — 行動イベント基盤の全体設計
 - [`packages/queue/`](../queue) — 配送の抽象（BullMQ）
 - [`packages/data-warehouse/`](../data-warehouse) — 書き込み先の抽象と重複対策の詳細
 - [`apps/api/CLAUDE.md`](../../apps/api/CLAUDE.md) — service 層での送出ルール（`userId` の扱い / optional 認証）

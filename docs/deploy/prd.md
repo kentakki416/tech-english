@@ -149,7 +149,7 @@ GitHub → Settings → Developers → OAuth Apps → New OAuth App
 
 ## Phase 5-2: Google OAuth クライアント（admin 用）
 
-管理画面（`apps/admin`）のサインインは Google を使う（設計: [admin-template の「本番の Google OAuth クライアント」](../spec/admin-template/README.md#本番の-google-oauth-クライアント)）。tech-english の本番は一般ユーザーに Google を使っていないので、admin のために用意する。
+管理画面（`apps/admin`）のサインインは Google を使う。tech-english の本番は一般ユーザーに Google を使っていないので、admin のために用意する。
 
 1. Google Cloud で OAuth クライアント（種類：**ウェブ アプリケーション**）を作る
 2. 「承認済みのリダイレクト URI」に `https://<admin のドメイン>/api/auth/callback/google` を足す（dev も同じ形で足す）

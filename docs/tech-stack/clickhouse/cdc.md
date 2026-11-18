@@ -81,7 +81,7 @@ CDC を作るとき（`materialized_postgresql`）は、**migration コマンド
 AWS では Terraform の `enable_cdc` が `true` の環境にだけ、ClickPipe と SSH bastion を作る。**既定はすべての環境で `false`** で、仕組みだけを用意している（行動イベントの分析には要らず、業務データを ClickHouse で分析する必要が出たときに有効にする）。
 `enable_cdc` は `enable_data_warehouse` が `true` のときだけ有効にできる。
 
-**AWS 上ではまだ一度も動かしていない。** 有効にする前に、dev で [設計書の step3・step4 の動作確認](../../spec/clickhouse-migration/tasks/step3-infra-cdc.md#動作確認) を行う。
+**AWS 上ではまだ一度も動かしていない。** 有効にする前に、dev で動作確認を行う。
 
 - ClickPipes は VPC の外から RDS に繋ぐため、public subnet の SSH bastion を経由する。bastion は ClickPipes の固定 IP からの SSH だけを受け、RDS の 5432 にだけ出る
 - RDS の論理レプリケーション（`rds.logical_replication`）は `enable_cdc` に関係なく有効にしている。`enable_cdc` に連動させると、有効にするたびに RDS の再起動が要るため
@@ -133,5 +133,3 @@ Postgres の変更と同じ PR で、ClickHouse 側の変更も入れる。フ�
 | ClickHouse だけの変更 | `migrations/` にファイルを足す | deploy |
 
 `clickhouse-migrate.yml` は、同じ環境の deploy と同じ concurrency group で動く。deploy の実行中は終わるまで待ち、待っている間に deploy をもう一度実行すると、待っていた方は取り消される。
-
-各ケースを選んだ理由は設計書の [変更のケースごとの作業](../../spec/clickhouse-migration/README.md#変更のケースごとの作業)。

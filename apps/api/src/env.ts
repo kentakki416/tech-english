@@ -6,12 +6,11 @@ import { z } from "zod"
  * 起動時にこのモジュールが import された時点で safeParse が走り、
  * 不正な env の場合は stderr にエラーを出力して process.exit(1) で停止する。
  *
- * 各 app は src/env.ts に Zod スキーマと検証ロジックをインラインで定義する方針
- * （詳細は docs/spec/shared-packages/README.md「環境変数の管理」参照）。
+ * 各 app は src/env.ts に Zod スキーマと検証ロジックをインラインで定義する方針。
  */
 const apiEnvSchema = z.object({
   /**
-   * 読み上げの音声の URL の base（本番は CloudFront の URL。docs/spec/read-aloud/tasks/step8-infra-audio.md）。
+   * 読み上げの音声の URL の base（本番は CloudFront の URL）。
    * 未設定なら、開発では http://localhost:${PORT}/media（mediaRouter）、production では null（音声 API は pending を返し、起動時に warn）。
    * infra より先に本番へ出しても起動が止まらないよう必須にしない。空文字は未設定と同じ。
    * mobile の実機で確かめるときは http://<PC の LAN の IP>:8080/media にする

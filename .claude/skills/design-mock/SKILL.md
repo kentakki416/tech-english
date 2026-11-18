@@ -1,6 +1,6 @@
 ---
 name: design-mock
-description: 新機能のデザインモックを apps/web に作成し、ユーザー承認後に docs/spec/{feature}/README.md にデザイン仕様書を追記する skill。ユーザーにテーマ（雰囲気・色・参考デザイン）をヒアリングし、apps/admin の既存デザインを参考にしてからモックを作る。ユーザーが「モック作って」「デザインを試したい」「画面のイメージを作って」「UIのモックが欲しい」など、デザインの試作と仕様化を依頼したときに使用する。設計書（DB/API）は前提として既に存在する想定（design-feature skill の後に使う）。
+description: 新機能のデザインモックを apps/web に作成し、ユーザー承認後に docs/kentakki416/tasks/{feature}/README.md にデザイン仕様書を追記する skill。ユーザーにテーマ（雰囲気・色・参考デザイン）をヒアリングし、apps/admin の既存デザインを参考にしてからモックを作る。ユーザーが「モック作って」「デザインを試したい」「画面のイメージを作って」「UIのモックが欲しい」など、デザインの試作と仕様化を依頼したときに使用する。設計書（DB/API）は前提として既に存在する想定（design-feature skill の後に使う）。
 ---
 
 # design-mock
@@ -10,7 +10,7 @@ description: 新機能のデザインモックを apps/web に作成し、ユー
 ## このskillが対象とするフロー
 
 ```
-前提: docs/spec/{feature}/README.md が存在する（design-feature skill 完了済み）
+前提: docs/kentakki416/tasks/{feature}/README.md が存在する（design-feature skill 完了済み）
   ↓
 Step 1: ヒアリング（テーマ・雰囲気・色味・参考デザイン）
   ↓
@@ -22,8 +22,10 @@ Step 4: pnpm dev でユーザーに確認 → 修正反復
   ↓
 Step 5: ユーザーが OK
   ↓
-Step 6: docs/spec/{feature}/README.md に「UI 設計」セクションを追記（確定仕様）
+Step 6: docs/kentakki416/tasks/{feature}/README.md に「UI 設計」セクションを追記（確定仕様）
 ```
+
+> **設計書は main には置かず、`kentakki416` ブランチの `docs/kentakki416/tasks/{feature}/` にだけ置く。** モックのコードは作業ブランチに置き、設計書は `kentakki416` ブランチを checkout した別の作業ツリーで読み書きする。`git worktree list` で既に checkout している作業ツリーがあればそれを使い、無ければ `git worktree add <dir> kentakki416` で開く（同じブランチは 2 か所に checkout できない）。編集の前に `git pull --ff-only origin kentakki416` で最新にする。作業ブランチを切り替えないので、Step 6 でもモックのファイルをそのまま読める。設計書はコミットまで行い、push はユーザーに依頼する。
 
 ## 進め方
 
@@ -31,7 +33,7 @@ Step 6: docs/spec/{feature}/README.md に「UI 設計」セクションを追記
 
 モックを作る前に、ユーザーから以下を **必ず質問** する（コンテキストから明らかな部分は省略可）:
 
-- **対象機能**: どの機能のモックか（`docs/spec/{feature}/` のどれか）
+- **対象機能**: どの機能のモックか（`docs/kentakki416/tasks/{feature}/` のどれか）
 - **雰囲気**: カジュアル / シリアス / ゲーム的 / シンプル / プレミアム など
 - **色味**: プライマリカラー、グラデーションの方向性、ダーク/ライト
 - **動き**: 静的 / アニメーション豊富 / 特殊効果（グロー、紙吹雪、グラデーション等）
@@ -56,7 +58,7 @@ Step 6: docs/spec/{feature}/README.md に「UI 設計」セクションを追記
 
 ### Step 3: 設計書の読み込み
 
-`docs/spec/{feature}/README.md` を読み、以下を把握:
+`docs/kentakki416/tasks/{feature}/README.md` を読み、以下を把握:
 
 - 必要な画面の一覧と役割
 - フロー図・状態遷移
@@ -106,7 +108,7 @@ Step 6: docs/spec/{feature}/README.md に「UI 設計」セクションを追記
 
 ### Step 6: デザイン仕様書を追記
 
-ユーザー承認後、確定したモックを読み込んで `docs/spec/{feature}/README.md` の「UI 設計」セクションを **追加または置き換え** する。
+ユーザー承認後、確定したモックを読み込んで `docs/kentakki416/tasks/{feature}/README.md` の「UI 設計」セクションを **追加または置き換え** する。
 
 #### 読み込むファイル
 
@@ -177,7 +179,7 @@ Step 6: docs/spec/{feature}/README.md に「UI 設計」セクションを追記
 - **ユーザーが OK していない状態で仕様化する**（最重要）
 - ヒアリングをスキップしてモックを作り始める
 - 既存 `apps/admin` のデザインを確認せずにモックを作る
-- 設計書（`docs/spec/{feature}/README.md`）に書かれていない画面を勝手に増やす
+- 設計書（`docs/kentakki416/tasks/{feature}/README.md`）に書かれていない画面を勝手に増やす
 - モックで実 API を呼ぶ（ダミーデータで完結させる）
 - モックの実装コードをそのまま README に貼り付ける（仕様書はコードではない）
 - step ファイルに UI 仕様を書く（README の役割）

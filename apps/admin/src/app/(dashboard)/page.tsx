@@ -20,7 +20,7 @@ type Props = {
 }
 
 /**
- * ダッシュボード（admin のトップ）。期間の切り替え、全体の利用状況（数字のカード・推移・アシストの利用率）、問題ごとの成績（admin-dashboard の UI 設計）
+ * ダッシュボード（admin のトップ）。期間の切り替え、全体の利用状況（数字のカード・推移・アシストの利用率）、問題ごとの成績
  */
 export default async function DashboardPage({ searchParams }: Props) {
   await connection()

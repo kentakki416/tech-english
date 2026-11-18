@@ -30,7 +30,7 @@ const convertPathIdToUserId = (id: string): number | null => {
 }
 
 /**
- * ユーザーの詳細（admin-users の UI 設計）。学習のまとめ・カレンダー・学習履歴・単語帳はマイページと同じ数字。ユーザーが居なければ 404
+ * ユーザーの詳細。学習のまとめ・カレンダー・学習履歴・単語帳はマイページと同じ数字。ユーザーが居なければ 404
  */
 export default async function UserDetailPage({ params }: Props) {
   await connection()

@@ -39,7 +39,7 @@ const hasChoiceTranslations = (choicesJa: string[] | null): boolean =>
   choicesJa !== null && choicesJa.length === QUESTION_CHOICE_COUNT && choicesJa.every((choice) => !isBlank(choice))
 
 /**
- * 公開の条件（docs/spec/question-generation/README.md の「出力の検証と後処理」）を満たさない項目を返す。空なら公開できる。
+ * 公開の条件を満たさない項目を返す。空なら公開できる。
  * cron の生成時の検査と同じ判定を @repo/domain の関数で行い、admin が修正で壊した場合を防ぐ。
  * message の段落の表記は numberParagraphs（「Q2：根拠の引用が段落 2 の本文に見つかりません」）
  */

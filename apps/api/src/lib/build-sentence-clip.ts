@@ -6,7 +6,7 @@ import type { PassageAudioManifest } from "@repo/domain"
 export type SentenceClip = { endMs: number; key: string; startMs: number }
 
 /**
- * 読み上げのマニフェストから、ブロックの [startOffset, endOffset) に収まる単語の区間を求める（vocabulary-pronunciation README「1 文の区間の求め方」）。
+ * 読み上げのマニフェストから、ブロックの [startOffset, endOffset) に収まる単語の区間を求める。
  * 単語の位置はブロックの本文上の UTF-16 の位置（PassageAudioManifest と同じ）。範囲の境目にかかる単語は含めない。
  * ブロックが無い・単語が無い・範囲の単語が 2 つのパートにまたがる（3,000 文字を超えるブロックを分けた境目。まれ）ときは null
  */

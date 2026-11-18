@@ -6,8 +6,6 @@
  * **意図的に insertAll と close だけに絞っている。** クエリ・DDL・マイグレーションは
  * バックエンドごとに差が大きく（ClickHouse は database / BigQuery は dataset、
  * TTL の構文も別物）、汎用化すると必ず漏れるため抽象化の対象外とする。
- *
- * 詳細は docs/spec/user-behavior-events/deferred-event-delivery.md を参照。
  */
 export interface DataWarehouse {
   /**

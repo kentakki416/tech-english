@@ -11,7 +11,6 @@ import { joinSqlValues } from "./sql-values"
 /**
  * 設問。設問文と選択肢は英語で、それぞれの和訳を持つ。解説は日本語
  *
- * 列の正本は docs/spec/question-generation/README.md の「必要な DB 設計」（verification_choice_index は step1 で追加した列）。
  * 制約・index 名は `{table}_{columns}_key` / `_idx` / `_fkey` の命名にそろえている。
  */
 export const questions = pgTable(

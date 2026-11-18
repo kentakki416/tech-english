@@ -14,7 +14,7 @@ const URL_IMPORT_FETCH_DEADLINE_MS = 15_000
 const URL_IMPORT_MAX_CRAWL_DELAY_SECONDS = 10
 
 /**
- * 同じサイトへのリクエストの間隔（content-collection の「サイトの取得」の礼儀正しい取得の間隔）
+ * 同じサイトへのリクエストの間隔（礼儀正しい取得の間隔）
  */
 const URL_IMPORT_REQUEST_INTERVAL_MS = 1000
 

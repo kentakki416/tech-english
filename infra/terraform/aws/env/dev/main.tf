@@ -292,7 +292,7 @@ module "app_secrets" {
 # =============================================================================
 # RDS Postgres 16
 # =============================================================================
-# - isolated subnet に配置、SG は ECS のみから 5432 許可 (step1 で定義済み)
+# - isolated subnet に配置、SG は ECS のみから 5432 許可
 # - master password は app secret の DB_PASSWORD を唯一の情報源とし、ephemeral 経由で
 #   password_wo (write-only) に渡す。tfstate / plan に平文は残らない
 # - DATABASE_URL は apply 後に scripts/deploy/seed-secrets.sh で /tech-english-dev/app に追加する
@@ -410,7 +410,6 @@ module "elasticache" {
 #   (判定の正本はこのフラグだけ)
 # - 接続を許すのは、worker と migration のタスクが外へ出る NAT の IP と、
 #   clickhouse_additional_ip_access_cidrs に足した IP (分析ツールなど) だけ
-# 設計: docs/spec/clickhouse-migration/README.md
 
 module "clickhouse" {
   source = "../../modules/clickhouse-service"
@@ -441,7 +440,6 @@ locals {
 # =============================================================================
 # - ClickPipes が SSH bastion 経由で RDS の論理レプリケーションを読み、pg_cdc に取り込む
 # - 同期の対象は infra/clickhouse/cdc-tables.json。変えたら apply で ClickPipe に反映する
-# 設計: docs/spec/clickhouse-migration/README.md
 
 module "cdc" {
   source = "../../modules/clickpipes-postgres-cdc"

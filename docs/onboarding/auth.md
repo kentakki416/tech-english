@@ -83,7 +83,7 @@ Google の `redirect_uri` を直接 Express api に向けず、web が前段で�
 - `admins` から消された admin は、次の更新（最長 15 分後）で 401 になりサインイン画面に戻る
 - ローカルは seed の `admin@dev.local` に dev ログイン（`POST /api/admin/auth/dev-login`）で入れる
 
-設計の詳細は [`../spec/admin-template/README.md`](../spec/admin-template/README.md) の「admin 認証」。api 側の規約は [`../../apps/api/CLAUDE.md`](../../apps/api/CLAUDE.md) の「Admin API 設計方針」。
+api 側の規約は [`../../apps/api/CLAUDE.md`](../../apps/api/CLAUDE.md) の「Admin API 設計方針」。
 
 ## 新しいプロバイダを追加するには
 
@@ -117,5 +117,4 @@ GitHub / Apple / X 等を追加する場合、`apps/api/src/client/*-oauth.ts` �
 |---|---|
 | [`../auth.md`](../auth.md) | ①〜⑬ の完全なシーケンス図付き解説（正典） |
 | [`../../apps/api/CLAUDE.md`](../../apps/api/CLAUDE.md) | Admin API 設計方針（admin の認証）/ PUBLIC_PATHS |
-| [`../spec/admin-template/README.md`](../spec/admin-template/README.md) | admin の認証の設計（`admins`・鍵の配布・proxy での更新） |
 | [`../../apps/web/CLAUDE.md`](../../apps/web/CLAUDE.md) | web の API 通信ルール（Server Component / Server Action / Route Handler の使い分け） |

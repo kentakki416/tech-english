@@ -1,8 +1,6 @@
 # packages/content-extractor（`@repo/content-extractor`）
 
-Markdown / MDX / HTML から本文を抽出して本文候補に切り分ける処理と、サイトのページを礼儀正しく安全に取得する処理。本文の抽出は worker の収集（`collect-source`。admin の今すぐ収集。GitHub の Markdown）と api の URL からの取り込み（[url-import](../../docs/spec/url-import/README.md)。サイトの HTML）で共有し、サイトの取得は api の URL からの取り込みだけが使う（サイトは収集しない。[github-only-collection](../../docs/spec/github-only-collection/README.md)）。env も DB も知らない（設定はコンストラクタ・引数で受け取る）。
-
-規則の正本は [content-collection](../../docs/spec/content-collection/README.md#本文の抽出と解析)。
+Markdown / MDX / HTML から本文を抽出して本文候補に切り分ける処理と、サイトのページを礼儀正しく安全に取得する処理。本文の抽出は worker の収集（`collect-source`。admin の今すぐ収集。GitHub の Markdown）と api の URL からの取り込み（サイトの HTML）で共有し、サイトの取得は api の URL からの取り込みだけが使う（サイトは収集しない）。env も DB も知らない（設定はコンストラクタ・引数で受け取る）。
 
 ## ファイル
 
@@ -13,17 +11,17 @@ Markdown / MDX / HTML から本文を抽出して本文候補に切り分ける�
 | ファイル | 役割 |
 | --- | --- |
 | `parse-markdown.ts` | unified + remark-parse / frontmatter / gfm（`.mdx` は remark-mdx）で mdast に。タイトルは frontmatter の `title` → 最初の h1 |
-| `site-syntax.ts` | Markdown として読む前に、サイトのビルドが処理する記法を消す（`:::`・`///`・`::` の囲みの行、MDC の属性、`:read-more{...}`・`{* ... *}`・`[[TOC]]`・`{ #id }` だけの行、見出しの `{#id}`・`:badge[...]{...}`）。空白の無い `{{<note>}}` には空白を入れる。コードブロックの中は変えない（[official-docs-collection](../../docs/spec/official-docs-collection/README.md#本文の抽出)） |
+| `site-syntax.ts` | Markdown として読む前に、サイトのビルドが処理する記法を消す（`:::`・`///`・`::` の囲みの行、MDC の属性、`:read-more{...}`・`{* ... *}`・`[[TOC]]`・`{ #id }` だけの行、見出しの `{#id}`・`:badge[...]{...}`）。空白の無い `{{<note>}}` には空白を入れる。コードブロックの中は変えない |
 | `markdown-jsx.ts` | `.md` に混ざった MDX の書き方の処理（react.dev の `.md` など）。MDX のコメント（`{/* ... */}`。見出しのアンカーなど）をコード・インラインコードの外で消し、HTML ブロックで書かれたコンポーネントの開始タグから終了タグまでを `mdxJsxFlowElement` にまとめる（HTML ブロックの中の Markdown は読み直す。自己終了のタグは中身の無い `mdxJsxFlowElement` にする） |
 | `parse-html.ts` | jsdom（スクリプトは実行しない）で DOM に → 本文の CSS セレクタ or Readability で本文を取り出す → rehype-remark で mdast に（`<figcaption>` は捨て、コードか引用を含まない `<figure>` は画像のノードにする） |
 | `convert-mdast-to-blocks.ts` | mdast → `PassageBlock[]`（見出しの深さつき）。JSX のコンポーネントは `const.ts` の `PROSE_COMPONENT_NAMES`（`<Intro>` / `<Note>` / `<Pitfall>` / `<DeepDive>`）だけタグを除いて中身を残し、それ以外（`<Sandpack>` / `<Diagram>` / `<Challenges>` / `<YouWillLearn>` / `<Recap>` など）は中身ごと捨てる。続き（コンポーネント・表・HTML・画像）を捨てて「:」で終わる段落は、末尾を「.」にする。`.mdx` と `.md` で同じ規則 |
-| `convert-uppercase-headings.ts` | 大文字だけの見出し（`EVAL DESIGN`）を、その文書の本文の書き方に合わせて文頭だけ大文字にする（`Eval design`。`HTTPS` のような略語は残す。[規則](../../docs/spec/content-collection/README.md#大文字だけの見出し)） |
+| `convert-uppercase-headings.ts` | 大文字だけの見出し（`EVAL DESIGN`）を、その文書の本文の書き方に合わせて文頭だけ大文字にする（`Eval design`。`HTTPS` のような略語は残す） |
 | `split-into-chunks.ts` / `passage-rules.ts` | 見出し単位の切り分けと結合（分けた節の 2 つめ以降の塊は、見出しが無ければタイトルに「 (2)」のような番号を付ける）、本文候補の条件（英単語数・コードの割合・英語・文章。文章には段落・引用と `MIN_PROSE_LIST_ITEM_WORDS` 語以上の箇条書きの項目を数える） |
 | `content-hash.ts` | 正規化テキストの SHA-256（`passages.content_hash` / `source_documents.content_hash`） |
 
 壊れた MDX と不正な CSS セレクタは throw する。呼び出し側（task / service）が文書単位の失敗として扱う。`.md` は素の Markdown として読むので、閉じられていないコンポーネントは throw せず、タグだけ無かったことにして中身を残す。
 
-- **抽出の版（`EXTRACTION_VERSION`、`src/document/const.ts`）**：`src/document` の変更のうち、ブロック・切り分け・本文候補の条件が変わるものをしたら上げる（実装した日の日付）。上げると、取得済みの文書を次の収集で切り分け直す（[passage-extraction-tuning](../../docs/spec/passage-extraction-tuning/README.md#抽出の版)）
+- **抽出の版（`EXTRACTION_VERSION`、`src/document/const.ts`）**：`src/document` の変更のうち、ブロック・切り分け・本文候補の条件が変わるものをしたら上げる（実装した日の日付）。上げると、取得済みの文書を次の収集で切り分け直す
 
 ### サイトの取得
 
@@ -37,7 +35,7 @@ Markdown / MDX / HTML から本文を抽出して本文候補に切り分ける�
 
 fetch はグローバルではなく undici のもの（npm の undici の `Agent` をグローバルの fetch に渡すと版の違いで動かないことがあるため）。undici は Node 20 で動く v7 に固定している（v8 は Node 22.19 以上が必要）。
 
-取得先の制限（SSRF 対策）・robots.txt・リクエストの間隔の詳細は [content-collection のサイトの取得](../../docs/spec/content-collection/README.md#サイトの取得url-から追加) と `apps/api/CLAUDE.md` の「サイトのページの取得」。
+取得先の制限（SSRF 対策）と robots.txt の扱いは `src/web/web-page-client.ts`・`src/web/safe-lookup.ts`、api の URL の取り込みでの取得の期限・リクエストの間隔は `apps/api/CLAUDE.md` の「サイトのページの取得」。
 
 ## ESM 専用の依存（require(esm)）
 

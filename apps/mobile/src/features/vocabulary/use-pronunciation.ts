@@ -58,7 +58,7 @@ const WORD_FALLBACK_MS = 3000
 const STATUS_UPDATE_INTERVAL_MS = 100
 
 /**
- * カードの発音の再生（vocabulary-pronunciation README「再生の実装」）。1 回分の画面で 1 つだけ持ち、expo-audio の player を 1 つ使い回す。
+ * カードの発音の再生。1 回分の画面で 1 つだけ持ち、expo-audio の player を 1 つ使い回す。
  *
  * 押したら音声のモード（消音モードでも鳴らし、ほかのアプリの音楽は小さくする）を待って replace し、読み込めたら区間の始めに合わせて鳴らす。
  * 止めるのはタイマー。鳴り始めた（player.playing で、再生位置が区間の始めより進んだ）ときの再生位置から、区間の終わり（単語は mp3 の終わり + 余白）

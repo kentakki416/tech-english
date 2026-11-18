@@ -24,7 +24,7 @@ import type {
 } from "../repository"
 
 /**
- * カレンダーで一度に取れる日数（learning-record README「必要な API」: 最大 366 日）
+ * カレンダーで一度に取れる日数（最大 366 日）
  */
 const CALENDAR_MAX_DAYS = 366
 

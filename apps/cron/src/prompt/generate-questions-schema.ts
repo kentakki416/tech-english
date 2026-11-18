@@ -5,7 +5,7 @@ import { PASSAGE_DIFFICULTIES, QUESTION_CHOICE_COUNT, QUESTION_TYPES } from "@re
 import { convertZodToStructuredOutputSchema } from "../client/anthropic"
 
 /**
- * 問題生成の LLM の出力のスキーマ。キーは README の「LLM の呼び出し」の表のとおり camelCase。
+ * 問題生成の LLM の出力のスキーマ。キーは camelCase。
  *
  * zod は 3.25 だが、Zod から JSON Schema を作る `z.toJSONSchema` が v4 にしか無いので、このファイルは `zod/v4` で書く。
  * structured output は省略可能なキーより nullable の方が扱いやすいので、任意の値は null で表す。
@@ -68,7 +68,7 @@ const generateQuestionsOutputObjectSchema = z.object({
 })
 
 /**
- * LLM の出力の検証に使う。形だけを見る（設問数・選択肢の重複・ブロック番号の範囲などの本文と突き合わせる検査は step3 の validateGeneratedOutput）
+ * LLM の出力の検証に使う。形だけを見る（設問数・選択肢の重複・ブロック番号の範囲などの本文と突き合わせる検査は validateGeneratedOutput）
  */
 export const generateQuestionsOutputSchema = generateQuestionsOutputObjectSchema.superRefine((output, ctx) => {
   /**

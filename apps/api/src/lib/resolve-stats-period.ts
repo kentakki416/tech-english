@@ -22,7 +22,7 @@ export type StatsPeriodRange = {
 const PERIOD_DAYS: Record<Exclude<AdminStatsPeriod, "all">, number> = { "30d": 30, "7d": 7 }
 
 /**
- * 期間を、日本時間の今日を含む範囲にする。7d / 30d は日ごと、all は週ごと（admin-dashboard README「期間と日の区切り」）
+ * 期間を、日本時間の今日を含む範囲にする。7d / 30d は日ごと、all は週ごと
  */
 export const resolveStatsPeriod = (period: AdminStatsPeriod, now: Date): StatsPeriodRange => {
   const toDate = formatDateInTimeZone(now, ADMIN_STATS_TIME_ZONE)

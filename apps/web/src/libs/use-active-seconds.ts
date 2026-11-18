@@ -13,7 +13,7 @@ const TICK_INTERVAL_MS = 250
 const MAX_TICK_MS = 2000
 
 /**
- * 画面を見ていた秒数（reading-practice README「時間の計測」）。
+ * 画面を見ていた秒数。
  * 画面が表示中（document.visibilityState === "visible"）かつ isRunning の間だけ進む。
  * 戻り値は initialSeconds（端末に保存していた経過）にこの画面で数えた秒数を足したもの。
  * 1 秒ごとに足すのではなく実際の経過時間を積算するので、一時停止やタブの切り替えで端数を失わない

@@ -16,8 +16,7 @@ import {
 import { cleanupTestData, disconnectTestDb, disconnectTestRedis, testDb } from "../controller/setup"
 
 /**
- * reading_attempts / attempt_answers / attempt_word_lookups / dictionary_entries の制約を実 DB で確かめる
- * （docs/spec/reading-practice/tasks/step1-db-reading-attempts.md）。
+ * reading_attempts / attempt_answers / attempt_word_lookups / dictionary_entries の制約を実 DB で確かめる。
  * 定数に無い値は Drizzle の型で弾かれるので、sql の生 insert / update で入れる。
  * users の削除で消えることは test/repository/user-delete-cascade.test.ts と test/controller/user/delete.test.ts が確かめる
  */
