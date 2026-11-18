@@ -7,7 +7,7 @@ import { MAX_SERIAL_ID, TAG_COLORS } from "@repo/domain"
 // ========================================================
 
 /**
- * タグの色のスキーマ。admin の色の選択肢は tagColorSchema.options から作る
+ * タグの色のスキーマ
  */
 export const tagColorSchema = z.enum(TAG_COLORS)
 
@@ -23,7 +23,7 @@ export const tagNameSchema = z
   .refine((value) => !value.includes(","), { message: "Tag name must not contain a comma" })
 
 /**
- * 1 つのタグのレスポンス（ソースのレスポンスの tags にも使う）
+ * 1 つのタグのレスポンス
  */
 export const tagSchema = z.object({
   id: z.number().int(),

@@ -21,9 +21,6 @@ import type {
 const MILLIS_PER_MINUTE = 60 * 1000
 
 export type GenerateWordAudioInput = {
-  /**
-   * 1 回の実行で確保する語の上限（WORD_AUDIO_MAX_PER_RUN）
-   */
   maxWordsPerRun: number
   /**
    * 今月（UTC の暦月）に Polly で課金してよい文字数（AUDIO_MONTHLY_CHARACTER_LIMIT。読み上げと合算）
@@ -38,11 +35,11 @@ export type GenerateWordAudioInput = {
 
 export type GenerateWordAudioResult = {
   /**
-   * 失敗が上限に達した語の数。retryLaterCount と合わせて 1 語でもあれば task が exit 1 で終える
+   * 失敗が上限に達した語の数
    */
   failedCount: number
   /**
-   * 月の上限（monthlyCharacterLimit）に達して止めたか。true なら task が exit 1 で終える
+   * 月の上限（monthlyCharacterLimit）に達して止めたか
    */
   isMonthlyLimitReached: boolean
   /**
@@ -62,15 +59,12 @@ type GenerateWordAudioRepo = {
 }
 
 type GenerateWordAudioDeps = {
-  /**
-   * mp3 の保存先（読み上げと同じ。本番は S3、ローカルは .storage/audio/）
-   */
   audioStorage: Storage
   ttsClient: TtsClient
 }
 
 /**
- * 1 語分の音声を作る（トランザクションの外）。見出し語のまま mp3 だけを作り、words/{text_hash}.mp3 に保存する。
+ * 1 語分の音声を作る（トランザクションの外）。
  * 課金された文字数は word_audio_id つきで記録する（失敗した語の分も数える）。
  * 設定の誤り（isFatalAudioGenerationError。Polly の資格情報・権限・voice、保存先の権限・bucket など）は throw し、それ以外の失敗は failed の outcome にする
  */
@@ -128,7 +122,7 @@ const deletePreviousWordAudio = async (
  * 1. generating のまま 30 分以上たった行を pending に戻す
  * 2. 作り直し待ち・voice の変更・まだ行の無い見出し語を確保する（短いトランザクション）
  * 3. 1 語ずつ、トランザクションの外で mp3 を作る。作る前に今月の課金文字数（読み上げと合算）+ 見出し語の文字数が月の上限を超えるなら、
- *    残りの確保を外して止める。1 語の失敗で他の語は止めない。設定の誤り（音声合成・保存先）はその語の確保を外して throw する
+ *    残りの確保を外して止める。1 語の失敗で他の語は止めない
  * 4. 確保した時刻を条件に結果を書き、voice の変更で作り直したなら前の mp3 を消す
  */
 export const generateWordAudio = async (

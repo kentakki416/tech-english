@@ -1,14 +1,11 @@
 import type { TrackEventInput } from "./event"
 
 /**
- * 行動イベントの送出抽象
+ * track / trackAll の戻り値を void にして、呼び出し元に送出の成否を知らせない。
+ * 分析用のイベントの送出に失敗しても、ユーザーのリクエストを失敗させないため。
+ * 失敗は実装側で catch して logger に出す。
  *
- * **戻り値が void なのは意図的。** 呼び出し元に送出の成否を知らせないことで、
- * 分析用のイベントがユーザーのリクエストを失敗させないようにしている。
- * 失敗は実装側で catch して logger に落とす。
- *
- * この interface を挟んでいるのは transport を差し替えられるようにするため。
- * 現状は Queue 実装だが、ログ経由へ切り替えても service 層は変更不要。
+ * interface にしているのは、送出の方法（queue / ログ経由など）を変えても呼び出し元を変えずに済ませるため。
  */
 export interface EventTracker {
   /**

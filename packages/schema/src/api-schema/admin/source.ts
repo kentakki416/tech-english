@@ -50,7 +50,7 @@ const githubRepositorySchema = z
   .transform((value) => value.toLowerCase())
 
 /**
- * ソースの取得方法。admin も一覧のクエリ（?fetch_type=）の解釈に使う（admin は @repo/domain を import できない）
+ * ソースの取得方法
  */
 export const sourceFetchTypeSchema = z.enum(SOURCE_FETCH_TYPES)
 
@@ -69,7 +69,7 @@ const httpsOriginSchema = z
   .transform((value) => new URL(value).origin)
 
 /**
- * 許可リストのライセンス（SPDX 識別子）。admin の登録フォームの選択肢にも使う
+ * 許可リストのライセンス（SPDX 識別子）
  */
 export const allowedLicenseSchema = z.enum(ALLOWED_LICENSES)
 
@@ -79,7 +79,7 @@ export const allowedLicenseSchema = z.enum(ALLOWED_LICENSES)
 export const sourceLicenseSchema = z.enum(SOURCE_LICENSES)
 
 /**
- * 個人の学習用のライセンスの値。admin が選択肢を組み立てるのに使う（admin は @repo/domain を import できない）
+ * 個人の学習用のライセンスの値
  */
 export const personalUseLicenseSchema = z.literal(PERSONAL_USE_LICENSE)
 
@@ -261,7 +261,7 @@ export const sourceCollectionRunSchema = z.object({
 export type SourceCollectionRunResponse = z.infer<typeof sourceCollectionRunSchema>
 
 /**
- * 収集中（queued / running）の状態。admin が「収集中か」を判定するのに使う（admin は @repo/domain を import できない）
+ * 収集中（queued / running）の状態。admin は @repo/domain を import できないので、ACTIVE_SOURCE_COLLECTION_RUN_STATUSES をここからも出す
  */
 export const activeSourceCollectionRunStatusSchema = z.enum(ACTIVE_SOURCE_COLLECTION_RUN_STATUSES)
 
@@ -411,7 +411,7 @@ export const suggestSourceQueryStringSchema = z.object({
 })
 
 /**
- * URL から初期値を作れない理由（400 の details[0].code）。admin が文言を分けるために読む
+ * URL から初期値を作れない理由（400 の details[0].code）
  */
 export const sourceSuggestionErrorCodeSchema = z.enum(SOURCE_SUGGESTION_ERROR_CODES)
 

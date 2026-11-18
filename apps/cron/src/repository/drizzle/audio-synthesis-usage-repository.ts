@@ -2,9 +2,6 @@ import { audioSynthesisUsages, DrizzleClient, gte, sql } from "@repo/db"
 
 import type { AudioSynthesisUsageRepository, AudioSynthesisUsageTarget } from "../audio-synthesis-usage-repository"
 
-/**
- * Drizzle 実装の AudioSynthesisUsageRepository
- */
 export class DrizzleAudioSynthesisUsageRepository implements AudioSynthesisUsageRepository {
   private _db: DrizzleClient
 

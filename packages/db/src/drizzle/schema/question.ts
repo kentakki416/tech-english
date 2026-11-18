@@ -10,8 +10,6 @@ import { joinSqlValues } from "./sql-values"
 
 /**
  * 設問。設問文と選択肢は英語で、それぞれの和訳を持つ。解説は日本語
- *
- * 制約・index 名は `{table}_{columns}_key` / `_idx` / `_fkey` の命名にそろえている。
  */
 export const questions = pgTable(
   "questions",

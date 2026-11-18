@@ -1,8 +1,5 @@
 /**
- * データウェアハウスに書き込む 1 件のイベント。
- *
- * `@repo/queue` の `TrackEventJobItem` と同形だが、Queue 実装に依存しないよう
- * worker 側で型を持つ。
+ * `@repo/queue` の `TrackEventJobItem` と同じ形だが、Repository を `@repo/queue` に依存させないため、型を別に持つ
  */
 export type EventRow = {
   eventId: string
@@ -14,10 +11,7 @@ export type EventRow = {
 }
 
 /**
- * 行動イベントの書き込みリポジトリ
- *
- * **引数・戻り値にデータウェアハウスの型を出さない。** どのバックエンドを使うかは
- * `src/index.ts` の `createDataWarehouse()` だけが決める。
+ * 引数・戻り値にデータウェアハウスの型を出さない（出すと、jobs のハンドラがデータウェアハウスの型に依存する）
  */
 export interface EventRepository {
   insertAll(events: EventRow[]): Promise<void>

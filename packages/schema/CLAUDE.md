@@ -43,13 +43,13 @@ export const getCategoryListResponseSchema = z.object({ ... })
 
 | 種類 | 命名 | 例 |
 |---|---|---|
-| 路径パラメータ（`/resource/:id`） | `{action}{Domain}PathParamSchema` | `deleteMemoPathParamSchema` |
+| パスパラメータ（`/resource/:id`） | `{action}{Domain}PathParamSchema` | `deleteMemoPathParamSchema` |
 | クエリ文字列（`?foo=bar`） | `{action}{Domain}QueryStringSchema` | `getMemoQueryStringSchema` |
 | リクエストボディ（POST/PUT） | `{action}{Domain}RequestSchema` | `createMemoRequestSchema` |
 | レスポンス | `{action}{Domain}ResponseSchema` | `createMemoResponseSchema` |
 
 - **型は `z.infer` で自動生成**し、手書きの interface は使わない
-- **路径パラメータの ID 検証は `z.coerce.number().int().positive().max(MAX_SERIAL_ID)`** で string → number の変換を Zod 側で行う（Controller で `Number()` しない）。上限の `MAX_SERIAL_ID` は `@repo/domain` の `const/id.ts`。クエリ・ボディの ID（`cursor`・`source_id`・`question_id` など）も同じ
+- **パスパラメータの ID 検証は `z.coerce.number().int().positive().max(MAX_SERIAL_ID)`** で string → number の変換を Zod 側で行う（Controller で `Number()` しない）。上限の `MAX_SERIAL_ID` は `@repo/domain` の `const/id.ts`。クエリ・ボディの ID（`cursor`・`source_id`・`question_id` など）も同じ
 - **すべてのリクエスト入力（body / params / query）は Zod で検証**する。`Number()` + `isNaN` や `parseInt` の inline 検証は使わない
 
 ## Zod 検証の適用範囲

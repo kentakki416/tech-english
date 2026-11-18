@@ -12,7 +12,7 @@ import { splitSpeechText } from "./split-speech-text"
 const BILLED_REQUESTS_PER_PART = 2
 
 /**
- * 1 問の音声を作るときに Polly で課金される文字数の見込み（月の上限の判定用）。読み上げるブロックのパートの文字数の合計 × 2（音声と単語の時刻）。
+ * 1 問の音声を作るときに Polly で課金される文字数の見込み。
  * 文字数は UTF-16 の長さで数えるので、Polly の数え方（コードポイント）以上になり、見込みは実際より少なくならない
  */
 export const estimateBilledCharacters = (blocks: PassageBlock[]): number => {

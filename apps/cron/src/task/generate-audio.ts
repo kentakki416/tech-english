@@ -7,15 +7,6 @@ import { runTask } from "../run-task"
 import { assertAudioStorageAllowed, createAudioStorage, createTtsClient } from "../runtime/audio-clients"
 import * as service from "../service"
 
-/**
- * generate:audio
- *
- * 公開済みの問題の読み上げの音声（mp3 と単語の時刻）を作る。本番は EventBridge Scheduler → ECS RunTask で 1 時間ごとに
- * `node dist/task/generate-audio.js` を起動する想定（generate:questions とは独立）。
- *
- *   pnpm generate:audio                      # production は Polly、それ以外は無音の mp3 と等間隔の単語の時刻（TTS_PROVIDER の既定）
- *   TTS_PROVIDER=polly pnpm generate:audio   # ローカルで Polly を呼ぶ（手元の AWS の資格情報で課金される。無ければ warn を出して何もしない）
- */
 runTask("generate-audio", async ({ db }) => {
   assertAudioStorageAllowed("generate-audio")
   const ttsClient = await createTtsClient("generate-audio")

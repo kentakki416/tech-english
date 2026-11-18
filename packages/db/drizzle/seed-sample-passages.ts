@@ -86,7 +86,7 @@ const SOURCE = {
   fetchType: "github_repository" as const,
   includeGlobs: ["docs/sample/**/*.md"],
   /**
-   * サンプル用なので収集の対象にしない（cron の collect:passages が GitHub を呼ばないように）
+   * サンプル用なので収集の対象にしない（worker の collect-source が GitHub を呼ばないように）
    */
   isEnabled: false,
   kind: "docs" as const,
@@ -359,7 +359,7 @@ const INLINE_CODE_PATTERN = /`[^`]*`/g
 const WORD_CHARACTER_PATTERN = /[A-Za-z0-9]/
 
 /**
- * 英単語数（cron の countEnglishWords と同じ数え方：code のブロックとインラインコードを除き、英数字を含むトークンを数える）
+ * 英単語数（@repo/content-extractor の countEnglishWords と同じ数え方：code のブロックとインラインコードを除き、英数字を含むトークンを数える）
  */
 const countEnglishWords = (blocks: PassageBlock[]): number =>
   blocks
@@ -368,7 +368,7 @@ const countEnglishWords = (blocks: PassageBlock[]): number =>
     .reduce((sum, text) => sum + text.split(/\s+/).filter((token) => WORD_CHARACTER_PATTERN.test(token)).length, 0)
 
 /**
- * 本文の正規化テキストの SHA-256（cron の calculateContentHash と同じ）
+ * 本文の正規化テキストの SHA-256（@repo/content-extractor の calculateContentHash と同じ）
  */
 const calculateContentHash = (blocks: PassageBlock[]): string => {
   const normalized = blocks.map((block) => block.text).join(" ").replace(/\s+/g, " ").trim().toLowerCase()

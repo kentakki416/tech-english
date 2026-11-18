@@ -6,11 +6,11 @@ import { buildConnectionString } from "../connection-string"
 
 export type CreateDrizzleClientOptions = {
   /**
-   * 接続文字列を明示指定する。省略時は process.env.DATABASE_URL (+ DB_NAME 上書き)
+   * 省略時は process.env.DATABASE_URL（DB_NAME があれば DB 名を置き換える）
    */
   url?: string
   /**
-   * read replica の接続文字列。省略時は process.env.DATABASE_REPLICA_URL を読み、
+   * 省略時は process.env.DATABASE_REPLICA_URL を読み、
    * それも無ければ replica を使わない（primary のみで read/write 両方を扱う）
    */
   replicaUrl?: string
@@ -44,15 +44,9 @@ export type DrizzleClient = PgAsyncWithReplicas<ReturnType<typeof createDatabase
   $disconnect: () => Promise<void>
 }
 
-/**
- * `DrizzleClient.transaction()` の callback が受け取るトランザクション。
- */
 export type DrizzleTransaction = Parameters<Parameters<DrizzleClient["transaction"]>[0]>[0]
 
 /**
- * Drizzle の DB client のファクトリ
- * 各 app の src/index.ts で 1 回呼び、Repository コンストラクタに渡す。
- *
  * read replica が設定されている場合は withReplicas で自動振り分け：
  *   - select / $count / with などの read → replica
  *   - insert / update / delete / execute / transaction → primary

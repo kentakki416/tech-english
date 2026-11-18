@@ -11,6 +11,7 @@
 - [フロントの @repo import 境界](#フロントの-repo-import-境界)
   - [client bundle への混入は lint だけでは防げない](#client-bundle-への混入は-lint-だけでは防げない)
 - [使い方（新規 app 追加時）](#使い方新規-app-追加時)
+  - [framework を使わない package](#framework-を使わない-package)
 - [関連](#関連)
 
 ## 役割
@@ -138,6 +139,24 @@ export default [
 ```
 
 > **注意**: `eslint-config-next` / `eslint-config-expo` を使う app は **`@typescript-eslint` プラグインを再定義してはいけない**（"Cannot redefine plugin" エラー）。`common-rules` は再定義を避けた形になっている。`@stylistic` はどちらの framework config も登録しないので `commonPlugins` の展開で衝突しない。
+
+### framework を使わない package
+
+`packages/*` は merge する framework の config が無いので、完成済みの flat config（`index.js`）をそのまま使う。
+
+```js
+// packages/{name}/eslint.config.js
+module.exports = require("@repo/eslint-config")
+```
+
+追加で ignore したいパスなどがある場合は、配列に展開してから足す。
+
+```js
+// packages/{name}/eslint.config.js
+const baseConfig = require("@repo/eslint-config")
+
+module.exports = [...baseConfig, { ignores: ["generated/**"] }]
+```
 
 ## 関連
 

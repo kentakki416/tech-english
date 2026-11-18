@@ -41,7 +41,7 @@ export const adminPassageStatsSortSchema = z.enum(ADMIN_PASSAGE_STATS_SORTS)
 export type AdminPassageStatsSort = z.infer<typeof adminPassageStatsSortSchema>
 
 /**
- * 問題ごとの成績の 1 行（問題の分析の上部にも使う）
+ * 問題ごとの成績の 1 行
  */
 export const adminPassageStatsRowSchema = z.object({
   id: z.number().int(),
@@ -182,7 +182,7 @@ export const getAdminPassageStatsResponseSchema = z.object({
     correct_choice_index: z.number().int(),
     correct_rate: rateSchema,
     /**
-     * 正解でないのに、正解と同じかそれ以上選ばれた選択肢の番号（選択肢の順。画面で橙にする）。解答が ADMIN_QUESTION_REVIEW_MIN_ANSWERS 件より少なければ空
+     * 正解でないのに、正解と同じかそれ以上選ばれた選択肢の番号（選択肢の順）。解答が ADMIN_QUESTION_REVIEW_MIN_ANSWERS 件より少なければ空
      */
     misleading_choice_indexes: z.array(z.number().int()),
     /**

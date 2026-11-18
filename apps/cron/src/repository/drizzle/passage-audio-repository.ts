@@ -45,9 +45,6 @@ const resolveClaimStatus = (candidate: AudioClaimCandidate): AudioClaimStatus =>
   return isRepublished ? "generating" : "ready"
 }
 
-/**
- * Drizzle 実装の PassageAudioRepository
- */
 export class DrizzlePassageAudioRepository implements PassageAudioRepository {
   private _db: DrizzleClient
 
@@ -328,9 +325,6 @@ export class DrizzlePassageAudioRepository implements PassageAudioRepository {
     return rows.length
   }
 
-  /**
-   * 確保した実行だけが更新できる条件（確保したときの状態と、generation_started_at を確保のトークンとして使う）
-   */
   private _buildClaimCondition(claim: AudioClaim) {
     return and(
       eq(passageAudios.passageId, claim.passageId),

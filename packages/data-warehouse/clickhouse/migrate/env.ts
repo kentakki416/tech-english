@@ -1,15 +1,6 @@
 import { z } from "zod"
 
 /**
- * ClickHouse の migration コマンドの環境変数スキーマ
- *
- * 既定値はローカルの docker compose で動く値にする（.env を置かずに migrate だけで動くように）。
- * AWS では ECS のタスク定義が secret と environment で上書きする。
- *
- * このモジュールが import された時点で safeParse が走り、
- * 不正な env の場合は stderr にエラーを出力して process.exit(1) で停止する。
- */
-/**
  * URL の protocol を返す。URL として読めなければ undefined
  *
  * 形式の誤りは z.string().url() が報告する。Zod 3 は url() が失敗しても superRefine を実行するため、
@@ -23,6 +14,10 @@ const readUrlProtocol = (value: string): string | undefined => {
   }
 }
 
+/**
+ * 既定値はローカルの docker compose で動く値にする（.env を置かずに migrate だけで動くように）。
+ * AWS では ECS のタスク定義が secret と environment で上書きする。
+ */
 const envSchema = z
   .object({
     /**

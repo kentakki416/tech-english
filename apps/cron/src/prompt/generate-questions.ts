@@ -14,9 +14,6 @@ import { buildPassagePrompt } from "./passage"
  */
 export const PROMPT_VERSION = "2026-10-19.2"
 
-/**
- * 設問の種類ごとの説明と例。QUESTION_TYPES の全種類を持つことを型で強制する
- */
 const QUESTION_TYPE_GUIDES: Record<QuestionType, string> = {
   detail: "a specific fact stated in the passage. e.g. \"According to the passage, what happens when the cache is full?\"",
   inference: "something the passage implies but does not state directly. e.g. \"What can be inferred about the previous version of the API?\"",
@@ -25,9 +22,6 @@ const QUESTION_TYPE_GUIDES: Record<QuestionType, string> = {
   vocabulary: "the meaning of a word or phrase in context. e.g. \"The phrase \"opt in\" in paragraph 2 is closest in meaning to ...\"",
 }
 
-/**
- * 難易度の目安
- */
 const DIFFICULTY_GUIDES: Record<PassageDifficulty, string> = {
   1: "Easy: plain sentences, such as a tutorial or the introduction of a README",
   2: "Normal: typical technical documentation, such as API reference descriptions or explanations of concepts",
@@ -38,9 +32,6 @@ const QUESTION_TYPE_LINES = QUESTION_TYPES.map((type) => `  - ${type}: ${QUESTIO
 
 const DIFFICULTY_LINES = PASSAGE_DIFFICULTIES.map((difficulty) => `- ${difficulty} (${DIFFICULTY_GUIDES[difficulty]})`).join("\n")
 
-/**
- * 全件共通の指示。キャッシュするので、日時・件数・本文など毎回変わる値を入れない（変わる値は user message に入れる）
- */
 export const GENERATE_QUESTIONS_SYSTEM_PROMPT = `You write English reading-comprehension material for Japanese software engineers whose English is intermediate (around CEFR B1-B2). Each request contains one passage from English technical documentation. Read it and return one JSON object with: whether the passage is suitable as reading material, its difficulty, multiple-choice questions with Japanese translations, a Japanese translation of each block, and a glossary of difficult words and phrases with their meaning in this context.
 
 An editor reviews everything before learners see it, and a separate model answers your questions without seeing the answer key. Correctness matters more than anything else: every question must have exactly one correct choice, and the passage must clearly support it.
@@ -113,9 +104,6 @@ ${QUESTION_TYPE_LINES}
 
 export type GenerateQuestionsPromptInput = {
   blocks: PassageBlock[]
-  /**
-   * 作る設問の数（`calculateQuestionCount(wordCount)`）
-   */
   questionCount: number
   /**
    * 前回の出力が不合格だった理由（1 回だけの再生成のとき）。空なら付けない
@@ -125,10 +113,6 @@ export type GenerateQuestionsPromptInput = {
   wordCount: number
 }
 
-/**
- * 問題生成の user message。番号つきブロックの本文と設問数の指示、再生成のときは前回の不合格の理由を付ける。
- * 同じ入力からは同じ文字列を作る
- */
 export const buildGenerateQuestionsUserContent = (input: GenerateQuestionsPromptInput): string => {
   const sections = [
     buildPassagePrompt({

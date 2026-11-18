@@ -9,9 +9,6 @@ const buildQueue = (enqueue: Enqueue): JobQueue<TrackEventJobData> => ({
   enqueue,
 })
 
-/**
- * resolve のタイミングをテスト側で制御できる Promise
- */
 const createDeferred = (): { promise: Promise<void>; resolve: () => void } => {
   let resolve: () => void = () => undefined
   const promise = new Promise<void>((r) => {
@@ -88,7 +85,9 @@ describe("QueueEventTracker", () => {
         tracker.track({ name: "memo_viewed", source: "web", userId: 1 })
       }).not.toThrow()
 
-      /** unhandled rejection にもなっていないことを確認する */
+      /**
+       * unhandled rejection にもなっていないことを確認する
+       */
       await waitForPendingCallbacks()
       expect(enqueue).toHaveBeenCalledTimes(1)
     })

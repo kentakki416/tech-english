@@ -19,9 +19,6 @@ export type AudioClaim = {
   passageId: number
 }
 
-/**
- * 生成タスクが確保した問題
- */
 export type ClaimedAudioTarget = AudioClaim & {
   /**
    * 確保した時点の本文
@@ -68,13 +65,10 @@ export type AudioClaimResult = "failed" | "lost_claim" | "ready" | "retry_later"
 export type CalculateTextHash = (blocks: PassageBlock[]) => string
 
 /**
- * 取り下げた問題（却下した問題・ソースの削除で消えた問題）の音声（generate:audio が保存先の mp3 と行を消す）
+ * 取り下げた問題（却下した問題・ソースの削除で消えた問題）の音声
  */
 export type WithdrawnPassageAudio = Pick<PassageAudio, "manifest" | "passageId">
 
-/**
- * cron 側で必要な読み上げの音声の操作（generate:audio）
- */
 export interface PassageAudioRepository {
   /**
    * 公開済みの問題のうち、次の行を published_at の古い順に最大 limit 件取る（短いトランザクションで FOR UPDATE OF passages SKIP LOCKED）。

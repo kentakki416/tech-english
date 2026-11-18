@@ -71,7 +71,7 @@ export const adminPassageListItemSchema = adminPassageSummaryBaseSchema.extend({
 })
 
 /**
- * 読み上げの音声の状態。status は generating もそのまま返す（admin は「生成中」と出す）。
+ * 読み上げの音声の状態。status は generating もそのまま返す。
  * ready でも非公開に戻した・音声を作った後に公開し直されていれば、生成タスクが本文を確かめるまで pending にする。
  * voice の変更・作り直しの間は ready のまま（前の音声を返し続ける）
  */

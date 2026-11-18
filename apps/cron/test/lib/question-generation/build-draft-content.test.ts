@@ -10,9 +10,6 @@ const buildInput = (overrides: Partial<BuildDraftContentInput> = {}): BuildDraft
   ...overrides,
 })
 
-/**
- * 本文のブロックでの surface の最初の位置
- */
 const locate = (blockIndex: number, surface: string) => {
   const startOffset = PASSAGE.blocks[blockIndex].text.indexOf(surface)
   return { endOffset: startOffset + surface.length, startOffset }

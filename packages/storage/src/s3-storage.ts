@@ -2,10 +2,6 @@ import { DeleteObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client
 
 import type { Storage } from "./storage"
 
-/**
- * key の拡張子から ContentType を推定する（generic に保つため用途を固定しない）。
- * 未知の拡張子は undefined を返し、S3 既定（binary/octet-stream）に委ねる。
- */
 const CONTENT_TYPE_BY_EXT: Record<string, string> = {
   jpeg: "image/jpeg",
   jpg: "image/jpeg",
@@ -15,6 +11,9 @@ const CONTENT_TYPE_BY_EXT: Record<string, string> = {
   webp: "image/webp",
 }
 
+/**
+ * 未知の拡張子は undefined を返し、S3 の既定（binary/octet-stream）に任せる
+ */
 const inferContentType = (key: string): string | undefined => {
   const ext = key.split(".").pop()?.toLowerCase() ?? ""
   return CONTENT_TYPE_BY_EXT[ext]

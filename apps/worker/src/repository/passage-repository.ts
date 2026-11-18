@@ -8,9 +8,6 @@ export type CreatePassageInput = Pick<
   "blocks" | "contentHash" | "sourceCommitSha" | "sourceDocumentId" | "sourcePath" | "sourceRetrievedAt" | "title" | "wordCount"
 >
 
-/**
- * worker の収集で必要な本文候補の操作（挿入・見出しの確認・collected の却下）
- */
 export interface PassageRepository {
   /**
    * 文書の本文候補のうち、生成中か生成したもの（generating・draft・published と、生成した後に却下した rejected）の見出し（重複を除く）。

@@ -15,9 +15,6 @@ export const PASSAGE_STATUSES = ["collected", "generating", "draft", "published"
  */
 export const PASSAGE_DIFFICULTIES = [1, 2, 3] as const
 
-/**
- * 本文のブロックの種別
- */
 export const PASSAGE_BLOCK_TYPES = ["heading", "paragraph", "list_item", "code", "quote"] as const
 
 /**
@@ -36,8 +33,6 @@ export const SECONDS_PER_QUESTION = 40
 export const TIME_LIMIT_ROUNDING_SECONDS = 30
 
 /**
- * 塊を本文候補にしない理由
- *
  * - not_english: 英語でない
  * - not_prose: 文章でない（箇条書き・リンク集が主体）
  * - too_long: 長すぎる
@@ -47,6 +42,6 @@ export const TIME_LIMIT_ROUNDING_SECONDS = 30
 export const CHUNK_REJECT_REASONS = ["not_english", "not_prose", "too_long", "too_much_code", "too_short"] as const
 
 /**
- * 切り分け直した文書の collected のうち、新しい本文候補に無いものを却下するときの理由（admin の「却下」に出る）
+ * 切り分け直した文書の collected のうち、新しい本文候補に無いものを却下するときの理由
  */
 export const SUPERSEDED_PASSAGE_REJECT_REASON = "切り分け直したため、前の切り分けの本文候補を外した"

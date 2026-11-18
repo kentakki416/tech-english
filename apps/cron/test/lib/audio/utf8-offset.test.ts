@@ -1,8 +1,5 @@
 import { createUtf8ToUtf16IndexMap } from "../../../src/lib/audio"
 
-/**
- * text の中の word の UTF-8 のバイト位置
- */
 const findByteOffset = (text: string, word: string): number => Buffer.byteLength(text.slice(0, text.indexOf(word)))
 
 describe("createUtf8ToUtf16IndexMap", () => {

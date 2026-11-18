@@ -1,5 +1,5 @@
 /**
- * 設問の種類。1 つの問題に 2 種類以上を混ぜる
+ * 1 つの問題に 2 種類以上を混ぜる
  *
  * - main_idea: 要旨
  * - detail: 詳細
@@ -9,17 +9,8 @@
  */
 export const QUESTION_TYPES = ["main_idea", "detail", "vocabulary", "inference", "purpose"] as const
 
-/**
- * 1 問あたりの選択肢の数
- */
 export const QUESTION_CHOICE_COUNT = 4
 
-/**
- * 1 つの問題の設問数の下限
- */
 export const MIN_QUESTIONS_PER_PASSAGE = 3
 
-/**
- * 1 つの問題の設問数の上限
- */
 export const MAX_QUESTIONS_PER_PASSAGE = 5

@@ -1,17 +1,3 @@
-/**
- * 全プロジェクト共通の ESLint ルール定義
- *
- * apps / packages 双方の eslint.config.* から spread して使う:
- *
- *   const { commonPlugins, commonRules } = require("@repo/eslint-config/common-rules")
- *   plugins: { ...commonPlugins },
- *   rules: { ...commonRules, "app-specific-rule": "error" }
- *
- * naming-convention は配列全体で上書きされる仕様のため、selector を個別に
- * 上書きしたい場合 (mobile の variable に filter を足す等) は
- * `commonNamingConvention` を import してから map で書き換える。
- */
-
 const stylistic = require("@stylistic/eslint-plugin")
 
 /**
@@ -32,6 +18,11 @@ const commonPlugins = {
   "@stylistic": stylistic,
 }
 
+/**
+ * naming-convention は配列全体で上書きされる仕様のため、selector を個別に
+ * 上書きしたい config (mobile の variable に filter を足す等) が map で書き換えられるよう、
+ * 配列を単独で export する。
+ */
 const commonNamingConvention = [
   {
     format: ["camelCase", "UPPER_CASE", "PascalCase"],
@@ -55,16 +46,12 @@ const commonNamingConvention = [
 
 const commonRules = {
   /**
-   * インデント
-   *
    * SwitchCase のデフォルトが本体は 0 / @stylistic は 1 なので明示する。
    */
   "@stylistic/indent": ["error", 2, { SwitchCase: 0 }],
 
-  /** Console */
   "no-console": ["warn", { allow: ["warn", "error"] }],
 
-  /** 未使用変数 */
   "@typescript-eslint/no-unused-vars": [
     "warn",
     {
@@ -75,7 +62,6 @@ const commonRules = {
     },
   ],
 
-  /** コードスタイル */
   "@stylistic/object-curly-spacing": ["error", "always"],
   "@stylistic/quotes": ["error", "double"],
   "@stylistic/semi": ["error", "never"],
@@ -84,7 +70,6 @@ const commonRules = {
   "@stylistic/no-trailing-spaces": "error",
   "@stylistic/no-multi-spaces": "error",
 
-  /** Import 順序 */
   "import/order": [
     "error",
     {
@@ -113,24 +98,20 @@ const commonRules = {
   ],
   "import/no-duplicates": ["error", { "prefer-inline": true }],
 
-  /** TypeScript: 型安全性 */
   "@typescript-eslint/no-empty-function": "error",
   "@typescript-eslint/no-explicit-any": "warn",
   "@typescript-eslint/no-unnecessary-type-assertion": "error",
   "@typescript-eslint/promise-function-async": "warn",
 
   /**
-   * TypeScript: return await の一貫性
-   *
    * ESLint 本体の `no-return-await` は v8.46.0 で deprecated（`replacedBy` は空）。
    * 「`return await` は無駄」という前提がエンジン最適化で崩れたのが理由で、
    * 「try / catch の外では await を外す・中では付ける」という判定自体は今も有効なため、
-   * 型情報を使って Promise だけを対象にする後継ルールへ置き換えた。
+   * 型情報を使って Promise だけを対象にする後継ルールを使う。
    * デフォルトの `in-try-catch` が本体の挙動（try 内は報告しない）と同じ判定を含む。
    */
   "@typescript-eslint/return-await": "error",
 
-  /** TypeScript: クラスメンバーのアクセス修飾子を明示（constructor は除外） */
   "@typescript-eslint/explicit-member-accessibility": [
     "error",
     {
@@ -141,10 +122,8 @@ const commonRules = {
     },
   ],
 
-  /** TypeScript: 命名規則（private メンバーには _ プレフィックス必須） */
   "@typescript-eslint/naming-convention": ["error", ...commonNamingConvention],
 
-  /** コード品質 */
   eqeqeq: ["error", "always"],
   "no-unneeded-ternary": "error",
   "no-var": "error",

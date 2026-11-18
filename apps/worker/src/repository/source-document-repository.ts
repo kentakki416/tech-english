@@ -15,9 +15,6 @@ export type MarkFetchedInput = {
   title: string | null
 }
 
-/**
- * worker の収集で必要な取得文書の操作
- */
 export interface SourceDocumentRepository {
   findBySourceId(sourceId: number): Promise<SourceDocument[]>
   /**

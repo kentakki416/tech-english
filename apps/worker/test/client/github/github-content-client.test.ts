@@ -2,9 +2,6 @@ import { GitHubContentClient, GitHubNotFoundError, GitHubRateLimitError } from "
 
 const USER_AGENT = "TechEnglishBot/1.0"
 
-/**
- * application/vnd.github.sha で返るコミットの SHA（40 桁の 16 進数）
- */
 const COMMIT_SHA = "c0ffee0123456789abcdef0123456789abcdef01"
 
 const createResponse = (body: string, init: { headers?: Record<string, string>; status?: number } = {}): Response =>
@@ -13,9 +10,6 @@ const createResponse = (body: string, init: { headers?: Record<string, string>; 
 const createJsonResponse = (body: unknown, init: { headers?: Record<string, string>; status?: number } = {}): Response =>
   createResponse(JSON.stringify(body), { ...init, headers: { "Content-Type": "application/json", ...init.headers } })
 
-/**
- * GitHub API の偽物（外部 SaaS なので fetch を差し替える）
- */
 const createClient = (response: Response, token: string | undefined = undefined) => {
   const fetchMock = vi.fn<typeof fetch>(async () => response)
   return { client: new GitHubContentClient({ fetch: fetchMock, token, userAgent: USER_AGENT }), fetchMock }

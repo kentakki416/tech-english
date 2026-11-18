@@ -11,17 +11,8 @@ import { replacePassageCandidates } from "./replace-passage-candidates"
 import type { CollectionDeps, CollectionRepo, SourceCollectionResult, SourceCollectionStatus } from "./types"
 
 export type CollectGitHubSourceInput = {
-  /**
-   * このソースから取得する文書数の上限
-   */
   maxDocuments: number
-  /**
-   * このソースで作る本文候補数の上限
-   */
   maxPassages: number
-  /**
-   * GitHub の rate limit の残りがこれを切ったら打ち切る
-   */
   minRateLimitRemaining: number
   now: Date
   source: GitHubRepositorySource
@@ -60,9 +51,6 @@ const extractFileSafely = (file: GitHubTreeEntry, content: string, sourceId: num
   }
 }
 
-/**
- * 取得して切り分ける（し直す）ファイルか。未取得、blob SHA が変わった、切り分けたときの抽出の版が今と違う
- */
 const isFileToExtract = (file: GitHubTreeEntry, document: SourceDocument | undefined): boolean =>
   document === undefined || document.blobSha !== file.sha || document.extractionVersion !== EXTRACTION_VERSION
 
@@ -109,8 +97,7 @@ const collectFile = async (
  * 2. コミットのツリーから対象のファイルを列挙し、列挙に無い文書（取得元から消えた・対象パスから外れた）の collected を却下する
  * 3. source_documents の blob SHA・抽出の版と比べて、新規・変更されたものと版が古いものだけ残す
  * 4. 上限・rate limit に掛かるまで、ファイルごとに本文を取得して本文候補を保存する
- * 5. 全件処理でき、ツリーも完全なら completed として commit SHA と抽出の版を記録する（それ以外は記録せず、次回に続きから処理する）。
- *    収集の途中で last_collected_commit_sha が変えられていたら記録しない（楽観ロック）
+ * 5. 全件処理でき、ツリーも完全なら completed として commit SHA と抽出の版を記録する（それ以外は記録せず、次回に続きから処理する）
  *
  * 取得元から消えたファイルの source_documents と、下書き・公開済みの本文候補は残す（公開済みの問題は残す）
  */
@@ -160,10 +147,6 @@ export const collectGitHubSource = async (
    * ツリーが切り詰められていた場合は、列挙できなかったファイルが残っているので打ち切りと同じに扱う
    */
   const status = stopStatus ?? (isComplete ? "completed" : "limit_reached")
-  /**
-   * commit SHA は、収集を始めたときに読んだ値のままのときだけ書く（楽観ロック）。
-   * 収集の途中で admin が収集の範囲を変えて null に戻していたら書かず、次回の実行で新しい範囲を収集する
-   */
   const isRecorded = await repo.sourceRepository.markCollected(
     source.id,
     status === "completed"

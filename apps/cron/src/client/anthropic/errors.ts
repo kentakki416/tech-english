@@ -18,8 +18,7 @@ export class LlmRefusalError extends Error {
 
 /**
  * 出力が `max_tokens`（またはコンテキストの上限）で途中で切れた。思考（thinking）のトークンも `max_tokens` に含まれるので、
- * 思考が長引くと JSON を書き終える前に切れる。text が JSON として読めても完結していないので使わない。
- * 生成では一時的な失敗として次の実行に回す（同じ上限ですぐに作り直しても切れやすく、費用だけが増えるため）
+ * 思考が長引くと JSON を書き終える前に切れる。text が JSON として読めても完結していないので使わない
  */
 export class LlmOutputTruncatedError extends Error {
   /**

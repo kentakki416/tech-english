@@ -20,9 +20,6 @@ export const buildAudioKey = (input: {
 const listAudioKeys = (manifest: PassageAudioManifest | null): string[] =>
   manifest ? manifest.blocks.flatMap((block) => block.parts.map((part) => part.key)) : []
 
-/**
- * from のマニフェストにあって keep のマニフェストに無いキー（消してよい mp3）
- */
 export const listUnusedAudioKeys = (from: PassageAudioManifest | null, keep: PassageAudioManifest | null): string[] => {
   const keptKeys = new Set(listAudioKeys(keep))
   return listAudioKeys(from).filter((key) => !keptKeys.has(key))

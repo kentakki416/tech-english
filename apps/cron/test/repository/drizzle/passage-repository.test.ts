@@ -71,7 +71,7 @@ const buildAwaitableQuery = <T>(result: T, methods: Record<string, unknown>) => 
 })
 
 /**
- * `db.update(table).set(values).where(condition)`（returning は任意）を記録する偽物。select はクエリを組み立てるだけの実物を使う
+ * select はクエリを組み立てるだけの実物を使う
  */
 const createFakeUpdateDb = (rows: unknown[]) => {
   const returning = vi.fn(async (_selection: unknown) => rows)
@@ -92,17 +92,11 @@ const renderUpdate = (fake: ReturnType<typeof createFakeUpdateDb>) => {
   return { params: query.params, sql: normalizeParams(query.sql) }
 }
 
-/**
- * claim のガード（id・状態・取得時刻）
- */
 const CLAIM_CONDITION_SQL =
   "where ((\"passages\".\"id\" = $?) and (\"passages\".\"status\" = $?) and (\"passages\".\"generation_started_at\" = $?))"
 
 const CLAIM_CONDITION_PARAMS = [7, "generating", "2026-10-13T02:50:00.123Z"]
 
-/**
- * `db.select(selection).from(table).where(condition)` の偽物
- */
 const createFakeSelectDb = (rows: unknown[]) => {
   const where = vi.fn(async (_condition: unknown) => rows)
   const from = vi.fn((_table: unknown) => ({ where }))
@@ -110,9 +104,6 @@ const createFakeSelectDb = (rows: unknown[]) => {
   return { db: { select } as unknown as DrizzleClient, from, select, where }
 }
 
-/**
- * saveDraft のトランザクションの偽物。update ... returning / delete ... where / insert ... values（returning は任意）を記録する
- */
 const createFakeTransactionDb = (options: { glossaryRows?: unknown[]; updatedRows: unknown[] }) => {
   const updateReturning = vi.fn(async (_selection: unknown) => options.updatedRows)
   const updateWhere = vi.fn((_condition: unknown) => ({ returning: updateReturning }))

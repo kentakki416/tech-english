@@ -2,9 +2,6 @@ import { pgTable, serial, text, uniqueIndex } from "drizzle-orm/pg-core"
 
 import { timestamps } from "./columns"
 
-/**
- * ユーザー（認証プロバイダー非依存）
- */
 export const users = pgTable(
   "users",
   {

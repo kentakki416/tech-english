@@ -6,15 +6,9 @@ export type ValidateGeneratedOutputResult =
   | { ok: true; output: GenerateQuestionsOutput }
   | { errors: string[]; ok: false }
 
-/**
- * Zod の issue を「path: message」の 1 行にする。path が空（ルート）なら message だけ
- */
 const formatIssue = (issue: { message: string; path: PropertyKey[] }): string =>
   issue.path.length === 0 ? issue.message : `${issue.path.map(String).join(".")}: ${issue.message}`
 
-/**
- * 前後の空白を除いて小文字にした選択肢に重複があるか
- */
 const hasDuplicateChoices = (choices: string[]): boolean =>
   new Set(choices.map((choice) => choice.trim().toLowerCase())).size !== choices.length
 

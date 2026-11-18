@@ -10,9 +10,6 @@ const cronEnvSchema = z
       .enum(["pino", "winston", "console", "silent"])
       .default("pino"),
     LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
-    /**
-     * cleanup-old-memos が削除対象とする「何日以上前の memo か」の閾値
-     */
     CLEANUP_MEMO_OLDER_THAN_DAYS: z.coerce.number().int().positive().default(90),
     /**
      * generate-questions が Claude API に使うキー。他のタスクでは不要なので任意にし、必須かどうかは task の起動時に検査する。
@@ -22,9 +19,6 @@ const cronEnvSchema = z
       .string()
       .optional()
       .transform((value) => (value === "" ? undefined : value)),
-    /**
-     * generate-questions の生成モデル
-     */
     GENERATION_MODEL: z.string().min(1).default("claude-sonnet-5-5"),
     /**
      * generate-questions の解答キーを見ない検証のモデル（生成とは別のモデルに解かせる）
@@ -49,9 +43,6 @@ const cronEnvSchema = z
      * TTS_PROVIDER=fake のときの voice_id は fake:<TTS_VOICE_ID>（buildAudioVoiceId）
      */
     TTS_VOICE_ID: z.string().min(1).default("Joanna"),
-    /**
-     * generate-audio・generate-word-audio が使う Polly と S3 のリージョン
-     */
     AWS_REGION: z.string().min(1).default("ap-northeast-1"),
     /**
      * generate-audio が 1 回の実行で確保する問題の上限（Polly の費用の上限）
@@ -73,7 +64,7 @@ const cronEnvSchema = z
     WORD_AUDIO_MAX_PER_RUN: z.coerce.number().int().positive().default(300),
     /**
      * generate-audio・generate-word-audio の mp3 の保存先。local は AUDIO_STORAGE_LOCAL_DIR、s3 は AUDIO_STORAGE_S3_BUCKET。
-     * production の local は 2 つのタスクの起動時に throw する（コンテナの一時領域に mp3 を書いて ready にしないため）。
+     * production の local は 2 つのタスクの起動時に throw する。
      * スキーマでは検査しない（cron の他のタスクを止めないため）
      */
     AUDIO_STORAGE_TYPE: z.enum(["local", "s3"]).default("local"),
@@ -81,9 +72,6 @@ const cronEnvSchema = z
      * local の保存先（apps/cron からの相対。pnpm のスクリプトは apps/cron で動くので、リポジトリ直下の .storage/audio/ になり、api の /media 配信と共有する）
      */
     AUDIO_STORAGE_LOCAL_DIR: z.string().min(1).default("../../.storage/audio"),
-    /**
-     * s3 の保存先の bucket。AUDIO_STORAGE_TYPE=s3 のとき必須（空文字は未設定と同じ）
-     */
     AUDIO_STORAGE_S3_BUCKET: z
       .string()
       .optional()

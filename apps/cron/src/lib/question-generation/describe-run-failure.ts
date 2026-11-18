@@ -1,6 +1,3 @@
-/**
- * generate:questions の 1 回の実行の件数（service の GenerateQuestionsResult のうち、成否の判定に使うもの）
- */
 export type GenerateQuestionsRunCounts = {
   draftCount: number
   failedCount: number

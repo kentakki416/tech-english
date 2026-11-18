@@ -33,7 +33,7 @@ const commaSeparatedSchema = z
 const difficultyFilterSchema = commaSeparatedSchema.pipe(z.array(z.coerce.number().pipe(passageDifficultySchema)))
 
 /**
- * 出典表示。attempt.ts からも使う
+ * 出典表示
  */
 export const passageAttributionSchema = z.object({
   /**
@@ -108,7 +108,7 @@ export const getPassageListQueryStringSchema = z.object({
 })
 
 /**
- * 問題一覧のレスポンススキーマ。tags は公開中の問題があるソースのタグ全件（絞り込みのチップに使う）、
+ * 問題一覧のレスポンススキーマ。tags は公開中の問題があるソースのタグ全件、
  * total_count は絞り込み後の件数（cursor は無視）
  */
 export const getPassageListResponseSchema = z.object({

@@ -2,18 +2,13 @@ import type { DataWarehouse } from "@repo/data-warehouse"
 
 import type { EventRepository, EventRow } from "../event-repository"
 
-/** events テーブルのスキーマ版。破壊的変更のときに上げる */
+/**
+ * `events` テーブルの定義に破壊的な変更を入れるときに上げる
+ */
 const SCHEMA_VERSION = 1
 
 const EVENTS_TABLE = "events"
 
-/**
- * データウェアハウス実装の EventRepository
- *
- * `received_at` と `schema_version` はここで付与する。
- * `received_at` は送出側の `occurred_at` と突き合わせて、
- * 遅延やクライアントの時計ずれを調査するために使う。
- */
 export class DataWarehouseEventRepository implements EventRepository {
   private readonly _dataWarehouse: DataWarehouse
 
@@ -24,6 +19,9 @@ export class DataWarehouseEventRepository implements EventRepository {
   public async insertAll(events: EventRow[]): Promise<void> {
     if (events.length === 0) return
 
+    /**
+     * `received_at` カラムは、送出側が入れた `occurred_at` カラムと比べて、書き込みまでの遅延や時計のずれを調べるために入れる
+     */
     const receivedAt = this._toClickHouseDateTime(new Date())
     await this._dataWarehouse.insertAll(
       EVENTS_TABLE,

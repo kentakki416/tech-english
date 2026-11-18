@@ -3,9 +3,6 @@ import path from "node:path"
 
 import type { DocumentBlock } from "../../src/document/convert-mdast-to-blocks"
 
-/**
- * test/fixtures/document/ の fixture を読む
- */
 export const readFixture = (name: string): string =>
   readFileSync(path.join(__dirname, "../fixtures/document", name), "utf8")
 

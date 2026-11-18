@@ -44,11 +44,11 @@ export type GenerateAudioInput = {
 
 export type GenerateAudioResult = {
   /**
-   * 失敗が上限に達した件数（generating で確保した行は failed にし、ready のまま確保した行は前の音声のまま）。retryLaterCount と合わせて 1 件でもあれば task が exit 1 で終える
+   * 失敗が上限に達した件数
    */
   failedCount: number
   /**
-   * 月の上限（monthlyCharacterLimit）に達して止めたか。true なら task が exit 1 で終える
+   * 月の上限（monthlyCharacterLimit）に達して止めたか
    */
   isMonthlyLimitReached: boolean
   /**
@@ -78,15 +78,12 @@ type GenerateAudioRepo = {
 
 type GenerateAudioDeps = {
   /**
-   * mp3 の保存先（本番は S3、ローカルは .storage/audio/）。save の戻り値の URL は使わない（マニフェストにはキーだけを保存する）
+   * save の戻り値の URL は使わない（マニフェストにはキーだけを保存する）
    */
   audioStorage: Storage
   ttsClient: TtsClient
 }
 
-/**
- * 1 件の処理の方針。unchanged は Polly を呼ばない。generate は Polly で作る（estimatedCharacters は月の上限の判定に使う見込みの課金文字数）
- */
 type AudioPlan =
   | { kind: "unchanged"; textHash: string }
   | { estimatedCharacters: number; keyRevision: number | undefined; kind: "generate"; textHash: string }
@@ -110,7 +107,7 @@ const planPassageAudio = (target: ClaimedAudioTarget, calculateTextHash: Calcula
 }
 
 /**
- * 1 件分の音声を作る（トランザクションの外）。読み上げるブロック → パートの順に、音声合成 → 長さ・単語の時刻 → mp3 の保存をする。
+ * 1 件分の音声を作る（トランザクションの外）。
  * 課金された文字数は Polly のリクエストごとに audio_synthesis_usages に記録する（失敗した問題の分も数える）。
  * 設定の誤り（isFatalAudioGenerationError。Polly の資格情報・権限・voice、保存先の権限・bucket など）は throw し、それ以外の失敗は failed の outcome にする
  */
@@ -217,9 +214,6 @@ const purgeWithdrawnAudios = async (staleBefore: Date, repo: GenerateAudioRepo, 
   return purgedCount
 }
 
-/**
- * 今月の課金文字数にこの問題の見込みを足すと上限を超えるか
- */
 const isOverMonthlyLimit = async (
   plan: Extract<AudioPlan, { kind: "generate" }>,
   input: GenerateAudioInput,
@@ -229,9 +223,6 @@ const isOverMonthlyLimit = async (
   return { isOver: usedCharacters + plan.estimatedCharacters > input.monthlyCharacterLimit, usedCharacters }
 }
 
-/**
- * ログに出すパート数・課金文字数
- */
 const summarizeOutcome = (outcome: AudioClaimOutcome) => {
   if (outcome.kind === "ready") {
     return {
@@ -250,8 +241,8 @@ const summarizeOutcome = (outcome: AudioClaimOutcome) => {
  * 2. 取り下げた問題の音声（mp3 と行）を消す
  * 3. 対象を古い順に確保する（短いトランザクション。FOR UPDATE SKIP LOCKED）。voice の変更・作り直しの依頼の ready の行は ready のまま確保する
  * 4. 1 件ずつ、トランザクションの外で音声を作る。作る前に今月の課金文字数 + 見込みが月の上限を超えるなら、残りの確保を外して止める。
- *    1 件の失敗で他の件は止めない。設定の誤り（音声合成・保存先）はその行の確保を外して throw する
- * 5. 確保した時刻を条件に結果を書き、使わなくなった mp3 を消す。削除で保存先の設定の誤りが起きたら throw する（結果は書き終えているので行は戻さない）
+ *    1 件の失敗で他の件は止めない
+ * 5. 確保した時刻を条件に結果を書き、使わなくなった mp3 を消す
  */
 export const generateAudio = async (
   input: GenerateAudioInput,

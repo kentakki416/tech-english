@@ -11,7 +11,7 @@ import { env } from "../env"
 import { isAudioStorageAllowed } from "../lib/audio"
 
 /**
- * TTS_PROVIDER の音声合成のクライアントを作る（generate:audio・generate:word-audio で共有）。polly で AWS の資格情報を解決できなければ、
+ * TTS_PROVIDER の音声合成のクライアントを作る。polly で AWS の資格情報を解決できなければ、
  * production では throw、それ以外は null を返す（ローカルに資格情報が無くてもタスクを失敗にしない）
  */
 export const createTtsClient = async (taskName: string): Promise<TtsClient | null> => {
@@ -34,10 +34,6 @@ export const createTtsClient = async (taskName: string): Promise<TtsClient | nul
   return new PollyTtsClient(polly)
 }
 
-/**
- * production で保存先が local なら throw する（コンテナの一時領域に mp3 を書いて ready にしないため。env のスキーマでは検査しない。
- * cron の他のタスクを止めないため）
- */
 export const assertAudioStorageAllowed = (taskName: string): void => {
   if (isAudioStorageAllowed({ nodeEnv: env.NODE_ENV, storageType: env.AUDIO_STORAGE_TYPE })) return
   throw new Error(
@@ -46,10 +42,6 @@ export const assertAudioStorageAllowed = (taskName: string): void => {
   )
 }
 
-/**
- * 音声の保存先（読み上げと単語の発音で共有）。s3 は長期キャッシュ（キーに本文・見出し語と voice のハッシュを含む）、
- * local はリポジトリ直下の .storage/audio/（api が開発環境でだけ /media で配信する）
- */
 export const createAudioStorage = (): Storage => {
   if (env.AUDIO_STORAGE_TYPE === "s3" && env.AUDIO_STORAGE_S3_BUCKET) {
     const bucket = env.AUDIO_STORAGE_S3_BUCKET

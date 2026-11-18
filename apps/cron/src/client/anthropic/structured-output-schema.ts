@@ -1,13 +1,7 @@
 import { z } from "zod/v4"
 
-/**
- * JSON Schema の 1 ノード
- */
 type JsonSchemaNode = { [key: string]: unknown }
 
-/**
- * structured output が受け付ける文字列の format
- */
 const SUPPORTED_STRING_FORMATS = new Set([
   "date",
   "date-time",
@@ -30,9 +24,6 @@ const UNSUPPORTED_COMBINATOR_KEYWORDS = ["$ref", "allOf", "not", "oneOf"]
 const isJsonSchemaNode = (value: unknown): value is JsonSchemaNode =>
   typeof value === "object" && value !== null && !Array.isArray(value)
 
-/**
- * 1 ノードを、structured output が受け付けるキーワードだけを残したノードにする（再帰）
- */
 const convertNode = (node: JsonSchemaNode, path: string): JsonSchemaNode => {
   const combinator = UNSUPPORTED_COMBINATOR_KEYWORDS.find((keyword) => keyword in node)
   if (combinator) throw new Error(`Unsupported JSON Schema keyword for structured output: ${combinator} at ${path}`)

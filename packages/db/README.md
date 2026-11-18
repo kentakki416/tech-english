@@ -59,6 +59,7 @@ packages/db/
 テーブルを変えるときは、スキーマを変えてマイグレーションを作り、適用する（[マイグレーションの挙動](../../docs/tech-stack/drizzle.md#マイグレーション)）。
 
 1. `src/drizzle/schema/` のテーブル定義を変える
+    - 制約・index には名前を渡し、unique は `{table}_{columns}_key`、index は `{table}_{columns}_idx`、外部キーは `{table}_{columns}_fkey`、CHECK は `{table}_{columns}_check`、複合の主キーは `{table}_pkey` にそろえる。名前を省くと drizzle-kit は index に `{table}_{columns}_index`、外部キーに参照先まで入れた `{table}_{columns}_{参照先のテーブル}_{参照先のカラム}_fkey`、`unique()` に `{table}_{columns}_unique` を付けるので、既存の名前とそろわなくなる
 2. `pnpm --filter api db:generate --name=<変更の名前>` でマイグレーションを作る
 3. `drizzle/migrations/<日時>_<名前>/` に次のファイルが生成される。生成された SQL を確認する
     - `migration.sql`

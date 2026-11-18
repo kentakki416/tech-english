@@ -1,11 +1,5 @@
 import { z } from "zod"
 
-/**
- * apps/worker の環境変数スキーマ
- *
- * このモジュールが import された時点で safeParse が走り、
- * 不正な env の場合は stderr にエラーを出力して process.exit(1) で停止する。
- */
 const workerEnvSchema = z
   .object({
     /**
@@ -21,23 +15,18 @@ const workerEnvSchema = z
      * 任意。未設定なら `TechEnglishBot/1.0` だけを送る
      */
     COLLECT_WEB_CONTACT_URL: z.string().url().optional(),
-    /** DB の接続文字列。NODE_ENV !== "test" のときは必須 */
     DATABASE_URL: z.string().url().optional(),
-    /** データウェアハウスの DB 名 */
     DATA_WAREHOUSE_DATABASE: z.string().default("tech_english"),
     DATA_WAREHOUSE_PASSWORD: z.string().default("password"),
     /**
-     * どのデータウェアハウスに書くか。`none` は何も書かない実装を使う。
+     * `none` は何も書かない実装を使う。
      *
      * 行動イベントの分析価値が無い環境のために ClickHouse を持つのはコストに
-     * 見合わないため、繋ぎ先を持たない選択肢を用意する。AWS では Terraform の
-     * enable_data_warehouse に合わせて入る。
+     * 見合わないため、繋ぎ先を持たない選択肢を用意する。
      */
     DATA_WAREHOUSE_TYPE: z.enum(["clickhouse", "none"]).default("clickhouse"),
     /**
-     * データウェアハウスの接続 URL。
-     * DATA_WAREHOUSE_TYPE === "clickhouse" かつ NODE_ENV !== "test" のときは必須。
-     * 技術名を入れていないのは、バックエンドを差し替えても env を変えずに済ませるため。
+     * 名前に ClickHouse を入れていないのは、データウェアハウスを差し替えても env の名前を変えずに済ませるため
      */
     DATA_WAREHOUSE_URL: z.string().url().optional(),
     DATA_WAREHOUSE_USER: z.string().default("default"),
@@ -47,16 +36,16 @@ const workerEnvSchema = z
      */
     GITHUB_CONTENT_TOKEN: z.string().optional(),
     LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
-    /** ロガー実装の選択 */
     LOGGER_TYPE: z
       .enum(["pino", "winston", "console", "silent"])
       .default("pino"),
     NODE_ENV: z
       .enum(["development", "test", "production"])
       .default("development"),
-    /** Redis 接続 URL (BullMQ 用)。NODE_ENV !== "test" のときは必須 */
     REDIS_URL: z.string().optional(),
-    /** Worker の並行ジョブ数 */
+    /**
+     * process-memo・track-event の queue ごとの同時実行ジョブ数（プロセス全体の上限ではない。collect-source は 1 固定）
+     */
     WORKER_CONCURRENCY: z.coerce.number().int().positive().default(10),
   })
   .superRefine((env, ctx) => {

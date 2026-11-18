@@ -97,9 +97,6 @@ export const verifyMigrationsDoNotReferenceCdc = (migrations: MigrationDefinitio
     .filter(({ sql }) => CDC_REFERENCE.test(sql.replace(SQL_COMMENT, "").replace(ALLOWED_CDC_STATEMENT, "")))
     .map(({ fileName }) => `migration must not reference ${CDC_DATABASE} (except DROP TABLE IF EXISTS ${CDC_DATABASE}.<table>): ${fileName}`)
 
-/**
- * cdc-tables.json の中身を検証してテーブル名の配列にする。不正なら throw する。
- */
 const parseCdcTablesJson = (text: string): string[] => cdcTablesSchema.parse(JSON.parse(text))
 
 export const readMigrationFileNames = async (dir: string): Promise<string[]> =>

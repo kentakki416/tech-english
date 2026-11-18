@@ -13,12 +13,12 @@ import type { DraftContent, DraftGlossaryEntry, DraftQuestion } from "../../repo
 import { shuffleChoices } from "./shuffle-choices"
 
 /**
- * 生成から作る下書き。生成の記録（モデル・プロンプトの版）は service が足す
+ * 生成の記録（モデル・プロンプトの版）は service が足す
  */
 export type GeneratedDraft = Omit<DraftContent, "generationModel" | "generationPromptVersion">
 
 /**
- * 本文に見つからず捨てた用語集の語句（task がログに出す）
+ * 本文に見つからず捨てた用語集の語句
  */
 export type DroppedGlossaryItem = {
   blockIndex: number
@@ -31,9 +31,6 @@ export type BuildDraftContentInput = {
    * `validateGeneratedOutput` に合格し、isSuitable = true の出力
    */
   output: GenerateQuestionsOutput
-  /**
-   * 選択肢のシャッフルに使う [0, 1) の乱数
-   */
   random: () => number
   wordCount: number
 }
@@ -80,9 +77,6 @@ const findProseSurfaceRange = (
 const buildPositionKey = (entry: Pick<DraftGlossaryEntry, "blockIndex" | "endOffset" | "startOffset">): string =>
   `${entry.blockIndex}:${entry.startOffset}:${entry.endOffset}`
 
-/**
- * 空白だけの補足は無いものとして扱う
- */
 const normalizeNote = (noteJa: string | null): string | null => (noteJa === null || noteJa.trim() === "" ? null : noteJa)
 
 /**
@@ -150,7 +144,7 @@ const locateGlossary = (
  * 5. 選択肢と選択肢の和訳を同じ順にシャッフルして、正解の位置を無作為にする
  * 6. 制限時間を計算式で求める
  *
- * 要確認の理由のブロックの表記は `numberParagraphs` の「段落 N」と `numberHeadings` の「見出し N」。用語集は位置の順に並べ、設問は glossary の index で指す
+ * 用語集は位置の順に並べ、設問は glossary の index で指す
  */
 export const buildDraftContent = (input: BuildDraftContentInput): BuildDraftContentResult => {
   const { output } = input

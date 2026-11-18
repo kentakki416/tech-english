@@ -1,6 +1,3 @@
-/**
- * TTS_PROVIDER=fake の voice_id の接頭辞
- */
 const FAKE_VOICE_ID_PREFIX = "fake:"
 
 /**

@@ -29,8 +29,6 @@ const closeClient = async (client: ClickHouseClient): Promise<void> => {
 }
 
 /**
- * ClickHouse の migration
- *
  * 1. 定義ファイルを検査する（DB に触る前に止める）
  * 2. ローカルなら、migration を流す database があるか確かめる（別プロジェクトの ClickHouse に繋いでいれば止める）
  * 3. ローカルで CDC を使うなら（materialized_postgresql）CDC を作り直し、使わないなら（none）前に作った CDC が残っていれば警告する

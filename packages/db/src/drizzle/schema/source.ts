@@ -10,7 +10,6 @@ import { joinSqlValues } from "./sql-values"
  * 英文の取得元（ソース）。管理者が登録する
  *
  * 取得方法（fetch_type）ごとの列は 1 テーブルに nullable で並べ、必須は CHECK 制約で保証する。
- * 制約・index 名は `{table}_{columns}_key` / `_idx` / `_fkey` の命名にそろえている。
  */
 export const sources = pgTable(
   "sources",
@@ -39,7 +38,7 @@ export const sources = pgTable(
      */
     lastCollectedCommitSha: text("last_collected_commit_sha"),
     /**
-     * GitHub のみ。last_collected_commit_sha を記録したときの抽出の版（cron の EXTRACTION_VERSION）
+     * GitHub のみ。last_collected_commit_sha を記録したときの抽出の版（@repo/content-extractor の EXTRACTION_VERSION）
      */
     lastCollectedExtractionVersion: text("last_collected_extraction_version"),
     licenseSpdx: text("license_spdx", { enum: SOURCE_LICENSES }).notNull(),

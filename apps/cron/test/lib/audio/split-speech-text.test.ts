@@ -2,9 +2,6 @@ import { type SpeechPart, splitSpeechText } from "../../../src/lib/audio"
 
 const MAX_LENGTH = 3000
 
-/**
- * 各パートが上限以下で、元のテキストの同じ位置を指していること
- */
 const expectValidParts = (speechText: string, parts: SpeechPart[], maxLength: number): void => {
   for (const part of parts) {
     expect(part.text.length).toBeLessThanOrEqual(maxLength)
@@ -14,9 +11,6 @@ const expectValidParts = (speechText: string, parts: SpeechPart[], maxLength: nu
   }
 }
 
-/**
- * 文を並べた長いテキスト（"Sentence 1 explains retries. Sentence 2 explains retries. ..."）
- */
 const buildSentences = (count: number): string =>
   Array.from({ length: count }, (_, index) => `Sentence ${index + 1} explains how retries work.`).join(" ")
 

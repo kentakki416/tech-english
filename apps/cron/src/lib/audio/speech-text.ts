@@ -4,9 +4,6 @@
  */
 const INLINE_CODE_PATTERN = /`[^`\n]+`/g
 
-/**
- * 読み上げ用テキストと、その各位置の元の本文での位置
- */
 export type SpeechText = {
   /**
    * speechText の各位置（UTF-16）の元の本文での位置。末尾に元の本文の長さを番兵として足す（長さは speechText.length + 1）

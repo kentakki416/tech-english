@@ -9,7 +9,9 @@ import { cleanupQueueKeys, createTestRedis, waitUntil } from "./helper"
 
 type TestJobData = { value: string }
 
-/** テスト専用の queue 名。実運用の queue と混ざらないようにする */
+/**
+ * 実運用の queue とキーが混ざらないよう、テスト専用の名前にする
+ */
 const QUEUE_NAME = "test-bullmq-queue"
 
 let redis: Redis
@@ -28,9 +30,7 @@ afterEach(async () => {
 })
 
 /**
- * failed セットに入ったジョブ数を数える。
- *
- * 「終局した」ことの確認に使う。BullMQ は failed を sorted set で持つ。
+ * BullMQ は failed のジョブを sorted set で持つ
  */
 const countFailedJobs = async (client: Redis): Promise<number> =>
   client.zcard(`bull:${QUEUE_NAME}:failed`)
@@ -56,7 +56,6 @@ describe("BullMQJobQueue / startBullMQWorker", () => {
       expect(await countFailedJobs(redis)).toBe(0)
     })
 
-    /** attemptsMade は processor 側では 0 オリジン（failed イベント側とは起点が違う） */
     it("初回実行時の attemptsMade は 0", async () => {
       const attempts: number[] = []
       consumer = startBullMQWorker<TestJobData>(redis, {
@@ -77,13 +76,6 @@ describe("BullMQJobQueue / startBullMQWorker", () => {
   })
 
   describe("異常系", () => {
-    /**
-     * 通常のエラーは attempts を使い切るまでリトライされる。
-     *
-     * enqueue に生の BullMQ Queue を使っているのは、既定の backoff が 5 秒
-     * exponential でテストが遅くなるため。`EnqueueOptions` は実装詳細を
-     * 隠す設計で attempts / backoff を渡せないので、fixture 側で指定する。
-     */
     it("通常のエラーは attempts の回数だけ実行され、最後に failed に入る", async () => {
       let calls = 0
       consumer = startBullMQWorker<TestJobData>(redis, {
@@ -94,6 +86,10 @@ describe("BullMQJobQueue / startBullMQWorker", () => {
         queueName: QUEUE_NAME,
       })
 
+      /**
+       * BullMQJobQueue を使わず生の BullMQ Queue で enqueue する。BullMQJobQueue の既定の backoff は
+       * 5 秒の exponential でテストが遅くなるが、`EnqueueOptions` では attempts / backoff を渡せない。
+       */
       const rawQueue = new Queue(QUEUE_NAME, { connection: redis })
       await rawQueue.add(QUEUE_NAME, { value: "retry-me" }, {
         attempts: 3,

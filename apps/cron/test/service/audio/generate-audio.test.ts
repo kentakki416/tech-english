@@ -112,9 +112,6 @@ const createFakeStorage = () => ({
 
 const createDeps = (ttsClient: TtsClient = new FakeTtsClient()) => ({ audioStorage: createFakeStorage(), ttsClient })
 
-/**
- * completeClaim に渡した outcome（1 件目）
- */
 const readOutcome = (repo: ReturnType<typeof createFakeRepo>, call = 0): AudioClaimOutcome => {
   const outcome = repo.passageAudioRepository.completeClaim.mock.calls[call]?.[1]
   if (!outcome) throw new Error("completeClaim was not called")

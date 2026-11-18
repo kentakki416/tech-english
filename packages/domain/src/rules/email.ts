@@ -1,5 +1,4 @@
 /**
- * email の大文字小文字と前後の空白の差をなくす。
- * admins の照合（サインイン）と登録（admin:create・seed）の両方でこれにかけ、同じ形にそろえる
+ * 大文字小文字や前後の空白だけが違う email を、照合と登録で同じ email として扱うためにそろえる
  */
 export const normalizeEmail = (email: string): string => email.trim().toLowerCase()

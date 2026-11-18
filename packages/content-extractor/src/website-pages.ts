@@ -14,7 +14,7 @@ export const isPassageTargetUrl = (url: string, source: WebsiteSource): boolean 
 }
 
 /**
- * 取得したページの本文を抽出して本文候補に切り分ける。タイトルが無ければ path にする。不正な CSS セレクタは throw する
+ * タイトルが無ければ path にする。不正な CSS セレクタは throw する
  */
 export const extractWebPage = (
   source: WebsiteSource,

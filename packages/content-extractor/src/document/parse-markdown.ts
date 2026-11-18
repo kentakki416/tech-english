@@ -28,9 +28,6 @@ const findFrontmatterTitle = (root: Root): string | null => {
   }
 }
 
-/**
- * 指定した深さの最初の見出しのテキストを返す
- */
 const findFirstHeadingText = (root: Root, depth: Heading["depth"]): string | null => {
   const heading = root.children.find((node): node is Heading => node.type === "heading" && node.depth === depth)
   return (heading && convertPhrasingToText(heading.children)) || null
@@ -59,7 +56,7 @@ const parsePlainMarkdown = (source: string, options: { isFragment: boolean }): R
 }
 
 /**
- * Markdown / MDX を mdast にする。タイトルは frontmatter の title → 最初の h1 の順
+ * タイトルは frontmatter の title → 最初の h1 の順
  *
  * MDX の構文エラーは remark-mdx が throw する。ここでは握りつぶさず、呼び出し元が文書単位の失敗として扱う
  */

@@ -37,7 +37,7 @@ const convertMappedAddressToIpv4 = (address: string): string | null => {
 }
 
 /**
- * 接続してはいけないアドレスか。family は dns.lookup の値（4 / 6）
+ * family は dns.lookup の値（4 / 6）
  */
 export const isBlockedAddress = (address: string, family: number): boolean => {
   const mapped = convertMappedAddressToIpv4(address)

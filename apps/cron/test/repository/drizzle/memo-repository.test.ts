@@ -4,9 +4,6 @@ import { DrizzleMemoRepository } from "../../../src/repository/drizzle"
 
 type DeleteResult = { rowCount: number | null }
 
-/**
- * `db.delete(table).where(condition)` だけを持つ DrizzleClient の偽物を作る
- */
 const createFakeDb = (where: (_condition: unknown) => Promise<DeleteResult>) => {
   const deleteFrom = vi.fn(() => ({ where }))
   return { db: { delete: deleteFrom } as unknown as DrizzleClient, deleteFrom }

@@ -63,14 +63,8 @@ const VERIFICATION_MAX_TOKENS = 2000
 
 const MILLIS_PER_MINUTE = 60 * 1000
 
-/**
- * LLM が不向きと判定したのに理由が無いときの却下の理由
- */
 const DEFAULT_UNSUITABLE_REASON = "LLM が題材に不向きと判定"
 
-/**
- * 検証モデルの呼び出し・出力が使えなかったときの要確認の理由
- */
 const VERIFICATION_FAILED_REASON = "検証モデルでの確認に失敗しました"
 
 export type GenerateQuestionsInput = {
@@ -85,9 +79,6 @@ export type GenerateQuestionsInput = {
    * 指定があればその 1 件だけ（collected でなければ throw）
    */
   passageId?: number
-  /**
-   * 選択肢のシャッフルに使う [0, 1) の乱数
-   */
   random: () => number
   verificationModel: string
 }
@@ -95,13 +86,12 @@ export type GenerateQuestionsInput = {
 export type GenerateQuestionsResult = {
   draftCount: number
   /**
-   * 失敗が上限に達して failed にした件数。1 件でもあれば task が exit 1 で終える
+   * 失敗が上限に達して failed にした件数
    */
   failedCount: number
   rejectedCount: number
   /**
-   * 失敗したが上限に達していないので collected に戻した件数（次回の実行でやり直す。出力が max_tokens で切れたものを含む）。
-   * draftCount と rejectedCount が 0 でこれが 1 以上（全件が失敗）なら task が exit 1 で終える
+   * 失敗したが上限に達していないので collected に戻した件数（次回の実行でやり直す。出力が max_tokens で切れたものを含む）
    */
   retryLaterCount: number
   skippedReason: "pending_drafts_limit" | null
@@ -116,7 +106,7 @@ type GenerateQuestionsDeps = {
 }
 
 /**
- * 1 件の処理の結果。stale は claim が古く（別の実行に回収・再取得されて）保存できなかったもの
+ * stale は claim が古く（別の実行に回収・再取得されて）保存できなかったもの
  */
 type PassageOutcome = "draft" | "failed" | "rejected" | "retry_later" | "stale"
 
@@ -129,7 +119,7 @@ type GenerationResult =
   | { error: LlmOutputTruncatedError; ok: false; reason: "truncated"; usage: LlmUsage }
 
 /**
- * 解答キーを見ない検証の結果。fatalError は API キーやモデル ID の誤り（下書きを保存してからタスクを止める）
+ * 解答キーを見ない検証の結果。fatalError は API キーやモデル ID の誤り
  */
 type VerificationResult = {
   attentionReasons: string[]
@@ -147,9 +137,6 @@ const sumUsage = (left: LlmUsage, right: LlmUsage): LlmUsage => ({
   outputTokens: left.outputTokens + right.outputTokens,
 })
 
-/**
- * generation_error に残す「種類: メッセージ」
- */
 const describeError = (error: unknown): string => {
   if (!(error instanceof Error)) return String(error)
   const kind = error.name === "Error" ? error.constructor.name : error.name
@@ -198,9 +185,6 @@ const generateValidOutput = async (
   return { errors: retryErrors, ok: false, reason: "invalid", usage }
 }
 
-/**
- * 検証モデルの回答が設問ごとにちょうど 1 つずつあるか
- */
 const hasOneAnswerPerQuestion = (answers: { questionNumber: number }[], questionCount: number): boolean => {
   const questionNumbers = new Set(answers.map((answer) => answer.questionNumber))
   return (
@@ -254,9 +238,6 @@ const verifyDraft = async (
   }
 }
 
-/**
- * 失敗を記録する。上限に達したら failed、それ以外は collected に戻す
- */
 const recordFailure = async (
   claim: PassageClaim,
   error: string,
@@ -269,7 +250,7 @@ const recordFailure = async (
 
 /**
  * 1 件分。生成 → 検証と後処理 → 解答キーを見ない検証 → 保存。
- * 生成の API エラー・拒否などは throw する（呼び出し側が失敗として記録する。API キー・モデル ID の誤りは claim を戻してタスクを止める）
+ * 生成の API エラー・拒否などは throw する
  */
 const processPassage = async (
   passage: ClaimedPassage,
@@ -367,7 +348,7 @@ const processPassage = async (
 }
 
 /**
- * 取得する件数。passageId の指定時は下書きの上限を見ない。0 なら下書きが上限に達している
+ * 取得する件数。0 なら下書きが上限に達している
  */
 const calculateClaimLimit = async (input: GenerateQuestionsInput, repo: GenerateQuestionsRepo): Promise<number> => {
   if (input.passageId !== undefined) return 1
@@ -384,7 +365,7 @@ const calculateClaimLimit = async (input: GenerateQuestionsInput, repo: Generate
  *    まとめて取らないのは、全件に同じ generation_started_at が入り、実行が 30 分を超えたときに後半の行が別の実行に回収・再取得されて
  *    LLM の費用が二重にかかるため（1 件ずつ取れば、各行の generation_started_at はその行を取った時刻になる）。
  *    passageId の指定で取れなければ throw
- * 4. 1 件の失敗で他の件は止めない。API キー・モデル ID の誤りはその行を collected に戻して throw する
+ * 4. 1 件の失敗で他の件は止めない
  */
 export const generateQuestions = async (
   input: GenerateQuestionsInput,

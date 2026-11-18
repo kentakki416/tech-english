@@ -1,10 +1,7 @@
 import { defineConfig } from "vitest/config"
 
 /**
- * apps/cron 用 Vitest 設定
- *
- * Repository / Service の unit test は DB client を mock するため DB 不要。
- * 並列実行（デフォルト）で問題ない。
+ * テストは DB client を mock していて DB を共有しないので、並列実行（既定）のままにする
  */
 export default defineConfig({
   test: {

@@ -32,7 +32,6 @@ const buildRow = (overrides: Partial<SourceRow> = {}): SourceRow => ({
 })
 
 /**
- * `db.select().from(table).where(condition).orderBy(...)` と `db.update(table).set(values).where(condition)` だけを持つ偽物。
  * update は条件に合った行数（updatedCount）を rowCount で返す
  */
 const createFakeDb = (rows: SourceRow[], updatedCount = 1) => {

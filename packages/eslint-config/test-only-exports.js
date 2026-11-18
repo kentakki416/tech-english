@@ -1,9 +1,6 @@
 /**
- * テストからだけ使う export（`forTesting`）を、テスト以外のコードから使わせない flat config フラグメント
- *
- * テストのためだけに export する関数・定数は、ファイル末尾の `export const forTesting = { ... }` にまとめる
- * （規約はルートの CLAUDE.md）。このフラグメントはテスト以外のファイルでの `forTesting` の import /
- * re-export / プロパティ参照を error にする。
+ * テスト以外のファイルでの `forTesting`（テストからだけ使う export。規約はルートの CLAUDE.md）の
+ * import / re-export / プロパティ参照を error にする flat config フラグメント
  *
  * 既存の no-restricted-syntax / no-restricted-imports は app ごとの設定（mobile の env 参照、
  * db-boundary、frontend-boundary）で上書きし合うため、専用のルールにしている。

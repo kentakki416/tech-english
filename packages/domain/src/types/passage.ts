@@ -1,23 +1,11 @@
 import type { CHUNK_REJECT_REASONS, PASSAGE_BLOCK_TYPES, PASSAGE_DIFFICULTIES, PASSAGE_STATUSES } from "../const/passage"
 
-/**
- * 本文候補 / 問題の状態
- */
 export type PassageStatus = (typeof PASSAGE_STATUSES)[number]
 
-/**
- * 難易度
- */
 export type PassageDifficulty = (typeof PASSAGE_DIFFICULTIES)[number]
 
-/**
- * 本文のブロックの種別
- */
 export type PassageBlockType = (typeof PASSAGE_BLOCK_TYPES)[number]
 
-/**
- * 塊を本文候補にしない理由
- */
 export type ChunkRejectReason = (typeof CHUNK_REJECT_REASONS)[number]
 
 /**
@@ -44,9 +32,6 @@ export type PassageBlock = {
  */
 export type Passage = {
   id: number
-  /**
-   * 要確認の理由
-   */
   attentionReasons: string[]
   blocks: PassageBlock[]
   /**

@@ -27,9 +27,6 @@ import type {
 const buildGlossaryPositionKey = (entry: Pick<DraftGlossaryEntry, "blockIndex" | "endOffset" | "startOffset">): string =>
   `${entry.blockIndex}:${entry.startOffset}:${entry.endOffset}`
 
-/**
- * Drizzle 実装の PassageRepository
- */
 export class DrizzlePassageRepository implements PassageRepository {
   private _db: DrizzleClient
 
@@ -38,8 +35,7 @@ export class DrizzlePassageRepository implements PassageRepository {
   }
 
   /**
-   * 候補の select に行ロック（FOR UPDATE SKIP LOCKED）を付けて、同じ UPDATE 文で generating にする。
-   * 別の実行がロック中の行は飛ばすので、実行が重なっても同じ行を二重に取らない
+   * 候補の select に行ロック（FOR UPDATE SKIP LOCKED）を付けて、同じ UPDATE 文で generating にする
    */
   public async claimNextCollected(input: { now: Date; passageId?: number }): Promise<ClaimedPassage | null> {
     const candidate = this._db
@@ -107,9 +103,6 @@ export class DrizzlePassageRepository implements PassageRepository {
     return rows.length > 0
   }
 
-  /**
-   * SET の右辺の列は更新前の値なので、CASE は「更新前の回数 + 1」で判定する
-   */
   public async recordGenerationFailure(
     claim: PassageClaim,
     input: { error: string; maxAttempts: number },
@@ -119,6 +112,9 @@ export class DrizzlePassageRepository implements PassageRepository {
       .set({
         generationAttemptCount: sql`${passages.generationAttemptCount} + 1`,
         generationError: input.error,
+        /**
+         * SET の右辺の列は更新前の値なので、CASE は「更新前の回数 + 1」で判定する
+         */
         status: sql`CASE WHEN ${passages.generationAttemptCount} + 1 >= ${input.maxAttempts} THEN 'failed' ELSE 'collected' END`,
       })
       .where(this._buildClaimCondition(claim))
@@ -207,9 +203,6 @@ export class DrizzlePassageRepository implements PassageRepository {
     })
   }
 
-  /**
-   * 取得した実行だけが更新できる条件（generation_started_at を取得のトークンとして使う）
-   */
   private _buildClaimCondition(claim: PassageClaim) {
     return and(
       eq(passages.id, claim.id),

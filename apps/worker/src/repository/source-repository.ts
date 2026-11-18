@@ -1,8 +1,5 @@
 import type { Source } from "@repo/domain"
 
-/**
- * 収集を終えたときに記録する値
- */
 export type MarkCollectedInput = {
   lastCollectedAt: Date
   /**
@@ -16,7 +13,6 @@ export type MarkCollectedInput = {
 }
 
 /**
- * worker の収集で必要なソースの操作。
  * apps/api 側の SourceRepository（管理画面の CRUD）とは操作のセットが違うので分けている
  */
 export interface SourceRepository {

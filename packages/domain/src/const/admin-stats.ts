@@ -3,9 +3,6 @@
  */
 export const ADMIN_STATS_PERIODS = ["7d", "30d", "all"] as const
 
-/**
- * 問題ごとの成績の並べ替えの列
- */
 export const ADMIN_PASSAGE_STATS_SORTS = [
   "average_elapsed_seconds",
   "correct_rate",

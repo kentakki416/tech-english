@@ -72,7 +72,9 @@ describe("isTerminalJobFailure", () => {
       expect(result).toBe(true)
     })
 
-    /** job が取れず attemptsMade が 0 に落ちるケースでも終局扱いにしない */
+    /**
+     * job が取れず attemptsMade が 0 に落ちるケースでも終局扱いにしない
+     */
     it("attemptsMade が 0 なら終局ではない", () => {
       const result = isTerminalJobFailure({
         attemptsMade: 0,

@@ -14,7 +14,6 @@ export const SOURCE_COLLECTION_RESULT_STATUSES = ["completed", "limit_reached", 
 export const ACTIVE_SOURCE_COLLECTION_RUN_STATUSES = ["queued", "running"] as const
 
 /**
- * 収集の実行の記録（source_collection_runs.status）の状態。
  * failed は収集が失敗した・api が Queue に積めなかった・収集中のまま時間切れで片付けられた
  */
 export const SOURCE_COLLECTION_RUN_STATUSES = [

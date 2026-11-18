@@ -3,14 +3,8 @@ import type { SourceDocument } from "@repo/domain"
 
 import type { MarkFetchedInput, SourceDocumentRepository } from "../source-document-repository"
 
-/**
- * Drizzleの型
- */
 type SourceDocumentRow = typeof sourceDocuments.$inferSelect
 
-/**
- * Drizzle 実装の SourceDocumentRepository
- */
 export class DrizzleSourceDocumentRepository implements SourceDocumentRepository {
   private _db: DrizzleClient
 
@@ -62,9 +56,6 @@ export class DrizzleSourceDocumentRepository implements SourceDocumentRepository
     return this._toDomain(row)
   }
 
-  /**
-   * Drizzleの型 → ドメインの型に変換
-   */
   private _toDomain(row: SourceDocumentRow): SourceDocument {
     return {
       id: row.id,

@@ -1,20 +1,9 @@
 import { AsyncLocalStorage } from "async_hooks"
 
-/**
- * ログコンテキスト
- * リクエストごとに保持される情報
- */
 export interface LogContext {
-  /**
-   * admin の API のリクエストで、サインイン中の admin の ID
-   */
   adminId?: number
   requestId?: string
   userId?: number | string
 }
 
-/**
- * AsyncLocalStorage インスタンス
- * リクエストごとに独立したコンテキストを保持
- */
 export const logContext = new AsyncLocalStorage<LogContext>()

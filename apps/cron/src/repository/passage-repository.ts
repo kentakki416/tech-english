@@ -42,9 +42,6 @@ export type DraftQuestion = Pick<
   | "verificationChoiceIndex"
 > & { targetGlossaryIndex: number | null }
 
-/**
- * 生成した下書き。passages の更新と questions / passage_glossary_entries の insert を 1 トランザクションで保存する
- */
 export type DraftContent = {
   /**
    * 空でなければ needs_attention = true
@@ -65,20 +62,16 @@ export type DraftContent = {
   timeLimitSeconds: number
 }
 
-/**
- * cron 側で必要な本文候補の操作（問題生成）
- */
 export interface PassageRepository {
   /**
    * collected のうち、生成を優先したもの（generation_prioritized_at の古い順）→ 古いもの（created_at → id）の順で 1 行を、generating にしながら取る（FOR UPDATE SKIP LOCKED。実行が重なっても同じ行を二重に取らない）。
-   * generation_started_at は now（取った時刻）になる。生成タスクは 1 件ずつ「取得 → 生成 → 保存」を繰り返す
-   * （まとめて取ると全件に同じ時刻が入り、実行が 30 分を超えたときに後半の行が回収・再取得されて二重に生成されるため）。
+   * generation_started_at は now（取った時刻）になる。
    * passageId があればその行だけを対象にする。取れる行が無ければ null
    */
   claimNextCollected(input: { now: Date; passageId?: number }): Promise<ClaimedPassage | null>
   countByStatus(status: PassageStatus): Promise<number>
   /**
-   * 行が無ければ null（`--passage-id` の行を取れなかったときのメッセージに使う）
+   * 行が無ければ null
    */
   findStatusById(id: number): Promise<PassageStatus | null>
   /**

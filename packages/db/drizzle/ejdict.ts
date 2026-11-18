@@ -1,11 +1,8 @@
 /**
  * EJDict-hand（https://github.com/kujirahand/EJDict）の行を dictionary_entries の行に変換する純関数。
- * DB と通信を知らない（drizzle/ejdict.test.ts が node:test で検証する）
+ * DB と通信を知らない
  */
 
-/**
- * dictionary_entries に入れる 1 行
- */
 export type EjdictEntry = {
   headword: string
   meaningJa: string

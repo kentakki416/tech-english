@@ -4,9 +4,6 @@ import type { SynthesizeSpeechCommand, SynthesizeSpeechCommandOutput } from "@aw
 
 import { isPollyVoiceId, PollyTtsClient } from "../../../src/client/polly"
 
-/**
- * SDK の AudioStream（Node の Readable に transformTo* を足した SdkStream）の偽物
- */
 const createAudioStream = (bytes: Uint8Array): NonNullable<SynthesizeSpeechCommandOutput["AudioStream"]> =>
   Object.assign(Readable.from([Buffer.from(bytes)]), {
     transformToByteArray: async () => bytes,
@@ -23,9 +20,6 @@ const MARKS_NDJSON = [
   "{\"time\":373,\"type\":\"word\",\"start\":8,\"end\":11,\"value\":\"run\"}",
 ].join("\n")
 
-/**
- * OutputFormat で音声と単語の時刻の応答を分ける send の偽物
- */
 const createFakeSend = (overrides: { audio?: Partial<SynthesizeSpeechCommandOutput>; marks?: Partial<SynthesizeSpeechCommandOutput> } = {}) =>
   vi.fn(async (command: SynthesizeSpeechCommand): Promise<SynthesizeSpeechCommandOutput> => {
     if (command.input.OutputFormat === "mp3") {
@@ -68,9 +62,6 @@ describe("PollyTtsClient", () => {
           VoiceId: "Joanna",
         },
       ]))
-      /**
-       * SampleRate は指定しない（Neural の mp3 の既定 24000 Hz）
-       */
       expect(inputs.every((input) => input.SampleRate === undefined)).toBe(true)
     })
 

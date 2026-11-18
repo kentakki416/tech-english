@@ -8,9 +8,6 @@ import {
 
 const WORD_PATTERN = /[A-Za-z0-9]+/g
 
-/**
- * Polly と同じ形の Speech Marks（start / end はパートのテキストの UTF-8 のバイト位置）を、パートの単語から作る
- */
 const buildMarks = (part: SpeechPart, msPerWord = 250): SpeechMark[] =>
   [...part.text.matchAll(WORD_PATTERN)].map((match, index) => {
     const start = Buffer.byteLength(part.text.slice(0, match.index))

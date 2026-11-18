@@ -146,7 +146,7 @@ export const resultQuestionSchema = attemptQuestionSchema.extend({
   explanation_ja: z.string(),
   /**
    * 提出後にこの設問の正解が直されたか。保存した is_correct と「selected_choice_index === いまの correct_choice_index」が
-   * 食い違うとき true（結果画面で「提出後にこの設問の正解が修正されました」と注記する）
+   * 食い違うとき true
    */
   is_answer_key_changed: z.boolean(),
   /**
@@ -187,7 +187,7 @@ export const submittedAttemptSchema = z.object({
   glossary: z.array(attemptGlossaryEntrySchema),
   is_overtime: z.boolean(),
   /**
-   * 解答中に読み上げを聞いた段落の数（結果画面の「読み上げ n 段落」）
+   * 解答中に読み上げを聞いた段落の数
    */
   listened_block_count: z.number().int(),
   passage: attemptPassageSchema,
@@ -211,7 +211,7 @@ export const submittedAttemptSchema = z.object({
   translated_question_count: z.number().int(),
   word_lookup_count: z.number().int(),
   /**
-   * 結果画面の「調べた単語」。(source, 用語集の ID か見出し語) で重複を除き、最初に調べた順
+   * (source, 用語集の ID か見出し語) で重複を除き、最初に調べた順
    */
   word_lookups: z.array(resultWordLookupSchema),
   /**

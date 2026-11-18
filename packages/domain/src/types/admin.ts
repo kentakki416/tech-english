@@ -1,11 +1,11 @@
 /**
- * 管理画面にサインインできる人（事前登録制。users とは関係を持たない）
+ * 管理画面にサインインできる人。事前に登録した人だけで、User とは関係を持たない
  */
 export type Admin = {
   id: number
   avatarUrl: string | null
   /**
-   * 小文字で前後に空白の無い email（normalizeEmail にかけた値）
+   * normalizeEmail でそろえた値
    */
   email: string
   lastSignedInAt: Date | null

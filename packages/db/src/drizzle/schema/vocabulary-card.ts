@@ -10,7 +10,6 @@ import { users } from "./user"
  * 単語帳のカード（復習の状態）。1 ユーザー・1 見出し語で 1 行。初めて答えたときに作る
  *
  * 表と裏の中身（語句・1 文・意味）は持たず、出すたびに attempt_word_lookups / passage_glossary_entries から組み立てる。
- * users の削除で cascade する。制約・index 名は `{table}_{columns}_key` / `_idx` / `_fkey` の命名にそろえている。
  */
 export const vocabularyCards = pgTable(
   "vocabulary_cards",

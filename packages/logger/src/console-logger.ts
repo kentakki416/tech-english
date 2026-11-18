@@ -3,9 +3,6 @@ import { logContext } from "./context"
 import type { ILogger, LogMetadata } from "./interface"
 import { redactMetadata } from "./redact"
 
-/**
- * Console Logger
- */
 export class ConsoleLogger implements ILogger {
   private _formatLog(level: string, message: string, metadata?: LogMetadata): string {
     const timestamp = new Date().toISOString()
@@ -15,7 +12,7 @@ export class ConsoleLogger implements ILogger {
       level,
       message,
       timestamp,
-      ...context, // requestId, userIdを含める
+      ...context,
     }
 
     const safeMetadata = redactMetadata(metadata)

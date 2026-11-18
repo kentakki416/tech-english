@@ -36,9 +36,6 @@ export const findSurfaceRanges = (text: string, surface: string): { endOffset: n
   return ranges
 }
 
-/**
- * findSurfaceRanges の最初の出現。見つからなければ null
- */
 export const findSurfaceRange = (text: string, surface: string): { endOffset: number; startOffset: number } | null =>
   findSurfaceRanges(text, surface)[0] ?? null
 
@@ -49,8 +46,7 @@ export const isSurfaceAt = (text: string, entry: Pick<GlossaryEntry, "endOffset"
   text.slice(entry.startOffset, entry.endOffset) === entry.surface
 
 /**
- * 根拠の引用がブロックの本文に含まれるか。バッククォートを除いた文字列同士で比べる
- * （admin のプレビューもバッククォートを除いた本文で引用を探してハイライトする）。
+ * 根拠の引用がブロックの本文に含まれるか。バッククォートを除いた文字列同士で比べる。
  * バッククォートを除いて空になる引用は、どこも指していないので含まれない扱いにする
  */
 export const hasQuote = (text: string, quote: string): boolean => {

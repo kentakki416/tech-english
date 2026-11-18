@@ -12,16 +12,9 @@ export type ShutdownDeps = {
 }
 
 /**
- * SIGTERM (ECS deploy) / SIGINT (Ctrl-C) を受けたら:
- *
- *   1. 全 `JobConsumer.close()` を並列で呼ぶ
- *      → 新規ジョブ取得停止 + in-flight ジョブの完了を待機
- *   2. DB を $disconnect、Redis を quit
- *   3. process.exit(0)
- *
- * ECS は `stop_timeout_seconds` 以内に終了しなければ SIGKILL を送るため、
- * 1 ジョブの最大処理時間がこの値を超えないように設計する (BullMQ の stalled 検出で
- * 別 worker に再アサインされ 2 回実行になりうるが、ジョブが冪等であれば問題ない)。
+ * ECS は SIGTERM から `stop_timeout_seconds` 以内に終了しないと SIGKILL を送るので、
+ * 1 ジョブの最大処理時間がこの値を超えないようにする。超えて止められたジョブは
+ * BullMQ の stalled 検出で別の worker がもう一度実行する（ジョブが冪等なら問題ない）。
  */
 export const setupGracefulShutdown = (deps: ShutdownDeps): void => {
   let shuttingDown = false

@@ -13,24 +13,15 @@ import type { SynthesizeAudioResult, SynthesizeInput, SynthesizeResult, TtsClien
  */
 export type PollySendApi = Pick<PollyClient, "send">
 
-/**
- * Polly の voice の ID か（SDK が持つ voice の一覧に含まれるか）。task が起動時に TTS_VOICE_ID を確かめる
- */
 export const isPollyVoiceId = (value: string): value is VoiceId => (Object.values(VoiceId) as string[]).includes(value)
 
-/**
- * レスポンスの AudioStream（SDK v3 のストリーム）をバイト列にする。無ければ throw
- */
 const readAudioStream = async (stream: SynthesizeSpeechCommandOutput["AudioStream"]): Promise<Uint8Array> => {
   if (!stream) throw new Error("Polly returned no AudioStream")
   return stream.transformToByteArray()
 }
 
 /**
- * Amazon Polly（Neural）のクライアント。env は読まず、SDK のクライアントをコンストラクタで受ける（region・リトライは task が決める）
- *
- * - 音声（mp3）と単語の時刻（Speech Marks の word）は別々のリクエストで、どちらも課金される。
- *   成功したリクエストごとに課金文字数（RequestCharacters）を recordBilledCharacters で記録する。単語の発音（synthesizeAudio）は mp3 の 1 リクエストだけ
+ * - 音声（mp3）と単語の時刻（Speech Marks の word）は別々のリクエストで、どちらも課金される
  * - SampleRate は指定しない（Neural の mp3 の既定は 24000 Hz）
  * - 一時的なエラー（throttling・5xx）は SDK の既定のリトライに任せ、ここでは再試行しない
  */
@@ -77,7 +68,7 @@ export class PollyTtsClient implements TtsClient {
   }
 
   /**
-   * 読み上げと単語の発音で共通のリクエスト。voice は task が起動時に isPollyVoiceId で確かめている。
+   * voice は task が起動時に isPollyVoiceId で確かめている。
    * 不正な値は Polly が ValidationException で返す（isFatalAudioGenerationError）
    */
   private _buildBaseInput(input: SynthesizeInput) {

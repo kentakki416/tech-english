@@ -1,8 +1,5 @@
 import type { QUESTION_TYPES } from "../const/question"
 
-/**
- * 設問の種類
- */
 export type QuestionType = (typeof QUESTION_TYPES)[number]
 
 /**
@@ -55,9 +52,6 @@ export type Question = {
 export type GlossaryEntry = {
   id: number
   blockIndex: number
-  /**
-   * blocks[blockIndex].text 上の位置。end は含まない
-   */
   endOffset: number
   /**
    * 見出し語
