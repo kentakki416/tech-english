@@ -85,7 +85,6 @@ function SpeakerIcon({ color, isPlaying, size }: { color: string, isPlaying: boo
 }
 
 /**
- * 語句のすぐ右の、単語の発音のボタン（見出し語を読む）。音声がまだできていなければ「準備中」で押せない。
  * カード（Pressable）の中の Pressable なので、押してもカードの onPress（めくる）は呼ばれない。
  * 準備中も disabled にはしない（disabled の Pressable はタッチを引き受けず、外のカードがめくれてしまうため）。onPress を外して押せなくする
  */
@@ -123,8 +122,8 @@ export function WordSoundButton({
 }
 
 /**
- * 1 文のすぐ下の、1 文の読み上げのボタン（1 文の音声があるときだけ置く）。表は中央、裏は左寄せで三角を 1 文の頭にそろえる。
- * 文字は再生中も「この文を聞く」のまま（見えている文字と読み上げの名前をそろえる）。再生中は琥珀の地・動く波・selected で示す
+ * 表は中央、裏は左寄せで三角を 1 文の頭にそろえる。
+ * 文字は再生中も「この文を聞く」のまま（見えている文字と読み上げの名前をそろえる）
  */
 export function SentenceSoundButton({ align, controls }: { align: "center" | "start", controls: PronunciationControls }) {
   const isPlaying = controls.playing === "sentence"
@@ -172,7 +171,7 @@ const styles = StyleSheet.create({
     alignSelf: "center",
   },
   /**
-   * 1 文の再生中は琥珀の地だけ（縁は単語のボタンだけ。UI 設計）
+   * 1 文の再生中は琥珀の地だけ（縁は単語のボタンだけ）
    */
   sentenceButtonPlaying: {
     backgroundColor: "rgba(243, 178, 76, 0.2)",

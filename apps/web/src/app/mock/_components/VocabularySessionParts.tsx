@@ -9,9 +9,6 @@ import { Keycap } from "./parts"
 
 export type Grade = "forgot" | "remembered"
 
-/**
- * ふりかえりの状態で使う答え（覚えた 7 / まだ 3）
- */
 export const REVIEWED_GRADES: Grade[] = ["remembered", "forgot", "remembered", "remembered", "forgot", "remembered", "remembered", "remembered", "forgot", "remembered"]
 
 const WEEKDAY_LABELS = ["日", "月", "火", "水", "木", "金", "土"]

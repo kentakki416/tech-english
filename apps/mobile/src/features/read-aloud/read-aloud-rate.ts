@@ -1,7 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage"
 
 /**
- * 読み上げの速度の設定。端末（AsyncStorage）に保存し、次の挑戦や結果画面でも使う（web は localStorage の同じキー）。
+ * キーは web（localStorage）と同じ。
  * アカウント削除の AsyncStorage.clear() で一緒に消える（個人の情報ではないので、消えても困らない）
  */
 

@@ -26,8 +26,6 @@ const UNAVAILABLE_MESSAGES: Record<Extract<ReadAloudAvailability, "failed" | "pe
 }
 
 /**
- * 本文の下端（解答画面は閉じた設問シートの上、結果画面は下端の操作の上）に浮かべる読み上げのミニプレーヤー（再生・停止・速度）。
- * 待機中は「全文を読み上げ」、再生中・一時停止中は読み上げ中の位置（段落番号の列と同じ番号）と全文 / この段落だけ。
  * 速度はメニューを開かず、押すたびに切り替わる
  */
 export function ReadAloudBar({

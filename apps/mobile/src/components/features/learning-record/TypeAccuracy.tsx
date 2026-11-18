@@ -11,9 +11,6 @@ import { THEME_COLORS } from "@/const/design-theme"
  */
 const WEAK_ACCURACY_PERCENT = 70
 
-/**
- * 設問の無い種類（null）は `—` と空の棒
- */
 export function TypeAccuracy({
   typeAccuracy,
   weakestQuestionType,

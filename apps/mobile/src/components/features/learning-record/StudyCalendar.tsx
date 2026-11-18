@@ -33,9 +33,6 @@ const LOAD_FAILED_MESSAGE = "読み込めませんでした。"
 const CELL = 11
 const GAP = 3
 
-/**
- * 月曜を 0 とした曜日
- */
 const getMondayBasedWeekday = (date: string): number => (new Date(`${date}T00:00:00Z`).getUTCDay() + 6) % 7
 
 /**

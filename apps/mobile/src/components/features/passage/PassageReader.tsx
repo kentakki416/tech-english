@@ -71,7 +71,7 @@ type PassageReaderProps = {
   ListHeaderComponent?: React.ReactElement
   peekBlock?: number | null
   /**
-   * 渡すと段落の再生ボタンと読み上げ中の単語の印を出す。読み上げ中の段落は、和訳中・全文訳でも英文で出す
+   * 渡すと段落の再生ボタンと読み上げ中の単語の印を出す
    */
   readAloud?: ReaderReadAloud | null
   /**
@@ -84,9 +84,6 @@ type PassageReaderProps = {
   scrollEnabled?: boolean
   showAllTranslations?: boolean
   translatedBlocks: Set<number>
-  /**
-   * 用語集に無い単語を引く。親がキャッシュと通信を持つ（useDictionaryLookup）
-   */
   onLookupDictionary: LookupDictionary
   /**
    * 意味が見つかったときだけ呼ぶ（解答画面が調べた単語として記録する）
@@ -234,7 +231,6 @@ function SegmentText({ blockIndex, fontSize, isHighlighted, isReading, segment, 
 const MemoizedSegmentText = memo(SegmentText)
 
 /**
- * 本文の 1 ブロック（FlatList の 1 行）。左に段落番号の列と「訳」・段落の再生ボタン、右に英文 / 和訳 / コード。
  * 行ごとの値だけを受け取り memo する（1 段落の切り替えや毎秒のタイマーで全行を描き直さないため）。
  * 読み上げもブロックごとの値だけを受け取るので、単語が変わっても描き直すのは読み上げ中の行だけになる
  */
@@ -354,7 +350,6 @@ const MemoizedBlockRow = memo(BlockRow)
 const extractBlockKey = (_block: AttemptBlock, index: number): string => String(index)
 
 /**
- * 本文を表示する。段落番号の列・段落ごとの「訳」・長押しで和訳の一時表示・単語の意味・根拠のハイライトを持つ。
  * セグメントは api が分割したもの（blocks[].segments）をそのまま描画する（分割は api の 1 か所だけ）
  *
  * - ブロックごとに FlatList の 1 行にして、画面外のブロックは描画しない（600 語で入れ子の <Text> が 1,500 程度になるため）

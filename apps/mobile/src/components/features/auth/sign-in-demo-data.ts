@@ -3,8 +3,6 @@ import type { AttemptBlock, AttemptGlossaryEntry } from "@repo/api-schema"
 import type { DictionaryLookupResult } from "@/features/dictionary/use-dictionary-lookup"
 
 /**
- * ログイン画面の体験デモで使う本文・用語集・英和辞書
- *
  * API を呼ばずに描画するための固定値で（未ログインでは API を呼べないため）、解答画面と同じ形（API のレスポンスの型）にしてある。
  * セグメントは api の分割（apps/api/src/lib/segment-passage.ts）が返すものと同じ（web の `sign-in-demo-data.ts` の段落と同じ値）。
  * 本文の英文はデモ用に書いたもので、実在の文書の引用ではない。

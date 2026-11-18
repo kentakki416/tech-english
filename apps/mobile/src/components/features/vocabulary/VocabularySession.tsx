@@ -58,9 +58,6 @@ export function SessionTopBar({
   )
 }
 
-/**
- * 今日の分が無いとき（カードが 0 枚で開いた）
- */
 function SessionDone({ nextDueDate }: { nextDueDate: string | null }) {
   const router = useRouter()
   return (

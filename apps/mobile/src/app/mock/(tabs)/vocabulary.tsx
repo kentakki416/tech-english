@@ -21,9 +21,6 @@ const formatDayLabel = (date: string): string => {
   return `${value.getUTCMonth() + 1}月${value.getUTCDate()}日（${WEEKDAY_LABELS[value.getUTCDay()]}）`
 }
 
-/**
- * 束になったカードの見本（一番上は今日の 1 枚目の表）
- */
 function DeckPreview({ isDimmed }: { isDimmed: boolean }) {
   const card = MOCK_VOCABULARY_CARDS[0]
   return (

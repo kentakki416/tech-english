@@ -9,9 +9,6 @@ import { formatDayLabel, formatSeconds, formatStudyDaySummary } from "@/libs/for
 
 type CalendarDay = GetUserCalendarResponse["days"][number]
 
-/**
- * 月表示で取得した月の日（取得に失敗したら "error"）
- */
 type FetchedMonth = CalendarDay[] | "error"
 
 /**

@@ -46,9 +46,6 @@ import { SubmitConfirmModal } from "./SubmitConfirmModal"
 
 type RestoredProgress = Omit<AttemptProgress, "version">
 
-/**
- * 期限（開始から 24 時間）を確かめる間隔
- */
 const EXPIRY_CHECK_INTERVAL_MS = 60 * 1000
 
 /**

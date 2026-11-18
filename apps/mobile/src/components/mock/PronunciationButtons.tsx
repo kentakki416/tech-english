@@ -91,7 +91,7 @@ function SpeakerIcon({ color, isPlaying, size }: { color: string, isPlaying: boo
 }
 
 /**
- * 語句のすぐ右の、単語の発音のボタン（見出し語を読む）。押せる範囲は hitSlop で 44pt にする。
+ * 押せる範囲は hitSlop で 44pt にする。
  * 準備中も disabled にはしない（disabled の Pressable はタッチを引き受けず、外のカードがめくれるため）。onPress を外して押せなくする
  */
 export function WordSoundButton({ lemma, pronunciation, size }: { lemma: string, pronunciation: MockPronunciation, size: "lg" | "sm" }) {
@@ -118,7 +118,7 @@ export function WordSoundButton({ lemma, pronunciation, size }: { lemma: string,
 }
 
 /**
- * 1 文のすぐ下の、1 文の読み上げのボタン。1 文の音声が無ければ何も出さない。文字は再生中も「この文を聞く」のまま
+ * 文字は再生中も「この文を聞く」のまま
  */
 export function SentenceSoundButton({ align, pronunciation }: { align: "center" | "start", pronunciation: MockPronunciation }) {
   if (!pronunciation.hasSentence) return null
@@ -162,7 +162,7 @@ const styles = StyleSheet.create({
     alignSelf: "center",
   },
   /**
-   * 1 文の再生中は琥珀の地だけ（縁は単語のボタンだけ。UI 設計）
+   * 1 文の再生中は琥珀の地だけ（縁は単語のボタンだけ）
    */
   sentenceButtonPlaying: {
     backgroundColor: "rgba(243, 178, 76, 0.2)",

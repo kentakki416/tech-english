@@ -64,7 +64,6 @@ export function PaperSheet({ children, style, tone = "front" }: { children: Reac
 }
 
 /**
- * 語句と、見出し語が違うときの見出し語・品詞。発音の操作を渡されたら、語句のすぐ右に単語の発音のボタンを置く。
  * 表は左にボタンと同じ幅の空きを置いて語句を中央に保つ（長い語句はボタンの左で折り返す）
  */
 function WordHeading({ card, pronunciation, size }: { card: VocabularyCard, pronunciation?: PronunciationControls, size: "lg" | "sm" }) {
@@ -140,7 +139,7 @@ export function PaperCardBack({ card, pronunciation }: { card: VocabularyCard, p
 }
 
 /**
- * 重ねたカードの束（後ろの 2 枚）。残りの枚数に合わせて出す枚数を減らす（残り 1 枚なら 1 枚、0 枚なら出さない）
+ * 残りの枚数に合わせて出す枚数を減らす（残り 1 枚なら 1 枚、0 枚なら出さない）
  */
 export function CardStackBehind({ count }: { count: number }) {
   const layers = STACK_LAYERS.slice(STACK_LAYERS.length - Math.min(Math.max(count, 0), STACK_LAYERS.length))

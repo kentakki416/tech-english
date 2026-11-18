@@ -143,9 +143,6 @@ function AttributionSection({ attribution }: { attribution: PassageAttributionRe
   )
 }
 
-/**
- * 不正解の設問は最初から開き、正解の設問は閉じておく（行を押すと開閉）
- */
 export function ResultHeader({ highlightQuestionId, result, onShowEvidence }: ResultHeaderProps) {
   const [openQuestionIds, setOpenQuestionIds] = useState<Set<number>>(
     () => new Set(result.questions.filter(question => !question.is_correct).map(question => question.id)),

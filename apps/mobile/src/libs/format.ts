@@ -1,5 +1,5 @@
 /**
- * 画面の数値・時間の書式（web の `src/libs/format.ts` と同じ）
+ * web の `src/libs/format.ts` と同じ
  */
 
 const WEEKDAY_LABELS = ["日", "月", "火", "水", "木", "金", "土"]

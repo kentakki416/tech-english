@@ -169,7 +169,7 @@ export function PaperCardBack({ card, pronunciation }: { card: MockVocabularyCar
 }
 
 /**
- * 重ねたカードの束（後ろの 2 枚）。残りの枚数に合わせて出す枚数を減らす（残り 1 枚なら 1 枚、0 枚なら出さない）
+ * 残りの枚数に合わせて出す枚数を減らす（残り 1 枚なら 1 枚、0 枚なら出さない）
  */
 export function CardStackBehind({ count }: { count: number }) {
   const layers = STACK_LAYERS.slice(STACK_LAYERS.length - Math.min(Math.max(count, 0), STACK_LAYERS.length))

@@ -475,7 +475,6 @@ const createReadAloudController = (player: AudioPlayer, events: ControllerEvents
 }
 
 /**
- * 読み上げ（解答画面と結果画面で共有する）。音声の取得・再生・単語の追跡・聞いた段落の通知をまとめる。
  * 返す値・操作は web の同名の hook と同じ（速度は setRate の代わりに cycleRate）。返す関数はすべて参照が変わらない
  *
  * - 再生は expo-audio。web 表示では HTML の audio で動く

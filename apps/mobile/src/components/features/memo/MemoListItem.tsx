@@ -44,7 +44,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
     /**
-     * shadow* は iOS、elevation は Android にだけ効く
+     * shadowOffset・shadowOpacity・shadowRadius は iOS にだけ効く。Android の影は elevation で出す（shadowColor は Android 9 以上ではその影の色にも効く）
      */
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },

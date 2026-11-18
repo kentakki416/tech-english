@@ -24,7 +24,7 @@ type HistorySection = { data: LearningRecordAttemptResponse[], date: string }
 const HEADER_SIDE_WIDTH = 100
 
 /**
- * 学習した日（study_date）ごとにまとめる。並びは受け取った順（提出日時の新しい順）のまま
+ * 並びは受け取った順（提出日時の新しい順）のまま
  */
 const groupAttemptsByStudyDate = (attempts: LearningRecordAttemptResponse[]): HistorySection[] => {
   const groups = new Map<string, LearningRecordAttemptResponse[]>()

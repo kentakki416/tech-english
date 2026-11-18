@@ -641,7 +641,7 @@ export const formatSeconds = (totalSeconds: number): string => {
 }
 
 /**
- * 単語帳のカード（GET /api/vocabulary/session の 1 枚に相当）
+ * GET /api/vocabulary/session の 1 枚に相当
  */
 export type MockVocabularyCard = {
   lemma: string
@@ -816,7 +816,7 @@ export const MOCK_VOCABULARY_CARDS: MockVocabularyCard[] = [
 ]
 
 /**
- * 単語帳のトップの数（GET /api/vocabulary/summary に相当）
+ * GET /api/vocabulary/summary に相当
  */
 export const MOCK_VOCABULARY_SUMMARY = {
   dueCount: 4,

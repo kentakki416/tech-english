@@ -120,8 +120,8 @@ const playChoicePop = (context: AudioContext) => {
 }
 
 /**
- * 効果音（単語帳のめくる音・解答画面のポキン）。音声ファイルを持たず、Web Audio で作る。オン / オフは 1 つの設定を localStorage に覚え、
- * 開いている画面と別のタブにすぐ効く。鳴らせなくても（AudioContext が無い・失敗した）呼び出し元の操作は止めない。
+ * オン / オフは 1 つの設定を localStorage に覚え、開いている画面と別のタブにすぐ効く。
+ * 鳴らせなくても（AudioContext が無い・失敗した）呼び出し元の操作は止めない。
  * 返す関数は、オン / オフが変わるまで同じ参照
  */
 export function useSoundEffects() {
