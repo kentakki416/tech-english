@@ -26,7 +26,7 @@ type TooltipVariant = "default" | "dark" | "plain" | "no-arrow"
 
 type TooltipProps = {
   /**
-   * トリガー。ref と hover / focus の props を付けるので、DOM 要素（button / a / span など）を渡す。
+   * ref と hover / focus の props を付けるので、DOM 要素（button / a / span など）を渡す。
    * フォーカスできない要素なら tabIndex={0} を付ける（キーボードでも出せるように）
    */
   children: React.ReactElement<Record<string, unknown>>
@@ -46,7 +46,7 @@ const BUBBLE_VARIANT_CLASSES: Record<TooltipVariant, string> = {
 }
 
 /**
- * 矢印の背景と枠の色。矢印は default と dark だけに付く。
+ * 矢印は default と dark だけに付く。
  * ダークの default の矢印（#1E2634）は吹き出し（gray-900）より明るいが、デモに合わせている
  */
 const ARROW_COLOR_CLASSES: Record<"dark" | "default", string> = {

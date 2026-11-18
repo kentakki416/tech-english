@@ -10,6 +10,6 @@ import { env } from "../env"
 export const APP_ORIGIN = new URL(env.NEXT_PUBLIC_APP_URL).origin
 
 /**
- * Google の OAuth の redirect_uri。Google Cloud の「承認済みのリダイレクト URI」に登録する値と一致させる
+ * Google Cloud の「承認済みのリダイレクト URI」に登録する値と一致させる
  */
 export const GOOGLE_REDIRECT_URI = `${APP_ORIGIN}/api/auth/callback/google`

@@ -1,5 +1,5 @@
 /**
- * 認証の cookie の名前と属性。proxy からも import するので、next/headers を import しない
+ * proxy からも import するので、next/headers を import しない
  *
  * web（app_*）と同じホストで動くと、ポートが違っても cookie を共有するため名前を分ける
  */

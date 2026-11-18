@@ -35,16 +35,16 @@ type DataTableProps<T> = {
   columns: Column<T>[]
   data: T[]
   /**
-   * フィルタ定義。指定するとフィルタアイコンを表示
+   * 指定するとフィルタアイコンを表示
    */
   filters?: FilterConfig<T>[]
   getRowKey: (row: T) => string | number
   /**
-   * ページネーション設定。指定するとページネーションを表示
+   * 指定するとページネーションを表示
    */
   pagination?: PaginationConfig
   /**
-   * 検索設定。指定すると検索バーを表示
+   * 指定すると検索バーを表示
    */
   search?: SearchConfig<T>
   /**
