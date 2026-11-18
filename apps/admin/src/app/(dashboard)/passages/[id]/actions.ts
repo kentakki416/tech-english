@@ -212,9 +212,6 @@ const convertAudioApiErrorToFailure = (error: unknown): PassageActionFailure => 
   return { details: undefined, error: message, ok: false, status: error.status }
 }
 
-/**
- * 失敗した読み上げの音声を再試行する（pending に戻し、次回の生成タスクで作り直す）
- */
 export const retryPassageAudioAction = async (id: number): Promise<PassageActionResult> => {
   const passageId = parsePassageId(id)
   if (passageId === null) return INVALID_ID_FAILURE
@@ -229,9 +226,6 @@ export const retryPassageAudioAction = async (id: number): Promise<PassageAction
   return { ok: true }
 }
 
-/**
- * 作成済みの読み上げの音声の作り直しを依頼する（次回の生成タスクが Polly で作り直す。作り直すまでは前の音声のまま）
- */
 export const regeneratePassageAudioAction = async (id: number): Promise<PassageActionResult> => {
   const passageId = parsePassageId(id)
   if (passageId === null) return INVALID_ID_FAILURE

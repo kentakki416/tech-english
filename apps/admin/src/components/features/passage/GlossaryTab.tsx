@@ -141,7 +141,7 @@ function GlossaryEntryModal({
 }
 
 /**
- * 用語集タブ。DataTable の行はフォームの語句。保存・公開の 400 の details（["glossary", i, "surface"]、["glossary", i, "meaning_ja"] など）は該当の語句の行に出す。
+ * DataTable の行はフォームの語句。保存・公開の 400 の details（["glossary", i, "surface"]、["glossary", i, "meaning_ja"] など）は該当の語句の行に出す。
  * 下書き以外では親の fieldset が操作のボタンを無効にする
  */
 export function GlossaryTab({

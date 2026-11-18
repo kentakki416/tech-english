@@ -3,7 +3,7 @@ import type { GetSourceResponse, SourceSuggestionErrorCode } from "@repo/api-sch
 import type { BadgeColor } from "@/components/ui/badge/Badge"
 
 /**
- * ソースの表示ラベル。Client Component からも使うので `server-only` を付けない。
+ * Client Component からも使うので `server-only` を付けない。
  * 値は `@repo/api-schema` の型で検査する（Zod のスキーマは bundle に入れないため import しない）
  */
 

@@ -23,7 +23,7 @@ type Props = {
 }
 
 /**
- * URL の id でソースを取る。正の整数でない id（`abc`・`0`・`1e3` など）と、API が 404 を返す id は notFound
+ * 正の整数でない id（`abc`・`0`・`1e3` など）と、API が 404 を返す id は notFound
  */
 const loadSource = async (id: string) => {
   if (!/^\d+$/.test(id)) notFound()

@@ -3,7 +3,7 @@ import type { AdminPassageStatus, GetAdminPassageResponse } from "@repo/api-sche
 import type { BadgeColor } from "@/components/ui/badge/Badge"
 
 /**
- * 問題の表示ラベル。Client Component からも使うので `server-only` を付けない。
+ * Client Component からも使うので `server-only` を付けない。
  * 値の集合は `@repo/api-schema` の型で網羅を検査する（Zod のスキーマは bundle に入れないため import しない）
  */
 

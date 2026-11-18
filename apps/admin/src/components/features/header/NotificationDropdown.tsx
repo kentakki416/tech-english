@@ -9,7 +9,7 @@ import { formatRelativeTime } from "@/libs/date"
 
 type NotificationDropdownProps = {
   /**
-   * すべて既読にする処理。省略すると「すべて既読にする」を出さない
+   * 省略すると「すべて既読にする」を出さない
    */
   markAllAsReadAction?: () => Promise<void>
   notifications: AdminNotification[]

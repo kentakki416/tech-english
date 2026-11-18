@@ -20,7 +20,7 @@ import { SOURCE_CREATE_PATHS, SOURCE_LIST_PATHS } from "@/features/source/source
 import { ApiClientError } from "@/libs/api-client"
 
 /**
- * useActionState に返すフォームの状態。errors はリクエストのフィールド名（snake_case）ごと
+ * errors はリクエストのフィールド名（snake_case）ごと
  */
 export type SourceFormState = {
   errors?: Record<string, string[] | undefined>

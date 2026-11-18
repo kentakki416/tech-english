@@ -54,7 +54,7 @@ function SideCard({ children, title }: { children: ReactNode, title: string }) {
 }
 
 /**
- * ユーザーの詳細（モック）。学習のまとめ・カレンダー・学習履歴・単語帳はマイページと同じ数字
+ * 学習のまとめ・カレンダー・学習履歴・単語帳はマイページと同じ数字
  */
 export default async function MockUserDetailPage({ params, searchParams }: { params: Promise<{ id: string }>, searchParams: Promise<{ state?: string }> }) {
   const { id } = await params

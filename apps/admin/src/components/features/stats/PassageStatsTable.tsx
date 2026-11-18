@@ -20,7 +20,7 @@ import { convertRateToPercent, EMPTY_VALUE, formatAssistRates, formatCount, form
 import { PassageStatsStatusBadge } from "./PassageStatsStatusBadge"
 
 /**
- * 正答率（表示の整数の %）がこれより低い問題は橙で示す（難しすぎる問題を見つけやすくする。UI 設計）
+ * 正答率（表示の整数の %）がこれより低い問題は橙で示す（難しすぎる問題を見つけやすくする）
  */
 const LOW_CORRECT_RATE_PERCENT = 50
 

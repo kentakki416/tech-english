@@ -110,7 +110,8 @@ export const passageApi = {
   },
 
   /**
-   * 作成済みの読み上げの音声の作り直しを依頼する（ready のときだけ。それ以外の状態・音声の行が無ければ 409）
+   * 作成済みの読み上げの音声の作り直しを依頼する（ready のときだけ。それ以外の状態・音声の行が無ければ 409）。
+   * 作り直すまでは前の音声のまま
    */
   regenerateAudio: async (id: number): Promise<RegenerateAdminPassageAudioResponse> => {
     const raw = await apiClient.post<unknown>(`${BASE_PATH}/${id}/audio/regenerate`, {})

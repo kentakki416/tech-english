@@ -230,6 +230,9 @@ export function PassageReview({ detail }: { detail: GetAdminPassageResponse }) {
     return { detail: result.detail, ok: true }
   }
 
+  /**
+   * 成否にかかわらずダイアログを閉じ、成功したら却下の理由を消して詳細を取り直す
+   */
   const changeStatus = async (execute: () => Promise<{ ok: true } | PassageActionFailure>): Promise<ReviewState> => {
     const result = await execute()
     setIsRejectOpen(false)

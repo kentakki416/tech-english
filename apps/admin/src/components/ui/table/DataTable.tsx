@@ -11,7 +11,7 @@ export type Column<T> = {
   header: string
   key?: keyof T
   /**
-   * カスタム描画関数。key より優先される
+   * key より優先される
    */
   render?: (row: T) => ReactNode
 }
