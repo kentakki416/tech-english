@@ -30,7 +30,7 @@ const seedDevUsers = async () => {
     if (!user) throw new Error(`Failed to upsert dev user: ${devUser.email}`)
 
     /**
-     * provider を "dev" にして、Google のアカウントと衝突させずに dev ユーザーを識別する
+     * provider を "dev" にして、Google・GitHub のアカウントと衝突させずに dev ユーザーを識別する
      */
     await db
       .insert(authAccounts)

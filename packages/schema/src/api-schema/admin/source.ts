@@ -261,7 +261,7 @@ export const sourceCollectionRunSchema = z.object({
 export type SourceCollectionRunResponse = z.infer<typeof sourceCollectionRunSchema>
 
 /**
- * 収集中（queued / running）の状態
+ * 収集中（queued / running）の状態。admin は @repo/domain を import できないので、ACTIVE_SOURCE_COLLECTION_RUN_STATUSES をここからも出す
  */
 export const activeSourceCollectionRunStatusSchema = z.enum(ACTIVE_SOURCE_COLLECTION_RUN_STATUSES)
 

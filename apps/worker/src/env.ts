@@ -44,7 +44,7 @@ const workerEnvSchema = z
       .default("development"),
     REDIS_URL: z.string().optional(),
     /**
-     * queue ごとの同時実行ジョブ数（worker 全体の上限ではない）
+     * process-memo・track-event の queue ごとの同時実行ジョブ数（プロセス全体の上限ではない。collect-source は 1 固定）
      */
     WORKER_CONCURRENCY: z.coerce.number().int().positive().default(10),
   })
