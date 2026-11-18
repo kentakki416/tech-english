@@ -8,11 +8,8 @@ import { CreateMemoInput, MemoRepository, UpdateMemoInput } from "../repository"
 type MemoRepo = { memoRepository: MemoRepository }
 
 /**
- * **操作が成功したときだけ記録する**（失敗を記録したい場合は別イベントにする。
- * 成功イベントに成否フラグを混ぜると集計時に必ず事故る）。
- *
- * `userId` が undefined なのは `/api/memo` が PUBLIC_PATHS に含まれ
- * 未ログインでも呼べるため
+ * 操作が成功したときだけ記録する。失敗を記録したいときは別のイベントにする
+ * （成功イベントに成否フラグを混ぜると、集計で成功と失敗を取り違える）
  */
 type EventDeps = { eventTracker: EventTracker; userId: number | undefined }
 

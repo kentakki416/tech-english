@@ -2,9 +2,6 @@ import { IoRedisUrlImportPageCacheRepository } from "../../src/repository/redis"
 import { cleanupTestRedis, disconnectTestDb, disconnectTestRedis, testRedis } from "../controller/setup"
 import { buildChunk, buildFetchedPage } from "../fixture/url-import"
 
-/**
- * Redis 実装の UrlImportPageCacheRepository を実 Redis（テスト用 DB 1）で確かめる。キー名・TTL・値の変換は mock では検出できないため
- */
 const urlImportPageCacheRepository = new IoRedisUrlImportPageCacheRepository(testRedis)
 
 const KEY = {

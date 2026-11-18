@@ -26,9 +26,6 @@ import {
 } from "../setup"
 import { countUserOwnedRows, seedUserOwnedData, USER_OWNED_TABLES } from "../user-owned-data"
 
-/**
- * 外部 SaaS（GitHub）だけをモックする。DB / Redis は実物を使う
- */
 const mockGetUserInfo = vi.fn<(_0: GetGitHubUserInfoInput) => Promise<GitHubUserInfo | null>>()
 const mockGitHubOAuthClient: IGitHubOAuthClient = {
   getUserInfo: mockGetUserInfo,

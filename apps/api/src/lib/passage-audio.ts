@@ -34,8 +34,7 @@ export const buildAudioUrl = (baseUrl: string, key: string): string =>
   `${baseUrl.replace(/\/+$/, "")}/${key.replace(/^\/+/, "")}`
 
 /**
- * 音声の URL の base。AUDIO_PUBLIC_URL_BASE が無ければ、開発ではローカルの /media（api の mediaRouter）にし、
- * production ではローカルにフォールバックせず null にする（音声 API は pending を返す。infra より先に api を出しても起動を止めない）
+ * production の api は /media を配信しないので、AUDIO_PUBLIC_URL_BASE が無ければローカルにフォールバックせず null にする
  */
 export const resolveAudioPublicUrlBase = (input: {
   audioPublicUrlBase: string | undefined

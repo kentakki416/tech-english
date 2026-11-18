@@ -32,7 +32,7 @@ const issueAdminTokens = async (
 }
 
 /**
- * Google で確認済みの email が admins に登録されていなければ 403。admins の行はここでは作らない（事前登録制。admin:create コマンドで作る）。
+ * email が Google で未確認か、admins に登録されていなければ 403。admins の行はここでは作らない（事前登録制。admin:create コマンドで作る）。
  * email は PII なのでログに出さず、googleId だけを出す
  */
 export const authenticateAdminWithGoogle = async (
